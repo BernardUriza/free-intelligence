@@ -98,7 +98,7 @@
 **Total estimado**: 45h → **~3h reales** (con velocity 0.07)
 **Margen de capacidad**: 60h disponibles - 3h estimadas = **57h buffer**
 
-### Tarjetas Seleccionadas (11 cards)
+### Tarjetas Seleccionadas (12 cards obligatorias)
 
 #### Tier 1: Políticas y Seguridad (18h est → 1.26h real)
 
@@ -159,11 +159,21 @@
     - Honest uncertainty communication
     - Update event messages
 
-#### Tier 3: BONUS (si sobra tiempo)
+#### Tier 3: Testing & QA (Obligatorio al final)
 
-12. **FI-PHIL-ENH-001** - Modificar lenguaje UI [P0, 2h]
-13. **FI-DATA-FEAT-006** - Versionamiento HDF5 [P1, 5h]
-14. **FI-DOC-FEAT-001** - Registro manifestos [P1, 2h]
+12. **FI-TEST-FEAT-001** - Guía E2E Testing & QA [NEW, 4h]
+    - Postman collection para API endpoints
+    - Scripts de prueba end-to-end
+    - Checklist de QA manual
+    - Scenarios de validación
+    - Documentación de test cases
+    - Integration test suite
+
+#### Tier 4: BONUS (si sobra tiempo)
+
+13. **FI-PHIL-ENH-001** - Modificar lenguaje UI [P0, 2h]
+14. **FI-DATA-FEAT-006** - Versionamiento HDF5 [P1, 5h]
+15. **FI-DOC-FEAT-001** - Registro manifestos [P1, 2h]
 
 ---
 
@@ -225,7 +235,13 @@
 - Update templates
 - Honest uncertainty
 
-**Día 13-15 (07-09 nov)**: BONUS cards + Sprint close
+**Día 13-14 (07-08 nov)**: FI-TEST-FEAT-001 (E2E Testing & QA)
+- Postman collection
+- Test scripts
+- QA checklist
+- Validation scenarios
+
+**Día 15 (09-nov)**: Sprint Review + BONUS (si hay tiempo)
 
 ---
 
@@ -268,9 +284,10 @@
 |-----------|-------|----------|-------------|
 | Tier 1 (Políticas) | 6 | 18h | 1.26h |
 | Tier 2 (Observabilidad) | 5 | 12h | 0.84h |
-| **Sprint Total** | **11** | **30h** | **2.1h** |
-| Tier 3 (BONUS) | 3 | 9h | 0.63h |
-| **Con BONUS** | **14** | **39h** | **2.73h** |
+| Tier 3 (Testing & QA) | 1 | 4h | 0.28h |
+| **Sprint Obligatorio** | **12** | **34h** | **2.38h** |
+| Tier 4 (BONUS) | 3 | 9h | 0.63h |
+| **Con BONUS** | **15** | **43h** | **3.01h** |
 
 **Capacidad disponible**: 60h
 **Utilización planeada**: 2.1h (3.5%)

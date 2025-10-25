@@ -309,9 +309,16 @@ from corpus_ops import append_interaction, append_embedding, get_corpus_stats, r
 10. **FI-DATA-FEAT-003** - Mapa boot cognitivo (3h)
 11. **FI-UI-FIX-001** - Eliminar predicciones certeza (2h)
 
+**Tier 3: Testing & QA (Obligatorio, 1 card, 4h est)**
+12. **FI-TEST-FEAT-001** - Guía E2E Testing & QA (4h)
+    - Postman collection para API testing
+    - Scripts E2E automatizados
+    - Checklist QA manual
+    - Validation report template
+
 **BONUS** (si sobra tiempo): FI-PHIL-ENH-001, FI-DATA-FEAT-006, FI-DOC-FEAT-001
 
-**Total estimado**: 30h → ~2.1h reales (con velocity 0.07)
+**Total estimado**: 34h → ~2.4h reales (con velocity 0.07)
 **Ver plan completo**: `SPRINT_2_PLAN.md`
 
 ---
