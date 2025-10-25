@@ -127,7 +127,7 @@ def add_corpus_identity(
             metadata.attrs["owner_hash"] = owner_hash
 
         logger.info(
-            "corpus_identity_added",
+            "CORPUS_IDENTITY_ADDED",
             corpus_id=corpus_id,
             owner_hash=owner_hash[:16] + "...",  # Log only prefix for security
             path=str(path)
@@ -136,7 +136,7 @@ def add_corpus_identity(
         return corpus_id, owner_hash
 
     except Exception as e:
-        logger.error("corpus_identity_add_failed", error=str(e), path=str(path))
+        logger.error("CORPUS_IDENTITY_ADD_FAILED", error=str(e), path=str(path))
         raise
 
 
@@ -174,7 +174,7 @@ def verify_corpus_ownership(corpus_path: str, owner_identifier: str, salt: Optio
 
             if "owner_hash" not in metadata.attrs:
                 logger.warning(
-                    "corpus_verification_failed",
+                    "CORPUS_VERIFICATION_FAILED",
                     reason="No owner_hash attribute",
                     path=corpus_path
                 )
@@ -189,14 +189,14 @@ def verify_corpus_ownership(corpus_path: str, owner_identifier: str, salt: Optio
         is_match = stored_hash == computed_hash
 
         if is_match:
-            logger.info("corpus_ownership_verified", path=corpus_path)
+            logger.info("CORPUS_OWNERSHIP_VERIFIED", path=corpus_path)
         else:
-            logger.warning("corpus_ownership_mismatch", path=corpus_path)
+            logger.warning("CORPUS_OWNERSHIP_MISMATCH", path=corpus_path)
 
         return is_match
 
     except Exception as e:
-        logger.error("corpus_verification_error", error=str(e), path=corpus_path)
+        logger.error("CORPUS_VERIFICATION_ERROR", error=str(e), path=corpus_path)
         return False
 
 
@@ -225,7 +225,7 @@ def get_corpus_identity(corpus_path: str) -> Optional[dict]:
             metadata = f["metadata"]
 
             if "corpus_id" not in metadata.attrs or "owner_hash" not in metadata.attrs:
-                logger.info("corpus_identity_not_set", path=corpus_path)
+                logger.info("CORPUS_IDENTITY_NOT_SET", path=corpus_path)
                 return None
 
             identity = {
@@ -236,12 +236,12 @@ def get_corpus_identity(corpus_path: str) -> Optional[dict]:
                 "schema_version": metadata.attrs.get("schema_version")
             }
 
-            logger.info("corpus_identity_retrieved", corpus_id=identity["corpus_id"], path=corpus_path)
+            logger.info("CORPUS_IDENTITY_RETRIEVED", corpus_id=identity["corpus_id"], path=corpus_path)
 
             return identity
 
     except Exception as e:
-        logger.error("corpus_identity_retrieval_failed", error=str(e), path=corpus_path)
+        logger.error("CORPUS_IDENTITY_RETRIEVAL_FAILED", error=str(e), path=corpus_path)
         return None
 
 

@@ -129,7 +129,7 @@ def init_corpus(
 
     # Check if file exists
     if path.exists() and not force:
-        logger.error("corpus_init_failed", reason="File already exists", path=str(path))
+        logger.error("CORPUS_INIT_FAILED", reason="File already exists", path=str(path))
         raise FileExistsError(f"Corpus already exists: {corpus_path}. Use force=True to overwrite.")
 
     # Create parent directory
@@ -196,7 +196,7 @@ def init_corpus(
             owner_hash = f["metadata"].attrs["owner_hash"]
 
         logger.info(
-            "corpus_initialized",
+            "CORPUS_INITIALIZED",
             path=str(path),
             groups=CorpusSchema.REQUIRED_GROUPS,
             corpus_id=corpus_id,
@@ -205,7 +205,7 @@ def init_corpus(
         return True
 
     except Exception as e:
-        logger.error("corpus_init_failed", error=str(e), path=str(path))
+        logger.error("CORPUS_INIT_FAILED", error=str(e), path=str(path))
         return False
 
 
@@ -275,9 +275,9 @@ def validate_corpus(corpus_path: Optional[str] = None) -> Dict[str, any]:
     }
 
     if result["valid"]:
-        logger.info("corpus_validation_passed", path=corpus_path)
+        logger.info("CORPUS_VALIDATION_PASSED", path=corpus_path)
     else:
-        logger.warning("corpus_validation_failed", path=corpus_path, errors=errors)
+        logger.warning("CORPUS_VALIDATION_FAILED", path=corpus_path, errors=errors)
 
     return result
 

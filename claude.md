@@ -95,14 +95,15 @@ Free Intelligence no es una herramienta. Es una **posición ontológica computac
 | **Esquema HDF5** | ✅ Operativo | 10/10 | `backend/corpus_schema.py:1` |
 | **Corpus Operations** | ✅ Operativo | 8/8 | `backend/corpus_ops.py:1` |
 | **Corpus Identity** | ✅ Operativo | 13/13 | `backend/corpus_identity.py:1` |
+| **Event Validator** | ✅ Operativo | 16/16 | `backend/event_validator.py:1` |
 | **Git Workflow** | ✅ Trunk-based | N/A | `scripts/sprint-close.sh:1` |
-| **Bitácora** | ✅ 13 entradas | N/A | `CLAUDE.md:350` |
+| **Bitácora** | ✅ 14 entradas | N/A | `CLAUDE.md:350` |
 
-**Total**: 44 tests passing (0.357s) • 7 interacciones demo en corpus • Compression gzip funcionando • Corpus con identidad ✅
+**Total**: 60 tests passing (0.258s) • 22 eventos canónicos • Compression gzip funcionando • Corpus con identidad ✅
 
 ### Pendiente (Sprint 1)
 
-- ⏸️ **FI-API-FEAT-001**: Nomenclatura eventos VERB_PAST_PARTICIPLE (2h)
+- ✅ **Sprint 1 Completo!** (5/5 cards, 100%)
 
 ### Futuro (Post-Sprint 1)
 
@@ -288,7 +289,7 @@ from corpus_ops import append_interaction, append_embedding, get_corpus_stats, r
 
 **Periodo**: 24-oct → 07-nov (15 días)
 **Capacidad**: 16-20h efectivas
-**Progreso**: 4/5 cards completadas (80%)
+**Progreso**: 5/5 cards completadas (100%) ✅
 
 ### Completadas ✅
 
@@ -296,10 +297,7 @@ from corpus_ops import append_interaction, append_embedding, get_corpus_stats, r
 2. **FI-CORE-FEAT-002** - Logger Estructurado (5 min, 6 tests)
 3. **FI-DATA-FEAT-001** - Esquema HDF5 (3 min, 10 tests)
 4. **FI-DATA-FEAT-004** - corpus_id y owner_hash (15 min, 13 tests)
-
-### Pendientes 🔄
-
-5. **FI-API-FEAT-001** - Nomenclatura eventos VERB_PAST_PARTICIPLE (2h)
+5. **FI-API-FEAT-001** - Nomenclatura eventos UPPER_SNAKE_CASE (25 min, 16 tests)
 
 **Cadena crítica**: CONFIG → LOGGER/HDF5 → corpus_id/nomenclatura
 **Dependencias**: Todas desbloqueadas ✅
@@ -485,6 +483,78 @@ Impacto:
 - Seguridad: solo prefix de hash en logs
 
 Próximo paso: FI-API-FEAT-001 (Nomenclatura eventos)
+
+---
+
+## [2025-10-25 14:45] FI-API-FEAT-001 — NOMENCLATURA EVENTOS: UPPER_SNAKE_CASE
+Estado: Completed | Acción: Estandarización de nomenclatura de eventos del sistema
+Fechas: Ejecutado 25-oct-2025 14:20-14:45 (25 min)
+Acción: Convención [AREA]_ENTITY_ACTION_PAST + validador + refactorización
+Síntesis técnica:
+- Documentación completa en `docs/events.md` (280 líneas)
+  - Formato: [AREA_]ENTITY_ACTION_PAST_PARTICIPLE
+  - Ejemplos: CORPUS_INITIALIZED, INTERACTION_APPENDED
+  - Lista canónica de 22 eventos aprobados
+  - Guía de migración y anti-patterns
+
+- Nuevo módulo `backend/event_validator.py` (350 líneas)
+  - `validate_event_name()`: Validación contra reglas de convención
+  - `validate_events_in_code()`: Escaneo de archivos Python
+  - `get_canonical_events()`: Lista de eventos aprobados
+  - `suggest_event_name()`: Sugerencias basadas en descripción
+  - CLI: validate, scan, list
+
+- Tests completos (`tests/test_event_validator.py`):
+  - 16 tests unitarios, 100% passing (0.002s)
+  - Cobertura: valid/invalid formats, strict mode, suggestions
+  - Validación de todos los eventos canónicos
+
+- Refactorización de eventos existentes:
+  - corpus_schema.py: 4 eventos → UPPER_SNAKE_CASE
+  - corpus_identity.py: 9 eventos → UPPER_SNAKE_CASE
+  - corpus_ops.py: 7 eventos → UPPER_SNAKE_CASE
+  - Total: 20 eventos refactorizados
+
+Reglas de validación:
+1. UPPER_SNAKE_CASE obligatorio
+2. Solo alfanuméricos + underscores
+3. Sin underscores consecutivos/leading/trailing
+4. Máximo 50 caracteres
+5. Mínimo 2 componentes (ENTITY_ACTION)
+6. Debe terminar en past participle (INITIALIZED, FAILED, ADDED...)
+
+CLI disponible:
+```bash
+# Validar evento individual
+python3 backend/event_validator.py validate CORPUS_INITIALIZED
+
+# Escanear archivo
+python3 backend/event_validator.py scan backend/corpus_schema.py
+
+# Listar eventos canónicos
+python3 backend/event_validator.py list
+```
+
+Resultados de validación:
+- backend/corpus_schema.py: 4/4 valid ✅
+- backend/corpus_identity.py: 9/9 valid ✅
+- backend/corpus_ops.py: 7/7 valid ✅
+
+Criterios de aceptación (DoD):
+- ✅ Convención documentada en docs/events.md
+- ✅ Validador implementado con CLI
+- ✅ Eventos existentes refactorizados (20 eventos)
+- ✅ Lista canónica creada (22 eventos)
+- ✅ Tests pasan (60/60, incluyendo 16 del validador)
+- ✅ Todos los eventos siguen convención UPPER_SNAKE_CASE
+
+Impacto:
+- Consistencia en logging across todo el sistema
+- Facilita debugging y observabilidad
+- Base para event sourcing futuro
+- Previene naming inconsistencies
+
+Próximo paso: Sprint 1 completo (5/5 cards) → Sprint Review
 
 ---
 

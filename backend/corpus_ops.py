@@ -82,7 +82,7 @@ def append_interaction(
             interactions["tokens"][current_size] = tokens
 
         logger.info(
-            "interaction_appended",
+            "INTERACTION_APPENDED",
             interaction_id=interaction_id,
             session_id=session_id,
             tokens=tokens,
@@ -92,7 +92,7 @@ def append_interaction(
         return interaction_id
 
     except Exception as e:
-        logger.error("interaction_append_failed", error=str(e), session_id=session_id)
+        logger.error("INTERACTION_APPEND_FAILED", error=str(e), session_id=session_id)
         raise
 
 
@@ -145,7 +145,7 @@ def append_embedding(
             embeddings["model"][current_size] = model
 
         logger.info(
-            "embedding_appended",
+            "EMBEDDING_APPENDED",
             interaction_id=interaction_id,
             model=model,
             vector_dim=vector.shape[0]
@@ -154,7 +154,7 @@ def append_embedding(
         return True
 
     except Exception as e:
-        logger.error("embedding_append_failed", error=str(e), interaction_id=interaction_id)
+        logger.error("EMBEDDING_APPEND_FAILED", error=str(e), interaction_id=interaction_id)
         return False
 
 
@@ -197,12 +197,12 @@ def get_corpus_stats(corpus_path: str) -> Dict:
                 "schema_version": metadata.get("schema_version")
             }
 
-            logger.info("corpus_stats_retrieved", **stats)
+            logger.info("CORPUS_STATS_RETRIEVED", **stats)
 
             return stats
 
     except Exception as e:
-        logger.error("corpus_stats_failed", error=str(e))
+        logger.error("CORPUS_STATS_FAILED", error=str(e))
         return {}
 
 
@@ -252,7 +252,7 @@ def read_interactions(corpus_path: str, limit: int = 10) -> List[Dict]:
     except Exception as e:
         from logger import get_logger
         logger = get_logger()
-        logger.error("read_interactions_failed", error=str(e))
+        logger.error("INTERACTIONS_READ_FAILED", error=str(e))
         return []
 
 
