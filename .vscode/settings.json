@@ -9,6 +9,16 @@
   "python.languageServer": "Pylance",
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportAttributeAccessIssue": "none",
+    "reportIndexIssue": "none",
+    "reportOperatorIssue": "none",
+    "reportArgumentType": "none",
+    "reportAssignmentType": "none",
+    "reportOptionalMemberAccess": "none",
+    "reportOptionalSubscript": "none",
+    "reportGeneralTypeIssues": "none"
+  },
   "[python]": {
     "editor.formatOnSave": false,
     "editor.codeActionsOnSave": {

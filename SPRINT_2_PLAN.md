@@ -4,8 +4,6 @@
 **Periodo**: 26-oct → 09-nov (15 días, 4h/día = 60h capacidad)
 **Velocity Factor**: 0.07 (basado en Sprint 1)
 
----
-
 ## 📊 Análisis de Velocidad (Sprint 1)
 
 ### Estimado vs Real
@@ -455,7 +453,7 @@ Al final de Sprint 2, el sistema tendrá:
 - [ ] Si fallo, reconocer honestamente las razones
 - [ ] Si fallo 3 días consecutivos, cerrar o replantear el proyecto
 
-**Firma**: _________________________
+**Firma**: Bernard U.
 **Fecha**: 2025-10-25
 
 ---
