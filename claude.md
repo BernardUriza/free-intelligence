@@ -94,15 +94,15 @@ Free Intelligence no es una herramienta. Es una **posición ontológica computac
 | **Logger Estructurado** | ✅ Operativo | 6/6 | `backend/logger.py:1` |
 | **Esquema HDF5** | ✅ Operativo | 10/10 | `backend/corpus_schema.py:1` |
 | **Corpus Operations** | ✅ Operativo | 8/8 | `backend/corpus_ops.py:1` |
+| **Corpus Identity** | ✅ Operativo | 13/13 | `backend/corpus_identity.py:1` |
 | **Git Workflow** | ✅ Trunk-based | N/A | `scripts/sprint-close.sh:1` |
-| **Bitácora** | ✅ 12 entradas | N/A | `claude-bitacora.md:1` |
+| **Bitácora** | ✅ 13 entradas | N/A | `CLAUDE.md:350` |
 
-**Total**: 31 tests passing (0.185s) • 7 interacciones demo en corpus • Compression gzip funcionando
+**Total**: 44 tests passing (0.357s) • 7 interacciones demo en corpus • Compression gzip funcionando • Corpus con identidad ✅
 
 ### Pendiente (Sprint 1)
 
-- ⏸️ **FI-API-FEAT-001**: corpus_id Generator (2h)
-- ⏸️ **FI-CORE-FEAT-001**: Nomenclatura de IDs (3h)
+- ⏸️ **FI-API-FEAT-001**: Nomenclatura eventos VERB_PAST_PARTICIPLE (2h)
 
 ### Futuro (Post-Sprint 1)
 
@@ -288,18 +288,18 @@ from corpus_ops import append_interaction, append_embedding, get_corpus_stats, r
 
 **Periodo**: 24-oct → 07-nov (15 días)
 **Capacidad**: 16-20h efectivas
-**Progreso**: 3/5 cards completadas (60%)
+**Progreso**: 4/5 cards completadas (80%)
 
 ### Completadas ✅
 
 1. **FI-CONFIG-FEAT-001** - Sistema Configuración YAML (15 min, 7 tests)
 2. **FI-CORE-FEAT-002** - Logger Estructurado (5 min, 6 tests)
 3. **FI-DATA-FEAT-001** - Esquema HDF5 (3 min, 10 tests)
+4. **FI-DATA-FEAT-004** - corpus_id y owner_hash (15 min, 13 tests)
 
 ### Pendientes 🔄
 
-4. **FI-API-FEAT-001** - corpus_id Generator (2h)
-5. **FI-CORE-FEAT-001** - Nomenclatura de IDs (3h)
+5. **FI-API-FEAT-001** - Nomenclatura eventos VERB_PAST_PARTICIPLE (2h)
 
 **Cadena crítica**: CONFIG → LOGGER/HDF5 → corpus_id/nomenclatura
 **Dependencias**: Todas desbloqueadas ✅
@@ -416,6 +416,75 @@ Verificación:
 - Estado actual: Tabla con todos los components ✅
 
 Próximo paso: Continuar con FI-API-FEAT-001 o FI-CORE-FEAT-001
+
+---
+
+## [2025-10-25 14:15] FI-DATA-FEAT-004 — CORPUS IDENTITY: corpus_id y owner_hash
+Estado: Completed | Acción: Implementación de sistema de identidad para corpus
+Fechas: Ejecutado 25-oct-2025 14:00-14:15 (15 min)
+Acción: Agregar corpus_id (UUID v4) y owner_hash (SHA256) en HDF5
+Síntesis técnica:
+- Nuevo módulo `backend/corpus_identity.py` (266 líneas)
+  - `generate_corpus_id()`: UUID v4 para identificación única
+  - `generate_owner_hash()`: SHA256 de owner_identifier (con salt opcional)
+  - `add_corpus_identity()`: Agregar identidad a corpus existente
+  - `verify_corpus_ownership()`: Verificar ownership por hash
+  - `get_corpus_identity()`: Recuperar metadatos de identidad
+
+- Integración en `corpus_schema.py`:
+  - `init_corpus()` ahora requiere `owner_identifier` (breaking change)
+  - Genera automáticamente corpus_id y owner_hash al crear corpus
+  - Logs incluyen corpus_id (completo) y owner_hash (prefijo 16 chars)
+  - CLI actualizado: `python3 corpus_schema.py init <owner_id> [--force]`
+
+- Tests completos (`tests/test_corpus_identity.py`):
+  - 13 tests unitarios, 100% passing (0.172s)
+  - Cobertura: generators, add, verify, get operations
+  - Tests de salt, ownership mismatch, corpus inexistente
+
+- Corpus actual actualizado:
+  - corpus_id: `7948d081-f4eb-4674-ac98-8736f8907bec`
+  - owner_hash: `9f87ac3a4326090e...` (SHA256 de bernard.uriza@example.com)
+  - Verificación exitosa ✅
+
+Estructura HDF5 actualizada:
+```
+/metadata/ (attrs):
+  - created_at: ISO timestamp
+  - version: "0.1.0"
+  - schema_version: "1"
+  - corpus_id: UUID v4 ⭐ NEW
+  - owner_hash: SHA256 ⭐ NEW
+```
+
+API CLI disponible:
+```bash
+# Agregar identidad a corpus existente
+python3 backend/corpus_identity.py add <owner_id> [salt]
+
+# Verificar ownership
+python3 backend/corpus_identity.py verify <owner_id> [salt]
+
+# Mostrar identidad
+python3 backend/corpus_identity.py show
+```
+
+Criterios de aceptación (DoD):
+- ✅ corpus_id es UUID v4 válido (36 chars, 4 dashes)
+- ✅ owner_hash es SHA256 válido (64 hex chars)
+- ✅ verify_corpus_ownership() retorna True/False correctamente
+- ✅ Función de verificación valida ownership
+- ✅ Tests pasan (13/13)
+- ✅ Documentación actualizada (docstrings + bitácora)
+- ✅ Corpus actual tiene identidad
+
+Impacto:
+- Trazabilidad de origen de datos garantizada
+- Base para multi-tenancy (Fase 2)
+- Prevención de colisión entre datasets
+- Seguridad: solo prefix de hash en logs
+
+Próximo paso: FI-API-FEAT-001 (Nomenclatura eventos)
 
 ---
 

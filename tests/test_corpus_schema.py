@@ -45,13 +45,13 @@ class TestCorpusSchema(unittest.TestCase):
 
     def test_init_corpus_creates_file(self):
         """Test that init_corpus creates HDF5 file."""
-        success = init_corpus(self.temp_path)
+        success = init_corpus(self.temp_path, owner_identifier="test@example.com")
         self.assertTrue(success)
         self.assertTrue(Path(self.temp_path).exists())
 
     def test_init_corpus_creates_required_groups(self):
         """Test that all required groups are created."""
-        init_corpus(self.temp_path)
+        init_corpus(self.temp_path, owner_identifier="test@example.com")
 
         with h5py.File(self.temp_path, 'r') as f:
             for group in CorpusSchema.REQUIRED_GROUPS:
@@ -59,7 +59,7 @@ class TestCorpusSchema(unittest.TestCase):
 
     def test_interactions_datasets(self):
         """Test that /interactions/ has all required datasets."""
-        init_corpus(self.temp_path)
+        init_corpus(self.temp_path, owner_identifier="test@example.com")
 
         with h5py.File(self.temp_path, 'r') as f:
             interactions = f["interactions"]
@@ -69,7 +69,7 @@ class TestCorpusSchema(unittest.TestCase):
 
     def test_embeddings_datasets(self):
         """Test that /embeddings/ has all required datasets."""
-        init_corpus(self.temp_path)
+        init_corpus(self.temp_path, owner_identifier="test@example.com")
 
         with h5py.File(self.temp_path, 'r') as f:
             embeddings = f["embeddings"]
@@ -82,7 +82,7 @@ class TestCorpusSchema(unittest.TestCase):
 
     def test_metadata_attributes(self):
         """Test that /metadata/ has required attributes."""
-        init_corpus(self.temp_path)
+        init_corpus(self.temp_path, owner_identifier="test@example.com")
 
         with h5py.File(self.temp_path, 'r') as f:
             metadata = f["metadata"]
@@ -92,7 +92,7 @@ class TestCorpusSchema(unittest.TestCase):
 
     def test_validate_corpus_valid(self):
         """Test validation of valid corpus."""
-        init_corpus(self.temp_path)
+        init_corpus(self.temp_path, owner_identifier="test@example.com")
         result = validate_corpus(self.temp_path)
 
         self.assertTrue(result["valid"])
@@ -123,19 +123,19 @@ class TestCorpusSchema(unittest.TestCase):
     def test_init_corpus_force_overwrite(self):
         """Test force overwrite of existing corpus."""
         # Create initial corpus
-        init_corpus(self.temp_path)
+        init_corpus(self.temp_path, owner_identifier="test@example.com")
 
         # Should raise error without force
         with self.assertRaises(FileExistsError):
-            init_corpus(self.temp_path, force=False)
+            init_corpus(self.temp_path, owner_identifier="test@example.com", force=False)
 
         # Should succeed with force
-        success = init_corpus(self.temp_path, force=True)
+        success = init_corpus(self.temp_path, owner_identifier="test@example.com", force=True)
         self.assertTrue(success)
 
     def test_datasets_are_resizable(self):
         """Test that datasets are created with maxshape=None for appending."""
-        init_corpus(self.temp_path)
+        init_corpus(self.temp_path, owner_identifier="test@example.com")
 
         with h5py.File(self.temp_path, 'r') as f:
             # Check interactions datasets are resizable

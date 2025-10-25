@@ -34,7 +34,7 @@ class TestCorpusOps(unittest.TestCase):
         Path(self.temp_path).unlink()
 
         # Initialize corpus
-        init_corpus(self.temp_path)
+        init_corpus(self.temp_path, owner_identifier="test@example.com")
 
     def tearDown(self):
         """Clean up temporary file."""

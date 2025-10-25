@@ -88,18 +88,25 @@ class CorpusSchema:
         return errors
 
 
-def init_corpus(corpus_path: str, force: bool = False) -> bool:
+def init_corpus(
+    corpus_path: str,
+    owner_identifier: str,
+    force: bool = False,
+    salt: Optional[str] = None
+) -> bool:
     """
-    Initialize HDF5 corpus with hierarchical schema.
+    Initialize HDF5 corpus with hierarchical schema and identity.
 
     Creates the following structure:
     - /interactions/: Stores prompt-response pairs with metadata
     - /embeddings/: Stores vector embeddings for semantic search
-    - /metadata/: Stores system metadata and configuration
+    - /metadata/: Stores system metadata, configuration, and identity
 
     Args:
         corpus_path: Path where corpus.h5 will be created
+        owner_identifier: Username, email, or unique identifier for ownership
         force: If True, overwrites existing file (default: False)
+        salt: Optional salt for owner_hash generation
 
     Returns:
         True if initialization successful, False otherwise
@@ -108,13 +115,14 @@ def init_corpus(corpus_path: str, force: bool = False) -> bool:
         FileExistsError: If file exists and force=False
 
     Examples:
-        >>> init_corpus("storage/corpus.h5")
+        >>> init_corpus("storage/corpus.h5", "bernard@example.com")
         True
 
-        >>> init_corpus("storage/corpus.h5", force=True)
+        >>> init_corpus("storage/corpus.h5", "bernard@example.com", force=True)
         True  # Overwrites existing file
     """
     from logger import get_logger
+    from corpus_identity import generate_corpus_id, generate_owner_hash
 
     logger = get_logger()
     path = Path(corpus_path)
@@ -172,16 +180,27 @@ def init_corpus(corpus_path: str, force: bool = False) -> bool:
                 compression_opts=4
             )
 
-            # Create /metadata/ group with system info
+            # Create /metadata/ group with system info and identity
             metadata = f.create_group("metadata")
             metadata.attrs["created_at"] = datetime.now().isoformat()
             metadata.attrs["version"] = "0.1.0"
             metadata.attrs["schema_version"] = "1"
 
+            # Add identity attributes
+            metadata.attrs["corpus_id"] = generate_corpus_id()
+            metadata.attrs["owner_hash"] = generate_owner_hash(owner_identifier, salt=salt)
+
+        # Log initialization with identity info (partial hash for security)
+        with h5py.File(corpus_path, 'r') as f:
+            corpus_id = f["metadata"].attrs["corpus_id"]
+            owner_hash = f["metadata"].attrs["owner_hash"]
+
         logger.info(
             "corpus_initialized",
             path=str(path),
-            groups=CorpusSchema.REQUIRED_GROUPS
+            groups=CorpusSchema.REQUIRED_GROUPS,
+            corpus_id=corpus_id,
+            owner_hash=owner_hash[:16] + "..."  # Log only prefix
         )
         return True
 
@@ -190,19 +209,26 @@ def init_corpus(corpus_path: str, force: bool = False) -> bool:
         return False
 
 
-def init_corpus_from_config(config_path: Optional[str] = None, force: bool = False) -> bool:
+def init_corpus_from_config(
+    owner_identifier: str,
+    config_path: Optional[str] = None,
+    force: bool = False,
+    salt: Optional[str] = None
+) -> bool:
     """
     Initialize corpus using path from config.yml.
 
     Args:
+        owner_identifier: Username, email, or unique identifier for ownership
         config_path: Optional path to config file
         force: If True, overwrites existing file
+        salt: Optional salt for owner_hash generation
 
     Returns:
         True if initialization successful
 
     Examples:
-        >>> init_corpus_from_config()
+        >>> init_corpus_from_config("bernard@example.com")
         True
     """
     from config_loader import load_config
@@ -210,7 +236,7 @@ def init_corpus_from_config(config_path: Optional[str] = None, force: bool = Fal
     config = load_config(config_path)
     corpus_path = config["storage"]["corpus_path"]
 
-    return init_corpus(corpus_path, force=force)
+    return init_corpus(corpus_path, owner_identifier, force=force, salt=salt)
 
 
 def validate_corpus(corpus_path: Optional[str] = None) -> Dict[str, any]:
@@ -262,13 +288,27 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1 and sys.argv[1] == "init":
         # Initialize corpus
+        if len(sys.argv) < 3:
+            print("Usage: python3 corpus_schema.py init <owner_identifier> [--force]")
+            print("Example: python3 corpus_schema.py init bernard@example.com")
+            sys.exit(1)
+
+        owner_identifier = sys.argv[2]
         force = "--force" in sys.argv
-        success = init_corpus_from_config(force=force)
+
+        success = init_corpus_from_config(owner_identifier, force=force)
         if success:
             print("✅ Corpus initialized successfully")
             result = validate_corpus()
             print(f"   Path: {result['path']}")
             print(f"   Valid: {result['valid']}")
+
+            # Show identity
+            from corpus_identity import get_corpus_identity
+            identity = get_corpus_identity(result['path'])
+            if identity:
+                print(f"   Corpus ID: {identity['corpus_id']}")
+                print(f"   Owner Hash: {identity['owner_hash'][:16]}...")
         else:
             print("❌ Corpus initialization failed")
             sys.exit(1)
@@ -286,5 +326,5 @@ if __name__ == "__main__":
 
     else:
         print("Usage:")
-        print("  python3 corpus_schema.py init [--force]")
+        print("  python3 corpus_schema.py init <owner_identifier> [--force]")
         print("  python3 corpus_schema.py validate")
