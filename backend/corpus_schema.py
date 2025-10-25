@@ -136,7 +136,10 @@ def init_corpus(corpus_path: str, force: bool = False) -> bool:
                     dataset_name,
                     shape=(0,),
                     maxshape=(None,),
-                    dtype=spec["dtype"]
+                    dtype=spec["dtype"],
+                    chunks=True,  # Auto-chunking for optimal access
+                    compression="gzip",  # Portable compression
+                    compression_opts=4  # Balanced compression level (1-9)
                 )
 
             # Create /embeddings/ group with datasets
@@ -145,19 +148,28 @@ def init_corpus(corpus_path: str, force: bool = False) -> bool:
                 "interaction_id",
                 shape=(0,),
                 maxshape=(None,),
-                dtype=CorpusSchema.EMBEDDING_DATASETS["interaction_id"]["dtype"]
+                dtype=CorpusSchema.EMBEDDING_DATASETS["interaction_id"]["dtype"],
+                chunks=True,
+                compression="gzip",
+                compression_opts=4
             )
             embeddings.create_dataset(
                 "vector",
                 shape=(0, 768),  # 768-dim embeddings (all-MiniLM-L6-v2)
                 maxshape=(None, 768),
-                dtype=CorpusSchema.EMBEDDING_DATASETS["vector"]["dtype"]
+                dtype=CorpusSchema.EMBEDDING_DATASETS["vector"]["dtype"],
+                chunks=True,
+                compression="gzip",
+                compression_opts=4  # Vectors compress well
             )
             embeddings.create_dataset(
                 "model",
                 shape=(0,),
                 maxshape=(None,),
-                dtype=CorpusSchema.EMBEDDING_DATASETS["model"]["dtype"]
+                dtype=CorpusSchema.EMBEDDING_DATASETS["model"]["dtype"],
+                chunks=True,
+                compression="gzip",
+                compression_opts=4
             )
 
             # Create /metadata/ group with system info

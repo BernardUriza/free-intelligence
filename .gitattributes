@@ -1,0 +1,25 @@
+# Free Intelligence - Git Attributes
+# Ensures consistent line endings across platforms
+
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# Source code - always LF
+*.py text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+
+# Binary files - never modify
+*.h5 binary
+*.bundle binary
+*.sha256 binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
