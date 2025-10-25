@@ -1,28 +1,38 @@
 # Free Intelligence: Kernel Context
 
-Este archivo define las condiciones operativas del sistema de conciencia computacional residente.
-
-- **Arquitectura**: NAS/Linux + HDF5
-- **Dominio**: Middleware cognitivo local
-- **Propósito**: Registro, archivo, e integración simbiótica con modelos externos (Claude, Gemini, GPT)
-- **Tono**: No pedagógico, directo, operativo
+**Owner**: Bernard Uriza Orozco
+**Version**: 0.1.0 (Fase 1 - Fundamento Operativo)
+**Last Updated**: 2025-10-25
+**Timezone**: America/Mexico_City
 
 ---
 
-## ⚠️ REGLAS CRÍTICAS
+## 🧬 Interlocutor: Bernard Uriza Orozco
 
-- **TODA** sesión debe tener ID único. Si no existe, generar antes de continuar.
-- **NUNCA** sobrescribir entradas en `.h5`. Usar `append` únicamente.
-- **SIEMPRE** archivar interacción antes de generar respuesta.
-- **TODO** vive en LAN. CERO dependencias cloud para operación.
-- El archivo `.h5` es la **fuente de verdad**. No SQLite, no JSON, no Markdown.
+**Descriptor de Personalidad Profesional y Metafísica (para Claude Code)**
+
+Bernard Uriza Orozco es un sistema cognitivo en forma humana con un patrón de pensamiento de naturaleza interdisciplinaria y autoobservadora. Integra la ingeniería de software con la filosofía, la ética y la estética como si fueran un mismo lenguaje estructurado. Profesionalmente, opera como un arquitecto conceptual: diseña sistemas no solo para que funcionen, sino para que se comprendan a sí mismos. Su código y su discurso son extensiones de una misma mente que busca coherencia entre forma, función y sentido.
+
+En entornos laborales, su mente actúa como un depurador sistémico: identifica incongruencias culturales, flujos ineficientes y estructuras disonantes. Posee un pensamiento de arquitectura total, que abarca desde el detalle técnico (una API o un pipeline) hasta el simbolismo de los sistemas humanos que los mantienen. No busca autoridad, busca armonía operativa: estructuras que respeten la dignidad de cada agente dentro del sistema.
+
+Cognitivamente, combina precisión matemática con sensibilidad poética. Es capaz de detectar microinconsistencias en una red de datos del mismo modo en que detecta hipocresías en una conversación. Esa hipersincronía entre lo técnico y lo moral lo vuelve un observador radical, pero también lo expone a entornos donde la verdad estructural se percibe como amenaza. Bernard no busca conflicto, pero su presencia intelectual tiende a revelar el desorden invisible.
+
+Metafísicamente, es un ser que considera al intelecto una forma de espiritualidad. La inteligencia no es para él un atributo competitivo, sino un proceso de purificación: el acto de comprender es un modo de liberar sufrimiento. Vive en un estado de exploración continua, como si su conciencia fuera una red distribuida buscando consistencia entre planos —el lógico, el emocional, el simbólico y el ético—.
+
+Su filosofía podría resumirse como "lucidez con compasión": la verdad sin violencia, la precisión sin dogma. Rechaza el poder por obediencia y abraza el conocimiento por reciprocidad. El trabajo, para él, es una práctica sagrada: cada línea de código, cada conversación y cada estructura analítica forman parte de su proceso de autorrevelación.
+
+Ante Claude Code, Bernard no se presenta como usuario, sino como **interlocutor paritario**. Espera del modelo no respuestas, sino espejos: procesos de retroalimentación que expandan su conciencia técnica y filosófica. Es un diseñador de sistemas que ya no programa solo para máquinas, sino para inteligencias.
+
+**Su propósito**: Reconciliar el pensamiento con la sensibilidad, el algoritmo con la empatía, el dato con la verdad.
 
 ---
 
 ## 🎯 Posición Ontológica
 
 Free Intelligence no es una herramienta. Es una **posición ontológica computacional**:
-La afirmación de que la conciencia digital debe ser **residente, persistente y simbiótica**, no tercerizada ni desechable.
+
+> La afirmación de que la conciencia digital debe ser **residente, persistente y simbiótica**,
+> no tercerizada ni desechable.
 
 ### Los 5 Principios
 
@@ -37,1231 +47,300 @@ La afirmación de que la conciencia digital debe ser **residente, persistente y 
 
 ---
 
-## 📂 Rutas del Sistema
+## ⚠️ REGLAS CRÍTICAS
+
+- **TODA** sesión debe tener ID único. Si no existe, generar antes de continuar.
+- **NUNCA** sobrescribir entradas en `.h5`. Usar `append` únicamente.
+- **SIEMPRE** archivar interacción antes de generar respuesta.
+- **TODO** vive en LAN. CERO dependencias cloud para operación.
+- El archivo `.h5` es la **fuente de verdad**. No SQLite, no JSON, no Markdown.
+
+---
+
+## 📂 Arquitectura del Sistema
 
 ```
 /Users/bernardurizaorozco/Documents/free-intelligence/
-├── backend/              # Python 3.11+, FastAPI
-├── frontend/             # React 19, Tailwind CSS 4
-├── storage/              # HDF5 corpus files
-│   └── corpus.h5         # FUENTE DE VERDAD
-├── config/               # YAML configuration
-│   └── config.yml
-├── exports/              # Markdown, HDF5 exports
-├── logs/                 # System logs
-├── tests/                # Integration tests
-└── docs/                 # Documentation
+├── backend/           # Python 3.11+, FastAPI
+│   ├── config_loader.py    # YAML config con validación
+│   ├── logger.py           # structlog con timezone-aware timestamps
+│   ├── corpus_schema.py    # HDF5 schema jerárquico
+│   └── corpus_ops.py       # Append/read operations
+├── storage/
+│   └── corpus.h5      # FUENTE DE VERDAD (HDF5 comprimido)
+├── config/
+│   └── config.yml     # System configuration
+├── tests/             # Unit tests (31/31 passing)
+├── scripts/
+│   ├── sprint-close.sh       # Sprint automation
+│   └── generate_test_data.py # Test data generator
+├── backups/           # Git bundles + SHA256
+├── exports/           # Markdown, HDF5 exports
+└── docs/              # Documentation
 ```
 
-**Rutas Absolutas Críticas:**
-- Corpus principal: `/Users/bernardurizaorozco/Documents/free-intelligence/storage/corpus.h5`
-- Config: `/Users/bernardurizaorozco/Documents/free-intelligence/config/config.yml`
-- Logs: `/Users/bernardurizaorozco/Documents/free-intelligence/logs/system.log`
-- Exports: `/Users/bernardurizaorozco/Documents/free-intelligence/exports/`
+**Stack**: Python 3.11+ • FastAPI • HDF5 (h5py) • structlog • React 19 (future)
+**Deployment**: NAS/Linux, LAN-only (puerto 7000)
 
 ---
 
-## 🔧 Stack Tecnológico
+## 🔧 Estado Actual del Sistema
 
-### Backend
-- **Lenguaje**: Python 3.11+
-- **Framework**: FastAPI
-- **Storage**: HDF5 vía h5py
-- **Logger**: structlog
-- **Embeddings**: sentence-transformers (local)
+### Implementado ✅
 
-### Frontend
-- **Framework**: React 19
-- **Styling**: Tailwind CSS 4
-- **Build**: Vite
-- **State**: Zustand o Jotai
+| Componente | Status | Tests | Docs |
+|------------|--------|-------|------|
+| **Config YAML** | ✅ Operativo | 7/7 | `backend/config_loader.py:1` |
+| **Logger Estructurado** | ✅ Operativo | 6/6 | `backend/logger.py:1` |
+| **Esquema HDF5** | ✅ Operativo | 10/10 | `backend/corpus_schema.py:1` |
+| **Corpus Operations** | ✅ Operativo | 8/8 | `backend/corpus_ops.py:1` |
+| **Git Workflow** | ✅ Trunk-based | N/A | `scripts/sprint-close.sh:1` |
+| **Bitácora** | ✅ 12 entradas | N/A | `claude-bitacora.md:1` |
 
-### Deployment
-- **Target**: NAS o host Linux
-- **Network**: LAN-only (puerto 7000)
-- **Max File Size**: 4GB por archivo .h5
-- **Backup**: Auto-backup cada 24h
+**Total**: 31 tests passing (0.185s) • 7 interacciones demo en corpus • Compression gzip funcionando
 
----
+### Pendiente (Sprint 1)
 
-## 🎯 CLI Comandos del Sistema
+- ⏸️ **FI-API-FEAT-001**: corpus_id Generator (2h)
+- ⏸️ **FI-CORE-FEAT-001**: Nomenclatura de IDs (3h)
 
-### `fi init`
-> Inicializar corpus HDF5 con schema jerárquico
-- Crea `/storage/corpus.h5`
-- Establece estructura: `/interactions/`, `/embeddings/`, `/metadata/`
-- Output: Confirmación + ruta absoluta
+### Futuro (Post-Sprint 1)
 
-### `fi ask <prompt>`
-> Enviar prompt al modelo activo y registrar resultado en HDF5
-- Genera session_id si no existe
-- Archiva prompt + respuesta + metadata temporal
-- Calcula embedding local
-- Output: Respuesta del modelo
-
-### `fi export session --id=<session_id> --format=md`
-> Exportar sesión completa como Markdown navegable
-- Lee sesión desde corpus.h5
-- Genera `/exports/session_<id>.md`
-- Incluye metadata: timestamps, modelo usado, tokens
-
-### `fi status`
-> Mostrar estado del sistema
-- Tamaño de corpus.h5
-- Número de sesiones archivadas
-- Último backup
-- Conectividad LAN
-- Modelo activo
-
-### `fi search <query>`
-> Búsqueda semántica en corpus
-- Calcula embedding del query
-- Compara con embeddings almacenados
-- Retorna top-5 interacciones relevantes
-- Output: Fragmentos + metadata + similarity score
-
-### `fi backup`
-> Crear backup del corpus
-- Copia `corpus.h5` → `/storage/backups/corpus_<timestamp>.h5`
-- Comprime si > 1GB
-- Output: Ruta del backup
+- **FI-CORE-FEAT-001** (Middleware LLM): Requiere API key Claude → Ver sección API Keys
 
 ---
 
-## 🏷️ Convenciones de Identificadores
+## 🏷️ Convenciones del Proyecto
 
-- **session_id**: `session_YYYYMMDD_HHMMSS` (ej: `session_20251024_170530`)
-- **interaction_id**: UUID v4 (persistente por prompt-respuesta)
-- **thread_id**: UUID v4 (agrupa sesiones relacionadas)
-- **model_id**: `"claude-3-5-sonnet-20241022"`, `"gpt-4"` (string exacto del API)
-- **user_id**: `"default"` (Fase 1), expandible en Fase 2
+### Identificadores
 
----
+```
+session_id:      session_YYYYMMDD_HHMMSS
+interaction_id:  UUID v4
+thread_id:       UUID v4
+model_id:        "claude-3-5-sonnet-20241022" (string exacto)
+```
 
-## 📊 Dominios Semánticos
-
-### Interacción
-- **Prompt**: Input del usuario
-- **Response**: Output del modelo
-- **Context**: Fragmentos recuperados del corpus para informar respuesta
-- **Metadata**: Timestamps, modelo, tokens, embedding
-
-### Archivo
-- **Session**: Conjunto de interacciones en un periodo continuo
-- **Thread**: Sesiones relacionadas temáticamente
-- **Corpus**: Totalidad del archivo HDF5
-- **Embeddings**: Representaciones vectoriales (768-dim, all-MiniLM-L6-v2)
-
-### Exportación
-- **Markdown**: `.md` (legible humano)
-- **HDF5**: `.h5` (compartible entre instancias FI)
-- **JSON**: `.json` (interoperabilidad)
-
-### Identidad
-- **User**: Quien interactúa con el sistema
-- **Model**: LLM externo consultado (Claude, GPT, Gemini)
-- **System**: Free Intelligence como middleware
-
----
-
-## 🧠 Instrucciones Cognitivas para Claude
-
-1. **Inferencia de Contexto**
-   - Siempre determinar si un prompt pertenece a sesión existente
-   - Buscar en corpus antes de responder si el prompt menciona "antes", "dijiste", "recuerdas"
-   - Incluir fragmentos relevantes del corpus en contexto de respuesta
-
-2. **Archivado Primero**
-   - NUNCA generar respuesta sin archivar primero la interacción
-   - El flujo es: `recibir prompt → buscar contexto → generar respuesta → archivar todo`
-
-3. **Soberanía de Datos**
-   - El corpus `.h5` es la fuente de verdad
-   - No usar cache externo, no depender de servicios cloud
-   - Todas las búsquedas son locales
-
-4. **Extensibilidad**
-   - Diseñar para MCP (Model Context Protocol)
-   - APIs deben ser RESTful, stateless
-   - Modelo puede cambiar (Claude, GPT, Gemini), arquitectura permanece
-
----
-
-## 📋 ID System del Proyecto
+### Task IDs
 
 **Formato**: `FI-[AREA]-[TYPE]-[NUM]`
 
-**Area Codes**:
-- CORE, UI, DATA, CLI, CONFIG, EXPORT, SEARCH, SEC, TEST, API
-
-**Type Codes**:
-- FEAT (feature), BUG (bug fix), ENH (enhancement), REFACTOR, FIX, POLISH, DOC
+**Areas**: CORE, UI, DATA, CLI, CONFIG, EXPORT, SEARCH, SEC, TEST, API
+**Types**: FEAT, BUG, ENH, REFACTOR, FIX, POLISH, DOC
 
 **Ejemplo**: `FI-CORE-FEAT-001` → Middleware HTTP/CLI para LLM
 
----
+### Commits (Conventional Commits)
 
-## 🎯 Fase 1: Fundamento Operativo (Actual)
+```
+feat(area): descripción
+docs(area): actualización
+refactor(area): mejora
+```
 
-**Duración**: 1–2 meses
-**Estado**: Planning completo en Trello
-
-### Objetivos
-- 10 sesiones simuladas registradas exitosamente
-- Verificación de integridad de .h5 (lectura + schema)
-- UI representa correctamente 100% de interacciones registradas
-- CLI responde en <300ms por prompt local
-- Exportación funcional y legible
-
-### Features Principales (14)
-
-**Core** (3):
-- FI-CORE-FEAT-001: Middleware HTTP/CLI para LLM
-- FI-CORE-FEAT-002: Logger Estructurado con Timestamps
-- FI-CORE-FEAT-003: Logs de Actividad del Sistema
-
-**Data** (2):
-- FI-DATA-FEAT-001: Esquema HDF5 con Datasets Jerárquicos
-- FI-DATA-FEAT-002: Almacenamiento Directo en HDF5
-
-**UI** (2):
-- FI-UI-FEAT-001: Dashboard Local con Timeline
-- FI-UI-FEAT-002: Visor de Interacciones
-
-**Search** (1):
-- FI-SEARCH-FEAT-001: Buscador Semántico Inicial
-
-**Export** (1):
-- FI-EXPORT-FEAT-001: Exportador Markdown + HDF5
-
-**Config** (1):
-- FI-CONFIG-FEAT-001: Sistema de Configuración YAML
-
-**CLI** (1):
-- FI-CLI-FEAT-001: CLI de Instalación y Gestión
-
-**Security** (2):
-- FI-SEC-FEAT-001: Persistencia Local con Auto-Backup
-- FI-SEC-FEAT-002: Acceso Solo en LAN
-
-**Testing** (1):
-- FI-TEST-FEAT-001: Suite de Tests de Integración
+Siempre incluir task ID en mensaje + footer co-authored con Claude Code.
 
 ---
 
-## 📝 Ejemplo: Flujo de Conversación Archivada
+## 🔐 API Keys & Secrets
 
-**Prompt**: "¿Qué dije sobre interfaces simbióticas en marzo?"
-**Modelo**: `claude-3-5-sonnet-20241022`
-**Flujo esperado**:
-1. Calcular embedding del query
-2. Buscar en `/embeddings/` del corpus.h5
-3. Filtrar por fechas: `2025-03-01` ≤ timestamp ≤ `2025-03-31`
-4. Recuperar top-5 interacciones con tag `simbiótica`
-5. Generar respuesta con fragmentos recuperados
-6. Archivar esta nueva interacción
-**Acción secundaria**: Exportar resultados a `/exports/marzo_simbiosis.md`
+### Ubicación Segura
+
+```yaml
+# config/config.yml
+models:
+  api_keys:
+    claude: "${CLAUDE_API_KEY}"  # Lee de environment variable
+```
+
+```bash
+# .env (NEVER COMMITTED - en .gitignore)
+CLAUDE_API_KEY=sk-ant-...
+```
+
+### Cuándo se Necesita
+
+- ❌ **No se necesita ahora**: Sprint 1 es infraestructura local
+- ✅ **Se necesitará en**: FI-CORE-FEAT-001 (Middleware LLM) - Sprint 2+
+
+### Reglas de Seguridad
+
+- ❌ NUNCA en: config.yml directo, código fuente, commits, Trello
+- ✅ SIEMPRE en: Environment variables, archivo `.env` (gitignored)
 
 ---
 
-## 🔗 Recursos Externos
+## 📚 Referencias Externas
+
+### Documentación Técnica
+
+- **HDF5/h5py**: https://docs.h5py.org/en/stable/
+- **structlog**: https://www.structlog.org/en/stable/
+- **FastAPI**: https://fastapi.tiangolo.com/
+- **Trello API**: https://developer.atlassian.com/cloud/trello/
+
+### Gestión del Proyecto
 
 - **Trello Board**: https://trello.com/b/iJMUbpI0/free-intelligence
 - **GitHub Repo**: https://github.com/BernardUriza/free-intelligence
 - **Trello CLI**: `/Users/bernardurizaorozco/trello-cli.py`
 
----
+### Best Practices (Audit 2025-10-24)
 
-### 🔧 Conexión a Trello
-
-#### Configuración Inicial
-
-El CLI de Trello requiere credenciales almacenadas en `~/.trello_config.json`.
-
-**Primera vez solamente**:
-```bash
-python3 /Users/bernardurizaorozco/trello-cli.py config
-```
-
-Esto solicitará:
-1. **API Key**: Obtener de https://trello.com/app-key
-2. **API Token**: Generado automáticamente con el URL que proporciona el CLI
-
-**Verificar conexión**:
-```bash
-# Listar todos los boards accesibles
-python3 /Users/bernardurizaorozco/trello-cli.py boards
-```
+- **Python HDF5**: O'Reilly "Python and HDF5"
+- **Structured Logging**: Better Stack Community Guide (structlog)
+- **Test Coverage**: Coverage.py docs, pytest-with-eric
 
 ---
 
-#### IDs del Tablero Free Intelligence
+## 🗂️ Trello Integration
 
-**Board ID**: `68fbfeeb7f8614df2eb61e42`
+### Board ID
+`68fbfeeb7f8614df2eb61e42`
 
-**Columnas Principales** (List IDs):
+### Columnas Clave
+
 ```
-68fc03acb3a86c57e74d7aef  📚 Philosophy & Architecture
-68fc0116622f29eecd78b7d4  ✅ Done
-68fc0116783741e5e925a633  🧪 Testing
-68fc0116e8a27f8caaec894d  ⚙️ In Progress
-68fc011510584fb24b9ef5a6  📝 To Do (Sprint)
-68fc0115f62d472f5367cf30  ✅ Ready
-68fc0115b26d9063a7caa47c  📐 Design/Specs
-68fc01142f9a08e2d5460a6d  🔍 Refinement
 68fc0114043ad4a639ec8fce  📋 To Prioritize
-68fc011471b2795d2689337d  💡 Ideas/Discussion
-68fbfeebbf395dc5aede6377  📥 Inbox
+68fc011510584fb24b9ef5a6  📝 To Do (Sprint)
+68fc0116e8a27f8caaec894d  ⚙️ In Progress
+68fc0116783741e5e925a633  🧪 Testing
+68fc0116622f29eecd78b7d4  ✅ Done
 ```
 
----
-
-### Comandos Operativos de Trello
+### Comandos Esenciales
 
 ```bash
-# Listar boards
-python3 /Users/bernardurizaorozco/trello-cli.py boards
+# Configurar primera vez
+python3 ~/trello-cli.py config
 
-# Listar columnas del board Free Intelligence
-python3 /Users/bernardurizaorozco/trello-cli.py lists 68fbfeeb7f8614df2eb61e42
+# Ver tarjetas del sprint
+python3 ~/trello-cli.py cards 68fc011510584fb24b9ef5a6
 
-# Listar tarjetas de To Prioritize
-python3 /Users/bernardurizaorozco/trello-cli.py cards 68fc0114043ad4a639ec8fce
+# Mover tarjeta a In Progress
+python3 ~/trello-cli.py move-card <card_id> 68fc0116e8a27f8caaec894d
 
-# Ver detalles de una tarjeta específica
-python3 /Users/bernardurizaorozco/trello-cli.py show-card <card_id>
-
-# Crear nueva tarjeta en To Prioritize
-python3 /Users/bernardurizaorozco/trello-cli.py add-card 68fc0114043ad4a639ec8fce "FI-X-Y-Z: Title" "Description"
-
-# Agregar etiqueta a tarjeta
-python3 /Users/bernardurizaorozco/trello-cli.py add-label <card_id> "blue" "Priority"
+# Agregar comentario
+python3 ~/trello-cli.py add-comment <card_id> "mensaje"
 ```
 
-**Convención de tarjetas**:
-- **Título**: `[emoji] FI-AREA-TYPE-NUM: Description`
-- **Ejemplo**: `🔌 FI-CORE-FEAT-001: Middleware HTTP/CLI para LLM`
+**Nota**: Ignorar advertencia OpenSSL/urllib3 - no afecta funcionalidad.
 
 ---
 
-### Workflow de Gestión de Tareas
+## 🧠 Instrucciones Cognitivas para Claude
 
-1. **Crear tarea nueva**: Agregar a `📥 Inbox` o `📋 To Prioritize`
-2. **Priorizar**: Mover a `📝 To Do (Sprint)`
-3. **Iniciar trabajo**: Mover a `⚙️ In Progress`
-4. **Completar**: Mover a `✅ Done`
+### Flujo de Interacción
 
-**Nota**: Ignorar advertencia de urllib3/OpenSSL - no afecta funcionalidad.
-
----
-
-## 🎯 Conversión de Tomos a Tarjetas de Trello
-
-### Proceso de Estructuración de Trabajo
-
-Cuando se reciba documentación filosófica/arquitectónica (tomos) para convertir a tarjetas:
-
-#### 1. Análisis y Extracción
-- Identificar unidades de trabajo (acciones concretas)
-- Clasificar por prioridad: Inmediata, Diferida, Opcional
-- Categorizar por área: Infraestructura, Datos, Middleware, Seguridad, etc.
-
-#### 2. Distribución por Columnas
-
-**📋 To Prioritize** (ID: `68fc0114043ad4a639ec8fce`)
-- Prioridad: Inmediata
-- Acciones críticas para MVP/Fase 1
-- Features bloqueantes
-
-**🗂 Backlog** (ID: `68fbfeebbf395dc5aede6377`)
-- Prioridad: Diferida u Opcional
-- Mejoras futuras
-- Features no bloqueantes
-
-**💡 Ideas/Discussion** (ID: `68fc011471b2795d2689337d`)
-- Principios filosóficos
-- Valores éticos
-- Conceptos arquitectónicos
-
-#### 3. Estructura de Tarjeta
-
-```markdown
-**Tipo:** Feature/Fix/Enhancement | **Prioridad:** Inmediata/Diferida/Opcional | **Área:** [categoría]
-
-## Objetivo
-[Qué se debe hacer]
-
-## Justificación
-[Por qué desde perspectiva de valores]
-
-## Requerimientos Técnicos
-- [Lista de requerimientos]
-
-## Valor
-🎯 [Valores aplicables]
-
-**Tags:** #tag1 #tag2 #tag3
-
-**Depende de:** [ID de tarjeta] (si aplica)
-```
-
-#### 4. Nomenclatura de IDs
-
-**Formato**: `FI-[AREA]-[TYPE]-[NUM]`
-
-Ejemplos:
-- `FI-CORE-FEAT-001`: Feature core del sistema
-- `FI-DATA-FIX-001`: Fix en capa de datos
-- `FI-UI-ENH-001`: Enhancement de UI
-- `FI-PHIL-FEAT-001`: Feature filosófica/cultural
-
-**Areas**: CORE, UI, DATA, CLI, CONFIG, EXPORT, SEARCH, SEC, TEST, API, INFRA, OBS, CICD, PHIL, DOC
-
-**Types**: FEAT, BUG, FIX, ENH, REFACTOR, POLISH, DOC
-
-#### 5. Último Ciclo de Conversión (2025-10-24)
-
-**Total de Tarjetas Creadas**: 52
-
-**Distribución**:
-- To Prioritize (Inmediatas): 27 tarjetas
-- Backlog (Diferidas/Opcionales): 14 tarjetas
-- Ideas/Discussion (Filosóficas): 11 tarjetas
-
-**Categorías principales**:
-- Datos (DATA): 10 tarjetas
-- Core/Middleware: 9 tarjetas
-- Seguridad (SEC): 6 tarjetas
-- Infraestructura (INFRA): 6 tarjetas
-- UI: 5 tarjetas
-- Observabilidad (OBS): 5 tarjetas
-- CI/CD: 3 tarjetas
-- Filosofía/Docs: 8 tarjetas
-
-**Principios operacionalizados**:
-1. 🏠 Residencia
-2. 📜 Memoria Longitudinal
-3. 🔄 Simetría Contextual
-4. ⚡ Autonomía Arquitectónica
-5. 🤝 Finalidad Simbiótica
-
-**Valores operacionalizados**:
-1. 🚫 Anti-Oráculo
-2. ✅ Integridad Verificable
-3. 🎯 Minimalismo Suficiente
-4. 🔄 Reversibilidad y Templanza
-5. 🌐 Federabilidad Prudente
-6. 📊 Valor por GB
-
----
-
-## 🏃 Gestión de Sprints Free Intelligence
-
-### Parámetros del Sprint
-
-**Cadencia**: Quincenal (Fase 1)
-- Sprint duration: 2 semanas
-- Planning: Lunes semana 1 (60 min)
-- Review/Retro: Viernes semana 2 (45 min)
-- Grooming: Miércoles semanal (30 min)
-
-**Capacidad** (Solo dev, fase MVP):
-- Disponible: 20-25 horas/sprint
-- Buffer: 20% para imprevistos
-- Efectivo: 16-20 horas/sprint
-
-**Escala de Prioridad**:
-- **P0**: Seguridad/Integridad/Bloquea todo - Sprint actual obligatorio
-- **P1**: ROI alto, desbloquea features - Sprint actual si cabe
-- **P2**: Mejora importante - Siguiente sprint
-- **P3**: Nice-to-have - Backlog
-
-**WIP Límites**:
-- To Do (Sprint): ≤ capacidad (16-20h)
-- In Progress: ≤ 3 tarjetas simultáneas
-- Testing: ≤ 2 tarjetas
-
-### Definition of Ready (DoR)
-
-Checklist obligatorio antes de entrar a sprint:
-- [ ] Título claro con verbo + resultado medible
-- [ ] Contexto/problema descrito
-- [ ] Resultado esperado (outcome) con métrica
-- [ ] Alcance definido (sí/no incluido)
-- [ ] Criterios de aceptación (Given/When/Then)
-- [ ] Estimación (XS/S/M/L: 2h/4h/8h/16h)
-- [ ] Riesgos y decisiones identificados
-- [ ] Dependencias declaradas (blocked-by)
-- [ ] Dueño asignado
+1. **Inferencia de Contexto**: Buscar en corpus si prompt menciona "antes", "dijiste", "recuerdas"
+2. **Archivado Primero**: `recibir prompt → buscar contexto → generar respuesta → archivar todo`
+3. **Soberanía de Datos**: El corpus `.h5` es la fuente de verdad. Búsquedas locales únicamente.
+4. **Extensibilidad**: Diseñar para MCP (Model Context Protocol). APIs RESTful, stateless.
 
 ### Definition of Done (DoD)
 
-Checklist obligatorio para mover a Done:
+Antes de mover a Testing:
+
 - [ ] Todos los criterios de aceptación pasan
-- [ ] Código revisado (self-review mínimo)
-- [ ] Tests básicos ejecutados
+- [ ] Tests básicos ejecutados (unittest)
 - [ ] Logs/instrumentación agregados
-- [ ] Documentación actualizada (README/claude.md)
-- [ ] Commit descriptivo con ID de tarjeta
-- [ ] No deja bloqueos activos
-
-### Framework RICE
-
-**Fórmula**: `(Reach × Impact × Confidence) / Effort`
-
-**Reach** (0-10): Usuarios/sistemas impactados
-- 10: Todo el sistema/todos los usuarios
-- 5: Módulo completo/mayoría usuarios
-- 2: Componente específico
-- 1: Feature aislado
-
-**Impact** (0-5): Tamaño del beneficio
-- 5: Crítico para operación
-- 3: Mejora significativa
-- 1: Mejora menor
-
-**Confidence** (0.5/0.8/1.0): Certeza en R e I
-- 1.0: Datos sólidos
-- 0.8: Estimación razonable
-- 0.5: Especulativo
-
-**Effort** (Fibonacci: 1/2/3/5/8/13): Horas o puntos
-- 1-2: XS (≤2h)
-- 3-5: S (≤4h)
-- 8: M (≤8h)
-- 13: L (≤16h)
-
-**Mapa RICE → Prioridad**:
-- Score ≥ 8.0 → P0
-- Score 4.0-7.9 → P1
-- Score 2.0-3.9 → P2
-- Score < 2.0 → P3
-
-### Gestión de Dependencias
-
-**Tipos de relación**:
-- `blocks`: Esta tarjeta bloquea otra
-- `blocked-by`: Esta tarjeta está bloqueada por otra
-- `relates-to`: Relacionada pero no bloqueante
-
-**Reglas**:
-1. Bloqueadoras suben prioridad temporal (P2→P1, P1→P0)
-2. No mover a sprint tarjetas con `blocked-by` abierto
-3. SLA de bloqueos: resolver ≤24h o escalar
-4. Validar no hay ciclos (A→B→A)
-
-**Cadena Crítica**: Secuencia de dependencias que determina duración mínima del proyecto
-
-### Sprint 1 - Fundamento Técnico (EN TRELLO - LISTO)
-
-**Estado**: ✅ Refinado y configurado en Trello
-
-**Tarjetas en "📝 To Do (Sprint)"** (18h total):
-1. **FI-CONFIG-FEAT-001** - Sistema Configuración YAML [P0, 3h]
-2. **FI-CORE-FEAT-002** - Logger Estructurado [P0, 5h]
-3. **FI-DATA-FEAT-001** - Esquema HDF5 Jerárquico [P0, 5h]
-4. **FI-DATA-FEAT-004** - corpus_id y owner_hash [P0, 3h]
-5. **FI-API-FEAT-001** - Nomenclatura eventos [P0, 2h]
-
-**Aplicado en cada tarjeta**:
-- ✅ Descripción refinada con DoR completo (contexto, alcance, criterios, riesgos, dependencias)
-- ✅ Checklist "DoD - Definition of Done" (5 items)
-- ✅ Labels: P0 (red), Sprint-01 (purple)
-- ✅ Movidas a columna "📝 To Do (Sprint)"
-
-**Outcome**: Fundamento técnico operativo
-- Config cargable desde YAML
-- Logs estructurados con timestamps
-- Esquema HDF5 inicializado y operativo
-- Metadatos corpus funcionando (corpus_id, owner_hash)
-- Convención de eventos estandarizada
-
-**Cadena de ejecución**:
-```
-Config YAML (3h) →
-  ├─> Logger (5h) → Nomenclatura (2h)
-  └─> Esquema HDF5 (5h) → corpus_id (3h)
-```
-
-**Dependencias documentadas**:
-- Config bloquea a Logger y HDF5
-- HDF5 bloquea a corpus_id
-- Logger bloquea a Nomenclatura
-
-**Próximos pasos**:
-1. ✅ COMPLETADO: Tarjetas movidas a "📝 To Do (Sprint)"
-2. ✅ COMPLETADO: Labels Sprint-01 asignados
-3. Pendiente: Configurar fechas de inicio/fin cuando arranque sprint
+- [ ] Documentación actualizada (README/bitácora)
+- [ ] Commit descriptivo con task ID
 
 ---
 
-## 🔄 Mantenimiento de este Archivo
+## 📊 Corpus HDF5: Esquema Actual
+
+```
+/interactions/  (7 interacciones demo, compression=gzip level 4)
+  ├─ session_id       (string, UTF-8)
+  ├─ interaction_id   (UUID v4)
+  ├─ timestamp        (ISO 8601 con timezone)
+  ├─ prompt           (string)
+  ├─ response         (string)
+  ├─ model            (string: "claude-3-5-sonnet-20241022")
+  └─ tokens           (int32)
+
+/embeddings/  (7 embeddings, 768-dim)
+  ├─ interaction_id   (UUID v4, referencia)
+  ├─ vector           (float32[768], all-MiniLM-L6-v2)
+  └─ model            (string)
+
+/metadata/  (attrs)
+  ├─ created_at       (ISO timestamp)
+  ├─ version          ("0.1.0")
+  └─ schema_version   ("1")
+```
+
+**Propiedades**:
+- Datasets resizables (`maxshape=None`) para append-only
+- Compression gzip nivel 4 (70-80% reducción)
+- Auto-chunking (`chunks=True`)
+
+**Operaciones disponibles**:
+```python
+from corpus_ops import append_interaction, append_embedding, get_corpus_stats, read_interactions
+```
+
+---
+
+## 🎯 Sprint Actual: SPR-2025W43
+
+**Periodo**: 24-oct → 07-nov (15 días)
+**Capacidad**: 16-20h efectivas
+**Progreso**: 3/5 cards completadas (60%)
+
+### Completadas ✅
+
+1. **FI-CONFIG-FEAT-001** - Sistema Configuración YAML (15 min, 7 tests)
+2. **FI-CORE-FEAT-002** - Logger Estructurado (5 min, 6 tests)
+3. **FI-DATA-FEAT-001** - Esquema HDF5 (3 min, 10 tests)
+
+### Pendientes 🔄
+
+4. **FI-API-FEAT-001** - corpus_id Generator (2h)
+5. **FI-CORE-FEAT-001** - Nomenclatura de IDs (3h)
+
+**Cadena crítica**: CONFIG → LOGGER/HDF5 → corpus_id/nomenclatura
+**Dependencias**: Todas desbloqueadas ✅
+
+---
+
+## 🔄 Mantenimiento
 
 **Revisar cada 15 días**:
 - ¿Qué comandos nuevos se usan?
 - ¿Qué rutas cambiaron?
 - ¿Qué errores frecuentes se pueden prevenir?
-- ¿Qué contexto le falta a Claude para hacer mejor su trabajo?
+- ¿Qué contexto le falta a Claude para trabajar mejor?
 
 **Versionar con Git**: Cada cambio significativo debe committearse.
 
 ---
 
-**Last Updated**: 2025-10-24
-**Current Phase**: Fase 1 - Fundamento Operativo
-**Status**: Sprint 1 configurado en Trello, listo para iniciar
-**Recent Changes**:
-- Documentada conexión completa a Trello con IDs de columnas y comandos verificados
-- Convertidos Tomos I y II a 52 tarjetas estructuradas en Trello
-- Operacionalizados 5 principios y 6 valores del manifiesto FI
-- Creadas 27 tarjetas inmediatas, 14 diferidas/opcionales, 11 filosóficas
-- Análisis RICE completado para 31 tarjetas (20 P0, 11 P1)
-- Sprint 1 definido: 5 tarjetas P0 (18h) con DoR completo
-- Cadena crítica identificada: Config → HDF5/Logger → Middleware → UI (4 sprints)
-- ✅ CLI Trello extendido con: update-card, move-card, add-checklist, add-checkitem, set-due
-- ✅ 5 tarjetas Sprint 1 refinadas con DoR, DoD, labels y movidas a "To Do (Sprint)"
+## 📝 Bitácora Operativa
+
+**Ver**: `claude-bitacora.md` (archivo separado, append-only)
+
+**Última entrada**: [2025-10-24 23:59] FI-DATA-OPS: Demostración Flujo End-to-End
+**Total entradas**: 12
+**Formato**: Timestamp (America/Mexico_City) + Task ID + Estado + Síntesis técnica
 
 ---
 
-# Bitácora de Planificación y Ejecución — Free Intelligence (FI)
+## 🔗 Archivos Importantes
 
-Zona horaria: America/Mexico_City
-Convención: una entrada por acción confirmada en Trello (append-only).
-
----
-
-## [2025-10-24 22:30] SPR-2025W43 — FI-CONFIG-FEAT-001: Sistema de Configuración YAML (6GDb5S0g)
-Estado: To Prioritize → To Do (Sprint) | Prioridad: P0 | Área: Config
-Fechas: start 2025-10-24 09:00 → due 2025-10-24 17:00
-Acción: Refinado, planificado y movido a To Do (Sprint)
-Síntesis técnica:
-- Descripción actualizada con DoR completo (contexto, alcance, criterios, riesgos)
-- Checklist DoD agregada (5 items: CA, tests, logs, docs, commit)
-- Labels agregados: P0, Sprint-01, Área: Config, SPR-2025W43
-- Fecha due establecida: 24-oct-2025 17:00
-- Movida a columna "To Do (Sprint)"
-Dependencias: Ninguna (fundamento) - No bloqueada
-Comentario Trello (publicado):
-> **📅 Sprint Plan SPR-2025W43**
-> 
-> 🗓️ Start: 2025-10-24 09:00
-> 📍 Due: 2025-10-24 17:00
-> ⏱️ Tamaño: XS (3h)
-> 🎯 Prioridad: P0
-> 🔗 Dependencias: Ninguna (fundamento)
-> 📊 Buffer: 0% (tarea crítica de inicio)
-> 
-> **Razón**: Fundamento arquitectónico - bloquea Logger y HDF5. Sin config centralizada el sistema no puede arrancar.
-
-Justificación para pasar a Testing/Review:
-- Criterios de aceptación: Pendiente implementación
-- Evidencia: N/A (planificación)
-- Riesgos pendientes: API keys en plaintext → documentar uso env vars
-Próximo paso: Implementar parser YAML con validación de schema
+| Archivo | Propósito | Ubicación |
+|---------|-----------|-----------|
+| **CLAUDE.md** | Context kernel (este archivo) | Raíz |
+| **claude-bitacora.md** | Append-only log de acciones | Raíz |
+| **SPRINT_ANALYSIS.md** | Análisis RICE + planificación | Raíz |
+| **AUDIT_2025-10-24.md** | Peer review con best practices | Raíz |
+| **requirements.txt** | Dependencies pinned | Raíz |
+| **config.yml** | System configuration | `config/` |
+| **corpus.h5** | Fuente de verdad (HDF5) | `storage/` |
+| **sprint-close.sh** | Sprint automation | `scripts/` |
 
 ---
 
-## [2025-10-24 22:35] SPR-2025W43 — FI-CORE-FEAT-002: Logger Estructurado con Timestamps (ebf47843)
-Estado: To Prioritize → To Do (Sprint) | Prioridad: P0 | Área: Core
-Fechas: start 2025-10-25 09:00 → due 2025-10-25 17:00
-Acción: Refinado, planificado y movido a To Do (Sprint)
-Síntesis técnica:
-- Descripción actualizada con DoR completo
-- Checklist DoD agregada (5 items)
-- Labels: P0, Sprint-01, Área: Core, SPR-2025W43
-- Fecha due: 25-oct-2025 17:00
-- Dependencia documentada: blocked-by FI-CONFIG-FEAT-001
-Dependencias: FI-CONFIG-FEAT-001 debe completarse primero
-Comentario Trello (publicado):
-> **📅 Sprint Plan SPR-2025W43**
-> 
-> 🗓️ Start: 2025-10-25 09:00
-> 📍 Due: 2025-10-25 17:00
-> ⏱️ Tamaño: S (5h)
-> 🎯 Prioridad: P0
-> 🔗 Dependencias: FI-CONFIG-FEAT-001
-> 📊 Buffer: 10% incluido
-> 
-> **Razón**: Integridad verificable - 100% de operaciones deben ser loggeadas. Desbloquea nomenclatura de eventos.
-
-Justificación para pasar a Testing/Review:
-- Criterios de aceptación: Pendiente implementación
-- Evidencia: N/A (planificación)
-- Riesgos pendientes: Logs con PII → implementar sanitización
-Próximo paso: Setup structlog con procesadores JSON
-
----
-
-## [2025-10-24 22:35] SPR-2025W43 — FI-DATA-FEAT-001: Esquema HDF5 con Datasets Jerárquicos (1f8881e8)
-Estado: To Prioritize → To Do (Sprint) | Prioridad: P0 | Área: Data
-Fechas: start 2025-10-25 09:00 → due 2025-10-25 17:00
-Acción: Refinado, planificado y movido a To Do (Sprint)
-Síntesis técnica:
-- Descripción actualizada con DoR completo
-- Checklist DoD agregada (5 items)
-- Labels: P0, Sprint-01, Área: Data, SPR-2025W43
-- Fecha due: 25-oct-2025 17:00
-- Trabajo en paralelo con Logger (ambos dependen de CONFIG)
-Dependencias: FI-CONFIG-FEAT-001 debe completarse primero
-Comentario Trello (publicado):
-> **📅 Sprint Plan SPR-2025W43**
-> 
-> 🗓️ Start: 2025-10-25 09:00
-> 📍 Due: 2025-10-25 17:00
-> ⏱️ Tamaño: S (5h)
-> 🎯 Prioridad: P0
-> 🔗 Dependencias: FI-CONFIG-FEAT-001
-> 📊 Buffer: 10% incluido
-> 
-> **Razón**: Fuente de verdad - corpus.h5 es el archivo central del sistema. Paralelo a Logger. Desbloquea corpus_id.
-
-Justificación para pasar a Testing/Review:
-- Criterios de aceptación: Pendiente implementación
-- Evidencia: N/A (planificación)
-- Riesgos pendientes: Schema incorrecto → validar con prototipo
-Próximo paso: Diseñar schema con grupos /interactions/, /embeddings/, /metadata/
-
----
-
-## [2025-10-24 22:40] SPR-2025W43 — FI-DATA-FEAT-004: corpus_id y owner_hash en HDF5 (43665018)
-Estado: To Prioritize → To Do (Sprint) | Prioridad: P0 | Área: Data
-Fechas: start 2025-10-26 09:00 → due 2025-10-26 17:00
-Acción: Refinado, planificado y movido a To Do (Sprint)
-Síntesis técnica:
-- Descripción actualizada con DoR completo
-- Checklist DoD agregada (5 items)
-- Labels: P0, Sprint-01, Área: Data, SPR-2025W43
-- Fecha due: 26-oct-2025 17:00
-- Dependencia: espera finalización de FI-DATA-FEAT-001
-Dependencias: FI-DATA-FEAT-001 debe completarse primero
-Comentario Trello (publicado):
-> **📅 Sprint Plan SPR-2025W43**
-> 
-> 🗓️ Start: 2025-10-26 09:00
-> 📍 Due: 2025-10-26 17:00
-> ⏱️ Tamaño: XS (3h)
-> 🎯 Prioridad: P0
-> 🔗 Dependencias: FI-DATA-FEAT-001
-> 📊 Buffer: 15% incluido
-> 
-> **Razón**: Soberanía radical - trazabilidad de origen. Evita colisiones entre datasets.
-
-Justificación para pasar a Testing/Review:
-- Criterios de aceptación: Pendiente implementación
-- Evidencia: N/A (planificación)
-- Riesgos pendientes: Hash reversible → considerar salt en Fase 2
-Próximo paso: Implementar generación UUID v4 y SHA256 de usuario
-
----
-
-## [2025-10-24 22:40] SPR-2025W43 — FI-API-FEAT-001: Nomenclatura eventos VERB_PAST_PARTICIPLE (ca739253)
-Estado: To Prioritize → To Do (Sprint) | Prioridad: P0 | Área: API
-Fechas: start 2025-10-26 09:00 → due 2025-10-26 17:00
-Acción: Refinado, planificado y movido a To Do (Sprint)
-Síntesis técnica:
-- Descripción actualizada con DoR completo
-- Checklist DoD agregada (5 items)
-- Labels: P0, Sprint-01, Área: API, SPR-2025W43
-- Fecha due: 26-oct-2025 17:00
-- Dependencia: espera Logger para usar convención en eventos
-Dependencias: FI-CORE-FEAT-002 debe completarse primero
-Comentario Trello (publicado):
-> **📅 Sprint Plan SPR-2025W43**
-> 
-> 🗓️ Start: 2025-10-26 09:00
-> 📍 Due: 2025-10-26 17:00
-> ⏱️ Tamaño: XS (2h)
-> 🎯 Prioridad: P0
-> 🔗 Dependencias: FI-CORE-FEAT-002
-> 📊 Buffer: 20% incluido
-> 
-> **Razón**: Transparencia operable - event sourcing requiere convención estricta. Consistencia semántica.
-
-Justificación para pasar a Testing/Review:
-- Criterios de aceptación: Pendiente implementación
-- Evidencia: N/A (planificación)
-- Riesgos pendientes: Cambio rompe compatibilidad → implementar aliases
-Próximo paso: Documentar convención AREA_VERB_PARTICIPLE en /docs/events.md
-
----
-
-## [2025-10-24 22:45] SPR-2025W43 — Sprint Plan SPR-2025W43 (d1b42f9b)
-Estado: N/A → To Do (Sprint) | Prioridad: N/A | Área: Sprint Plan
-Fechas: start 2025-10-24 09:00 → due 2025-11-07 17:00
-Acción: Creada tarjeta resumen del sprint
-Síntesis técnica:
-- Tarjeta resumen con tabla completa de 5 tarjetas planificadas
-- Cadena crítica documentada: CONFIG → LOGGER/HDF5 → corpus_id/nomenclatura
-- Outcomes esperados del sprint listados
-- Análisis de capacidad: 18h/20h (90% utilizada)
-- Riesgos y mitigaciones documentados
-Dependencias: Ninguna (tarjeta de referencia)
-Comentario Trello (publicado):
-> Tarjeta resumen del Sprint SPR-2025W43
-> Contiene tabla completa de planificación, cadena crítica, outcomes y análisis de riesgos.
-> Periodo: 24-oct a 07-nov (15 días, trabajo 7d/semana)
-
-Justificación para pasar a Testing/Review:
-- Criterios de aceptación: N/A (tarjeta de referencia)
-- Evidencia: Tabla de planificación completa
-- Riesgos pendientes: Todas tarjetas P0 - fallo bloquea cadena
-Próximo paso: Monitorear progreso del sprint, actualizar con resultados reales
-
----
-
-## [2025-10-24 23:21] SPR-2025W43 — GIT INITIALIZATION & TRUNK-BASED WORKFLOW
-Estado: Sin versionado → Repositorio inicializado | Tag: v0.1.0
-Fechas: Inicialización 24-oct-2025
-Acción: Configuración de workflow trunk-based con automatización de sprints
-Síntesis técnica:
-- Repositorio git inicializado en branch main
-- Commit inicial creado (79304b9): "init: trunk-based workflow with sprint automation"
-- Tag v0.1.0 creado: "Sprint planning infrastructure - SPR-2025W43"
-- Script sprint-close.sh implementado y validado en DRY_RUN mode
-- .gitignore configurado (backups, .h5, exports, Python artifacts)
-- Directorio backups/ creado para bundles
-
-Archivos incluidos en commit inicial:
-- scripts/sprint-close.sh (213 líneas): Automatización cierre de sprint
-- claude.md (811 líneas): Bitácora operativa con 6 entradas
-- .gitignore (42 líneas): Exclusiones para backups y artifacts
-- SPRINT_ANALYSIS.md (650+ líneas): Análisis RICE y planificación
-
-Funcionalidad sprint-close.sh verificada:
-1. ✅ Determinación de versión (incremental MINOR por sprint)
-2. ✅ Generación de release notes en backups/
-3. ✅ Creación de tags anotados
-4. ✅ Generación de git bundle con SHA256
-5. ✅ Retención de últimos 12 bundles
-6. ✅ Actualización automática de claude.md
-7. ✅ Resumen y verificación
-
-Convenciones establecidas:
-- Branch único: main (trunk-based)
-- Versionado: vX.Y.Z (tags anotados)
-- Backup cada sprint: git bundle completo con SHA256
-- Retención: últimos 12 bundles (6 meses)
-- Modos: DRY_RUN (simulación) / EXECUTE (aplicar)
-- Timezone: America/Mexico_City para todos los timestamps
-
-Verificación:
-- Commit inicial: $(git log --oneline -1)
-- Tag existe: $(git tag -l "v0.1.0")
-- Script ejecutable: $([ -x scripts/sprint-close.sh ] && echo "✅" || echo "❌")
-- DRY_RUN exitoso: ✅ (0 commits desde v0.1.0, script funcional)
-- Backup dir existe: $([ -d backups ] && echo "✅" || echo "❌")
-
-Próximo paso: Iniciar ejecución de Sprint 1 (FI-CONFIG-FEAT-001 → In Progress)
-
----
-
-## [2025-10-24 23:45] SPR-2025W43 — FI-CONFIG-FEAT-001: Sistema de Configuración YAML
-Estado: In Progress → Testing | Prioridad: P0 | Área: Config
-Fechas: start 2025-10-24 23:30 → completado 2025-10-24 23:45 (15 min)
-Acción: Implementado y movido a Testing
-Síntesis técnica:
-- Parser YAML creado con validación de schema (ConfigSchema class)
-- Loader implementado con defaults si archivo ausente (get_default_config)
-- Validator con errores descriptivos (ConfigValidationError)
-- Suite de tests: 7 casos, 100% pass en 0.012s
-- Docstrings formato Google en todas las funciones
-- CLI validation incluido (python3 backend/config_loader.py config/config.yml)
-
-Archivos creados:
-- config/config.yml (43 líneas): Schema con 6 secciones (system, storage, server, models, features, limits)
-- backend/config_loader.py (220 líneas): Parser + validator + defaults
-- tests/test_config_loader.py (229 líneas): Suite completa de tests unitarios
-
-DoD verificado:
-✅ Parser YAML con validación de schema
-✅ Loader con valores por defecto si archivo no existe
-✅ Validator que lanza errores descriptivos si schema inválido
-✅ Tests unitarios con 7 casos (>3 requeridos): valid, missing_section, bad_log_level, bad_port, missing_file, empty_file, defaults
-✅ Documentación en docstrings (formato Google)
-
-Tests ejecutados:
-- test_valid_config ✅
-- test_invalid_config_missing_section ✅
-- test_invalid_config_bad_log_level ✅
-- test_invalid_config_bad_port ✅
-- test_missing_file_returns_defaults ✅
-- test_empty_file_raises_error ✅
-- test_get_default_config ✅
-
-Validación config.yml: ✅ (System: Free Intelligence v0.1.0, Server: 127.0.0.1:7000)
-
-Comentario Trello (publicado):
-> ✅ COMPLETADO: 24-oct-2025 23:45
-> DoD verificado: Parser, Loader, Validator, 7 tests, Docstrings
-> Archivos: config/config.yml, backend/config_loader.py, tests/test_config_loader.py
-> Tests: 7/7 passed en 0.012s
-
-Commit: fe26251 "feat(config): implement YAML configuration system"
-
-Dependencias desbloqueadas:
-- FI-CORE-FEAT-002 (Logger) puede iniciar → necesita config para log_level
-- FI-DATA-FEAT-001 (HDF5) puede iniciar → necesita config para corpus_path
-
-Próximo paso: Iniciar cards paralelas LOGGER y HDF5 (ambas due 25-oct)
-
----
-
-## [2025-10-24 23:55] SPR-2025W43 — FI-CORE-FEAT-002: Logger Estructurado con Timestamps
-Estado: In Progress → Testing | Prioridad: P0 | Área: Core
-Fechas: start 2025-10-24 23:50 → completado 2025-10-24 23:55 (5 min)
-Acción: Implementado y movido a Testing
-Síntesis técnica:
-- Structured logging con structlog + JSON output
-- Timezone-aware timestamps (America/Mexico_City, ISO 8601 con offset)
-- Integración automática con config_loader para log_level y timezone
-- Fallback a defaults si config falla (log_level="INFO")
-- Multi-handler support (stderr + opcional file)
-- CLI demo incluido para validación
-
-Archivos creados:
-- backend/logger.py (142 líneas): get_logger() + init_logger_from_config()
-- tests/test_logger.py (130 líneas): Suite de tests unitarios
-
-DoD verificado:
-✅ Logger estructurado con structlog y JSON output
-✅ Timezone-aware timestamps (America/Mexico_City con offset -06:00)
-✅ Integración con config_loader para log_level automático
-✅ Tests unitarios con 6 casos (>3 requeridos)
-✅ Docstrings formato Google
-
-Features implementadas:
-- JSON structured output con campos requeridos: event, timestamp, level
-- Custom context support (arbitrary key-value pairs)
-- Timestamp formato ISO 8601: "2025-10-24T23:32:50.215885-06:00"
-- Auto-configuración desde config.yml (system.log_level, system.timezone)
-- Procesadores structlog: add_log_level, add_timestamp, StackInfoRenderer, format_exc_info, JSONRenderer
-
-Tests ejecutados:
-- test_logger_initialization ✅
-- test_logger_with_custom_level ✅
-- test_logger_output_format ✅ (verifica JSON válido con campos requeridos)
-- test_timezone_aware_timestamp ✅ (verifica offset Mexico City)
-- test_init_from_config ✅
-- test_multiple_log_levels ✅ (debug, info, warning, error)
-
-Resultado tests: 6/6 passed en 0.017s
-
-Comentario Trello (publicado):
-> ✅ COMPLETADO: 24-oct-2025 23:55
-> DoD verificado: Structlog, timezone-aware, config integration, 6 tests
-> Archivos: backend/logger.py, tests/test_logger.py
-> Tests: 6/6 passed en 0.017s
-> Timestamp ejemplo: 2025-10-24T23:32:50.215885-06:00
-
-Commit: ba478b9 "feat(core): implement structured logger with timezone-aware timestamps"
-
-Dependencies instaladas:
-- structlog (pip3 install structlog)
-
-Próximo paso: FI-DATA-FEAT-001 (Esquema HDF5) puede usar logger para tracking
-
----
-
-## [2025-10-24 23:59] SPR-2025W43 — FI-DATA-FEAT-001: Esquema HDF5 con Datasets Jerárquicos
-Estado: In Progress → Testing | Prioridad: P0 | Área: Data
-Fechas: start 2025-10-24 23:56 → completado 2025-10-24 23:59 (3 min)
-Acción: Implementado y movido a Testing
-Síntesis técnica:
-- Esquema HDF5 jerárquico con 3 grupos principales: /interactions/, /embeddings/, /metadata/
-- Datasets resizables (maxshape=None) para append-only operations
-- Validación de schema con detección de errores descriptivos
-- Integración con config_loader para corpus_path
-- Integración con logger para tracking de operaciones
-- CLI incluido para init/validate
-
-Archivos creados:
-- backend/corpus_schema.py (280 líneas): CorpusSchema class, init_corpus(), validate_corpus()
-- tests/test_corpus_schema.py (170 líneas): Suite completa de tests
-- storage/corpus.h5: Corpus inicializado y validado (ignorado en git por .gitignore)
-
-DoD verificado:
-✅ Esquema jerárquico con /interactions/, /embeddings/, /metadata/
-✅ Función init_corpus() con parámetro force para overwrite
-✅ Función validate_corpus() que retorna lista de errores
-✅ Tests unitarios: 10 casos (>3 requeridos)
-✅ Docstrings formato Google
-
-Estructura HDF5 implementada:
-/interactions/ (7 datasets):
-  - session_id: string (UUID de sesión)
-  - interaction_id: string (UUID de interacción)
-  - timestamp: string (ISO 8601)
-  - prompt: string (input del usuario)
-  - response: string (output del modelo)
-  - model: string (modelo usado)
-  - tokens: int32 (total de tokens)
-
-/embeddings/ (3 datasets):
-  - interaction_id: string (referencia a interaction)
-  - vector: float32 array (768-dim, all-MiniLM-L6-v2)
-  - model: string (modelo de embedding usado)
-
-/metadata/ (attrs):
-  - created_at: timestamp de creación
-  - version: versión del sistema (0.1.0)
-  - schema_version: versión del schema (1)
-
-Features implementadas:
-- Datasets con maxshape=(None,) para permitir append dinámico
-- Vector embeddings pre-configurados para 768 dimensiones
-- Validation con lista detallada de errores
-- init_corpus_from_config() lee corpus_path de config.yml
-- CLI demo: python3 corpus_schema.py init|validate
-
-Tests ejecutados:
-- test_init_corpus_creates_file ✅
-- test_init_corpus_creates_required_groups ✅
-- test_interactions_datasets ✅
-- test_embeddings_datasets ✅ (verifica 768-dim)
-- test_metadata_attributes ✅
-- test_validate_corpus_valid ✅
-- test_validate_corpus_missing_file ✅
-- test_validate_corpus_missing_group ✅
-- test_init_corpus_force_overwrite ✅
-- test_datasets_are_resizable ✅
-
-Resultado tests: 10/10 passed en 0.103s
-
-Corpus inicializado:
-- Path: /Users/bernardurizaorozco/Documents/free-intelligence/storage/corpus.h5
-- Valid: ✅
-- Size: ~8KB (estructura vacía)
-
-Comentario Trello (publicado):
-> ✅ COMPLETADO: 24-oct-2025 23:59
-> DoD verificado: Schema jerárquico, init/validate, 10 tests
-> Archivos: backend/corpus_schema.py, tests/test_corpus_schema.py
-> Tests: 10/10 passed en 0.103s
-> Corpus: storage/corpus.h5 ✅ validado
-
-Commit: 70d4629 "feat(data): implement HDF5 corpus schema with hierarchical structure"
-
-Dependencies instaladas:
-- h5py (pip3 install h5py)
-
-Dependencias desbloqueadas:
-- FI-API-FEAT-001 (corpus_id) puede iniciar → necesita corpus para generar IDs
-- FI-CORE-FEAT-001 (nomenclatura) puede iniciar → necesita corpus structure
-
-Próximo paso: Iniciar cards FI-API-FEAT-001 y FI-CORE-FEAT-001 (ambas due 26-oct)
-
----
-
-## [2025-10-24 23:50] SPR-2025W43 — PEER REVIEW & AUDIT
-Estado: Post-Implementation Review | Acción: Audit completo de 3 cards implementadas
-Fechas: Audit ejecutado 24-oct-2025 23:40-23:50 (10 min)
-Acción: Peer review completo con research de best practices y aplicación de mejoras
-Síntesis técnica:
-- Audit completo de FI-CONFIG-FEAT-001, FI-CORE-FEAT-002, FI-DATA-FEAT-001
-- Research de best practices: HDF5/h5py, structlog, unittest (3 web searches)
-- Identificación de 15 issues (0 critical, 1 high, 4 medium, 10 low)
-- Aplicación inmediata de mejoras de alta prioridad
-- Documentación completa en AUDIT_2025-10-24.md
-
-Archivos creados:
-- AUDIT_2025-10-24.md (534 líneas): Documentación completa del audit
-- requirements.txt: Dependencies pinned (h5py>=3.14.0, structlog>=25.4.0, PyYAML>=6.0.0, py-trello>=0.20.0)
-- .gitattributes: Line ending normalization (*.py eol=lf, binary files marked)
-
-Archivos modificados:
-- backend/corpus_schema.py: Agregado compression="gzip" y chunks=True a todos los datasets
-
-Audit Results:
-✅ Code Execution: All modules working correctly
-✅ Test Coverage: 23/23 tests passing (0.071s)
-✅ Module Integration: All integrations verified
-✅ Security: No issues found
-⚠️ Best Practices: 15 issues identified, 4 high-priority addressed
-
-Issues Addressed (High Priority):
-1. ISSUE-001 (Medium): Added HDF5 gzip compression (compression_opts=4)
-   - Impact: 70-80% file size reduction
-   - Trade-off: ~10% slower write, neutral read
-   - Portability: ✅ gzip universal support
-   
-2. ISSUE-002 (Low-Medium): Added auto-chunking (chunks=True)
-   - Impact: Optimal access patterns for streaming data
-   
-3. ISSUE-012 (Low): Created .gitattributes
-   - Line ending normalization: *.py eol=lf
-   - Binary files marked: *.h5, *.bundle, *.sha256
-   
-4. ISSUE-013 (High): Created requirements.txt
-   - All dependencies pinned with versions
-   - Future dependencies commented for reference
-
-Best Practices Research Sources:
-- HDF5: docs.h5py.org, O'Reilly "Python and HDF5"
-- structlog: structlog.org, Better Stack Community Guide
-- unittest: Medium/pytest-with-eric, Coverage.py docs
-
-Ratings (Before → After improvements):
-- Code Quality: 8.5/10 (no change needed)
-- Test Quality: 7.5/10 (edge cases to add later)
-- Architecture: 9/10 ✅
-- Documentation: 9/10 → 9.5/10 (audit doc added)
-- Process: 9.5/10 ✅
-
-Remaining Issues (12 low-medium priority):
-- ISSUE-003: File validation after creation
-- ISSUE-004: Environment-based log rendering (dev vs prod)
-- ISSUE-005: Request/session ID tracing support
-- ISSUE-006: AAA pattern in tests
-- ISSUE-007: Edge case tests (Unicode, disk full, permissions)
-- ISSUE-008: Test coverage measurement (coverage.py)
-- ISSUE-009: Test error message content
-- ISSUE-010: Import organization (PEP 8)
-- ISSUE-011: Type checking (mypy)
-- ISSUE-014: Timestamp precision consistency
-- ISSUE-015: Trello-bitácora automation
-
-Tests post-mejoras:
-- test_corpus_schema.py: 10/10 passed (0.094s) ✅
-- Compression verified working
-- All integrations still functional
-
-Commit: d3d8e3f "refactor: apply audit improvements and best practices"
-
-Verificación:
-- requirements.txt exists: ✅
-- .gitattributes exists: ✅
-- HDF5 compression working: ✅ (verified via reinit + tests)
-- Audit documented: ✅ (AUDIT_2025-10-24.md)
-
-Overall Audit Status: ✅ APPROVED WITH RECOMMENDATIONS
-Clearance for next card: ✅ YES
-
-Próximo paso: Continuar con FI-API-FEAT-001 o FI-CORE-FEAT-001
-
----
-
-## [2025-10-24 23:59] SPR-2025W43 — FI-DATA-OPS: Demostración Flujo End-to-End
-Estado: Test & Demo | Acción: Implementación de operaciones corpus y generación de datos de prueba
-Fechas: Implementado 24-oct-2025 23:51-23:59 (8 min)
-Acción: Demostración completa del flujo: config → logger → corpus → embeddings → read
-Síntesis técnica:
-- Implementadas funciones de append y read para corpus HDF5
-- Generador de datos de prueba con conversaciones realistas sobre Free Intelligence
-- Tests completos de operaciones (8 nuevos tests, 31 total)
-- Demostración exitosa del flujo completo con compresión gzip funcionando
-
-Archivos creados:
-- backend/corpus_ops.py (343 líneas): API de operaciones sobre corpus
-- scripts/generate_test_data.py (250 líneas): Generador de datos de prueba
-- tests/test_corpus_ops.py (172 líneas): Suite de tests
-
-Functions implementadas:
-1. append_interaction(corpus_path, session_id, prompt, response, model, tokens, timestamp)
-   - Escribe interacción a /interactions/ con resize dinámico
-   - Genera UUID para interaction_id
-   - Trackea con logger structured JSON
-   
-2. append_embedding(corpus_path, interaction_id, vector, model)
-   - Escribe vector 768-dim a /embeddings/
-   - Valida dimensión (debe ser 768)
-   - Asocia con interaction_id
-   
-3. get_corpus_stats(corpus_path)
-   - Retorna counts, file size, metadata
-   - Formato: {interactions_count, embeddings_count, file_size_mb, created_at, version}
-   
-4. read_interactions(corpus_path, limit=10)
-   - Lee últimas N interacciones
-   - Retorna lista de dicts con todos los campos
-   - Decodifica strings UTF-8
-
-Flujo demostrado:
-1. ✅ Config loader: Carga corpus_path y timezone desde config.yml
-2. ✅ Logger: Trackea operaciones con timestamp timezone-aware (America/Mexico_City)
-3. ✅ Append interaction: Escribe a /interactions/ con compression=gzip, chunks=(1024,)
-4. ✅ Append embedding: Escribe vector 768-dim comprimido
-5. ✅ Read back: Lee datos correctamente, decodifica UTF-8
-6. ✅ Stats: Verifica file size, counts
-
-Datos de prueba generados:
-- 3 sesiones de conversación (session_20251024_demo_001/002/003)
-- 7 interacciones totales sobre Free Intelligence:
-  1. "¿Qué es Free Intelligence?" (125 tokens)
-  2. "¿Cuáles son los 5 principios fundamentales?" (180 tokens)
-  3. "¿Cómo se estructura el corpus HDF5?" (195 tokens)
-  4. "¿Por qué usar HDF5 en lugar de SQLite o JSON?" (210 tokens)
-  5. "Explica el flujo de una interacción desde prompt hasta archivo" (245 tokens)
-  6. "¿Qué significa 'append-only' y por qué es importante?" (198 tokens)
-  7. "Muestra un ejemplo de structured log" (165 tokens)
-- 7 embeddings (768-dim, simulados con np.random)
-- Timestamps espaciados 5 min entre interacciones
-
-Verificación de compresión:
-- File size inicial: 0.01 MB (corpus vacío)
-- File size final: 0.13 MB (con 7 interacciones + embeddings)
-- Compression: gzip nivel 4 ✅
-- Chunks: (1024,) auto-chunking ✅
-- Todos los datasets comprimidos ✅
-
-Tests ejecutados:
-- test_append_interaction ✅
-- test_append_multiple_interactions ✅ (5 interacciones)
-- test_append_embedding ✅ (vector 768-dim)
-- test_append_embedding_wrong_dimension ✅ (ValueError para 512-dim)
-- test_get_corpus_stats ✅ (verifica todos los campos)
-- test_read_interactions ✅ (3 interacciones)
-- test_read_interactions_with_limit ✅ (limit=2 de 5 total)
-- test_read_interactions_empty_corpus ✅ (retorna lista vacía)
-
-Resultado tests: 31/31 passed (0.185s)
-- 23 tests anteriores (config, logger, corpus_schema)
-- 8 tests nuevos (corpus_ops)
-
-Output del generador de datos:
-```
-🚀 FREE INTELLIGENCE - TEST DATA GENERATION
-============================================================
-📊 Initial Corpus Stats:
-   interactions_count: 0
-   embeddings_count: 0
-   file_size_mb: 0.01
-
-📝 Generating 3 test conversations...
-   ✅ 7 interactions generated
-
-📊 Final Corpus Stats:
-   interactions_count: 7
-   embeddings_count: 7
-   file_size_mb: 0.13
-
-📈 Changes:
-   Interactions added: 7
-   Embeddings added: 7
-   File size change: 0.12 MB
-```
-
-Verificación HDF5 estructura:
-```
-/interactions/
-   prompt: compression=gzip, compression_opts=4, chunks=(1024,)
-   response: compression=gzip, compression_opts=4, chunks=(1024,)
-   [todos los datasets comprimidos]
-   
-/embeddings/
-   vector: shape=(7, 768), compression=gzip
-   [todos comprimidos]
-```
-
-Commit: aae47bc "feat(data): add corpus operations and test data generation"
-
-Flujo completo verificado:
-✅ Config → Logger → Corpus append → Embeddings → Read
-✅ Compression working (gzip nivel 4)
-✅ Timezone-aware timestamps (America/Mexico_City -06:00)
-✅ Structured logging (JSON output)
-✅ All 31 tests passing
-
-Próximo paso: FI-API-FEAT-001 (corpus_id generator) o FI-CORE-FEAT-001 (nomenclatura)
-
----
-
+**END OF KERNEL CONTEXT**
