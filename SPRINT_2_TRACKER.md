@@ -10,22 +10,42 @@
 
 | Métrica | Actual | Objetivo | % |
 |---------|--------|----------|---|
-| Días trabajados | 0/15 | 15 | 0% |
-| Horas acumuladas | 0h/60h | 60h | 0% |
-| Cards completadas | 0/12 | 12 | 0% |
-| Commits realizados | 0 | >15 | 0% |
+| Días trabajados | 1/15 | 15 | 7% |
+| Horas acumuladas | 0.21h/60h | 60h | 0% |
+| Cards completadas | 1/12 | 12 | 8% |
+| Commits realizados | 1 | >15 | 7% |
 
 **Status**: 🟢 En tiempo | 🟡 Alerta | 🔴 Crítico | ⚫ Fallido
 
-**Estado actual**: 🟢 Pendiente de inicio
+**Estado actual**: 🟢 En tiempo (Día 1 adelantado, técnicamente Día 0)
 
 ---
 
 ## 📅 Daily Log
 
-### Día 1 - Viernes 26 oct 2025
+### Día 0 (Adelanto) - Viernes 25 oct 2025
 
 **Tarjeta**: FI-DATA-FEAT-005 (Política append-only HDF5)
+
+- ⏰ Inicio: 15:10
+- ⏰ Fin: 15:23
+- ⏱️ Horas: ~0.21h/4h
+- ✅ Completado: [X]
+- 📝 Progreso:
+  - ✅ Creado backend/append_only_policy.py (268 líneas)
+  - ✅ Context manager AppendOnlyPolicy con validación automática
+  - ✅ Integrado en corpus_ops.py (append_interaction, append_embedding)
+  - ✅ 18 tests nuevos, 78 tests totales pasando
+  - ✅ Documentación completa
+- 🔗 Commit: 592a32d feat(data): implement append-only policy enforcement
+- 💭 Notas: Trabajo adelantado antes del inicio oficial del sprint (26-oct). Velocity 0.07 confirmado (3h estimado → 0.21h real = 7%). Sistema robusto con exception handling y mensajes claros.
+- 🚩 Bloqueos: Ninguno
+
+---
+
+### Día 1 - Sábado 26 oct 2025
+
+**Tarjeta**: FI-DATA-FIX-001 (Eliminar mutación directa) - Opcional, considerar siguiente
 
 - ⏰ Inicio: __:__
 - ⏰ Fin: __:__
