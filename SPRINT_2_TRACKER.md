@@ -1,4 +1,3 @@
-<!-- markdownlint-disable MD050 MD032 -->
 # Sprint 2 (SPR-2025W44) - Daily Progress Tracker
 
 **Inicio**: 2025-10-26
