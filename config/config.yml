@@ -1,0 +1,41 @@
+# Free Intelligence - Configuration
+# Schema validation enforced by backend/config_loader.py
+
+system:
+  name: "Free Intelligence"
+  version: "0.1.0"
+  timezone: "America/Mexico_City"
+  log_level: "INFO"
+
+storage:
+  corpus_path: "/Users/bernardurizaorozco/Documents/free-intelligence/storage/corpus.h5"
+  backup_path: "/Users/bernardurizaorozco/Documents/free-intelligence/backups"
+  exports_path: "/Users/bernardurizaorozco/Documents/free-intelligence/exports"
+  max_file_size_gb: 4
+  auto_backup_hours: 24
+
+server:
+  host: "127.0.0.1"
+  port: 7000
+  lan_only: true
+  cors_enabled: false
+
+models:
+  default: "claude-3-5-sonnet-20241022"
+  available:
+    - "claude-3-5-sonnet-20241022"
+    - "gpt-4"
+    - "gemini-pro"
+  embedding_model: "all-MiniLM-L6-v2"
+  embedding_dim: 768
+
+features:
+  semantic_search: true
+  auto_export: false
+  session_persistence: true
+  multi_user: false
+
+limits:
+  max_sessions: 1000
+  max_interactions_per_session: 10000
+  retention_bundles: 12
