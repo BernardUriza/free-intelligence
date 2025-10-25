@@ -288,9 +288,11 @@ from corpus_ops import append_interaction, append_embedding, get_corpus_stats, r
 ## 🎯 Sprint Actual: SPR-2025W44 (Sprint 2)
 
 **Tema**: "Seguridad, Políticas y Observabilidad"
-**Periodo**: 26-oct → 09-nov (15 días, 4h/día)
+**Periodo**: 26-oct → 09-nov (15 días, 4h/día, SIN DESCANSO)
 **Capacidad**: 60h reales ≈ 300-400h estimadas (velocity 0.07)
-**Progreso**: 0/11 cards completadas (0%)
+**Progreso**: 0/12 cards completadas (0%)
+
+⚠️ **COMPROMISO INQUEBRANTABLE**: 4h/día sin excepción. Ver `SPRINT_2_PLAN.md` sección Accountability.
 
 ### Planeadas (11 cards Tier 1+2)
 

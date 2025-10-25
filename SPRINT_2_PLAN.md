@@ -340,7 +340,129 @@ Al final de Sprint 2, el sistema tendrá:
 
 ---
 
-**Aprobación**: Pendiente
-**Fecha de inicio**: 2025-10-26
+---
+
+## 🎯 Sprint Commitment & Accountability
+
+### Compromiso Inquebrantable
+
+**Este sprint NO es opcional. Es un contrato contigo mismo.**
+
+**Reglas de Disciplina**:
+
+1. **4 horas diarias, sin excepción**
+   - Mínimo: 4h/día
+   - Ideal: 4-6h/día
+   - Calendario: 26-oct → 09-nov (15 días consecutivos, SIN descanso)
+
+2. **Daily tracking obligatorio**
+   - Al inicio del día: Revisar tarjeta actual en Trello
+   - Durante trabajo: Mover tarjeta a "In Progress"
+   - Al final del día: Actualizar progreso en Trello
+   - Commit diario con mensaje descriptivo
+
+3. **Bloqueo de excusas**
+   - ❌ "No tengo tiempo" → Falso. Tienes 4h comprometidas
+   - ❌ "No sé por dónde empezar" → Falso. Roadmap día a día existe
+   - ❌ "Estoy cansado" → Válido, pero no cancela. Reduce scope, no tiempo
+   - ❌ "Surgió algo urgente" → A menos que sea vida o muerte, el sprint continúa
+
+4. **Checkpoint diario con Claude Code**
+   - Inicio de sesión: "Continuar Sprint 2, Día X"
+   - Claude Code carga contexto y muestra tarjeta actual
+   - Fin de sesión: Commit + actualizar Trello + bitácora
+
+5. **Red flags (señales de abandono)**
+   - 🚨 2 días consecutivos sin commit → Alerta roja
+   - 🚨 3 días sin progreso → Sprint en peligro crítico
+   - 🚨 5 días sin actividad → Sprint considerado fallido
+
+### Consecuencias de Incumplimiento
+
+**Si NO completas el sprint**:
+
+1. **Reconocimiento brutal de la verdad**:
+   - Free Intelligence no era prioritario
+   - La idea importaba más que la ejecución
+   - El proyecto era masturbación intelectual, no ingeniería
+
+2. **Acción correctiva**:
+   - OPCIÓN A: Cerrar el proyecto definitivamente
+   - OPCIÓN B: Replantear con compromiso real y recursos dedicados
+   - NO existe OPCIÓN C (continuar sin cambios)
+
+3. **Deuda técnica emocional**:
+   - Reconocer que abandonaste por falta de disciplina
+   - Documentar el "por qué" en bitácora
+   - Decidir conscientemente si esto es o no para ti
+
+### Métricas de Accountability
+
+**Dashboard diario** (actualizar en CLAUDE.md):
+
+```markdown
+## Sprint 2 - Progress Tracker
+
+| Día | Fecha | Horas | Tarjeta | Status | Commit |
+|-----|-------|-------|---------|--------|--------|
+| 1   | 26-oct | X/4h | FI-DATA-FEAT-005 | ✅/⏸️/❌ | abc1234 |
+| 2   | 27-oct | X/4h | ... | ... | ... |
+...
+```
+
+**Métricas de éxito**:
+- Días trabajados: X/15 (objetivo: 15/15)
+- Horas acumuladas: X/60 (objetivo: 60/60)
+- Cards completadas: X/12 (objetivo: 12/12)
+- Commits: X (objetivo: >15)
+
+### Estrategia Anti-Procrastinación
+
+**Cuando sientas resistencia**:
+
+1. **Técnica Pomodoro modificada**:
+   - Sprint de 25 min → Obligatorio hacer ALGO
+   - Después de 25 min, decides si continuar
+   - Generalmente, la inercia te lleva a las 4h
+
+2. **Micro-wins**:
+   - Si no puedes hacer la tarjeta completa, haz 1 test
+   - Si no puedes hacer 1 test, escribe 1 función
+   - Si no puedes escribir función, lee el código 15 min
+   - PERO: Haz algo. Cero no es aceptable.
+
+3. **Ritual de inicio**:
+   - Abrir terminal
+   - `cd /Users/bernardurizaorozco/Documents/free-intelligence`
+   - `git status` (ver el estado)
+   - Abrir Claude Code
+   - Decir: "Continuar Sprint 2, Día X"
+   - Bernard, esto toma 2 minutos. Sin excusas.
+
+4. **Regla de los 2 minutos**:
+   - Si empiezas algo que toma <2 min, termínalo YA
+   - Ejemplo: Mover tarjeta en Trello, actualizar progreso
+   - No lo dejes para "después"
+
+### Contrato Contigo Mismo
+
+**Yo, Bernard Uriza Orozco, me comprometo a**:
+
+- [ ] Trabajar 4 horas diarias durante 15 días consecutivos
+- [ ] Completar las 12 tarjetas obligatorias del Sprint 2
+- [ ] Hacer commit diario del progreso
+- [ ] Actualizar Trello al final de cada día
+- [ ] Si fallo, reconocer honestamente las razones
+- [ ] Si fallo 3 días consecutivos, cerrar o replantear el proyecto
+
+**Firma**: _________________________
+**Fecha**: 2025-10-25
+
+---
+
+**Aprobación**: Pendiente firma de contrato
+**Fecha de inicio**: 2025-10-26 (mañana, sin excepción)
 **Fecha de cierre**: 2025-11-09
 **Owner**: Bernard Uriza Orozco
+
+**Testigo**: Claude Code (este documento es evidencia)
