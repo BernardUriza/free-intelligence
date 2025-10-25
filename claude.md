@@ -285,13 +285,43 @@ from corpus_ops import append_interaction, append_embedding, get_corpus_stats, r
 
 ---
 
-## 🎯 Sprint Actual: SPR-2025W43
+## 🎯 Sprint Actual: SPR-2025W44 (Sprint 2)
 
-**Periodo**: 24-oct → 07-nov (15 días)
-**Capacidad**: 16-20h efectivas
-**Progreso**: 5/5 cards completadas (100%) ✅
+**Tema**: "Seguridad, Políticas y Observabilidad"
+**Periodo**: 26-oct → 09-nov (15 días, 4h/día)
+**Capacidad**: 60h reales ≈ 300-400h estimadas (velocity 0.07)
+**Progreso**: 0/11 cards completadas (0%)
 
-### Completadas ✅
+### Planeadas (11 cards Tier 1+2)
+
+**Tier 1: Políticas y Seguridad (6 cards, 18h est)**
+1. **FI-DATA-FEAT-005** - Política append-only HDF5 (5h)
+2. **FI-DATA-FIX-001** - Eliminar mutación directa (3h)
+3. **FI-CORE-FEAT-004** - LLM sin logging prohibido (3h)
+4. **FI-CORE-FIX-001** - LLM sin router prohibido (2h)
+5. **FI-SEC-FEAT-003** - Volumen audit_logs (3h)
+6. **FI-SEC-FEAT-004** - Contrato salida datos (2h)
+
+**Tier 2: Observabilidad y DevOps (5 cards, 12h est)**
+7. **FI-DATA-FEAT-007** - Retención logs 90 días (3h)
+8. **FI-CICD-FEAT-001** - Pipeline integrity gates (3h)
+9. **FI-CICD-FEAT-002** - Cadencia quincenal (1h)
+10. **FI-DATA-FEAT-003** - Mapa boot cognitivo (3h)
+11. **FI-UI-FIX-001** - Eliminar predicciones certeza (2h)
+
+**BONUS** (si sobra tiempo): FI-PHIL-ENH-001, FI-DATA-FEAT-006, FI-DOC-FEAT-001
+
+**Total estimado**: 30h → ~2.1h reales (con velocity 0.07)
+**Ver plan completo**: `SPRINT_2_PLAN.md`
+
+---
+
+## 📚 Sprint 1 (SPR-2025W43) - COMPLETADO
+
+**Periodo**: 24-oct → 25-oct (2 días de 15 planificados)
+**Progreso**: 5/5 cards (100%) ✅
+
+### Completadas
 
 1. **FI-CONFIG-FEAT-001** - Sistema Configuración YAML (15 min, 7 tests)
 2. **FI-CORE-FEAT-002** - Logger Estructurado (5 min, 6 tests)
@@ -299,8 +329,7 @@ from corpus_ops import append_interaction, append_embedding, get_corpus_stats, r
 4. **FI-DATA-FEAT-004** - corpus_id y owner_hash (15 min, 13 tests)
 5. **FI-API-FEAT-001** - Nomenclatura eventos UPPER_SNAKE_CASE (25 min, 16 tests)
 
-**Cadena crítica**: CONFIG → LOGGER/HDF5 → corpus_id/nomenclatura
-**Dependencias**: Todas desbloqueadas ✅
+**Velocidad real**: 1.05h ejecutadas / 18h estimadas = **0.06 velocity factor**
 
 ---
 
@@ -332,7 +361,8 @@ from corpus_ops import append_interaction, append_embedding, get_corpus_stats, r
 |---------|-----------|-----------|
 | **CLAUDE.md** | Context kernel (este archivo) | Raíz |
 | **claude-bitacora.md** | Append-only log de acciones | Raíz |
-| **SPRINT_ANALYSIS.md** | Análisis RICE + planificación | Raíz |
+| **SPRINT_ANALYSIS.md** | Análisis RICE (Sprint 1) | Raíz |
+| **SPRINT_2_PLAN.md** | Plan detallado Sprint 2 | Raíz |
 | **AUDIT_2025-10-24.md** | Peer review con best practices | Raíz |
 | **requirements.txt** | Dependencies pinned | Raíz |
 | **config.yml** | System configuration | `config/` |
