@@ -855,3 +855,54 @@ Próximo paso: Iniciar ejecución de Sprint 1 (FI-CONFIG-FEAT-001 → In Progres
 
 ---
 
+## [2025-10-24 23:45] SPR-2025W43 — FI-CONFIG-FEAT-001: Sistema de Configuración YAML
+Estado: In Progress → Testing | Prioridad: P0 | Área: Config
+Fechas: start 2025-10-24 23:30 → completado 2025-10-24 23:45 (15 min)
+Acción: Implementado y movido a Testing
+Síntesis técnica:
+- Parser YAML creado con validación de schema (ConfigSchema class)
+- Loader implementado con defaults si archivo ausente (get_default_config)
+- Validator con errores descriptivos (ConfigValidationError)
+- Suite de tests: 7 casos, 100% pass en 0.012s
+- Docstrings formato Google en todas las funciones
+- CLI validation incluido (python3 backend/config_loader.py config/config.yml)
+
+Archivos creados:
+- config/config.yml (43 líneas): Schema con 6 secciones (system, storage, server, models, features, limits)
+- backend/config_loader.py (220 líneas): Parser + validator + defaults
+- tests/test_config_loader.py (229 líneas): Suite completa de tests unitarios
+
+DoD verificado:
+✅ Parser YAML con validación de schema
+✅ Loader con valores por defecto si archivo no existe
+✅ Validator que lanza errores descriptivos si schema inválido
+✅ Tests unitarios con 7 casos (>3 requeridos): valid, missing_section, bad_log_level, bad_port, missing_file, empty_file, defaults
+✅ Documentación en docstrings (formato Google)
+
+Tests ejecutados:
+- test_valid_config ✅
+- test_invalid_config_missing_section ✅
+- test_invalid_config_bad_log_level ✅
+- test_invalid_config_bad_port ✅
+- test_missing_file_returns_defaults ✅
+- test_empty_file_raises_error ✅
+- test_get_default_config ✅
+
+Validación config.yml: ✅ (System: Free Intelligence v0.1.0, Server: 127.0.0.1:7000)
+
+Comentario Trello (publicado):
+> ✅ COMPLETADO: 24-oct-2025 23:45
+> DoD verificado: Parser, Loader, Validator, 7 tests, Docstrings
+> Archivos: config/config.yml, backend/config_loader.py, tests/test_config_loader.py
+> Tests: 7/7 passed en 0.012s
+
+Commit: fe26251 "feat(config): implement YAML configuration system"
+
+Dependencias desbloqueadas:
+- FI-CORE-FEAT-002 (Logger) puede iniciar → necesita config para log_level
+- FI-DATA-FEAT-001 (HDF5) puede iniciar → necesita config para corpus_path
+
+Próximo paso: Iniciar cards paralelas LOGGER y HDF5 (ambas due 25-oct)
+
+---
+
