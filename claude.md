@@ -962,3 +962,93 @@ Próximo paso: FI-DATA-FEAT-001 (Esquema HDF5) puede usar logger para tracking
 
 ---
 
+## [2025-10-24 23:59] SPR-2025W43 — FI-DATA-FEAT-001: Esquema HDF5 con Datasets Jerárquicos
+Estado: In Progress → Testing | Prioridad: P0 | Área: Data
+Fechas: start 2025-10-24 23:56 → completado 2025-10-24 23:59 (3 min)
+Acción: Implementado y movido a Testing
+Síntesis técnica:
+- Esquema HDF5 jerárquico con 3 grupos principales: /interactions/, /embeddings/, /metadata/
+- Datasets resizables (maxshape=None) para append-only operations
+- Validación de schema con detección de errores descriptivos
+- Integración con config_loader para corpus_path
+- Integración con logger para tracking de operaciones
+- CLI incluido para init/validate
+
+Archivos creados:
+- backend/corpus_schema.py (280 líneas): CorpusSchema class, init_corpus(), validate_corpus()
+- tests/test_corpus_schema.py (170 líneas): Suite completa de tests
+- storage/corpus.h5: Corpus inicializado y validado (ignorado en git por .gitignore)
+
+DoD verificado:
+✅ Esquema jerárquico con /interactions/, /embeddings/, /metadata/
+✅ Función init_corpus() con parámetro force para overwrite
+✅ Función validate_corpus() que retorna lista de errores
+✅ Tests unitarios: 10 casos (>3 requeridos)
+✅ Docstrings formato Google
+
+Estructura HDF5 implementada:
+/interactions/ (7 datasets):
+  - session_id: string (UUID de sesión)
+  - interaction_id: string (UUID de interacción)
+  - timestamp: string (ISO 8601)
+  - prompt: string (input del usuario)
+  - response: string (output del modelo)
+  - model: string (modelo usado)
+  - tokens: int32 (total de tokens)
+
+/embeddings/ (3 datasets):
+  - interaction_id: string (referencia a interaction)
+  - vector: float32 array (768-dim, all-MiniLM-L6-v2)
+  - model: string (modelo de embedding usado)
+
+/metadata/ (attrs):
+  - created_at: timestamp de creación
+  - version: versión del sistema (0.1.0)
+  - schema_version: versión del schema (1)
+
+Features implementadas:
+- Datasets con maxshape=(None,) para permitir append dinámico
+- Vector embeddings pre-configurados para 768 dimensiones
+- Validation con lista detallada de errores
+- init_corpus_from_config() lee corpus_path de config.yml
+- CLI demo: python3 corpus_schema.py init|validate
+
+Tests ejecutados:
+- test_init_corpus_creates_file ✅
+- test_init_corpus_creates_required_groups ✅
+- test_interactions_datasets ✅
+- test_embeddings_datasets ✅ (verifica 768-dim)
+- test_metadata_attributes ✅
+- test_validate_corpus_valid ✅
+- test_validate_corpus_missing_file ✅
+- test_validate_corpus_missing_group ✅
+- test_init_corpus_force_overwrite ✅
+- test_datasets_are_resizable ✅
+
+Resultado tests: 10/10 passed en 0.103s
+
+Corpus inicializado:
+- Path: /Users/bernardurizaorozco/Documents/free-intelligence/storage/corpus.h5
+- Valid: ✅
+- Size: ~8KB (estructura vacía)
+
+Comentario Trello (publicado):
+> ✅ COMPLETADO: 24-oct-2025 23:59
+> DoD verificado: Schema jerárquico, init/validate, 10 tests
+> Archivos: backend/corpus_schema.py, tests/test_corpus_schema.py
+> Tests: 10/10 passed en 0.103s
+> Corpus: storage/corpus.h5 ✅ validado
+
+Commit: 70d4629 "feat(data): implement HDF5 corpus schema with hierarchical structure"
+
+Dependencies instaladas:
+- h5py (pip3 install h5py)
+
+Dependencias desbloqueadas:
+- FI-API-FEAT-001 (corpus_id) puede iniciar → necesita corpus para generar IDs
+- FI-CORE-FEAT-001 (nomenclatura) puede iniciar → necesita corpus structure
+
+Próximo paso: Iniciar cards FI-API-FEAT-001 y FI-CORE-FEAT-001 (ambas due 26-oct)
+
+---
+
