@@ -40,6 +40,9 @@ def append_interaction(
     Returns:
         interaction_id (UUID)
 
+    Raises:
+        AppendOnlyViolation: If operation violates append-only policy
+
     Examples:
         >>> interaction_id = append_interaction(
         ...     "storage/corpus.h5",
@@ -51,6 +54,7 @@ def append_interaction(
         ... )
     """
     from logger import get_logger
+    from append_only_policy import AppendOnlyPolicy
 
     logger = get_logger()
     interaction_id = str(uuid.uuid4())
@@ -61,7 +65,7 @@ def append_interaction(
         timestamp = datetime.now(tz).isoformat()
 
     try:
-        with h5py.File(corpus_path, 'a') as f:
+        with AppendOnlyPolicy(corpus_path), h5py.File(corpus_path, 'a') as f:
             interactions = f["interactions"]
 
             # Current size
@@ -114,12 +118,16 @@ def append_embedding(
     Returns:
         True if successful
 
+    Raises:
+        AppendOnlyViolation: If operation violates append-only policy
+
     Examples:
         >>> vector = np.random.rand(768).astype(np.float32)
         >>> append_embedding("storage/corpus.h5", interaction_id, vector)
         True
     """
     from logger import get_logger
+    from append_only_policy import AppendOnlyPolicy
 
     logger = get_logger()
 
@@ -127,7 +135,7 @@ def append_embedding(
         raise ValueError(f"Vector must be 768-dim, got {vector.shape}")
 
     try:
-        with h5py.File(corpus_path, 'a') as f:
+        with AppendOnlyPolicy(corpus_path), h5py.File(corpus_path, 'a') as f:
             embeddings = f["embeddings"]
 
             # Current size
