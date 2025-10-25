@@ -42,7 +42,7 @@ class AppendOnlyPolicy:
             corpus_path: Path to HDF5 corpus file
         """
         self.corpus_path = corpus_path
-        self._original_sizes: Dict[str, int] = {}
+        self.original_sizes: Dict[str, int] = {}
 
     def __enter__(self):
         """Context manager entry - record original dataset sizes."""
@@ -56,7 +56,7 @@ class AppendOnlyPolicy:
                     group = f[group_name]
                     for dataset_name in group.keys():
                         key = f"{group_name}/{dataset_name}"
-                        self._original_sizes[key] = group[dataset_name].shape[0]
+                        self.original_sizes[key] = group[dataset_name].shape[0]
 
         return self
 
@@ -73,7 +73,7 @@ class AppendOnlyPolicy:
                     group = f[group_name]
                     for dataset_name in group.keys():
                         key = f"{group_name}/{dataset_name}"
-                        original_size = self._original_sizes.get(key, 0)
+                        original_size = self.original_sizes.get(key, 0)
                         current_size = group[dataset_name].shape[0]
 
                         if current_size < original_size:
@@ -101,7 +101,7 @@ class AppendOnlyPolicy:
             AppendOnlyViolation: If attempting to modify existing data
         """
         key = f"{group_name}/{dataset_name}"
-        original_size = self._original_sizes.get(key, 0)
+        original_size = self.original_sizes.get(key, 0)
 
         if index < original_size:
             raise AppendOnlyViolation(
@@ -128,7 +128,7 @@ class AppendOnlyPolicy:
             AppendOnlyViolation: If attempting to shrink dataset
         """
         key = f"{group_name}/{dataset_name}"
-        original_size = self._original_sizes.get(key, 0)
+        original_size = self.original_sizes.get(key, 0)
 
         if new_size < original_size:
             raise AppendOnlyViolation(
@@ -224,7 +224,6 @@ def get_dataset_size(corpus_path: str, group_name: str, dataset_name: str) -> in
 
 if __name__ == "__main__":
     """Demo: Append-only policy enforcement"""
-    import sys
     from config_loader import load_config
 
     config = load_config()
@@ -270,7 +269,7 @@ if __name__ == "__main__":
         with AppendOnlyPolicy(corpus_path) as policy:
             print("  ✅ Context manager initialized")
             print("  📊 Recorded dataset sizes:")
-            for key, size in policy._original_sizes.items():
+            for key, size in policy.original_sizes.items():
                 print(f"    {key}: {size}")
         print("  ✅ Context manager exited cleanly\n")
     except AppendOnlyViolation as e:

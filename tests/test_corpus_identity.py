@@ -17,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 from corpus_identity import (
     generate_corpus_id,
     generate_owner_hash,
-    add_corpus_identity,
     verify_corpus_ownership,
     get_corpus_identity
 )
@@ -77,6 +76,9 @@ class TestCorpusIdentityGenerators(unittest.TestCase):
 
 class TestCorpusIdentityOperations(unittest.TestCase):
     """Test corpus identity operations."""
+
+    test_dir: str
+    corpus_path: str
 
     def setUp(self):
         """Create temporary directory for test corpora."""

@@ -26,6 +26,9 @@ from corpus_ops import (
 class TestCorpusOps(unittest.TestCase):
     """Test suite for corpus operations."""
 
+    temp_file: tempfile._TemporaryFileWrapper  # type: ignore
+    temp_path: str
+
     def setUp(self):
         """Create temporary corpus for testing."""
         self.temp_file = tempfile.NamedTemporaryFile(suffix='.h5', delete=False)

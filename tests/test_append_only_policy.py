@@ -28,6 +28,9 @@ from append_only_policy import (
 class TestAppendOnlyPolicy(unittest.TestCase):
     """Test append-only policy enforcement."""
 
+    temp_dir: str
+    corpus_path: str
+
     def setUp(self):
         """Create temporary corpus for testing."""
         self.temp_dir = tempfile.mkdtemp()
@@ -46,9 +49,9 @@ class TestAppendOnlyPolicy(unittest.TestCase):
         """Test AppendOnlyPolicy context manager initialization."""
         with AppendOnlyPolicy(self.corpus_path) as policy:
             # Should record original sizes
-            self.assertGreater(len(policy._original_sizes), 0)
-            self.assertIn("interactions/session_id", policy._original_sizes)
-            self.assertIn("embeddings/interaction_id", policy._original_sizes)
+            self.assertGreater(len(policy.original_sizes), 0)
+            self.assertIn("interactions/session_id", policy.original_sizes)
+            self.assertIn("embeddings/interaction_id", policy.original_sizes)
 
     def test_context_manager_nonexistent_file(self):
         """Test policy with nonexistent corpus."""
@@ -101,10 +104,8 @@ class TestAppendOnlyPolicy(unittest.TestCase):
         # Try to mutate existing data directly
         with self.assertRaises(AppendOnlyViolation):
             with AppendOnlyPolicy(self.corpus_path) as policy:
-                with h5py.File(self.corpus_path, 'a') as f:
-                    # Attempt to modify existing data (index 0)
-                    original_size = f["interactions"]["session_id"].shape[0]
-                    policy.validate_write_index("interactions", "session_id", 0)
+                # Attempt to modify existing data (index 0)
+                policy.validate_write_index("interactions", "session_id", 0)
 
     def test_validate_write_index_existing(self):
         """Test validation of write to existing index."""

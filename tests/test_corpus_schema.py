@@ -23,13 +23,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 from corpus_schema import (
     init_corpus,
     validate_corpus,
-    CorpusSchema,
-    init_corpus_from_config
+    CorpusSchema
 )
 
 
 class TestCorpusSchema(unittest.TestCase):
     """Test suite for HDF5 corpus schema."""
+
+    temp_file: tempfile._TemporaryFileWrapper  # type: ignore
+    temp_path: str
 
     def setUp(self):
         """Create temporary file for testing."""
