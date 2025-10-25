@@ -1140,3 +1140,128 @@ Próximo paso: Continuar con FI-API-FEAT-001 o FI-CORE-FEAT-001
 
 ---
 
+## [2025-10-24 23:59] SPR-2025W43 — FI-DATA-OPS: Demostración Flujo End-to-End
+Estado: Test & Demo | Acción: Implementación de operaciones corpus y generación de datos de prueba
+Fechas: Implementado 24-oct-2025 23:51-23:59 (8 min)
+Acción: Demostración completa del flujo: config → logger → corpus → embeddings → read
+Síntesis técnica:
+- Implementadas funciones de append y read para corpus HDF5
+- Generador de datos de prueba con conversaciones realistas sobre Free Intelligence
+- Tests completos de operaciones (8 nuevos tests, 31 total)
+- Demostración exitosa del flujo completo con compresión gzip funcionando
+
+Archivos creados:
+- backend/corpus_ops.py (343 líneas): API de operaciones sobre corpus
+- scripts/generate_test_data.py (250 líneas): Generador de datos de prueba
+- tests/test_corpus_ops.py (172 líneas): Suite de tests
+
+Functions implementadas:
+1. append_interaction(corpus_path, session_id, prompt, response, model, tokens, timestamp)
+   - Escribe interacción a /interactions/ con resize dinámico
+   - Genera UUID para interaction_id
+   - Trackea con logger structured JSON
+   
+2. append_embedding(corpus_path, interaction_id, vector, model)
+   - Escribe vector 768-dim a /embeddings/
+   - Valida dimensión (debe ser 768)
+   - Asocia con interaction_id
+   
+3. get_corpus_stats(corpus_path)
+   - Retorna counts, file size, metadata
+   - Formato: {interactions_count, embeddings_count, file_size_mb, created_at, version}
+   
+4. read_interactions(corpus_path, limit=10)
+   - Lee últimas N interacciones
+   - Retorna lista de dicts con todos los campos
+   - Decodifica strings UTF-8
+
+Flujo demostrado:
+1. ✅ Config loader: Carga corpus_path y timezone desde config.yml
+2. ✅ Logger: Trackea operaciones con timestamp timezone-aware (America/Mexico_City)
+3. ✅ Append interaction: Escribe a /interactions/ con compression=gzip, chunks=(1024,)
+4. ✅ Append embedding: Escribe vector 768-dim comprimido
+5. ✅ Read back: Lee datos correctamente, decodifica UTF-8
+6. ✅ Stats: Verifica file size, counts
+
+Datos de prueba generados:
+- 3 sesiones de conversación (session_20251024_demo_001/002/003)
+- 7 interacciones totales sobre Free Intelligence:
+  1. "¿Qué es Free Intelligence?" (125 tokens)
+  2. "¿Cuáles son los 5 principios fundamentales?" (180 tokens)
+  3. "¿Cómo se estructura el corpus HDF5?" (195 tokens)
+  4. "¿Por qué usar HDF5 en lugar de SQLite o JSON?" (210 tokens)
+  5. "Explica el flujo de una interacción desde prompt hasta archivo" (245 tokens)
+  6. "¿Qué significa 'append-only' y por qué es importante?" (198 tokens)
+  7. "Muestra un ejemplo de structured log" (165 tokens)
+- 7 embeddings (768-dim, simulados con np.random)
+- Timestamps espaciados 5 min entre interacciones
+
+Verificación de compresión:
+- File size inicial: 0.01 MB (corpus vacío)
+- File size final: 0.13 MB (con 7 interacciones + embeddings)
+- Compression: gzip nivel 4 ✅
+- Chunks: (1024,) auto-chunking ✅
+- Todos los datasets comprimidos ✅
+
+Tests ejecutados:
+- test_append_interaction ✅
+- test_append_multiple_interactions ✅ (5 interacciones)
+- test_append_embedding ✅ (vector 768-dim)
+- test_append_embedding_wrong_dimension ✅ (ValueError para 512-dim)
+- test_get_corpus_stats ✅ (verifica todos los campos)
+- test_read_interactions ✅ (3 interacciones)
+- test_read_interactions_with_limit ✅ (limit=2 de 5 total)
+- test_read_interactions_empty_corpus ✅ (retorna lista vacía)
+
+Resultado tests: 31/31 passed (0.185s)
+- 23 tests anteriores (config, logger, corpus_schema)
+- 8 tests nuevos (corpus_ops)
+
+Output del generador de datos:
+```
+🚀 FREE INTELLIGENCE - TEST DATA GENERATION
+============================================================
+📊 Initial Corpus Stats:
+   interactions_count: 0
+   embeddings_count: 0
+   file_size_mb: 0.01
+
+📝 Generating 3 test conversations...
+   ✅ 7 interactions generated
+
+📊 Final Corpus Stats:
+   interactions_count: 7
+   embeddings_count: 7
+   file_size_mb: 0.13
+
+📈 Changes:
+   Interactions added: 7
+   Embeddings added: 7
+   File size change: 0.12 MB
+```
+
+Verificación HDF5 estructura:
+```
+/interactions/
+   prompt: compression=gzip, compression_opts=4, chunks=(1024,)
+   response: compression=gzip, compression_opts=4, chunks=(1024,)
+   [todos los datasets comprimidos]
+   
+/embeddings/
+   vector: shape=(7, 768), compression=gzip
+   [todos comprimidos]
+```
+
+Commit: aae47bc "feat(data): add corpus operations and test data generation"
+
+Flujo completo verificado:
+✅ Config → Logger → Corpus append → Embeddings → Read
+✅ Compression working (gzip nivel 4)
+✅ Timezone-aware timestamps (America/Mexico_City -06:00)
+✅ Structured logging (JSON output)
+✅ All 31 tests passing
+
+Próximo paso: FI-API-FEAT-001 (corpus_id generator) o FI-CORE-FEAT-001 (nomenclatura)
+
+---
+
