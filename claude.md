@@ -906,3 +906,59 @@ Próximo paso: Iniciar cards paralelas LOGGER y HDF5 (ambas due 25-oct)
 
 ---
 
+## [2025-10-24 23:55] SPR-2025W43 — FI-CORE-FEAT-002: Logger Estructurado con Timestamps
+Estado: In Progress → Testing | Prioridad: P0 | Área: Core
+Fechas: start 2025-10-24 23:50 → completado 2025-10-24 23:55 (5 min)
+Acción: Implementado y movido a Testing
+Síntesis técnica:
+- Structured logging con structlog + JSON output
+- Timezone-aware timestamps (America/Mexico_City, ISO 8601 con offset)
+- Integración automática con config_loader para log_level y timezone
+- Fallback a defaults si config falla (log_level="INFO")
+- Multi-handler support (stderr + opcional file)
+- CLI demo incluido para validación
+
+Archivos creados:
+- backend/logger.py (142 líneas): get_logger() + init_logger_from_config()
+- tests/test_logger.py (130 líneas): Suite de tests unitarios
+
+DoD verificado:
+✅ Logger estructurado con structlog y JSON output
+✅ Timezone-aware timestamps (America/Mexico_City con offset -06:00)
+✅ Integración con config_loader para log_level automático
+✅ Tests unitarios con 6 casos (>3 requeridos)
+✅ Docstrings formato Google
+
+Features implementadas:
+- JSON structured output con campos requeridos: event, timestamp, level
+- Custom context support (arbitrary key-value pairs)
+- Timestamp formato ISO 8601: "2025-10-24T23:32:50.215885-06:00"
+- Auto-configuración desde config.yml (system.log_level, system.timezone)
+- Procesadores structlog: add_log_level, add_timestamp, StackInfoRenderer, format_exc_info, JSONRenderer
+
+Tests ejecutados:
+- test_logger_initialization ✅
+- test_logger_with_custom_level ✅
+- test_logger_output_format ✅ (verifica JSON válido con campos requeridos)
+- test_timezone_aware_timestamp ✅ (verifica offset Mexico City)
+- test_init_from_config ✅
+- test_multiple_log_levels ✅ (debug, info, warning, error)
+
+Resultado tests: 6/6 passed en 0.017s
+
+Comentario Trello (publicado):
+> ✅ COMPLETADO: 24-oct-2025 23:55
+> DoD verificado: Structlog, timezone-aware, config integration, 6 tests
+> Archivos: backend/logger.py, tests/test_logger.py
+> Tests: 6/6 passed en 0.017s
+> Timestamp ejemplo: 2025-10-24T23:32:50.215885-06:00
+
+Commit: ba478b9 "feat(core): implement structured logger with timezone-aware timestamps"
+
+Dependencies instaladas:
+- structlog (pip3 install structlog)
+
+Próximo paso: FI-DATA-FEAT-001 (Esquema HDF5) puede usar logger para tracking
+
+---
+
