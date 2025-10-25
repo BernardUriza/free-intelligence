@@ -1,0 +1,41 @@
+# Backups
+backups/
+*.bundle
+*.sha256
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Local config
+.env
+.env.local
+
+# HDF5 corpus (development)
+storage/*.h5
+!storage/.gitkeep
+
+# Exports
+exports/*
+!exports/.gitkeep
