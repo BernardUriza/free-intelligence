@@ -98,10 +98,11 @@ Free Intelligence no es una herramienta. Es una **posición ontológica computac
 | **Event Validator** | ✅ Operativo | 16/16 | `backend/event_validator.py:1` |
 | **Append-Only Policy** | ✅ Operativo | 18/18 | `backend/append_only_policy.py:1` |
 | **Mutation Validator** | ✅ Operativo | 12/12 | `backend/mutation_validator.py:1` |
+| **Audit Logs** | ✅ Operativo | 18/18 | `backend/audit_logs.py:1` |
 | **Git Workflow** | ✅ Trunk-based | N/A | `scripts/sprint-close.sh:1` |
-| **Bitácora** | ✅ 16 entradas | N/A | `claude.md:600` |
+| **Bitácora** | ✅ 17 entradas | N/A | `claude.md:750` |
 
-**Total**: 90 tests passing (0.609s) • 24 eventos canónicos • No-mutation policy enforced ✅ • Append-only enforcement ✅
+**Total**: 108 tests passing (3.473s) • 26 eventos canónicos • Audit trail complete ✅ • No-mutation policy enforced ✅
 
 ### Pendiente (Sprint 1)
 
@@ -742,5 +743,86 @@ Impacto:
 - Complementa append-only policy
 
 Próximo paso: FI-SEC-FEAT-003 (Volumen audit_logs)
+
+---
+
+## [2025-10-25 21:10] FI-SEC-FEAT-003 — VOLUMEN AUDIT_LOGS/
+Estado: Completed | Acción: Implementación de grupo /audit_logs/ en HDF5
+Fechas: Ejecutado 25-oct-2025 20:50-21:10 (20 min)
+Acción: Grupo append-only para auditoría completa de operaciones
+Síntesis técnica:
+- Módulo `backend/audit_logs.py` implementado (350 líneas)
+  - `init_audit_logs_group()`: Inicializa grupo /audit_logs/
+  - `append_audit_log()`: Registra operación con hashing
+  - `get_audit_logs()`: Recupera logs con filtros
+  - `get_audit_stats()`: Estadísticas de auditoría
+  - `hash_payload()`: SHA256 de payloads/results
+
+- Schema HDF5 (/audit_logs/):
+  - audit_id: UUID v4 (36 chars)
+  - timestamp: ISO 8601 con timezone (50 chars)
+  - operation: Nombre de operación (100 chars)
+  - user_id: Identificador de usuario (100 chars)
+  - endpoint: API endpoint o función (200 chars)
+  - payload_hash: SHA256 de input (64 chars)
+  - result_hash: SHA256 de output (64 chars)
+  - status: SUCCESS, FAILED, BLOCKED (20 chars)
+  - metadata: JSON opcional (500 chars)
+
+- Tests completos (`tests/test_audit_logs.py`):
+  - 18 tests unitarios, 100% passing (1.641s)
+  - Cobertura: init, append, get, stats, filters
+  - Test de hashing consistency
+  - Test de auto-init si grupo no existe
+  - Test de filtros por operation y user
+
+- Características:
+  - ✅ Append-only (integrado con AppendOnlyPolicy)
+  - ✅ Compression gzip level 4
+  - ✅ Payload/result hashing (SHA256)
+  - ✅ Timezone-aware timestamps
+  - ✅ Filtros por operation y user
+  - ✅ Auto-initialization
+
+Demo ejecutado exitosamente:
+```bash
+python3 backend/audit_logs.py
+
+🔒 Audit Logs Demo
+Initializing audit_logs group... ✅
+Appending test audit log... ✅
+📊 Total logs: 1
+📖 Recent Audit Logs:
+  [1] Operation: TEST_OPERATION
+      User: demo_user
+      Status: SUCCESS
+```
+
+Criterios de aceptación (DoD):
+- ✅ Grupo /audit_logs/ en HDF5
+- ✅ 9 datasets con schema definido
+- ✅ Payload/result hashing implementado
+- ✅ Append-only enforcement
+- ✅ Filtros por operation/user
+- ✅ Stats breakdown por status y operation
+- ✅ Tests pasan (18/18)
+- ✅ Demo ejecutado exitosamente
+- ✅ Auto-init si grupo no existe
+
+Eventos nuevos:
+- `AUDIT_LOGS_GROUP_INITIALIZED` - Grupo creado
+- `AUDIT_LOGS_GROUP_EXISTS` - Grupo ya existe
+- `AUDIT_LOG_APPENDED` - Log registrado
+- `AUDIT_LOGS_READ_FAILED` - Error al leer
+- `AUDIT_STATS_FAILED` - Error en stats
+
+Impacto:
+- Trazabilidad completa de operaciones
+- Non-repudiation (hashes SHA256)
+- Compliance interno garantizado
+- Base para análisis de comportamiento
+- Auditoría no reversible
+
+Próximo paso: Continuar con Tier 1 restantes (FI-CORE-FEAT-004, FI-CORE-FIX-001, FI-SEC-FEAT-004)
 
 ---
