@@ -96,10 +96,11 @@ Free Intelligence no es una herramienta. Es una **posición ontológica computac
 | **Corpus Operations** | ✅ Operativo | 8/8 | `backend/corpus_ops.py:1` |
 | **Corpus Identity** | ✅ Operativo | 13/13 | `backend/corpus_identity.py:1` |
 | **Event Validator** | ✅ Operativo | 16/16 | `backend/event_validator.py:1` |
+| **Append-Only Policy** | ✅ Operativo | 18/18 | `backend/append_only_policy.py:1` |
 | **Git Workflow** | ✅ Trunk-based | N/A | `scripts/sprint-close.sh:1` |
-| **Bitácora** | ✅ 14 entradas | N/A | `CLAUDE.md:350` |
+| **Bitácora** | ✅ 15 entradas | N/A | `CLAUDE.md:600` |
 
-**Total**: 60 tests passing (0.258s) • 22 eventos canónicos • Compression gzip funcionando • Corpus con identidad ✅
+**Total**: 78 tests passing (0.669s) • 24 eventos canónicos • Append-only enforcement ✅ • Corpus con identidad ✅
 
 ### Pendiente (Sprint 1)
 
@@ -597,3 +598,71 @@ Próximo paso: Sprint 1 completo (5/5 cards) → Sprint Review
 
 ---
 
+## [2025-10-25 20:45] FI-DATA-FEAT-005 — POLÍTICA APPEND-ONLY EN HDF5
+Estado: Testing | Acción: Implementación de política append-only para corpus
+Fechas: Ejecutado 25-oct-2025 20:30-20:45 (15 min)
+Acción: Validación y enforcement de operaciones append-only en HDF5
+Síntesis técnica:
+- Módulo `backend/append_only_policy.py` implementado (286 líneas)
+  - Clase `AppendOnlyPolicy`: Context manager para enforcement
+  - `AppendOnlyViolation`: Exception para violaciones
+  - `validate_write_index()`: Valida escrituras solo a índices nuevos
+  - `validate_resize()`: Valida resize solo a tamaños mayores
+  - `verify_append_only_operation()`: Verificación por nombre de operación
+  - `get_dataset_size()`: Obtener tamaño actual de dataset
+
+- Integración en `corpus_ops.py`:
+  - `append_interaction()`: Usa AppendOnlyPolicy context manager
+  - `append_embedding()`: Usa AppendOnlyPolicy context manager
+  - Todas las operaciones de escritura protegidas
+  - Logs incluyen eventos de validación
+
+- Tests completos (`tests/test_append_only_policy.py`):
+  - 18 tests unitarios, 100% passing (0.411s)
+  - Cobertura: context manager, validations, violations, operations
+  - Test de mutación bloqueada, resize decrease bloqueado
+  - Test de múltiples appends consecutivos
+
+Operaciones permitidas:
+- ✅ Resize a tamaño mayor (append)
+- ✅ Escritura a índices nuevos solamente
+- ✅ Todas las operaciones de lectura
+- ❌ Modificar datos existentes
+- ❌ Eliminar datos (resize a tamaño menor)
+- ❌ Truncar datasets
+
+Demo ejecutado exitosamente:
+```bash
+python3 backend/append_only_policy.py
+
+Test 1: Read operation... ✅ ALLOWED
+Test 2: Append operation... ✅ ALLOWED
+Test 3: Mutation operation... ❌ BLOCKED
+Test 4: Context manager... ✅ PASSED
+Test 5: Dataset sizes... ✅ VERIFIED
+```
+
+Criterios de aceptación (DoD):
+- ✅ AppendOnlyPolicy implementado como context manager
+- ✅ Validación de write index (solo nuevos índices)
+- ✅ Validación de resize (solo incremento)
+- ✅ Detección de truncamiento en `__exit__`
+- ✅ Integration con corpus_ops.py
+- ✅ Tests pasan (18/18)
+- ✅ Demo ejecutado exitosamente
+- ✅ Eventos de log para validaciones
+
+Eventos nuevos:
+- `APPEND_ONLY_VERIFIED` - Operación validada como permitida
+- `APPEND_ONLY_VIOLATION_DETECTED` - Operación bloqueada (warning)
+
+Impacto:
+- Integridad de datos garantizada por diseño
+- Imposible mutar o eliminar datos existentes
+- Rollback seguro (datos históricos preservados)
+- Base para auditoría completa
+- Cumple principio fundamental de Free Intelligence
+
+Próximo paso: Testing manual → Mover a Done → FI-DATA-FIX-001
+
+---
