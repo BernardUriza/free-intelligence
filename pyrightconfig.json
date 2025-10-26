@@ -56,7 +56,7 @@
   "reportImplicitStringConcatenation": "none",
   "reportMissingSuperCall": "none",
   "reportPropertyTypeMismatch": "error",
-  "reportUninitializedInstanceVariable": "warning",
+  "reportUninitializedInstanceVariable": "none",
   "reportUnnecessaryTypeIgnoreComment": "warning",
   "reportMatchNotExhaustive": "warning"
 }

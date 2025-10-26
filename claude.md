@@ -99,10 +99,13 @@ Free Intelligence no es una herramienta. Es una **posición ontológica computac
 | **Append-Only Policy** | ✅ Operativo | 18/18 | `backend/append_only_policy.py:1` |
 | **Mutation Validator** | ✅ Operativo | 12/12 | `backend/mutation_validator.py:1` |
 | **Audit Logs** | ✅ Operativo | 18/18 | `backend/audit_logs.py:1` |
+| **LLM Audit Policy** | ✅ Operativo | 27/27 | `backend/llm_audit_policy.py:1` |
+| **LLM Router Policy** | ✅ Operativo | 27/27 | `backend/llm_router_policy.py:1` |
+| **Export Policy** | ✅ Operativo | 21/21 | `backend/export_policy.py:1` |
 | **Git Workflow** | ✅ Trunk-based | N/A | `scripts/sprint-close.sh:1` |
-| **Bitácora** | ✅ 17 entradas | N/A | `claude.md:750` |
+| **Bitácora** | ✅ 20 entradas | N/A | `claude.md:967` |
 
-**Total**: 108 tests passing (3.473s) • 26 eventos canónicos • Audit trail complete ✅ • No-mutation policy enforced ✅
+**Total**: 183 tests passing (0.648s) • 38 eventos canónicos • Audit trail complete ✅ • No-mutation policy enforced ✅ • LLM audit policy enforced ✅ • LLM router policy enforced ✅ • Export policy enforced ✅
 
 ### Pendiente (Sprint 1)
 
@@ -824,5 +827,214 @@ Impacto:
 - Auditoría no reversible
 
 Próximo paso: Continuar con Tier 1 restantes (FI-CORE-FEAT-004, FI-CORE-FIX-001, FI-SEC-FEAT-004)
+
+---
+
+## [2025-10-25 23:15] FI-CORE-FEAT-004 — POLÍTICA LLM SIN LOGGING PROHIBIDO
+Estado: Completed | Acción: Implementación de política de audit obligatorio para LLM
+Fechas: Ejecutado 25-oct-2025 22:45-23:15 (30 min)
+Acción: Decorator @require_audit_log + validador AST + documentación
+Síntesis técnica:
+- Módulo `backend/llm_audit_policy.py` implementado (430 líneas)
+  - `@require_audit_log`: Decorator para marcar funciones LLM
+  - `is_llm_function_name()`: Detección inteligente de funciones LLM
+  - `scan_file_for_llm_functions()`: Escaneo AST de archivos
+  - `scan_directory()`: Escaneo recursivo
+  - `validate_codebase()`: Validación completa con exit codes
+  - CLI: scan, validate
+
+- Detección de funciones LLM:
+  - Alta confianza: call_claude*, invoke_llm*, query_llm*
+  - Keywords: claude, anthropic, openai, gpt, llm
+  - Exclusiones: funciones del validador, generate_corpus_id, etc.
+  - Reducción de falsos positivos mediante listas de exclusión
+
+- Tests completos (`tests/test_llm_audit_policy.py`):
+  - 27 tests unitarios, 100% passing (0.005s)
+  - Cobertura: decorator, detección AST, escaneo, validación
+  - Tests de exclusiones y falsos positivos
+  - Tests de compliance completo/parcial
+
+- Documentación (`docs/llm-audit-policy.md`):
+  - Política completa con ejemplos
+  - Anti-patterns y buenos patrones
+  - Roadmap: Fase 1 (detección estática) ✅, Fase 2 (runtime), Fase 3 (CI/CD)
+  - Integración con audit_logs
+
+Validación del backend actual:
+```bash
+python3 backend/llm_audit_policy.py validate backend/
+
+✅ LLM AUDIT VALIDATION PASSED
+   No LLM functions detected
+```
+
+Criterios de aceptación (DoD):
+- ✅ Decorator @require_audit_log implementado
+- ✅ Validador AST con detección inteligente
+- ✅ Exclusión de falsos positivos
+- ✅ CLI scan/validate funcional
+- ✅ Tests pasan (27/27)
+- ✅ Documentación completa
+- ✅ Backend validado (0 violaciones)
+- ✅ Total tests proyecto: 135/135 passing
+
+Eventos nuevos:
+- `LLM_FUNCTION_CALLED` - Función LLM ejecutada (info)
+- `LLM_AUDIT_VALIDATION_PASSED` - Validación exitosa
+- `LLM_AUDIT_VIOLATIONS_DETECTED` - Violaciones encontradas (error)
+- `FILE_PARSE_FAILED` - Archivo con syntax error (warning)
+
+Impacto:
+- Toda LLM call debe tener @require_audit_log + append_audit_log()
+- Detección estática en validación de código
+- Base para pre-commit hooks (FI-CICD-FEAT-001)
+- Enforcement de trazabilidad completa
+- Non-repudiation de inferencias LLM
+
+Próximo paso: FI-CORE-FIX-001 (LLM sin router prohibido)
+
+---
+
+## [2025-10-25 23:26] FI-CORE-FIX-001 — POLÍTICA LLM SIN ROUTER PROHIBIDO
+Estado: Completed | Acción: Implementación de política de router centralizado
+Fechas: Ejecutado 25-oct-2025 23:15-23:26 (11 min)
+Acción: Validador AST + tests + documentación para router policy
+Síntesis técnica:
+- Módulo `backend/llm_router_policy.py` implementado (380 líneas)
+  - `extract_imports()`: Extrae imports de AST (import + from)
+  - `has_forbidden_import()`: Detecta anthropic, openai, cohere, etc.
+  - `extract_attribute_calls()`: Extrae cadenas de llamadas (client.messages.create)
+  - `has_forbidden_call()`: Detecta patterns prohibidos
+  - `scan_file_for_router_violations()`: Escaneo completo de archivo
+  - CLI: scan, validate
+
+- Forbidden imports detectados:
+  - anthropic, openai, cohere
+  - google.generativeai, huggingface_hub, transformers
+
+- Forbidden call patterns:
+  - messages.create (anthropic)
+  - chat.completions.create (openai)
+  - generate (cohere, huggingface)
+  - generate_content (google)
+
+- Tests completos (`tests/test_llm_router_policy.py`):
+  - 27 tests unitarios, 100% passing (0.006s)
+  - Cobertura: imports, calls, escaneo, validación
+  - Tests de imports anidados (google.generativeai)
+  - Tests de attribute calls anidados
+
+- Documentación (`docs/llm-router-policy.md`):
+  - Política completa con ejemplos
+  - Roadmap en 3 fases (Fase 1 validador ✅)
+  - Diseño de router centralizado (Fase 2)
+  - Beneficios: control, audit automático, rate limiting
+
+Validación del backend actual:
+```bash
+python3 backend/llm_router_policy.py validate backend/
+
+✅ ROUTER POLICY VALIDATION PASSED
+   No direct LLM API calls detected
+```
+
+Criterios de aceptación (DoD):
+- ✅ Validador AST implementado
+- ✅ Detección de forbidden imports
+- ✅ Detección de forbidden calls
+- ✅ CLI scan/validate funcional
+- ✅ Tests pasan (27/27)
+- ✅ Documentación completa
+- ✅ Backend validado (0 violaciones)
+- ✅ Total tests proyecto: 162/162 passing
+
+Eventos nuevos:
+- `ROUTER_POLICY_VALIDATION_PASSED` - Validación exitosa
+- `ROUTER_POLICY_VIOLATIONS_DETECTED` - Violaciones encontradas (error)
+- `FILE_PARSE_FAILED` - Archivo con syntax error (warning)
+
+Impacto:
+- TODA llamada LLM debe usar router centralizado (futuro)
+- Prohibido import directo de anthropic, openai, etc.
+- Base para implementación de router (FI-CORE-FEAT-006)
+- Audit logging automático en router
+- Rate limiting y cost tracking centralizados
+
+Próximo paso: FI-SEC-FEAT-004 (Contrato de salida de datos)
+
+---
+
+## [2025-10-25 23:45] FI-SEC-FEAT-004 — CONTRATO DE SALIDA DE DATOS
+Estado: Completed | Acción: Implementación de export policy con manifests
+Fechas: Ejecutado 25-oct-2025 23:27-23:45 (18 min)
+Acción: Export manifest schema + validación + tests + documentación
+Síntesis técnica:
+- Módulo `backend/export_policy.py` implementado (445 líneas)
+  - `ExportManifest`: Dataclass con schema completo
+  - `validate_manifest_schema()`: Validación de campos requeridos
+  - `compute_file_hash()`: SHA256 de archivos exportados
+  - `validate_export()`: Validación completa (schema + hash match)
+  - `create_export_manifest()`: Auto-generación de manifest
+  - `load_manifest()`: Carga desde JSON
+  - CLI: create, validate, load
+
+- Export Manifest Schema:
+  - export_id: UUID v4 (auto-generado)
+  - timestamp: ISO 8601 con timezone (auto-generado)
+  - exported_by: owner_hash prefix o user_id
+  - data_source: HDF5 group exportado
+  - data_hash: SHA256 de datos exportados (auto-generado)
+  - format: markdown | json | hdf5 | csv | txt
+  - purpose: personal_review | backup | migration | analysis | compliance | research
+  - retention_days: Opcional
+  - includes_pii: Boolean (default: true)
+  - metadata: Dict opcional
+
+- Tests completos (`tests/test_export_policy.py`):
+  - 21 tests unitarios, 100% passing (0.004s)
+  - Cobertura: manifest creation, schema validation, hash validation
+  - Tests de load/save, hash match/mismatch
+  - Tests de campos opcionales
+
+- Documentación (`docs/export-policy.md`):
+  - Política completa con ejemplos
+  - Formatos permitidos (5) y propósitos (6)
+  - Integración con audit_logs
+  - Workflow completo de export
+  - Security features (non-repudiation, audit trail, PII flagging)
+
+Validación y features:
+- Manifest obligatorio para TODO export
+- SHA256 hash garantiza integridad de datos
+- Validación estricta de schema (UUID, ISO 8601, formats, purposes)
+- CLI funcional para create/validate/load
+- Auto-generación de export_id, timestamp, data_hash
+
+Criterios de aceptación (DoD):
+- ✅ ExportManifest dataclass implementado
+- ✅ Schema validation completo
+- ✅ Hash validation (match/mismatch)
+- ✅ Load/save manifests
+- ✅ CLI create/validate/load funcional
+- ✅ Tests pasan (21/21)
+- ✅ Documentación completa
+- ✅ Total tests proyecto: 183/183 passing
+
+Eventos nuevos:
+- `EXPORT_MANIFEST_SAVED` - Manifest guardado
+- `EXPORT_MANIFEST_VALIDATED` - Manifest validado
+- `EXPORT_VALIDATED` - Export completo validado (schema + hash)
+- `EXPORT_MANIFEST_CREATED` - Manifest auto-generado
+- `EXPORT_MANIFEST_LOADED` - Manifest cargado desde JSON
+
+Impacto:
+- TODO export debe tener manifest con metadata completa
+- Non-repudiation via SHA256 hash
+- Trazabilidad completa de salida de datos
+- Base para compliance (GDPR, auditorías)
+- Integración con audit_logs para trail completo
+
+Próximo paso: Tier 2 (Observabilidad) o cierre de Sprint 2 Tier 1
 
 ---
