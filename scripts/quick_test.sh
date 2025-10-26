@@ -36,7 +36,9 @@ echo ""
 # Test 6: Corpus Stats
 echo "📝 Test 6/6: Checking corpus stats..."
 python3 -c "
-from backend.corpus_ops import get_corpus_stats
+import sys
+sys.path.insert(0, 'backend')
+from corpus_ops import get_corpus_stats
 stats = get_corpus_stats('storage/corpus.h5')
 print(f'   Interactions: {stats[\"interactions_count\"]}')
 print(f'   Embeddings: {stats[\"embeddings_count\"]}')

@@ -1,0 +1,88 @@
+# Free Intelligence - Pre-commit Configuration
+#
+# Pre-commit hooks for code quality and policy enforcement
+#
+# Install:
+#   pip install pre-commit
+#   pre-commit install
+#
+# Run manually:
+#   pre-commit run --all-files
+#
+# Skip hooks (emergency only):
+#   git commit --no-verify
+
+repos:
+  # Python code formatting
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3
+        args: ['--line-length=100']
+
+  # Python linting
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args: ['--max-line-length=100', '--extend-ignore=E203,W503']
+
+  # Local hooks (Free Intelligence policies)
+  - repo: local
+    hooks:
+      # 1. Event Validator - UPPER_SNAKE_CASE events
+      - id: event-validator
+        name: Event Naming Validator (UPPER_SNAKE_CASE)
+        entry: python3 backend/event_validator.py
+        args: ['scan', 'backend/']
+        language: system
+        pass_filenames: false
+        always_run: false
+        files: ^backend/.*\.py$
+
+      # 2. Mutation Validator - No update/delete/modify functions
+      - id: mutation-validator
+        name: No-Mutation Policy Validator
+        entry: python3 backend/mutation_validator.py
+        language: system
+        pass_filenames: false
+        always_run: false
+        files: ^backend/.*\.py$
+
+      # 3. LLM Audit Policy - All LLM calls must have audit
+      - id: llm-audit-policy
+        name: LLM Audit Policy Validator
+        entry: python3 backend/llm_audit_policy.py
+        args: ['validate', 'backend/']
+        language: system
+        pass_filenames: false
+        always_run: false
+        files: ^backend/.*\.py$
+
+      # 4. LLM Router Policy - No direct API imports
+      - id: llm-router-policy
+        name: LLM Router Policy Validator
+        entry: python3 backend/llm_router_policy.py
+        args: ['validate', 'backend/']
+        language: system
+        pass_filenames: false
+        always_run: false
+        files: ^backend/.*\.py$
+
+      # 5. Unit Tests - All tests must pass
+      - id: unit-tests
+        name: Unit Tests (183 tests)
+        entry: python3 -m unittest discover tests/
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
+      # 6. Prevent commits to main without proper message
+      - id: commit-message-format
+        name: Commit Message Format (Conventional Commits)
+        entry: python3 scripts/validate_commit_message.py
+        language: system
+        stages: [commit-msg]
+        always_run: true
