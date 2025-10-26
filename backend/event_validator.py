@@ -17,24 +17,23 @@ import re
 from typing import List, Dict, Optional
 
 
-# Canonical list of approved events (from docs/events.md)
+# Canonical list of approved events (from docs/events.md + docs/honest-uncertainty.md)
 CANONICAL_EVENTS = {
-    # Corpus events
+    # Corpus events (updated for honest uncertainty)
     "CORPUS_INITIALIZED",
     "CORPUS_INIT_FAILED",
-    "CORPUS_VALIDATION_PASSED",
-    "CORPUS_VALIDATION_FAILED",
-    "CORPUS_STATS_RETRIEVED",
+    "CORPUS_SCHEMA_CHECKS_COMPLETED",  # Was: CORPUS_VALIDATION_PASSED
     "CORPUS_STATS_FAILED",
+    "STATS_SNAPSHOT_COMPUTED",  # Was: CORPUS_STATS_RETRIEVED
 
-    # Identity events
+    # Identity events (updated for honest uncertainty)
     "CORPUS_IDENTITY_ADDED",
     "CORPUS_IDENTITY_ADD_FAILED",
-    "CORPUS_IDENTITY_RETRIEVED",
+    "IDENTITY_METADATA_READ",  # Was: CORPUS_IDENTITY_RETRIEVED
     "CORPUS_IDENTITY_RETRIEVAL_FAILED",
     "CORPUS_IDENTITY_NOT_SET",
-    "CORPUS_OWNERSHIP_VERIFIED",
-    "CORPUS_OWNERSHIP_MISMATCH",
+    "OWNERSHIP_HASH_MATCHED",  # Was: CORPUS_OWNERSHIP_VERIFIED
+    "OWNERSHIP_HASH_MISMATCH",  # Was: CORPUS_OWNERSHIP_MISMATCH
     "CORPUS_VERIFICATION_ERROR",
 
     # Interaction events
@@ -55,16 +54,44 @@ CANONICAL_EVENTS = {
     # Logger events
     "LOGGER_INITIALIZED",
     "LOGGER_INIT_FAILED",
+
+    # Policy/Validation events (honest uncertainty)
+    "LLM_AUDIT_SCAN_COMPLETED",  # Was: LLM_AUDIT_VALIDATION_PASSED
+    "LLM_AUDIT_VIOLATIONS_DETECTED",
+    "MUTATION_SCAN_COMPLETED",  # Was: MUTATION_VALIDATION_PASSED
+    "MUTATION_VIOLATIONS_DETECTED",
+    "ROUTER_POLICY_SCAN_COMPLETED",  # Was: ROUTER_POLICY_VALIDATION_PASSED
+    "ROUTER_POLICY_VIOLATIONS_DETECTED",
+    "APPEND_ONLY_CHECKS_COMPLETED",  # Was: APPEND_ONLY_VERIFIED
+    "APPEND_ONLY_VIOLATION_DETECTED",
+
+    # Export events (honest uncertainty)
+    "EXPORT_MANIFEST_CREATED",
+    "MANIFEST_HASH_COMPARED",  # Was: EXPORT_MANIFEST_VALIDATED
+    "EXPORT_HASH_MATCHED",  # Was: EXPORT_VALIDATED
+    "EXPORT_HASH_MISMATCH",
+
+    # Audit log events
+    "AUDIT_LOGS_GROUP_INITIALIZED",
+    "AUDIT_LOGS_GROUP_EXISTS",
+    "AUDIT_LOG_APPENDED",
+    "AUDIT_LOGS_READ_FAILED",
+    "AUDIT_STATS_FAILED",
 }
 
-# Common past participles for validation
+# Common past participles for validation (updated for honest uncertainty)
 COMMON_PAST_PARTICIPLES = {
     "INITIALIZED", "CREATED", "ADDED", "UPDATED", "DELETED",
-    "LOADED", "SAVED", "RETRIEVED", "APPENDED",
-    "VERIFIED", "VALIDATED", "PASSED",
+    "LOADED", "SAVED", "APPENDED",
     "STARTED", "STOPPED", "COMPLETED",
     "FAILED", "MISMATCH", "REJECTED", "BLOCKED",
     "NOT_FOUND", "NOT_SET", "READ",
+    # Honest uncertainty terms (preferred)
+    "MATCHED", "COMPUTED", "SCANNED", "DETECTED",
+    "COMPARED", "RECORDED", "ATTEMPTED", "CHECKED",
+    "SNAPSHOT", "OBSERVED",
+    # Legacy terms (avoid in new code, kept for backwards compatibility)
+    "RETRIEVED", "VERIFIED", "VALIDATED", "PASSED",
 }
 
 

@@ -189,9 +189,9 @@ def verify_corpus_ownership(corpus_path: str, owner_identifier: str, salt: Optio
         is_match = stored_hash == computed_hash
 
         if is_match:
-            logger.info("CORPUS_OWNERSHIP_VERIFIED", path=corpus_path)
+            logger.info("OWNERSHIP_HASH_MATCHED", path=corpus_path)
         else:
-            logger.warning("CORPUS_OWNERSHIP_MISMATCH", path=corpus_path)
+            logger.warning("OWNERSHIP_HASH_MISMATCH", path=corpus_path)
 
         return is_match
 
@@ -236,7 +236,7 @@ def get_corpus_identity(corpus_path: str) -> Optional[dict]:
                 "schema_version": metadata.attrs.get("schema_version")
             }
 
-            logger.info("CORPUS_IDENTITY_RETRIEVED", corpus_id=identity["corpus_id"], path=corpus_path)
+            logger.info("IDENTITY_METADATA_READ", corpus_id=identity["corpus_id"], path=corpus_path)
 
             return identity
 

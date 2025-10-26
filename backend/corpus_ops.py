@@ -205,7 +205,7 @@ def get_corpus_stats(corpus_path: str) -> Dict:
                 "schema_version": metadata.get("schema_version")
             }
 
-            logger.info("CORPUS_STATS_RETRIEVED", **stats)
+            logger.info("STATS_SNAPSHOT_COMPUTED", **stats)
 
             return stats
 

@@ -173,7 +173,7 @@ def verify_append_only_operation(
     # All read operations are allowed
     if operation_name.startswith('read') or operation_name.startswith('get'):
         logger.info(
-            "APPEND_ONLY_VERIFIED",
+            "APPEND_ONLY_CHECKS_COMPLETED",
             operation=operation_name,
             reason="read_operation_always_allowed"
         )
@@ -182,7 +182,7 @@ def verify_append_only_operation(
     # Append operations are allowed
     if operation_name.startswith('append'):
         logger.info(
-            "APPEND_ONLY_VERIFIED",
+            "APPEND_ONLY_CHECKS_COMPLETED",
             operation=operation_name,
             group=group_name,
             dataset=dataset_name

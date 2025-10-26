@@ -239,7 +239,7 @@ def print_violations_report(violations: Dict[str, List[MutationViolation]]):
 
     if not violations:
         logger.info(
-            "MUTATION_VALIDATION_PASSED",
+            "MUTATION_SCAN_COMPLETED",
             message="No mutation functions detected",
             files_scanned=0
         )

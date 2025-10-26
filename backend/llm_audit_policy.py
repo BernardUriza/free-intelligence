@@ -301,8 +301,9 @@ def validate_codebase(root_dir: Path) -> bool:
 
     if not results:
         logger.info(
-            "LLM_AUDIT_VALIDATION_PASSED",
+            "LLM_AUDIT_SCAN_COMPLETED",
             directory=str(root_dir),
+            violations_found=0,
             message="No LLM functions detected"
         )
         return True
@@ -316,9 +317,10 @@ def validate_codebase(root_dir: Path) -> bool:
 
     if not violations:
         logger.info(
-            "LLM_AUDIT_VALIDATION_PASSED",
+            "LLM_AUDIT_SCAN_COMPLETED",
             directory=str(root_dir),
             total_llm_functions=sum(len(funcs) for funcs in results.values()),
+            violations_found=0,
             message="All LLM functions are compliant"
         )
         return True
@@ -346,7 +348,7 @@ def print_violations_report(results: Dict[str, List[LLMFunctionInfo]]):
             violations[filepath] = non_compliant
 
     if not violations:
-        print("\n✅ LLM AUDIT VALIDATION PASSED")
+        print("\n✅ LLM AUDIT SCAN COMPLETED (0 violations found via AST scan)")
         print(f"   All LLM functions comply with audit policy")
 
         # Mostrar stats de funciones compliant

@@ -222,7 +222,7 @@ def validate_manifest_schema(manifest: ExportManifest) -> bool:
         )
 
     logger.info(
-        "EXPORT_MANIFEST_VALIDATED",
+        "MANIFEST_HASH_COMPARED",
         export_id=manifest.export_id,
         format=manifest.format,
         purpose=manifest.purpose
@@ -286,7 +286,7 @@ def validate_export(
         )
 
     logger.info(
-        "EXPORT_VALIDATED",
+        "EXPORT_HASH_MATCHED",
         export_id=manifest.export_id,
         filepath=str(export_filepath),
         data_hash=actual_hash[:16] + "..."

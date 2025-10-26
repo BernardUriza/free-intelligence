@@ -275,9 +275,9 @@ def validate_corpus(corpus_path: Optional[str] = None) -> Dict[str, any]:
     }
 
     if result["valid"]:
-        logger.info("CORPUS_VALIDATION_PASSED", path=corpus_path)
+        logger.info("CORPUS_SCHEMA_CHECKS_COMPLETED", path=corpus_path, issues_found=0)
     else:
-        logger.warning("CORPUS_VALIDATION_FAILED", path=corpus_path, errors=errors)
+        logger.warning("CORPUS_SCHEMA_CHECKS_COMPLETED", path=corpus_path, issues_found=len(errors), errors=errors)
 
     return result
 

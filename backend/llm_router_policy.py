@@ -284,7 +284,7 @@ def validate_codebase(root_dir: Path) -> bool:
 
     if not results:
         logger.info(
-            "ROUTER_POLICY_VALIDATION_PASSED",
+            "ROUTER_POLICY_SCAN_COMPLETED",
             directory=str(root_dir),
             message="No direct LLM API calls detected"
         )
