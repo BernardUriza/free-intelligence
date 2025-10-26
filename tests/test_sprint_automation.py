@@ -321,10 +321,11 @@ class TestSprintWorkflow(unittest.TestCase):
 
     def test_sprint_plan_template_concepts(self):
         """Debe tener ejemplos de sprint plans."""
-        # Verificar que existen sprints documentados
+        # Verificar que existen sprints documentados (moved to docs/sprints/)
         sprint_files = [
-            'SPRINT_2_PLAN.md',
-            'SPRINT_2_TRACKER.md',
+            'docs/sprints/SPRINT_2_PLAN.md',
+            'docs/sprints/SPRINT_2_TRACKER.md',
+            'docs/sprints/SPRINT_ANALYSIS.md',
         ]
 
         found_any = False
@@ -336,7 +337,7 @@ class TestSprintWorkflow(unittest.TestCase):
 
         self.assertTrue(
             found_any,
-            "Should have at least one sprint plan example"
+            "Should have at least one sprint plan example in docs/sprints/"
         )
 
     def test_backups_directory_gitignored(self):

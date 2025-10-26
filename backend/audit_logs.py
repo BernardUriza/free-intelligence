@@ -356,6 +356,236 @@ def get_audit_stats(corpus_path: str) -> Dict:
         return {"total_logs": 0, "exists": False, "error": str(e)}
 
 
+def get_audit_logs_older_than(corpus_path: str, days: int = 90) -> List[int]:
+    """
+    Get indices of audit logs older than specified days.
+
+    Args:
+        corpus_path: Path to corpus.h5
+        days: Age threshold in days (default: 90)
+
+    Returns:
+        List of indices for logs older than threshold
+
+    Examples:
+        >>> old_indices = get_audit_logs_older_than("storage/corpus.h5", days=90)
+        >>> print(f"Found {len(old_indices)} logs older than 90 days")
+    """
+    from datetime import datetime, timedelta
+
+    try:
+        with h5py.File(corpus_path, 'r') as f:
+            if "audit_logs" not in f:
+                return []
+
+            audit_logs = f["audit_logs"]
+            total = audit_logs["timestamp"].shape[0]
+
+            if total == 0:
+                return []
+
+            # Calculate cutoff date
+            cutoff_date = datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=days)
+
+            # Find old logs
+            old_indices = []
+            for i in range(total):
+                timestamp_str = audit_logs["timestamp"][i].decode('utf-8')
+                log_date = datetime.fromisoformat(timestamp_str)
+
+                if log_date < cutoff_date:
+                    old_indices.append(i)
+
+            return old_indices
+
+    except Exception as e:
+        from logger import get_logger
+        logger = get_logger()
+        logger.error("RETENTION_CHECK_FAILED", error=str(e))
+        return []
+
+
+def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = True) -> Dict:
+    """
+    Remove audit logs older than specified days.
+
+    IMPORTANT: This is a DESTRUCTIVE operation. Use dry_run=True first.
+
+    Args:
+        corpus_path: Path to corpus.h5
+        days: Retention period in days (default: 90)
+        dry_run: If True, only report what would be deleted (default: True)
+
+    Returns:
+        Dictionary with cleanup results
+
+    Examples:
+        >>> # Check what would be deleted
+        >>> result = cleanup_old_audit_logs("storage/corpus.h5", days=90, dry_run=True)
+        >>> print(f"Would delete {result['would_delete']} logs")
+        >>>
+        >>> # Actually delete (CAREFUL!)
+        >>> result = cleanup_old_audit_logs("storage/corpus.h5", days=90, dry_run=False)
+    """
+    from logger import get_logger
+    from datetime import datetime, timedelta
+
+    logger = get_logger()
+
+    try:
+        old_indices = get_audit_logs_older_than(corpus_path, days)
+
+        if dry_run:
+            logger.info(
+                "RETENTION_DRY_RUN",
+                would_delete=len(old_indices),
+                retention_days=days,
+                corpus_path=corpus_path
+            )
+            return {
+                "dry_run": True,
+                "would_delete": len(old_indices),
+                "retention_days": days,
+                "cutoff_date": (datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=days)).isoformat()
+            }
+
+        # Actually delete old logs
+        if len(old_indices) == 0:
+            logger.info("RETENTION_CLEANUP_NOTHING_TO_DELETE", retention_days=days)
+            return {
+                "dry_run": False,
+                "deleted": 0,
+                "retention_days": days
+            }
+
+        # NOTE: HDF5 doesn't support in-place deletion of rows
+        # We need to create new datasets without old rows
+        with h5py.File(corpus_path, 'a') as f:
+            audit_logs = f["audit_logs"]
+            total = audit_logs["timestamp"].shape[0]
+
+            # Indices to keep
+            keep_indices = [i for i in range(total) if i not in old_indices]
+
+            # Create temporary datasets with kept data
+            for dataset_name in AUDIT_LOG_SCHEMA.keys():
+                dataset = audit_logs[dataset_name]
+
+                # Read data to keep
+                kept_data = [dataset[i] for i in keep_indices]
+
+                # Delete old dataset
+                del audit_logs[dataset_name]
+
+                # Create new dataset with kept data only
+                spec = AUDIT_LOG_SCHEMA[dataset_name]
+                new_dataset = audit_logs.create_dataset(
+                    dataset_name,
+                    shape=(len(kept_data),),
+                    maxshape=(None,),
+                    dtype=spec["dtype"],
+                    chunks=True,
+                    compression="gzip",
+                    compression_opts=4
+                )
+
+                # Write kept data
+                if len(kept_data) > 0:
+                    for i, value in enumerate(kept_data):
+                        new_dataset[i] = value
+
+        logger.info(
+            "RETENTION_CLEANUP_COMPLETED",
+            deleted=len(old_indices),
+            kept=len(keep_indices),
+            retention_days=days
+        )
+
+        return {
+            "dry_run": False,
+            "deleted": len(old_indices),
+            "kept": len(keep_indices),
+            "retention_days": days
+        }
+
+    except Exception as e:
+        logger.error("RETENTION_CLEANUP_FAILED", error=str(e))
+        return {
+            "dry_run": dry_run,
+            "error": str(e),
+            "deleted": 0
+        }
+
+
+def get_retention_stats(corpus_path: str, retention_days: int = 90) -> Dict:
+    """
+    Get statistics about audit log retention.
+
+    Args:
+        corpus_path: Path to corpus.h5
+        retention_days: Retention period to check (default: 90)
+
+    Returns:
+        Dictionary with retention statistics
+
+    Examples:
+        >>> stats = get_retention_stats("storage/corpus.h5", retention_days=90)
+        >>> print(f"Total logs: {stats['total_logs']}")
+        >>> print(f"Within retention: {stats['within_retention']}")
+        >>> print(f"Beyond retention: {stats['beyond_retention']}")
+    """
+    from datetime import datetime, timedelta
+
+    try:
+        old_indices = get_audit_logs_older_than(corpus_path, retention_days)
+
+        with h5py.File(corpus_path, 'r') as f:
+            if "audit_logs" not in f:
+                return {
+                    "exists": False,
+                    "total_logs": 0,
+                    "within_retention": 0,
+                    "beyond_retention": 0,
+                    "retention_days": retention_days
+                }
+
+            total = f["audit_logs"]["timestamp"].shape[0]
+            beyond_retention = len(old_indices)
+            within_retention = total - beyond_retention
+
+            cutoff_date = datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=retention_days)
+
+            # Get oldest and newest log dates
+            oldest_log = None
+            newest_log = None
+
+            if total > 0:
+                oldest_log = f["audit_logs"]["timestamp"][0].decode('utf-8')
+                newest_log = f["audit_logs"]["timestamp"][total - 1].decode('utf-8')
+
+            return {
+                "exists": True,
+                "total_logs": total,
+                "within_retention": within_retention,
+                "beyond_retention": beyond_retention,
+                "retention_days": retention_days,
+                "cutoff_date": cutoff_date.isoformat(),
+                "oldest_log": oldest_log,
+                "newest_log": newest_log,
+                "percentage_old": (beyond_retention / total * 100) if total > 0 else 0
+            }
+
+    except Exception as e:
+        from logger import get_logger
+        logger = get_logger()
+        logger.error("RETENTION_STATS_FAILED", error=str(e))
+        return {
+            "exists": False,
+            "error": str(e),
+            "total_logs": 0
+        }
+
+
 if __name__ == "__main__":
     """Demo: Audit logs"""
     from config_loader import load_config

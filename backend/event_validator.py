@@ -77,6 +77,14 @@ CANONICAL_EVENTS = {
     "AUDIT_LOG_APPENDED",
     "AUDIT_LOGS_READ_FAILED",
     "AUDIT_STATS_FAILED",
+
+    # Retention policy events (FI-DATA-FEAT-007)
+    "RETENTION_DRY_RUN",
+    "RETENTION_CLEANUP_COMPLETED",
+    "RETENTION_CLEANUP_NOTHING_TO_DELETE",
+    "RETENTION_CLEANUP_FAILED",
+    "RETENTION_CHECK_FAILED",
+    "RETENTION_STATS_FAILED",
 }
 
 # Common past participles for validation (updated for honest uncertainty)
