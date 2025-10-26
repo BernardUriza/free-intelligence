@@ -97,10 +97,11 @@ Free Intelligence no es una herramienta. Es una **posición ontológica computac
 | **Corpus Identity** | ✅ Operativo | 13/13 | `backend/corpus_identity.py:1` |
 | **Event Validator** | ✅ Operativo | 16/16 | `backend/event_validator.py:1` |
 | **Append-Only Policy** | ✅ Operativo | 18/18 | `backend/append_only_policy.py:1` |
+| **Mutation Validator** | ✅ Operativo | 12/12 | `backend/mutation_validator.py:1` |
 | **Git Workflow** | ✅ Trunk-based | N/A | `scripts/sprint-close.sh:1` |
-| **Bitácora** | ✅ 15 entradas | N/A | `CLAUDE.md:600` |
+| **Bitácora** | ✅ 16 entradas | N/A | `claude.md:600` |
 
-**Total**: 78 tests passing (0.669s) • 24 eventos canónicos • Append-only enforcement ✅ • Corpus con identidad ✅
+**Total**: 90 tests passing (0.609s) • 24 eventos canónicos • No-mutation policy enforced ✅ • Append-only enforcement ✅
 
 ### Pendiente (Sprint 1)
 
@@ -664,5 +665,82 @@ Impacto:
 - Cumple principio fundamental de Free Intelligence
 
 Próximo paso: Testing manual → Mover a Done → FI-DATA-FIX-001
+
+---
+
+## [2025-10-25 21:30] FI-DATA-FIX-001 — ELIMINAR MUTACIÓN DIRECTA SIN EVENTO
+Estado: Completed | Acción: Implementación de validador anti-mutación
+Fechas: Ejecutado 25-oct-2025 21:00-21:30 (30 min)
+Acción: Validador + documentación de política no-mutation
+Síntesis técnica:
+- Módulo `backend/mutation_validator.py` implementado (280 líneas)
+  - `is_forbidden_function_name()`: Detecta patrones prohibidos
+  - `scan_file_for_mutations()`: Escanea archivo Python
+  - `scan_directory()`: Escanea directorio recursivamente
+  - `validate_codebase()`: Valida todo el backend
+  - `print_violations_report()`: Reporte formateado
+  - AST-based detection (no regex simple)
+
+- Patrones prohibidos (12 total):
+  - `^update_`, `^delete_`, `^remove_`, `^modify_`
+  - `^edit_`, `^change_`, `^overwrite_`, `^truncate_`
+  - `^drop_`, `^clear_`, `^reset_`, `^set_`
+
+- Patrones permitidos (18 total):
+  - `^append_`, `^add_`, `^get_`, `^read_`, `^fetch_`
+  - `^find_`, `^search_`, `^list_`, `^count_`
+  - `^validate_`, `^verify_`, `^check_`
+  - `^init_`, `^generate_`, `^create_`, `^build_`
+  - `^load_`, `^parse_`
+
+- Tests completos (`tests/test_mutation_validator.py`):
+  - 12 tests unitarios, 100% passing (0.198s)
+  - Cobertura: forbidden names, allowed names, file scan, directory scan
+  - Test de syntax errors, múltiples violaciones
+  - Validación de backend real (0 violations)
+
+- Documentación (`docs/no-mutation-policy.md`):
+  - Política completa con ejemplos
+  - Rationale: auditability, reversibility, event sourcing
+  - Patterns para "modificar" sin mutar (snapshot + append)
+  - Enforcement con pre-commit hooks
+  - Status actual: 100% compliance
+
+Validación del backend actual:
+```bash
+python3 backend/mutation_validator.py
+
+✅ VALIDATION PASSED
+   No mutation functions detected in backend/
+   Codebase complies with append-only policy
+```
+
+Auditoría de funciones existentes:
+- `append_interaction` ✅
+- `append_embedding` ✅
+- `get_corpus_stats` ✅
+- `read_interactions` ✅
+- `init_corpus` ✅
+- `validate_corpus` ✅
+- `verify_ownership` ✅
+- `generate_corpus_id` ✅
+
+Criterios de aceptación (DoD):
+- ✅ Validador implementado con AST parsing
+- ✅ 12 patrones prohibidos definidos
+- ✅ 18 patrones permitidos definidos
+- ✅ Backend validado (0 violaciones)
+- ✅ Tests pasan (12/12)
+- ✅ Documentación completa
+- ✅ Excepciones para unittest (setUp, tearDown)
+
+Impacto:
+- Arquitectura event-sourced garantizada
+- Prevención de mutaciones directas por diseño
+- Validación automática en CI/CD
+- Base para pre-commit hooks
+- Complementa append-only policy
+
+Próximo paso: FI-SEC-FEAT-003 (Volumen audit_logs)
 
 ---
