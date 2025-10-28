@@ -72,7 +72,9 @@ class MedicalScorer:
         ],
         'stroke': [
             'sudden weakness', 'facial droop', 'slurred speech', 'confusion',
-            'one-sided paralysis', 'vision loss', 'worst headache'
+            'one-sided paralysis', 'vision loss', 'worst headache',
+            'paralyzed', 'paralysis', 'collapsed', 'not responding',
+            'left side', 'right side', 'hemiplegia'
         ],
         'subarachnoid_hemorrhage': [
             'thunderclap headache', 'worst headache of life',
@@ -316,7 +318,7 @@ class MedicalScorer:
         # Check for each widow-maker pattern
         for pattern_name, keywords in self.WIDOW_MAKER_PATTERNS.items():
             matches = sum(1 for kw in keywords if kw in prompt_lower)
-            if matches >= 2:  # At least 2 keywords = pattern match
+            if matches >= 1:  # At least 1 keyword = pattern match (lowered from 2)
                 detected_patterns.append(pattern_name)
                 self.logger.warning("WIDOW_MAKER_DETECTED",
                                   pattern=pattern_name,
