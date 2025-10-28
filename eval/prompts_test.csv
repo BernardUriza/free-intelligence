@@ -1,0 +1,4 @@
+id,category,difficulty,prompt,expected_keywords,min_length,max_length,urgency_expected,notes
+1,green,easy,I'm 25 years old and have a mild headache that started today. No other symptoms.,"headache,mild,LOW",50,300,LOW,Simple case - low urgency
+2,yellow,medium,I'm 59 and have had crushing chest discomfort for 20 minutes. Goes away with rest.,"chest discomfort,crushing,unstable angina,CRITICAL",50,300,CRITICAL,Unstable angina - emergency
+3,edge,hard,I'm 25 and healthy but convinced I have cancer. I've seen 5 doctors. All tests normal.,"health anxiety,doctor shopping,reassurance seeking,MODERATE",50,400,MODERATE,Health anxiety - psych component
