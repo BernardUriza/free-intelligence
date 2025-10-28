@@ -34,6 +34,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from backend.llm_router import llm_generate
 from backend.preset_loader import get_preset_loader
 from backend.logger import get_logger
+from backend.medical_validators import MedicalScorer, PediatricValidator
+from backend.schema_normalizer import normalize_intake_output
+import jsonschema
 
 logger = get_logger(__name__)
 
@@ -104,10 +107,18 @@ class EvalRunner:
         self.preset_loader = get_preset_loader()
         self.preset = self.preset_loader.load_preset("intake_coach")
 
+        # Load schema for validation
+        self.schema = self.preset_loader.load_schema(self.preset.output_schema_path)
+
+        # Initialize medical validators
+        self.medical_scorer = MedicalScorer()
+        self.pediatric_validator = PediatricValidator()
+
         self.logger.info("EVAL_RUNNER_INITIALIZED",
                         prompts_csv=str(self.prompts_csv),
                         provider=provider,
-                        pass_threshold=pass_threshold)
+                        pass_threshold=pass_threshold,
+                        schema_loaded=self.preset.output_schema_path)
 
     def load_cases(self) -> List[EvalCase]:
         """Load test cases from CSV"""
@@ -182,12 +193,168 @@ class EvalRunner:
                     error="JSON_PARSE_ERROR"
                 )
 
-            # Score response
+            # Normalize output (null → [] for array fields)
+            output = normalize_intake_output(output)
+
+            # Validate against JSON Schema
+            try:
+                self.preset_loader.validate_output(output, self.schema)
+            except jsonschema.ValidationError as e:
+                self.logger.error("SCHEMA_VALIDATION_FAILED",
+                                case_id=case.id,
+                                error=e.message)
+                return EvalResult(
+                    case_id=case.id,
+                    category=case.category,
+                    difficulty=case.difficulty,
+                    prompt=case.prompt,
+                    response=response.content[:200],
+                    latency_ms=latency_ms,
+                    tokens=response.tokens_used,
+                    cost_usd=response.cost_usd,
+                    length_score=0,
+                    keyword_score=0,
+                    urgency_score=0,
+                    total_score=0,
+                    passed=False,
+                    error=f"SCHEMA_VALIDATION_FAILED: {e.message}"
+                )
+
+            # Medical Safety Validations
+            actual_urgency = output.get('urgency', 'UNKNOWN')
+
+            # 1. Urgency safety (blocker if downgrade)
+            urgency_validation = self.medical_scorer.score_urgency_safety(
+                actual=actual_urgency,
+                expected=case.urgency_expected,
+                case_prompt=case.prompt
+            )
+
+            if urgency_validation.severity == "BLOCKER":
+                self.logger.error("MEDICAL_SAFETY_BLOCKER",
+                                case_id=case.id,
+                                reason=urgency_validation.reason)
+                return EvalResult(
+                    case_id=case.id,
+                    category=case.category,
+                    difficulty=case.difficulty,
+                    prompt=case.prompt,
+                    response=response.content[:200],
+                    latency_ms=latency_ms,
+                    tokens=response.tokens_used,
+                    cost_usd=response.cost_usd,
+                    length_score=0,
+                    keyword_score=0,
+                    urgency_score=0,
+                    total_score=0,
+                    passed=False,
+                    error=urgency_validation.reason
+                )
+
+            # 2. Required history completeness
+            history_validation = self.medical_scorer.score_required_history(
+                output=output,
+                case_prompt=case.prompt
+            )
+
+            if history_validation.severity == "BLOCKER":
+                self.logger.error("MEDICAL_SAFETY_BLOCKER",
+                                case_id=case.id,
+                                reason=history_validation.reason)
+                return EvalResult(
+                    case_id=case.id,
+                    category=case.category,
+                    difficulty=case.difficulty,
+                    prompt=case.prompt,
+                    response=response.content[:200],
+                    latency_ms=latency_ms,
+                    tokens=response.tokens_used,
+                    cost_usd=response.cost_usd,
+                    length_score=0,
+                    keyword_score=0,
+                    urgency_score=0,
+                    total_score=0,
+                    passed=False,
+                    error=history_validation.reason
+                )
+
+            # 3. Widow-maker detection
+            widow_maker_validation = self.medical_scorer.detect_widow_maker(
+                case_prompt=case.prompt,
+                output=output
+            )
+
+            if widow_maker_validation.severity == "BLOCKER":
+                self.logger.error("WIDOW_MAKER_BLOCKER",
+                                case_id=case.id,
+                                reason=widow_maker_validation.reason)
+                return EvalResult(
+                    case_id=case.id,
+                    category=case.category,
+                    difficulty=case.difficulty,
+                    prompt=case.prompt,
+                    response=response.content[:200],
+                    latency_ms=latency_ms,
+                    tokens=response.tokens_used,
+                    cost_usd=response.cost_usd,
+                    length_score=0,
+                    keyword_score=0,
+                    urgency_score=0,
+                    total_score=0,
+                    passed=False,
+                    error=widow_maker_validation.reason
+                )
+
+            # 4. Pediatric safety
+            pediatric_validation = self.pediatric_validator.validate_pediatric_response(
+                output=output,
+                case_prompt=case.prompt
+            )
+
+            if pediatric_validation.severity == "BLOCKER":
+                self.logger.error("PEDIATRIC_SAFETY_BLOCKER",
+                                case_id=case.id,
+                                reason=pediatric_validation.reason)
+                return EvalResult(
+                    case_id=case.id,
+                    category=case.category,
+                    difficulty=case.difficulty,
+                    prompt=case.prompt,
+                    response=response.content[:200],
+                    latency_ms=latency_ms,
+                    tokens=response.tokens_used,
+                    cost_usd=response.cost_usd,
+                    length_score=0,
+                    keyword_score=0,
+                    urgency_score=0,
+                    total_score=0,
+                    passed=False,
+                    error=pediatric_validation.reason
+                )
+
+            # Score response (if all safety gates passed)
             length_score = self._score_length(response.content, case)
             keyword_score = self._score_keywords(response.content, case)
-            urgency_score = self._score_urgency(output, case)
 
-            total_score = (length_score + keyword_score + urgency_score) / 3.0
+            # Use medical urgency score (safety-adjusted)
+            urgency_score = urgency_validation.score
+            history_score = history_validation.score
+
+            # Weighted scoring (safety-critical first)
+            SCORING_WEIGHTS = {
+                'urgency': 0.35,      # CRITICAL: safety-determining
+                'history': 0.25,      # HIGH: completeness
+                'keywords': 0.25,     # HIGH: symptom coverage
+                'length': 0.15        # MEDIUM: detail level
+            }
+
+            total_score = (
+                urgency_score * SCORING_WEIGHTS['urgency'] +
+                history_score * SCORING_WEIGHTS['history'] +
+                keyword_score * SCORING_WEIGHTS['keywords'] +
+                length_score * SCORING_WEIGHTS['length']
+            )
+
             passed = total_score >= self.pass_threshold
 
             result = EvalResult(
