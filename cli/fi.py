@@ -20,6 +20,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from backend.llm_router import llm_generate
 from backend.policy_loader import get_policy_loader
 from backend.logger import get_logger
+from backend.corpus_ops import append_interaction_with_embedding
+from backend.config_loader import load_config
+from backend.search import semantic_search, search_by_session
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 logger = get_logger(__name__)
 
@@ -32,8 +37,14 @@ def chat_mode(provider: Optional[str] = None, model: Optional[str] = None):
         provider: Optional provider override (uses policy default if None)
         model: Optional model override (uses policy default if None)
     """
-    # Load policy to show config
+    # Load config and policy
+    config = load_config()
+    corpus_path = config['storage']['corpus_path']
     policy_loader = get_policy_loader()
+
+    # Generate session ID
+    tz = ZoneInfo("America/Mexico_City")
+    session_id = datetime.now(tz).strftime("session_%Y%m%d_%H%M%S")
 
     # Determine effective provider and model
     if provider is None:
@@ -48,9 +59,12 @@ def chat_mode(provider: Optional[str] = None, model: Optional[str] = None):
     print("║          🧠 Free Intelligence - Interactive Chat          ║")
     print("╚════════════════════════════════════════════════════════════╝")
     print()
-    print(f"📋 Provider: {provider}")
-    print(f"🤖 Model:    {model}")
-    print(f"💡 Tip:      Type 'exit', 'quit', or Ctrl+C to end session")
+    print(f"📋 Provider:  {provider}")
+    print(f"🤖 Model:     {model}")
+    print(f"🆔 Session:   {session_id}")
+    print(f"💾 Corpus:    {corpus_path}")
+    print(f"💡 Tip:       Type 'exit', 'quit', or Ctrl+C to end session")
+    print(f"📝 Note:      All conversations are auto-saved to corpus")
     print()
     print("─" * 60)
     print()
@@ -84,6 +98,22 @@ def chat_mode(provider: Optional[str] = None, model: Optional[str] = None):
 
             # Display response
             print(f"Assistant: {response.content}\n")
+
+            # Save to corpus (with automatic embedding)
+            try:
+                interaction_id = append_interaction_with_embedding(
+                    corpus_path=corpus_path,
+                    session_id=session_id,
+                    prompt=prompt,
+                    response=response.content,
+                    model=response.model,
+                    tokens=response.tokens_used,
+                    auto_embed=True
+                )
+                print(f"💾 Saved: {interaction_id[:8]}...\n")
+            except Exception as e:
+                print(f"⚠️  Warning: Failed to save to corpus: {e}\n")
+                logger.error("CLI_SAVE_FAILED", error=str(e))
 
             # Display metadata
             print(f"┌─ Metadata ─────────────────────────────────────────────┐")
@@ -154,6 +184,50 @@ def show_config():
         logger.error("CLI_CONFIG_ERROR", error=str(e))
 
 
+def search_mode(query: str, top_k: int = 5):
+    """
+    Search corpus for similar interactions.
+
+    Args:
+        query: Search query text
+        top_k: Number of results to return
+    """
+    try:
+        # Load config
+        config = load_config()
+        corpus_path = config['storage']['corpus_path']
+
+        print("╔════════════════════════════════════════════════════════════╗")
+        print("║         🔍 Free Intelligence - Semantic Search            ║")
+        print("╚════════════════════════════════════════════════════════════╝")
+        print()
+        print(f"📝 Query: {query}")
+        print(f"🔢 Top K: {top_k}")
+        print()
+        print("─" * 60)
+        print()
+
+        # Perform search
+        results = semantic_search(corpus_path, query, top_k=top_k)
+
+        if not results:
+            print("❌ No results found")
+            return
+
+        # Display results
+        for i, result in enumerate(results, 1):
+            print(f"[{i}] Score: {result['score']:.3f} | {result['timestamp']}")
+            print(f"    Session: {result['session_id']}")
+            print(f"    Prompt:  {result['prompt'][:80]}...")
+            print(f"    Response: {result['response'][:80]}...")
+            print(f"    Model: {result['model']}, Tokens: {result['tokens']}")
+            print()
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        logger.error("CLI_SEARCH_ERROR", error=str(e))
+
+
 def main():
     """Main CLI entry point"""
     parser = argparse.ArgumentParser(
@@ -185,6 +259,11 @@ Examples:
     # Config command
     subparsers.add_parser('config', help='Show current configuration')
 
+    # Search command
+    search_parser = subparsers.add_parser('search', help='Semantic search over corpus')
+    search_parser.add_argument('query', type=str, help='Search query text')
+    search_parser.add_argument('--top-k', type=int, default=5, help='Number of results (default: 5)')
+
     args = parser.parse_args()
 
     # Handle commands
@@ -192,6 +271,8 @@ Examples:
         chat_mode(provider=args.provider, model=args.model)
     elif args.command == 'config':
         show_config()
+    elif args.command == 'search':
+        search_mode(query=args.query, top_k=args.top_k)
     else:
         parser.print_help()
 

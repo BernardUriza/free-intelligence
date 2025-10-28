@@ -53,8 +53,8 @@ def append_interaction(
         ...     150
         ... )
     """
-    from logger import get_logger
-    from append_only_policy import AppendOnlyPolicy
+    from backend.logger import get_logger
+    from backend.append_only_policy import AppendOnlyPolicy
 
     logger = get_logger()
     interaction_id = str(uuid.uuid4())
@@ -126,8 +126,8 @@ def append_embedding(
         >>> append_embedding("storage/corpus.h5", interaction_id, vector)
         True
     """
-    from logger import get_logger
-    from append_only_policy import AppendOnlyPolicy
+    from backend.logger import get_logger
+    from backend.append_only_policy import AppendOnlyPolicy
 
     logger = get_logger()
 
@@ -166,6 +166,111 @@ def append_embedding(
         return False
 
 
+def append_interaction_with_embedding(
+    corpus_path: str,
+    session_id: str,
+    prompt: str,
+    response: str,
+    model: str,
+    tokens: int,
+    timestamp: Optional[str] = None,
+    auto_embed: bool = True
+) -> str:
+    """
+    Append interaction to corpus WITH automatic embedding generation.
+
+    This is the END-TO-END function that:
+    1. Appends interaction to /interactions/
+    2. Generates embedding using LLM router
+    3. Appends embedding to /embeddings/
+    4. Logs everything to audit_logs
+
+    Args:
+        corpus_path: Path to HDF5 corpus
+        session_id: Session identifier
+        prompt: User prompt
+        response: Model response
+        model: Model name used
+        tokens: Total tokens used
+        timestamp: ISO timestamp (auto-generated if None)
+        auto_embed: Whether to automatically generate embedding (default: True)
+
+    Returns:
+        interaction_id (UUID)
+
+    Examples:
+        >>> interaction_id = append_interaction_with_embedding(
+        ...     "storage/corpus.h5",
+        ...     "session_20251028_010000",
+        ...     "What is Free Intelligence?",
+        ...     "Free Intelligence is a local AI memory system...",
+        ...     "claude-3-5-sonnet-20241022",
+        ...     150
+        ... )
+    """
+    from backend.logger import get_logger
+    from backend.llm_router import llm_embed
+
+    logger = get_logger()
+
+    # Step 1: Append interaction
+    logger.info("INTERACTION_WITH_EMBEDDING_STARTED",
+                session_id=session_id,
+                auto_embed=auto_embed)
+
+    interaction_id = append_interaction(
+        corpus_path=corpus_path,
+        session_id=session_id,
+        prompt=prompt,
+        response=response,
+        model=model,
+        tokens=tokens,
+        timestamp=timestamp
+    )
+
+    # Step 2: Generate and append embedding (if enabled)
+    if auto_embed:
+        try:
+            # Combine prompt and response for embedding
+            text_to_embed = f"{prompt}\n\n{response}"
+
+            logger.info("EMBEDDING_GENERATION_STARTED",
+                       interaction_id=interaction_id,
+                       text_length=len(text_to_embed))
+
+            # Use LLM router to generate embedding
+            # Will use policy-configured provider or fall back to sentence-transformers
+            embedding_vector = llm_embed(text_to_embed)
+
+            # Ensure correct dimensions (sentence-transformers gives 384, need 768)
+            if embedding_vector.shape[0] == 384:
+                # Pad to 768 dimensions (simple zero-padding)
+                padded_vector = np.zeros(768, dtype=np.float32)
+                padded_vector[:384] = embedding_vector
+                embedding_vector = padded_vector
+                logger.info("EMBEDDING_PADDED", from_dim=384, to_dim=768)
+
+            # Append to corpus
+            append_embedding(
+                corpus_path=corpus_path,
+                interaction_id=interaction_id,
+                vector=embedding_vector,
+                model="all-MiniLM-L6-v2"  # Could be dynamic based on provider
+            )
+
+            logger.info("INTERACTION_WITH_EMBEDDING_COMPLETED",
+                       interaction_id=interaction_id)
+
+        except Exception as e:
+            logger.error("EMBEDDING_GENERATION_FAILED",
+                        interaction_id=interaction_id,
+                        error=str(e))
+            # Don't fail the whole operation if embedding fails
+            # The interaction is already saved
+
+    return interaction_id
+
+
 def get_corpus_stats(corpus_path: str) -> Dict:
     """
     Get corpus statistics.
@@ -180,7 +285,7 @@ def get_corpus_stats(corpus_path: str) -> Dict:
         >>> stats = get_corpus_stats("storage/corpus.h5")
         >>> print(stats["interactions_count"])
     """
-    from logger import get_logger
+    from backend.logger import get_logger
 
     logger = get_logger()
 
@@ -258,7 +363,7 @@ def read_interactions(corpus_path: str, limit: int = 10) -> List[Dict]:
             return results
 
     except Exception as e:
-        from logger import get_logger
+        from backend.logger import get_logger
         logger = get_logger()
         logger.error("INTERACTIONS_READ_FAILED", error=str(e))
         return []
@@ -266,7 +371,7 @@ def read_interactions(corpus_path: str, limit: int = 10) -> List[Dict]:
 
 if __name__ == "__main__":
     # Demo
-    from config_loader import load_config
+    from backend.config_loader import load_config
 
     config = load_config()
     corpus_path = config["storage"]["corpus_path"]
