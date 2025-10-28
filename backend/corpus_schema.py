@@ -121,8 +121,8 @@ def init_corpus(
         >>> init_corpus("storage/corpus.h5", "bernard@example.com", force=True)
         True  # Overwrites existing file
     """
-    from logger import get_logger
-    from corpus_identity import generate_corpus_id, generate_owner_hash
+    from backend.logger import get_logger
+    from backend.corpus_identity import generate_corpus_id, generate_owner_hash
 
     logger = get_logger()
     path = Path(corpus_path)
@@ -257,7 +257,7 @@ def validate_corpus(corpus_path: Optional[str] = None) -> Dict[str, any]:
         >>> if result["valid"]:
         ...     print("Corpus is valid")
     """
-    from logger import get_logger
+    from backend.logger import get_logger
 
     logger = get_logger()
 
@@ -304,7 +304,7 @@ if __name__ == "__main__":
             print(f"   Valid: {result['valid']}")
 
             # Show identity
-            from corpus_identity import get_corpus_identity
+            from backend.corpus_identity import get_corpus_identity
             identity = get_corpus_identity(result['path'])
             if identity:
                 print(f"   Corpus ID: {identity['corpus_id']}")
