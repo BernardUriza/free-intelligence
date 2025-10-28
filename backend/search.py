@@ -12,7 +12,7 @@ from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 
 from backend.logger import get_logger
-from backend.llm_router import llm_embed
+from backend.llm_router import llm_embed, pad_embedding_to_768
 
 logger = get_logger(__name__)
 
@@ -77,11 +77,8 @@ def semantic_search(
         # Generate query embedding
         query_embedding = llm_embed(query)
 
-        # Pad to 768 dimensions if needed (sentence-transformers gives 384)
-        if query_embedding.shape[0] == 384:
-            padded_query = np.zeros(768, dtype=np.float32)
-            padded_query[:384] = query_embedding
-            query_embedding = padded_query
+        # Pad to 768 dimensions if needed (shared utility)
+        query_embedding = pad_embedding_to_768(query_embedding)
 
         logger.info("QUERY_EMBEDDING_GENERATED", embedding_dim=query_embedding.shape[0])
 
@@ -98,6 +95,23 @@ def semantic_search(
 
             logger.info("CORPUS_LOADED", total_embeddings=total_embeddings)
 
+            # Build interaction dictionary once (O(n) instead of O(n²))
+            # This eliminates the N+1 query problem
+            interaction_map = {}
+            total_interactions = interactions_group["interaction_id"].shape[0]
+            for j in range(total_interactions):
+                iid = interactions_group["interaction_id"][j].decode('utf-8')
+                interaction_map[iid] = {
+                    'session_id': interactions_group["session_id"][j].decode('utf-8'),
+                    'timestamp': interactions_group["timestamp"][j].decode('utf-8'),
+                    'prompt': interactions_group["prompt"][j].decode('utf-8'),
+                    'response': interactions_group["response"][j].decode('utf-8'),
+                    'model': interactions_group["model"][j].decode('utf-8'),
+                    'tokens': int(interactions_group["tokens"][j])
+                }
+
+            logger.info("INTERACTION_MAP_BUILT", total_interactions=total_interactions)
+
             # Compute similarities
             results = []
             for i in range(total_embeddings):
@@ -111,24 +125,20 @@ def semantic_search(
                 if similarity < min_score:
                     continue
 
-                # Get interaction data
+                # Get interaction data via O(1) dictionary lookup
                 interaction_id = embeddings_group["interaction_id"][i].decode('utf-8')
 
-                # Find matching interaction
-                # Linear search through interactions (could be optimized with index)
-                for j in range(interactions_group["interaction_id"].shape[0]):
-                    if interactions_group["interaction_id"][j].decode('utf-8') == interaction_id:
-                        results.append({
-                            'score': similarity,
-                            'interaction_id': interaction_id,
-                            'session_id': interactions_group["session_id"][j].decode('utf-8'),
-                            'timestamp': interactions_group["timestamp"][j].decode('utf-8'),
-                            'prompt': interactions_group["prompt"][j].decode('utf-8'),
-                            'response': interactions_group["response"][j].decode('utf-8'),
-                            'model': interactions_group["model"][j].decode('utf-8'),
-                            'tokens': int(interactions_group["tokens"][j])
-                        })
-                        break
+                if interaction_id in interaction_map:
+                    interaction_data = interaction_map[interaction_id]
+                    results.append({
+                        'score': similarity,
+                        'interaction_id': interaction_id,
+                        **interaction_data  # Unpack all fields
+                    })
+                else:
+                    logger.warning("INTERACTION_NOT_FOUND",
+                                 interaction_id=interaction_id,
+                                 message="Embedding without matching interaction")
 
             # Sort by similarity (descending) and take top_k
             results.sort(key=lambda x: x['score'], reverse=True)

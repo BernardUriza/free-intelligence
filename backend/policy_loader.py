@@ -11,6 +11,7 @@ import os
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 import yaml
+import threading
 
 from backend.logger import get_logger
 
@@ -243,25 +244,43 @@ class PolicyLoader:
         return self.get_llm_config().get('enable_offline', False)
 
 
-# Singleton instance
+# Singleton instance with thread-safe double-checked locking
 _policy_loader: Optional[PolicyLoader] = None
+_policy_loader_lock = threading.Lock()
 
 
 def get_policy_loader(policy_path: Optional[str] = None) -> PolicyLoader:
     """
-    Get singleton PolicyLoader instance.
+    Get singleton PolicyLoader instance (thread-safe).
+
+    Uses double-checked locking pattern to ensure thread safety
+    without performance penalty after initialization.
 
     Args:
         policy_path: Optional path to policy file (only used on first call)
 
     Returns:
         PolicyLoader instance
+
+    Thread Safety:
+        - Multiple threads can safely call this function concurrently
+        - Only one instance will be created even under high concurrency
+        - Lock is only acquired on first call (fast path for subsequent calls)
     """
     global _policy_loader
 
-    if _policy_loader is None:
-        _policy_loader = PolicyLoader(policy_path)
-        _policy_loader.load()
+    # Fast path: check without lock (99.9% of calls)
+    if _policy_loader is not None:
+        return _policy_loader
+
+    # Slow path: acquire lock and check again
+    with _policy_loader_lock:
+        # Double-check: another thread might have initialized while we waited
+        if _policy_loader is None:
+            logger.info("POLICY_LOADER_INITIALIZING", thread_id=threading.current_thread().name)
+            _policy_loader = PolicyLoader(policy_path)
+            _policy_loader.load()
+            logger.info("POLICY_LOADER_INITIALIZED", thread_id=threading.current_thread().name)
 
     return _policy_loader
 
@@ -270,6 +289,8 @@ def reload_policy(policy_path: Optional[str] = None) -> PolicyLoader:
     """
     Force reload of policy (useful for testing or configuration changes).
 
+    Thread-safe: Uses same lock as get_policy_loader().
+
     Args:
         policy_path: Optional path to policy file
 
@@ -277,8 +298,13 @@ def reload_policy(policy_path: Optional[str] = None) -> PolicyLoader:
         New PolicyLoader instance
     """
     global _policy_loader
-    _policy_loader = PolicyLoader(policy_path)
-    _policy_loader.load()
+
+    with _policy_loader_lock:
+        logger.info("POLICY_RELOADING", thread_id=threading.current_thread().name)
+        _policy_loader = PolicyLoader(policy_path)
+        _policy_loader.load()
+        logger.info("POLICY_RELOADED", thread_id=threading.current_thread().name)
+
     return _policy_loader
 
 

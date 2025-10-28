@@ -209,7 +209,7 @@ def append_interaction_with_embedding(
         ... )
     """
     from backend.logger import get_logger
-    from backend.llm_router import llm_embed
+    from backend.llm_router import llm_embed, pad_embedding_to_768
 
     logger = get_logger()
 
@@ -242,13 +242,8 @@ def append_interaction_with_embedding(
             # Will use policy-configured provider or fall back to sentence-transformers
             embedding_vector = llm_embed(text_to_embed)
 
-            # Ensure correct dimensions (sentence-transformers gives 384, need 768)
-            if embedding_vector.shape[0] == 384:
-                # Pad to 768 dimensions (simple zero-padding)
-                padded_vector = np.zeros(768, dtype=np.float32)
-                padded_vector[:384] = embedding_vector
-                embedding_vector = padded_vector
-                logger.info("EMBEDDING_PADDED", from_dim=384, to_dim=768)
+            # Pad to 768 dimensions if needed (shared utility)
+            embedding_vector = pad_embedding_to_768(embedding_vector)
 
             # Append to corpus
             append_embedding(

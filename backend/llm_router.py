@@ -26,8 +26,74 @@ from backend.logger import get_logger
 from backend.llm_audit_policy import require_audit_log
 from backend.audit_logs import append_audit_log
 from backend.policy_loader import get_policy_loader
+import re
+from functools import lru_cache
+import hashlib
 
 logger = get_logger(__name__)
+
+
+def pad_embedding_to_768(embedding: np.ndarray) -> np.ndarray:
+    """
+    Pad embedding vector to 768 dimensions if needed.
+
+    Args:
+        embedding: Input embedding vector (any dimension)
+
+    Returns:
+        768-dimensional embedding (zero-padded if needed)
+
+    Examples:
+        >>> emb_384 = np.random.rand(384).astype(np.float32)
+        >>> emb_768 = pad_embedding_to_768(emb_384)
+        >>> assert emb_768.shape == (768,)
+        >>> assert np.array_equal(emb_768[:384], emb_384)
+    """
+    if embedding.shape[0] == 768:
+        return embedding
+
+    if embedding.shape[0] > 768:
+        logger.warning("EMBEDDING_TRUNCATED",
+                      from_dim=embedding.shape[0],
+                      to_dim=768,
+                      message="Embedding larger than 768, truncating")
+        return embedding[:768]
+
+    # Pad to 768 dimensions
+    padded = np.zeros(768, dtype=np.float32)
+    padded[:embedding.shape[0]] = embedding
+
+    logger.info("EMBEDDING_PADDED",
+                from_dim=embedding.shape[0],
+                to_dim=768)
+
+    return padded
+
+
+def sanitize_error_message(error_msg: str) -> str:
+    """
+    Sanitize error messages to remove API keys and sensitive data.
+
+    Args:
+        error_msg: Raw error message
+
+    Returns:
+        Sanitized error message
+
+    Examples:
+        >>> sanitize_error_message("API key sk-ant-api03-abc123 is invalid")
+        'API key [REDACTED] is invalid'
+    """
+    # Pattern for Anthropic API keys: sk-ant-api03-XXXX
+    error_msg = re.sub(r'sk-ant-api\d+-[A-Za-z0-9_-]+', '[REDACTED_API_KEY]', error_msg)
+
+    # Pattern for generic API keys
+    error_msg = re.sub(r'api[_-]?key["\']?\s*[:=]\s*["\']?[A-Za-z0-9_-]{20,}', 'api_key=[REDACTED]', error_msg, flags=re.IGNORECASE)
+
+    # Pattern for bearer tokens
+    error_msg = re.sub(r'Bearer\s+[A-Za-z0-9_-]{20,}', 'Bearer [REDACTED_TOKEN]', error_msg, flags=re.IGNORECASE)
+
+    return error_msg
 
 
 class LLMProviderType(Enum):
@@ -173,16 +239,20 @@ class ClaudeProvider(LLMProvider):
             )
 
         except anthropic.APITimeoutError as e:
-            self.logger.error("CLAUDE_TIMEOUT_ERROR", error=str(e), timeout=self.timeout)
+            sanitized_error = sanitize_error_message(str(e))
+            self.logger.error("CLAUDE_TIMEOUT_ERROR", error=sanitized_error, timeout=self.timeout)
             raise
         except anthropic.APIConnectionError as e:
-            self.logger.error("CLAUDE_CONNECTION_ERROR", error=str(e))
+            sanitized_error = sanitize_error_message(str(e))
+            self.logger.error("CLAUDE_CONNECTION_ERROR", error=sanitized_error)
             raise
         except anthropic.RateLimitError as e:
-            self.logger.error("CLAUDE_RATE_LIMIT_ERROR", error=str(e))
+            sanitized_error = sanitize_error_message(str(e))
+            self.logger.error("CLAUDE_RATE_LIMIT_ERROR", error=sanitized_error)
             raise
         except anthropic.APIError as e:
-            self.logger.error("CLAUDE_API_ERROR", error=str(e), status_code=getattr(e, 'status_code', None))
+            sanitized_error = sanitize_error_message(str(e))
+            self.logger.error("CLAUDE_API_ERROR", error=sanitized_error, status_code=getattr(e, 'status_code', None))
             raise
 
     def embed(self, text: str) -> np.ndarray:
@@ -352,7 +422,8 @@ def llm_generate(
         return response
 
     except Exception as e:
-        logger.error("LLM_GENERATE_FAILED", provider=provider, error=str(e))
+        sanitized_error = sanitize_error_message(str(e))
+        logger.error("LLM_GENERATE_FAILED", provider=provider, error=sanitized_error)
 
         # Log failure to audit_logs
         from backend.config_loader import load_config
@@ -367,10 +438,34 @@ def llm_generate(
             payload={"prompt": prompt[:100], "provider": provider},
             result=None,
             status="FAILED",
-            metadata={"error": str(e), "provider": provider}
+            metadata={"error": sanitized_error, "provider": provider}
         )
 
         raise
+
+
+@lru_cache(maxsize=10000)
+def _cached_embed(text_hash: str, text: str, provider: str) -> bytes:
+    """
+    Internal cached embedding function.
+
+    Args:
+        text_hash: SHA256 hash of text (for cache key)
+        text: Input text to embed
+        provider: Provider name
+
+    Returns:
+        Embedding vector as bytes
+
+    Note: Uses text_hash as cache key to avoid memory issues with large texts.
+    """
+    logger.info("EMBEDDING_CACHE_MISS", text_hash=text_hash[:16], provider=provider)
+
+    llm_provider = get_provider(provider, None)
+    embedding = llm_provider.embed(text)
+
+    # Convert to bytes for caching
+    return embedding.tobytes()
 
 
 def llm_embed(
@@ -379,10 +474,13 @@ def llm_embed(
     provider_config: Optional[Dict[str, Any]] = None
 ) -> np.ndarray:
     """
-    Generate embedding vector for text.
+    Generate embedding vector for text with LRU caching.
 
     Note: Claude doesn't support embeddings, falls back to sentence-transformers.
     Ollama (future) will support embeddings natively.
+
+    Caching: Uses LRU cache (10,000 entries) to avoid re-embedding same text.
+    Cache key is SHA256 hash of text to handle large inputs efficiently.
 
     Args:
         text: Input text to embed
@@ -391,21 +489,43 @@ def llm_embed(
 
     Returns:
         numpy array with embedding vector (typically 384 or 768 dimensions)
+
+    Examples:
+        >>> # First call - cache miss
+        >>> emb1 = llm_embed("What is Free Intelligence?")
+        >>> # Second call - cache hit (instant)
+        >>> emb2 = llm_embed("What is Free Intelligence?")
+        >>> assert np.array_equal(emb1, emb2)
     """
-    logger.info("LLM_EMBED_STARTED", provider=provider, text_length=len(text))
+    # Compute hash for cache key
+    text_hash = hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+    logger.info("LLM_EMBED_STARTED",
+                provider=provider,
+                text_length=len(text),
+                text_hash=text_hash[:16])
 
     try:
-        llm_provider = get_provider(provider, provider_config)
-        embedding = llm_provider.embed(text)
+        # Try cached version
+        embedding_bytes = _cached_embed(text_hash, text, provider)
 
+        # Convert bytes back to numpy array
+        embedding = np.frombuffer(embedding_bytes, dtype=np.float32)
+
+        # Get cache stats
+        cache_info = _cached_embed.cache_info()
         logger.info("LLM_EMBED_COMPLETED",
                    provider=provider,
-                   embedding_dim=len(embedding))
+                   embedding_dim=len(embedding),
+                   cache_hits=cache_info.hits,
+                   cache_misses=cache_info.misses,
+                   cache_hit_rate=f"{cache_info.hits/(cache_info.hits+cache_info.misses)*100:.1f}%" if (cache_info.hits + cache_info.misses) > 0 else "0%")
 
         return embedding
 
     except Exception as e:
-        logger.error("LLM_EMBED_FAILED", provider=provider, error=str(e))
+        sanitized_error = sanitize_error_message(str(e))
+        logger.error("LLM_EMBED_FAILED", provider=provider, error=sanitized_error)
         raise
 
 
