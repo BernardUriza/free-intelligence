@@ -277,30 +277,159 @@ class ClaudeProvider(LLMProvider):
 
 
 class OllamaProvider(LLMProvider):
-    """Ollama local inference provider (FUTURE - Sprint 3 of roadmap)"""
+    """Ollama local inference provider for offline-first operation"""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
         self.base_url = self.config.get("base_url", "http://localhost:11434")
-        self.default_model = self.config.get("model", "qwen2:7b-instruct-q4_0")
+        self.default_model = self.config.get("model", "qwen2.5:7b-instruct-q4_0")
+        self.embed_model = self.config.get("embed_model", "nomic-embed-text")
+        self.timeout = self.config.get("timeout_seconds", 120)
+
+        # Import ollama library
+        try:
+            import ollama
+            self.ollama = ollama
+            self.client = ollama.Client(host=self.base_url)
+        except ImportError:
+            raise ImportError(
+                "ollama library not installed. Install with: pip install ollama"
+            )
+
         self.logger.info("OLLAMA_PROVIDER_INITIALIZED",
                         base_url=self.base_url,
-                        model=self.default_model)
+                        model=self.default_model,
+                        embed_model=self.embed_model)
 
     def generate(self, prompt: str, **kwargs) -> LLMResponse:
-        """Generate completion using Ollama API"""
-        # TODO: Implement in Sprint 3 of roadmap (Offline CPU)
-        raise NotImplementedError(
-            "OllamaProvider will be implemented in Sprint 3 of roadmap. "
-            "See docs/ROADMAP_OFFLINE_FIRST.md"
-        )
+        """
+        Generate completion using Ollama API.
+
+        Args:
+            prompt: Input text prompt
+            **kwargs: Ollama-specific parameters (model, temperature, max_tokens, etc.)
+
+        Returns:
+            LLMResponse with content and metadata
+
+        Notes:
+            - Runs locally on CPU/GPU (no API costs)
+            - Supports Chinese models (Qwen, DeepSeek)
+            - 100% offline operation
+        """
+        model = kwargs.get("model", self.default_model)
+        max_tokens = kwargs.get("max_tokens", self.config.get("max_tokens", 2048))
+        temperature = kwargs.get("temperature", self.config.get("temperature", 0.7))
+
+        self.logger.info("OLLAMA_GENERATE_STARTED",
+                        model=model,
+                        prompt_length=len(prompt),
+                        base_url=self.base_url)
+
+        start_time = datetime.utcnow()
+
+        try:
+            # Call Ollama API
+            response = self.client.chat(
+                model=model,
+                messages=[
+                    {
+                        'role': 'user',
+                        'content': prompt
+                    }
+                ],
+                options={
+                    'temperature': temperature,
+                    'num_predict': max_tokens  # Ollama uses num_predict instead of max_tokens
+                }
+            )
+
+            latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+
+            # Extract response
+            content = response['message']['content']
+
+            # Estimate tokens (Ollama doesn't always provide exact counts)
+            # Use approximate: ~4 chars per token
+            prompt_tokens = len(prompt) // 4
+            completion_tokens = len(content) // 4
+            total_tokens = prompt_tokens + completion_tokens
+
+            # If response has actual token counts, use them
+            if 'eval_count' in response:
+                completion_tokens = response['eval_count']
+                total_tokens = response.get('prompt_eval_count', prompt_tokens) + completion_tokens
+
+            self.logger.info("OLLAMA_GENERATE_COMPLETED",
+                           model=model,
+                           tokens_used=total_tokens,
+                           cost_usd=0.0,  # Local inference = free!
+                           latency_ms=round(latency_ms, 2))
+
+            return LLMResponse(
+                content=content,
+                model=model,
+                provider="ollama",
+                tokens_used=total_tokens,
+                cost_usd=0.0,  # Free!
+                latency_ms=latency_ms,
+                metadata={
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "base_url": self.base_url,
+                    "eval_count": response.get('eval_count'),
+                    "eval_duration": response.get('eval_duration')
+                }
+            )
+
+        except Exception as e:
+            sanitized_error = sanitize_error_message(str(e))
+            self.logger.error("OLLAMA_GENERATE_FAILED",
+                            error=sanitized_error,
+                            model=model,
+                            base_url=self.base_url)
+            raise
 
     def embed(self, text: str) -> np.ndarray:
-        """Generate embedding using Ollama"""
-        # TODO: Implement in Sprint 3 of roadmap
-        raise NotImplementedError(
-            "OllamaProvider embeddings will be implemented in Sprint 3 of roadmap"
-        )
+        """
+        Generate embedding using Ollama.
+
+        Args:
+            text: Input text to embed
+
+        Returns:
+            numpy array with embedding vector
+
+        Notes:
+            - Uses nomic-embed-text by default (768-dim)
+            - 100% local, no API calls
+            - Suitable for RAG and semantic search
+        """
+        self.logger.info("OLLAMA_EMBED_STARTED",
+                        text_length=len(text),
+                        model=self.embed_model)
+
+        try:
+            response = self.client.embeddings(
+                model=self.embed_model,
+                prompt=text
+            )
+
+            # Extract embedding vector
+            embedding = np.array(response['embedding'], dtype=np.float32)
+
+            self.logger.info("OLLAMA_EMBED_COMPLETED",
+                           embedding_dim=len(embedding),
+                           model=self.embed_model)
+
+            return embedding
+
+        except Exception as e:
+            sanitized_error = sanitize_error_message(str(e))
+            self.logger.error("OLLAMA_EMBED_FAILED",
+                            error=sanitized_error,
+                            model=self.embed_model)
+            raise
 
     def get_provider_name(self) -> str:
         return "ollama"

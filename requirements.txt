@@ -17,3 +17,4 @@ anthropic==0.71.0
 sentence-transformers==5.1.2
 torch==2.8.0
 transformers==4.57.1
+ollama==0.6.0
