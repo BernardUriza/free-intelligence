@@ -1,0 +1,115 @@
+# Free Intelligence - LLM Policy Configuration
+# Policy-driven LLM routing, budgets, timeouts, and fallback rules
+#
+# Philosophy: Provider-agnostic, easy to switch between Claude and Ollama
+# without touching code. Just change `primary_provider` here.
+
+llm:
+  # Primary provider for LLM calls
+  # Options: "claude", "ollama" (when available in Sprint 3)
+  primary_provider: "claude"
+
+  # Fallback provider if primary fails (timeout, rate limit, error)
+  fallback_provider: "claude"
+
+  # Enable offline-first mode (routes to Ollama when true)
+  # Set to true in Sprint 3 when Ollama is deployed on NAS
+  enable_offline: false
+
+  # Provider-specific configurations
+  providers:
+    claude:
+      model: "claude-3-5-sonnet-20241022"  # or "claude-3-5-haiku-20241022" for cheaper
+      api_key_env: "CLAUDE_API_KEY"        # Environment variable name
+      timeout_seconds: 30
+      max_tokens: 4096
+      temperature: 0.7
+
+    ollama:
+      # Ollama configuration (for Sprint 3 - Offline CPU)
+      base_url: "http://192.168.1.100:11434"  # NAS IP (adjust to your network)
+      model: "qwen2:7b-instruct-q4_0"          # Chinese model, 4-bit quantized
+      timeout_seconds: 12                      # Offline should be faster
+      max_tokens: 2048                         # 7B models have smaller context
+      temperature: 0.7
+
+    # openai:
+    #   # OpenAI configuration (future, if needed)
+    #   model: "gpt-4-turbo"
+    #   api_key_env: "OPENAI_API_KEY"
+    #   timeout_seconds: 30
+    #   max_tokens: 4096
+    #   temperature: 0.7
+
+  # Budget controls to prevent runaway costs
+  budgets:
+    # Maximum cost per day in USD (applies to paid providers like Claude)
+    max_cost_per_day: 10.0
+
+    # Maximum requests per hour (prevents abuse)
+    max_requests_per_hour: 100
+
+    # Alert threshold (0.8 = alert at 80% of budget)
+    alert_threshold: 0.8
+
+  # Fallback rules: what to do when primary provider fails
+  fallback_rules:
+    - condition: "timeout"           # Primary provider times out
+      action: "use_fallback"         # Switch to fallback provider
+
+    - condition: "rate_limit"        # Hit rate limit
+      action: "exponential_backoff"  # Wait and retry (1s, 2s, 4s, 8s...)
+
+    - condition: "api_error"         # API returns error (500, 503, etc.)
+      action: "use_fallback"         # Switch to fallback provider
+
+    - condition: "budget_exceeded"   # Over daily budget
+      action: "deny"                 # Reject request (protect wallet)
+
+  # Logging configuration
+  logging:
+    log_all_prompts: true      # Log every prompt to audit_logs (privacy: consider false)
+    log_all_responses: true    # Log every response to audit_logs
+    log_token_usage: true      # Log token counts and costs
+    log_latency: true          # Log response times
+
+  # Embedding configuration
+  embeddings:
+    provider: "local"  # "local" = sentence-transformers, "claude" = N/A, "ollama" = future
+    model: "all-MiniLM-L6-v2"  # Lightweight, 384 dimensions
+    cache_embeddings: true     # Cache embeddings to avoid recomputation
+
+# Export policy (already defined in Sprint 2, kept here for reference)
+export:
+  require_manifest: true        # All exports must have manifest.json
+  compute_sha256: true          # Compute SHA256 hash of exported data
+  allowed_formats:
+    - markdown
+    - json
+    - hdf5
+    - csv
+    - txt
+
+# Audit policy (already enforced in Sprint 2)
+audit:
+  log_all_operations: true      # Log every operation to /audit_logs/
+  retention_days: 90            # Keep audit logs for 90 days
+  hash_payloads: true           # SHA256 hash of payloads
+  hash_results: true            # SHA256 hash of results
+
+# Network policy (for Sprint 6 - Egreso Total DENY)
+network:
+  # Allowed outbound domains (whitelist)
+  allowed_domains:
+    - "api.anthropic.com"       # Claude API (disable when enable_offline=true)
+    # - "*.synology.com"        # NAS updates (if needed)
+
+  # Deny all other outbound traffic
+  deny_by_default: false        # Set to true in Sprint 6 (requires firewall config)
+
+# System metadata
+metadata:
+  version: "1.0.0"
+  last_updated: "2025-10-28"
+  owner: "Bernard Uriza Orozco"
+  roadmap_sprint: "Sprint 3 (Sprint 1 of Offline-First Roadmap)"

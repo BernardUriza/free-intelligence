@@ -72,7 +72,7 @@ def init_audit_logs_group(corpus_path: str) -> bool:
         >>> init_audit_logs_group("storage/corpus.h5")
         True
     """
-    from logger import get_logger
+    from backend.logger import get_logger
 
     logger = get_logger()
 
@@ -169,8 +169,8 @@ def append_audit_log(
         ...     result={"interaction_id": "abc-123"}
         ... )
     """
-    from logger import get_logger
-    from append_only_policy import AppendOnlyPolicy
+    from backend.logger import get_logger
+    from backend.append_only_policy import AppendOnlyPolicy
     import uuid
 
     logger = get_logger()
@@ -303,7 +303,7 @@ def get_audit_logs(
             return results
 
     except (IOError, OSError, KeyError) as e:
-        from logger import get_logger
+        from backend.logger import get_logger
         logger = get_logger()
         logger.error("AUDIT_LOGS_READ_FAILED", error=str(e))
         return []
@@ -350,7 +350,7 @@ def get_audit_stats(corpus_path: str) -> Dict:
             }
 
     except (IOError, OSError, KeyError) as e:
-        from logger import get_logger
+        from backend.logger import get_logger
         logger = get_logger()
         logger.error("AUDIT_STATS_FAILED", error=str(e))
         return {"total_logs": 0, "exists": False, "error": str(e)}
@@ -399,7 +399,7 @@ def get_audit_logs_older_than(corpus_path: str, days: int = 90) -> List[int]:
             return old_indices
 
     except Exception as e:
-        from logger import get_logger
+        from backend.logger import get_logger
         logger = get_logger()
         logger.error("RETENTION_CHECK_FAILED", error=str(e))
         return []
@@ -444,7 +444,7 @@ def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = Tru
         >>> # Actually delete (CAREFUL!)
         >>> result = cleanup_old_audit_logs("storage/corpus.h5", days=90, dry_run=False)
     """
-    from logger import get_logger
+    from backend.logger import get_logger
     from datetime import datetime, timedelta
 
     logger = get_logger()
@@ -593,7 +593,7 @@ def get_retention_stats(corpus_path: str, retention_days: int = 90) -> Dict:
             }
 
     except Exception as e:
-        from logger import get_logger
+        from backend.logger import get_logger
         logger = get_logger()
         logger.error("RETENTION_STATS_FAILED", error=str(e))
         return {

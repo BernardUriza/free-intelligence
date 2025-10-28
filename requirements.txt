@@ -13,3 +13,7 @@ py-trello>=0.20.0     # Trello API client
 # fastapi>=0.100.0    # Web framework (Fase 1, feature FI-API)
 # sentence-transformers>=2.2.0  # Embeddings (Fase 1, feature FI-SEARCH)
 # uvicorn>=0.23.0     # ASGI server (Fase 1, feature FI-API)
+anthropic==0.71.0
+sentence-transformers==5.1.2
+torch==2.8.0
+transformers==4.57.1
