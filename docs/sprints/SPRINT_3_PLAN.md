@@ -1,17 +1,28 @@
-# Sprint 3 (SPR-2025W45-46) - Plan Estratégico
+# Sprint 3 (SPR-2025W45-46) - Abstracción LLM
 
-**Inicio**: 2025-10-29 (o cuando Bernard decida)
-**Fin**: 2025-11-13 (15 días, flexible)
-**Tema**: "Core Functionality - Middleware LLM & Data Operations"
-**Estado**: Borrador - Requiere aprobación de Bernard
+**Inicio**: 2025-10-28 (AHORA - Bernard tiene 5h disponibles)
+**Fin**: 2025-10-29 (1-2 días, flexible)
+**Tema**: "LLM Abstraction Layer - Preparación para Offline-First"
+**Estado**: EN EJECUCIÓN ✅
+**Roadmap**: Este es el **Sprint 1 del Roadmap Offline-First** (ver `ROADMAP_OFFLINE_FIRST.md`)
 
 ---
 
-## 🎯 Visión del Sprint
+## 🎯 Visión del Sprint (ACTUALIZADA - Offline-First)
 
-Sprint 3 marca la **transición de infraestructura a funcionalidad**. Con la fundación sólida del Sprint 1 (esquemas, logs, identidad) y la capa de seguridad del Sprint 2 (políticas, audit, enforcement), ahora implementamos las **capacidades core** que harán a Free Intelligence operativo.
+Sprint 3 marca la **transición crítica hacia autonomía arquitectónica**. No es solo "hacer funcionar Claude API" - es **diseñar la abstracción que nos libere de cualquier proveedor SaaS**.
 
-**Objetivo Principal**: Habilitar el flujo end-to-end: **Prompt → LLM → Corpus → Búsqueda/Export**
+**Cambio de Filosofía**:
+- ❌ **Antes**: "Implementar Claude API y usarlo"
+- ✅ **Ahora**: "Abstraer LLM para que Claude sea solo 1 de N proveedores"
+
+**Objetivo Principal**:
+1. **Interfaz única LLM**: `llm.generate()`, `llm.embed()`, `llm.summarize()`
+2. **Router inteligente**: Selección de provider (Claude hoy, Ollama mañana)
+3. **Policy-driven**: Presupuestos, timeouts, fallback en `fi.policy.yaml`
+4. **Future-proof**: Cuando instalemos Ollama (Sprint 3 roadmap), solo cambiar config
+
+**Flujo Objetivo**: **Prompt → Router → [Claude | Ollama | ...] → Corpus → Search/Export**
 
 ---
 
@@ -78,26 +89,71 @@ Sprint 3 marca la **transición de infraestructura a funcionalidad**. Con la fun
 
 ## 📋 Cards Propuestas (Tier System)
 
-### Tier 1: Core LLM Integration (CRÍTICO) - 3 cards
+### Tier 1: LLM Abstraction Layer (CRÍTICO) - 3 cards
 
-#### FI-CORE-FEAT-001 - LLM Router con Anthropic
-**Prioridad**: P0 | **Estimado**: 5h → ~1h real
+#### FI-CORE-FEAT-001 - LLM Router con Abstracción Multi-Provider
+**Prioridad**: P0 | **Estimado**: 6h → ~1.2h real
 
 **Descripción**:
-Implementar router centralizado para llamadas LLM con soporte para Claude API (Anthropic).
+Implementar router LLM con **abstracción provider-agnostic**. Claude es provider inicial, pero diseño permite agregar Ollama/OpenAI sin cambiar API.
+
+**Arquitectura**:
+```python
+# Interfaz abstracta
+class LLMProvider(ABC):
+    @abstractmethod
+    def generate(self, prompt: str, **kwargs) -> str:
+        pass
+
+    @abstractmethod
+    def embed(self, text: str) -> np.ndarray:
+        pass
+
+# Implementaciones
+class ClaudeProvider(LLMProvider):
+    # Usa anthropic SDK
+
+class OllamaProvider(LLMProvider):
+    # Usa requests a OLLAMA_BASE_URL (futuro)
+
+class OpenAIProvider(LLMProvider):
+    # Usa openai SDK (futuro)
+
+# Router
+def get_provider(provider_name: str) -> LLMProvider:
+    if provider_name == "claude":
+        return ClaudeProvider()
+    elif provider_name == "ollama":
+        return OllamaProvider()
+    # ...
+```
 
 **Criterios de Aceptación**:
-- [ ] `backend/llm_router.py` con función `call_llm(prompt, model, params)`
-- [ ] Integración con `anthropic` library (versión pinned)
-- [ ] Auto-logging en `/audit_logs/` con @require_audit_log
-- [ ] Manejo de errors (rate limits, API down)
+- [ ] `backend/llm_router.py` con:
+  - [ ] `LLMProvider` abstract class
+  - [ ] `ClaudeProvider` implementation
+  - [ ] `get_provider(name)` factory
+  - [ ] `llm_generate(prompt, provider, **kwargs) → str`
+  - [ ] `llm_embed(text, provider) → ndarray`
+- [ ] `ClaudeProvider` usa `anthropic` library
+- [ ] Auto-logging en `/audit_logs/` con `@require_audit_log`
+- [ ] Manejo de errors: rate limits, API down, timeout
 - [ ] Environment variable `CLAUDE_API_KEY` desde `.env`
-- [ ] Tests unitarios (12+ tests) con mocks de anthropic
-- [ ] Cost tracking por request (tokens used)
+- [ ] Tests unitarios (15+ tests):
+  - [ ] Mocks de ClaudeProvider
+  - [ ] Factory pattern
+  - [ ] Error handling
+  - [ ] Audit logging
+- [ ] Cost tracking: tokens used, $ estimado
 
 **Dependencias**:
-- Requiere API key de Claude (Bernard debe proveerla)
+- Requiere API key de Claude (Bernard configurará en `.env`)
 - Librería: `anthropic>=0.8.0`
+
+**Notas Importantes**:
+- 🎯 **NO hardcodear Claude** - todo debe pasar por abstracción
+- 🎯 Provider selection desde config (no hardcoded)
+- 🎯 Easy to add Ollama en Sprint 3 del roadmap
 
 ---
 
@@ -127,22 +183,95 @@ Tokens: 150 | Cost: $0.003 | Session: session_20251029_143022
 
 ---
 
-#### FI-DATA-FEAT-002 - Append Interaction End-to-End
+#### FI-CONFIG-FEAT-002 - fi.policy.yaml (LLM Policies)
 **Prioridad**: P0 | **Estimado**: 3h → ~0.6h real
 
 **Descripción**:
-Completar flujo de `append_interaction()` con embeddings automáticos.
+Archivo de configuración para políticas de LLM: presupuestos, timeouts, fallback, provider selection.
+
+**Schema YAML**:
+```yaml
+llm:
+  primary_provider: "claude"      # claude | ollama | openai
+  fallback_provider: "claude"     # Si primary falla
+  enable_offline: false           # true cuando Ollama esté ready
+
+  providers:
+    claude:
+      model: "claude-3-5-sonnet-20241022"
+      api_key_env: "CLAUDE_API_KEY"
+      timeout_seconds: 30
+      max_tokens: 4096
+      temperature: 0.7
+
+    ollama:
+      base_url: "http://192.168.1.100:11434"  # NAS IP
+      model: "qwen2:7b-instruct-q4_0"
+      timeout_seconds: 12
+      max_tokens: 2048
+
+  budgets:
+    max_cost_per_day: 10.0         # USD
+    max_requests_per_hour: 100
+    alert_threshold: 0.8           # Alert at 80% budget
+
+  fallback_rules:
+    - condition: "timeout"
+      action: "use_fallback"
+    - condition: "rate_limit"
+      action: "exponential_backoff"
+    - condition: "api_error"
+      action: "use_fallback"
+
+  logging:
+    log_all_prompts: true
+    log_all_responses: true
+    log_token_usage: true
+```
+
+**Criterios de Aceptación**:
+- [ ] `config/fi.policy.yaml` creado con schema completo
+- [ ] `backend/policy_loader.py` con:
+  - [ ] `load_llm_policy() → dict`
+  - [ ] Validación de schema (required fields)
+  - [ ] Defaults si faltan valores
+- [ ] Integración con `llm_router.py`:
+  - [ ] Leer `primary_provider` desde policy
+  - [ ] Aplicar timeouts, max_tokens
+  - [ ] Verificar budgets antes de llamada
+- [ ] Tests unitarios (10+ tests):
+  - [ ] Load valid policy
+  - [ ] Missing fields → defaults
+  - [ ] Invalid provider → error
+  - [ ] Budget enforcement
+- [ ] Documentación: docs/llm-policy.md
+
+**Notas**:
+- 🎯 Policy-driven design = easy to change provider sin tocar código
+- 🎯 Budgets previenen costos runaway
+- 🎯 Fallback rules para resiliencia
+
+---
+
+#### FI-DATA-FEAT-002 - Append Interaction End-to-End
+**Prioridad**: P0 | **Estimado**: 2h → ~0.4h real
+
+**Descripción**:
+Completar flujo de `append_interaction()` con embeddings automáticos usando provider de LLM.
 
 **Criterios de Aceptación**:
 - [ ] `corpus_ops.append_interaction()` recibe prompt + response
-- [ ] Auto-genera embedding con `sentence-transformers` (all-MiniLM-L6-v2)
+- [ ] Embedding generation:
+  - [ ] Llamar a `llm_embed(prompt + response)` usando provider
+  - [ ] Si provider no soporta embed → usar sentence-transformers local
 - [ ] Llama a `append_embedding()` automáticamente
 - [ ] Logging de INTERACTION_APPENDED + EMBEDDING_APPENDED
 - [ ] Tests con verificación de corpus stats incrementales
 - [ ] Documentación de pipeline completo
 
 **Notas**:
-- Ya existe esqueleto en Sprint 1, solo falta embeddings auto
+- Ya existe esqueleto en Sprint 1, solo falta integrar con LLM router
+- Sentence-transformers como fallback si provider no tiene embeddings
 
 ---
 
