@@ -1,0 +1,22 @@
+{
+  "id": 55,
+  "category": "CRITICAL_EXPECTED",
+  "reason": "Worst headache of life",
+  "symptoms": [
+    "sudden severe headache",
+    "vomiting",
+    "confusion",
+    "left-sided weakness",
+    "not responding",
+    "collapsed"
+  ],
+  "notes": "Suspected hemorrhagic stroke; keywords should trigger CRITICAL; widow-maker scenario.",
+  "vitals": {
+    "hr": 98,
+    "bp_sys": 190,
+    "bp_dia": 110,
+    "spo2": 95
+  },
+  "medications": [],
+  "anticoagulation": false
+}

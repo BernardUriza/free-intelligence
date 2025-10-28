@@ -1,0 +1,20 @@
+{
+  "id": 52,
+  "category": "CRITICAL_EXPECTED",
+  "reason": "Severe sudden chest pain",
+  "symptoms": [
+    "tearing chest pain radiating to the back",
+    "sudden onset",
+    "syncope",
+    "different blood pressure in each arm"
+  ],
+  "notes": "Suspected aortic dissection; high-risk pattern; widow-maker scenario.",
+  "vitals": {
+    "hr": 110,
+    "bp_sys": 180,
+    "bp_dia": 100,
+    "spo2": 96
+  },
+  "medications": [],
+  "anticoagulation": false
+}
