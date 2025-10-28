@@ -258,6 +258,70 @@ ollama pull qwen2.5:7b-instruct-q4_0
 
 ---
 
+## 🚦 Sprint 4: Gatekeeper (Intelligent A/B Routing)
+
+Free Intelligence now includes a **Gatekeeper** that automatically routes queries between Ollama (fast/free/private) and Claude (high quality) based on response quality scoring.
+
+### How It Works
+
+1. **Primary Provider**: Ollama generates response locally
+2. **Quality Scoring**: Gatekeeper scores response 0-100 based on:
+   - **Length** (0-30 points): Not too short, not too long
+   - **Keywords** (0-30 points): Domain-specific terminology
+   - **Coherence** (0-20 points): Proper sentences, punctuation
+   - **Completeness** (0-20 points): No truncation, balanced quotes
+3. **Automatic Fallback**: If score < 70 → retry with Claude API
+
+### Configuration
+
+Edit `config/fi.policy.yaml`:
+
+```yaml
+gatekeeper:
+  enabled: true                    # Enable quality-based routing
+  quality_threshold: 70            # Fallback to Claude if score < 70
+  progressive_rollout:
+    enabled: false                 # Progressive rollout (future)
+    current_phase: 1               # Phase 1: 10%, Phase 2: 50%, Phase 3: 100%
+```
+
+### Example Behavior
+
+**High Quality Response (80/100)** → Use Ollama ✅
+```
+Q: Who is Alice in Wonderland?
+A: Alice is the protagonist of Lewis Carroll's story, a curious
+   young girl who falls down a rabbit hole...
+Score: 80/100 (Length: 30/30, Keywords: 10/30, Coherence: 20/20)
+Decision: Keep Ollama response (fast, free, private)
+```
+
+**Low Quality Response (47/100)** → Fallback to Claude ⚠️
+```
+Q: What is the capital of France?
+A: Paris.
+Score: 47/100 (Length: 5/30 - too short)
+Decision: Fallback to Claude for better quality
+```
+
+### Progressive Rollout (Future)
+
+Gatekeeper supports gradual migration:
+
+- **Phase 1 (10% Ollama)**: Conservative start, most queries → Claude
+- **Phase 2 (50% Ollama)**: Triggered when avg score > 75 for 7 days
+- **Phase 3 (100% Ollama)**: Triggered when avg score > 85 for 7 days
+- **Automatic Rollback**: If quality degrades (score < 70 avg)
+
+### Benefits
+
+✅ **Best of Both Worlds**: Ollama speed/privacy + Claude quality safety net
+✅ **Zero Configuration**: Works out of the box
+✅ **Cost Optimization**: Only use Claude API when Ollama quality is insufficient
+✅ **Privacy First**: Most queries stay local (Ollama), sensitive data never leaves
+
+---
+
 ## 🎨 Best Practices
 
 ### 1. Keep Models Updated
