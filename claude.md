@@ -54,6 +54,11 @@ Free Intelligence no es una herramienta. Es una **posición ontológica computac
 - **SIEMPRE** archivar interacción antes de generar respuesta.
 - **TODO** vive en LAN. CERO dependencias cloud para operación.
 - El archivo `.h5` es la **fuente de verdad**. No SQLite, no JSON, no Markdown.
+- **⚠️ WORKFLOW CRÍTICO**: NUNCA dejar "⚙️ In Progress" vacío. Cada vez que una card salga de In Progress:
+  1. Verificar INMEDIATAMENTE si la lista quedó vacía
+  2. Si está vacía, mover siguiente card prioritaria (P0 > P1 > P2) de Sprint/Backlog
+  3. Documentar movimiento en bitácora
+  4. NO continuar con otras tareas hasta restaurar workflow
 
 ---
 
@@ -1741,4 +1746,64 @@ Commit: e33ed16 'feat(eval): add schema normalizer for null→[] array conversio
 **Total tests**: 24/24 → 40/40 passing (includes 16 new schema normalizer tests)
 
 Próximo paso: Re-run eval to verify Case 7 fix, or start next sprint planning
+
+
+---
+
+## [2025-10-28 16:05] PROCESS-VIOLATION — IN PROGRESS VACÍO DETECTADO
+Estado: Corrected | Acción: Violación de proceso workflow
+Fechas: Detectado 28-oct-2025 16:05 (post Sprint S3 completion)
+Acción: Corregir violación de In Progress vacío y documentar regla
+Síntesis técnica:
+
+**Violación detectada**:
+- Lista "⚙️ In Progress" quedó vacía después de mover Schema normalizer a Done
+- Esta es la SEGUNDA vez que ocurre esta violación en la misma sesión
+- Violación original: 2025-10-28 15:30 (post Sprint S2)
+
+**Regla fundamental de workflow**:
+> **NUNCA dejar In Progress vacío**
+> 
+> Cuando una card sale de "⚙️ In Progress", INMEDIATAMENTE:
+> 1. Identificar siguiente card más prioritaria (P0 > P1 > P2)
+> 2. Moverla de Sprint/Backlog a In Progress
+> 3. Documentar movimiento en bitácora
+> 4. Actualizar TodoWrite si aplica
+
+**Corrección aplicada**:
+- Card movida a In Progress: `FI-DATA-FEAT-002: Almacenamiento Directo en HDF5`
+- Card ID: 68fc000a0a80031a72991c3e
+- Prioridad: P0, Core
+- Due: 2025-11-04
+- Estimación: 1 semana
+
+**Nueva regla agregada a CLAUDE.md**:
+```
+⚠️ WORKFLOW CRÍTICO - NUNCA VIOLAR
+
+Cada vez que ejecutes un movimiento de "⚙️ In Progress" a otra lista:
+1. ✅ Verificar INMEDIATAMENTE si In Progress quedó vacío
+2. ✅ Si está vacío, identificar siguiente card prioritaria
+3. ✅ Mover card a In Progress ANTES de continuar
+4. ✅ Documentar en bitácora el movimiento y razón
+
+Orden de prioridad para selección:
+- P0 Core/Backend > P0 Other > P1 Core > P1 Other > P2
+
+NUNCA continuar con otras tareas si In Progress está vacío.
+```
+
+**Lección aprendida**:
+- El proceso workflow NO es opcional
+- In Progress vacío = violación crítica
+- Requiere corrección inmediata ANTES de continuar con cualquier otra tarea
+- La regla debe ejecutarse AUTOMÁTICAMENTE después de cada movimiento
+
+**Impacto**:
+- Workflow restaurado correctamente
+- Siguiente card prioritaria identificada (HDF5 direct storage)
+- Regla documentada para prevenir futuras violaciones
+- Claude Code debe verificar In Progress después de CADA movimiento
+
+Próximo paso: Comenzar implementación de FI-DATA-FEAT-002 o esperar instrucciones
 
