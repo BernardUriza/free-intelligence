@@ -59,11 +59,21 @@ free-intelligence/
 
 **Key commands**:
 ```bash
-make setup      # Full monorepo initialization
-make install    # Install Python dependencies
-make fmt        # Format code
-make lint       # Lint code
-make test       # Run tests
+make setup       # Full monorepo initialization
+make dev-all     # Start ALL services (Turborepo)
+make install     # Install Python dependencies only
+make run         # Start FI Consult only (port 7001)
+make run-gateway # Start AURITY Gateway only (port 7002)
+make fmt         # Format code
+make lint        # Lint code
+make test        # Run tests
+```
+
+**Turborepo commands** (start everything):
+```bash
+pnpm dev         # Start all services (Backend + Frontend)
+pnpm build       # Build all apps
+pnpm lint        # Lint all apps
 ```
 
 ---

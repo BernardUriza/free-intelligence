@@ -1,0 +1,25 @@
+{
+  "name": "free-intelligence-monorepo",
+  "version": "0.3.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "backend:dev": "make run",
+    "backend:gateway": "make run-gateway",
+    "frontend:dev": "cd apps/aurity && pnpm dev"
+  },
+  "devDependencies": {
+    "turbo": "^1.11.2"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

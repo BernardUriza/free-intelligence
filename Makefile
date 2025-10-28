@@ -214,13 +214,41 @@ info: ## Show project information
 	@echo "================================="
 	@echo "Version:     0.3.0"
 	@echo "Python:      $(shell python3 --version)"
+	@echo "Node:        $(shell node --version 2>/dev/null || echo 'not installed')"
 	@echo "Directory:   $(PWD)"
 	@echo "Corpus:      storage/corpus.h5 $(shell [ -f storage/corpus.h5 ] && echo '✅' || echo '❌')"
 	@echo "Services:"
-	@echo "  - FI Consult:    port 7001"
-	@echo "  - AURITY Gateway: port 7002"
+	@echo "  - FI Consult:     port 7001 (Python/FastAPI)"
+	@echo "  - AURITY Gateway:  port 7002 (Python/FastAPI)"
+	@echo "  - AURITY Frontend: port 3000 (Next.js)"
 	@echo ""
 	@echo "Quick Start:"
-	@echo "  make init      # Initialize project"
-	@echo "  make run       # Start FI Consult Service"
-	@echo "  make test      # Run tests"
+	@echo "  make setup      # Initialize monorepo"
+	@echo "  make dev-all    # Start all services (Turborepo)"
+	@echo "  make run        # Start FI Consult only"
+	@echo "  make test       # Run tests"
+
+# ============================================================================
+# Turborepo Commands
+# ============================================================================
+
+dev-all: ## Start all services (Backend + Frontend via Turborepo)
+	@echo "🚀 Starting all services with Turborepo..."
+	@echo "   - Backend: FI Consult (port 7001)"
+	@echo "   - Backend: AURITY Gateway (port 7002)"
+	@echo "   - Frontend: AURITY (port 3000)"
+	@echo ""
+	pnpm install && pnpm dev
+
+turbo-build: ## Build all apps with Turborepo
+	@echo "🏗️  Building all apps..."
+	pnpm install && pnpm build
+
+turbo-lint: ## Lint all apps with Turborepo
+	@echo "🔍 Linting all apps..."
+	pnpm install && pnpm lint
+
+turbo-clean: ## Clean all build artifacts
+	@echo "🧹 Cleaning build artifacts..."
+	pnpm turbo clean
+	make clean
