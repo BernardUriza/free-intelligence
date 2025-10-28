@@ -12,7 +12,7 @@
     "clean": "turbo run clean",
     "backend:dev": "make run",
     "backend:gateway": "make run-gateway",
-    "frontend:dev": "cd apps/aurity && pnpm dev"
+    "frontend:dev": "cd apps/aurity && PORT=9000 pnpm dev"
   },
   "devDependencies": {
     "turbo": "^1.11.2"
