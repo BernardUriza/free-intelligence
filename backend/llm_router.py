@@ -26,6 +26,7 @@ from backend.logger import get_logger
 from backend.llm_audit_policy import require_audit_log
 from backend.audit_logs import append_audit_log
 from backend.policy_loader import get_policy_loader
+from backend.metrics import get_metrics_collector
 import re
 from functools import lru_cache
 import hashlib
@@ -543,6 +544,17 @@ def llm_generate(
             }
         )
 
+        # Record metrics
+        metrics_collector = get_metrics_collector()
+        metrics_collector.record_llm_request(
+            provider=provider,
+            model=response.model,
+            latency_ms=response.latency_ms,
+            tokens=response.tokens_used,
+            cost_usd=response.cost_usd,
+            status="success"
+        )
+
         logger.info("LLM_GENERATE_COMPLETED",
                    provider=provider,
                    model=response.model,
@@ -553,6 +565,17 @@ def llm_generate(
     except Exception as e:
         sanitized_error = sanitize_error_message(str(e))
         logger.error("LLM_GENERATE_FAILED", provider=provider, error=sanitized_error)
+
+        # Record error metrics
+        metrics_collector = get_metrics_collector()
+        metrics_collector.record_llm_request(
+            provider=provider,
+            model="unknown",
+            latency_ms=0,
+            tokens=0,
+            cost_usd=0.0,
+            status="error"
+        )
 
         # Log failure to audit_logs
         from backend.config_loader import load_config
@@ -635,14 +658,29 @@ def llm_embed(
                 text_hash=text_hash[:16])
 
     try:
+        # Get cache info before call (to detect hit vs miss)
+        cache_info_before = _cached_embed.cache_info()
+
         # Try cached version
         embedding_bytes = _cached_embed(text_hash, text, provider)
 
         # Convert bytes back to numpy array
         embedding = np.frombuffer(embedding_bytes, dtype=np.float32)
 
-        # Get cache stats
+        # Get cache stats after call
         cache_info = _cached_embed.cache_info()
+
+        # Detect if this was a cache hit or miss
+        was_cache_hit = cache_info.hits > cache_info_before.hits
+
+        # Record cache event
+        from backend.metrics import get_metrics_collector
+        metrics_collector = get_metrics_collector()
+        metrics_collector.record_cache_event(
+            event_type="hit" if was_cache_hit else "miss",
+            provider=provider
+        )
+
         logger.info("LLM_EMBED_COMPLETED",
                    provider=provider,
                    embedding_dim=len(embedding),
