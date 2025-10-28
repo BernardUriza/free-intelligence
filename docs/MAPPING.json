@@ -1,0 +1,777 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "title": "Redux Action to Domain Event Mapping",
+  "description": "Maps Redux-Claude actions to Free Intelligence domain events for event-sourcing migration",
+  "version": "1.0.0",
+  "generated": "2025-10-28",
+  "mappings": [
+    {
+      "reduxAction": "medicalChat/addMessage",
+      "domainEvent": "MESSAGE_RECEIVED",
+      "category": "consultation",
+      "payloadMapping": {
+        "coreId": "consultation_id",
+        "content": "message_content",
+        "type": "message_role",
+        "metadata.confidence": "metadata.confidence",
+        "metadata.sessionId": "session_id"
+      },
+      "eventSchema": {
+        "event_id": "string (UUID v4)",
+        "consultation_id": "string",
+        "session_id": "string",
+        "timestamp": "datetime (ISO 8601)",
+        "event_type": "MESSAGE_RECEIVED",
+        "payload": {
+          "message_content": "string",
+          "message_role": "'user' | 'assistant'",
+          "metadata": {
+            "confidence": "float (0-1) | null",
+            "session_id": "string | null"
+          }
+        }
+      },
+      "auditRequired": true,
+      "notes": "All messages appended to consultation stream"
+    },
+    {
+      "reduxAction": "medicalChat/updateMessage",
+      "domainEvent": "MESSAGE_UPDATED",
+      "category": "consultation",
+      "payloadMapping": {
+        "coreId": "consultation_id",
+        "messageId": "message_id",
+        "content": "updated_content"
+      },
+      "eventSchema": {
+        "event_id": "string (UUID v4)",
+        "consultation_id": "string",
+        "message_id": "string",
+        "timestamp": "datetime",
+        "event_type": "MESSAGE_UPDATED",
+        "payload": {
+          "updated_content": "string"
+        }
+      },
+      "auditRequired": true,
+      "notes": "For correction/amendment of messages"
+    },
+    {
+      "reduxAction": "medicalChat/deleteMessage",
+      "domainEvent": "MESSAGE_DELETED",
+      "category": "consultation",
+      "payloadMapping": {
+        "coreId": "consultation_id",
+        "messageId": "message_id"
+      },
+      "eventSchema": {
+        "event_id": "string (UUID v4)",
+        "consultation_id": "string",
+        "message_id": "string",
+        "timestamp": "datetime",
+        "event_type": "MESSAGE_DELETED",
+        "payload": {}
+      },
+      "auditRequired": true,
+      "notes": "Soft delete - event preserved in stream"
+    },
+    {
+      "reduxAction": "medicalChat/extractMedicalData/pending",
+      "domainEvent": "EXTRACTION_STARTED",
+      "category": "extraction",
+      "payloadMapping": {
+        "meta.arg.messages": "context_messages",
+        "meta.arg.currentExtraction": "previous_extraction"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "EXTRACTION_STARTED",
+        "payload": {
+          "iteration": "integer (1-5)",
+          "context_message_count": "integer",
+          "has_previous_extraction": "boolean"
+        }
+      },
+      "auditRequired": true,
+      "notes": "Start of extraction iteration"
+    },
+    {
+      "reduxAction": "medicalChat/extractMedicalData/fulfilled",
+      "domainEvent": "EXTRACTION_COMPLETED",
+      "category": "extraction",
+      "payloadMapping": {
+        "payload.extraction": "extraction_data",
+        "payload.completenessPercentage": "completeness",
+        "payload.missingFields": "missing_fields",
+        "payload.nomCompliance": "nom_compliance"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "EXTRACTION_COMPLETED",
+        "payload": {
+          "iteration": "integer",
+          "completeness": "float (0-100)",
+          "nom_compliance": "float (0-100)",
+          "missing_fields": "array[string]",
+          "extraction_data": {
+            "demographics": "object",
+            "symptoms": "object",
+            "medicalHistory": "object"
+          }
+        }
+      },
+      "auditRequired": true,
+      "notes": "Successful extraction with completeness metrics"
+    },
+    {
+      "reduxAction": "medicalChat/extractMedicalData/rejected",
+      "domainEvent": "EXTRACTION_FAILED",
+      "category": "extraction",
+      "payloadMapping": {
+        "payload.error": "error_message"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "EXTRACTION_FAILED",
+        "payload": {
+          "iteration": "integer",
+          "error_message": "string",
+          "error_type": "string"
+        }
+      },
+      "auditRequired": true,
+      "notes": "Extraction failure - may retry"
+    },
+    {
+      "reduxAction": "medicalChat/updateDemographics",
+      "domainEvent": "DEMOGRAPHICS_UPDATED",
+      "category": "wip_data",
+      "payloadMapping": {
+        "payload.age": "age",
+        "payload.gender": "gender",
+        "payload.weight": "weight",
+        "payload.height": "height",
+        "payload.occupation": "occupation"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "DEMOGRAPHICS_UPDATED",
+        "payload": {
+          "age": "integer | null",
+          "gender": "'male' | 'female' | 'other' | null",
+          "weight": "float | null",
+          "height": "float | null",
+          "occupation": "string | null"
+        }
+      },
+      "auditRequired": false,
+      "notes": "WIP data update during extraction"
+    },
+    {
+      "reduxAction": "medicalChat/updateSymptoms",
+      "domainEvent": "SYMPTOMS_UPDATED",
+      "category": "wip_data",
+      "payloadMapping": {
+        "payload.primarySymptoms": "primary_symptoms",
+        "payload.secondarySymptoms": "secondary_symptoms",
+        "payload.duration": "duration",
+        "payload.severity": "severity",
+        "payload.location": "location",
+        "payload.quality": "quality",
+        "payload.aggravatingFactors": "aggravating_factors",
+        "payload.relievingFactors": "relieving_factors"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "SYMPTOMS_UPDATED",
+        "payload": {
+          "primary_symptoms": "array[string]",
+          "secondary_symptoms": "array[string] | null",
+          "duration": "string | null",
+          "severity": "'mild' | 'moderate' | 'severe' | null",
+          "location": "string | null",
+          "quality": "string | null",
+          "aggravating_factors": "array[string] | null",
+          "relieving_factors": "array[string] | null"
+        }
+      },
+      "auditRequired": false,
+      "notes": "Symptom data accumulated in WIP"
+    },
+    {
+      "reduxAction": "medicalChat/updateContext",
+      "domainEvent": "CONTEXT_UPDATED",
+      "category": "wip_data",
+      "payloadMapping": {
+        "payload.pastMedicalHistory": "past_medical_history",
+        "payload.familyHistory": "family_history",
+        "payload.medications": "medications",
+        "payload.allergies": "allergies",
+        "payload.surgeries": "surgeries"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "CONTEXT_UPDATED",
+        "payload": {
+          "past_medical_history": "array[string] | null",
+          "family_history": "array[string] | null",
+          "medications": "array[string] | null",
+          "allergies": "array[string] | null",
+          "surgeries": "array[string] | null"
+        }
+      },
+      "auditRequired": false,
+      "notes": "Medical context/history update"
+    },
+    {
+      "reduxAction": "medicalChat/updateCompleteness",
+      "domainEvent": "COMPLETENESS_CALCULATED",
+      "category": "wip_data",
+      "payloadMapping": {
+        "payload.percentage": "completeness_percentage",
+        "payload.missingCriticalFields": "missing_critical_fields"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "COMPLETENESS_CALCULATED",
+        "payload": {
+          "completeness_percentage": "float (0-100)",
+          "missing_critical_fields": "array[string]"
+        }
+      },
+      "auditRequired": false,
+      "notes": "Completeness metrics updated"
+    },
+    {
+      "reduxAction": "soapAnalysisReal/startSOAPExtraction",
+      "domainEvent": "SOAP_GENERATION_STARTED",
+      "category": "soap",
+      "payloadMapping": {
+        "payload.extractionData": "extraction_data"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "SOAP_GENERATION_STARTED",
+        "payload": {
+          "extraction_completeness": "float",
+          "nom_compliance": "float"
+        }
+      },
+      "auditRequired": true,
+      "notes": "Begin SOAP note generation"
+    },
+    {
+      "reduxAction": "soapAnalysisReal/updateSOAPSection",
+      "domainEvent": "SOAP_SECTION_COMPLETED",
+      "category": "soap",
+      "payloadMapping": {
+        "payload.section": "section_name",
+        "payload.content": "section_content",
+        "payload.confidence": "confidence"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "SOAP_SECTION_COMPLETED",
+        "payload": {
+          "section_name": "'subjective' | 'objective' | 'assessment' | 'plan'",
+          "section_content": "object",
+          "confidence": "float (0-1)"
+        }
+      },
+      "auditRequired": true,
+      "notes": "Individual SOAP section completed"
+    },
+    {
+      "reduxAction": "soapAnalysisReal/extractionSuccess",
+      "domainEvent": "SOAP_GENERATION_COMPLETED",
+      "category": "soap",
+      "payloadMapping": {
+        "payload.analysis": "soap_data",
+        "payload.quality": "quality_score"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "SOAP_GENERATION_COMPLETED",
+        "payload": {
+          "soap_data": "SOAPData (full structure)",
+          "quality_score": "float (0-1)",
+          "ready_for_commit": "boolean"
+        }
+      },
+      "auditRequired": true,
+      "notes": "Complete SOAP note generated"
+    },
+    {
+      "reduxAction": "soapAnalysisReal/extractionError",
+      "domainEvent": "SOAP_GENERATION_FAILED",
+      "category": "soap",
+      "payloadMapping": {
+        "payload.error": "error_message"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "SOAP_GENERATION_FAILED",
+        "payload": {
+          "error_message": "string",
+          "partial_soap": "object | null"
+        }
+      },
+      "auditRequired": true,
+      "notes": "SOAP generation error"
+    },
+    {
+      "reduxAction": "cognitive/addCognitiveEvent",
+      "domainEvent": "CRITICAL_PATTERN_DETECTED",
+      "category": "urgency",
+      "payloadMapping": {
+        "payload.eventType": "pattern_name",
+        "payload.data": "pattern_data"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "CRITICAL_PATTERN_DETECTED",
+        "payload": {
+          "pattern_name": "string",
+          "gravity_score": "integer (1-10)",
+          "widow_maker_alert": "boolean",
+          "symptoms_matched": "array[string]",
+          "critical_differentials": "array[string]",
+          "time_to_action": "'immediate' | 'urgent' | 'priority' | 'routine'"
+        }
+      },
+      "auditRequired": true,
+      "notes": "Life-threatening pattern detected"
+    },
+    {
+      "reduxAction": "cognitive/updateSystemHealth",
+      "domainEvent": "URGENCY_CLASSIFIED",
+      "category": "urgency",
+      "payloadMapping": {
+        "payload.health": "urgency_level",
+        "payload.metrics": "metrics"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "URGENCY_CLASSIFIED",
+        "payload": {
+          "urgency_level": "'critical' | 'high' | 'medium' | 'low'",
+          "gravity_score": "integer (1-10)",
+          "time_to_action": "string",
+          "identified_patterns": "array[object]",
+          "risk_factors": "array[string]"
+        }
+      },
+      "auditRequired": true,
+      "notes": "Urgency level determined"
+    },
+    {
+      "reduxAction": "decisions/startDecision",
+      "domainEvent": "LLM_CALL_INITIATED",
+      "category": "llm",
+      "payloadMapping": {
+        "payload.id": "decision_id",
+        "payload.provider": "llm_provider",
+        "payload.query": "query_text"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "LLM_CALL_INITIATED",
+        "payload": {
+          "decision_id": "string",
+          "llm_provider": "'claude' | 'openai' | 'ollama'",
+          "query_text": "string",
+          "agent_name": "string | null"
+        }
+      },
+      "auditRequired": true,
+      "notes": "LLM decision process started"
+    },
+    {
+      "reduxAction": "decisions/completeDecision",
+      "domainEvent": "LLM_CALL_COMPLETED",
+      "category": "llm",
+      "payloadMapping": {
+        "payload.id": "decision_id",
+        "payload.decision": "decision_result",
+        "payload.confidence": "confidence",
+        "payload.latency": "latency_ms",
+        "payload.provider": "llm_provider"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "LLM_CALL_COMPLETED",
+        "payload": {
+          "decision_id": "string",
+          "llm_provider": "string",
+          "decision_result": "object",
+          "confidence": "float (0-1)",
+          "latency_ms": "integer",
+          "tokens_used": "integer | null"
+        }
+      },
+      "auditRequired": true,
+      "notes": "LLM decision completed successfully"
+    },
+    {
+      "reduxAction": "decisions/failDecision",
+      "domainEvent": "LLM_CALL_FAILED",
+      "category": "llm",
+      "payloadMapping": {
+        "payload.id": "decision_id",
+        "payload.error": "error_message",
+        "payload.retryCount": "retry_count"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "LLM_CALL_FAILED",
+        "payload": {
+          "decision_id": "string",
+          "error_message": "string",
+          "retry_count": "integer"
+        }
+      },
+      "auditRequired": true,
+      "notes": "LLM call failed - may retry"
+    },
+    {
+      "reduxAction": "decisions/addAuditEntries",
+      "domainEvent": "AUDIT_ENTRY_CREATED",
+      "category": "audit",
+      "payloadMapping": {
+        "payload[]": "audit_entries"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "AUDIT_ENTRY_CREATED",
+        "payload": {
+          "audit_entries": [
+            {
+              "timestamp": "datetime",
+              "level": "'info' | 'warning' | 'critical'",
+              "message": "string",
+              "context": "object"
+            }
+          ]
+        }
+      },
+      "auditRequired": true,
+      "notes": "Audit log entries appended"
+    },
+    {
+      "reduxAction": "medicalChat/resetSession",
+      "domainEvent": "CONSULTATION_RESET",
+      "category": "consultation",
+      "payloadMapping": {
+        "payload.coreId": "core_id"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "CONSULTATION_RESET",
+        "payload": {
+          "core_id": "string | null",
+          "reason": "string"
+        }
+      },
+      "auditRequired": true,
+      "notes": "Session reset - may indicate error or user action"
+    },
+    {
+      "reduxAction": "soapAnalysisReal/completeAnalysis",
+      "domainEvent": "CONSULTATION_COMMITTED",
+      "category": "consultation",
+      "payloadMapping": {
+        "payload.finalAnalysis": "soap_data"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "CONSULTATION_COMMITTED",
+        "payload": {
+          "soap_data": "SOAPData (complete)",
+          "committed_by": "string (user_id)",
+          "commit_hash": "string (SHA256)",
+          "quality_score": "float (0-1)",
+          "completeness": "float (0-100)",
+          "nom_compliance": "float (0-100)"
+        }
+      },
+      "auditRequired": true,
+      "notes": "Final SOAP committed - immutable record created"
+    },
+    {
+      "reduxAction": "medicalChat/incrementIteration",
+      "domainEvent": "EXTRACTION_ITERATION_INCREMENTED",
+      "category": "extraction",
+      "payloadMapping": {},
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "EXTRACTION_ITERATION_INCREMENTED",
+        "payload": {
+          "new_iteration": "integer (1-5)"
+        }
+      },
+      "auditRequired": false,
+      "notes": "Extraction iteration counter incremented"
+    },
+    {
+      "reduxAction": "medicalChat/completeExtraction",
+      "domainEvent": "EXTRACTION_PROCESS_COMPLETED",
+      "category": "extraction",
+      "payloadMapping": {
+        "payload.finalExtraction": "final_extraction"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "EXTRACTION_PROCESS_COMPLETED",
+        "payload": {
+          "final_extraction": "MedicalExtractionOutput",
+          "total_iterations": "integer",
+          "final_completeness": "float (0-100)",
+          "final_nom_compliance": "float (0-100)"
+        }
+      },
+      "auditRequired": true,
+      "notes": "Extraction process fully complete"
+    },
+    {
+      "reduxAction": "medicalChat/clearMessages",
+      "domainEvent": "MESSAGES_CLEARED",
+      "category": "consultation",
+      "payloadMapping": {
+        "payload.coreId": "core_id"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "MESSAGES_CLEARED",
+        "payload": {
+          "core_id": "string",
+          "message_count_cleared": "integer"
+        }
+      },
+      "auditRequired": true,
+      "notes": "All messages cleared from core"
+    },
+    {
+      "reduxAction": "medicalChat/markMessageAsProcessed",
+      "domainEvent": "MESSAGE_PROCESSED",
+      "category": "consultation",
+      "payloadMapping": {
+        "payload.coreId": "consultation_id",
+        "payload.messageId": "message_id"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "message_id": "string",
+        "timestamp": "datetime",
+        "event_type": "MESSAGE_PROCESSED",
+        "payload": {}
+      },
+      "auditRequired": false,
+      "notes": "Message marked as processed"
+    },
+    {
+      "reduxAction": "medicalChat/setCoreLoading",
+      "domainEvent": "CORE_STATE_CHANGED",
+      "category": "system",
+      "payloadMapping": {
+        "payload.coreId": "core_id",
+        "payload.isLoading": "is_loading"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "CORE_STATE_CHANGED",
+        "payload": {
+          "core_id": "string",
+          "is_loading": "boolean"
+        }
+      },
+      "auditRequired": false,
+      "notes": "Core loading state changed - UI state only"
+    },
+    {
+      "reduxAction": "medicalChat/setCoreError",
+      "domainEvent": "CORE_ERROR_OCCURRED",
+      "category": "system",
+      "payloadMapping": {
+        "payload.coreId": "core_id",
+        "payload.error": "error_message"
+      },
+      "eventSchema": {
+        "event_id": "string",
+        "consultation_id": "string",
+        "timestamp": "datetime",
+        "event_type": "CORE_ERROR_OCCURRED",
+        "payload": {
+          "core_id": "string",
+          "error_message": "string"
+        }
+      },
+      "auditRequired": true,
+      "notes": "Error in core - for debugging"
+    }
+  ],
+  "categories": {
+    "consultation": {
+      "description": "Main consultation lifecycle events",
+      "events": [
+        "MESSAGE_RECEIVED",
+        "MESSAGE_UPDATED",
+        "MESSAGE_DELETED",
+        "MESSAGES_CLEARED",
+        "MESSAGE_PROCESSED",
+        "CONSULTATION_RESET",
+        "CONSULTATION_COMMITTED"
+      ]
+    },
+    "extraction": {
+      "description": "Medical data extraction process",
+      "events": [
+        "EXTRACTION_STARTED",
+        "EXTRACTION_COMPLETED",
+        "EXTRACTION_FAILED",
+        "EXTRACTION_ITERATION_INCREMENTED",
+        "EXTRACTION_PROCESS_COMPLETED"
+      ]
+    },
+    "wip_data": {
+      "description": "Work-in-progress data updates",
+      "events": [
+        "DEMOGRAPHICS_UPDATED",
+        "SYMPTOMS_UPDATED",
+        "CONTEXT_UPDATED",
+        "COMPLETENESS_CALCULATED"
+      ]
+    },
+    "soap": {
+      "description": "SOAP note generation",
+      "events": [
+        "SOAP_GENERATION_STARTED",
+        "SOAP_SECTION_COMPLETED",
+        "SOAP_GENERATION_COMPLETED",
+        "SOAP_GENERATION_FAILED"
+      ]
+    },
+    "urgency": {
+      "description": "Urgency classification and critical patterns",
+      "events": [
+        "CRITICAL_PATTERN_DETECTED",
+        "URGENCY_CLASSIFIED"
+      ]
+    },
+    "llm": {
+      "description": "LLM API interactions",
+      "events": [
+        "LLM_CALL_INITIATED",
+        "LLM_CALL_COMPLETED",
+        "LLM_CALL_FAILED"
+      ]
+    },
+    "audit": {
+      "description": "Audit trail events",
+      "events": [
+        "AUDIT_ENTRY_CREATED"
+      ]
+    },
+    "system": {
+      "description": "System state changes",
+      "events": [
+        "CORE_STATE_CHANGED",
+        "CORE_ERROR_OCCURRED"
+      ]
+    }
+  },
+  "eventNamingConvention": "UPPER_SNAKE_CASE with ENTITY_ACTION_PAST_PARTICIPLE pattern",
+  "auditPolicy": {
+    "description": "Events requiring audit logging in FI",
+    "requiredAudit": [
+      "MESSAGE_RECEIVED",
+      "MESSAGE_UPDATED",
+      "MESSAGE_DELETED",
+      "EXTRACTION_STARTED",
+      "EXTRACTION_COMPLETED",
+      "EXTRACTION_FAILED",
+      "SOAP_GENERATION_STARTED",
+      "SOAP_SECTION_COMPLETED",
+      "SOAP_GENERATION_COMPLETED",
+      "SOAP_GENERATION_FAILED",
+      "CRITICAL_PATTERN_DETECTED",
+      "URGENCY_CLASSIFIED",
+      "LLM_CALL_INITIATED",
+      "LLM_CALL_COMPLETED",
+      "LLM_CALL_FAILED",
+      "AUDIT_ENTRY_CREATED",
+      "CONSULTATION_RESET",
+      "CONSULTATION_COMMITTED",
+      "EXTRACTION_PROCESS_COMPLETED",
+      "MESSAGES_CLEARED",
+      "CORE_ERROR_OCCURRED"
+    ],
+    "optionalAudit": [
+      "DEMOGRAPHICS_UPDATED",
+      "SYMPTOMS_UPDATED",
+      "CONTEXT_UPDATED",
+      "COMPLETENESS_CALCULATED",
+      "EXTRACTION_ITERATION_INCREMENTED",
+      "MESSAGE_PROCESSED",
+      "CORE_STATE_CHANGED"
+    ]
+  },
+  "implementation_notes": {
+    "event_store": "Use HDF5 /consultations/{consultation_id}/events/ group",
+    "event_format": "Append-only, SHA256 hash per commit",
+    "timezone": "America/Mexico_City (ISO 8601)",
+    "event_id": "UUID v4",
+    "consultation_id": "UUID v4",
+    "session_id": "Generated at CONSULTATION_STARTED",
+    "metadata": "Include user_id, source='fi_consultation_service'",
+    "versioning": "Event schema versioning via version field",
+    "replay": "State reconstruction via event replay from stream",
+    "snapshots": "Create snapshot every 50 events for performance"
+  }
+}

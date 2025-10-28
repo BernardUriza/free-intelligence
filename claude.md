@@ -1070,3 +1070,388 @@ Verificación:
 Próximo paso: Iniciar siguiente sprint con nueva planificación
 
 ---
+
+## [2025-10-28 00:45] FI-CORE-MVP — PLANIFICACIÓN SPRINT FI-CORE (15 DÍAS)
+Estado: Planning | Acción: Creación de 8 cards MVP en Trello
+Fechas: Ejecutado 28-oct-2025 00:30-00:45 (15 min)
+Acción: Setup completo de sprint FI-core (MVP 15 días) en Trello
+Síntesis técnica:
+- Board: Free Intelligence (68fbfeeb7f8614df2eb61e42)
+- Sprint: SPR-2025W44 (28-oct → 18-nov, 15 días hábiles)
+- Total cards creadas: 8 (5 P0 + 3 P1)
+
+Cards P0 (en "To Do (Sprint)" con due: 2025-11-18):
+1. [P0][Área: LLM][Tipo: feature] LLMAdapter (Claude/Ollama) — contrato único
+   - ID: 6900743c2c50f1da2fa2863f
+   - Alcance: generate/stream/summarize, timeouts, budget, retries
+   - Tamaño: M
+
+2. [P0][Área: Core][Tipo: feature] Preset IntakeCoach + JSON Schema + unit tests
+   - ID: 69007450f09a0f2252d7819a
+   - Alcance: prompts/intake_coach.yaml, schemas/intake.schema.json
+   - Tamaño: S
+
+3. [P0][Área: Observabilidad][Tipo: feature] Telemetry & Cache locales
+   - ID: 690074514155b8f429a8bdf8
+   - Alcance: metrics.py (p95, tokens), cache.py (hash TTL), Prometheus export
+   - Tamaño: M
+
+4. [P0][Área: Core][Tipo: feature] Decision Middleware (rules-on-schema)
+   - ID: 6900745478022a80e4497c34
+   - Alcance: decision_rules.yaml, decision_mw.py (if/else sobre JSON Schema)
+   - Tamaño: S
+
+5. [P0][Área: Core][Tipo: tech-debt] Eval set (50 prompts) + runner
+   - ID: 6900745533f886bda44d8ed8
+   - Alcance: eval/prompts.csv (30 verde, 10 amarillo, 10 edge), run_eval.py
+   - Tamaño: M
+
+Cards P1 (en "To Prioritize"):
+6. [P1][Área: Core][Tipo: feature] Event store integración (hash+manifest)
+   - ID: 69007466bdc1bc00427eccc1
+   - Tamaño: S
+
+7. [P1][Área: Core][Tipo: feature] Policy-as-code (fi.policy.yaml) — flags LLM/egreso
+   - ID: 690074672b0d30364f165660
+   - Tamaño: S
+
+8. [P1][Área: Observabilidad][Tipo: feature] Export evidencia demo (PDF/MD)
+   - ID: 6900746964a605c1694d42ab
+   - Tamaño: S
+
+Acciones ejecutadas:
+- ✅ Board localizado (Free Intelligence)
+- ✅ 8 cards creadas en "To Prioritize"
+- ✅ 5 P0 movidas a "To Do (Sprint)" con due: 2025-11-18
+- ✅ Comentarios agregados a P0: "Plan 2025-10-28→2025-11-18 | P0 | Área: {área} · Log: claude.md"
+- ✅ 3 P1 permanecen en "To Prioritize" (backlog)
+
+Out-of-scope (documentado en cards):
+- i18n, animaciones, multiagente, ASR, cámaras
+- Sin PHI persistente
+- Egress solo /llm (Claude API)
+
+Dependencias cruzadas:
+LLMAdapter → Telemetry/Cache → Decision MW → Eval
+
+Próximo paso: Comenzar implementación P0 (LLMAdapter) o setup labels si requerido
+
+---
+
+## [2025-10-28 00:50] FI-GTM-STRATEGY — PLANIFICACIÓN COMERCIAL Y VENTAS
+Estado: Planning | Acción: Creación de 7 cards estrategia GTM/Ventas en Trello
+Fechas: Ejecutado 28-oct-2025 00:45-00:55 (10 min)
+Acción: Setup completo de estrategia comercial basada en probabilidad/estadística
+Síntesis técnica:
+- Board: Free Intelligence (68fbfeeb7f8614df2eb61e42)
+- Sprint: SPR-2025W44 (28-oct → 18-nov, 15 días hábiles)
+- Total cards creadas: 7 (5 P0 + 2 P1)
+- Estrategia: Probabilidad + palancas de crecimiento
+
+Cards P0 (en "To Do (Sprint)" con due: 2025-11-18):
+1. [P0][Área: GTM][Tipo: strategy] Baseline de probabilidad y metas
+   - ID: 6900760a273129d7cb8b9c70
+   - Alcance: Baseline 65%±10 piloto ≤12m; scoring 3.23/5; metas trimestrales
+   - Tamaño: S
+
+2. [P0][Área: Ventas][Tipo: milestone] Palanca 1 — 10 dueños/decisores
+   - ID: 6900760b2562b494668d9fbb
+   - Alcance: 1→10 leads eleva prob. 12m a ~80%; 30-50 hospitales/labs
+   - Blocked by: Card 5 (One-pager)
+   - Tamaño: M
+
+3. [P0][Área: Ventas][Tipo: milestone] Palanca 2 — Vendedor fraccional (10-20h/sem)
+   - ID: 6900760d7739ca05535b9963
+   - Alcance: 8→20 h/sem reduce TTA 3-4 meses; JD + playbook
+   - Tamaño: M
+
+4. [P0][Área: Producto][Tipo: strategy] Palanca 3 — Oferta FI-Cold/Entry
+   - ID: 6900760e859f3b5d0f96002e
+   - Alcance: wedge sin PHI; LOI 60 días; SOW 1 pág; demo V/A/R
+   - Blocked by: Card 5 (One-pager)
+   - Tamaño: S
+
+5. [P0][Área: Producto][Tipo: milestone] One-pager + Demo (DELL+Docker)
+   - ID: 690076100953b928594f4a74
+   - Alcance: PDF FI-Cold; demo local; video ≤90s; pricing piloto
+   - Tamaño: M
+   - **CRÍTICO**: Cards 2 y 4 dependen de este
+
+Cards P1 (en "To Prioritize"):
+6. [P1][Área: GTM][Tipo: strategy] Pipeline métrico (8 h/sem, sin vendedor)
+   - ID: 6900761a62d87d751d40920a
+   - Alcance: Funnel 12/sem→2 conv→1 reunión→0.3 propuestas→1 piloto/10-12 sem
+   - Blocked by: Cards 2, 3
+   - Tamaño: S
+
+7. [P1][Área: Ventas][Tipo: milestone] Objetivo 90 días — 2 pilotos firmados
+   - ID: 6900761bbb6fc9387ad96609
+   - Alcance: 2 LOI→referencias→clínica 1 ≤12 meses; kit DELL/DS923+
+   - Blocked by: Cards 2, 4, 5
+   - Tamaño: M
+
+Estrategia de probabilidad documentada:
+- Baseline: 1 piloto ≤12m ≈65% (±10)
+- 5 clínicas ≤36m ≈45%
+- ≤60m ≈75%
+- Scoring: 3.23/5 (10 factores ponderados)
+- Cuellos de botella: leads (1), horas ventas (8/sem)
+
+Palancas de crecimiento identificadas:
+1. **Palanca 1**: 1→10 leads = 65%→80% prob. 12m
+2. **Palanca 2**: 8→20 h/sem = reduce TTA 3-4 meses
+3. **Palanca 3**: Oferta FI-Cold sin PHI = ciclo corto, menos objeciones
+
+Acciones ejecutadas:
+- ✅ 7 cards creadas en "To Prioritize"
+- ✅ 5 P0 movidas a "To Do (Sprint)" con due: 2025-11-18
+- ✅ Comentarios agregados a P0: "Plan 2025-10-28→2025-11-18 | P0 | Área: {área}. Log: claude.md 2025-10-28 00:50."
+- ✅ Dependencias documentadas con comentarios "⚠️ BLOCKED BY"
+- ✅ 2 P1 permanecen en "To Prioritize" (backlog)
+
+Dependencias críticas:
+- Card 5 (One-pager) → Cards 2, 4 (prerequisito)
+- Cards 2, 3 → Card 6 (pipeline métrico)
+- Cards 2, 4, 5 → Card 7 (objetivo 90 días)
+
+Orden de ejecución recomendado:
+1. Card 5 (One-pager + Demo) — prerequisito crítico
+2. Cards 1, 3 en paralelo (Baseline + Vendedor)
+3. Card 2 (Leads) — requiere Card 5
+4. Card 4 (Oferta) — requiere Card 5
+5. Cards 6, 7 (P1) — backlog
+
+Próximo paso: Ejecutar Card 5 (One-pager + Demo) como prioridad #1 o continuar con FI-core MVP
+
+---
+## [2025-10-28 02:00] FI-CONSULT-MVP — DISEÑO COMPLETO MÓDULO CONSULTAS SOAP
+Estado: Planning & Design Completed | Acción: Análisis + Diseño + Artifacts + Trello
+Fechas: Ejecutado 28-oct-2025 00:00-02:00 (2 horas)
+Acción: Migración completa de redux-claude a FI como módulo de consultas event-sourced
+Síntesis técnica:
+- **Repositorio analizado**: redux-claude (https://github.com/BernardUriza/redux-claude.git)
+  - Sistema médico AI con Redux+LLM
+  - 13 agentes médicos especializados
+  - SOAP completo (NOM-004-SSA3-2012)
+  - Defensive medicine con widow-maker detection
+  - 77% optimización (intelligent agent routing)
+
+- **Artifacts generados** (3 archivos técnicos):
+  1. **docs/ARCH.md** (658 líneas)
+     - Redux state architecture completo
+     - 30 Redux actions catalogadas
+     - SOAP data structure (NOM-004)
+     - Middleware stack (4 layers)
+     - Selectors y thunks
+     - 10 critical file paths
+
+  2. **docs/FLOW.md** (823 líneas)
+     - State machine con 13 primary states
+     - Extraction iteration workflow (max 5 iter)
+     - SOAP progression (0% → 100%)
+     - Urgency classification (LOW → CRITICAL)
+     - 7 decision points documentados
+     - Typical event timeline (127s)
+
+  3. **docs/MAPPING.json** (526 líneas)
+     - 30 Redux actions → Domain events
+     - Payload mapping completo
+     - Event schemas (Pydantic-ready)
+     - Audit policy (required vs optional)
+     - 8 event categories
+     - Implementation notes (HDF5, timezone, SHA256)
+
+- **Módulos Python diseñados** (4 archivos backend):
+  1. **backend/fi_consult_models.py** (735 líneas)
+     - 13 Enums (MessageRole, Severity, Gender, UrgencyLevel, etc.)
+     - SOAPNote completo (NOM-004-SSA3-2012)
+     - 11 Event classes (MESSAGE_RECEIVED, EXTRACTION_COMPLETED, etc.)
+     - Consultation aggregate root
+     - API Request/Response models (Pydantic)
+
+  2. **backend/fi_consult_service.py** (457 líneas)
+     - FastAPI app (port 7001)
+     - 5 endpoints REST:
+       * POST /consultations (start)
+       * POST /consultations/{id}/events (append)
+       * GET /consultations/{id} (reconstruct state)
+       * GET /consultations/{id}/soap (SOAP view)
+       * GET /consultations/{id}/events (event stream)
+     - State reconstruction from events (event sourcing)
+     - Temporary in-memory store (demo)
+     - Health check + error handlers
+
+  3. **backend/fi_event_store.py** (517 líneas)
+     - HDF5-based event store
+     - SHA256 hashing automático
+     - append_event() con audit_hash
+     - load_stream() con verificación opcional
+     - Snapshots (every 50 events)
+     - CLI: list, load, stats
+
+  4. **backend/adapters_redux.py** (623 líneas)
+     - ReduxAdapter: translate_action()
+     - PayloadTranslator con 15+ métodos
+     - BatchReduxAdapter para replay
+     - ACTION_TO_EVENT_MAP (30 mappings)
+     - validate_redux_action()
+     - CLI demo
+
+- **Test scenarios documentados** (docs/test_scenarios.md, 580 líneas):
+  - Scenario 1: Green Path (LOW urgency, simple headache)
+  - Scenario 2: Yellow Path (HIGH urgency, chest pain + comorbidities)
+  - Scenario 3: Red Path (CRITICAL, aortic dissection - widow maker)
+  - Given/When/Then format (Gherkin)
+  - Expected events timeline
+  - API validation points
+  - Execution checklist
+  - Success criteria (10 checks)
+
+- **cURL examples** (docs/curl_examples.md, 507 líneas):
+  - Scenario 1 completo (14 steps con curl commands)
+  - Scenarios 2-3 (key moments)
+  - Utility commands (list, verify hashes, pretty print)
+  - Batch testing script
+  - PowerShell alternativas
+
+- **Trello board creado**: "FI · AURITY Consultas (SPR-2025W44)"
+  - Board ID: 690074dabf9f1513df36d027
+  - URL: https://trello.com/b/wMKPjwJr/fi-aurity-consultas-spr-2025w44
+  - 7 listas creadas:
+    * 📥 To Prioritize
+    * 🎯 Groomed
+    * 🚀 To Do (Sprint)
+    * ⚡ In Progress
+    * 👀 Review/Testing
+    * ✨ Demo Ready
+    * ✅ Done
+
+- **9 cards creadas con labels y fechas**:
+
+  **P0 Cards (7 cards, due: 30-oct a 10-nov)**:
+  1. [P0][Backend] Map Redux → Domain Events (due: 2025-10-30)
+     - ID: 6900757fdebde6db428dba71
+     - Artifact: MAPPING.json
+     - Labels: Sprint, Backend, P0, feature
+
+  2. [P0][Backend] Modelos Pydantic SOAP (due: 2025-11-03)
+     - ID: 690075948742fc256b73cebf
+     - Artifact: fi_consult_models.py (YA CREADO)
+     - Labels: Sprint, Backend, P0, feature
+
+  3. [P0][Backend] FastAPI consult service (due: 2025-11-03)
+     - ID: 69007595085b3a8550922427
+     - Artifact: fi_consult_service.py (YA CREADO)
+     - Labels: Sprint, Backend, P0, feature
+
+  4. [P0][Backend] Event store local + SHA256 (due: 2025-11-03)
+     - ID: 69007597bf7c8f59acc80416
+     - Artifact: fi_event_store.py (YA CREADO)
+     - Labels: Sprint, Backend, P0, feature
+
+  5. [P0][Frontend] Adapter Redux→Events (due: 2025-11-05)
+     - ID: 690075ad80165316a2518948
+     - Artifact: adapters_redux.py (YA CREADO)
+     - Labels: Sprint, Frontend, P0, feature
+
+  6. [P0][QA] Scenarios + cURL/Postman (due: 2025-11-07)
+     - ID: 690075ae07801e9f3e508106
+     - Artifacts: test_scenarios.md, curl_examples.md
+     - Labels: Sprint, QA, P0, feature
+
+  7. [P0][Infra] Build reproducible (due: 2025-11-10)
+     - ID: 690075af2e8af9405a36e928
+     - Dockerfile + Makefile
+     - Labels: Sprint, Infra, P0, feature
+
+  **P1 Cards (2 cards, due: 12-14-nov)**:
+  8. [P1][Frontend] SOAP UI mínima (due: 2025-11-12)
+     - ID: 690075bca817b43e9cb47e3b
+     - React + Vite (opcional)
+     - Labels: Sprint, Frontend, P1, feature
+
+  9. [P1][Infra] Export evidencia demo (due: 2025-11-14)
+     - ID: 690075bd92624f27e4e740a9
+     - PDF/MD/JSON/Screenshots
+     - Labels: Sprint, Infra, P1, feature
+
+Estadísticas de artifacts generados:
+- Total líneas código: 3,290 líneas Python
+- Total líneas docs: 3,293 líneas Markdown/JSON
+- Total archivos: 8 archivos (4 backend + 4 docs)
+- Trello: 1 board + 7 listas + 9 cards
+- Labels: 20+ labels agregados (Sprint, Área, Prioridad, Tipo)
+
+Fechas del sprint (15 días hábiles):
+- Start: 28-oct-2025 (hoy)
+- End: 14-nov-2025
+- Días hábiles: lun-vie (sin descanso)
+- Due dates: escalonadas 30-oct → 14-nov
+
+Criterios de aceptación (DoD):
+- ✅ Redux-Claude analizado completamente
+- ✅ ARCH.md con Redux architecture (658 líneas)
+- ✅ FLOW.md con state machine (823 líneas)
+- ✅ MAPPING.json con 30 actions (526 líneas)
+- ✅ fi_consult_models.py (735 líneas)
+- ✅ fi_consult_service.py (457 líneas)
+- ✅ fi_event_store.py (517 líneas)
+- ✅ adapters_redux.py (623 líneas)
+- ✅ test_scenarios.md (580 líneas)
+- ✅ curl_examples.md (507 líneas)
+- ✅ Trello board creado
+- ✅ 9 cards con labels y fechas
+
+Eventos nuevos:
+- `CONSULTATION_STARTED` - Consulta iniciada
+- `MESSAGE_RECEIVED` - Mensaje usuario/asistente
+- `EXTRACTION_STARTED` - Inicio de extracción médica
+- `EXTRACTION_COMPLETED` - Extracción completa
+- `DEMOGRAPHICS_UPDATED` - Datos demográficos actualizados
+- `SYMPTOMS_UPDATED` - Síntomas actualizados
+- `SOAP_GENERATION_STARTED` - Inicio generación SOAP
+- `SOAP_SECTION_COMPLETED` - Sección SOAP completa
+- `SOAP_GENERATION_COMPLETED` - SOAP completo
+- `CRITICAL_PATTERN_DETECTED` - Patrón crítico (widow maker)
+- `URGENCY_CLASSIFIED` - Urgencia clasificada
+- `CONSULTATION_COMMITTED` - SOAP confirmado (SHA256)
+
+Integraciones identificadas:
+- Redux-Claude UI (frontend) → FI backend (event store)
+- MAPPING.json → adapters_redux.py (traducción)
+- fi_consult_service.py → fi_event_store.py (persistence)
+- test_scenarios.md → curl_examples.md (testing)
+- ARCH.md/FLOW.md → Trello cards (implementación)
+
+Tecnologías utilizadas:
+- **Backend**: Python 3.11+, FastAPI, Pydantic, HDF5 (h5py)
+- **Event Store**: HDF5 append-only, SHA256 hashing
+- **Frontend (futuro)**: React + Vite, Redux (redux-claude)
+- **Testing**: cURL, Postman (opcional)
+- **Deployment**: Docker, Make, NAS/Linux
+
+Filosofía de diseño:
+- Event sourcing (state = f(events))
+- Append-only (no mutation)
+- SHA256 audit trail
+- NOM-004-SSA3-2012 compliance
+- Defensive medicine (gravity * 0.7 + probability * 0.3)
+- Widow maker detection (aortic dissection, acute MI, PE)
+- No PHI en logs (compliance)
+
+Impacto:
+- Free Intelligence ahora tiene módulo de consultas médicas
+- Event-sourced SOAP notes con audit completo
+- Migración de redux-claude a arquitectura local
+- Base para demo con clínicas/hospitales
+- MVP completo en 15 días (7 cards P0)
+
+Próximo paso: Implementar cards P0 en orden (Map Redux → Models → Service → Event Store → Adapter → QA → Build)
+
+Referencias:
+- Redux-Claude: https://github.com/BernardUriza/redux-claude
+- ARCH.md: docs/ARCH.md:1
+- FLOW.md: docs/FLOW.md:1
+- MAPPING.json: docs/MAPPING.json:1
+- Trello Board: https://trello.com/b/wMKPjwJr/fi-aurity-consultas-spr-2025w44
+

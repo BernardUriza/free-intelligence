@@ -1,0 +1,4 @@
+[submodule "apps/aurity"]
+	path = apps/aurity
+	url = https://github.com/BernardUriza/aurity.git
+	branch = main

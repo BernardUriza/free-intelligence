@@ -1,7 +1,7 @@
 # Free Intelligence - Makefile
 # Convenience commands for development and deployment
 
-.PHONY: help install test run run-gateway run-both clean docker-build docker-run docker-stop lint format check-deps init-corpus
+.PHONY: help setup install install-dev test run run-gateway run-both clean docker-build docker-run docker-stop lint format fmt check-deps init-corpus
 
 # Default target
 .DEFAULT_GOAL := help
@@ -20,13 +20,18 @@ help: ## Show this help message
 # Installation
 # ============================================================================
 
+setup: install init-corpus ## Full monorepo setup (install + init)
+	@echo "✅ Free Intelligence monorepo initialized"
+	@echo "   - Backend: Python packages installed"
+	@echo "   - Corpus: storage/corpus.h5 ready"
+	@echo "   - Frontend: apps/aurity (submodule)"
+
 install: ## Install all dependencies
-	pip install -r requirements.txt
+	pip install -e .
 	@echo "✅ Dependencies installed"
 
 install-dev: ## Install dependencies + dev tools
-	pip install -r requirements.txt
-	pip install pytest pytest-cov pytest-asyncio black ruff mypy
+	pip install -e ".[dev]"
 	@echo "✅ Dev dependencies installed"
 
 check-deps: ## Check if all dependencies are installed
@@ -103,6 +108,8 @@ lint: ## Run linter (ruff)
 format: ## Format code (black)
 	@echo "✨ Formatting code..."
 	black backend/ tests/
+
+fmt: format ## Alias for format
 
 format-check: ## Check code formatting
 	@echo "🔍 Checking code formatting..."

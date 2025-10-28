@@ -39,6 +39,35 @@ python3 backend/corpus_ops.py
 
 ---
 
+## 📦 Monorepo Structure
+
+```
+free-intelligence/
+├── apps/
+│   └── aurity/          # Git submodule (frontend)
+├── backend/             # Python 3.11+ backend
+│   ├── fi_consult_service.py
+│   ├── fi_event_store.py
+│   └── ...
+├── storage/             # HDF5 event store
+├── docs/                # Documentation
+├── tests/               # Test suite
+├── pyproject.toml       # Python package config
+├── Makefile             # Dev commands
+└── .gitmodules          # Submodule config
+```
+
+**Key commands**:
+```bash
+make setup      # Full monorepo initialization
+make install    # Install Python dependencies
+make fmt        # Format code
+make lint       # Lint code
+make test       # Run tests
+```
+
+---
+
 ## 📊 Estado Actual
 
 ### Sprint 2 (SPR-2025W44) ✅ COMPLETADO

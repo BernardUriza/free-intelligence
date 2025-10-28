@@ -1,0 +1,102 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "free-intelligence"
+version = "0.3.0"
+description = "Local-first AI consultation system with event sourcing and SOAP notes"
+readme = "README.md"
+requires-python = ">= 3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Bernard Uriza Orozco", email = "bernard.uriza@example.com"}
+]
+keywords = ["ai", "event-sourcing", "medical", "soap", "local-first"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Healthcare Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "h5py>=3.14.0",
+    "structlog>=25.4.0",
+    "PyYAML>=6.0.0",
+    "pydantic>=2.0.0",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    "anthropic==0.71.0",
+    "ollama==0.6.0",
+    "sentence-transformers==5.1.2",
+    "torch==2.8.0",
+    "transformers==4.57.1",
+    "jsonschema>=4.20.0",
+    "python-dateutil>=2.8.2",
+    "py-trello>=0.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+    "pre-commit>=3.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/BernardUriza/free-intelligence"
+Repository = "https://github.com/BernardUriza/free-intelligence.git"
+Documentation = "https://github.com/BernardUriza/free-intelligence/tree/main/docs"
+
+[tool.setuptools]
+packages = ["backend", "apps"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | node_modules
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
