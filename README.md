@@ -92,6 +92,32 @@ pnpm build       # Build all apps
 pnpm lint        # Lint all apps
 ```
 
+### Running AURITY (Next.js Frontend)
+
+```bash
+# Navigate to AURITY app
+cd apps/aurity
+
+# Install dependencies (first time)
+npm install
+
+# Create local environment file
+cp .env.local.example .env.local
+
+# Edit .env.local and set FI_ENDPOINT_BASE
+# FI_ENDPOINT_BASE=http://localhost:7000
+
+# Start development server
+npm run dev
+
+# AURITY will be available at http://localhost:3000
+```
+
+**API Routes available:**
+- `GET /api/health` - Health check endpoint
+- `POST /api/intake` - Intake endpoint (forwards to FI-core at port 7000)
+- `POST /api/triage` - Triage endpoint
+
 ---
 
 ## 📊 Estado Actual
