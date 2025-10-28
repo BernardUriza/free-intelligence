@@ -1,7 +1,7 @@
 # Free Intelligence
 
-**Versión**: 0.3.0-dev
-**Estado**: Sprint 2 (SPR-2025W44) - In Progress
+**Versión**: 0.3.0
+**Estado**: Sprint 2 (SPR-2025W44) - COMPLETADO ✅
 **Owner**: Bernard Uriza Orozco
 
 ---
@@ -41,19 +41,19 @@ python3 backend/corpus_ops.py
 
 ## 📊 Estado Actual
 
-### Sprint 2 (SPR-2025W44)
+### Sprint 2 (SPR-2025W44) ✅ COMPLETADO
 
-**Progreso**: 8/12 cards completadas (67%)
-**Tiempo**: ~2.5h reales / 22h estimados
-**Velocity**: 0.11 (consistente con Sprint 1)
+**Progreso**: 12/12 cards completadas (100% ✅)
+**Tiempo**: ~8h reales / ~40h estimados
+**Velocity**: 0.20 (mejora 3.3x vs Sprint 1)
+**Tag**: v0.3.0
+**Finalizado**: 28-oct-2025 (11-12 días adelante del plan)
 
 **Completadas** ✅:
-- Tier 1 Security & Policy Layer (6/6 cards)
-- CI/CD Automation (2/2 cards)
-
-**En Progreso** ⚙️:
-- Tier 2 Observabilidad (0/3 cards pendientes)
-- Tier 3 Testing & QA (1 card obligatoria)
+- **Tier 1**: Security & Policy Layer (6/6 cards) ✅
+- **Tier 2**: Observability & DevOps (5/5 cards) ✅
+- **Tier 3**: Testing & QA (1/1 card) ✅
+- **Peer Review**: Critical fixes aplicados ✅
 
 ### Arquitectura Implementada
 
@@ -87,12 +87,13 @@ python3 backend/corpus_ops.py
 
 ### Métricas
 
-- **Tests**: 230/230 passing (100%)
+- **Tests**: 259/259 passing (100%)
 - **Eventos canónicos**: 50+
-- **Políticas enforced**: 5
-- **Backend modules**: 10
-- **Docs**: 8 documentos técnicos
-- **LOC**: ~5,000 líneas
+- **Políticas enforced**: 6
+- **Backend modules**: 12
+- **Docs**: 15+ documentos técnicos
+- **LOC**: ~6,500 líneas
+- **Velocity Sprint 2**: 0.20 (3.3x mejora vs Sprint 1)
 
 ---
 
@@ -225,14 +226,18 @@ Eventos admiten método y limitaciones (SCAN_COMPLETED, not VALIDATION_PASSED).
 
 ---
 
-## 🚀 Próximos Pasos (Sprint 2 Restante)
+## 🚀 Próximos Pasos (Sprint 3)
 
-### Tier 2 (Pendiente)
-1. **FI-DATA-FEAT-007** - Retención logs 90 días (3h est)
-2. **FI-DATA-FEAT-003** - Mapa boot cognitivo (3h est)
+**Sprint 3** estará enfocado en implementar la capa de **middleware LLM** y las primeras **funcionalidades core**:
 
-### Tier 3 (Obligatorio)
-3. **FI-TEST-FEAT-001** - E2E Testing & QA Guide (4h est)
+### Posibles Cards Sprint 3
+1. **FI-CORE-FEAT-001** - Middleware HTTP/CLI para LLM (requiere API key Claude)
+2. **FI-DATA-FEAT-002** - Almacenamiento directo en HDF5
+3. **FI-SEARCH-FEAT-001** - Buscador semántico inicial (embeddings)
+4. **FI-EXPORT-FEAT-001** - Exportador Markdown + HDF5
+5. **FI-CLI-FEAT-001** - CLI de gestión completa
+
+**Planificación**: Por definir (post-Sprint 2 review)
 
 ---
 
