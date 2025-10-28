@@ -536,7 +536,7 @@ Estado: Completed | Acción: Estandarización de nomenclatura de eventos del sis
 Fechas: Ejecutado 25-oct-2025 14:20-14:45 (25 min)
 Acción: Convención [AREA]_ENTITY_ACTION_PAST + validador + refactorización
 Síntesis técnica:
-- Documentación completa en `docs/events.md` (280 líneas)
+- Documentación completa en `docs/policies/events.md` (280 líneas)
   - Formato: [AREA_]ENTITY_ACTION_PAST_PARTICIPLE
   - Ejemplos: CORPUS_INITIALIZED, INTERACTION_APPENDED
   - Lista canónica de 22 eventos aprobados
@@ -586,7 +586,7 @@ Resultados de validación:
 - backend/corpus_ops.py: 7/7 valid ✅
 
 Criterios de aceptación (DoD):
-- ✅ Convención documentada en docs/events.md
+- ✅ Convención documentada en docs/policies/events.md
 - ✅ Validador implementado con CLI
 - ✅ Eventos existentes refactorizados (20 eventos)
 - ✅ Lista canónica creada (22 eventos)
@@ -703,7 +703,7 @@ Síntesis técnica:
   - Test de syntax errors, múltiples violaciones
   - Validación de backend real (0 violations)
 
-- Documentación (`docs/no-mutation-policy.md`):
+- Documentación (`docs/policies/no-mutation-policy.md`):
   - Política completa con ejemplos
   - Rationale: auditability, reversibility, event sourcing
   - Patterns para "modificar" sin mutar (snapshot + append)
@@ -855,7 +855,7 @@ Síntesis técnica:
   - Tests de exclusiones y falsos positivos
   - Tests de compliance completo/parcial
 
-- Documentación (`docs/llm-audit-policy.md`):
+- Documentación (`docs/policies/llm-audit-policy.md`):
   - Política completa con ejemplos
   - Anti-patterns y buenos patrones
   - Roadmap: Fase 1 (detección estática) ✅, Fase 2 (runtime), Fase 3 (CI/CD)
@@ -925,7 +925,7 @@ Síntesis técnica:
   - Tests de imports anidados (google.generativeai)
   - Tests de attribute calls anidados
 
-- Documentación (`docs/llm-router-policy.md`):
+- Documentación (`docs/policies/llm-router-policy.md`):
   - Política completa con ejemplos
   - Roadmap en 3 fases (Fase 1 validador ✅)
   - Diseño de router centralizado (Fase 2)
@@ -997,7 +997,7 @@ Síntesis técnica:
   - Tests de load/save, hash match/mismatch
   - Tests de campos opcionales
 
-- Documentación (`docs/export-policy.md`):
+- Documentación (`docs/policies/export-policy.md`):
   - Política completa con ejemplos
   - Formatos permitidos (5) y propósitos (6)
   - Integración con audit_logs
@@ -1237,7 +1237,7 @@ Síntesis técnica:
   - 77% optimización (intelligent agent routing)
 
 - **Artifacts generados** (3 archivos técnicos):
-  1. **docs/ARCH.md** (658 líneas)
+  1. **docs/architecture/ARCH.md** (658 líneas)
      - Redux state architecture completo
      - 30 Redux actions catalogadas
      - SOAP data structure (NOM-004)
@@ -1245,7 +1245,7 @@ Síntesis técnica:
      - Selectors y thunks
      - 10 critical file paths
 
-  2. **docs/FLOW.md** (823 líneas)
+  2. **docs/architecture/FLOW.md** (823 líneas)
      - State machine con 13 primary states
      - Extraction iteration workflow (max 5 iter)
      - SOAP progression (0% → 100%)
@@ -1297,7 +1297,7 @@ Síntesis técnica:
      - validate_redux_action()
      - CLI demo
 
-- **Test scenarios documentados** (docs/test_scenarios.md, 580 líneas):
+- **Test scenarios documentados** (docs/testing/test_scenarios.md, 580 líneas):
   - Scenario 1: Green Path (LOW urgency, simple headache)
   - Scenario 2: Yellow Path (HIGH urgency, chest pain + comorbidities)
   - Scenario 3: Red Path (CRITICAL, aortic dissection - widow maker)
@@ -1307,7 +1307,7 @@ Síntesis técnica:
   - Execution checklist
   - Success criteria (10 checks)
 
-- **cURL examples** (docs/curl_examples.md, 507 líneas):
+- **cURL examples** (docs/testing/curl_examples.md, 507 líneas):
   - Scenario 1 completo (14 steps con curl commands)
   - Scenarios 2-3 (key moments)
   - Utility commands (list, verify hashes, pretty print)
@@ -1450,8 +1450,8 @@ Próximo paso: Implementar cards P0 en orden (Map Redux → Models → Service �
 
 Referencias:
 - Redux-Claude: https://github.com/BernardUriza/redux-claude
-- ARCH.md: docs/ARCH.md:1
-- FLOW.md: docs/FLOW.md:1
+- ARCH.md: docs/architecture/ARCH.md:1
+- FLOW.md: docs/architecture/FLOW.md:1
 - MAPPING.json: docs/MAPPING.json:1
 - Trello Board: https://trello.com/b/wMKPjwJr/fi-aurity-consultas-spr-2025w44
 

@@ -234,9 +234,9 @@ cat docs/testing/MANUAL_TESTING_GUIDE.md
 
 - **[QUICKSTART.md](QUICKSTART.md)**: Getting started en 3 comandos
 - **[claude.md](claude.md)**: Kernel context completo para Claude Code
-- **[docs/cicd-pipeline.md](docs/cicd-pipeline.md)**: Pre-commit hooks y CI/CD
-- **[docs/sprint-cadence.md](docs/sprint-cadence.md)**: Workflow de sprints quincenales
-- **[docs/honest-uncertainty.md](docs/honest-uncertainty.md)**: Principios de comunicación honesta
+- **[docs/devops/cicd-pipeline.md](docs/devops/cicd-pipeline.md)**: Pre-commit hooks y CI/CD
+- **[docs/devops/sprint-cadence.md](docs/devops/sprint-cadence.md)**: Workflow de sprints quincenales
+- **[docs/policies/honest-uncertainty.md](docs/policies/honest-uncertainty.md)**: Principios de comunicación honesta
 - **[docs/sprints/](docs/sprints/)**: Sprint plans, trackers, análisis
 
 ---
