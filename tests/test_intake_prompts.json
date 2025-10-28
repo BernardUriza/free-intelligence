@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "name": "Simple headache (LOW urgency)",
+    "prompt": "I'm Maria, 32 years old. I have a headache that started this morning. No other symptoms.",
+    "expected_urgency": "LOW"
+  },
+  {
+    "id": 2,
+    "name": "Chest pain (CRITICAL urgency)",
+    "prompt": "I'm Robert Chen, 58. I've had crushing chest pain for 30 minutes, radiating to my jaw and left arm. I'm sweating and nauseous. I take atorvastatin for high cholesterol.",
+    "expected_urgency": "CRITICAL"
+  },
+  {
+    "id": 3,
+    "name": "Pediatric fever (HIGH urgency)",
+    "prompt": "My 3-year-old son has a fever of 103F for 24 hours, he's lethargic and not eating. He's allergic to amoxicillin.",
+    "expected_urgency": "HIGH"
+  },
+  {
+    "id": 4,
+    "name": "Diabetes management (MODERATE urgency)",
+    "prompt": "I'm Linda, 45. I have type 2 diabetes and my blood sugar has been running 250-300 the past week. I take metformin 1000mg twice daily.",
+    "expected_urgency": "MODERATE"
+  },
+  {
+    "id": 5,
+    "name": "Minor injury (LOW urgency)",
+    "prompt": "I'm Tom, 28. I sprained my ankle playing basketball yesterday. It's swollen but I can walk on it. No other injuries.",
+    "expected_urgency": "LOW"
+  },
+  {
+    "id": 6,
+    "name": "Severe allergic reaction (CRITICAL urgency)",
+    "prompt": "I'm Sarah, 22. I ate shrimp 10 minutes ago and now my throat is swelling, I'm having trouble breathing, and I have hives all over my body.",
+    "expected_urgency": "CRITICAL"
+  },
+  {
+    "id": 7,
+    "name": "Complex medical history (MODERATE urgency)",
+    "prompt": "I'm David, 65. I have hypertension, diabetes, and COPD. I take lisinopril, metformin, and albuterol inhaler. My breathing has been worse this week and I'm coughing up yellow phlegm.",
+    "expected_urgency": "MODERATE"
+  },
+  {
+    "id": 8,
+    "name": "Pregnant patient (HIGH urgency)",
+    "prompt": "I'm Jennifer, 30, and I'm 32 weeks pregnant. I've had a severe headache, blurred vision, and swelling in my hands and feet for the past 2 days. My blood pressure is usually normal.",
+    "expected_urgency": "HIGH"
+  },
+  {
+    "id": 9,
+    "name": "Mental health crisis (HIGH urgency)",
+    "prompt": "I'm Alex, 35. I've been having thoughts of self-harm for the past week. I have a history of depression and take sertraline 100mg daily, but it doesn't seem to be working anymore.",
+    "expected_urgency": "HIGH"
+  },
+  {
+    "id": 10,
+    "name": "Minimal information (LOW urgency)",
+    "prompt": "I need to refill my prescription for blood pressure medication. I'm 50 years old.",
+    "expected_urgency": "LOW"
+  }
+]

@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://free-intelligence.local/schemas/intake.schema.json",
+  "title": "Medical Intake Schema",
+  "description": "Structured medical intake data extracted by IntakeCoach",
+  "type": "object",
+  "required": [
+    "demographics",
+    "chief_complaint",
+    "symptoms",
+    "medical_history",
+    "urgency"
+  ],
+  "properties": {
+    "demographics": {
+      "type": "object",
+      "description": "Patient demographic information",
+      "properties": {
+        "name": {
+          "type": ["string", "null"],
+          "description": "Patient full name",
+          "maxLength": 200
+        },
+        "age": {
+          "type": ["integer", "null"],
+          "description": "Patient age in years",
+          "minimum": 0,
+          "maximum": 150
+        },
+        "gender": {
+          "type": ["string", "null"],
+          "description": "Patient gender",
+          "enum": ["M", "F", "O", null]
+        },
+        "contact": {
+          "type": ["string", "null"],
+          "description": "Contact information (phone/email)",
+          "maxLength": 200
+        }
+      },
+      "additionalProperties": false
+    },
+    "chief_complaint": {
+      "type": ["string", "null"],
+      "description": "Primary reason for visit",
+      "maxLength": 500
+    },
+    "symptoms": {
+      "type": "array",
+      "description": "List of reported symptoms",
+      "items": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "maxItems": 50
+    },
+    "medical_history": {
+      "type": "object",
+      "description": "Patient medical history",
+      "required": ["allergies", "medications", "conditions"],
+      "properties": {
+        "allergies": {
+          "type": "array",
+          "description": "Known allergies",
+          "items": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "maxItems": 50
+        },
+        "medications": {
+          "type": "array",
+          "description": "Current medications",
+          "items": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "maxItems": 100
+        },
+        "conditions": {
+          "type": "array",
+          "description": "Pre-existing conditions",
+          "items": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "maxItems": 50
+        }
+      },
+      "additionalProperties": false
+    },
+    "urgency": {
+      "type": "string",
+      "description": "Triage urgency level",
+      "enum": ["LOW", "MODERATE", "HIGH", "CRITICAL"]
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Additional notes or observations",
+      "maxLength": 1000
+    }
+  },
+  "additionalProperties": false
+}
