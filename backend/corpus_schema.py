@@ -10,7 +10,7 @@ FI-DATA-FEAT-001
 
 import h5py
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 
 
@@ -239,7 +239,7 @@ def init_corpus_from_config(
     return init_corpus(corpus_path, owner_identifier, force=force, salt=salt)
 
 
-def validate_corpus(corpus_path: Optional[str] = None) -> Dict[str, any]:
+def validate_corpus(corpus_path: Optional[str] = None) -> Dict[str, Any]:
     """
     Validate corpus schema and return status.
 

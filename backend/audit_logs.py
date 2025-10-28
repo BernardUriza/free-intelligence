@@ -12,7 +12,7 @@ import h5py
 import hashlib
 import json
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -105,12 +105,12 @@ def init_audit_logs_group(corpus_path: str) -> bool:
 
             return True
 
-    except Exception as e:
+    except (IOError, OSError, ValueError, RuntimeError) as e:
         logger.error("AUDIT_LOGS_INIT_FAILED", error=str(e), path=corpus_path)
         return False
 
 
-def hash_payload(payload: any) -> str:
+def hash_payload(payload: Any) -> str:
     """
     Generate SHA256 hash of payload.
 
@@ -228,7 +228,7 @@ def append_audit_log(
 
         return audit_id
 
-    except Exception as e:
+    except (IOError, OSError, ValueError, TypeError, KeyError) as e:
         logger.error(
             "AUDIT_LOG_APPEND_FAILED",
             error=str(e),
@@ -302,7 +302,7 @@ def get_audit_logs(
 
             return results
 
-    except Exception as e:
+    except (IOError, OSError, KeyError) as e:
         from logger import get_logger
         logger = get_logger()
         logger.error("AUDIT_LOGS_READ_FAILED", error=str(e))
@@ -349,7 +349,7 @@ def get_audit_stats(corpus_path: str) -> Dict:
                 "operation_breakdown": operation_counts
             }
 
-    except Exception as e:
+    except (IOError, OSError, KeyError) as e:
         from logger import get_logger
         logger = get_logger()
         logger.error("AUDIT_STATS_FAILED", error=str(e))
@@ -408,6 +408,23 @@ def get_audit_logs_older_than(corpus_path: str, days: int = 90) -> List[int]:
 def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = True) -> Dict:
     """
     Remove audit logs older than specified days.
+
+    ⚠️  POLICY VIOLATION WARNING ⚠️
+    This function VIOLATES the append-only policy by physically deleting audit log entries.
+    It is provided for compliance with data retention regulations (e.g., GDPR Article 17).
+
+    TRADE-OFF:
+    - ✅ Compliance: Meets legal requirements for data retention limits
+    - ❌ Immutability: Breaks non-repudiation guarantee for deleted logs
+    - ❌ Audit Trail: Deletion operation itself is logged, but deleted logs are gone
+
+    ALTERNATIVES (for future consideration):
+    1. Logical deletion: Add "archived_at" field, mark rows as ARCHIVED instead of deleting
+    2. Separate archive: Move old logs to separate HDF5 file
+    3. Compliance flag: Add "retention_compliant" attribute, query by date
+
+    RECOMMENDATION:
+    Use dry_run=True first to understand impact. Document deletion in external audit system.
 
     IMPORTANT: This is a DESTRUCTIVE operation. Use dry_run=True first.
 

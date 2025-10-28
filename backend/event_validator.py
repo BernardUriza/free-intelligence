@@ -14,7 +14,7 @@ FI-API-FEAT-001
 """
 
 import re
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 
 # Canonical list of approved events (from docs/events.md + docs/honest-uncertainty.md)
@@ -103,7 +103,7 @@ COMMON_PAST_PARTICIPLES = {
 }
 
 
-def validate_event_name(event_name: str, strict: bool = False) -> Dict[str, any]:
+def validate_event_name(event_name: str, strict: bool = False) -> Dict[str, Any]:
     """
     Validate event name against naming convention.
 
