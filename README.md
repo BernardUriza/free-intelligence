@@ -43,19 +43,35 @@ python3 backend/corpus_ops.py
 
 ```
 free-intelligence/
-├── apps/
-│   └── aurity/          # Git submodule (frontend)
-├── backend/             # Python 3.11+ backend
+├── backend/             # 🎯 FI Backend (Python 3.11+)
 │   ├── fi_consult_service.py
 │   ├── fi_event_store.py
+│   ├── aurity_gateway.py
 │   └── ...
+├── libs/
+│   └── fi-shared/       # 🎯 Shared types (TypeScript)
+│       ├── types/events.ts
+│       ├── models/consultation.ts
+│       └── api/fi-client.ts
+├── apps/
+│   └── aurity/          # 🎯 AURITY Frontend (Next.js submodule)
+│       ├── aurity/      # Framework core
+│       └── app/         # UI (uses @fi/shared)
 ├── storage/             # HDF5 event store
-├── docs/                # Documentation
+├── docs/                # Documentation (organized by domain)
 ├── tests/               # Test suite
 ├── pyproject.toml       # Python package config
+├── package.json         # Turborepo config
 ├── Makefile             # Dev commands
 └── .gitmodules          # Submodule config
 ```
+
+**Architecture Philosophy:**
+
+- **FI Backend** and **AURITY Frontend** are **peer frameworks** (not parent-child)
+- **FI** = Event sourcing + Python + HDF5 + FastAPI
+- **AURITY** = UI framework + React + TypeScript + Next.js
+- **@fi/shared** = Bridge (shared types, models, API client)
 
 **Key commands**:
 ```bash
