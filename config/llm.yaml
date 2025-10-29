@@ -1,0 +1,39 @@
+# Free Intelligence - LLM Configuration
+# File: config/llm.yaml
+# Card: FI-CORE-FEAT-001
+
+# Default provider for LLM operations
+provider_default: ollama
+
+# Ollama provider configuration (local-only)
+ollama:
+  base_url: "http://127.0.0.1:11434"
+  timeout_ms: 8000
+  retry: 1
+  ttl_cache_min: 30
+
+# Claude provider configuration (requires API key)
+claude:
+  model: "claude-3-5-sonnet-20241022"
+  timeout_ms: 30000
+  retry: 3
+  ttl_cache_min: 30
+
+# Cache configuration
+cache:
+  enabled: true
+  dir: "data/llm_cache"
+  ttl_minutes: 30
+  max_size_mb: 100
+
+# Logging configuration
+logging:
+  dir: "logs/llm"
+  format: "ndjson"
+  redact_prompts: true
+  max_prompt_preview: 120
+
+# Latency budgets
+budgets:
+  p95_ms: 2000  # Warn if p95 > 2s
+  timeout_ms: 8000  # Hard timeout for Ollama

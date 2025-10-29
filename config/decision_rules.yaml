@@ -1,198 +1,132 @@
-# Free Intelligence - Decision Rules Configuration
-# Simple if/else rules applied on validated JSON Schema output
-#
-# Philosophy: Rules-on-schema, not multi-agent complexity
-# Output: Domain events emitted based on conditions
+# Free Intelligence — Decision Rules (Policy Engine)
+# JSON-based if/then rules for automated decisions
 
-version: "1.0.0"
-created_at: "2025-10-28"
-description: "Decision middleware rules for IntakeCoach output"
+version: 1
 
-# Rules for IntakeCoach preset
-intake_coach:
-  schema: "schemas/intake.schema.json"
+rules:
+  # Triage red → high risk event
+  - name: "triage_red_high_risk"
+    enabled: true
+    condition:
+      field: "output.triage"
+      operator: "equals"
+      value: "red"
+    action:
+      type: "emit_event"
+      event: "DECISION_APPLIED"
+      metadata:
+        risk: "high"
 
-  # Rule execution order matters (first match wins)
-  rules:
-    # Rule 1: Critical urgency → immediate triage event
-    - name: "critical_urgency_triage"
-      description: "Emit CRITICAL_TRIAGE_REQUIRED for CRITICAL urgency cases"
-      condition:
-        field: "urgency"
-        operator: "equals"
-        value: "CRITICAL"
-      actions:
-        - type: "emit_event"
-          event: "CRITICAL_TRIAGE_REQUIRED"
-          priority: "P0"
-          metadata:
-            message: "Patient requires immediate medical attention"
-            escalation_level: "emergency"
-        - type: "log"
-          level: "warning"
-          message: "Critical urgency detected - immediate action required"
+  # PII detected → quarantine and redact
+  - name: "pii_quarantine"
+    enabled: true
+    condition:
+      field: "output.contains_pii"
+      operator: "equals"
+      value: true
+    action:
+      type: "quarantine"
+      redact: true
+      metadata:
+        reason: "pii_detected"
 
-    # Rule 2: High urgency + pediatric → pediatric urgent event
-    - name: "pediatric_urgent_care"
-      description: "Pediatric patients with HIGH urgency"
-      condition:
-        operator: "and"
-        conditions:
-          - field: "urgency"
-            operator: "equals"
-            value: "HIGH"
-          - field: "demographics.age"
-            operator: "less_than"
-            value: 18
-      actions:
-        - type: "emit_event"
-          event: "PEDIATRIC_URGENT_CARE_REQUIRED"
-          priority: "P1"
-          metadata:
-            message: "Pediatric patient requires urgent evaluation"
-            specialty: "pediatrics"
+  # Latency breach → SLO warning
+  - name: "latency_slo_breach"
+    enabled: true
+    condition:
+      field: "latency_ms"
+      operator: "greater_than"
+      value: 2000
+    action:
+      type: "emit_event"
+      event: "SLO_BREACH"
+      severity: "warn"
+      metadata:
+        threshold_ms: 2000
 
-    # Rule 3: Chest pain keywords → cardiac screening
-    - name: "cardiac_screening_required"
-      description: "Chest pain symptoms trigger cardiac protocol"
-      condition:
-        operator: "or"
-        conditions:
-          - field: "chief_complaint"
-            operator: "contains"
-            value: "chest pain"
-          - field: "symptoms"
-            operator: "array_contains"
-            value: "chest pain"
-      actions:
-        - type: "emit_event"
-          event: "CARDIAC_SCREENING_REQUIRED"
-          priority: "P1"
-          metadata:
-            message: "Patient reports chest pain - cardiac evaluation needed"
-            protocol: "ACS_PROTOCOL"
+  # Existing rules below
+  # Auto-archive old sessions
+  - name: "auto_archive_old_sessions"
+    enabled: true
+    condition:
+      field: "session.created_at"
+      operator: "older_than"
+      value: "180d"
+    action:
+      type: "archive"
+      target: "session"
+      metadata:
+        reason: "auto_archive_policy"
 
-    # Rule 4: Multiple chronic conditions → care coordination
-    - name: "complex_patient_coordination"
-      description: "Patients with 3+ chronic conditions need care coordination"
-      condition:
-        field: "medical_history.conditions"
-        operator: "array_length_gte"
-        value: 3
-      actions:
-        - type: "emit_event"
-          event: "CARE_COORDINATION_REQUIRED"
-          priority: "P2"
-          metadata:
-            message: "Complex patient with multiple comorbidities"
-            care_team: "chronic_care_management"
+  # Reject large exports
+  - name: "reject_large_export"
+    enabled: true
+    condition:
+      field: "export.size_mb"
+      operator: "greater_than"
+      value: 500
+    action:
+      type: "reject"
+      message: "Export size exceeds 500MB limit. Use pagination."
 
-    # Rule 5: Drug allergies present → pharmacy alert
-    - name: "allergy_alert"
-      description: "Patient has documented allergies"
-      condition:
-        field: "medical_history.allergies"
-        operator: "array_not_empty"
-      actions:
-        - type: "emit_event"
-          event: "ALLERGY_ALERT_ACTIVE"
-          priority: "P2"
-          metadata:
-            message: "Patient has documented allergies - check before prescribing"
+  # Enable fallback LLM on high latency
+  - name: "fallback_llm_on_latency"
+    enabled: true
+    condition:
+      field: "llm.p95_latency_ms"
+      operator: "greater_than"
+      value: 5000
+    action:
+      type: "route"
+      target: "llm_fallback"
+      model: "ollama/llama3:8b"
 
-    # Rule 6: HIGH urgency → urgent care routing
-    - name: "urgent_care_routing"
-      description: "HIGH urgency patients to urgent care"
-      condition:
-        field: "urgency"
-        operator: "equals"
-        value: "HIGH"
-      actions:
-        - type: "emit_event"
-          event: "URGENT_CARE_ROUTING_REQUIRED"
-          priority: "P1"
-          metadata:
-            message: "Patient requires urgent care evaluation"
-            routing: "urgent_care_queue"
+  # Alert on error budget exhaustion
+  - name: "alert_error_budget_low"
+    enabled: true
+    condition:
+      field: "error_budget.remaining"
+      operator: "less_than"
+      value: 0.1
+    action:
+      type: "alert"
+      channel: "slack"
+      severity: "critical"
+      message: "Error budget <10% for {{ service_name }}"
 
-    # Rule 7: MODERATE urgency → standard appointment
-    - name: "standard_appointment_scheduling"
-      description: "MODERATE urgency patients to standard queue"
-      condition:
-        field: "urgency"
-        operator: "equals"
-        value: "MODERATE"
-      actions:
-        - type: "emit_event"
-          event: "STANDARD_APPOINTMENT_REQUIRED"
-          priority: "P3"
-          metadata:
-            message: "Patient requires standard appointment within 24-48 hours"
-            routing: "standard_queue"
+  # Auto-cleanup old audit logs
+  - name: "cleanup_old_audit_logs"
+    enabled: true
+    condition:
+      field: "audit_log.created_at"
+      operator: "older_than"
+      value: "90d"
+    action:
+      type: "delete"
+      target: "audit_log"
+      metadata:
+        reason: "retention_policy"
 
-    # Rule 8: LOW urgency → routine scheduling
-    - name: "routine_scheduling"
-      description: "LOW urgency patients to routine queue"
-      condition:
-        field: "urgency"
-        operator: "equals"
-        value: "LOW"
-      actions:
-        - type: "emit_event"
-          event: "ROUTINE_APPOINTMENT_REQUIRED"
-          priority: "P4"
-          metadata:
-            message: "Patient can be scheduled for routine visit"
-            routing: "routine_queue"
+  # Block mutation without event
+  - name: "block_mutation_without_event"
+    enabled: true
+    condition:
+      field: "mutation.has_event"
+      operator: "equals"
+      value: false
+    action:
+      type: "reject"
+      message: "Mutations require canonical event. Use event-sourced architecture."
 
-    # Rule 9: Missing demographics → data completion required
-    - name: "incomplete_demographics"
-      description: "Critical demographic fields missing"
-      condition:
-        operator: "or"
-        conditions:
-          - field: "demographics.name"
-            operator: "is_null"
-          - field: "demographics.age"
-            operator: "is_null"
-      actions:
-        - type: "emit_event"
-          event: "DEMOGRAPHICS_COMPLETION_REQUIRED"
-          priority: "P3"
-          metadata:
-            message: "Patient demographics incomplete - follow-up needed"
-
-    # Rule 10: Default rule (catch-all)
-    - name: "intake_processing_complete"
-      description: "Default event when no other rules match"
-      condition:
-        operator: "always"
-      actions:
-        - type: "emit_event"
-          event: "INTAKE_PROCESSING_COMPLETE"
-          priority: "P4"
-          metadata:
-            message: "Intake processed successfully"
-
-# Operators reference
-# Supported operators:
-# - equals, not_equals
-# - greater_than, less_than, gte, lte
-# - contains (string), not_contains
-# - array_contains, array_not_empty, array_length_gte
-# - is_null, is_not_null
-# - and, or (for nested conditions)
-# - always (always true, for default rules)
-
-# Priority levels:
-# P0 = Critical/Emergency
-# P1 = High/Urgent
-# P2 = Medium
-# P3 = Low
-# P4 = Routine
-
-# Metadata
-metadata:
-  author: "Bernard Uriza Orozco"
-  sprint: "SPR-2025W44"
-  trello_card: "6900745478022a80e4497c34"
+  # Trigger chaos drill on low error rate
+  - name: "trigger_chaos_drill"
+    enabled: false  # Manual trigger only
+    condition:
+      field: "error_budget.remaining"
+      operator: "greater_than"
+      value: 0.9
+    action:
+      type: "trigger_chaos"
+      scenario: "random"
+      metadata:
+        reason: "proactive_resilience_testing"

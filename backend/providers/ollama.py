@@ -1,23 +1,30 @@
 """
-Free Intelligence - Ollama Provider (STUB)
+Free Intelligence - Ollama Provider
 
-Local Ollama adapter - NOT IMPLEMENTED YET.
+Local Ollama adapter (local-only, timeout controls, hash tracking).
 
 File: backend/providers/ollama.py
-Created: 2025-10-28
+Created: 2025-10-29
+Card: FI-CORE-FEAT-001
 
-Status: STUB - Returns 501 NOT IMPLEMENTED
+Features:
+- Local-only execution (rejects external hosts)
+- Timeout: 8s max per request
+- Retry: 1 attempt
+- Hash tracking: SHA-256 of prompt
+- Redacts long prompts in logs (>800 chars → 120 chars preview)
 """
 
-from typing import Iterator, Optional
+import hashlib
+import time
+from collections.abc import Iterator
+from typing import Optional
+from urllib.parse import urlparse
 
-from backend.llm_adapter import (
-    LLMAdapter,
-    LLMBudget,
-    LLMRequest,
-    LLMResponse,
-    NotImplementedProviderError,
-)
+import requests
+
+from backend.llm_adapter import (LLMAdapter, LLMBudget, LLMProviderError,
+                                 LLMRequest, LLMResponse)
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
@@ -27,25 +34,21 @@ class OllamaAdapter(LLMAdapter):
     """
     Ollama local LLM adapter.
 
-    Status: STUB - Not implemented yet.
-
-    Will support:
-    - Local models (llama3.2, mistral, etc.)
-    - No API key required
-    - Fully local execution
-    - generate(), stream(), summarize()
-
-    Current behavior:
-    - All methods raise NotImplementedProviderError with 501 status
-    - Returns documentation for future implementation
+    Features:
+    - Local-only (http://127.0.0.1:11434)
+    - Timeout: 8s max
+    - Retry: 1 attempt
+    - No streaming in v1
+    - Hash tracking for prompts
     """
 
     def __init__(
         self,
-        model: str = "llama3.2",
+        model: str = "qwen2:7b",
         budget: Optional[LLMBudget] = None,
-        max_retries: int = 3,
-        ollama_host: str = "http://localhost:11434",
+        max_retries: int = 1,
+        base_url: str = "http://127.0.0.1:11434",
+        timeout_seconds: int = 8,
     ):
         super().__init__(
             provider_name="ollama",
@@ -53,51 +56,174 @@ class OllamaAdapter(LLMAdapter):
             budget=budget,
             max_retries=max_retries,
         )
-        self.ollama_host = ollama_host
+        self.base_url = base_url
+        self.timeout_seconds = timeout_seconds
+
+        # Validate local-only host
+        parsed = urlparse(base_url)
+        if parsed.hostname not in ["127.0.0.1", "localhost"]:
+            raise ValueError(
+                f"OllamaAdapter only accepts local hosts (127.0.0.1 or localhost). Got: {parsed.hostname}"
+            )
+
+        logger.info(
+            "OLLAMA_ADAPTER_INIT",
+            model=self.model,
+            base_url=self.base_url,
+            timeout_seconds=self.timeout_seconds,
+        )
 
     def generate(self, request: LLMRequest) -> LLMResponse:
         """
-        Generate response (NOT IMPLEMENTED).
+        Generate response from local Ollama.
+
+        Args:
+            request: LLM request with prompt and parameters
+
+        Returns:
+            LLM response with text, usage, latency, hash
 
         Raises:
-            NotImplementedProviderError: Always (stub)
+            LLMProviderError: If Ollama fails or times out
         """
-        logger.warning(
-            "OLLAMA_NOT_IMPLEMENTED",
-            method="generate",
+        start_time = time.time()
+
+        # Calculate prompt hash
+        prompt_content = f"{request.prompt}|{request.system_prompt or ''}"
+        prompt_hash = hashlib.sha256(prompt_content.encode()).hexdigest()
+
+        # Redact long prompts in logs
+        prompt_preview = request.prompt
+        if len(request.prompt) > 800:
+            prompt_preview = request.prompt[:120] + "... [REDACTED]"
+
+        logger.info(
+            "OLLAMA_REQUEST_STARTED",
+            provider=self.provider_name,
             model=self.model,
-            message="Ollama provider is a stub. Use provider='claude' instead.",
+            prompt_preview=self.redact_phi(prompt_preview),
+            prompt_hash=prompt_hash[:16],
+            max_tokens=request.max_tokens,
+            temperature=request.temperature,
         )
 
-        raise NotImplementedProviderError(
-            "Ollama provider not implemented yet. "
-            "This is a stub that returns 501 NOT IMPLEMENTED. "
-            "Use provider='claude' for actual LLM calls. "
-            "\n\n"
-            "Future implementation will support:\n"
-            "- Local Ollama models (llama3.2, mistral, etc.)\n"
-            "- No API key required\n"
-            "- Fully local execution\n"
-            "- Same interface as Claude adapter\n"
-            "\n"
-            "To implement: Install ollama, run 'ollama serve', "
-            "and implement OllamaAdapter.generate() using requests library."
+        # Build Ollama request payload
+        payload = {
+            "model": self.model,
+            "prompt": request.prompt,
+            "stream": False,
+            "options": {
+                "temperature": request.temperature,
+                "num_predict": request.max_tokens,
+            },
+        }
+
+        # Add system prompt if provided
+        if request.system_prompt:
+            payload["system"] = request.system_prompt
+
+        # Retry logic
+        last_error = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = requests.post(
+                    f"{self.base_url}/api/generate",
+                    json=payload,
+                    timeout=self.timeout_seconds,
+                )
+                response.raise_for_status()
+
+                # Parse response
+                data = response.json()
+                text = data.get("response", "")
+
+                # Calculate latency
+                latency_ms = int((time.time() - start_time) * 1000)
+
+                # Estimate tokens if not provided
+                # Ollama doesn't always return token counts, so we estimate
+                input_tokens = len(request.prompt.split()) * 1.3  # ~1.3 tokens per word
+                output_tokens = len(text.split()) * 1.3
+                tokens_used = int(input_tokens + output_tokens)
+
+                # Build response
+                llm_response = LLMResponse(
+                    content=text,
+                    provider=self.provider_name,
+                    model=self.model,
+                    tokens_used=tokens_used,
+                    latency_ms=latency_ms,
+                    finish_reason="stop",
+                    metadata={
+                        "prompt_hash": prompt_hash,
+                        "input_tokens": int(input_tokens),
+                        "output_tokens": int(output_tokens),
+                        "done": data.get("done", True),
+                    },
+                )
+
+                logger.info(
+                    "OLLAMA_REQUEST_COMPLETED",
+                    provider=self.provider_name,
+                    model=self.model,
+                    tokens_used=tokens_used,
+                    latency_ms=latency_ms,
+                    prompt_hash=prompt_hash[:16],
+                )
+
+                return llm_response
+
+            except requests.exceptions.Timeout as e:
+                last_error = e
+                logger.warning(
+                    "OLLAMA_REQUEST_TIMEOUT",
+                    provider=self.provider_name,
+                    model=self.model,
+                    attempt=attempt + 1,
+                    timeout_seconds=self.timeout_seconds,
+                )
+
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                logger.warning(
+                    "OLLAMA_REQUEST_RETRY",
+                    provider=self.provider_name,
+                    model=self.model,
+                    attempt=attempt + 1,
+                    max_retries=self.max_retries,
+                    error=str(e),
+                )
+
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    "OLLAMA_REQUEST_ERROR",
+                    provider=self.provider_name,
+                    model=self.model,
+                    attempt=attempt + 1,
+                    error=str(e),
+                )
+
+            # Exponential backoff
+            if attempt < self.max_retries:
+                time.sleep(2**attempt)
+
+        # All retries failed
+        logger.error(
+            "OLLAMA_REQUEST_FAILED",
+            provider=self.provider_name,
+            model=self.model,
+            error=str(last_error),
+        )
+        raise LLMProviderError(
+            f"Ollama API failed after {self.max_retries + 1} attempts: {last_error}"
         )
 
     def stream(self, request: LLMRequest) -> Iterator[str]:
         """
-        Stream response (NOT IMPLEMENTED).
+        Stream response (NOT IMPLEMENTED in v1).
 
         Raises:
-            NotImplementedProviderError: Always (stub)
+            NotImplementedError: Streaming not supported in v1
         """
-        logger.warning(
-            "OLLAMA_NOT_IMPLEMENTED",
-            method="stream",
-            model=self.model,
-            message="Ollama provider is a stub.",
-        )
-
-        raise NotImplementedProviderError(
-            "Ollama streaming not implemented yet. Use provider='claude' instead."
-        )
+        raise NotImplementedError("Ollama streaming not supported in v1. Use generate() instead.")

@@ -1,134 +1,94 @@
-# Free Intelligence - LLM Policy Configuration
-# Policy-driven LLM routing, budgets, timeouts, and fallback rules
-#
-# Philosophy: Provider-agnostic, easy to switch between Claude and Ollama
-# without touching code. Just change `primary_provider` here.
+# Free Intelligence — Master Policy Configuration
+# Consolidates all executable policies
 
+version: "1.0"
+
+# Sovereignty Policy
+sovereignty:
+  egress:
+    default: deny
+
+# Privacy Policy
+privacy:
+  phi:
+    enabled: false
+  redaction:
+    spoilers: true
+    style_file: "config/redaction_style.yaml"
+
+# Integrity Policy
+integrity:
+  segment_seconds: 60
+  hash: sha256
+  snapshots:
+    ready:
+      daily: 7
+
+# LLM Policy
 llm:
-  # Primary provider for LLM calls
-  # Options: "claude", "ollama"
-  primary_provider: "ollama"
-
-  # Fallback provider if primary fails (timeout, rate limit, error)
-  fallback_provider: "claude"
-
-  # Enable offline-first mode (routes to Ollama when true)
-  enable_offline: true
-
-  # Provider-specific configurations
-  providers:
-    claude:
-      model: "claude-3-5-sonnet-20241022"  # or "claude-3-5-haiku-20241022" for cheaper
-      api_key_env: "CLAUDE_API_KEY"        # Environment variable name
-      timeout_seconds: 30
-      max_tokens: 4096
-      temperature: 0.7
-
-    ollama:
-      # Ollama configuration (Offline-First - Local Inference)
-      base_url: "http://localhost:11434"       # Local Ollama server (or NAS IP: http://192.168.1.100:11434)
-      model: "qwen2.5:7b-instruct-q4_0"        # Qwen 2.5 7B with Q4 quantization (best for Chinese + code)
-      embed_model: "nomic-embed-text"          # 768-dim embeddings (compatible with corpus)
-      timeout_seconds: 120                     # Local inference can be slower than API
-      max_tokens: 2048                         # 7B models have smaller context window
-      temperature: 0.7
-
-      # Alternative models (uncomment to use):
-      # model: "deepseek-r1:7b"                # DeepSeek R1 Distill 7B (reasoning-focused)
-      # model: "llama3.2:3b"                   # Llama 3.2 3B (very fast, smaller)
-      # embed_model: "mxbai-embed-large"       # Alternative embedding model (1024-dim)
-
-    # openai:
-    #   # OpenAI configuration (future, if needed)
-    #   model: "gpt-4-turbo"
-    #   api_key_env: "OPENAI_API_KEY"
-    #   timeout_seconds: 30
-    #   max_tokens: 4096
-    #   temperature: 0.7
-
-  # Budget controls to prevent runaway costs
+  enabled: true
+  providers: ["claude", "ollama"]
   budgets:
-    # Maximum cost per day in USD (applies to paid providers like Claude)
-    max_cost_per_day: 10.0
+    monthly_usd: 200
+  timeouts:
+    request_ms: 8000
+  retry: 1
+  audit:
+    required: true
+    decorator: "@require_audit_log"
+  fallback:
+    enabled: true
+    model: "ollama/llama3:8b"
 
-    # Maximum requests per hour (prevents abuse)
-    max_requests_per_hour: 100
+# Timeline Policy
+timeline:
+  auto:
+    enabled: false  # Feature flag
+  auto_archive_days: 180
+  max_interactions_per_query: 1000
+  pagination_default: 50
 
-    # Alert threshold (0.8 = alert at 80% of budget)
-    alert_threshold: 0.8
+# Agents Policy
+agents:
+  enabled: false
 
-  # Gatekeeper configuration (Sprint 4 - Intelligent A/B Routing)
-  gatekeeper:
-    enabled: true                    # Enable quality-based routing
-    quality_threshold: 70            # Fallback to Claude if score < 70
-    progressive_rollout:
-      enabled: false                 # Enable progressive rollout (10% → 50% → 100%)
-      current_phase: 1               # Phase 1: 10% Ollama, Phase 2: 50%, Phase 3: 100%
-      phase_1_percentage: 10         # Start conservative
-      phase_2_percentage: 50
-      phase_3_percentage: 100
-      phase_2_trigger_score: 75      # Move to Phase 2 if avg score > 75 for 7 days
-      phase_3_trigger_score: 85      # Move to Phase 3 if avg score > 85 for 7 days
-      evaluation_window_days: 7
+# Reactions to Policy Violations
+reactions:
+  policy_violation: ["quarantine", "audit", "alert_warn"]
 
-  # Fallback rules: what to do when primary provider fails
-  fallback_rules:
-    - condition: "timeout"           # Primary provider times out
-      action: "use_fallback"         # Switch to fallback provider
+# Mutation Policy
+mutation:
+  append_only: true
+  validator: "backend.mutation_validator"
+  event_required: true
 
-    - condition: "rate_limit"        # Hit rate limit
-      action: "exponential_backoff"  # Wait and retry (1s, 2s, 4s, 8s...)
+# Corpus Policy
+corpus:
+  identity_required: true
+  owner_hash_algorithm: "sha256"
+  lock_timeout_seconds: 30
 
-    - condition: "api_error"         # API returns error (500, 503, etc.)
-      action: "use_fallback"         # Switch to fallback provider
-
-    - condition: "budget_exceeded"   # Over daily budget
-      action: "deny"                 # Reject request (protect wallet)
-
-  # Logging configuration
-  logging:
-    log_all_prompts: true      # Log every prompt to audit_logs (privacy: consider false)
-    log_all_responses: true    # Log every response to audit_logs
-    log_token_usage: true      # Log token counts and costs
-    log_latency: true          # Log response times
-
-  # Embedding configuration
-  embeddings:
-    provider: "local"  # "local" = sentence-transformers, "claude" = N/A, "ollama" = future
-    model: "all-MiniLM-L6-v2"  # Lightweight, 384 dimensions
-    cache_embeddings: true     # Cache embeddings to avoid recomputation
-
-# Export policy (already defined in Sprint 2, kept here for reference)
+# Export Policy
 export:
-  require_manifest: true        # All exports must have manifest.json
-  compute_sha256: true          # Compute SHA256 hash of exported data
-  allowed_formats:
-    - markdown
-    - json
-    - hdf5
-    - csv
-    - txt
+  enabled: true
+  formats: ["json", "markdown", "hdf5"]
+  manifest_required: true
+  hash_algorithm: "sha256"
 
-# Audit policy (already enforced in Sprint 2)
-audit:
-  log_all_operations: true      # Log every operation to /audit_logs/
-  retention_days: 90            # Keep audit logs for 90 days
-  hash_payloads: true           # SHA256 hash of payloads
-  hash_results: true            # SHA256 hash of results
+# Retention Policy
+retention:
+  audit_logs_days: 90
+  session_min_days: 365
+  export_manifests_days: 730
 
-# Network policy (for Sprint 6 - Egreso Total DENY)
-network:
-  # Allowed outbound domains (whitelist)
-  allowed_domains:
-    - "api.anthropic.com"       # Claude API (disable when enable_offline=true)
-    # - "*.synology.com"        # NAS updates (if needed)
+# Security Policy
+security:
+  lan_only: true
+  auth_required: true
+  rbac_enabled: true
 
-  # Deny all other outbound traffic
-  deny_by_default: false        # Set to true in Sprint 6 (requires firewall config)
-
-# System metadata
-metadata:
-  version: "1.0.0"
-  last_updated: "2025-10-28"
-  owner: "Bernard Uriza Orozco"
-  roadmap_sprint: "Sprint 3 (Sprint 1 of Offline-First Roadmap)"
+# Observability Policy
+observability:
+  error_budgets_file: "observability/error_budgets.yaml"
+  alerts_file: "observability/alerts.prom"
+  chaos_drills_enabled: true

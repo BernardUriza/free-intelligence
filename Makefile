@@ -252,3 +252,25 @@ turbo-clean: ## Clean all build artifacts
 	@echo "🧹 Cleaning build artifacts..."
 	pnpm turbo clean
 	make clean
+
+# ============================================================================
+# LLM Middleware (FI-CORE-FEAT-001)
+# ============================================================================
+
+llm-dev: ## Start LLM middleware (dev mode)
+	@echo "🚀 Starting LLM middleware on port 9001..."
+	@echo "   Endpoints:"
+	@echo "     POST   /llm/generate    (new contract)"
+	@echo "     GET    /health          (status)"
+	@echo "     GET    /metrics         (Prometheus)"
+	@echo "     GET    /metrics/json    (JSON)"
+	@uvicorn backend.llm_middleware:app --reload --port 9001 --host 0.0.0.0
+
+llm-test: ## Run LLM tests (pytest)
+	@echo "🧪 Running LLM tests..."
+	@pytest tests/test_ollama_adapter.py tests/test_llm_endpoint.py tests/test_llm_cache.py tests/test_cli.py -v
+
+llm-call: ## Example CLI call to endpoint
+	@echo "📞 Example LLM call (Ollama qwen2:7b)..."
+	@echo "   Prompt: 'What is 2+2?'"
+	@python3 tools/fi_llm.py --provider ollama --model qwen2:7b --prompt "What is 2+2?" --json

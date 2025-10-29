@@ -8,10 +8,11 @@ Provides safe defaults if config file is missing.
 FI-CONFIG-FEAT-001
 """
 
-import yaml
-from pathlib import Path
-from typing import Dict, Any, List
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Optional
+
+import yaml
 
 
 @dataclass
@@ -26,13 +27,13 @@ class ConfigSchema:
         "server": ["host", "port", "lan_only"],
         "models": ["default", "available", "embedding_model", "embedding_dim"],
         "features": ["semantic_search", "session_persistence"],
-        "limits": ["max_sessions", "max_interactions_per_session", "retention_bundles"]
+        "limits": ["max_sessions", "max_interactions_per_session", "retention_bundles"],
     }
 
     VALID_LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
     @classmethod
-    def validate(cls, config: Dict[str, Any]) -> List[str]:
+    def validate(cls, config: dict[str, Any]) -> list[str]:
         """
         Validate configuration against schema.
 
@@ -60,7 +61,9 @@ class ConfigSchema:
         if "system" in config:
             log_level = config["system"].get("log_level")
             if log_level and log_level not in cls.VALID_LOG_LEVELS:
-                errors.append(f"Invalid log_level: '{log_level}'. Must be one of {cls.VALID_LOG_LEVELS}")
+                errors.append(
+                    f"Invalid log_level: '{log_level}'. Must be one of {cls.VALID_LOG_LEVELS}"
+                )
 
         if "storage" in config:
             max_size = config["storage"].get("max_file_size_gb")
@@ -74,18 +77,23 @@ class ConfigSchema:
 
         if "models" in config:
             embedding_dim = config["models"].get("embedding_dim")
-            if embedding_dim is not None and (not isinstance(embedding_dim, int) or embedding_dim <= 0):
-                errors.append(f"Invalid embedding_dim: must be positive integer, got {embedding_dim}")
+            if embedding_dim is not None and (
+                not isinstance(embedding_dim, int) or embedding_dim <= 0
+            ):
+                errors.append(
+                    f"Invalid embedding_dim: must be positive integer, got {embedding_dim}"
+                )
 
         return errors
 
 
 class ConfigValidationError(Exception):
     """Raised when configuration validation fails."""
+
     pass
 
 
-def get_default_config() -> Dict[str, Any]:
+def get_default_config() -> dict[str, Any]:
     """
     Get default configuration values.
 
@@ -100,42 +108,37 @@ def get_default_config() -> Dict[str, Any]:
             "name": "Free Intelligence",
             "version": "0.1.0",
             "timezone": "America/Mexico_City",
-            "log_level": "INFO"
+            "log_level": "INFO",
         },
         "storage": {
             "corpus_path": "./storage/corpus.h5",
             "backup_path": "./backups",
             "exports_path": "./exports",
             "max_file_size_gb": 4,
-            "auto_backup_hours": 24
+            "auto_backup_hours": 24,
         },
-        "server": {
-            "host": "127.0.0.1",
-            "port": 7000,
-            "lan_only": True,
-            "cors_enabled": False
-        },
+        "server": {"host": "127.0.0.1", "port": 7000, "lan_only": True, "cors_enabled": False},
         "models": {
             "default": "claude-3-5-sonnet-20241022",
             "available": ["claude-3-5-sonnet-20241022"],
             "embedding_model": "all-MiniLM-L6-v2",
-            "embedding_dim": 768
+            "embedding_dim": 768,
         },
         "features": {
             "semantic_search": True,
             "auto_export": False,
             "session_persistence": True,
-            "multi_user": False
+            "multi_user": False,
         },
         "limits": {
             "max_sessions": 1000,
             "max_interactions_per_session": 10000,
-            "retention_bundles": 12
-        }
+            "retention_bundles": 12,
+        },
     }
 
 
-def load_config(config_path: str = None) -> Dict[str, Any]:
+def load_config(config_path: str = None) -> dict[str, Any]:
     """
     Load and validate YAML configuration.
 
@@ -169,7 +172,7 @@ def load_config(config_path: str = None) -> Dict[str, Any]:
 
     # Load YAML
     try:
-        with open(config_path, 'r') as f:
+        with open(config_path) as f:
             config = yaml.safe_load(f)
     except yaml.YAMLError as e:
         raise ConfigValidationError(f"Invalid YAML syntax: {e}")
@@ -186,6 +189,43 @@ def load_config(config_path: str = None) -> Dict[str, Any]:
         raise ConfigValidationError(error_msg)
 
     return config
+
+
+def load_llm_config(config_path: Optional[str] = None) -> dict[str, Any]:
+    """
+    Load LLM configuration from config/llm.yaml.
+
+    Args:
+        config_path: Optional path to llm.yaml (defaults to config/llm.yaml)
+
+    Returns:
+        LLM configuration dictionary
+
+    Raises:
+        FileNotFoundError: If config file not found
+        yaml.YAMLError: If YAML parsing fails
+    """
+    if config_path is None:
+        # Try multiple possible locations
+        possible_paths = [
+            Path("config/llm.yaml"),
+            Path(__file__).parent.parent / "config" / "llm.yaml",
+        ]
+
+        for p in possible_paths:
+            if p.exists():
+                config_path = str(p)
+                break
+
+        if config_path is None:
+            raise FileNotFoundError(
+                "LLM config not found. Tried: " + ", ".join(str(p) for p in possible_paths)
+            )
+
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+
+    return config or {}
 
 
 if __name__ == "__main__":
