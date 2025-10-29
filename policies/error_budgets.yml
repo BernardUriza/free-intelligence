@@ -1,0 +1,222 @@
+# Error Budgets & SLO Policy
+# Card: FI-RELIABILITY-STR-001
+# Axiom: Materia = Glitch Elegante
+
+version: "1.0.0"
+effective_date: "2025-10-29"
+
+# Service Level Objectives
+slos:
+  ingestion_api:
+    metric: p95_latency
+    target_ms: 2000
+    window_days: 30
+    error_budget_pct: 5
+    description: "Ingestion API p95 latency <2s"
+
+  timeline_api:
+    metric: p99_latency
+    target_ms: 100
+    window_days: 7
+    error_budget_pct: 1
+    description: "Timeline API p99 latency <100ms"
+
+  verify_api:
+    metric: p95_latency
+    target_ms: 500
+    window_days: 30
+    error_budget_pct: 3
+    description: "Verify API p95 latency <500ms"
+
+  corpus_writes:
+    metric: success_rate
+    target_pct: 99.9
+    window_days: 30
+    error_budget_pct: 0.1
+    description: "Corpus HDF5 write success rate >99.9%"
+
+  llm_routing:
+    metric: timeout_rate
+    target_pct: 1
+    window_days: 7
+    error_budget_pct: 1
+    description: "LLM routing timeout rate <1%"
+
+# Budget consumption thresholds
+budget_thresholds:
+  healthy:
+    min_pct: 75
+    action: "normal_operations"
+    description: "Budget >75%: Normal operations, no restrictions"
+
+  warning:
+    min_pct: 50
+    max_pct: 75
+    action: "monitor_closely"
+    description: "Budget 50-75%: Review logs daily, Slack alerts"
+    alerts:
+      - channel: "#sre"
+        frequency: "daily"
+
+  critical:
+    min_pct: 25
+    max_pct: 50
+    action: "freeze_risky_deployments"
+    description: "Budget 25-50%: Only hotfixes, no feature deployments"
+    alerts:
+      - channel: "#sre"
+        frequency: "hourly"
+      - recipient: "@tech-lead"
+        method: "email"
+
+  emergency:
+    max_pct: 25
+    action: "emergency_mode"
+    description: "Budget <25%: Rollback, incident post-mortem required"
+    alerts:
+      - channel: "#incidents"
+        frequency: "immediate"
+      - recipient: "@cto"
+        method: "sms"
+
+# Degradation policies
+degradation:
+  backpressure:
+    trigger:
+      service: "ingestion_api"
+      condition: "p95_latency > 3000"  # 150% of SLO
+    action:
+      type: "rate_limit"
+      reduce_by_pct: 50
+      http_status: 429
+      retry_after_sec: 60
+    log_event: "BACKPRESSURE_ACTIVATED"
+
+  circuit_breaker:
+    trigger:
+      service: "llm_routing"
+      condition: "timeout_rate > 2% in 5min"
+    action:
+      type: "circuit_breaker"
+      state: "open"
+      fallback: "cached_responses"
+      retry_after_sec: 60
+    log_event: "CIRCUIT_BREAKER_OPEN"
+
+  queue_shedding:
+    trigger:
+      service: "corpus_writes"
+      condition: "queue_depth > 10000"
+    action:
+      type: "queue_shedding"
+      priorities:
+        - level: "critical"
+          keep: ["interactions", "metadata"]
+        - level: "high"
+          keep: ["interactions"]
+        - level: "low"
+          shed: ["embeddings", "analytics"]
+    log_event: "QUEUE_SHEDDING_ACTIVE"
+
+# Chaos engineering drills
+chaos_drills:
+  network_partition:
+    date: "2025-11-15"
+    time: "14:00"
+    duration_min: 90
+    owner: "@sre-lead"
+    objective: "Verify queue resilience during 1h network outage"
+    success_criteria:
+      - "Queue depth <10,000 items"
+      - "Recovery time <2 minutes"
+      - "Data integrity: 0 losses (hash verification)"
+
+  corpus_file_lock:
+    date: "2025-12-20"
+    time: "14:00"
+    duration_min: 60
+    owner: "@backend-team"
+    objective: "Test concurrent access and retry logic"
+    success_criteria:
+      - "No crashes under 10+ concurrent reads"
+      - "Retry mechanism works (exponential backoff)"
+
+  llm_timeout_storm:
+    date: "2026-01-17"
+    time: "14:00"
+    duration_min: 45
+    owner: "@ml-ops"
+    objective: "Validate circuit breaker under sustained timeouts"
+    success_criteria:
+      - "Circuit breaker opens after 2% timeout rate"
+      - "Fallback responses served correctly"
+      - "Recovery after 60s"
+
+  disk_full:
+    date: "2026-02-14"
+    time: "14:00"
+    duration_min: 60
+    owner: "@infra"
+    objective: "Test log rotation and cleanup at 90% disk usage"
+    success_criteria:
+      - "Automatic log cleanup triggers"
+      - "Services continue operating"
+      - "Alerts sent to #sre"
+
+# Monitoring & alerting
+monitoring:
+  dashboards:
+    - name: "Error Budget Dashboard"
+      url: "http://localhost:3000/dashboard/error-budgets"
+      widgets:
+        - "Budget remaining (gauge)"
+        - "Consumption trend (line chart)"
+        - "Top 5 consumers (table)"
+        - "Burn rate projection"
+
+    - name: "Latency Heatmap"
+      url: "http://localhost:3000/dashboard/latency"
+      widgets:
+        - "p50/p95/p99 by endpoint"
+        - "Color coding: green <SLO, yellow 100-150%, red >150%"
+
+    - name: "Incident Timeline"
+      url: "http://localhost:3000/dashboard/incidents"
+      widgets:
+        - "Backpressure events"
+        - "Circuit breaker activations"
+        - "Queue shedding episodes"
+
+  alerts:
+    - condition: "budget < 50%"
+      severity: "WARNING"
+      channels: ["#sre"]
+      message: "{{service}} error budget at {{pct}}% ({{days_remaining}} days remaining)"
+
+    - condition: "budget < 25%"
+      severity: "CRITICAL"
+      channels: ["#incidents"]
+      recipients: ["@tech-lead", "@cto"]
+      message: "EMERGENCY: {{service}} budget at {{pct}}%"
+
+    - condition: "slo_breach > 2h"
+      severity: "INCIDENT"
+      channels: ["#incidents"]
+      recipients: ["@oncall"]
+      message: "{{service}} breached SLO for {{duration}}"
+
+    - condition: "chaos_drill_start"
+      severity: "INFO"
+      channels: ["#general"]
+      message: "🔥 Chaos drill: {{drill_type}} starting"
+
+# Review process
+review:
+  frequency: "quarterly"
+  next_review: "2026-01-29"
+  questions:
+    - "Are SLOs too strict? (budget always >90%)"
+    - "Are SLOs too lax? (budget constantly exhausted)"
+    - "Do new services need SLOs?"
+    - "Did chaos drills reveal policy gaps?"
+  output: "Updated error_budgets.yml with new targets"
