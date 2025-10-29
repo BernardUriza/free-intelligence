@@ -1,0 +1,13 @@
+Defaulting to user installation because normal site-packages is not writeable
+Collecting cryptography
+  Downloading cryptography-46.0.3-cp38-abi3-macosx_10_9_universal2.whl.metadata (5.7 kB)
+Requirement already satisfied: cffi>=2.0.0 in /Users/bernardurizaorozco/Library/Python/3.9/lib/python/site-packages (from cryptography) (2.0.0)
+Requirement already satisfied: typing-extensions>=4.13.2 in /Users/bernardurizaorozco/Library/Python/3.9/lib/python/site-packages (from cryptography) (4.15.0)
+Requirement already satisfied: pycparser in /Users/bernardurizaorozco/Library/Python/3.9/lib/python/site-packages (from cffi>=2.0.0->cryptography) (2.23)
+Downloading cryptography-46.0.3-cp38-abi3-macosx_10_9_universal2.whl (7.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.2/7.2 MB 3.8 MB/s  0:00:02
+Installing collected packages: cryptography
+Successfully installed cryptography-46.0.3
+
+[notice] A new release of pip is available: 25.2 -> 25.3
+[notice] To update, run: /Library/Developer/CommandLineTools/usr/bin/python3 -m pip install --upgrade pip

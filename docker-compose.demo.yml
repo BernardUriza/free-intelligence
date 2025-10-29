@@ -1,0 +1,183 @@
+# =============================================================================
+# Free Intelligence - Demo Docker Compose
+# =============================================================================
+# Simplified configuration for FI-Cold demo (DELL+Docker)
+# Includes: FI Backend + AURITY Frontend + Ollama (local LLM)
+# Sprint: SPR-2025W44 | Card: FI-GTM-MILE-003
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # FI Backend (FastAPI + HDF5 Event Store)
+  # ---------------------------------------------------------------------------
+  fi-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: free-intelligence:0.3.0
+    container_name: fi-backend
+    restart: unless-stopped
+    ports:
+      - "7001:7001"  # FI Consult Service
+      - "9001:9001"  # FI Corpus API
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FI_CORPUS_PATH=/app/storage/corpus.h5
+      - FI_OWNER_ID=demo@fi-cold
+      - LOG_LEVEL=INFO
+    volumes:
+      # Persistent storage for HDF5 corpus
+      - fi-corpus:/app/storage
+      - fi-logs:/app/logs
+      - fi-exports:/app/exports
+    networks:
+      - fi-demo-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: >
+      sh -c "
+      echo '🚀 Starting FI Consult Service...' &&
+      python3 -m uvicorn backend.fi_consult_service:app --host 0.0.0.0 --port 7001
+      "
+
+  # ---------------------------------------------------------------------------
+  # AURITY Frontend (Next.js UI)
+  # ---------------------------------------------------------------------------
+  aurity-frontend:
+    build:
+      context: ./apps/aurity
+      dockerfile: Dockerfile
+      target: runner
+    image: aurity:0.1.0
+    container_name: aurity-frontend
+    restart: unless-stopped
+    ports:
+      - "9000:3000"  # AURITY on port 9000 for demo
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - FI_ENDPOINT_BASE=http://fi-backend:7001
+      - NEXT_PUBLIC_FI_API=http://localhost:7001
+    networks:
+      - fi-demo-network
+    depends_on:
+      fi-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
+  # Ollama (Local LLM - optional, for offline demo)
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: fi-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - fi-demo-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]  # Optional: use GPU if available
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  fi-corpus:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/storage
+      o: bind
+  fi-logs:
+    driver: local
+  fi-exports:
+    driver: local
+  ollama-models:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  fi-demo-network:
+    driver: bridge
+    name: fi-demo-network
+
+# =============================================================================
+# Usage Instructions
+# =============================================================================
+#
+# Quick Start:
+#   docker-compose -f docker-compose.demo.yml up -d
+#
+# Check Status:
+#   docker-compose -f docker-compose.demo.yml ps
+#
+# View Logs:
+#   docker-compose -f docker-compose.demo.yml logs -f fi-backend
+#   docker-compose -f docker-compose.demo.yml logs -f aurity-frontend
+#
+# Access Services:
+#   - FI Backend:        http://localhost:7001
+#   - FI Corpus API:     http://localhost:9001
+#   - AURITY Frontend:   http://localhost:9000
+#   - Ollama (LLM):      http://localhost:11434
+#
+# Stop Demo:
+#   docker-compose -f docker-compose.demo.yml down
+#
+# Reset Demo (delete all data):
+#   docker-compose -f docker-compose.demo.yml down -v
+#
+# Build from scratch:
+#   docker-compose -f docker-compose.demo.yml build --no-cache
+#
+# =============================================================================
+# Demo Workflow
+# =============================================================================
+#
+# 1. Start services:
+#    docker-compose -f docker-compose.demo.yml up -d
+#
+# 2. Wait for health checks (60s):
+#    docker-compose -f docker-compose.demo.yml ps
+#
+# 3. Open AURITY in browser:
+#    open http://localhost:9000
+#
+# 4. Test IntakeCoach:
+#    - Navigate to /intake
+#    - Start medical consultation
+#    - System generates SOAP note
+#
+# 5. View event store:
+#    docker exec -it fi-backend python3 -c "from backend.fi_event_store import load_stream; events = load_stream('storage/corpus.h5'); print(f'{len(events)} events stored')"
+#
+# 6. Export demo evidence:
+#    docker exec -it fi-backend python3 backend/export_policy.py create demo_export
+#
+# =============================================================================

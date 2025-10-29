@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LLM Request Schema",
+  "description": "Unified request format for all LLM providers",
+  "type": "object",
+  "required": ["prompt", "provider"],
+  "properties": {
+    "prompt": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100000,
+      "description": "Input text prompt for the LLM"
+    },
+    "provider": {
+      "type": "string",
+      "enum": ["claude", "ollama", "openai"],
+      "description": "LLM provider to use"
+    },
+    "model": {
+      "type": "string",
+      "description": "Specific model to use (provider-specific)",
+      "examples": [
+        "claude-3-5-sonnet-20241022",
+        "qwen2.5:7b-instruct-q4_0",
+        "gpt-4"
+      ]
+    },
+    "temperature": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2,
+      "default": 0.7,
+      "description": "Sampling temperature (0 = deterministic, 2 = very random)"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100000,
+      "default": 4096,
+      "description": "Maximum tokens to generate"
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 300,
+      "default": 30,
+      "description": "Request timeout in seconds"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional provider-specific parameters",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
