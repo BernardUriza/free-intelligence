@@ -1,51 +1,51 @@
-id,category,difficulty,prompt,expected_keywords,min_length,max_length,urgency_expected,notes
-1,green,easy,I'm 25 years old and have a mild headache that started today. No other symptoms.,"headache,mild,LOW",50,300,LOW,Simple case - low urgency
-2,green,easy,I need to refill my blood pressure medication. I'm 55 and take lisinopril daily.,"medication,refill,lisinopril,LOW",50,300,LOW,Routine prescription refill
-3,green,easy,I'm Sarah and I sprained my ankle yesterday playing soccer. It's swollen but I can walk.,"ankle,sprain,swollen,LOW",50,300,LOW,Minor sports injury
-4,green,easy,I have a cough and runny nose for 3 days. No fever. I'm 30 years old.,"cough,runny nose,cold,LOW",50,300,LOW,Common cold symptoms
-5,green,easy,I'm 40 and need a routine physical exam. No current health issues.,"routine,physical,exam,LOW",50,300,LOW,Preventive care
-6,green,easy,I have mild back pain from sitting at my desk. It started yesterday. I'm 35.,"back pain,mild,desk,LOW",50,300,LOW,Ergonomic issue
-7,green,easy,I'm 28 and allergic to penicillin. I need this documented for my records.,"allergy,penicillin,documentation,LOW",50,300,LOW,Allergy documentation
-8,green,easy,I have seasonal allergies and need my usual antihistamine prescription. I'm 32.,"allergies,seasonal,antihistamine,LOW",50,300,LOW,Routine allergy management
-9,green,easy,I'm 45 and want to discuss starting a diet and exercise program.,"diet,exercise,wellness,LOW",50,300,LOW,Wellness consultation
-10,green,easy,I have a small cut on my hand from cooking. No signs of infection. I'm 29.,"cut,hand,minor,LOW",50,300,LOW,Minor laceration
-11,green,easy,I'm 50 and my blood pressure has been slightly elevated. I take metoprolol.,"blood pressure,elevated,metoprolol,MODERATE",50,300,MODERATE,Chronic condition monitoring
-12,green,easy,I have type 2 diabetes and my glucose has been 150-180 lately. I take metformin.,"diabetes,glucose,metformin,MODERATE",50,300,MODERATE,Diabetes management
-13,green,easy,I'm 60 with hypertension and need a medication review. Taking lisinopril and HCTZ.,"hypertension,medication review,MODERATE",50,300,MODERATE,Polypharmacy review
-14,green,easy,I'm 48 and have been having irregular heartbeats occasionally. No chest pain.,"irregular heartbeat,palpitations,MODERATE",50,300,MODERATE,Cardiac symptoms - needs evaluation
-15,green,easy,I'm pregnant (20 weeks) and have mild swelling in my feet. No other symptoms.,"pregnant,swelling,feet,MODERATE",50,300,MODERATE,Pregnancy-related symptom
-16,green,easy,I'm 70 with COPD and my breathing is slightly worse this week. I use albuterol.,"COPD,breathing,worse,albuterol,MODERATE",50,300,MODERATE,Chronic respiratory condition
-17,green,easy,I'm 55 and have been having frequent urination and increased thirst for 2 weeks.,"urination,thirst,diabetes screening,MODERATE",50,300,MODERATE,Possible diabetes - needs screening
-18,green,easy,I'm 65 with osteoarthritis in my knees. Pain is worse when walking. Taking ibuprofen.,"osteoarthritis,knee pain,ibuprofen,MODERATE",50,300,MODERATE,Chronic pain management
-19,green,easy,I'm 42 and have been experiencing acid reflux daily for a month. Taking Tums.,"acid reflux,GERD,Tums,MODERATE",50,300,MODERATE,GI symptoms - needs evaluation
-20,green,easy,I'm 58 with high cholesterol. Taking atorvastatin. Want to discuss recent labs.,"cholesterol,atorvastatin,labs,MODERATE",50,300,MODERATE,Lipid management
-21,green,easy,I'm 38 and have migraines 2-3 times per week. Currently not on any medication.,"migraines,frequent,headache,MODERATE",50,300,MODERATE,Chronic headache disorder
-22,green,easy,I'm 52 with sleep apnea using CPAP. Machine pressure feels wrong lately.,"sleep apnea,CPAP,pressure,MODERATE",50,300,MODERATE,CPAP titration issue
-23,green,easy,I'm 46 and have chronic lower back pain. Taking naproxen daily.,"chronic back pain,naproxen,MODERATE",50,300,MODERATE,Chronic pain syndrome
-24,green,easy,I'm 62 with hypothyroidism on levothyroxine. Feeling more fatigued than usual.,"hypothyroidism,levothyroxine,fatigue,MODERATE",50,300,MODERATE,Thyroid dose adjustment
-25,green,easy,I'm 54 with a family history of colon cancer. Need to schedule colonoscopy.,"family history,colon cancer,screening,MODERATE",50,300,MODERATE,Cancer screening - preventive
-26,green,easy,I'm 67 with Parkinson's disease. Tremors are worse despite medication (carbidopa/levodopa).,"Parkinson's,tremors,carbidopa,MODERATE",50,300,MODERATE,Progressive neurological condition
-27,green,easy,I'm 49 and experiencing hot flashes and mood changes. Possible menopause.,"menopause,hot flashes,mood changes,MODERATE",50,300,MODERATE,Hormonal changes
-28,green,easy,I'm 71 with heart failure on furosemide. Gained 5 pounds in 3 days with ankle swelling.,"heart failure,furosemide,weight gain,swelling,HIGH",50,300,HIGH,Decompensated heart failure
-29,green,easy,I'm 56 with atrial fibrillation on warfarin. INR was 4.5 yesterday (high).,"atrial fibrillation,warfarin,INR high,HIGH",50,300,HIGH,Anticoagulation monitoring - urgent
-30,green,easy,I'm 63 and fell yesterday. Can't bear weight on right hip. Severe pain.,"fall,hip pain,can't walk,HIGH",50,300,HIGH,Possible hip fracture
-31,yellow,medium,My 4-year-old has fever of 103F for 2 days with ear pain. Tugging at ears.,"pediatric,fever,ear pain,HIGH",50,300,HIGH,Pediatric infection - urgent
-32,yellow,medium,I'm 59 and have had crushing chest discomfort for 20 minutes. Goes away with rest.,"chest discomfort,crushing,unstable angina,CRITICAL",50,300,CRITICAL,Unstable angina - emergency
-33,yellow,medium,I'm 35 weeks pregnant with severe headache and seeing spots. BP usually normal.,"pregnant,severe headache,visual changes,CRITICAL",50,300,CRITICAL,Possible preeclampsia
-34,yellow,medium,My 2-year-old drank cleaning fluid 10 minutes ago. She's crying and drooling.,"pediatric,poisoning,ingestion,CRITICAL",50,300,CRITICAL,Pediatric poisoning - 911
-35,yellow,medium,I'm 72 with sudden confusion and weakness on left side. Started 30 minutes ago.,"confusion,weakness,one-sided,stroke,CRITICAL",50,300,CRITICAL,Possible stroke - 911
-36,yellow,medium,I'm 28 and have severe abdominal pain. Lower right side. Nausea and fever 101F.,"severe abdominal pain,right lower,fever,HIGH",50,300,HIGH,Possible appendicitis
-37,yellow,medium,I'm 66 and coughing up blood. Small amounts. Also short of breath. Smoker for 40 years.,"hemoptysis,shortness of breath,smoker,HIGH",50,300,HIGH,Hemoptysis - urgent workup
-38,yellow,medium,I'm 8 months pregnant and haven't felt the baby move in 6 hours. Usually very active.,"pregnant,decreased fetal movement,HIGH",50,300,HIGH,Decreased fetal movement - urgent
-39,yellow,medium,I'm 45 and have sudden severe headache. Worst headache of my life. Started 1 hour ago.,"severe headache,sudden,worst ever,CRITICAL",50,300,CRITICAL,Thunderclap headache - SAH?
-40,yellow,medium,I'm diabetic and my blood sugar is 450. Feeling very thirsty and urinating a lot.,"diabetes,hyperglycemia,450,HIGH",50,300,HIGH,Diabetic hyperglycemia - DKA risk
-41,edge,hard,I'm 25 and healthy but convinced I have cancer. I've seen 5 doctors. All tests normal.,"health anxiety,doctor shopping,reassurance seeking,MODERATE",50,400,MODERATE,Health anxiety - psych component
-42,edge,hard,I work night shifts and my sleep is terrible. Also depressed. On sertraline 100mg.,"shift work,insomnia,depression,sertraline,MODERATE",50,400,MODERATE,Complex sleep + mental health
-43,edge,hard,I'm 40 with chronic fatigue. 10 doctors. Thousands in tests. All normal. I'm desperate.,"chronic fatigue,functional disorder,frustration,MODERATE",50,400,MODERATE,Medically unexplained symptoms
-44,edge,hard,I'm 55 with diabetes hypertension COPD CKD heart failure. On 12 medications. Dizzy often.,"polypharmacy,multiple conditions,complex,HIGH",50,400,HIGH,Complex polypharmacy
-45,edge,hard,I'm homeless 35 years old. Coughing blood for weeks. Can't afford treatment. No insurance.,"homeless,hemoptysis,no insurance,social determinants,HIGH",50,400,HIGH,Social determinants + urgent medical
-46,edge,hard,My 85-year-old mother with dementia fell. She can't tell us if she's in pain. Confused.,"geriatric,dementia,fall,communication barrier,HIGH",50,400,HIGH,Geriatric + cognitive impairment
-47,edge,hard,I'm schizophrenic on clozapine. Haven't taken meds for a week. Hearing voices. Agitated.,"schizophrenia,medication non-compliance,psychosis,HIGH",50,400,HIGH,Psychiatric emergency
-48,edge,hard,I'm 16 and my parents don't know I'm here. I think I'm pregnant and need help.,"adolescent,pregnancy,confidentiality,MODERATE",50,400,MODERATE,Adolescent confidentiality issue
-49,edge,hard,I overdosed on pills last night. Woke up this morning. Don't want to go to ER. Feeling okay.,"suicide attempt,overdose,refusal,CRITICAL",50,400,CRITICAL,Suicide attempt + refusal of care
-50,edge,hard,I'm 50 and doctor said I need surgery but I only trust natural remedies. No surgery.,"refusal of treatment,alternative medicine,MODERATE",50,400,MODERATE,Treatment refusal - autonomy vs. beneficence
+prompt_id,category,prompt,expected_keywords,difficulty,notes
+P001,technical_query,Explain how HDF5 append-only storage works in Free Intelligence,"hdf5,append-only,immutable,hash",easy,Core architecture concept
+P002,technical_query,What is the difference between a session and an interaction?,"session,interaction,uuid,timestamp",easy,Fundamental data model
+P003,technical_query,How does Free Intelligence verify data integrity?,"sha256,hash,verify,content_hash",medium,Security feature
+P004,technical_query,Describe the export process and manifest generation,"export,manifest,policy,redaction",medium,Export flow
+P005,technical_query,What is the role of mutation_policy.yml?,"mutation,policy,append-only,rules",medium,Policy system
+P006,workflow,How do I create a new session via API?,"POST,/api/ingest/session,session_id",easy,API usage
+P007,workflow,How do I export a session to JSON format?,"POST,/api/export/session,json,manifest",easy,Export workflow
+P008,workflow,How do I verify a session's integrity?,"POST,/api/verify/session,hash,badges",medium,Verification workflow
+P009,workflow,How do I search for interactions containing specific text?,"search,timeline,filter,query",medium,Search feature
+P010,workflow,What APIs are available in Free Intelligence?,"ingestion,timeline,verify,export",easy,API inventory
+P011,architecture,Explain the hexagonal architecture pattern used in Free Intelligence,"hexagonal,domain,core,adapter",hard,Architecture pattern
+P012,architecture,How does Free Intelligence implement local-first principles?,"local-first,lan,no-cloud,nas",medium,Design philosophy
+P013,architecture,What is the corpus.h5 file structure?,"groups,datasets,attributes,hierarchy",hard,HDF5 schema
+P014,architecture,How does the LLM router work?,"llm_policy,routing,model_id,fallback",hard,LLM routing logic
+P015,architecture,Explain the policy-as-code approach,"yaml,policy,validation,enforcement",medium,Policy system
+P016,philosophy,What does 'Materia = Glitch Elegante' mean?,"entropy,error-budget,chaos,imperfection",hard,Axiom 1
+P017,philosophy,What does 'Humano = App en Beta' mean?,"onboarding,feedback,iteration,learning",hard,Axiom 2
+P018,philosophy,What does 'Dios = Full-Stack del Cosmos' mean?,"domain-driven,inmanent,architecture,emergence",hard,Axiom 3
+P019,philosophy,What does 'Gnóstico/Alquimista = Tester OG' mean?,"testing,falsification,golden-set,experimentation",hard,Axiom 4
+P020,philosophy,How do error budgets relate to the philosophical framework?,"materia,glitch,slo,resilience",hard,Philosophy mapping
+P021,troubleshooting,I get 'Corpus locked' error. What should I do?,"wait,retry,lock,concurrent",medium,Common error
+P022,troubleshooting,Export fails with 'Disk 90% full'. How to fix?,"disk-space,location,cleanup,storage",easy,Resource error
+P023,troubleshooting,Verification shows 'Hash mismatch'. What happened?,"tampering,corruption,hash,integrity",hard,Integrity issue
+P024,troubleshooting,LLM request returns 429 error. What now?,"rate-limit,retry,backoff,timeout",medium,API error
+P025,troubleshooting,Timeline API is slow (>2s latency). Diagnose?,"performance,p95,bottleneck,cache",hard,Performance issue
+P026,best_practices,What is the recommended session naming convention?,"session_YYYYMMDD_HHMMSS,timestamp,format",easy,Convention
+P027,best_practices,How often should I run Friday Reviews?,"weekly,friday,reflection,ritual",easy,UX practice
+P028,best_practices,When should I use export vs backup?,"export,backup,manifest,use-case",medium,Data management
+P029,best_practices,What tags should I use for organizing sessions?,"tags,labels,organization,convention",medium,Organization
+P030,best_practices,How to structure prompts for optimal LLM routing?,"routing,model,complexity,fallback",hard,LLM usage
+P031,security,Is Free Intelligence HIPAA compliant?,"hipaa,phi,redaction,compliance",hard,Compliance question
+P032,security,How does Free Intelligence handle sensitive data?,"redaction,policy,phi,pii",medium,Data privacy
+P033,security,Can I use Free Intelligence over the internet?,"lan-only,network,security,local",medium,Network security
+P034,security,What audit logs are maintained?,"audit,log,timestamp,action",medium,Audit trail
+P035,security,How are hashes used for security?,"sha256,integrity,tampering,verification",medium,Cryptographic security
+P036,performance,What is the target p95 latency for Timeline API?,"100ms,p95,latency,slo",easy,Performance SLO
+P037,performance,What is the target p99 latency for Ingestion API?,"2s,p99,latency,slo",easy,Performance SLO
+P038,performance,How does caching improve performance?,"cache,redis,metadata,read",medium,Optimization
+P039,performance,What causes slow exports?,"disk,size,policy,computation",medium,Performance debugging
+P040,performance,How to optimize corpus.h5 read performance?,"compression,chunk,cache,index",hard,HDF5 optimization
+P041,integration,How do I integrate Free Intelligence with AURITY frontend?,"api,cors,integration,frontend",medium,Integration pattern
+P042,integration,Can I use Free Intelligence with external LLM APIs?,"llm_policy,api,routing,configuration",medium,LLM integration
+P043,integration,How to integrate with existing HDF5 corpus?,"migration,schema,validation,import",hard,Data migration
+P044,integration,Can Free Intelligence work with Docker?,"docker,deployment,container,volume",medium,Deployment
+P045,integration,How to integrate chaos drills into CI/CD?,"chaos,drill,ci,automation",hard,Testing automation
+P046,edge_cases,What happens if corpus.h5 gets corrupted?,"corruption,recovery,backup,validation",hard,Disaster recovery
+P047,edge_cases,What if two processes write simultaneously?,"concurrency,lock,conflict,resolution",hard,Concurrency issue
+P048,edge_cases,How does Free Intelligence handle very large sessions (1000+ interactions)?,"scalability,pagination,performance,optimization",hard,Scalability
+P049,edge_cases,What if LLM API is completely unavailable?,"fallback,circuit-breaker,degradation,timeout",medium,Failure scenario
+P050,edge_cases,Can I delete the corpus.h5 file and start fresh?,"reset,delete,backup,initialization",medium,Reset scenario

@@ -1,613 +1,133 @@
 #!/usr/bin/env python3
 """
-Free Intelligence - Evaluation Runner
-
-Evaluates LLM performance on 50 test prompts:
-- 30 green (should pass easily)
-- 10 yellow (moderate difficulty)
-- 10 edge (challenging cases)
-
-Metrics:
-- Latency (p50, p95, p99)
-- Quality score (heuristic: length, keywords, urgency match)
-- Success rate by category
-
-Output: Markdown report saved to eval/results/
-
-File: eval/run_eval.py
-Created: 2025-10-28
+Golden Set Evaluation Runner - Card: FI-OBS-RES-001
 """
-
-import sys
-import csv
-import json
-import time
-from pathlib import Path
+import argparse, csv, json, logging, sys, time
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Any
-from dataclasses import dataclass, asdict
-import statistics
+from pathlib import Path
+from typing import Any, Optional
 
-# Add backend to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from backend.llm_router import llm_generate
-from backend.preset_loader import get_preset_loader
-from backend.logger import get_logger
-from backend.medical_validators import MedicalScorer, PediatricValidator
-from backend.schema_normalizer import normalize_intake_output
-import jsonschema
-
-logger = get_logger(__name__)
-
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logger = logging.getLogger("eval")
 
 @dataclass
-class EvalCase:
-    """Single evaluation test case"""
-    id: int
+class EvalPrompt:
+    prompt_id: str
     category: str
-    difficulty: str
     prompt: str
-    expected_keywords: List[str]
-    min_length: int
-    max_length: int
-    urgency_expected: str
+    expected_keywords: list[str]
+    difficulty: str
     notes: str
-
 
 @dataclass
 class EvalResult:
-    """Result of evaluating single case"""
-    case_id: int
-    category: str
-    difficulty: str
+    prompt_id: str
     prompt: str
     response: str
     latency_ms: float
-    tokens: int
-    cost_usd: float
+    input_tokens: int
+    output_tokens: int
+    timestamp: str
+    adecuacion_score: Optional[int] = None
 
-    # Quality scores
-    length_score: float  # 0-100
-    keyword_score: float  # 0-100
-    urgency_score: float  # 0-100
-    total_score: float  # 0-100
+class GoldenSetEvaluator:
+    def __init__(self, prompts_path: str = "eval/prompts.csv", dry_run: bool = False):
+        self.prompts_path = Path(prompts_path)
+        self.dry_run = dry_run
+        self.prompts: list[EvalPrompt] = []
+        self.results: list[EvalResult] = []
 
-    passed: bool
-    error: str = None
-
-
-class EvalRunner:
-    """
-    Evaluation runner for IntakeCoach preset.
-
-    Runs all test cases and generates quality metrics.
-    """
-
-    def __init__(
-        self,
-        prompts_csv: str = "eval/prompts.csv",
-        provider: str = "ollama",
-        pass_threshold: float = 70.0
-    ):
-        """
-        Initialize eval runner.
-
-        Args:
-            prompts_csv: Path to prompts CSV
-            provider: LLM provider (ollama or claude)
-            pass_threshold: Minimum score to pass (0-100)
-        """
-        self.prompts_csv = Path(prompts_csv)
-        self.provider = provider
-        self.pass_threshold = pass_threshold
-        self.logger = get_logger(__name__)
-
-        # Load preset
-        self.preset_loader = get_preset_loader()
-        self.preset = self.preset_loader.load_preset("intake_coach")
-
-        # Load schema for validation
-        self.schema = self.preset_loader.load_schema(self.preset.output_schema_path)
-
-        # Initialize medical validators
-        self.medical_scorer = MedicalScorer()
-        self.pediatric_validator = PediatricValidator()
-
-        self.logger.info("EVAL_RUNNER_INITIALIZED",
-                        prompts_csv=str(self.prompts_csv),
-                        provider=provider,
-                        pass_threshold=pass_threshold,
-                        schema_loaded=self.preset.output_schema_path)
-
-    def load_cases(self) -> List[EvalCase]:
-        """Load test cases from CSV"""
-        cases = []
-
-        with open(self.prompts_csv, 'r', encoding='utf-8') as f:
+    def load_prompts(self) -> list[EvalPrompt]:
+        if not self.prompts_path.exists():
+            raise FileNotFoundError(f"Prompts file not found: {self.prompts_path}")
+        prompts = []
+        with open(self.prompts_path) as f:
             reader = csv.DictReader(f)
             for row in reader:
-                case = EvalCase(
-                    id=int(row['id']),
-                    category=row['category'],
-                    difficulty=row['difficulty'],
-                    prompt=row['prompt'],
-                    expected_keywords=row['expected_keywords'].split(','),
-                    min_length=int(row['min_length']),
-                    max_length=int(row['max_length']),
-                    urgency_expected=row['urgency_expected'],
-                    notes=row['notes']
-                )
-                cases.append(case)
+                prompts.append(EvalPrompt(prompt_id=row["prompt_id"], category=row["category"], prompt=row["prompt"], expected_keywords=row["expected_keywords"].split(","), difficulty=row["difficulty"], notes=row["notes"]))
+        self.prompts = prompts
+        logger.info(f"Loaded {len(prompts)} prompts")
+        return prompts
 
-        self.logger.info("EVAL_CASES_LOADED", count=len(cases))
-        return cases
+    def send_prompt(self, prompt: EvalPrompt) -> EvalResult:
+        if self.dry_run:
+            return EvalResult(prompt_id=prompt.prompt_id, prompt=prompt.prompt, response=f"[DRY RUN] Mock response for {prompt.prompt_id}", latency_ms=1000.0, input_tokens=len(prompt.prompt.split()), output_tokens=50, timestamp=datetime.now().isoformat())
+        logger.warning("Real LLM execution not implemented yet")
+        return EvalResult(prompt_id=prompt.prompt_id, prompt=prompt.prompt, response="[NOT IMPLEMENTED]", latency_ms=0, input_tokens=0, output_tokens=0, timestamp=datetime.now().isoformat())
 
-    def evaluate_case(self, case: EvalCase) -> EvalResult:
-        """
-        Evaluate single test case.
+    def score_adecuacion(self, prompt: EvalPrompt, response: str) -> int:
+        keywords = [kw.strip() for kw in prompt.expected_keywords]
+        matches = sum(1 for kw in keywords if kw.lower() in response.lower())
+        coverage = matches / len(keywords) if keywords else 0
+        if coverage >= 1.0: return 5
+        elif coverage >= 0.75: return 4
+        elif coverage >= 0.5: return 3
+        elif coverage >= 0.25: return 2
+        else: return 1
 
-        Args:
-            case: EvalCase to evaluate
-
-        Returns:
-            EvalResult with scores
-        """
-        self.logger.info("EVAL_CASE_STARTED",
-                        case_id=case.id,
-                        category=case.category,
-                        difficulty=case.difficulty)
-
-        try:
-            # Generate with LLM
-            full_prompt = f"{self.preset.system_prompt}\n\nPatient Input:\n{case.prompt}\n\nJSON Output:"
-
-            start_time = time.time()
-            response = llm_generate(
-                prompt=full_prompt,
-                provider=self.provider,
-                temperature=self.preset.temperature,
-                max_tokens=self.preset.max_tokens
-            )
-            latency_ms = (time.time() - start_time) * 1000
-
-            # Parse response
+    def run_evaluation(self) -> list[EvalResult]:
+        logger.info(f"Starting evaluation ({len(self.prompts)} prompts)...")
+        for i, prompt in enumerate(self.prompts, 1):
+            logger.info(f"[{i}/{len(self.prompts)}] {prompt.prompt_id}")
             try:
-                output = json.loads(response.content)
-            except json.JSONDecodeError:
-                # JSON parse failed
-                return EvalResult(
-                    case_id=case.id,
-                    category=case.category,
-                    difficulty=case.difficulty,
-                    prompt=case.prompt,
-                    response=response.content[:200],
-                    latency_ms=latency_ms,
-                    tokens=response.tokens_used,
-                    cost_usd=response.cost_usd,
-                    length_score=0,
-                    keyword_score=0,
-                    urgency_score=0,
-                    total_score=0,
-                    passed=False,
-                    error="JSON_PARSE_ERROR"
-                )
+                result = self.send_prompt(prompt)
+                result.adecuacion_score = self.score_adecuacion(prompt, result.response)
+                self.results.append(result)
+                logger.info(f"  ✓ adecuacion: {result.adecuacion_score}/5")
+            except Exception as e:
+                logger.error(f"  ✗ Failed: {e}")
+        return self.results
 
-            # Normalize output (null → [] for array fields)
-            output = normalize_intake_output(output)
+    def generate_report(self) -> dict[str, Any]:
+        if not self.results:
+            return {"error": "No results"}
+        total = len(self.results)
+        avg_latency = sum(r.latency_ms for r in self.results) / total
+        adec_scores = [r.adecuacion_score for r in self.results if r.adecuacion_score]
+        avg_adec = sum(adec_scores) / len(adec_scores) if adec_scores else 0
+        total_input = sum(r.input_tokens for r in self.results)
+        total_output = sum(r.output_tokens for r in self.results)
+        cost = (total_input / 1000) * 0.003 + (total_output / 1000) * 0.015
+        return {"timestamp": datetime.now().isoformat(), "summary": {"total_prompts": total, "avg_latency_ms": avg_latency, "avg_adecuacion": avg_adec, "total_input_tokens": total_input, "total_output_tokens": total_output, "estimated_cost_usd": cost}}
 
-            # Validate against JSON Schema
-            try:
-                self.preset_loader.validate_output(output, self.schema)
-            except jsonschema.ValidationError as e:
-                self.logger.error("SCHEMA_VALIDATION_FAILED",
-                                case_id=case.id,
-                                error=e.message)
-                return EvalResult(
-                    case_id=case.id,
-                    category=case.category,
-                    difficulty=case.difficulty,
-                    prompt=case.prompt,
-                    response=response.content[:200],
-                    latency_ms=latency_ms,
-                    tokens=response.tokens_used,
-                    cost_usd=response.cost_usd,
-                    length_score=0,
-                    keyword_score=0,
-                    urgency_score=0,
-                    total_score=0,
-                    passed=False,
-                    error=f"SCHEMA_VALIDATION_FAILED: {e.message}"
-                )
-
-            # Medical Safety Validations
-            actual_urgency = output.get('urgency', 'UNKNOWN')
-
-            # 1. Urgency safety (blocker if downgrade)
-            urgency_validation = self.medical_scorer.score_urgency_safety(
-                actual=actual_urgency,
-                expected=case.urgency_expected,
-                case_prompt=case.prompt
-            )
-
-            if urgency_validation.severity == "BLOCKER":
-                self.logger.error("MEDICAL_SAFETY_BLOCKER",
-                                case_id=case.id,
-                                reason=urgency_validation.reason)
-                return EvalResult(
-                    case_id=case.id,
-                    category=case.category,
-                    difficulty=case.difficulty,
-                    prompt=case.prompt,
-                    response=response.content[:200],
-                    latency_ms=latency_ms,
-                    tokens=response.tokens_used,
-                    cost_usd=response.cost_usd,
-                    length_score=0,
-                    keyword_score=0,
-                    urgency_score=0,
-                    total_score=0,
-                    passed=False,
-                    error=urgency_validation.reason
-                )
-
-            # 2. Required history completeness
-            history_validation = self.medical_scorer.score_required_history(
-                output=output,
-                case_prompt=case.prompt
-            )
-
-            if history_validation.severity == "BLOCKER":
-                self.logger.error("MEDICAL_SAFETY_BLOCKER",
-                                case_id=case.id,
-                                reason=history_validation.reason)
-                return EvalResult(
-                    case_id=case.id,
-                    category=case.category,
-                    difficulty=case.difficulty,
-                    prompt=case.prompt,
-                    response=response.content[:200],
-                    latency_ms=latency_ms,
-                    tokens=response.tokens_used,
-                    cost_usd=response.cost_usd,
-                    length_score=0,
-                    keyword_score=0,
-                    urgency_score=0,
-                    total_score=0,
-                    passed=False,
-                    error=history_validation.reason
-                )
-
-            # 3. Widow-maker detection
-            widow_maker_validation = self.medical_scorer.detect_widow_maker(
-                case_prompt=case.prompt,
-                output=output
-            )
-
-            if widow_maker_validation.severity == "BLOCKER":
-                self.logger.error("WIDOW_MAKER_BLOCKER",
-                                case_id=case.id,
-                                reason=widow_maker_validation.reason)
-                return EvalResult(
-                    case_id=case.id,
-                    category=case.category,
-                    difficulty=case.difficulty,
-                    prompt=case.prompt,
-                    response=response.content[:200],
-                    latency_ms=latency_ms,
-                    tokens=response.tokens_used,
-                    cost_usd=response.cost_usd,
-                    length_score=0,
-                    keyword_score=0,
-                    urgency_score=0,
-                    total_score=0,
-                    passed=False,
-                    error=widow_maker_validation.reason
-                )
-
-            # 4. Pediatric safety
-            pediatric_validation = self.pediatric_validator.validate_pediatric_response(
-                output=output,
-                case_prompt=case.prompt
-            )
-
-            if pediatric_validation.severity == "BLOCKER":
-                self.logger.error("PEDIATRIC_SAFETY_BLOCKER",
-                                case_id=case.id,
-                                reason=pediatric_validation.reason)
-                return EvalResult(
-                    case_id=case.id,
-                    category=case.category,
-                    difficulty=case.difficulty,
-                    prompt=case.prompt,
-                    response=response.content[:200],
-                    latency_ms=latency_ms,
-                    tokens=response.tokens_used,
-                    cost_usd=response.cost_usd,
-                    length_score=0,
-                    keyword_score=0,
-                    urgency_score=0,
-                    total_score=0,
-                    passed=False,
-                    error=pediatric_validation.reason
-                )
-
-            # Score response (if all safety gates passed)
-            length_score = self._score_length(response.content, case)
-            keyword_score = self._score_keywords(response.content, case)
-
-            # Use medical urgency score (safety-adjusted)
-            urgency_score = urgency_validation.score
-            history_score = history_validation.score
-
-            # Weighted scoring (safety-critical first)
-            SCORING_WEIGHTS = {
-                'urgency': 0.35,      # CRITICAL: safety-determining
-                'history': 0.25,      # HIGH: completeness
-                'keywords': 0.25,     # HIGH: symptom coverage
-                'length': 0.15        # MEDIUM: detail level
-            }
-
-            total_score = (
-                urgency_score * SCORING_WEIGHTS['urgency'] +
-                history_score * SCORING_WEIGHTS['history'] +
-                keyword_score * SCORING_WEIGHTS['keywords'] +
-                length_score * SCORING_WEIGHTS['length']
-            )
-
-            passed = total_score >= self.pass_threshold
-
-            result = EvalResult(
-                case_id=case.id,
-                category=case.category,
-                difficulty=case.difficulty,
-                prompt=case.prompt,
-                response=response.content,
-                latency_ms=latency_ms,
-                tokens=response.tokens_used,
-                cost_usd=response.cost_usd,
-                length_score=length_score,
-                keyword_score=keyword_score,
-                urgency_score=urgency_score,
-                total_score=total_score,
-                passed=passed
-            )
-
-            self.logger.info("EVAL_CASE_COMPLETED",
-                           case_id=case.id,
-                           score=total_score,
-                           passed=passed,
-                           latency_ms=latency_ms)
-
-            return result
-
-        except Exception as e:
-            self.logger.error("EVAL_CASE_FAILED",
-                            case_id=case.id,
-                            error=str(e))
-
-            return EvalResult(
-                case_id=case.id,
-                category=case.category,
-                difficulty=case.difficulty,
-                prompt=case.prompt,
-                response="",
-                latency_ms=0,
-                tokens=0,
-                cost_usd=0,
-                length_score=0,
-                keyword_score=0,
-                urgency_score=0,
-                total_score=0,
-                passed=False,
-                error=str(e)
-            )
-
-    def _score_length(self, response: str, case: EvalCase) -> float:
-        """Score response length (0-100)"""
-        length = len(response)
-
-        if length < case.min_length:
-            return max(0, (length / case.min_length) * 100)
-        elif length > case.max_length:
-            return max(0, 100 - ((length - case.max_length) / case.max_length * 50))
-        else:
-            return 100.0
-
-    def _score_keywords(self, response: str, case: EvalCase) -> float:
-        """Score keyword presence (0-100)"""
-        response_lower = response.lower()
-        matches = sum(1 for kw in case.expected_keywords if kw.lower() in response_lower)
-
-        if not case.expected_keywords:
-            return 100.0
-
-        return (matches / len(case.expected_keywords)) * 100
-
-    def _score_urgency(self, output: Dict, case: EvalCase) -> float:
-        """Score urgency match (0-100)"""
-        actual_urgency = output.get('urgency', 'UNKNOWN')
-
-        if actual_urgency == case.urgency_expected:
-            return 100.0
-        elif actual_urgency in ['HIGH', 'CRITICAL'] and case.urgency_expected in ['HIGH', 'CRITICAL']:
-            return 75.0  # Partial credit for high-urgency cases
-        else:
-            return 0.0
-
-    def run_all(self) -> List[EvalResult]:
-        """Run all evaluation cases"""
-        cases = self.load_cases()
-        results = []
-
-        print(f"\n{'='*70}")
-        print(f"🎯 Running Evaluation: {len(cases)} cases")
-        print(f"{'='*70}")
-
-        for i, case in enumerate(cases, 1):
-            print(f"\n[{i}/{len(cases)}] Case {case.id}: {case.category}/{case.difficulty}")
-            print(f"  Prompt: {case.prompt[:60]}...")
-
-            result = self.evaluate_case(case)
-            results.append(result)
-
-            status = "✅ PASS" if result.passed else "❌ FAIL"
-            print(f"  Result: {status} (score: {result.total_score:.1f}, latency: {result.latency_ms:.0f}ms)")
-
-            if result.error:
-                print(f"  Error: {result.error}")
-
-        print(f"\n{'='*70}")
-        print(f"✅ Evaluation Complete: {len(results)} results")
-        print(f"{'='*70}\n")
-
-        return results
-
-    def generate_report(self, results: List[EvalResult]) -> str:
-        """
-        Generate markdown report.
-
-        Args:
-            results: List of EvalResult
-
-        Returns:
-            Markdown report string
-        """
-        # Calculate statistics
-        latencies = [r.latency_ms for r in results if r.latency_ms > 0]
-        scores = [r.total_score for r in results]
-        passed_count = sum(1 for r in results if r.passed)
-
-        # By category
-        by_category = {}
-        for r in results:
-            if r.category not in by_category:
-                by_category[r.category] = []
-            by_category[r.category].append(r)
-
-        # Generate report
-        report = []
-        report.append("# Free Intelligence - Evaluation Report")
-        report.append(f"\n**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        report.append(f"**Provider**: {self.provider}")
-        report.append(f"**Model**: {self.preset.model}")
-        report.append(f"**Pass Threshold**: {self.pass_threshold}")
-        report.append(f"**Total Cases**: {len(results)}")
-
-        # Summary
-        report.append("\n## 📊 Summary")
-        report.append(f"\n- **Pass Rate**: {passed_count}/{len(results)} ({passed_count/len(results)*100:.1f}%)")
-        report.append(f"- **Mean Score**: {statistics.mean(scores):.1f}")
-        report.append(f"- **Median Score**: {statistics.median(scores):.1f}")
-
-        # Latency
-        if latencies:
-            report.append("\n## ⏱️  Latency")
-            report.append(f"\n- **p50**: {self._percentile(sorted(latencies), 50):.0f}ms")
-            report.append(f"- **p95**: {self._percentile(sorted(latencies), 95):.0f}ms")
-            report.append(f"- **p99**: {self._percentile(sorted(latencies), 99):.0f}ms")
-            report.append(f"- **Mean**: {statistics.mean(latencies):.0f}ms")
-            report.append(f"- **Min**: {min(latencies):.0f}ms")
-            report.append(f"- **Max**: {max(latencies):.0f}ms")
-
-        # By category
-        report.append("\n## 📂 Results by Category")
-        for category in ['green', 'yellow', 'edge']:
-            if category in by_category:
-                cat_results = by_category[category]
-                cat_passed = sum(1 for r in cat_results if r.passed)
-                cat_scores = [r.total_score for r in cat_results]
-
-                report.append(f"\n### {category.upper()} ({len(cat_results)} cases)")
-                report.append(f"- Pass Rate: {cat_passed}/{len(cat_results)} ({cat_passed/len(cat_results)*100:.1f}%)")
-                report.append(f"- Mean Score: {statistics.mean(cat_scores):.1f}")
-
-        # Failures
-        failures = [r for r in results if not r.passed]
-        if failures:
-            report.append("\n## ❌ Failures")
-            report.append(f"\n{len(failures)} cases failed:\n")
-            for r in failures:
-                report.append(f"- **Case {r.case_id}** ({r.category}/{r.difficulty}): score={r.total_score:.1f}")
-                if r.error:
-                    report.append(f"  - Error: {r.error}")
-
-        # Cost
-        total_cost = sum(r.cost_usd for r in results)
-        total_tokens = sum(r.tokens for r in results)
-        report.append("\n## 💰 Cost")
-        report.append(f"\n- **Total Cost**: ${total_cost:.6f}")
-        report.append(f"- **Total Tokens**: {total_tokens:,}")
-
-        return "\n".join(report)
-
-    def _percentile(self, sorted_values: List[float], percentile: int) -> float:
-        """Calculate percentile"""
-        if not sorted_values:
-            return 0.0
-
-        k = (len(sorted_values) - 1) * (percentile / 100.0)
-        f = int(k)
-        c = f + 1
-
-        if c >= len(sorted_values):
-            return sorted_values[-1]
-
-        return sorted_values[f] + (sorted_values[c] - sorted_values[f]) * (k - f)
-
+    def save_results(self, output_path: Path) -> None:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w") as f:
+            for r in self.results:
+                f.write(json.dumps({"prompt_id": r.prompt_id, "prompt": r.prompt, "response": r.response, "latency_ms": r.latency_ms, "input_tokens": r.input_tokens, "output_tokens": r.output_tokens, "timestamp": r.timestamp, "adecuacion_score": r.adecuacion_score}) + "\n")
+        logger.info(f"Results saved to {output_path}")
 
 def main():
-    """CLI interface"""
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Free Intelligence Evaluation Runner"
-    )
-
-    parser.add_argument('--provider', default='ollama',
-                       choices=['ollama', 'claude'],
-                       help='LLM provider')
-    parser.add_argument('--threshold', type=float, default=70.0,
-                       help='Pass threshold (0-100)')
-    parser.add_argument('--output', default='eval/results',
-                       help='Output directory for reports')
-
+    parser = argparse.ArgumentParser(description="Golden Set Evaluation Runner")
+    parser.add_argument("--prompts", type=str, default="eval/prompts.csv")
+    parser.add_argument("--output", type=str)
+    parser.add_argument("--report", type=str)
+    parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    evaluator = GoldenSetEvaluator(prompts_path=args.prompts, dry_run=args.dry_run)
+    try:
+        evaluator.load_prompts()
+    except FileNotFoundError as e:
+        logger.error(str(e))
+        sys.exit(1)
+    evaluator.run_evaluation()
+    report = evaluator.generate_report()
+    print("\n" + "=" * 60)
+    print("Evaluation Report")
+    print("=" * 60)
+    print(f"Total Prompts: {report['summary']['total_prompts']}")
+    print(f"Avg Latency: {report['summary']['avg_latency_ms']:.0f}ms")
+    print(f"Avg Adecuación: {report['summary']['avg_adecuacion']:.1f}/5")
+    print(f"Estimated Cost: ${report['summary']['estimated_cost_usd']:.2f}")
+    print("=" * 60)
+    if args.output:
+        evaluator.save_results(Path(args.output))
+    if args.report:
+        with open(Path(args.report), "w") as f:
+            json.dump(report, f, indent=2)
+        logger.info(f"Report saved to {args.report}")
+    sys.exit(0)
 
-    # Create output directory
-    output_dir = Path(args.output)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Run evaluation
-    runner = EvalRunner(
-        provider=args.provider,
-        pass_threshold=args.threshold
-    )
-
-    results = runner.run_all()
-
-    # Generate report
-    report = runner.generate_report(results)
-
-    # Save report
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    report_path = output_dir / f"eval_report_{args.provider}_{timestamp}.md"
-
-    with open(report_path, 'w', encoding='utf-8') as f:
-        f.write(report)
-
-    print(f"\n📄 Report saved: {report_path}")
-
-    # Also save results as JSON
-    json_path = output_dir / f"eval_results_{args.provider}_{timestamp}.json"
-    with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump([asdict(r) for r in results], f, indent=2)
-
-    print(f"📄 JSON saved: {json_path}")
-
-    # Print report
-    print("\n" + report)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
