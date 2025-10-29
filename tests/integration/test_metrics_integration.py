@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 # Add backend to path
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.llm_router import llm_generate, llm_embed
 from backend.metrics import get_metrics_collector
