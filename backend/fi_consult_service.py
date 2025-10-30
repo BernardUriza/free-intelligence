@@ -18,17 +18,21 @@ Usage:
   uvicorn backend.fi_consult_service:app --reload --port 7001
 """
 
+import os
 from datetime import datetime
+from pathlib import Path as FilePath
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Path, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 # Import event store (to be implemented)
 # from backend.fi_event_store import EventStore
-# Import Sessions API router (FI-API-FEAT-009)
+# Import API routers
 from backend.api.sessions import router as sessions_router
+from backend.api.exports import router as exports_router
 from backend.fi_consult_models import (AppendEventRequest, AppendEventResponse,
                                        Consultation, ConsultationEvent,
                                        EventType, GetConsultationResponse,
@@ -62,9 +66,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount Sessions API router (FI-API-FEAT-009)
-# Note: router already has /api/sessions paths defined, so no prefix needed
+# Mount API routers
+# Sessions API (FI-API-FEAT-009)
 app.include_router(sessions_router, tags=["sessions"])
+
+# Export API (FI-API-FEAT-013)
+app.include_router(exports_router, tags=["exports"])
+
+# Static file serving for export downloads
+# Ensure export directory exists
+EXPORT_DIR = FilePath(os.getenv("EXPORT_DIR", "/tmp/fi_exports"))
+EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Mount static files at /downloads
+app.mount("/downloads", StaticFiles(directory=str(EXPORT_DIR)), name="downloads")
 
 
 # ============================================================================

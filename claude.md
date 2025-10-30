@@ -666,3 +666,13 @@ Backend
 
 **Next**: Await QA validation in Testing list
 
+
+2025-10-30 00:45 — Export End-to-End (FI-API-FEAT-013 + FI-UI-FEAT-203)
+	•	Backend: POST/GET/verify export API con manifest + SHA256
+	•	Frontend: Export Modal con formato/include, verify con badges
+	•	Determinístico: mismo sessionId ⇒ mismos hashes
+	•	Static serving en /downloads
+	•	Archivos: backend/api/exports.py, ui/components/ExportModal.tsx, lib/api/exports.ts
+	•	Tests: ✅ contract, ✅ hash verification, ✅ determinism, ✅ downloads
+	•	Cards movidas a Testing
+
