@@ -26,9 +26,11 @@ import requests
 from backend.llm_adapter import (LLMAdapter, LLMBudget, LLMProviderError,
                                  LLMRequest, LLMResponse)
 from backend.logger import get_logger
+from backend.policy_enforcer import PolicyViolation, get_policy_enforcer
 from backend.utils.token_counter import TokenCounter
 
 logger = get_logger(__name__)
+policy = get_policy_enforcer()
 
 
 class OllamaAdapter(LLMAdapter):
@@ -45,7 +47,7 @@ class OllamaAdapter(LLMAdapter):
 
     def __init__(
         self,
-        model: str = "qwen2:7b",
+        model: str = "qwen2.5:7b-instruct-q4_0",
         budget: Optional[LLMBudget] = None,
         max_retries: int = 3,
         base_url: str = "http://127.0.0.1:11434",
@@ -153,10 +155,16 @@ class OllamaAdapter(LLMAdapter):
             temperature=request.temperature,
         )
 
-        # Build Ollama request payload
+        # Build Ollama request payload (API v0.12+ uses /api/chat with messages format)
+        messages = [{"role": "user", "content": request.prompt}]
+
+        # Add system prompt if provided
+        if request.system_prompt:
+            messages.insert(0, {"role": "system", "content": request.system_prompt})
+
         payload = {
             "model": self.model,
-            "prompt": request.prompt,
+            "messages": messages,
             "stream": False,
             "options": {
                 "temperature": request.temperature,
@@ -164,24 +172,32 @@ class OllamaAdapter(LLMAdapter):
             },
         }
 
-        # Add system prompt if provided
-        if request.system_prompt:
-            payload["system"] = request.system_prompt
-
         # Retry logic
         last_error = None
         for attempt in range(self.max_retries + 1):
             try:
+                # Policy: Check egress (Ollama is local so should pass, but checked for consistency)
+                try:
+                    policy.check_egress(
+                        f"{self.base_url}/api/chat",
+                        run_id=request.metadata.get("interaction_id") if request.metadata else None,
+                    )
+                except PolicyViolation as e:
+                    logger.error(
+                        "EGRESS_BLOCKED", provider="ollama", url=self.base_url, error=str(e)
+                    )
+                    raise LLMProviderError(f"API call blocked by policy: {e}")
+
                 response = requests.post(
-                    f"{self.base_url}/api/generate",
+                    f"{self.base_url}/api/chat",
                     json=payload,
                     timeout=self.timeout_seconds,
                 )
                 response.raise_for_status()
 
-                # Parse response
+                # Parse response (API v0.12+ format)
                 data = response.json()
-                text = data.get("response", "")
+                text = data.get("message", {}).get("content", "")
 
                 # Calculate latency
                 latency_ms = int((time.time() - start_time) * 1000)

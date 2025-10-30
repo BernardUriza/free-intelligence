@@ -15,9 +15,11 @@ from typing import Optional
 from backend.llm_adapter import (BudgetExceededError, LLMAdapter, LLMBudget,
                                  LLMProviderError, LLMRequest, LLMResponse)
 from backend.logger import get_logger
+from backend.policy_enforcer import PolicyViolation, get_policy_enforcer
 from backend.utils.token_counter import TokenCounter
 
 logger = get_logger(__name__)
+policy = get_policy_enforcer()
 
 
 class ClaudeAdapter(LLMAdapter):
@@ -108,8 +110,10 @@ class ClaudeAdapter(LLMAdapter):
                 messages = [{"role": "user", "content": request.prompt}]
 
                 # Build request kwargs
+                # Use request.model if provided, otherwise fall back to self.model
+                model_to_use = getattr(request, "model", None) or self.model
                 kwargs = {
-                    "model": self.model,
+                    "model": model_to_use,
                     "max_tokens": request.max_tokens,
                     "temperature": request.temperature,
                     "messages": messages,
@@ -118,6 +122,18 @@ class ClaudeAdapter(LLMAdapter):
                 # Add system prompt if provided
                 if request.system_prompt:
                     kwargs["system"] = request.system_prompt
+
+                # Policy: Check egress (sovereignty.egress.default=deny blocks external APIs)
+                try:
+                    policy.check_egress(
+                        "https://api.anthropic.com",
+                        run_id=request.metadata.get("interaction_id") if request.metadata else None,
+                    )
+                except PolicyViolation as e:
+                    logger.error(
+                        "EGRESS_BLOCKED", provider="claude", url="api.anthropic.com", error=str(e)
+                    )
+                    raise LLMProviderError(f"External API call blocked by policy: {e}")
 
                 # Call Claude API
                 response = self.client.messages.create(**kwargs)
@@ -222,6 +238,21 @@ class ClaudeAdapter(LLMAdapter):
             # Add system prompt if provided
             if request.system_prompt:
                 kwargs["system"] = request.system_prompt
+
+            # Policy: Check egress for streaming endpoint
+            try:
+                policy.check_egress(
+                    "https://api.anthropic.com",
+                    run_id=request.metadata.get("interaction_id") if request.metadata else None,
+                )
+            except PolicyViolation as e:
+                logger.error(
+                    "EGRESS_BLOCKED_STREAM",
+                    provider="claude",
+                    url="api.anthropic.com",
+                    error=str(e),
+                )
+                raise LLMProviderError(f"External streaming API call blocked by policy: {e}")
 
             # Stream response
             with self.client.messages.stream(**kwargs) as stream:
