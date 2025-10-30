@@ -155,7 +155,7 @@ class ClaudeAdapter(LLMAdapter):
                 llm_response = LLMResponse(
                     content=content,
                     provider=self.provider_name,
-                    model=self.model,
+                    model=model_to_use,  # Use actual model from request, not adapter default
                     tokens_used=tokens_used,
                     latency_ms=latency_ms,
                     finish_reason=response.stop_reason or "stop",
