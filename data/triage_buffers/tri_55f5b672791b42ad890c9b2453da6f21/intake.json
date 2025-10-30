@@ -1,0 +1,20 @@
+{
+  "bufferId": "tri_55f5b672791b42ad890c9b2453da6f21",
+  "receivedAt": "2025-10-30T04:07:52.039848Z",
+  "payload": {
+    "reason": "consulta respiratoria",
+    "symptoms": [
+      "tos",
+      "fiebre",
+      "dolor de garganta"
+    ],
+    "audioTranscription": "Paciente presenta tos seca desde hace 3 d\u00edas",
+    "metadata": {
+      "runId": "smoke_20251029_220751"
+    }
+  },
+  "client": {
+    "ip": "127.0.0.1",
+    "userAgent": "curl/8.7.1"
+  }
+}

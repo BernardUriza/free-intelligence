@@ -14,28 +14,28 @@
       "status": "VALID",
       "card_id": "FI-EVAL-002",
       "artifact": "eval/metrics.schema.json",
-      "size_kb": 3.08,
+      "size_kb": 3.17,
       "message": "\u2705 Artifact valid and executable"
     },
     {
       "status": "VALID",
       "card_id": "FI-EVAL-003",
       "artifact": "eval/run_eval.py",
-      "size_kb": 5.92,
+      "size_kb": 21.23,
       "message": "\u2705 Artifact valid and executable"
     },
     {
       "status": "VALID",
       "card_id": "FI-EVAL-004",
       "artifact": "eval/Makefile",
-      "size_kb": 0.76,
+      "size_kb": 4.11,
       "message": "\u2705 Artifact valid and executable"
     },
     {
       "status": "VALID",
       "card_id": "FI-OBS-RES-001",
       "artifact": "observability/error_budgets.yaml",
-      "size_kb": 1.81,
+      "size_kb": 2.04,
       "message": "\u2705 Artifact valid and executable"
     },
     {
@@ -49,7 +49,7 @@
       "status": "VALID",
       "card_id": "FI-POLICY-001",
       "artifact": "config/fi.policy.yaml",
-      "size_kb": 1.66,
+      "size_kb": 1.75,
       "message": "\u2705 Artifact valid and executable"
     },
     {
@@ -70,21 +70,21 @@
       "status": "VALID",
       "card_id": "FI-POLICY-004",
       "artifact": "tests/test_redaction.py",
-      "size_kb": 5.37,
+      "size_kb": 5.29,
       "message": "\u2705 Artifact valid and executable"
     },
     {
       "status": "VALID",
       "card_id": "FI-POLICY-005",
       "artifact": "tests/test_decision_rules.py",
-      "size_kb": 7.12,
+      "size_kb": 6.63,
       "message": "\u2705 Artifact valid and executable"
     },
     {
       "status": "VALID",
       "card_id": "FI-GOV-TOOL-001",
       "artifact": "tools/verify_artifact.py",
-      "size_kb": 4.62,
+      "size_kb": 4.71,
       "message": "\u2705 Artifact valid and executable"
     }
   ]

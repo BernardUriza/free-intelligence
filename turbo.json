@@ -5,7 +5,6 @@
   "remoteCache": {
     "enabled": false
   },
-  "daemon": false,
   "pipeline": {
     "dev": {
       "cache": false,

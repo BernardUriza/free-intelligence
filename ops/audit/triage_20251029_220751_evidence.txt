@@ -1,0 +1,23 @@
+Triage API Smoke Test Evidence
+Timestamp: 20251029_220751
+BASE: http://localhost:7001
+
+Test 1: Valid Intake
+  HTTP Code: 200
+  Buffer ID: tri_55f5b672791b42ad890c9b2453da6f21
+  Status: received
+  Received At: 2025-10-30T04:07:52.039848Z
+  Manifest URL: /api/triage/manifest/tri_55f5b672791b42ad890c9b2453da6f21
+
+Test 2: Manifest Retrieval
+  HTTP Code: 200
+  Manifest Version: 1.0.0
+  Payload Hash: sha256:9ea2ad7061c90138906a78b9509f89bfeb0d27ce0c14b7d3e765874cc06eb0c1
+
+Test 3: Validation - Missing Reason
+  HTTP Code: 422 (expected 422)
+
+Test 4: Validation - Transcription Limit
+  HTTP Code: 422 (expected 422)
+
+All Tests: PASSED ✓

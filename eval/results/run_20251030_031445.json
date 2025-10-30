@@ -1,0 +1,849 @@
+{
+  "run_id": "run_20251030_031445",
+  "timestamp": "2025-10-30T03:14:45.702482+00:00",
+  "model_id": "mock-llm",
+  "total_prompts": 50,
+  "results": [
+    {
+      "prompt_id": "P001",
+      "category": "technical_query",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.791,
+        "latency_ms": 611,
+        "cost_usd": 0.003429,
+        "tokens_in": 18,
+        "tokens_out": 225,
+        "keywords_matched": [
+          "immutable",
+          "hash"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P002",
+      "category": "technical_query",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.791,
+        "latency_ms": 673,
+        "cost_usd": 0.003405,
+        "tokens_in": 20,
+        "tokens_out": 223,
+        "keywords_matched": [
+          "session",
+          "interaction",
+          "uuid"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P003",
+      "category": "technical_query",
+      "metrics": {
+        "adequacy": 1.0,
+        "factuality": 0.825,
+        "latency_ms": 1268,
+        "cost_usd": 0.002037,
+        "tokens_in": 14,
+        "tokens_out": 133,
+        "keywords_matched": [
+          "sha256",
+          "hash",
+          "verify",
+          "content_hash"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P004",
+      "category": "technical_query",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.712,
+        "latency_ms": 1349,
+        "cost_usd": 0.004287,
+        "tokens_in": 14,
+        "tokens_out": 283,
+        "keywords_matched": [
+          "export",
+          "policy"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P005",
+      "category": "technical_query",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.724,
+        "latency_ms": 1255,
+        "cost_usd": 0.003141,
+        "tokens_in": 12,
+        "tokens_out": 207,
+        "keywords_matched": [
+          "policy",
+          "append-only"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P006",
+      "category": "workflow",
+      "metrics": {
+        "adequacy": 0.667,
+        "factuality": 0.852,
+        "latency_ms": 615,
+        "cost_usd": 0.003624,
+        "tokens_in": 18,
+        "tokens_out": 238,
+        "keywords_matched": [
+          "POST",
+          "session_id"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P007",
+      "category": "workflow",
+      "metrics": {
+        "adequacy": 1.0,
+        "factuality": 0.971,
+        "latency_ms": 582,
+        "cost_usd": 0.002394,
+        "tokens_in": 18,
+        "tokens_out": 156,
+        "keywords_matched": [
+          "POST",
+          "/api/export/session",
+          "json",
+          "manifest"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P008",
+      "category": "workflow",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.923,
+        "latency_ms": 1100,
+        "cost_usd": 0.000897,
+        "tokens_in": 14,
+        "tokens_out": 57,
+        "keywords_matched": [
+          "POST",
+          "/api/verify/session",
+          "badges"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P009",
+      "category": "workflow",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.974,
+        "latency_ms": 1104,
+        "cost_usd": 0.004494,
+        "tokens_in": 18,
+        "tokens_out": 296,
+        "keywords_matched": [
+          "timeline",
+          "query"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P010",
+      "category": "workflow",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.905,
+        "latency_ms": 720,
+        "cost_usd": 0.002982,
+        "tokens_in": 14,
+        "tokens_out": 196,
+        "keywords_matched": [
+          "ingestion",
+          "timeline",
+          "verify"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P011",
+      "category": "architecture",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.897,
+        "latency_ms": 2631,
+        "cost_usd": 0.002769,
+        "tokens_in": 18,
+        "tokens_out": 181,
+        "keywords_matched": [
+          "domain",
+          "core"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P012",
+      "category": "architecture",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.982,
+        "latency_ms": 1233,
+        "cost_usd": 0.003237,
+        "tokens_in": 14,
+        "tokens_out": 213,
+        "keywords_matched": [
+          "no-cloud",
+          "nas"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P013",
+      "category": "architecture",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.704,
+        "latency_ms": 2474,
+        "cost_usd": 0.002526,
+        "tokens_in": 12,
+        "tokens_out": 166,
+        "keywords_matched": [
+          "groups",
+          "datasets"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P014",
+      "category": "architecture",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.853,
+        "latency_ms": 2515,
+        "cost_usd": 0.004161,
+        "tokens_in": 12,
+        "tokens_out": 275,
+        "keywords_matched": [
+          "routing",
+          "model_id",
+          "fallback"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P015",
+      "category": "architecture",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.726,
+        "latency_ms": 1227,
+        "cost_usd": 0.001494,
+        "tokens_in": 8,
+        "tokens_out": 98,
+        "keywords_matched": [
+          "yaml",
+          "policy",
+          "validation"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P016",
+      "category": "philosophy",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.765,
+        "latency_ms": 2501,
+        "cost_usd": 0.000792,
+        "tokens_in": 14,
+        "tokens_out": 50,
+        "keywords_matched": [
+          "entropy",
+          "chaos",
+          "imperfection"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P017",
+      "category": "philosophy",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.983,
+        "latency_ms": 2483,
+        "cost_usd": 0.001758,
+        "tokens_in": 16,
+        "tokens_out": 114,
+        "keywords_matched": [
+          "onboarding",
+          "iteration",
+          "learning"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P018",
+      "category": "philosophy",
+      "metrics": {
+        "adequacy": 1.0,
+        "factuality": 0.859,
+        "latency_ms": 2568,
+        "cost_usd": 0.003738,
+        "tokens_in": 16,
+        "tokens_out": 246,
+        "keywords_matched": [
+          "domain-driven",
+          "inmanent",
+          "architecture",
+          "emergence"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P019",
+      "category": "philosophy",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.847,
+        "latency_ms": 2466,
+        "cost_usd": 0.002127,
+        "tokens_in": 14,
+        "tokens_out": 139,
+        "keywords_matched": [
+          "testing",
+          "falsification",
+          "experimentation"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P020",
+      "category": "philosophy",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.83,
+        "latency_ms": 2519,
+        "cost_usd": 0.003774,
+        "tokens_in": 18,
+        "tokens_out": 248,
+        "keywords_matched": [
+          "glitch",
+          "slo"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P021",
+      "category": "troubleshooting",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.792,
+        "latency_ms": 1300,
+        "cost_usd": 0.004014,
+        "tokens_in": 18,
+        "tokens_out": 264,
+        "keywords_matched": [
+          "retry",
+          "lock",
+          "concurrent"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P022",
+      "category": "troubleshooting",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.82,
+        "latency_ms": 540,
+        "cost_usd": 0.002619,
+        "tokens_in": 18,
+        "tokens_out": 171,
+        "keywords_matched": [
+          "disk-space",
+          "storage"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P023",
+      "category": "troubleshooting",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.959,
+        "latency_ms": 2525,
+        "cost_usd": 0.004206,
+        "tokens_in": 12,
+        "tokens_out": 278,
+        "keywords_matched": [
+          "tampering",
+          "hash",
+          "integrity"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P024",
+      "category": "troubleshooting",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.973,
+        "latency_ms": 1143,
+        "cost_usd": 0.002862,
+        "tokens_in": 14,
+        "tokens_out": 188,
+        "keywords_matched": [
+          "retry",
+          "timeout"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P025",
+      "category": "troubleshooting",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.927,
+        "latency_ms": 2489,
+        "cost_usd": 0.004422,
+        "tokens_in": 14,
+        "tokens_out": 292,
+        "keywords_matched": [
+          "performance",
+          "p95",
+          "bottleneck"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P026",
+      "category": "best_practices",
+      "metrics": {
+        "adequacy": 1.0,
+        "factuality": 0.774,
+        "latency_ms": 407,
+        "cost_usd": 0.003492,
+        "tokens_in": 14,
+        "tokens_out": 230,
+        "keywords_matched": [
+          "session_YYYYMMDD_HHMMSS",
+          "timestamp",
+          "format"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P027",
+      "category": "best_practices",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.825,
+        "latency_ms": 520,
+        "cost_usd": 0.003537,
+        "tokens_in": 14,
+        "tokens_out": 233,
+        "keywords_matched": [
+          "friday",
+          "reflection",
+          "ritual"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P028",
+      "category": "best_practices",
+      "metrics": {
+        "adequacy": 1.0,
+        "factuality": 0.952,
+        "latency_ms": 1115,
+        "cost_usd": 0.004047,
+        "tokens_in": 14,
+        "tokens_out": 267,
+        "keywords_matched": [
+          "export",
+          "backup",
+          "manifest",
+          "use-case"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P029",
+      "category": "best_practices",
+      "metrics": {
+        "adequacy": 0.25,
+        "factuality": 0.769,
+        "latency_ms": 1237,
+        "cost_usd": 0.001818,
+        "tokens_in": 16,
+        "tokens_out": 118,
+        "keywords_matched": [
+          "organization"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P030",
+      "category": "best_practices",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.81,
+        "latency_ms": 2489,
+        "cost_usd": 0.002418,
+        "tokens_in": 16,
+        "tokens_out": 158,
+        "keywords_matched": [
+          "routing",
+          "model",
+          "complexity"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P031",
+      "category": "security",
+      "metrics": {
+        "adequacy": 1.0,
+        "factuality": 0.774,
+        "latency_ms": 2626,
+        "cost_usd": 0.00417,
+        "tokens_in": 10,
+        "tokens_out": 276,
+        "keywords_matched": [
+          "hipaa",
+          "phi",
+          "redaction",
+          "compliance"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P032",
+      "category": "security",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.89,
+        "latency_ms": 1242,
+        "cost_usd": 0.002727,
+        "tokens_in": 14,
+        "tokens_out": 179,
+        "keywords_matched": [
+          "redaction",
+          "policy",
+          "phi"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P033",
+      "category": "security",
+      "metrics": {
+        "adequacy": 1.0,
+        "factuality": 0.951,
+        "latency_ms": 1096,
+        "cost_usd": 0.003873,
+        "tokens_in": 16,
+        "tokens_out": 255,
+        "keywords_matched": [
+          "lan-only",
+          "network",
+          "security",
+          "local"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P034",
+      "category": "security",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.885,
+        "latency_ms": 1177,
+        "cost_usd": 0.002595,
+        "tokens_in": 10,
+        "tokens_out": 171,
+        "keywords_matched": [
+          "audit",
+          "log",
+          "timestamp"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P035",
+      "category": "security",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.701,
+        "latency_ms": 1252,
+        "cost_usd": 0.003876,
+        "tokens_in": 12,
+        "tokens_out": 256,
+        "keywords_matched": [
+          "sha256",
+          "tampering"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P036",
+      "category": "performance",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.748,
+        "latency_ms": 482,
+        "cost_usd": 0.001329,
+        "tokens_in": 18,
+        "tokens_out": 85,
+        "keywords_matched": [
+          "100ms",
+          "p95",
+          "slo"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P037",
+      "category": "performance",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.987,
+        "latency_ms": 674,
+        "cost_usd": 0.001419,
+        "tokens_in": 18,
+        "tokens_out": 91,
+        "keywords_matched": [
+          "2s",
+          "p99",
+          "latency"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P038",
+      "category": "performance",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.933,
+        "latency_ms": 1125,
+        "cost_usd": 0.00132,
+        "tokens_in": 10,
+        "tokens_out": 86,
+        "keywords_matched": [
+          "cache",
+          "read"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P039",
+      "category": "performance",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.814,
+        "latency_ms": 1129,
+        "cost_usd": 0.001509,
+        "tokens_in": 8,
+        "tokens_out": 99,
+        "keywords_matched": [
+          "disk",
+          "policy"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P040",
+      "category": "performance",
+      "metrics": {
+        "adequacy": 0.25,
+        "factuality": 0.833,
+        "latency_ms": 2416,
+        "cost_usd": 0.002586,
+        "tokens_in": 12,
+        "tokens_out": 170,
+        "keywords_matched": [
+          "compression"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P041",
+      "category": "integration",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.95,
+        "latency_ms": 1161,
+        "cost_usd": 0.001794,
+        "tokens_in": 18,
+        "tokens_out": 116,
+        "keywords_matched": [
+          "api",
+          "frontend"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P042",
+      "category": "integration",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.967,
+        "latency_ms": 1206,
+        "cost_usd": 0.001464,
+        "tokens_in": 18,
+        "tokens_out": 94,
+        "keywords_matched": [
+          "llm_policy",
+          "routing"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P043",
+      "category": "integration",
+      "metrics": {
+        "adequacy": 0.25,
+        "factuality": 0.798,
+        "latency_ms": 2529,
+        "cost_usd": 0.001857,
+        "tokens_in": 14,
+        "tokens_out": 121,
+        "keywords_matched": [
+          "migration"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P044",
+      "category": "integration",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.805,
+        "latency_ms": 1172,
+        "cost_usd": 0.001116,
+        "tokens_in": 12,
+        "tokens_out": 72,
+        "keywords_matched": [
+          "docker",
+          "volume"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P045",
+      "category": "integration",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.808,
+        "latency_ms": 2579,
+        "cost_usd": 0.001032,
+        "tokens_in": 14,
+        "tokens_out": 66,
+        "keywords_matched": [
+          "chaos",
+          "drill",
+          "automation"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P046",
+      "category": "edge_cases",
+      "metrics": {
+        "adequacy": 1.0,
+        "factuality": 0.936,
+        "latency_ms": 2548,
+        "cost_usd": 0.002661,
+        "tokens_in": 12,
+        "tokens_out": 175,
+        "keywords_matched": [
+          "corruption",
+          "recovery",
+          "backup",
+          "validation"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P047",
+      "category": "edge_cases",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.928,
+        "latency_ms": 2456,
+        "cost_usd": 0.001761,
+        "tokens_in": 12,
+        "tokens_out": 115,
+        "keywords_matched": [
+          "concurrency",
+          "lock",
+          "conflict"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P048",
+      "category": "edge_cases",
+      "metrics": {
+        "adequacy": 0.25,
+        "factuality": 0.708,
+        "latency_ms": 2532,
+        "cost_usd": 0.00255,
+        "tokens_in": 20,
+        "tokens_out": 166,
+        "keywords_matched": [
+          "performance"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P049",
+      "category": "edge_cases",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.909,
+        "latency_ms": 1266,
+        "cost_usd": 0.002412,
+        "tokens_in": 14,
+        "tokens_out": 158,
+        "keywords_matched": [
+          "fallback",
+          "circuit-breaker",
+          "timeout"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P050",
+      "category": "edge_cases",
+      "metrics": {
+        "adequacy": 0.75,
+        "factuality": 0.935,
+        "latency_ms": 1146,
+        "cost_usd": 0.001284,
+        "tokens_in": 18,
+        "tokens_out": 82,
+        "keywords_matched": [
+          "delete",
+          "backup",
+          "initialization"
+        ]
+      }
+    }
+  ],
+  "aggregates": {
+    "avg_adequacy": 0.668,
+    "avg_factuality": 0.855,
+    "p50_latency_ms": 1239,
+    "p95_latency_ms": 2574,
+    "p99_latency_ms": 2628,
+    "total_cost_usd": 0.133836,
+    "total_tokens": 9508
+  }
+}

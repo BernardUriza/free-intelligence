@@ -56,16 +56,17 @@ def verify_artifact(card_id: str, artifact_path: str, base_path: Path) -> dict:
                 "artifact": artifact_path,
                 "message": f"Artifact is large MD ({lines} lines). Must be executable.",
             }
-
-    # Check for executable types
-    valid_extensions = {".py", ".yaml", ".yml", ".json", ".prom", ".csv", ".sh"}
-    if full_path.suffix not in valid_extensions and full_path.name != "Makefile":
-        return {
-            "status": "INVALID",
-            "card_id": card_id,
-            "artifact": artifact_path,
-            "message": f"Artifact type not executable: {full_path.suffix}",
-        }
+        # Small MDs (≤150 lines) are allowed per NO_MD policy
+    else:
+        # Check for executable types (non-MD files)
+        valid_extensions = {".py", ".yaml", ".yml", ".json", ".prom", ".csv", ".sh"}
+        if full_path.suffix not in valid_extensions and full_path.name != "Makefile":
+            return {
+                "status": "INVALID",
+                "card_id": card_id,
+                "artifact": artifact_path,
+                "message": f"Artifact type not executable: {full_path.suffix}",
+            }
 
     # File size check
     size_kb = full_path.stat().st_size / 1024

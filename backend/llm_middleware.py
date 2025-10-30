@@ -35,10 +35,14 @@ from backend.llm_cache import get_cache
 from backend.llm_metrics import get_metrics
 from backend.kpis_aggregator import get_kpis_aggregator
 from backend.logger import get_logger
+from backend.policy_enforcer import get_policy_enforcer, PolicyViolation, redact
 from backend.providers.claude import ClaudeAdapter
 from backend.providers.ollama import OllamaAdapter
 
 logger = get_logger(__name__)
+
+# Initialize policy enforcer
+policy = get_policy_enforcer()
 
 # Initialize cache, metrics, and KPIs aggregator
 cache = get_cache(ttl_minutes=30)
@@ -360,6 +364,32 @@ async def generate_llm(request: GenerateRequest) -> GenerateResponse:
             cache_hit=False,
         )
 
+        # Policy: Check cost (basic estimation: 1 token ≈ 0.0001 cents for estimation)
+        # Note: Real cost should come from provider-specific pricing
+        total_tokens = response_data["usage"]["in"] + response_data["usage"]["out"]
+        estimated_cost_cents = total_tokens * 0.0001  # Placeholder estimation
+        try:
+            policy.check_cost(int(estimated_cost_cents), run_id=prompt_hash[:16])
+        except PolicyViolation as e:
+            logger.warning(
+                "LLM_COST_VIOLATION",
+                provider=request.provider,
+                estimated_cents=int(estimated_cost_cents),
+                error=str(e),
+            )
+            # Cost violation is logged but doesn't block response (post-generation check)
+
+        # Policy: Redact sensitive info from response text
+        original_text = llm_response.content
+        redacted_text = redact(original_text)
+        if redacted_text != original_text:
+            logger.info(
+                "LLM_RESPONSE_REDACTED",
+                provider=request.provider,
+                prompt_hash=prompt_hash[:16],
+                redactions=len([c for c in redacted_text if c == '[' and 'REDACTED' in redacted_text]),
+            )
+
         # Warn if latency > 2s
         if latency_ms > 2000:
             logger.warning(
@@ -382,7 +412,7 @@ async def generate_llm(request: GenerateRequest) -> GenerateResponse:
 
         return GenerateResponse(
             ok=True,
-            text=llm_response.content,
+            text=redacted_text,  # Use redacted text instead of raw LLM output
             usage=response_data["usage"],
             latency_ms=latency_ms,
             provider=request.provider,

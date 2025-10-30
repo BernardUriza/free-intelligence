@@ -1,7 +1,7 @@
 # Free Intelligence - Makefile
 # Convenience commands for development and deployment
 
-.PHONY: help setup install install-dev test run run-gateway run-both clean docker-build docker-run docker-stop lint format fmt check-deps init-corpus
+.PHONY: help setup install install-dev test run run-gateway run-both clean docker-build docker-run docker-stop lint format fmt check-deps init-corpus policy-test policy-report policy-verify policy-all
 
 # Default target
 .DEFAULT_GOAL := help
@@ -274,3 +274,39 @@ llm-call: ## Example CLI call to endpoint
 	@echo "📞 Example LLM call (Ollama qwen2:7b)..."
 	@echo "   Prompt: 'What is 2+2?'"
 	@python3 tools/fi_llm.py --provider ollama --model qwen2:7b --prompt "What is 2+2?" --json
+
+
+# ============================================================================
+# Policy-as-Code (FI-POLICY-STR-001)
+# ============================================================================
+
+policy-test: ## Run policy enforcement tests
+	@echo "🔒 Testing policy enforcement..."
+	@python3 -m pytest tests/test_policy_enforcement.py tests/test_redaction.py tests/test_decision_rules.py -v --tb=short
+	@echo "✅ Policy tests passed"
+
+policy-report: ## Generate QA documentation and manifest
+	@echo "📄 Generating policy QA report..."
+	@mkdir -p docs/qa eval/results
+	@python3 tools/generate_policy_manifest.py
+	@echo "✅ Policy report generated"
+
+policy-verify: ## Verify policy artifacts and hashes
+	@echo "🔍 Verifying policy artifacts..."
+	@python3 tools/verify_policy.py
+
+policy-all: policy-test policy-report policy-verify ## Run full policy workflow
+	@echo ""
+	@echo "=============================================="
+	@echo "✅ Policy-as-Code Verification Complete"
+	@echo "=============================================="
+	@echo ""
+	@echo "Summary:"
+	@cat eval/results/policy_manifest.json | python3 -m json.tool
+	@echo ""
+	@echo "Artifacts:"
+	@echo "  - config/fi.policy.yaml (sovereignty, privacy, cost)"
+	@echo "  - backend/policy_enforcer.py (runtime guards)"
+	@echo "  - tests/test_policy_enforcement.py (30 tests)"
+	@echo "  - eval/results/policy_manifest.json (audit trail)"
+	@echo ""

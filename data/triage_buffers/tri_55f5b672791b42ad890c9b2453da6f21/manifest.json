@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "bufferId": "tri_55f5b672791b42ad890c9b2453da6f21",
+  "receivedAt": "2025-10-30T04:07:52.039848Z",
+  "payloadHash": "sha256:9ea2ad7061c90138906a78b9509f89bfeb0d27ce0c14b7d3e765874cc06eb0c1",
+  "payloadSubset": {
+    "reason": "consulta respiratoria",
+    "symptomsCount": 3,
+    "hasTranscription": true
+  },
+  "metadata": {
+    "runId": "smoke_20251029_220751"
+  }
+}

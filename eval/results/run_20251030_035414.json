@@ -1,0 +1,16 @@
+{
+  "run_id": "RUN_20251030_035414",
+  "timestamp": "2025-10-30T03:54:15.362045+00:00",
+  "mode": "production",
+  "provider": "mock",
+  "model": "qwen2:7b",
+  "seed": "fi-endpoint-check",
+  "cache_policy": "measure-both",
+  "total_prompts": 0,
+  "results": [],
+  "aggregates": {
+    "cold": {},
+    "warm": {},
+    "combined": {}
+  }
+}

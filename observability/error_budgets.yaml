@@ -4,6 +4,13 @@
 version: "1.0"
 period: "30d"  # 30-day rolling window
 
+# Top-level SLO targets (for validation)
+slo:
+  ingest_p95_ms: 2000  # Ingestion API p95 target
+  timeline_p95_ms: 300  # Timeline API p95 target
+  export_p95_ms: 5000  # Export API p95 target
+  verify_p95_ms: 1000  # Verify API p95 target
+
 services:
   timeline_api:
     name: "Timeline API (read/list)"

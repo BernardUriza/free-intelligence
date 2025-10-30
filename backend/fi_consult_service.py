@@ -33,8 +33,11 @@ from fastapi.staticfiles import StaticFiles
 # Import API routers
 from backend.api.sessions import router as sessions_router
 from backend.api.exports import router as exports_router
+from backend.api.audit import router as audit_router
 from backend.api.evidence import router as evidence_router
 from backend.api.kpis import router as kpis_router
+from backend.api.triage import router as triage_router
+from backend.api.transcribe import router as transcribe_router
 from backend.fi_consult_models import (AppendEventRequest, AppendEventResponse,
                                        Consultation, ConsultationEvent,
                                        EventType, GetConsultationResponse,
@@ -86,6 +89,15 @@ app.include_router(kpis_router, tags=["kpis"])
 
 # Evidence API (FI-DATA-RES-021)
 app.include_router(evidence_router, tags=["evidence"])
+
+# Audit Logs API (FI-UI-FEAT-206)
+app.include_router(audit_router, tags=["audit"])
+
+# Triage API (FI-API-FEAT-014)
+app.include_router(triage_router, tags=["triage"])
+
+# Transcription API (FI-BACKEND-FEAT-003)
+app.include_router(transcribe_router, tags=["transcribe"])
 
 # Static file serving for export downloads
 # Ensure export directory exists
