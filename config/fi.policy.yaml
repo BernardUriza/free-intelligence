@@ -6,7 +6,11 @@ version: "1.0"
 # Sovereignty Policy
 sovereignty:
   egress:
-    default: allow  # Changed from deny to enable LLM APIs during evaluation
+    default: deny
+    allowlist:
+      - "api.anthropic.com"
+      - "127.0.0.1:11434"
+      - "localhost:11434"
 
 # Privacy Policy
 privacy:

@@ -40,7 +40,7 @@ class ClaudeAdapter(LLMAdapter):
 
     def __init__(
         self,
-        model: str = "claude-3-5-sonnet-20241022",
+        model: str = "claude-sonnet-4-5-20250929",
         api_key: Optional[str] = None,
         budget: Optional[LLMBudget] = None,
         max_retries: int = 3,
