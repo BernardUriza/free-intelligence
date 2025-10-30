@@ -1,0 +1,116 @@
+# Butler Automation Rules for Trello
+# Card: FI-GOV-TOOL-001
+# Philosophy: Gobernanza ≠ burocracia - mínima fricción, máxima evidencia
+
+# ============================================================================
+# RULE 1: Auto-add Artifacts Checklist
+# ============================================================================
+# Trigger: When a card is created OR moved to "⚙️ In Progress"
+# Action: Add checklist named "Artifacts" if it doesn't exist
+# ============================================================================
+
+rule_1_auto_add_checklist:
+  name: "Auto-add Artifacts Checklist"
+  trigger:
+    - when_card_created
+    - when_card_moved_to_list: "⚙️ In Progress"
+  condition:
+    - card_does_not_have_checklist: "Artifacts"
+  action:
+    - add_checklist:
+        name: "Artifacts"
+        items:
+          - "📎 URL demo (deploy o vídeo)"
+          - "🔖 Commit o Tag (SHA corto o vX.Y.Z)"
+          - "📄 Manifest URL (…/manifest.json) [opcional]"
+          - "📊 Evidencia (log/metrics/PR link)"
+
+# Butler UI Configuration:
+# 1. Go to board automation
+# 2. Create rule: "when a card is added to list 'In Progress'"
+# 3. Add action: "add checklist 'Artifacts' to the card"
+# 4. Checklist template items (copy-paste from above)
+
+# ============================================================================
+# RULE 2: Guard - Block Done without Artifacts
+# ============================================================================
+# Trigger: When a card is moved to "✅ Done"
+# Condition: Checklist "Artifacts" is NOT complete
+# Action: Move back to "⚙️ In Progress" + add red label + comment
+# ============================================================================
+
+rule_2_guard_done:
+  name: "Guard - Block Done without Artifacts"
+  trigger:
+    - when_card_moved_to_list: "✅ Done"
+  condition:
+    - checklist_not_complete: "Artifacts"
+  actions:
+    - move_card_to_list: "⚙️ In Progress"
+    - add_label:
+        color: "red"
+        name: "Guard: Missing artifacts"
+    - add_comment: |
+        🛑 **Butler Guard: Artifacts incompletos**
+
+        Esta card no puede moverse a Done hasta completar la checklist "Artifacts":
+        - [ ] URL demo (deploy o vídeo)
+        - [ ] Commit o Tag (SHA corto o vX.Y.Z)
+        - [ ] Manifest URL (opcional)
+        - [ ] Evidencia (log/metrics/PR link)
+
+        La card ha sido revertida a "In Progress".
+
+        **Política LOCK-DONE:** Sin artefactos verificables, no existe el "Done".
+
+# Butler UI Configuration:
+# 1. Create rule: "when a card is moved to list 'Done'"
+# 2. Add condition: "if checklist 'Artifacts' is not complete"
+# 3. Add actions:
+#    a) Move card to list "In Progress"
+#    b) Add red label "Guard: Missing artifacts"
+#    c) Add comment (copy-paste from above)
+
+# ============================================================================
+# RULE 3: Positive Reinforcement - Artifacts OK
+# ============================================================================
+# Trigger: When checklist "Artifacts" is marked complete
+# Action: Add green label "Artifacts OK" + remove red label
+# ============================================================================
+
+rule_3_artifacts_ok:
+  name: "Positive - Artifacts OK"
+  trigger:
+    - when_checklist_complete: "Artifacts"
+  actions:
+    - add_label:
+        color: "green"
+        name: "Artifacts OK"
+    - remove_label: "Guard: Missing artifacts"
+    - add_comment: |
+        ✅ **Artifacts verificados**
+
+        Checklist "Artifacts" completada. Esta card ahora puede moverse a Done.
+
+        Etiqueta "Artifacts OK" agregada para CI validation.
+
+# Butler UI Configuration:
+# 1. Create rule: "when a checklist is completed"
+# 2. Add condition: "if checklist name is 'Artifacts'"
+# 3. Add actions:
+#    a) Add green label "Artifacts OK"
+#    b) Remove label "Guard: Missing artifacts"
+#    c) Add comment (copy-paste from above)
+
+# ============================================================================
+# BUTLER LIMITS & NOTES
+# ============================================================================
+# - Free boards: 1 automation command per month per board
+# - Standard/Premium: Unlimited automations
+# - Butler commands run server-side (no client needed)
+# - Test rules with a dummy card before applying to production
+#
+# Alternative if Butler limits reached:
+# - Use Trello webhooks + custom server endpoint
+# - GitHub Actions with scheduled runs (check board state)
+# - Manual enforcement with scripts/ci_guard_trello.sh

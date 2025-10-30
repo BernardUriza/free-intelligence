@@ -1,0 +1,105 @@
+# Trello Artifacts Guard - CI Workflow
+#
+# Validates that PR has associated Trello card with complete artifacts
+# Card: FI-GOV-TOOL-001
+# Philosophy: Done is auditable
+
+name: Trello Artifacts Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches:
+      - main
+      - develop
+
+jobs:
+  validate-artifacts:
+    name: Validate Trello Artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract Trello card from PR
+        id: extract-card
+        run: |
+          # Extract TRELLO_CARD= from PR body
+          TRELLO_CARD=$(echo "${{ github.event.pull_request.body }}" | grep -oP 'TRELLO_CARD=\K\w+' || echo "")
+
+          if [ -z "$TRELLO_CARD" ]; then
+            echo "❌ No TRELLO_CARD found in PR description"
+            echo ""
+            echo "Add this line to your PR description:"
+            echo "TRELLO_CARD=<shortLink>"
+            echo ""
+            echo "Example: TRELLO_CARD=abc123XY"
+            exit 1
+          fi
+
+          echo "trello_card=$TRELLO_CARD" >> $GITHUB_OUTPUT
+          echo "✅ Found Trello card: $TRELLO_CARD"
+
+      - name: Run CI Guard Script
+        env:
+          TRELLO_KEY: ${{ secrets.TRELLO_API_KEY }}
+          TRELLO_TOKEN: ${{ secrets.TRELLO_TOKEN }}
+          TRELLO_CARD: ${{ steps.extract-card.outputs.trello_card }}
+        run: |
+          chmod +x ./tools/ci_guard_trello.sh
+          ./tools/ci_guard_trello.sh
+
+      - name: Report Success
+        if: success()
+        run: |
+          echo "✅ Governance Guard PASSED"
+          echo ""
+          echo "All required artifacts verified:"
+          echo "  - Demo URL: present"
+          echo "  - Commit/Tag: present"
+          echo "  - Artifacts checklist: complete"
+          echo ""
+          echo "PR approved for merge."
+
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "❌ Governance Guard FAILED"
+          echo ""
+          echo "Missing required artifacts in Trello card."
+          echo "Complete the 'Artifacts' checklist before merging:"
+          echo "  1. URL demo (deploy or video)"
+          echo "  2. Commit or Tag (SHA or vX.Y.Z)"
+          echo "  3. Manifest URL (optional)"
+          echo "  4. Evidence (logs/metrics/PR link)"
+          echo ""
+          echo "Card must have 'Artifacts OK' label."
+          exit 1
+
+# ============================================================================
+# SETUP INSTRUCTIONS
+# ============================================================================
+# 1. Add secrets to GitHub repository:
+#    - TRELLO_API_KEY (from https://trello.com/app-key)
+#    - TRELLO_TOKEN (generate token with read/write permissions)
+#
+# 2. Add TRELLO_CARD= to PR description template:
+#    Create .github/pull_request_template.md:
+#    ```
+#    ## Description
+#    [Describe your changes]
+#
+#    ## Trello Card
+#    TRELLO_CARD=<shortLink>
+#
+#    ## Checklist
+#    - [ ] Tests passing
+#    - [ ] Artifacts complete in Trello
+#    ```
+#
+# 3. Enable "Require status checks" in branch protection:
+#    Settings → Branches → main → "Trello Artifacts Guard" required
+#
+# 4. Test with a PR that has incomplete artifacts (should fail)
+# ============================================================================
