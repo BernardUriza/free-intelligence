@@ -26,11 +26,10 @@ import requests
 from backend.llm_adapter import (LLMAdapter, LLMBudget, LLMProviderError,
                                  LLMRequest, LLMResponse)
 from backend.logger import get_logger
-from backend.policy_enforcer import PolicyViolation, get_policy_enforcer
+from backend.policy_enforcer import PolicyEnforcer, PolicyViolation
 from backend.utils.token_counter import TokenCounter
 
 logger = get_logger(__name__)
-policy = get_policy_enforcer()
 
 
 class OllamaAdapter(LLMAdapter):
@@ -53,6 +52,7 @@ class OllamaAdapter(LLMAdapter):
         base_url: str = "http://127.0.0.1:11434",
         timeout_seconds: int = 8,
         token_counter: Optional[TokenCounter] = None,
+        policy_enforcer: Optional[PolicyEnforcer] = None,
         base_delay_ms: int = 100,
         max_delay_ms: int = 1000,
         circuit_breaker_threshold: int = 5,
@@ -66,8 +66,9 @@ class OllamaAdapter(LLMAdapter):
         )
         self.base_url = base_url
         self.timeout_seconds = timeout_seconds
-        # Inject token counter (create default if not provided)
+        # Inject dependencies (create defaults if not provided)
         self.token_counter = token_counter or TokenCounter()
+        self.policy = policy_enforcer or PolicyEnforcer()
         # Retry backoff configuration
         self.base_delay_ms = base_delay_ms
         self.max_delay_ms = max_delay_ms
@@ -178,7 +179,7 @@ class OllamaAdapter(LLMAdapter):
             try:
                 # Policy: Check egress (Ollama is local so should pass, but checked for consistency)
                 try:
-                    policy.check_egress(
+                    self.policy.check_egress(
                         f"{self.base_url}/api/chat",
                         run_id=request.metadata.get("interaction_id") if request.metadata else None,
                     )
