@@ -119,22 +119,29 @@ class PolicyEnforcer:
         if default_action == "deny":
             # Parse URL to extract domain/host
             parsed = urlparse(url)
-            host = parsed.netloc or parsed.path.split('/')[0]  # Handle both full URLs and host:port
+            host = parsed.netloc.lower() if parsed.netloc else ""
+            domain = parsed.hostname.lower() if parsed.hostname else ""
 
-            # Check if URL/host is in allowlist
+            # Check if URL/host is in allowlist (strict matching)
             allowed = False
             for entry in allowlist:
-                # Match by domain, host:port, or URL prefix
-                if (entry in url or
-                    entry == host or
-                    entry in host or
-                    host.endswith(entry.lstrip('.'))):
-                    allowed = True
-                    logger.debug(f"Egress allowed by allowlist: {url} (matched: {entry})")
-                    break
+                entry_lower = entry.lower().lstrip('.')
+
+                # Wildcard match: .example.com matches *.example.com
+                if entry.startswith('.'):
+                    if domain == entry_lower or domain.endswith('.' + entry_lower):
+                        allowed = True
+                        logger.debug(f"Egress allowed by wildcard: {url} (matched: {entry})")
+                        break
+                else:
+                    # Exact match: host or domain must match exactly
+                    if host == entry_lower or domain == entry_lower:
+                        allowed = True
+                        logger.debug(f"Egress allowed by exact match: {url} (matched: {entry})")
+                        break
 
             if not allowed:
-                metadata = {"url": url, "run_id": run_id, "allowlist": allowlist}
+                metadata = {"url": url, "host": host, "run_id": run_id, "allowlist": allowlist}
                 logger.warning(f"Egress blocked by policy: {url} (run_id={run_id})")
                 raise PolicyViolation(
                     rule="sovereignty.egress",
