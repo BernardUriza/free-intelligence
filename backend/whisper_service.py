@@ -22,10 +22,13 @@ from backend.logger import get_logger
 logger = get_logger(__name__)
 
 # Whisper configuration
-WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "large-v3")  # large-v3 or medium
-WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8_float16")  # CPU-optimized
+WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "small")  # small (default for CPU), tiny, base, medium, large-v3
+WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")  # int8 fastest on CPU (50-70% faster than float16)
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")  # cpu or cuda
 WHISPER_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "es")  # Force Spanish
+# CPU optimization (DS923+: Ryzen R1600, 4 threads → use 3, leave 1 free)
+CPU_THREADS = int(os.getenv("ASR_CPU_THREADS", "3"))
+NUM_WORKERS = int(os.getenv("ASR_NUM_WORKERS", "1"))
 
 # Global singleton instance
 _whisper_model_instance: Optional[Any] = None
@@ -86,6 +89,8 @@ def get_whisper_model() -> Optional[Any]:
                 WHISPER_MODEL_SIZE,
                 device=WHISPER_DEVICE,
                 compute_type=WHISPER_COMPUTE_TYPE,
+                cpu_threads=CPU_THREADS,
+                num_workers=NUM_WORKERS,
                 download_root=os.getenv("WHISPER_CACHE_DIR", None),
             )
 
