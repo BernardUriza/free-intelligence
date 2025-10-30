@@ -33,6 +33,8 @@ from fastapi.staticfiles import StaticFiles
 # Import API routers
 from backend.api.sessions import router as sessions_router
 from backend.api.exports import router as exports_router
+from backend.api.evidence import router as evidence_router
+from backend.api.kpis import router as kpis_router
 from backend.fi_consult_models import (AppendEventRequest, AppendEventResponse,
                                        Consultation, ConsultationEvent,
                                        EventType, GetConsultationResponse,
@@ -56,9 +58,11 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",
+        "http://localhost:3000",  # Next.js dev server
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",  # Vite dev server
         "http://127.0.0.1:5173",
-        "http://localhost:9000",  # Aurity frontend (FI-UI-FEAT-201)
+        "http://localhost:9000",  # Aurity frontend production
         "http://127.0.0.1:9000",
     ],
     allow_credentials=True,
@@ -66,12 +70,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# KPIs middleware (FI-API-FEAT-011)
+from backend.kpis_middleware import KPIsMiddleware
+app.add_middleware(KPIsMiddleware)
+
 # Mount API routers
 # Sessions API (FI-API-FEAT-009)
 app.include_router(sessions_router, tags=["sessions"])
 
 # Export API (FI-API-FEAT-013)
 app.include_router(exports_router, tags=["exports"])
+
+# KPIs API (FI-API-FEAT-011)
+app.include_router(kpis_router, tags=["kpis"])
+
+# Evidence API (FI-DATA-RES-021)
+app.include_router(evidence_router, tags=["evidence"])
 
 # Static file serving for export downloads
 # Ensure export directory exists

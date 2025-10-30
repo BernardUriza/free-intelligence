@@ -33,15 +33,17 @@ from backend.corpus_ops import append_interaction
 from backend.llm_adapter import LLMRequest
 from backend.llm_cache import get_cache
 from backend.llm_metrics import get_metrics
+from backend.kpis_aggregator import get_kpis_aggregator
 from backend.logger import get_logger
 from backend.providers.claude import ClaudeAdapter
 from backend.providers.ollama import OllamaAdapter
 
 logger = get_logger(__name__)
 
-# Initialize cache and metrics
+# Initialize cache, metrics, and KPIs aggregator
 cache = get_cache(ttl_minutes=30)
 metrics = get_metrics()
+kpis_aggregator = get_kpis_aggregator()
 
 # ============================================================================
 # PYDANTIC MODELS
@@ -245,6 +247,15 @@ async def generate_llm(request: GenerateRequest) -> GenerateResponse:
         # Record cache hit
         metrics.record_request(request.provider, latency_ms=0, cache_hit=True)
 
+        # Record to KPIs aggregator
+        kpis_aggregator.record_llm_event(
+            provider=request.provider,
+            tokens_in=cached["usage"].get("in"),
+            tokens_out=cached["usage"].get("out"),
+            latency_ms=0,
+            cache_hit=True,
+        )
+
         logger.info(
             "LLM_GENERATE_CACHE_HIT",
             provider=request.provider,
@@ -339,6 +350,15 @@ async def generate_llm(request: GenerateRequest) -> GenerateResponse:
 
         # Record metrics
         metrics.record_request(request.provider, latency_ms=latency_ms, cache_hit=False)
+
+        # Record to KPIs aggregator
+        kpis_aggregator.record_llm_event(
+            provider=request.provider,
+            tokens_in=response_data["usage"].get("in"),
+            tokens_out=response_data["usage"].get("out"),
+            latency_ms=latency_ms,
+            cache_hit=False,
+        )
 
         # Warn if latency > 2s
         if latency_ms > 2000:

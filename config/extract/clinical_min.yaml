@@ -1,0 +1,66 @@
+# Clinical Extraction Configuration
+# Minimum fields for evidence pack extraction
+#
+# File: config/extract/clinical_min.yaml
+# Card: FI-DATA-RES-021
+# Created: 2025-10-30
+
+version: "1.0"
+description: "Minimum clinical fields for evidence pack extraction"
+
+# Required fields for clinical evidence
+required_fields:
+  - source_id        # Unique identifier for source document
+  - tipo_doc         # Document type (cita_medica, lab_result, imaging, prescription)
+  - fecha            # Document date (ISO-8601)
+  - paciente_id      # Patient identifier (hashed for privacy)
+
+# Optional clinical fields
+optional_fields:
+  - hallazgo         # Clinical finding
+  - severidad        # Severity level (leve, moderado, severo, crítico)
+  - diagnostico      # Diagnosis
+  - tratamiento      # Treatment prescribed
+  - notas            # Additional clinical notes
+
+# Document types supported
+document_types:
+  cita_medica:
+    description: "Medical consultation note"
+    required: [fecha, paciente_id, hallazgo]
+
+  lab_result:
+    description: "Laboratory test result"
+    required: [fecha, paciente_id, hallazgo]
+
+  imaging:
+    description: "Medical imaging report (X-ray, CT, MRI)"
+    required: [fecha, paciente_id, hallazgo]
+
+  prescription:
+    description: "Medical prescription"
+    required: [fecha, paciente_id, tratamiento]
+
+# Severity levels
+severity_levels:
+  leve: 1
+  moderado: 2
+  severo: 3
+  crítico: 4
+
+# Extraction rules
+extraction:
+  # Minimum confidence threshold for auto-extraction
+  min_confidence: 0.7
+
+  # Maximum documents per evidence pack
+  max_documents: 100
+
+  # Hash algorithm for source_id
+  hash_algorithm: "sha256"
+
+  # Redaction policy
+  redaction:
+    enabled: true
+    fields_to_redact: [paciente_id, notas]
+    redaction_char: "*"

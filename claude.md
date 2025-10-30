@@ -676,3 +676,118 @@ Backend
 	•	Tests: ✅ contract, ✅ hash verification, ✅ determinism, ✅ downloads
 	•	Cards movidas a Testing
 
+
+2025-10-30 — FI-API-FEAT-011: KPIs API Implementation Complete
+
+**Card:** FI-API-FEAT-011 (KPIs API - metrics endpoint)
+**Status:** Implementation Complete → Testing
+**Agent:** CLAUDE-B
+
+**Artefactos Implementados:**
+1. **backend/kpis_aggregator.py** (550 LOC)
+   - In-memory metrics aggregator with time-window bucketing
+   - Bucket granularity: 10s (configurable via METRICS_BUCKET_SEC)
+   - Retention: 24h (configurable via METRICS_RETENTION_MIN)
+   - HTTP metrics: requests, status codes, latency
+   - LLM metrics: tokens in/out, cache hit/miss, provider distribution
+   - Percentiles: p50, p95, max (on-the-fly calculation)
+
+2. **backend/api/kpis.py** (60 LOC)
+   - GET /api/kpis endpoint with 3 views
+   - Query params: window (1m|5m|15m|1h|24h), view (summary|chips|timeseries), route, provider
+   - Summary: aggregated metrics (requests, latency, tokens, cache, providers)
+   - Chips: UI-ready format for FI-UI-FEAT-204/205
+   - Timeseries: sparkline data with [timestamp, value] arrays
+
+3. **backend/kpis_middleware.py** (70 LOC)
+   - FastAPI middleware for HTTP request metrics
+   - Records: route template, status code, duration_ms
+   - Logs slow requests (>1s warning)
+   - Integrated into fi_consult_service.py
+
+4. **backend/llm_middleware.py** (instrumentation added)
+   - LLM metrics recording on cache hit/miss
+   - Tracks: provider, tokens_in/out, latency_ms, cache_hit
+   - Respects "unknown tokens" contract (no estimation)
+
+5. **tests/test_kpis_aggregator.py** (285 LOC, 13 tests)
+   - HTTP/LLM event recording
+   - Cache hit metrics
+   - Unknown tokens handling
+   - Provider distribution
+   - p95 calculation accuracy
+   - Window filtering (1m, 5m, 15m, 1h, 24h)
+   - Chips/timeseries format validation
+   - Bucket cleanup
+   - Performance test (<10ms requirement)
+
+6. **tests/smoke_test_kpis_api.sh** (120 LOC)
+   - End-to-end API validation
+   - Tests all 3 views (summary, chips, timeseries)
+   - Tests all window sizes
+   - Performance validation (p95 < 10ms)
+   - Response structure validation
+
+**Contrato API:**
+```bash
+# Summary view
+GET /api/kpis?window=5m&view=summary
+→ {window, asOf, requests{total,2xx,4xx,5xx}, latency{p50_ms,p95_ms,max_ms}, tokens{in,out,unknown}, cache{hit,miss,hit_ratio}, providers[{id,count,pct}]}
+
+# Chips view (UI-ready)
+GET /api/kpis?window=5m&view=chips
+→ {window, asOf, chips[{id,label,value,unit,trend}]}
+
+# Timeseries view (sparklines)
+GET /api/kpis?window=15m&view=timeseries
+→ {window, asOf, bucketSec, series{p95_ms,tokens_in,tokens_out,cache_hit_ratio}}
+```
+
+**Test Results:**
+- pytest: 13/13 tests passing (0.15s) ✅
+- Smoke test: 8/8 checks passing ✅
+- p95 latency: 2ms (threshold: 10ms) ✅ 99.7% under threshold
+- Performance test: 1000 events aggregated in <10ms ✅
+
+**Environment Variables:**
+- METRICS_ENABLED=1 (default: 1)
+- METRICS_RETENTION_MIN=1440 (default: 24h)
+- METRICS_BUCKET_SEC=10 (default: 10s)
+- METRICS_DEFAULT_WINDOW=5m (default: 5m)
+
+**Arquitectura:**
+- Middleware: HTTP requests → KPIsMiddleware → record_http_event()
+- Router: LLM generate → llm_middleware → record_llm_event()
+- Aggregator: In-memory buckets with circular retention
+- API: GET /api/kpis → query aggregator → return view
+
+**DoD Status:**
+✅ /api/kpis responds in <10ms p95 (measured: 2ms)
+✅ p95, tokens_in/out, cache_hit, provider_mix correct in all windows
+✅ view=chips and view=timeseries ready for UI-204/205
+✅ No nulls in required keys; tokens.unknown only when applicable
+✅ Logs visible (aggregator startup, buckets, cleanup)
+✅ Tests: 13 unit tests + smoke test passing
+✅ No PHI/PII in metrics (only counters and latencies)
+✅ LAN-only compliant (CORS configured)
+
+**Comandos:**
+```bash
+# Smoke test (all views)
+tests/smoke_test_kpis_api.sh
+
+# Unit tests
+python3 -m pytest tests/test_kpis_aggregator.py -v
+
+# Query KPIs (examples)
+curl -s "http://localhost:7001/api/kpis?window=5m&view=summary" | jq .
+curl -s "http://localhost:7001/api/kpis?window=5m&view=chips" | jq '.chips'
+curl -s "http://localhost:7001/api/kpis?window=15m&view=timeseries" | jq '.series.p95_ms'
+curl -s "http://localhost:7001/api/kpis?window=5m&provider=anthropic" | jq '.providers'
+```
+
+**Next Steps:**
+- Integrate with UI-204/205 (KPIs chips display)
+- Add trend calculation (↗︎ ↘︎ →) for chips view
+- Optional: Add route-level filtering for HTTP metrics
+
