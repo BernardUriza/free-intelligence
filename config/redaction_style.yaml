@@ -1,0 +1,86 @@
+# Free Intelligence — Redaction Style Configuration
+# Defines patterns for PHI/PII redaction
+
+version: "1.0"
+
+# Preview settings
+max_preview_chars: 60
+replacement: "[REDACTED]"
+
+# Stop terms (PII common)
+stop_terms:
+  - "password"
+  - "secret"
+  - "api_key"
+  - "token"
+  - "private_key"
+  - "ssn"
+  - "credit_card"
+  - "curp"
+  - "rfc"
+
+# Regex patterns for sensitive data
+patterns:
+  email:
+    regex: '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    replacement: "[REDACTED_EMAIL]"
+    enabled: true
+
+  phone:
+    regex: '\b(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b'
+    replacement: "[REDACTED_PHONE]"
+    enabled: true
+
+  # CURP (México): 18 caracteres alfanuméricos
+  curp:
+    regex: '\b[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}\b'
+    replacement: "[REDACTED_CURP]"
+    enabled: true
+
+  # RFC (México): 12-13 caracteres alfanuméricos
+  rfc:
+    regex: '\b[A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3}\b'
+    replacement: "[REDACTED_RFC]"
+    enabled: true
+
+  ssn:
+    regex: '\b\d{3}-\d{2}-\d{4}\b'
+    replacement: "[REDACTED_SSN]"
+    enabled: true
+
+  credit_card:
+    regex: '\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b'
+    replacement: "[REDACTED_CC]"
+    enabled: true
+
+  ip_address:
+    regex: '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
+    replacement: "[REDACTED_IP]"
+    enabled: false  # May want internal IPs for debugging
+
+# Sensitive sources
+sensitive_sources: ["asr", "llm", "ui"]
+
+# Custom PHI patterns (medical-specific)
+phi:
+  mrn:
+    regex: '\b(MRN|mrn):\s*\d{6,10}\b'
+    replacement: "[REDACTED_MRN]"
+    enabled: true
+
+  diagnosis_code:
+    regex: '\b(ICD-10|icd10):\s*[A-Z]\d{2}(\.\d{1,2})?\b'
+    replacement: "[REDACTED_ICD10]"
+    enabled: true
+
+  patient_name:
+    # Simple heuristic: "Patient: FirstName LastName"
+    regex: '\bPatient:\s+[A-Z][a-z]+\s+[A-Z][a-z]+\b'
+    replacement: "Patient: [REDACTED_NAME]"
+    enabled: true
+
+# Export behavior
+export_behavior:
+  redact_in_json: true
+  redact_in_markdown: true
+  preserve_structure: true  # Keep "[REDACTED_X]" to maintain audit trail

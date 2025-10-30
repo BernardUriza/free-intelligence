@@ -1,0 +1,13 @@
+{
+  "cached_at": 1761774271.303875,
+  "provider": "ollama",
+  "model": "qwen2:7b",
+  "prompt_hash": "8d99f81dacfc4b443f340afd9d215f2b90f41ef8d1aacdd157c03a8e60ab5275",
+  "response": {
+    "text": "Test response from Ollama",
+    "usage": {
+      "in": 3,
+      "out": 5
+    }
+  }
+}

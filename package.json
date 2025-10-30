@@ -6,13 +6,18 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "clean": "turbo run clean",
+    "dev": "turbo run dev --no-daemon",
+    "build": "turbo run build --no-daemon",
+    "lint": "turbo run lint --no-daemon",
+    "type-check": "turbo run type-check --no-daemon",
+    "test": "turbo run test --no-daemon",
+    "clean": "turbo run clean && rm -rf .turbo node_modules/.cache",
     "backend:dev": "make run",
     "backend:gateway": "make run-gateway",
-    "frontend:dev": "cd apps/aurity && PORT=9000 pnpm dev"
+    "frontend:dev": "cd apps/aurity && PORT=9000 pnpm dev",
+    "install:all": "pnpm install --frozen-lockfile",
+    "prune": "pnpm prune && turbo prune",
+    "check-deps": "pnpm audit --audit-level=moderate"
   },
   "devDependencies": {
     "turbo": "^1.11.2"

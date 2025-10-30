@@ -19,27 +19,22 @@ Usage:
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Path, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.fi_consult_models import (
-    AppendEventRequest,
-    AppendEventResponse,
-    Consultation,
-    ConsultationEvent,
-    EventType,
-    GetConsultationResponse,
-    GetSOAPResponse,
-    SOAPNote,
-    StartConsultationRequest,
-    StartConsultationResponse,
-)
-
 # Import event store (to be implemented)
 # from backend.fi_event_store import EventStore
+# Import Sessions API router (FI-API-FEAT-009)
+from backend.api.sessions import router as sessions_router
+from backend.fi_consult_models import (AppendEventRequest, AppendEventResponse,
+                                       Consultation, ConsultationEvent,
+                                       EventType, GetConsultationResponse,
+                                       GetSOAPResponse, SOAPNote,
+                                       StartConsultationRequest,
+                                       StartConsultationResponse)
 
 # ============================================================================
 # FASTAPI APP INITIALIZATION
@@ -56,11 +51,20 @@ app = FastAPI(
 # CORS middleware (LAN-only in production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:9000",  # Aurity frontend (FI-UI-FEAT-201)
+        "http://127.0.0.1:9000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount Sessions API router (FI-API-FEAT-009)
+# Note: router already has /api/sessions paths defined, so no prefix needed
+app.include_router(sessions_router, tags=["sessions"])
 
 
 # ============================================================================
@@ -68,11 +72,12 @@ app.add_middleware(
 # Will be replaced with fi_event_store.py (HDF5/JSON)
 # ============================================================================
 
+
 class TemporaryStore:
     """Temporary in-memory store for demo purposes."""
 
     def __init__(self):
-        self.consultations: Dict[str, List[ConsultationEvent]] = {}
+        self.consultations: dict[str, list[ConsultationEvent]] = {}
 
     def append_event(self, consultation_id: str, event: ConsultationEvent) -> None:
         """Append event to consultation stream."""
@@ -80,7 +85,7 @@ class TemporaryStore:
             self.consultations[consultation_id] = []
         self.consultations[consultation_id].append(event)
 
-    def get_events(self, consultation_id: str) -> List[ConsultationEvent]:
+    def get_events(self, consultation_id: str) -> list[ConsultationEvent]:
         """Get all events for consultation."""
         return self.consultations.get(consultation_id, [])
 
@@ -101,9 +106,9 @@ temp_store = TemporaryStore()
 # STATE RECONSTRUCTION (Event Sourcing)
 # ============================================================================
 
+
 def reconstruct_consultation_state(
-    consultation_id: str,
-    events: List[ConsultationEvent]
+    consultation_id: str, events: list[ConsultationEvent]
 ) -> Consultation:
     """
     Reconstruct consultation state from event stream.
@@ -134,39 +139,41 @@ def reconstruct_consultation_state(
         elif event.event_type == EventType.DEMOGRAPHICS_UPDATED:
             if consultation.patient_data is None:
                 from backend.fi_consult_models import PatientStub
+
                 consultation.patient_data = PatientStub()
             for key, value in event.payload.items():
                 if hasattr(consultation.patient_data, key):
                     setattr(consultation.patient_data, key, value)
 
         elif event.event_type == EventType.EXTRACTION_COMPLETED:
-            consultation.extraction_data = event.payload.get('extraction_data')
-            consultation.extraction_iteration = event.payload.get('iteration', 0)
+            consultation.extraction_data = event.payload.get("extraction_data")
+            consultation.extraction_iteration = event.payload.get("iteration", 0)
 
         elif event.event_type == EventType.SOAP_GENERATION_COMPLETED:
-            soap_data = event.payload.get('soap_data')
+            soap_data = event.payload.get("soap_data")
             if soap_data:
                 # Parse SOAP data into SOAPNote model
                 try:
                     consultation.soap_note = SOAPNote(**soap_data)
-                except Exception as e:
+                except Exception:
                     # If parsing fails, store raw data
                     consultation.soap_note = soap_data  # type: ignore
 
         elif event.event_type == EventType.URGENCY_CLASSIFIED:
             from backend.fi_consult_models import UrgencyAssessment
+
             consultation.urgency_assessment = UrgencyAssessment(
-                urgency_level=event.payload.get('urgency_level'),
-                gravity_score=event.payload.get('gravity_score'),
-                time_to_action=event.payload.get('time_to_action'),
-                identified_patterns=event.payload.get('identified_patterns', []),
-                risk_factors=event.payload.get('risk_factors', []),
-                immediate_actions=event.payload.get('immediate_actions', [])
+                urgency_level=event.payload.get("urgency_level"),
+                gravity_score=event.payload.get("gravity_score"),
+                time_to_action=event.payload.get("time_to_action"),
+                identified_patterns=event.payload.get("identified_patterns", []),
+                risk_factors=event.payload.get("risk_factors", []),
+                immediate_actions=event.payload.get("immediate_actions", []),
             )
 
         elif event.event_type == EventType.CONSULTATION_COMMITTED:
             consultation.is_committed = True
-            consultation.commit_hash = event.payload.get('commit_hash')
+            consultation.commit_hash = event.payload.get("commit_hash")
 
     return consultation
 
@@ -174,6 +181,7 @@ def reconstruct_consultation_state(
 # ============================================================================
 # API ENDPOINTS
 # ============================================================================
+
 
 @app.get("/", tags=["Root"])
 async def root():
@@ -183,7 +191,7 @@ async def root():
         "version": "0.3.0",
         "status": "operational",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
     }
 
 
@@ -194,7 +202,7 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "consultations_count": len(temp_store.consultations),
-        "service": "fi_consultation_service"
+        "service": "fi_consultation_service",
     }
 
 
@@ -202,7 +210,7 @@ async def health_check():
     "/consultations",
     response_model=StartConsultationResponse,
     status_code=status.HTTP_201_CREATED,
-    tags=["Consultations"]
+    tags=["Consultations"],
 )
 async def start_consultation(request: StartConsultationRequest):
     """
@@ -217,6 +225,7 @@ async def start_consultation(request: StartConsultationRequest):
         StartConsultationResponse with consultation_id, session_id, created_at
     """
     from uuid import uuid4
+
     from backend.fi_consult_models import EventMetadata
 
     consultation_id = str(uuid4())
@@ -231,24 +240,16 @@ async def start_consultation(request: StartConsultationRequest):
         payload={
             "message_content": "Consultation started",
             "message_role": "assistant",
-            "metadata": {
-                "consultation_started": True,
-                "session_id": session_id
-            }
+            "metadata": {"consultation_started": True, "session_id": session_id},
         },
-        metadata=EventMetadata(
-            user_id=request.user_id,
-            session_id=session_id
-        )
+        metadata=EventMetadata(user_id=request.user_id, session_id=session_id),
     )
 
     # Append to store
     temp_store.append_event(consultation_id, initial_event)
 
     return StartConsultationResponse(
-        consultation_id=consultation_id,
-        session_id=session_id,
-        created_at=created_at
+        consultation_id=consultation_id, session_id=session_id, created_at=created_at
     )
 
 
@@ -256,11 +257,11 @@ async def start_consultation(request: StartConsultationRequest):
     "/consultations/{consultation_id}/events",
     response_model=AppendEventResponse,
     status_code=status.HTTP_201_CREATED,
-    tags=["Consultations"]
+    tags=["Consultations"],
 )
 async def append_event(
     consultation_id: str = Path(..., description="Consultation ID"),
-    request: AppendEventRequest = ...
+    request: AppendEventRequest = ...,
 ):
     """
     Append event to consultation event stream.
@@ -284,7 +285,7 @@ async def append_event(
     if not temp_store.consultation_exists(consultation_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Consultation {consultation_id} not found"
+            detail=f"Consultation {consultation_id} not found",
         )
 
     # Get session_id from first event
@@ -297,10 +298,7 @@ async def append_event(
         timestamp=datetime.utcnow(),
         event_type=request.event_type,
         payload=request.payload,
-        metadata=EventMetadata(
-            user_id=request.user_id,
-            session_id=session_id
-        )
+        metadata=EventMetadata(user_id=request.user_id, session_id=session_id),
     )
 
     # TODO: Calculate SHA256 audit hash
@@ -313,18 +311,16 @@ async def append_event(
         event_id=event.event_id,
         consultation_id=consultation_id,
         event_count=temp_store.get_event_count(consultation_id),
-        timestamp=event.timestamp
+        timestamp=event.timestamp,
     )
 
 
 @app.get(
     "/consultations/{consultation_id}",
     response_model=GetConsultationResponse,
-    tags=["Consultations"]
+    tags=["Consultations"],
 )
-async def get_consultation(
-    consultation_id: str = Path(..., description="Consultation ID")
-):
+async def get_consultation(consultation_id: str = Path(..., description="Consultation ID")):
     """
     Get consultation state (reconstructed from events).
 
@@ -344,7 +340,7 @@ async def get_consultation(
     if not temp_store.consultation_exists(consultation_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Consultation {consultation_id} not found"
+            detail=f"Consultation {consultation_id} not found",
         )
 
     # Get events
@@ -357,13 +353,9 @@ async def get_consultation(
 
 
 @app.get(
-    "/consultations/{consultation_id}/soap",
-    response_model=GetSOAPResponse,
-    tags=["Consultations"]
+    "/consultations/{consultation_id}/soap", response_model=GetSOAPResponse, tags=["Consultations"]
 )
-async def get_soap(
-    consultation_id: str = Path(..., description="Consultation ID")
-):
+async def get_soap(consultation_id: str = Path(..., description="Consultation ID")):
     """
     Get SOAP note view for consultation.
 
@@ -383,7 +375,7 @@ async def get_soap(
     if not temp_store.consultation_exists(consultation_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Consultation {consultation_id} not found"
+            detail=f"Consultation {consultation_id} not found",
         )
 
     # Get events and reconstruct
@@ -392,9 +384,9 @@ async def get_soap(
 
     # Check if SOAP ready for commit
     is_ready = (
-        consultation.soap_note is not None and
-        consultation.completeness is not None and
-        consultation.completeness.ready_for_commit
+        consultation.soap_note is not None
+        and consultation.completeness is not None
+        and consultation.completeness.ready_for_commit
     )
 
     return GetSOAPResponse(
@@ -402,18 +394,15 @@ async def get_soap(
         soap_note=consultation.soap_note,
         completeness=consultation.completeness,
         urgency_assessment=consultation.urgency_assessment,
-        is_ready_for_commit=is_ready
+        is_ready_for_commit=is_ready,
     )
 
 
-@app.get(
-    "/consultations/{consultation_id}/events",
-    tags=["Consultations"]
-)
+@app.get("/consultations/{consultation_id}/events", tags=["Consultations"])
 async def get_events(
     consultation_id: str = Path(..., description="Consultation ID"),
     limit: Optional[int] = Query(None, ge=1, le=1000, description="Max events to return"),
-    offset: Optional[int] = Query(0, ge=0, description="Event offset")
+    offset: Optional[int] = Query(0, ge=0, description="Event offset"),
 ):
     """
     Get event stream for consultation.
@@ -435,7 +424,7 @@ async def get_events(
     if not temp_store.consultation_exists(consultation_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Consultation {consultation_id} not found"
+            detail=f"Consultation {consultation_id} not found",
         )
 
     # Get events
@@ -452,13 +441,14 @@ async def get_events(
         "event_count": temp_store.get_event_count(consultation_id),
         "returned_count": len(events),
         "offset": offset,
-        "events": [event.model_dump() for event in events]
+        "events": [event.model_dump() for event in events],
     }
 
 
 # ============================================================================
 # ERROR HANDLERS
 # ============================================================================
+
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc: HTTPException):
@@ -469,8 +459,8 @@ async def http_exception_handler(request, exc: HTTPException):
             "error": True,
             "status_code": exc.status_code,
             "message": exc.detail,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     )
 
 
@@ -484,14 +474,15 @@ async def general_exception_handler(request, exc: Exception):
             "status_code": 500,
             "message": "Internal server error",
             "detail": str(exc),
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     )
 
 
 # ============================================================================
 # STARTUP/SHUTDOWN EVENTS
 # ============================================================================
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -500,10 +491,7 @@ async def startup_event():
 
     logger = get_logger(__name__)
     logger.info(
-        "CONSULTATION_SERVICE_STARTED",
-        version="0.3.0",
-        port=7001,
-        timezone="America/Mexico_City"
+        "CONSULTATION_SERVICE_STARTED", version="0.3.0", port=7001, timezone="America/Mexico_City"
     )
 
 
@@ -514,8 +502,7 @@ async def shutdown_event():
 
     logger = get_logger(__name__)
     logger.info(
-        "CONSULTATION_SERVICE_STOPPED",
-        consultations_processed=len(temp_store.consultations)
+        "CONSULTATION_SERVICE_STOPPED", consultations_processed=len(temp_store.consultations)
     )
 
 
@@ -527,9 +514,5 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "backend.fi_consult_service:app",
-        host="127.0.0.1",
-        port=7001,
-        reload=True,
-        log_level="info"
+        "backend.fi_consult_service:app", host="127.0.0.1", port=7001, reload=True, log_level="info"
     )

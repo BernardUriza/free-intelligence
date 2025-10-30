@@ -39,3 +39,9 @@ limits:
   max_sessions: 1000
   max_interactions_per_session: 10000
   retention_bundles: 12
+
+retry:
+  max_retries: 3
+  base_delay_ms: 100
+  max_delay_ms: 1000
+  timeout_seconds: 8

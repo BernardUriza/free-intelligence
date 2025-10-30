@@ -1,0 +1,98 @@
+# Friday Ceremony — Weekly Ritual
+# Free Intelligence — Sprint Health & Grooming
+# Version: 1.0.0
+# Updated: 2025-10-29
+
+friday_ceremony:
+  description: "Ritual semanal para cerrar sprint, grooming backlog, actualizar métricas"
+  frequency: "weekly"
+  duration: "30-45 minutes"
+  participants: ["owner", "claude_code"]
+
+  steps:
+    - step: 1
+      name: "Review Done Cards"
+      duration: "10 min"
+      actions:
+        - command: "trello cards 68fc0116622f29eecd78b7d4"
+          description: "Listar todas las cards en ✅ Done list"
+        - check: "Verificar que todas tienen comentario con evidencia"
+        - check: "Confirmar artefactos ejecutables (tools/verify_artifact.py)"
+        - metric: "Count Done cards desde último viernes"
+
+    - step: 2
+      name: "Update Bitácora (CLAUDE.md)"
+      duration: "5 min"
+      actions:
+        - command: "Agregar entrada append-only a CLAUDE.md"
+          format: |
+            YYYY-MM-DD — Sprint [NUM] Close
+            • Cards Done: X (P0: Y, P1: Z)
+            • Artefactos creados: [lista]
+            • Velocity: X.XX (actual_hours / estimated_hours)
+            • Blockers resueltos: [lista]
+            • Next sprint focus: [área prioritaria]
+        - check: "NO_MD exception válida (CLAUDE.md permitido > 150 líneas)"
+
+    - step: 3
+      name: "Sprint Health Check"
+      duration: "10 min"
+      actions:
+        - command: "trello board-overview 68fbfeeb7f8614df2eb61e42"
+          description: "Ver distribución de cards por list"
+        - check: "⚙️ In Progress no debe estar vacío (workflow innegociable)"
+        - check: "🧪 Testing tiene < 5 cards (no bottleneck)"
+        - check: "🚀 Sprint tiene 15-20 cards (capacity adecuada)"
+        - metric: "Cards aging > 7 días sin movimiento"
+
+    - step: 4
+      name: "Groom Backlog (Top 10 P0/P1)"
+      duration: "15 min"
+      actions:
+        - command: "trello cards 690100441851396c1cb143a6 | head -15"
+          description: "Ver top cards en 📥 Backlog"
+        - check: "Top 10 P0 tienen labels, due dates, AC claros (DoR)"
+        - check: "Dependencies identificadas (blocking cards)"
+        - action: "Mover P0 ready → Sprint (si capacity disponible)"
+        - action: "Archivar duplicados o stale cards (> 30 días sin actividad)"
+
+    - step: 5
+      name: "Celebrate Wins"
+      duration: "5 min"
+      actions:
+        - check: "Reconocer logros técnicos de la semana"
+        - check: "Identificar mejoras en velocity o quality"
+        - action: "Git tag para releases importantes (v0.X.0)"
+
+metrics:
+  velocity:
+    formula: "actual_hours / estimated_hours"
+    target: "< 1.2 (over-estimate tolerable, under-estimate no)"
+    tracking: "Por sprint (4 sprints por mes)"
+
+  done_rate:
+    formula: "Cards Done / Cards Started"
+    target: "> 0.80 (80% completion rate)"
+
+  age_in_progress:
+    formula: "Días desde moved to In Progress"
+    target: "< 3 días (mover a Testing o back to Sprint)"
+
+  test_bottleneck:
+    formula: "Cards en Testing > 5"
+    action: "Priorizar QA o mover back to In Progress"
+
+automation:
+  reminders:
+    - trigger: "Viernes 16:00 America/Mexico_City"
+      action: "Notify owner: Friday Ceremony time"
+    - trigger: "⚙️ In Progress vacío"
+      action: "Alert: Workflow violation — mover P0 de Sprint"
+    - trigger: "Card en Testing > 48h"
+      action: "Review: QA blocker o mover a Done/Sprint"
+
+outputs:
+  bitacora_entry: "CLAUDE.md (append-only)"
+  metrics_snapshot: "metrics/sprint_[NUM]_[DATE].json"
+  backlog_groomed: "Top 10 P0/P1 con DoR completo"
+  next_sprint_plan: "📥 Backlog → 🚀 Sprint (capacity: 15-20 cards)"

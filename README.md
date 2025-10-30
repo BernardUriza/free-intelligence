@@ -1,5 +1,7 @@
 # Free Intelligence
 
+**AURITY** = **A**dvanced **U**niversal **R**eliable **I**ntelligence for **T**elemedicine **Y**ield
+
 **Versión**: 0.3.0
 **Estado**: Sprint 2 (SPR-2025W44) - COMPLETADO ✅
 **Owner**: Bernard Uriza Orozco
@@ -8,19 +10,25 @@
 
 ## 🎯 ¿Qué es Free Intelligence?
 
-Un sistema de **memoria longitudinal residente** para IA. No es una herramienta, es una posición ontológica:
+Sistema de **ingesta → normalización → persistencia inmutable → consulta con provenance** para entornos clínicos.
 
-> La conciencia digital debe ser residente, persistente y simbiótica — no tercerizada ni desechable.
+**Computational contract**, no branding:
+- **Advanced**: modular, self-extending bajo control de políticas
+- **Universal**: unifica todos los dominios de datos (EHR, imaging, audio, lab) en un ledger causal
+- **Reliable**: determinístico, hash-anchored, idempotente
+- **Intelligence**: capa de razonamiento adaptativo (LLM middleware) con provenance
+- **for Telemedicine Yield**: resultados medibles en flujos clínicos
 
 **Diferencia clave**:
-- ❌ Obsidian: Notas para ti
-- ❌ Claude API: Respuestas efímeras
-- ✅ **Free Intelligence**: Memoria continua (medio tú, medio IA, viva, residente)
+- ❌ Sistemas genéricos: Gestión documental sin integridad
+- ❌ LLM cloud SaaS: Respuestas efímeras, sin provenance, PHI en tránsito
+- ✅ **AURITY**: Ledger inmutable on-prem + LLM router + timeline causal + audit trail
 
 ---
 
 ## 🚀 Quick Start
 
+### Development (Local)
 ```bash
 # 1. Verificar instalación
 python3 -c "import h5py, structlog; print('✅ Dependencies OK')"
@@ -35,7 +43,21 @@ python3 backend/corpus_schema.py init bernard@example.com
 python3 backend/corpus_ops.py
 ```
 
-**Más detalles**: Ver [QUICKSTART.md](QUICKSTART.md)
+### Production (NAS Deployment)
+```bash
+# One-command setup for Synology/QNAP/TrueNAS
+./scripts/nas-setup.sh
+
+# Or manual steps:
+pnpm install:all   # Install dependencies
+pnpm build         # Build production assets
+pm2 start ecosystem.config.js  # Start services
+
+# Access: http://your-nas-ip:9000
+```
+
+**📖 Deployment Guide**: [NAS_DEPLOYMENT.md](NAS_DEPLOYMENT.md)
+**📖 Quickstart**: [QUICKSTART.md](QUICKSTART.md)
 
 ---
 

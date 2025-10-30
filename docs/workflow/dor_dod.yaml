@@ -1,0 +1,84 @@
+# Definition of Ready (DoR) & Definition of Done (DoD)
+# Free Intelligence — Workflow Liturgy
+# Version: 1.0.0
+# Updated: 2025-10-29
+
+definition_of_ready:
+  description: "Checklist antes de mover card a 🚀 Sprint"
+  criteria:
+    - id: dor_01
+      check: "Título sigue convención: FI-[AREA]-[TYPE]-[NUM]: Description"
+      required: true
+    - id: dor_02
+      check: "Acceptance Criteria (AC) explícitos y medibles (3-5 bullets)"
+      required: true
+    - id: dor_03
+      check: "Estimación de complejidad (Simple/Media/Alta) y tiempo (1-8h)"
+      required: true
+    - id: dor_04
+      check: "Dependencies identificadas (blocking/blocked_by con card IDs)"
+      required: true
+    - id: dor_05
+      check: "Labels aplicados: Prioridad (P0/P1/P2), Área, Tipo, Sprint"
+      required: true
+    - id: dor_06
+      check: "Due date asignada (dentro de sprint window)"
+      required: true
+    - id: dor_07
+      check: "Artefactos esperados listados (*.py, *.yaml, *.tsx, tests/*)"
+      required: true
+
+definition_of_done:
+  description: "Checklist antes de mover card a ✅ Done"
+  criteria:
+    - id: dod_01
+      check: "Todos los Acceptance Criteria cumplidos (checkboxes marcados)"
+      required: true
+      blocker: true
+    - id: dod_02
+      check: "Artefacto ejecutable verificado (python3 tools/verify_artifact.py)"
+      required: true
+      blocker: true
+      command: "python3 tools/verify_artifact.py"
+    - id: dod_03
+      check: "Tests básicos pasan (pytest -q para Python, npm test para TypeScript)"
+      required: true
+      blocker: false
+    - id: dod_04
+      check: "Logs/instrumentación agregados (si aplica)"
+      required: false
+      blocker: false
+    - id: dod_05
+      check: "Commit descriptivo con Task ID: feat(area): description (TASK-ID)"
+      required: true
+      blocker: false
+    - id: dod_06
+      check: "Comentario en card con evidencia (rutas, output, screenshots)"
+      required: true
+      blocker: false
+    - id: dod_07
+      check: "Card labels actualizados (remover Sprint si aplica)"
+      required: true
+      blocker: false
+
+policies:
+  no_md:
+    enabled: true
+    description: "NO_MD=1: Prohibido crear/editar .md > 150 líneas"
+    exceptions: ["README.md", "CLAUDE.md"]
+    enforcement: "pre-commit hook: .git-hooks/reject_large_md.py"
+
+  artifact_first:
+    enabled: true
+    description: "Crear artefacto ejecutable antes de marcar Done"
+    priority: "YAML/JSON/Python/TypeScript > .md files"
+
+  append_only:
+    enabled: true
+    description: "Bitácora y auditoría son append-only (sin mutaciones)"
+    applies_to: ["CLAUDE.md", "storage/corpus.h5", "audit_logs/*"]
+
+usage:
+  verify_dor: "Revisar checklist antes de mover a Sprint"
+  verify_dod: "python3 tools/verify_artifact.py <TASK_ID>"
+  reject_incomplete: "No mover a Done si dod_01 o dod_02 fallan"

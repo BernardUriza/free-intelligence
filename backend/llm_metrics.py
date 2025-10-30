@@ -67,19 +67,36 @@ class LLMMetrics:
             if len(self.latency_samples) > self.max_samples:
                 self.latency_samples = self.latency_samples[-self.max_samples :]
 
-    def get_p95_latency(self) -> int:
+    def _percentile(self, p: float) -> int:
         """
-        Calculate p95 latency from samples.
+        Calculate percentile from samples.
+
+        Args:
+            p: Percentile (0.0-1.0), e.g., 0.95 for p95
 
         Returns:
-            p95 latency in milliseconds (0 if no samples)
+            Percentile value in milliseconds (0 if no samples)
         """
         if not self.latency_samples:
             return 0
 
         sorted_samples = sorted(self.latency_samples)
-        p95_index = int(len(sorted_samples) * 0.95)
-        return sorted_samples[p95_index]
+        n = len(sorted_samples)
+        # Fix off-by-one: ensure index is valid for all n >= 1
+        index = min(int(n * p), n - 1)
+        return sorted_samples[index]
+
+    def get_p50_latency(self) -> int:
+        """Calculate p50 (median) latency from samples."""
+        return self._percentile(0.50)
+
+    def get_p95_latency(self) -> int:
+        """Calculate p95 latency from samples."""
+        return self._percentile(0.95)
+
+    def get_p99_latency(self) -> int:
+        """Calculate p99 latency from samples."""
+        return self._percentile(0.99)
 
     def get_cache_hit_rate(self) -> float:
         """
@@ -108,9 +125,17 @@ class LLMMetrics:
             "# TYPE llm_cache_hits_total counter",
             f"llm_cache_hits_total {self.cache_hits_total}",
             "",
+            "# HELP llm_latency_p50 50th percentile latency (ms)",
+            "# TYPE llm_latency_p50 gauge",
+            f"llm_latency_p50 {self.get_p50_latency()}",
+            "",
             "# HELP llm_latency_p95 95th percentile latency (ms)",
             "# TYPE llm_latency_p95 gauge",
             f"llm_latency_p95 {self.get_p95_latency()}",
+            "",
+            "# HELP llm_latency_p99 99th percentile latency (ms)",
+            "# TYPE llm_latency_p99 gauge",
+            f"llm_latency_p99 {self.get_p99_latency()}",
             "",
             "# HELP llm_cache_hit_rate Cache hit rate (0.0-1.0)",
             "# TYPE llm_cache_hit_rate gauge",
@@ -136,7 +161,9 @@ class LLMMetrics:
             "requests_total": self.requests_total,
             "cache_hits_total": self.cache_hits_total,
             "cache_hit_rate": self.get_cache_hit_rate(),
+            "p50_latency_ms": self.get_p50_latency(),
             "p95_latency_ms": self.get_p95_latency(),
+            "p99_latency_ms": self.get_p99_latency(),
             "uptime_seconds": int(time.time() - self.start_time),
             "provider_metrics": dict(self.provider_metrics),
         }

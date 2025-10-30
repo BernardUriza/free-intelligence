@@ -1,0 +1,724 @@
+{
+  "run_id": "run_20251029_124518",
+  "timestamp": "2025-10-29T12:45:18.788018",
+  "model_id": "mock-llm",
+  "total_prompts": 50,
+  "results": [
+    {
+      "prompt_id": "P001",
+      "category": "technical_query",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.924,
+        "latency_ms": 0,
+        "cost_usd": 0.000312,
+        "tokens_in": 9,
+        "tokens_out": 19,
+        "keywords_matched": [
+          "hdf5",
+          "append-only"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P002",
+      "category": "technical_query",
+      "metrics": {
+        "adequacy": 0.25,
+        "factuality": 0.959,
+        "latency_ms": 0,
+        "cost_usd": 0.000345,
+        "tokens_in": 10,
+        "tokens_out": 21,
+        "keywords_matched": [
+          "session"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P003",
+      "category": "technical_query",
+      "metrics": {
+        "adequacy": 0.225,
+        "factuality": 0.865,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": [
+          "verify"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P004",
+      "category": "technical_query",
+      "metrics": {
+        "adequacy": 0.45,
+        "factuality": 0.918,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": [
+          "export",
+          "manifest"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P005",
+      "category": "technical_query",
+      "metrics": {
+        "adequacy": 0.45,
+        "factuality": 0.915,
+        "latency_ms": 0,
+        "cost_usd": 0.000273,
+        "tokens_in": 6,
+        "tokens_out": 17,
+        "keywords_matched": [
+          "mutation",
+          "policy"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P006",
+      "category": "workflow",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.869,
+        "latency_ms": 0,
+        "cost_usd": 0.000327,
+        "tokens_in": 9,
+        "tokens_out": 20,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P007",
+      "category": "workflow",
+      "metrics": {
+        "adequacy": 0.25,
+        "factuality": 0.857,
+        "latency_ms": 0,
+        "cost_usd": 0.000327,
+        "tokens_in": 9,
+        "tokens_out": 20,
+        "keywords_matched": [
+          "json"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P008",
+      "category": "workflow",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.88,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P009",
+      "category": "workflow",
+      "metrics": {
+        "adequacy": 0.225,
+        "factuality": 0.928,
+        "latency_ms": 0,
+        "cost_usd": 0.000312,
+        "tokens_in": 9,
+        "tokens_out": 19,
+        "keywords_matched": [
+          "search"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P010",
+      "category": "workflow",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.939,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P011",
+      "category": "architecture",
+      "metrics": {
+        "adequacy": 0.2,
+        "factuality": 0.888,
+        "latency_ms": 0,
+        "cost_usd": 0.000297,
+        "tokens_in": 9,
+        "tokens_out": 18,
+        "keywords_matched": [
+          "hexagonal"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P012",
+      "category": "architecture",
+      "metrics": {
+        "adequacy": 0.225,
+        "factuality": 0.865,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": [
+          "local-first"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P013",
+      "category": "architecture",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.917,
+        "latency_ms": 0,
+        "cost_usd": 0.000273,
+        "tokens_in": 6,
+        "tokens_out": 17,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P014",
+      "category": "architecture",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.976,
+        "latency_ms": 0,
+        "cost_usd": 0.000273,
+        "tokens_in": 6,
+        "tokens_out": 17,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P015",
+      "category": "architecture",
+      "metrics": {
+        "adequacy": 0.225,
+        "factuality": 0.904,
+        "latency_ms": 0,
+        "cost_usd": 0.000237,
+        "tokens_in": 4,
+        "tokens_out": 15,
+        "keywords_matched": [
+          "policy"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P016",
+      "category": "philosophy",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.951,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P017",
+      "category": "philosophy",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.989,
+        "latency_ms": 0,
+        "cost_usd": 0.000309,
+        "tokens_in": 8,
+        "tokens_out": 19,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P018",
+      "category": "philosophy",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.896,
+        "latency_ms": 0,
+        "cost_usd": 0.000309,
+        "tokens_in": 8,
+        "tokens_out": 19,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P019",
+      "category": "philosophy",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.894,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P020",
+      "category": "philosophy",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.984,
+        "latency_ms": 0,
+        "cost_usd": 0.000327,
+        "tokens_in": 9,
+        "tokens_out": 20,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P021",
+      "category": "troubleshooting",
+      "metrics": {
+        "adequacy": 0.225,
+        "factuality": 0.909,
+        "latency_ms": 0,
+        "cost_usd": 0.000327,
+        "tokens_in": 9,
+        "tokens_out": 20,
+        "keywords_matched": [
+          "lock"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P022",
+      "category": "troubleshooting",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.9,
+        "latency_ms": 0,
+        "cost_usd": 0.000327,
+        "tokens_in": 9,
+        "tokens_out": 20,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P023",
+      "category": "troubleshooting",
+      "metrics": {
+        "adequacy": 0.2,
+        "factuality": 0.874,
+        "latency_ms": 0,
+        "cost_usd": 0.000273,
+        "tokens_in": 6,
+        "tokens_out": 17,
+        "keywords_matched": [
+          "hash"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P024",
+      "category": "troubleshooting",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.92,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P025",
+      "category": "troubleshooting",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.862,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P026",
+      "category": "best_practices",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.995,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P027",
+      "category": "best_practices",
+      "metrics": {
+        "adequacy": 0.25,
+        "factuality": 0.863,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": [
+          "friday"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P028",
+      "category": "best_practices",
+      "metrics": {
+        "adequacy": 0.45,
+        "factuality": 0.885,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": [
+          "export",
+          "backup"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P029",
+      "category": "best_practices",
+      "metrics": {
+        "adequacy": 0.225,
+        "factuality": 0.915,
+        "latency_ms": 0,
+        "cost_usd": 0.000309,
+        "tokens_in": 8,
+        "tokens_out": 19,
+        "keywords_matched": [
+          "tags"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P030",
+      "category": "best_practices",
+      "metrics": {
+        "adequacy": 0.2,
+        "factuality": 0.851,
+        "latency_ms": 0,
+        "cost_usd": 0.000309,
+        "tokens_in": 8,
+        "tokens_out": 19,
+        "keywords_matched": [
+          "routing"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P031",
+      "category": "security",
+      "metrics": {
+        "adequacy": 0.2,
+        "factuality": 0.926,
+        "latency_ms": 0,
+        "cost_usd": 0.000255,
+        "tokens_in": 5,
+        "tokens_out": 16,
+        "keywords_matched": [
+          "hipaa"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P032",
+      "category": "security",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.889,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P033",
+      "category": "security",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.865,
+        "latency_ms": 0,
+        "cost_usd": 0.000309,
+        "tokens_in": 8,
+        "tokens_out": 19,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P034",
+      "category": "security",
+      "metrics": {
+        "adequacy": 0.45,
+        "factuality": 0.88,
+        "latency_ms": 0,
+        "cost_usd": 0.000255,
+        "tokens_in": 5,
+        "tokens_out": 16,
+        "keywords_matched": [
+          "audit",
+          "log"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P035",
+      "category": "security",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.953,
+        "latency_ms": 0,
+        "cost_usd": 0.000273,
+        "tokens_in": 6,
+        "tokens_out": 17,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P036",
+      "category": "performance",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.928,
+        "latency_ms": 0,
+        "cost_usd": 0.000327,
+        "tokens_in": 9,
+        "tokens_out": 20,
+        "keywords_matched": [
+          "p95",
+          "latency"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P037",
+      "category": "performance",
+      "metrics": {
+        "adequacy": 0.5,
+        "factuality": 0.974,
+        "latency_ms": 0,
+        "cost_usd": 0.000327,
+        "tokens_in": 9,
+        "tokens_out": 20,
+        "keywords_matched": [
+          "p99",
+          "latency"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P038",
+      "category": "performance",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.954,
+        "latency_ms": 0,
+        "cost_usd": 0.000255,
+        "tokens_in": 5,
+        "tokens_out": 16,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P039",
+      "category": "performance",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.92,
+        "latency_ms": 0,
+        "cost_usd": 0.000237,
+        "tokens_in": 4,
+        "tokens_out": 15,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P040",
+      "category": "performance",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.976,
+        "latency_ms": 0,
+        "cost_usd": 0.000273,
+        "tokens_in": 6,
+        "tokens_out": 17,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P041",
+      "category": "integration",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.946,
+        "latency_ms": 0,
+        "cost_usd": 0.000327,
+        "tokens_in": 9,
+        "tokens_out": 20,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P042",
+      "category": "integration",
+      "metrics": {
+        "adequacy": 0.225,
+        "factuality": 0.942,
+        "latency_ms": 0,
+        "cost_usd": 0.000327,
+        "tokens_in": 9,
+        "tokens_out": 20,
+        "keywords_matched": [
+          "api"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P043",
+      "category": "integration",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.893,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P044",
+      "category": "integration",
+      "metrics": {
+        "adequacy": 0.225,
+        "factuality": 0.862,
+        "latency_ms": 0,
+        "cost_usd": 0.000273,
+        "tokens_in": 6,
+        "tokens_out": 17,
+        "keywords_matched": [
+          "docker"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P045",
+      "category": "integration",
+      "metrics": {
+        "adequacy": 0.6,
+        "factuality": 0.963,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": [
+          "chaos",
+          "drill",
+          "ci"
+        ]
+      }
+    },
+    {
+      "prompt_id": "P046",
+      "category": "edge_cases",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.939,
+        "latency_ms": 0,
+        "cost_usd": 0.000273,
+        "tokens_in": 6,
+        "tokens_out": 17,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P047",
+      "category": "edge_cases",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.902,
+        "latency_ms": 0,
+        "cost_usd": 0.000273,
+        "tokens_in": 6,
+        "tokens_out": 17,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P048",
+      "category": "edge_cases",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.915,
+        "latency_ms": 0,
+        "cost_usd": 0.000315,
+        "tokens_in": 10,
+        "tokens_out": 19,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P049",
+      "category": "edge_cases",
+      "metrics": {
+        "adequacy": 0.0,
+        "factuality": 0.947,
+        "latency_ms": 0,
+        "cost_usd": 0.000291,
+        "tokens_in": 7,
+        "tokens_out": 18,
+        "keywords_matched": []
+      }
+    },
+    {
+      "prompt_id": "P050",
+      "category": "edge_cases",
+      "metrics": {
+        "adequacy": 0.225,
+        "factuality": 0.937,
+        "latency_ms": 0,
+        "cost_usd": 0.000327,
+        "tokens_in": 9,
+        "tokens_out": 20,
+        "keywords_matched": [
+          "delete"
+        ]
+      }
+    }
+  ],
+  "aggregates": {
+    "avg_adequacy": 0.15,
+    "avg_factuality": 0.916,
+    "p50_latency_ms": 0,
+    "p95_latency_ms": 0,
+    "p99_latency_ms": 0,
+    "total_cost_usd": 0.0147,
+    "total_tokens": 1276
+  }
+}

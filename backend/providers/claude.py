@@ -7,20 +7,15 @@ File: backend/providers/claude.py
 Created: 2025-10-28
 """
 
-import json
 import os
 import time
-from typing import Iterator, Optional
+from collections.abc import Iterator
+from typing import Optional
 
-from backend.llm_adapter import (
-    BudgetExceededError,
-    LLMAdapter,
-    LLMBudget,
-    LLMProviderError,
-    LLMRequest,
-    LLMResponse,
-)
+from backend.llm_adapter import (BudgetExceededError, LLMAdapter, LLMBudget,
+                                 LLMProviderError, LLMRequest, LLMResponse)
 from backend.logger import get_logger
+from backend.utils.token_counter import TokenCounter
 
 logger = get_logger(__name__)
 
@@ -47,6 +42,9 @@ class ClaudeAdapter(LLMAdapter):
         api_key: Optional[str] = None,
         budget: Optional[LLMBudget] = None,
         max_retries: int = 3,
+        token_counter: Optional[TokenCounter] = None,
+        base_delay_ms: int = 100,
+        max_delay_ms: int = 2000,
     ):
         super().__init__(
             provider_name="claude",
@@ -54,6 +52,12 @@ class ClaudeAdapter(LLMAdapter):
             budget=budget,
             max_retries=max_retries,
         )
+
+        # Inject token counter (create default if not provided)
+        self.token_counter = token_counter or TokenCounter()
+        # Retry backoff configuration
+        self.base_delay_ms = base_delay_ms
+        self.max_delay_ms = max_delay_ms
 
         # Get API key from env if not provided
         self.api_key = api_key or os.getenv("CLAUDE_API_KEY")
@@ -65,11 +69,10 @@ class ClaudeAdapter(LLMAdapter):
         # Import anthropic here to avoid import errors if not installed
         try:
             import anthropic
+
             self.client = anthropic.Anthropic(api_key=self.api_key)
         except ImportError:
-            raise ImportError(
-                "anthropic package not installed. Run: pip install anthropic"
-            )
+            raise ImportError("anthropic package not installed. Run: pip install anthropic")
 
     def generate(self, request: LLMRequest) -> LLMResponse:
         """
@@ -170,9 +173,10 @@ class ClaudeAdapter(LLMAdapter):
                     error=str(e),
                 )
 
-                # Exponential backoff
+                # Exponential backoff with configurable limits
                 if attempt < self.max_retries - 1:
-                    time.sleep(2 ** attempt)
+                    delay_ms = min(self.base_delay_ms * (2**attempt), self.max_delay_ms)
+                    time.sleep(delay_ms / 1000.0)  # Convert ms to seconds
 
         # All retries failed
         logger.error(

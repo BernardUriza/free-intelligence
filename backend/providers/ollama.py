@@ -26,6 +26,7 @@ import requests
 from backend.llm_adapter import (LLMAdapter, LLMBudget, LLMProviderError,
                                  LLMRequest, LLMResponse)
 from backend.logger import get_logger
+from backend.utils.token_counter import TokenCounter
 
 logger = get_logger(__name__)
 
@@ -46,9 +47,14 @@ class OllamaAdapter(LLMAdapter):
         self,
         model: str = "qwen2:7b",
         budget: Optional[LLMBudget] = None,
-        max_retries: int = 1,
+        max_retries: int = 3,
         base_url: str = "http://127.0.0.1:11434",
         timeout_seconds: int = 8,
+        token_counter: Optional[TokenCounter] = None,
+        base_delay_ms: int = 100,
+        max_delay_ms: int = 1000,
+        circuit_breaker_threshold: int = 5,
+        circuit_breaker_window: int = 60,
     ):
         super().__init__(
             provider_name="ollama",
@@ -58,6 +64,15 @@ class OllamaAdapter(LLMAdapter):
         )
         self.base_url = base_url
         self.timeout_seconds = timeout_seconds
+        # Inject token counter (create default if not provided)
+        self.token_counter = token_counter or TokenCounter()
+        # Retry backoff configuration
+        self.base_delay_ms = base_delay_ms
+        self.max_delay_ms = max_delay_ms
+        # Circuit breaker: track failures in time window
+        self.circuit_breaker_threshold = circuit_breaker_threshold
+        self.circuit_breaker_window = circuit_breaker_window
+        self.failure_timestamps: list[float] = []
 
         # Validate local-only host
         parsed = urlparse(base_url)
@@ -73,6 +88,25 @@ class OllamaAdapter(LLMAdapter):
             timeout_seconds=self.timeout_seconds,
         )
 
+    def _record_failure(self):
+        """Record a failure timestamp for circuit breaker."""
+        self.failure_timestamps.append(time.time())
+
+    def _is_circuit_open(self) -> bool:
+        """
+        Check if circuit breaker is open (too many failures).
+
+        Returns:
+            True if circuit is open (should reject requests)
+        """
+        now = time.time()
+        # Remove old failures outside the window
+        self.failure_timestamps = [
+            ts for ts in self.failure_timestamps if now - ts < self.circuit_breaker_window
+        ]
+        # Check if we've exceeded threshold
+        return len(self.failure_timestamps) >= self.circuit_breaker_threshold
+
     def generate(self, request: LLMRequest) -> LLMResponse:
         """
         Generate response from local Ollama.
@@ -84,8 +118,20 @@ class OllamaAdapter(LLMAdapter):
             LLM response with text, usage, latency, hash
 
         Raises:
-            LLMProviderError: If Ollama fails or times out
+            LLMProviderError: If Ollama fails or times out or circuit is open
         """
+        # Check circuit breaker first
+        if self._is_circuit_open():
+            logger.error(
+                "OLLAMA_CIRCUIT_OPEN",
+                provider=self.provider_name,
+                failures_in_window=len(self.failure_timestamps),
+                threshold=self.circuit_breaker_threshold,
+            )
+            raise LLMProviderError(
+                f"Circuit breaker open: {len(self.failure_timestamps)} failures in last {self.circuit_breaker_window}s"
+            )
+
         start_time = time.time()
 
         # Calculate prompt hash
@@ -140,11 +186,10 @@ class OllamaAdapter(LLMAdapter):
                 # Calculate latency
                 latency_ms = int((time.time() - start_time) * 1000)
 
-                # Estimate tokens if not provided
-                # Ollama doesn't always return token counts, so we estimate
-                input_tokens = len(request.prompt.split()) * 1.3  # ~1.3 tokens per word
-                output_tokens = len(text.split()) * 1.3
-                tokens_used = int(input_tokens + output_tokens)
+                # Estimate tokens using injected counter
+                input_tokens = self.token_counter.estimate_tokens(request.prompt)
+                output_tokens = self.token_counter.estimate_tokens(text)
+                tokens_used = input_tokens + output_tokens
 
                 # Build response
                 llm_response = LLMResponse(
@@ -156,8 +201,8 @@ class OllamaAdapter(LLMAdapter):
                     finish_reason="stop",
                     metadata={
                         "prompt_hash": prompt_hash,
-                        "input_tokens": int(input_tokens),
-                        "output_tokens": int(output_tokens),
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
                         "done": data.get("done", True),
                     },
                 )
@@ -175,6 +220,7 @@ class OllamaAdapter(LLMAdapter):
 
             except requests.exceptions.Timeout as e:
                 last_error = e
+                self._record_failure()
                 logger.warning(
                     "OLLAMA_REQUEST_TIMEOUT",
                     provider=self.provider_name,
@@ -185,6 +231,7 @@ class OllamaAdapter(LLMAdapter):
 
             except requests.exceptions.RequestException as e:
                 last_error = e
+                self._record_failure()
                 logger.warning(
                     "OLLAMA_REQUEST_RETRY",
                     provider=self.provider_name,
@@ -196,6 +243,7 @@ class OllamaAdapter(LLMAdapter):
 
             except Exception as e:
                 last_error = e
+                self._record_failure()
                 logger.warning(
                     "OLLAMA_REQUEST_ERROR",
                     provider=self.provider_name,
@@ -204,9 +252,10 @@ class OllamaAdapter(LLMAdapter):
                     error=str(e),
                 )
 
-            # Exponential backoff
+            # Exponential backoff with configurable limits
             if attempt < self.max_retries:
-                time.sleep(2**attempt)
+                delay_ms = min(self.base_delay_ms * (2**attempt), self.max_delay_ms)
+                time.sleep(delay_ms / 1000.0)  # Convert ms to seconds
 
         # All retries failed
         logger.error(

@@ -1,0 +1,71 @@
+# Free Intelligence — Error Budgets & SLOs
+# Defines service-level objectives and error budgets
+
+version: "1.0"
+period: "30d"  # 30-day rolling window
+
+services:
+  timeline_api:
+    name: "Timeline API (read/list)"
+    slo:
+      availability: 0.999  # 99.9% uptime
+      p95_latency_ms: 300
+      p99_latency_ms: 1000
+    error_budget:
+      allowed_errors_per_month: 43200  # ~30min downtime/month
+      current_errors: 0
+      budget_remaining: 1.0
+
+  ingestion_api:
+    name: "Ingestion API (session/interaction)"
+    slo:
+      availability: 0.995  # 99.5% uptime
+      p95_latency_ms: 2000
+      p99_latency_ms: 5000
+    error_budget:
+      allowed_errors_per_month: 21600  # ~6h downtime/month
+      current_errors: 0
+      budget_remaining: 1.0
+
+  export_api:
+    name: "Export API (manifest generation)"
+    slo:
+      availability: 0.99  # 99% uptime
+      p95_latency_ms: 5000
+      p99_latency_ms: 10000
+    error_budget:
+      allowed_errors_per_month: 43200  # ~12h downtime/month
+      current_errors: 0
+      budget_remaining: 1.0
+
+  verify_api:
+    name: "Verify API (hash checking)"
+    slo:
+      availability: 0.999
+      p95_latency_ms: 1000
+      p99_latency_ms: 3000
+    error_budget:
+      allowed_errors_per_month: 43200
+      current_errors: 0
+      budget_remaining: 1.0
+
+# Error budget policy
+policy:
+  alert_threshold: 0.1  # Alert when 90% budget consumed
+  freeze_threshold: 0.0  # Freeze releases when budget exhausted
+  recovery_actions:
+    - "Roll back to last known good version"
+    - "Enable circuit breakers"
+    - "Increase cache TTL"
+    - "Throttle non-critical requests"
+
+# Chaos drill integration
+chaos_drills:
+  enabled: true
+  frequency: "weekly"
+  scenarios:
+    - "corpus_lock_timeout"
+    - "disk_90_percent_full"
+    - "llm_api_429_rate_limit"
+    - "network_partition"
+  consume_error_budget: true
