@@ -38,6 +38,9 @@ from backend.api.evidence import router as evidence_router
 from backend.api.kpis import router as kpis_router
 from backend.api.triage import router as triage_router
 from backend.api.transcribe import router as transcribe_router
+from backend.api.diarization import router as diarization_router
+from backend.api.fi_diag import router as diag_router
+from backend.api.system import router as system_router
 from backend.fi_consult_models import (AppendEventRequest, AppendEventResponse,
                                        Consultation, ConsultationEvent,
                                        EventType, GetConsultationResponse,
@@ -98,6 +101,15 @@ app.include_router(triage_router, tags=["triage"])
 
 # Transcription API (FI-BACKEND-FEAT-003)
 app.include_router(transcribe_router, tags=["transcribe"])
+
+# Diarization API (FI-BACKEND-FEAT-004)
+app.include_router(diarization_router, tags=["diarization"])
+
+# Diagnostics API (FI-INFRA-STR-014)
+app.include_router(diag_router, tags=["diagnostics"])
+
+# System Health API (FI-UI-FEAT-204)
+app.include_router(system_router, tags=["system"])
 
 # Static file serving for export downloads
 # Ensure export directory exists
