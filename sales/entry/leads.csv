@@ -1,0 +1,34 @@
+lead_id,company_name,contact_name,title,email,phone,city,state,segment,estimated_doctors,source,status,notes
+L001,Clínica Médica del Valle,Dr. Juan Pérez,Director Médico,jperez@clinicadelvalle.com,+52 81 1234 5678,Monterrey,Nuevo León,Clínica privada,8,LinkedIn,new,Especialidad: medicina interna
+L002,Centro de Salud Integral,Dra. María González,Directora General,mgonzalez@csintegral.mx,+52 55 9876 5432,Ciudad de México,CDMX,Clínica privada,5,Referral,new,Busca mejorar documentación
+L003,Consultorios Médicos San Ángel,Dr. Carlos Ramírez,Administrador,cramirez@sanangel.com,+52 55 5555 1234,Ciudad de México,CDMX,Consultorios compartidos,10,Google Search,new,Tiene servidor Dell local
+L004,Clínica Familiar Guadalajara,Dra. Ana Martínez,Directora Médica,amartinez@cfgdl.com,+52 33 1111 2222,Guadalajara,Jalisco,Clínica privada,6,LinkedIn,contacted,Respondió email inicial
+L005,Instituto Médico del Norte,Dr. Roberto Sánchez,Director IT,rsanchez@imednorte.mx,+52 81 3333 4444,Monterrey,Nuevo León,Instituto privado,12,Conference,new,Asistió a Health Tech Expo 2024
+L006,Clínica Especializada Polanco,Dr. Luis Fernández,Socio Fundador,lfernandez@polanco.clinic,+52 55 7777 8888,Ciudad de México,CDMX,Clínica privada,4,LinkedIn,new,Especialidad: cardiología
+L007,Centro Médico Querétaro,Ing. Patricia Morales,Gerente IT,pmorales@cmqueretaro.mx,+52 442 999 0000,Querétaro,Querétaro,Centro médico,9,Google Search,new,Busca on-premise solution
+L008,Clínica Santa Fe,Dra. Gabriela Torres,Directora Médica,gtorres@santafe.clinic,+52 55 4444 5555,Ciudad de México,CDMX,Clínica privada,7,Referral,new,Referida por L004
+L009,Consultorios Médicos Condesa,Dr. Miguel Ángel Ruiz,Administrador,maruiz@condesa.med,+52 55 6666 7777,Ciudad de México,CDMX,Consultorios compartidos,5,LinkedIn,new,Preocupado por privacidad datos
+L010,Clínica Médica Puebla,Dr. Jorge Hernández,Director General,jhernandez@clinicapuebla.mx,+52 222 888 9999,Puebla,Puebla,Clínica privada,8,Conference,contacted,Solicitó demo presencial
+L011,Instituto de Salud Integral,Dra. Sofía López,Subdirectora,slopez@isintegral.com,+52 55 2222 3333,Ciudad de México,CDMX,Instituto privado,15,LinkedIn,new,Instituto grande (15 docs)
+L012,Clínica del Bajío,Dr. Fernando Castro,Director Médico,fcastro@clinicabajio.mx,+52 461 777 8888,León,Guanajuato,Clínica privada,6,Google Search,new,Especialidad: pediatría
+L013,Centro Médico Monterrey Sur,Ing. Ricardo Vargas,CTO,rvargas@cmmtysur.mx,+52 81 5555 6666,Monterrey,Nuevo León,Centro médico,10,LinkedIn,new,Tech-savvy contact
+L014,Clínica Médica Coyoacán,Dra. Laura Jiménez,Directora Médica,ljimenez@coyoacan.clinic,+52 55 8888 9999,Ciudad de México,CDMX,Clínica privada,5,Referral,new,Referida por colega
+L015,Consultorios Médicos Roma,Dr. Alberto Mendoza,Socio,amendoza@roma.med,+52 55 1111 2222,Ciudad de México,CDMX,Consultorios compartidos,4,Google Search,new,Busca reducir costos IT
+L016,Clínica Familiar Toluca,Dra. Carmen Ortiz,Directora General,cortiz@cftoluca.mx,+52 722 333 4444,Toluca,Estado de México,Clínica privada,7,Conference,new,Asistió a Health Tech Expo 2024
+L017,Centro de Especialidades Médicas,Dr. Héctor Reyes,Director Médico,hreyes@especialidades.mx,+52 55 9999 0000,Ciudad de México,CDMX,Centro médico,11,LinkedIn,contacted,Solicitó pricing info
+L018,Clínica del Bienestar,Dra. Mónica Silva,Administradora,msilva@bienestar.clinic,+52 33 2222 3333,Guadalajara,Jalisco,Clínica privada,6,Referral,new,Referida por L004
+L019,Instituto Médico Aguascalientes,Dr. Pablo Gutiérrez,Director IT,pgutierrez@imedags.mx,+52 449 555 6666,Aguascalientes,Aguascalientes,Instituto privado,9,Google Search,new,Tiene infraestructura local
+L020,Clínica Médica San Jerónimo,Dr. Eduardo Domínguez,Director General,edominguez@sanjeronimo.mx,+52 55 7777 8888,Ciudad de México,CDMX,Clínica privada,8,LinkedIn,new,Especialidad: medicina familiar
+L021,Centro Médico Mérida,Dra. Beatriz Campos,Directora Médica,bcampos@cmmerida.mx,+52 999 111 2222,Mérida,Yucatán,Centro médico,10,Conference,new,Interesada en soluciones locales
+L022,Clínica Especializada Lomas,Dr. Rodrigo Flores,Socio Fundador,rflores@lomas.clinic,+52 55 3333 4444,Ciudad de México,CDMX,Clínica privada,5,LinkedIn,new,Especialidad: ortopedia
+L023,Consultorios Médicos Juárez,Dra. Claudia Rojas,Administradora,crojas@juarez.med,+52 656 555 6666,Ciudad Juárez,Chihuahua,Consultorios compartidos,6,Google Search,new,Busca alternativa a EMR cloud
+L024,Clínica Médica Cuernavaca,Dr. Javier Moreno,Director Médico,jmoreno@cmcuernavaca.mx,+52 777 888 9999,Cuernavaca,Morelos,Clínica privada,7,LinkedIn,new,Busca piloto sin compromiso
+L025,Instituto de Salud del Pacífico,Dra. Adriana Vega,Subdirectora,avega@ispacifico.mx,+52 669 222 3333,Culiacán,Sinaloa,Instituto privado,12,Conference,contacted,Solicitó más info sobre SLOs
+L026,Clínica del Centro,Dr. Sergio Delgado,Director General,sdelgado@clinicacentro.mx,+52 55 4444 5555,Ciudad de México,CDMX,Clínica privada,6,Referral,new,Referida por L008
+L027,Centro Médico Tijuana,Ing. Diana Herrera,Gerente IT,dherrera@cmtijuana.mx,+52 664 666 7777,Tijuana,Baja California,Centro médico,9,Google Search,new,Tech background
+L028,Clínica Familiar Cancún,Dra. Isabel Fuentes,Directora Médica,ifuentes@cfcancun.mx,+52 998 888 9999,Cancún,Quintana Roo,Clínica privada,5,LinkedIn,new,Especialidad: medicina familiar
+L029,Consultorios Médicos Narvarte,Dr. Guillermo Paredes,Socio,gparedes@narvarte.med,+52 55 1111 2222,Ciudad de México,CDMX,Consultorios compartidos,4,Referral,new,Referido por L014
+L030,Clínica Médica del Sur,Dra. Verónica Chávez,Directora General,vchavez@cmdelsur.mx,+52 55 3333 4444,Ciudad de México,CDMX,Clínica privada,8,LinkedIn,new,Busca mejorar eficiencia ops
+L031,Centro de Salud Integral GDL,Dr. Arturo Mendoza,Director Médico,amendoza@csigdl.mx,+52 33 5555 6666,Guadalajara,Jalisco,Centro médico,10,Conference,new,Asistió a Health Tech Expo 2024
+L032,Clínica Especializada Del Valle,Dra. Mariana Soto,Administradora,msoto@delvalle.clinic,+52 81 7777 8888,Monterrey,Nuevo León,Clínica privada,7,Google Search,new,Especialidad: ginecología
+L033,Instituto Médico de Occidente,Dr. Ricardo Luna,Director IT,rluna@imooccidente.mx,+52 33 9999 0000,Guadalajara,Jalisco,Instituto privado,11,LinkedIn,contacted,Solicitó demo remoto

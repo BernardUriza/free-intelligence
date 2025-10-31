@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # Redis for job queue
+  redis-diarization:
+    image: redis:7-alpine
+    container_name: fi-redis-diarization
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-diarization-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Diarization worker (CPU-optimized for NAS DS923+)
+  diarization-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fi-diarization-worker
+    restart: unless-stopped
+    depends_on:
+      - redis-diarization
+    volumes:
+      - ./storage:/app/storage
+      - ./backend:/app/backend
+      - /tmp:/tmp
+    environment:
+      # Redis connection
+      - REDIS_HOST=redis-diarization
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+
+      # Worker config
+      - WORKER_NAME=diarization-worker-nas
+
+      # Whisper config (CPU-optimized for DS923+ Ryzen R1600)
+      - WHISPER_MODEL_SIZE=base  # Smaller model for CPU (3x faster than 'small')
+      - WHISPER_COMPUTE_TYPE=int8
+      - WHISPER_DEVICE=cpu
+      - ASR_CPU_THREADS=3  # DS923+ has 4 cores, use 3
+      - ASR_NUM_WORKERS=1
+
+      # Diarization config
+      - DIARIZATION_CHUNK_SEC=30
+      - DIARIZATION_PARALLEL_CHUNKS=2  # Process 2 chunks at a time
+      - MIN_SEGMENT_SEC=0.5
+
+      # LLM config (Ollama running on host or separate container)
+      - LLM_BASE_URL=http://host.docker.internal:11434  # Ollama on host
+      - LLM_MODEL=qwen2.5:7b-instruct-q4_0
+      - LLM_TIMEOUT_MS=60000
+      - FI_ENRICHMENT=on
+      - ENABLE_LLM_CLASSIFICATION=true
+
+      # Logging
+      - LOG_LEVEL=INFO
+
+    # Resource limits for DS923+ (4 cores, 8GB RAM)
+    deploy:
+      resources:
+        limits:
+          cpus: '3.5'  # Leave 0.5 core for OS/other services
+          memory: 4G   # Whisper base model + buffers
+        reservations:
+          cpus: '2.0'
+          memory: 2G
+
+    command: python backend/diarization_worker.py
+
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f diarization_worker || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Diarization worker for Mac M1 (GPU-accelerated)
+  diarization-worker-mac:
+    profiles: ["mac"]  # Only start with --profile mac
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fi-diarization-worker-mac
+    restart: unless-stopped
+    depends_on:
+      - redis-diarization
+    volumes:
+      - ./storage:/app/storage
+      - ./backend:/app/backend
+      - /tmp:/tmp
+    environment:
+      # Redis connection
+      - REDIS_HOST=redis-diarization
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+
+      # Worker config
+      - WORKER_NAME=diarization-worker-mac-m1
+
+      # Whisper config (GPU-optimized for M1)
+      - WHISPER_MODEL_SIZE=small  # Can use larger model with GPU
+      - WHISPER_COMPUTE_TYPE=float16  # GPU uses float16
+      - WHISPER_DEVICE=mps  # Metal Performance Shaders (M1/M2)
+
+      # Diarization config
+      - DIARIZATION_CHUNK_SEC=30
+      - DIARIZATION_PARALLEL_CHUNKS=4  # M1 can handle more parallelism
+      - MIN_SEGMENT_SEC=0.5
+
+      # LLM config
+      - LLM_BASE_URL=http://host.docker.internal:11434
+      - LLM_MODEL=qwen2.5:7b-instruct-q4_0
+      - LLM_TIMEOUT_MS=60000
+      - FI_ENRICHMENT=on
+      - ENABLE_LLM_CLASSIFICATION=true
+
+      # Logging
+      - LOG_LEVEL=INFO
+
+    # Resource limits for Mac M1 (8 cores, 8-16GB RAM)
+    deploy:
+      resources:
+        limits:
+          cpus: '6.0'  # M1 efficiency cores
+          memory: 6G
+        reservations:
+          cpus: '4.0'
+          memory: 3G
+
+    command: python backend/diarization_worker.py
+
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f diarization_worker || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  redis-diarization-data:
+    driver: local
+
+networks:
+  default:
+    name: fi-network
+    driver: bridge

@@ -58,3 +58,19 @@ py-trello>=0.20.0               # Trello API client
 # - torch is CPU-only by default (for GPU: pip install torch==2.8.0+cu121)
 # - sentence-transformers includes all-MiniLM-L6-v2 model (768-dim embeddings)
 # - Ollama requires separate installation: https://ollama.ai/download
+
+# ============================================================================
+# Diarization V2 - Performance Optimization (FI-RELIABILITY-IMPL-003)
+# ============================================================================
+# Optional: Redis Queue for worker architecture
+rq>=1.15.0                      # Redis Queue for async job processing
+redis>=5.0.0                    # Redis client
+
+# Optional: GPU acceleration (Mac M1/M2/M3)
+# torch>=2.0.0                  # PyTorch with MPS support (uncomment for M1 GPU)
+
+# ============================================================================
+# Diarization Low-Priority Worker (FI-RELIABILITY-IMPL-004)
+# ============================================================================
+psutil>=6.1.1                   # CPU monitoring for scheduler
+

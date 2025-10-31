@@ -232,13 +232,8 @@ info: ## Show project information
 # Turborepo Commands
 # ============================================================================
 
-dev-all: ## Start all services (Backend + Frontend via Turborepo)
-	@echo "🚀 Starting all services with Turborepo..."
-	@echo "   - Backend: FI Consult (port 7001)"
-	@echo "   - Backend: AURITY Gateway (port 7002)"
-	@echo "   - Frontend: AURITY (port 3000)"
-	@echo ""
-	pnpm install && pnpm dev
+dev-all: ## Start all services (Backend + Frontend in single terminal)
+	@./scripts/dev-all.sh
 
 turbo-build: ## Build all apps with Turborepo
 	@echo "🏗️  Building all apps..."

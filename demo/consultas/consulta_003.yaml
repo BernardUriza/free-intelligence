@@ -1,0 +1,125 @@
+# Consulta Demo 003 - Infección Respiratoria Aguda
+# Paciente: Masculino, 34 años
+# Fecha: 2025-10-28 14:30
+# Duración: 6 minutos
+
+session_id: "demo_consulta_003_20251028_1430"
+timestamp: "2025-10-28T14:30:00-06:00"
+duration_seconds: 360
+
+audio:
+  filename: "consulta_003.wav"
+  size_mb: 2.9
+  format: "wav"
+  sample_rate: 16000
+  channels: 1
+  sha256: "e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7"
+
+transcription: |
+  Doctor: Buenas tardes, pase. ¿Qué lo trae por acá?
+
+  Paciente: Doctor, es que llevo tres días con mucha tos y me duele la garganta. Y tengo calentura.
+
+  Doctor: Ya veo. ¿Cuánto le ha dado de fiebre?
+
+  Paciente: Pues ayer me tomé la temperatura y tenía 38.5. Hoy en la mañana 38.
+
+  Doctor: ¿Tiene flemas al toser?
+
+  Paciente: Sí doctor, al principio era seca la tos, pero desde ayer ya echo flemas amarillentas.
+
+  Doctor: ¿Dolor de cabeza? ¿Cuerpo cortado?
+
+  Paciente: Sí, me duele la cabeza y me siento sin fuerzas.
+
+  Doctor: Déjeme revisarlo. [Pausa] Respire profundo. [Pausa] Bien. Tiene la garganta roja e inflamada. Los pulmones se oyen con sibilancias en la base derecha. Es una infección respiratoria, posiblemente bronquitis. ¿Es alérgico a algún medicamento?
+
+  Paciente: No doctor, ninguno.
+
+  Doctor: Perfecto. Le voy a recetar un antibiótico, amoxicilina con ácido clavulánico por 7 días. Paracetamol para la fiebre y el dolor. Y un jarabe para la tos. Tiene que tomar mucha agua, descansar, y nada de exponerse al frío.
+
+  Paciente: ¿En cuánto tiempo me voy a sentir mejor?
+
+  Doctor: Si toma bien el antibiótico, en 2 o 3 días ya va a notar mejoría. Pero tiene que completar los 7 días, ¿eh? No lo deje aunque se sienta bien. Si en 3 días sigue con fiebre alta o le cuesta trabajo respirar, regresa inmediatamente. ¿Entendido?
+
+  Paciente: Sí doctor, entendido. Muchas gracias.
+
+  Doctor: Que se mejore. Aquí está su receta.
+
+summary:
+  motivo_consulta: "Síntomas de infección respiratoria aguda (3 días de evolución)"
+
+  sintomas_reportados:
+    - "Tos productiva (inicio seca, ahora con expectoración)"
+    - "Odinofagia (dolor de garganta)"
+    - "Fiebre (Tmax 38.5°C)"
+    - "Cefalea"
+    - "Astenia (debilidad generalizada)"
+
+  exploracion_fisica:
+    garganta: "Hiperemia y edema faríngeo"
+    auscultacion_pulmonar: "Sibilancias en base pulmonar derecha"
+    temperatura_actual: "38.0°C"
+
+  caracteristicas_expectoracion:
+    color: "amarillenta"
+    consistencia: "purulenta"
+    evolucion: "inicio seca, luego productiva"
+
+  diagnostico:
+    principal: "Bronquitis aguda (J20.9)"
+    posible_etiologia: "Bacteriana (por características de expectoración)"
+
+  plan_tratamiento:
+    farmacologico:
+      - medicamento: "Amoxicilina + Ácido Clavulánico"
+        dosis: "875/125 mg"
+        via: "oral"
+        frecuencia: "cada 12 horas"
+        duracion: "7 días"
+        enfasis: "COMPLETAR ESQUEMA (no suspender aunque mejore)"
+
+      - medicamento: "Paracetamol"
+        dosis: "500mg"
+        via: "oral"
+        frecuencia: "cada 6-8 horas PRN"
+        indicacion: "fiebre y dolor"
+
+      - medicamento: "Jarabe antitusivo/expectorante"
+        dosis: "10mL"
+        via: "oral"
+        frecuencia: "cada 8 horas"
+        duracion: "5-7 días"
+
+    medidas_generales:
+      - "Hidratación oral abundante (>2L/día)"
+      - "Reposo relativo"
+      - "Evitar exposición a cambios bruscos de temperatura"
+      - "Evitar irritantes (humo de tabaco)"
+
+    signos_de_alarma:
+      - "Fiebre persistente >3 días"
+      - "Disnea (dificultad respiratoria)"
+      - "Dolor torácico"
+      - "Empeoramiento de síntomas"
+      instruccion: "Regresar inmediatamente si presenta alguno"
+
+    seguimiento:
+      cita_programada: false
+      instrucciones: "Solo si no hay mejoría en 72h o presenta signos de alarma"
+
+  alergias: "Ninguna reportada"
+  receta_emitida: true
+  referencia: false
+  estudios_solicitados: []
+
+quality_metrics:
+  transcription_confidence: 0.96
+  audio_quality_score: 0.91
+  summary_completeness: 1.0
+  structured_data_extracted: 15
+
+integrity:
+  content_hash: "f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8"
+  timestamp_created: "2025-10-28T14:36:45-06:00"
+  version: "1.0"

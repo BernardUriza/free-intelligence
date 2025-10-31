@@ -360,6 +360,10 @@ def diarize_audio(
     try:
         total_chunks = len(chunks)
 
+        # Initialize progress callback with total
+        if progress_callback:
+            progress_callback(10, 0, total_chunks, "CHUNKS_INITIALIZED")
+
         # Step 3: Process each chunk
         for i, (start_sec, end_sec) in enumerate(chunks):
             chunk_path = chunk_dir / f"chunk_{i:04d}.wav"
@@ -368,6 +372,10 @@ def diarize_audio(
             if not extract_chunk(audio_path, start_sec, end_sec, chunk_path):
                 logger.warning("CHUNK_SKIP", chunk_index=i, reason="extraction_failed")
                 continue
+
+            # Emit event: Whisper transcription start
+            if progress_callback:
+                progress_callback(10 + int(i / total_chunks * 85), i, total_chunks, "WHISPER_TRANSCRIPTION_START")
 
             # Transcribe chunk
             transcription = transcribe_audio(chunk_path, language=language, vad_filter=True)
@@ -382,6 +390,10 @@ def diarize_audio(
             if not text or len(text) < 3:
                 logger.debug("CHUNK_SKIP", chunk_index=i, reason="text_empty")
                 continue
+
+            # Emit event: Whisper transcription complete
+            if progress_callback:
+                progress_callback(10 + int(i / total_chunks * 85), i, total_chunks, "WHISPER_TRANSCRIPTION_COMPLETE")
 
             # Build context for LLM
             context_before = segments[-1].text if segments else ""
@@ -401,14 +413,20 @@ def diarize_audio(
 
             logger.info("CHUNK_PROCESSED", chunk_index=i, speaker=speaker, text_len=len(text))
 
-            # Update progress (10% base + 85% for chunks + 5% for merging)
-            if progress_callback and (i % 5 == 0 or i == total_chunks - 1):
+            # Emit event: Chunk classified (every 2 chunks or last chunk)
+            if progress_callback and (i % 2 == 0 or i == total_chunks - 1):
                 progress_pct = 10 + int((i + 1) / total_chunks * 85)
-                progress_callback(progress_pct)
+                progress_callback(progress_pct, i + 1, total_chunks, "CHUNK_CLASSIFIED")
                 logger.debug("PROGRESS_UPDATE", chunk=i+1, total=total_chunks, progress=progress_pct)
 
         # Step 4: Merge consecutive segments
+        if progress_callback:
+            progress_callback(95, total_chunks, total_chunks, "MERGE_STARTED")
+
         segments = merge_consecutive_segments(segments)
+
+        if progress_callback:
+            progress_callback(98, total_chunks, total_chunks, "MERGE_COMPLETE")
 
         # Step 5: Get total duration
         duration = chunks[-1][1] if chunks else 0.0

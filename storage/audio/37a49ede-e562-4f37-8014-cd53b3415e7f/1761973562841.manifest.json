@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "sessionId": "37a49ede-e562-4f37-8014-cd53b3415e7f",
+  "timestampMs": 1761973562841,
+  "receivedAt": "2025-10-31T23:06:02.842174Z",
+  "filePath": "audio/37a49ede-e562-4f37-8014-cd53b3415e7f/1761973562841.mp3",
+  "fileSize": 1055,
+  "fileHash": "sha256:360d0f649f9c0fc30b3ddbe1182cb201e48fc0f5dcb43719d45170f949defb43",
+  "fileExtension": "mp3",
+  "ttlDays": 7,
+  "ttlExpiresAt": "2025-11-07T23:06:02.842171Z",
+  "metadata": {
+    "original_filename": "test.mp3",
+    "purpose": "diarization"
+  }
+}

@@ -1,0 +1,211 @@
+# FI-Entry Pricing - Piloto 60 días
+# Card: FI-GTM-STR-027
+# Version: 1.0
+# Currency: USD
+# Last Updated: 2025-10-30
+
+pricing_model: "flat_fee_pilot"
+pilot_duration_days: 60
+
+# Base Package (Flat Fee)
+base_package:
+  name: "FI-Entry Piloto 60 días"
+  price_usd: 3000
+  payment_terms: "50% al firmar LOI, 50% al completar instalación"
+  includes:
+    - "Instalación y configuración en 1 servidor local"
+    - "PM2 + servicios (backend 9001, timeline 9002, frontend 9000)"
+    - "Dashboard con 8 KPIs en tiempo real"
+    - "Ingestión de hasta 500 documentos no sensibles"
+    - "Sessions list + timeline viewer"
+    - "Export con SHA256 verification"
+    - "2 sesiones de capacitación (2h c/u, remoto)"
+    - "Soporte por email 9am-6pm lun-vie (24h response time)"
+  limits:
+    max_documents: 500
+    max_sessions: 100
+    max_storage_gb: 10
+    max_concurrent_users: 5
+
+# Optional Add-ons
+optional_addons:
+  - name: "Hardware Provisioning"
+    description: "Compra y configuración de servidor DELL PowerEdge T40"
+    price_usd: 1200
+    details:
+      - "DELL PowerEdge T40: Intel Xeon E-2224G, 16GB RAM, 500GB SSD"
+      - "Instalación de Ubuntu 22.04 LTS"
+      - "Configuración de red LAN"
+      - "Entrega en CDMX/GDL/MTY (envío incluido)"
+
+  - name: "On-site Installation"
+    description: "Instalación presencial en clínica (CDMX/GDL/MTY)"
+    price_usd: 800
+    details:
+      - "1 día presencial (8h)"
+      - "Instalación física del servidor"
+      - "Configuración de red con IT local"
+      - "Capacitación in-person (4h)"
+      - "Viáticos incluidos (CDMX/GDL/MTY)"
+
+  - name: "Extended Support (30 días)"
+    description: "Soporte adicional después de piloto inicial"
+    price_usd: 500
+    details:
+      - "30 días adicionales de soporte email"
+      - "Response time: 24h business days"
+      - "Incluye 1 sesión de troubleshooting remoto (2h)"
+
+  - name: "Data Migration (500 docs adicionales)"
+    description: "Ingestión de 500 documentos adicionales"
+    price_usd: 400
+    details:
+      - "Soporte para formatos: PDF, TXT, MD, DOCX"
+      - "Validación de ingestión sin errores"
+      - "Actualización de storage limit a 20GB"
+
+  - name: "Custom Training (4h adicionales)"
+    description: "Capacitación adicional para equipo clínico"
+    price_usd: 600
+    details:
+      - "2 sesiones de 2h (remoto)"
+      - "Temas: Dashboard, Timeline, Export, Troubleshooting"
+      - "Materiales de capacitación en PDF"
+
+# Pricing Tiers (Future - Post-Piloto)
+future_tiers:
+  note: "Pricing orientativo para upgrade post-piloto (60+ días)"
+  tiers:
+    - name: "FI-Health Basic"
+      price_usd_monthly: 500
+      includes:
+        - "Todo de FI-Entry"
+        - "PHI/HIPAA compliance"
+        - "Hasta 2,000 documentos/mes"
+        - "10 usuarios concurrentes"
+        - "Backup automático local"
+        - "Soporte 12h (8am-8pm)"
+
+    - name: "FI-Health Pro"
+      price_usd_monthly: 1200
+      includes:
+        - "Todo de Basic"
+        - "Hasta 10,000 documentos/mes"
+        - "50 usuarios concurrentes"
+        - "EMR integration (HL7 FHIR)"
+        - "Audio transcription (Whisper local)"
+        - "Soporte 16h (7am-11pm)"
+
+    - name: "FI-Health Enterprise"
+      price_usd_monthly: "custom"
+      includes:
+        - "Todo de Pro"
+        - "Documentos ilimitados"
+        - "Usuarios ilimitados"
+        - "Multi-tenancy (varias clínicas)"
+        - "DICOM viewer (imágenes médicas)"
+        - "Soporte 24/7 + SLA 99.9%"
+
+# Discounts
+discounts:
+  early_adopter:
+    description: "Primeros 10 clientes que firmen antes de 2025-12-31"
+    discount_pct: 20
+    applies_to: "base_package"
+    final_price_usd: 2400
+
+  referral:
+    description: "Cliente refiere otra clínica que firma LOI"
+    discount_usd: 300
+    applies_to: "next_renewal_or_upgrade"
+
+  academic:
+    description: "Instituciones académicas (universidades con clínica)"
+    discount_pct: 30
+    applies_to: "base_package + addons"
+    final_price_usd: 2100
+
+# Payment Methods
+payment_methods:
+  accepted:
+    - "Wire transfer (USD)"
+    - "Stripe (tarjeta de crédito)"
+    - "PayPal Business"
+  invoicing:
+    - "Factura electrónica (CFDI México)"
+    - "Invoice internacional (PDF + XML)"
+
+# Refund Policy
+refund_policy:
+  conditions:
+    - "Si instalación falla por incompatibilidad de hardware: 100% refund"
+    - "Si cliente cancela antes de instalación: 50% refund (restocking fee)"
+    - "Si SLOs no se cumplen (availability < 90%): 25% refund"
+  excluded:
+    - "Después de 30 días de instalación completada"
+    - "Si cliente no proporciona acceso a servidor para troubleshooting"
+
+# Total Cost Examples
+examples:
+  basic_pilot:
+    description: "Piloto básico (cliente tiene hardware)"
+    items:
+      - name: "Base Package"
+        price_usd: 3000
+    total_usd: 3000
+
+  turnkey_pilot:
+    description: "Piloto llave en mano (hardware + instalación presencial)"
+    items:
+      - name: "Base Package"
+        price_usd: 3000
+      - name: "Hardware Provisioning"
+        price_usd: 1200
+      - name: "On-site Installation"
+        price_usd: 800
+    total_usd: 5000
+
+  extended_pilot:
+    description: "Piloto con soporte extendido + capacitación extra"
+    items:
+      - name: "Base Package"
+        price_usd: 3000
+      - name: "Extended Support (30 días)"
+        price_usd: 500
+      - name: "Custom Training (4h)"
+        price_usd: 600
+    total_usd: 4100
+
+  early_adopter_turnkey:
+    description: "Early adopter con hardware + instalación presencial"
+    items:
+      - name: "Base Package (early adopter -20%)"
+        price_usd: 2400
+      - name: "Hardware Provisioning"
+        price_usd: 1200
+      - name: "On-site Installation"
+        price_usd: 800
+    total_usd: 4400
+    savings_usd: 600
+
+# Competitive Pricing Comparison
+competitive_comparison:
+  note: "Comparación con EMR/EHR tradicionales (México 2025)"
+  competitors:
+    - name: "EMR Cloud (Subscripción anual)"
+      price_usd_annual: 12000
+      notes: "12 meses, 5 usuarios, sin instalación, sin personalización"
+
+    - name: "EMR On-Premise (Licencia perpetua)"
+      price_usd_one_time: 35000
+      notes: "Licencia + instalación + capacitación, 3-6 meses deployment"
+
+    - name: "EHR Enterprise"
+      price_usd_annual: 50000
+      notes: "Contrato 3 años, 10+ usuarios, personalización incluida"
+
+  fi_entry_advantage:
+    - "10x más barato que EMR tradicional ($3k vs $35k)"
+    - "Sin contrato multi-año (solo 60 días piloto)"
+    - "Instalación en 1 semana vs 3-6 meses"
+    - "100% on-premise (sin costos recurrentes cloud)"

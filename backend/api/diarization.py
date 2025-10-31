@@ -1,22 +1,29 @@
 """
 Diarization API Endpoints
-Card: FI-BACKEND-FEAT-004
+Card: FI-BACKEND-FEAT-004 + FI-RELIABILITY-IMPL-004
 
 Endpoints:
-- POST /api/diarization/upload - Upload audio and start diarization
-- GET /api/diarization/jobs/{job_id} - Get job status
+- POST /api/diarization/upload - Upload audio and start diarization (low-priority worker)
+- GET /api/diarization/jobs/{job_id} - Get job status with chunks[] from HDF5
 - GET /api/diarization/result/{job_id} - Get diarization result
 - GET /api/diarization/export/{job_id} - Export result (JSON/MD)
 - GET /api/diarization/jobs - List jobs
 
+Low-Priority Worker:
+- CPU scheduler: only processes when CPU idle ≥50% for 10s
+- Incremental HDF5 storage (storage/diarization.h5)
+- Per-chunk progress updates
+- Does NOT block Triage/Timeline APIs
+
 File: backend/api/diarization.py
 Created: 2025-10-30
+Updated: 2025-10-31
 """
 
 import os
 import asyncio
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, UploadFile, File, Header, HTTPException, Query, BackgroundTasks, status
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
@@ -24,8 +31,16 @@ from pydantic import BaseModel, Field
 from backend.logger import get_logger
 from backend.audio_storage import save_audio_file
 from backend.diarization_service import diarize_audio, export_diarization, DiarizationResult
+from backend.diarization_service_v2 import diarize_audio_parallel
 from backend.diarization_jobs import (
     create_job, get_job, update_job_status, list_jobs, JobStatus
+)
+from dataclasses import asdict
+
+# Low-priority worker imports
+from backend.diarization_worker_lowprio import (
+    create_diarization_job as create_lowprio_job,
+    get_job_status as get_lowprio_status
 )
 
 logger = get_logger(__name__)
@@ -35,6 +50,8 @@ router = APIRouter(prefix="/api/diarization")
 # Configuration
 MAX_FILE_SIZE = int(os.getenv("MAX_DIARIZATION_FILE_MB", "100")) * 1024 * 1024  # 100MB
 ALLOWED_EXTENSIONS = {"webm", "wav", "mp3", "m4a", "ogg", "flac"}
+USE_V2_PIPELINE = os.getenv("DIARIZATION_USE_V2", "true").lower() == "true"  # Use optimized pipeline
+USE_LOWPRIO_WORKER = os.getenv("DIARIZATION_LOWPRIO", "true").lower() == "true"  # Use low-priority worker
 
 
 class UploadResponse(BaseModel):
@@ -45,16 +62,30 @@ class UploadResponse(BaseModel):
     message: str
 
 
+class ChunkInfo(BaseModel):
+    """Chunk information with incremental results."""
+    chunk_idx: int
+    start_time: float
+    end_time: float
+    text: str
+    speaker: str
+    temperature: float
+    rtf: float
+    timestamp: str
+
+
 class JobStatusResponse(BaseModel):
-    """Response for job status endpoint."""
+    """Response for job status endpoint (with chunks array)."""
     job_id: str
     session_id: str
     status: str
-    progress_percent: int
+    progress_pct: int
+    total_chunks: int
+    processed_chunks: int
+    chunks: List[ChunkInfo] = Field(default_factory=list)
     created_at: str
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    error_message: Optional[str] = None
+    updated_at: str
+    error: Optional[str] = None
 
 
 class DiarizationSegmentResponse(BaseModel):
@@ -78,34 +109,96 @@ class DiarizationResultResponse(BaseModel):
     created_at: str
 
 
+def _process_diarization_background_v2(job_id: str, audio_path: Path, session_id: str, language: str, persist: bool):
+    """
+    Background task wrapper for V2 optimized pipeline.
+
+    This is a SYNC function that runs the async pipeline using asyncio.run().
+    Required because FastAPI BackgroundTasks.add_task() doesn't support async functions directly.
+    """
+    import asyncio
+
+    async def _async_pipeline():
+        try:
+            # Update status to in_progress
+            update_job_status(
+                job_id,
+                JobStatus.IN_PROGRESS,
+                progress=10,
+                last_event="DIARIZATION_STARTED_V2"
+            )
+
+            # Create progress callback
+            def progress_callback(progress_pct: int, processed: int = 0, total: int = 0, event: str = ""):
+                update_job_status(
+                    job_id,
+                    JobStatus.IN_PROGRESS,
+                    progress=progress_pct,
+                    processed=processed,
+                    total=total,
+                    last_event=event or f"PROCESSING_CHUNK_{processed}"
+                )
+
+            # Run optimized diarization pipeline
+            result = await diarize_audio_parallel(
+                audio_path, session_id, language, persist, progress_callback
+            )
+
+            # Cache result in job (no re-processing needed)
+            update_job_status(
+                job_id,
+                JobStatus.COMPLETED,
+                progress=100,
+                result_path=f"/api/diarization/result/{job_id}",
+                processed=len(result.segments),
+                total=len(result.segments),
+                last_event="DIARIZATION_COMPLETED_V2",
+                result_data=asdict(result)  # Cache full result
+            )
+
+            logger.info("DIARIZATION_JOB_COMPLETED_V2", job_id=job_id, segments=len(result.segments))
+
+        except Exception as e:
+            logger.error("DIARIZATION_JOB_FAILED_V2", job_id=job_id, error=str(e))
+            update_job_status(
+                job_id,
+                JobStatus.FAILED,
+                error=str(e),
+                last_event="DIARIZATION_FAILED_V2"
+            )
+
+    # Run async pipeline in sync context
+    asyncio.run(_async_pipeline())
+
+
 def _process_diarization_background(job_id: str, audio_path: Path, session_id: str, language: str, persist: bool):
     """
-    Background task to process diarization.
+    Background task wrapper for V1 (legacy) pipeline.
+    Kept for backward compatibility.
     """
     try:
-        # Update status to in_progress
-        update_job_status(job_id, JobStatus.IN_PROGRESS, progress=10)
+        update_job_status(job_id, JobStatus.IN_PROGRESS, progress=10, last_event="DIARIZATION_STARTED")
 
-        # Create progress callback
-        def progress_callback(progress_pct: int):
-            update_job_status(job_id, JobStatus.IN_PROGRESS, progress=progress_pct)
+        def progress_callback(progress_pct: int, processed: int = 0, total: int = 0, event: str = ""):
+            update_job_status(
+                job_id, JobStatus.IN_PROGRESS, progress=progress_pct,
+                processed=processed, total=total, last_event=event or f"PROCESSING_CHUNK_{processed}"
+            )
 
-        # Run diarization with progress updates
         result = diarize_audio(audio_path, session_id, language, persist, progress_callback=progress_callback)
 
-        # Update status to completed
         update_job_status(
-            job_id,
-            JobStatus.COMPLETED,
-            progress=100,
-            result_path=f"/api/diarization/result/{job_id}"
+            job_id, JobStatus.COMPLETED, progress=100,
+            result_path=f"/api/diarization/result/{job_id}",
+            processed=len(result.segments), total=len(result.segments),
+            last_event="DIARIZATION_COMPLETED", result_data=asdict(result)
         )
 
         logger.info("DIARIZATION_JOB_COMPLETED", job_id=job_id, segments=len(result.segments))
 
     except Exception as e:
         logger.error("DIARIZATION_JOB_FAILED", job_id=job_id, error=str(e))
-        update_job_status(job_id, JobStatus.FAILED, error=str(e))
+        update_job_status(job_id, JobStatus.FAILED, error=str(e), last_event="DIARIZATION_FAILED")
 
 
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -118,6 +211,11 @@ async def upload_audio_for_diarization(
 ):
     """
     Upload audio file and start diarization job.
+
+    Low-priority mode (DIARIZATION_LOWPRIO=true):
+    - Uses CPU scheduler (only runs when CPU idle ≥50%)
+    - Saves chunks incrementally to HDF5
+    - Does NOT block main thread
 
     Returns job_id for tracking progress.
     """
@@ -152,7 +250,8 @@ async def upload_audio_for_diarization(
         "DIARIZATION_UPLOAD_START",
         session_id=x_session_id,
         filename=audio.filename,
-        size=file_size
+        size=file_size,
+        lowprio_mode=USE_LOWPRIO_WORKER
     )
 
     # Save audio file
@@ -170,44 +269,59 @@ async def upload_audio_for_diarization(
             detail=f"Failed to save audio: {str(e)}"
         )
 
-    # FIX: save_audio_file returns relative path but file is in storage/audio/
-    # We need to construct the correct path to the actual file location
-    audio_storage_dir = Path(os.getenv("AUDIO_STORAGE_DIR", "./storage/audio"))
+    # Path hardening: resolve absolute path
+    from backend.audio_storage import AUDIO_STORAGE_DIR
+
     relative_path = saved["file_path"]
+    abs_path = (AUDIO_STORAGE_DIR.parent / relative_path).resolve()
 
-    # If path starts with "audio/", prepend "storage/"
-    if relative_path.startswith("audio/"):
-        audio_path = Path("storage") / relative_path
-    else:
-        audio_path = Path(relative_path)
+    # Assert file exists
+    if not abs_path.is_file():
+        logger.error(
+            "AUDIO_FILE_NOT_FOUND_BEFORE_JOB",
+            session_id=x_session_id,
+            expected_path=str(abs_path),
+            relative_path=relative_path
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Audio file not found after save: {relative_path}"
+        )
 
-    # Make absolute to avoid cwd issues in background tasks
-    audio_path = audio_path.absolute()
-
-    # DIAGNOSTIC: Log saved path info
     logger.info(
-        "AUDIO_SAVED_FOR_DIARIZATION",
+        "AUDIO_PATH_RESOLVED",
         session_id=x_session_id,
-        file_path_raw=saved["file_path"],
-        audio_path_str=str(audio_path),
-        audio_path_absolute=str(audio_path.absolute()),
-        audio_path_exists=audio_path.exists(),
-        file_hash=saved.get("file_hash", "N/A"),
-        cwd=str(Path.cwd())
+        absolute_path=str(abs_path),
+        file_exists=abs_path.is_file()
     )
 
-    # Create job
-    job_id = create_job(x_session_id, str(audio_path), file_size)
+    # Route to low-priority worker or legacy pipelines
+    if USE_LOWPRIO_WORKER:
+        # Use low-priority worker with CPU scheduler + HDF5
+        job_id = create_lowprio_job(x_session_id, abs_path)
+        logger.info("LOWPRIO_JOB_CREATED", job_id=job_id, session_id=x_session_id)
+    else:
+        # Legacy: create in-memory job and use background task
+        job_id = create_job(x_session_id, str(abs_path), file_size)
 
-    # Schedule background processing
-    background_tasks.add_task(
-        _process_diarization_background,
-        job_id,
-        audio_path,
-        x_session_id,
-        language,
-        persist
-    )
+        if USE_V2_PIPELINE:
+            background_tasks.add_task(
+                _process_diarization_background_v2,
+                job_id,
+                abs_path,
+                x_session_id,
+                language,
+                persist
+            )
+        else:
+            background_tasks.add_task(
+                _process_diarization_background,
+                job_id,
+                abs_path,
+                x_session_id,
+                language,
+                persist
+            )
 
     return UploadResponse(
         job_id=job_id,
@@ -220,8 +334,49 @@ async def upload_audio_for_diarization(
 @router.get("/jobs/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(job_id: str):
     """
-    Get status of diarization job.
+    Get status of diarization job with chunks[] array.
+
+    Low-priority mode:
+    - Reads from HDF5 (storage/diarization.h5)
+    - Returns incremental chunks as they complete
+    - Frontend can poll at 1.5s intervals
+
+    Legacy mode:
+    - Reads from in-memory job store
+    - No chunks[] array (empty)
     """
+    # Try low-priority worker first
+    if USE_LOWPRIO_WORKER:
+        lowprio_status = get_lowprio_status(job_id)
+        if lowprio_status:
+            # Convert HDF5 chunks to API format
+            chunks = [
+                ChunkInfo(
+                    chunk_idx=c["chunk_idx"],
+                    start_time=c["start_time"],
+                    end_time=c["end_time"],
+                    text=c["text"],
+                    speaker=c["speaker"],
+                    temperature=c["temperature"],
+                    rtf=c["rtf"],
+                    timestamp=c["timestamp"]
+                ) for c in lowprio_status["chunks"]
+            ]
+
+            return JobStatusResponse(
+                job_id=lowprio_status["job_id"],
+                session_id=lowprio_status["session_id"],
+                status=lowprio_status["status"],
+                progress_pct=lowprio_status["progress_pct"],
+                total_chunks=lowprio_status["total_chunks"],
+                processed_chunks=lowprio_status["processed_chunks"],
+                chunks=chunks,
+                created_at=lowprio_status["created_at"],
+                updated_at=lowprio_status["updated_at"],
+                error=lowprio_status.get("error")
+            )
+
+    # Fallback to legacy in-memory job store
     job = get_job(job_id)
     if not job:
         raise HTTPException(
@@ -233,11 +388,13 @@ async def get_job_status(job_id: str):
         job_id=job.job_id,
         session_id=job.session_id,
         status=job.status.value,
-        progress_percent=job.progress_percent,
+        progress_pct=job.progress_percent,
+        total_chunks=job.total,
+        processed_chunks=job.processed,
+        chunks=[],  # Legacy mode: no incremental chunks
         created_at=job.created_at,
-        started_at=job.started_at,
-        completed_at=job.completed_at,
-        error_message=job.error_message
+        updated_at=job.updated_at,
+        error=job.error_message
     )
 
 
@@ -245,6 +402,8 @@ async def get_job_status(job_id: str):
 async def get_diarization_result(job_id: str):
     """
     Get diarization result for completed job.
+
+    V2 improvement: Results are cached in job.result_data (no re-processing).
     """
     job = get_job(job_id)
     if not job:
@@ -259,9 +418,34 @@ async def get_diarization_result(job_id: str):
             detail=f"Job not completed. Status: {job.status.value}"
         )
 
-    # Load result from persisted file or re-process
-    # For v1, we'll re-run diarization (idempotent)
+    # Use cached result (V2) or re-process (V1 fallback)
     try:
+        if job.result_data:
+            # V2: Result cached in job, return immediately
+            logger.info("RESULT_SERVED_FROM_CACHE", job_id=job_id)
+            result_data = job.result_data
+
+            return DiarizationResultResponse(
+                session_id=result_data["session_id"],
+                audio_file_hash=result_data["audio_file_hash"],
+                duration_sec=result_data["duration_sec"],
+                language=result_data["language"],
+                model_asr=result_data["model_asr"],
+                model_llm=result_data["model_llm"],
+                segments=[
+                    DiarizationSegmentResponse(
+                        start_time=seg["start_time"],
+                        end_time=seg["end_time"],
+                        speaker=seg["speaker"],
+                        text=seg["text"]
+                    ) for seg in result_data["segments"]
+                ],
+                processing_time_sec=result_data["processing_time_sec"],
+                created_at=result_data["created_at"]
+            )
+
+        # V1 fallback: Re-run diarization (expensive, but kept for compatibility)
+        logger.warning("RESULT_NOT_CACHED_REPROCESSING", job_id=job_id)
         audio_path = Path(job.audio_file_path)
         result = diarize_audio(audio_path, job.session_id, language="es", persist=False)
 
@@ -350,8 +534,20 @@ async def list_diarization_jobs(
     limit: int = Query(50, ge=1, le=100, description="Max results")
 ):
     """
-    List diarization jobs, optionally filtered by session.
+    List diarization jobs from HDF5 storage (low-priority worker).
+    Optionally filtered by session ID.
     """
+    # Check if using low-priority worker
+    if USE_LOWPRIO_WORKER:
+        from backend.diarization_worker_lowprio import list_all_jobs as list_h5_jobs
+        jobs_h5 = list_h5_jobs(session_id, limit)
+
+        return {
+            "jobs": jobs_h5,
+            "count": len(jobs_h5)
+        }
+
+    # Fallback to legacy in-memory jobs
     jobs = list_jobs(session_id, limit)
 
     return {
@@ -406,4 +602,197 @@ async def diarization_health():
         "llm": llm_ok,
         "enrichment_enabled": enrichment_enabled,
         "message": f"Diarization service {status_text}"
+    }
+
+
+@router.post("/jobs/{job_id}/restart")
+async def restart_job(job_id: str):
+    """
+    Restart a stuck or failed diarization job.
+
+    Creates a new job with the same audio file and session ID.
+    Returns new job_id.
+    """
+    if USE_LOWPRIO_WORKER:
+        # Get original job details from HDF5
+        from backend.diarization_worker_lowprio import get_job_status as get_lowprio_status, create_diarization_job as create_lowprio_job
+
+        original_job = get_lowprio_status(job_id)
+        if not original_job:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Job {job_id} not found in HDF5. This may be an old job created before low-priority worker was enabled."
+            )
+
+        # Get audio path from HDF5 metadata
+        import h5py
+        h5_path = Path("storage/diarization.h5")
+
+        try:
+            with h5py.File(h5_path, "r") as f:
+                job_group = f[f"jobs/{job_id}"]
+                audio_path_str = job_group.attrs.get("audio_path", "")
+
+                if not audio_path_str:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Audio path not found in job metadata"
+                    )
+
+                audio_path = Path(audio_path_str)
+
+                if not audio_path.is_file():
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Audio file no longer exists: {audio_path}"
+                    )
+
+                # Create new job
+                new_job_id = create_lowprio_job(original_job["session_id"], audio_path)
+
+                logger.info("JOB_RESTARTED", old_job_id=job_id, new_job_id=new_job_id)
+
+                return {
+                    "message": "Job restarted successfully",
+                    "old_job_id": job_id,
+                    "new_job_id": new_job_id,
+                    "status": "pending"
+                }
+
+        except Exception as e:
+            logger.error("JOB_RESTART_FAILED", job_id=job_id, error=str(e))
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to restart job: {str(e)}"
+            )
+
+    # Legacy mode: restart from in-memory job
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found"
+        )
+
+    # Create new job with same audio
+    audio_path = Path(job.audio_file_path)
+    new_job_id = create_job(job.session_id, str(audio_path), audio_path.stat().st_size)
+
+    logger.info("JOB_RESTARTED_LEGACY", old_job_id=job_id, new_job_id=new_job_id)
+
+    return {
+        "message": "Job restarted successfully",
+        "old_job_id": job_id,
+        "new_job_id": new_job_id,
+        "status": "pending"
+    }
+
+
+@router.post("/jobs/{job_id}/cancel")
+async def cancel_job(job_id: str):
+    """
+    Cancel a running diarization job.
+
+    Marks job as cancelled in HDF5 or in-memory store.
+    """
+    if USE_LOWPRIO_WORKER:
+        # Cancel job in HDF5
+        import h5py
+        h5_path = Path("storage/diarization.h5")
+
+        try:
+            with h5py.File(h5_path, "a") as f:
+                if f"jobs/{job_id}" not in f:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Job {job_id} not found"
+                    )
+
+                job_group = f[f"jobs/{job_id}"]
+                job_group.attrs["status"] = "cancelled"
+                job_group.attrs["updated_at"] = str(asyncio.get_event_loop().time())
+
+                logger.info("JOB_CANCELLED", job_id=job_id)
+
+                return {
+                    "message": "Job cancelled successfully",
+                    "job_id": job_id,
+                    "status": "cancelled"
+                }
+
+        except Exception as e:
+            logger.error("JOB_CANCEL_FAILED", job_id=job_id, error=str(e))
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to cancel job: {str(e)}"
+            )
+
+    # Legacy mode: cancel in-memory job
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found"
+        )
+
+    update_job_status(job_id, JobStatus.FAILED, error="Cancelled by user")
+
+    logger.info("JOB_CANCELLED_LEGACY", job_id=job_id)
+
+    return {
+        "message": "Job cancelled successfully",
+        "job_id": job_id,
+        "status": "cancelled"
+    }
+
+
+@router.get("/jobs/{job_id}/logs")
+async def get_job_logs(job_id: str):
+    """
+    Get logs for a specific diarization job.
+
+    Returns job metadata + chunk processing history from HDF5.
+    """
+    if USE_LOWPRIO_WORKER:
+        from backend.diarization_worker_lowprio import get_job_status as get_lowprio_status
+
+        job_status = get_lowprio_status(job_id)
+        if not job_status:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Job {job_id} not found"
+            )
+
+        # Return full job state as "logs"
+        return {
+            "job_id": job_id,
+            "session_id": job_status["session_id"],
+            "status": job_status["status"],
+            "progress_pct": job_status["progress_pct"],
+            "processed_chunks": job_status["processed_chunks"],
+            "total_chunks": job_status["total_chunks"],
+            "created_at": job_status["created_at"],
+            "updated_at": job_status["updated_at"],
+            "error": job_status.get("error"),
+            "chunks": job_status["chunks"],
+            "message": f"Retrieved {len(job_status['chunks'])} chunks from HDF5"
+        }
+
+    # Legacy mode: return in-memory job state
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found"
+        )
+
+    return {
+        "job_id": job.job_id,
+        "session_id": job.session_id,
+        "status": job.status.value,
+        "progress_percent": job.progress_percent,
+        "created_at": job.created_at,
+        "updated_at": job.updated_at,
+        "error": job.error_message,
+        "message": "Legacy in-memory job (no chunk logs available)"
     }

@@ -78,11 +78,13 @@ def get_whisper_model() -> Optional[Any]:
 
     if _whisper_model_instance is None:
         try:
-            logger.info(
-                "WHISPER_MODEL_LOADING",
+            # Log cold start (FI-UI-FEAT-206)
+            logger.warning(
+                "WHISPER_MODEL_COLD_START",
                 model_size=WHISPER_MODEL_SIZE,
                 device=WHISPER_DEVICE,
                 compute_type=WHISPER_COMPUTE_TYPE,
+                message="First transcription will be slow (~10-30s for model load)"
             )
 
             _whisper_model_instance = WhisperModel(
@@ -98,6 +100,7 @@ def get_whisper_model() -> Optional[Any]:
                 "WHISPER_MODEL_LOADED",
                 model_size=WHISPER_MODEL_SIZE,
                 device=WHISPER_DEVICE,
+                message="Model ready for transcription"
             )
         except Exception as e:
             logger.error(

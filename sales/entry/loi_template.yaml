@@ -1,0 +1,275 @@
+# Letter of Intent (LOI) Template - FI-Entry Piloto
+# Card: FI-GTM-STR-027
+# Version: 1.0
+# Last Updated: 2025-10-30
+
+document_type: "Letter of Intent (LOI)"
+purpose: "Non-binding agreement to pilot FI-Entry for 60 days"
+legal_status: "Non-binding (except payment terms)"
+
+# Document Metadata
+metadata:
+  template_version: "1.0"
+  effective_date: "{{signature_date}}"
+  expiration_date: "{{signature_date + 60 days}}"
+  governing_law: "México (Código Civil Federal)"
+  language: "Español (con traducción al inglés si se requiere)"
+
+# Parties
+parties:
+  provider:
+    legal_name: "Free Intelligence Corp."
+    trade_name: "Free Intelligence"
+    address: "{{provider_address}}"
+    tax_id: "{{provider_rfc}}"
+    representative_name: "{{provider_rep_name}}"
+    representative_title: "CEO"
+    email: "contact@free-intelligence.com"
+
+  client:
+    legal_name: "{{client_legal_name}}"
+    trade_name: "{{client_trade_name}}"
+    address: "{{client_address}}"
+    tax_id: "{{client_rfc}}"
+    representative_name: "{{client_rep_name}}"
+    representative_title: "{{client_rep_title}}"
+    email: "{{client_email}}"
+    phone: "{{client_phone}}"
+
+# Pilot Scope (referencias offer.yaml)
+pilot_scope:
+  product: "FI-Entry"
+  duration_days: 60
+  start_date: "{{installation_date}}"
+  end_date: "{{installation_date + 60 days}}"
+
+  included_services:
+    - "Instalación y configuración en 1 servidor local (cliente proporciona hardware)"
+    - "PM2 + servicios (backend 9001, timeline 9002, frontend 9000)"
+    - "Dashboard con 8 KPIs en tiempo real"
+    - "Ingestión de hasta 500 documentos no sensibles"
+    - "Sessions list + timeline viewer"
+    - "Export con SHA256 verification"
+    - "2 sesiones de capacitación (2h c/u, remoto)"
+    - "Soporte por email 9am-6pm lun-vie (24h response time)"
+
+  limits:
+    max_documents: 500
+    max_sessions: 100
+    max_storage_gb: 10
+    max_concurrent_users: 5
+
+  excluded:
+    - "Ingestión de PHI (datos de pacientes reales)"
+    - "Integración con EMR/EHR"
+    - "Imágenes médicas (DICOM)"
+    - "Soporte 24/7"
+
+# Pricing (referencia pricing.yaml)
+pricing:
+  base_package_usd: 3000
+  optional_addons:
+    - name: "{{addon_name}}"
+      price_usd: "{{addon_price}}"
+  total_usd: "{{total_price}}"
+
+  payment_schedule:
+    - milestone: "Firma de LOI"
+      amount_usd: "{{total_price * 0.5}}"
+      due_date: "{{signature_date}}"
+      status: "pending"
+
+    - milestone: "Instalación completada"
+      amount_usd: "{{total_price * 0.5}}"
+      due_date: "{{installation_date + 7 days}}"
+      status: "pending"
+
+  payment_methods:
+    - "Wire transfer (USD)"
+    - "Stripe (tarjeta de crédito)"
+    - "PayPal Business"
+
+# SLOs (Service Level Objectives)
+slos:
+  availability: "95% uptime durante horario laboral (9am-6pm)"
+  performance:
+    ingestion_api_p95: "< 2000ms"
+    timeline_api_p95: "< 300ms"
+    dashboard_load: "< 5s"
+  support_response_time: "24h business days"
+
+# Client Responsibilities
+client_responsibilities:
+  hardware:
+    - "Proporcionar servidor local con mínimo: 4 cores, 8GB RAM, 50GB SSD"
+    - "Acceso a red LAN (Gigabit recomendado)"
+    - "Sistema operativo: Ubuntu 22.04 LTS o macOS"
+
+  access:
+    - "Proporcionar acceso SSH/remote al servidor para instalación"
+    - "Designar 1 contacto técnico (IT) y 1 contacto clínico (usuario final)"
+
+  data:
+    - "Proporcionar documentos demo (no sensibles, sin PHI)"
+    - "Validar que documentos cumplen con límites (500 docs, 10GB)"
+
+  participation:
+    - "Asistir a 2 sesiones de capacitación (2h c/u)"
+    - "Proporcionar feedback semanal durante piloto"
+    - "Completar encuesta NPS al finalizar piloto"
+
+# Provider Responsibilities
+provider_responsibilities:
+  installation:
+    - "Instalar y configurar FI-Entry en servidor cliente"
+    - "Completar instalación en máximo 1 semana desde firma LOI"
+    - "Validar que servicios corren correctamente (exit 0)"
+
+  training:
+    - "Impartir 2 sesiones de capacitación (2h c/u, remoto)"
+    - "Proporcionar materiales de capacitación (PDF, videos)"
+
+  support:
+    - "Responder emails de soporte en 24h business days"
+    - "Troubleshooting remoto si servicios fallan"
+    - "Proveer actualizaciones de software si hay bugs críticos"
+
+  documentation:
+    - "Documentar instalación (server specs, config files)"
+    - "Generar reporte final de piloto (metrics, incidents, feedback)"
+
+# Data Ownership & Privacy
+data_ownership:
+  principle: "Cliente es dueño 100% de los datos"
+  storage_location: "Servidor local del cliente (LAN-only)"
+  data_access: "Provider NO tiene acceso remoto a datos sin autorización explícita"
+  data_retention: "Datos permanecen en servidor cliente después de piloto"
+  data_deletion: "Cliente puede solicitar eliminación de código/servicios sin penalización"
+
+# Intellectual Property
+intellectual_property:
+  software_license: "Propietario durante piloto; open-source futuro (TBD)"
+  customizations: "Configuraciones específicas del cliente son propiedad del cliente"
+  documentation: "Materiales de capacitación son propiedad de Provider"
+
+# Termination
+termination:
+  client_termination:
+    - "Cliente puede cancelar piloto en cualquier momento"
+    - "Refund parcial según refund policy (ver pricing.yaml)"
+    - "Aviso mínimo: 7 días business days"
+
+  provider_termination:
+    - "Provider puede cancelar si cliente no cumple responsabilidades"
+    - "Refund completo si cancelación es por incumplimiento de Provider"
+    - "Aviso mínimo: 14 días business days"
+
+# Liability & Warranty
+liability:
+  limitation: "Responsabilidad máxima: precio del contrato ({{total_price}} USD)"
+  warranty: "Software 'as-is', sin garantías implícitas"
+  indemnification: "Cada parte indemniza a la otra por incumplimiento de este LOI"
+
+# Confidentiality
+confidentiality:
+  scope: "Información técnica y comercial compartida durante piloto"
+  duration: "2 años desde finalización de piloto"
+  exceptions:
+    - "Información ya pública"
+    - "Información requerida por ley"
+    - "Información desarrollada independientemente"
+
+# Success Criteria
+success_criteria:
+  technical:
+    - "Sistema instalado y operacional en 1 semana"
+    - "500 documentos demo ingestados sin errores"
+    - "Dashboard mostrando métricas en tiempo real"
+    - "0 incidentes críticos (data loss, corruption)"
+
+  business:
+    - "2 usuarios activos usando dashboard semanalmente"
+    - "1 export con verification ejecutado exitosamente"
+    - "Cliente confirma valor percibido (encuesta NPS > 7)"
+
+# Next Steps (Post-Piloto)
+post_pilot:
+  if_successful:
+    - "Negociar upgrade a FI-Health (PHI + HIPAA compliance)"
+    - "Contrato mensual o anual según pricing.yaml (tiers)"
+    - "Integración con EMR existente (si aplica)"
+
+  if_not_successful:
+    - "Retrospectiva con cliente (qué faltó)"
+    - "Refund parcial según refund policy"
+    - "Recomendaciones para alternativas (si Provider no es fit)"
+
+# Signatures
+signatures:
+  provider:
+    name: "{{provider_rep_name}}"
+    title: "CEO, Free Intelligence Corp."
+    signature: "______________________"
+    date: "{{signature_date}}"
+
+  client:
+    name: "{{client_rep_name}}"
+    title: "{{client_rep_title}}, {{client_legal_name}}"
+    signature: "______________________"
+    date: "{{signature_date}}"
+
+# Appendices
+appendices:
+  - name: "Appendix A: Hardware Requirements"
+    reference: "offer.yaml#hardware_requirements"
+
+  - name: "Appendix B: SLOs & Performance Targets"
+    reference: "offer.yaml#slos"
+
+  - name: "Appendix C: Pricing & Payment Terms"
+    reference: "pricing.yaml#base_package"
+
+  - name: "Appendix D: Refund Policy"
+    reference: "pricing.yaml#refund_policy"
+
+# Template Variables (para mail-merge)
+variables:
+  # Provider
+  - name: "provider_address"
+    example: "Av. Insurgentes Sur 1234, CDMX, México"
+  - name: "provider_rfc"
+    example: "FIC123456ABC"
+  - name: "provider_rep_name"
+    example: "Bernard Uriza"
+
+  # Client
+  - name: "client_legal_name"
+    example: "Clínica Médica del Valle S.A. de C.V."
+  - name: "client_trade_name"
+    example: "Clínica del Valle"
+  - name: "client_address"
+    example: "Calle Reforma 456, Monterrey, NL, México"
+  - name: "client_rfc"
+    example: "CMV987654XYZ"
+  - name: "client_rep_name"
+    example: "Dr. Juan Pérez"
+  - name: "client_rep_title"
+    example: "Director Médico"
+  - name: "client_email"
+    example: "jperez@clinicadelvalle.com"
+  - name: "client_phone"
+    example: "+52 81 1234 5678"
+
+  # Dates
+  - name: "signature_date"
+    example: "2025-11-15"
+  - name: "installation_date"
+    example: "2025-11-22"
+
+  # Pricing
+  - name: "addon_name"
+    example: "Hardware Provisioning"
+  - name: "addon_price"
+    example: "1200"
+  - name: "total_price"
+    example: "4200"

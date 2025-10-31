@@ -51,9 +51,7 @@ def test_backend_service_health():
     data = response.json()
 
     backend = data["services"]["backend"]
-    assert backend["ok"] is True
-    assert backend["message"] == "operational"
-    assert backend["latency_ms"] is not None
+    assert backend is True
 
 
 def test_service_health_structure():
@@ -61,19 +59,25 @@ def test_service_health_structure():
     response = client.get("/api/system/health")
     data = response.json()
 
-    for service_name, service_health in data["services"].items():
-        # Each service must have 'ok' field
-        assert "ok" in service_health
-        assert isinstance(service_health["ok"], bool)
+    services = data["services"]
 
-        # Each service should have optional message
-        if "message" in service_health:
-            assert isinstance(service_health["message"], str)
+    # backend and policy are booleans
+    assert isinstance(services["backend"], bool)
+    assert isinstance(services["policy"], bool)
 
-        # Each service should have optional latency_ms
-        if "latency_ms" in service_health:
-            if service_health["latency_ms"] is not None:
-                assert isinstance(service_health["latency_ms"], (int, float))
+    # diarization is dict with whisper and ffmpeg
+    assert isinstance(services["diarization"], dict)
+    assert "whisper" in services["diarization"]
+    assert "ffmpeg" in services["diarization"]
+    assert isinstance(services["diarization"]["whisper"], bool)
+    assert isinstance(services["diarization"]["ffmpeg"], bool)
+
+    # llm is dict with ollama and models
+    assert isinstance(services["llm"], dict)
+    assert "ollama" in services["llm"]
+    assert "models" in services["llm"]
+    assert isinstance(services["llm"]["ollama"], bool)
+    assert isinstance(services["llm"]["models"], list)
 
 
 def test_version_field():
