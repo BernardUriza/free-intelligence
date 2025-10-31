@@ -1,0 +1,146 @@
+# FI-Entry Offer - Go-to-Market Piloto sin PHI
+# Card: FI-GTM-STR-027
+# Version: 1.0
+# Last Updated: 2025-10-30
+
+product_name: "FI-Entry"
+tagline: "Ingestión local de docs no sensibles + Evidence Packs demo"
+positioning: "Piloto 60 días para validar infraestructura local antes de PHI"
+
+# Target Market
+target_market:
+  segment: "Clínicas privadas pequeñas (3-10 médicos)"
+  geography: "México (Ciudad de México, Monterrey, Guadalajara)"
+  decision_makers:
+    - title: "Director Médico"
+      pain_points:
+        - "Documentación clínica fragmentada (papel, PDF, WhatsApp)"
+        - "Sin visibilidad de rendimiento de médicos"
+        - "Reportes manuales toman horas"
+    - title: "IT Manager / Administrador"
+      pain_points:
+        - "Presupuesto limitado para IT"
+        - "No quieren soluciones cloud por privacidad"
+        - "Necesitan soporte local"
+
+# Value Proposition
+value_proposition:
+  primary: "Ingestión local de documentos clínicos sin PHI (cartas, referencias, estudios) con métricas de rendimiento en 60 días"
+  benefits:
+    - "100% on-premise (LAN-only, sin internet después de instalación)"
+    - "Instalación en hardware existente (DELL, HP, Synology)"
+    - "Métricas de rendimiento: latencia p95, sesiones, eventos"
+    - "Evidence Packs: exportación con SHA256 para auditoría"
+    - "Sin lock-in: datos en HDF5, código open-source futuro"
+
+# Scope & Limits (60 días)
+scope:
+  included:
+    - "Instalación en 1 servidor local (cliente proporciona hardware)"
+    - "Configuración PM2 + servicios (backend, timeline, frontend)"
+    - "Ingestión de hasta 500 documentos no sensibles (PDF, TXT, MD)"
+    - "Dashboard con 8 KPIs en tiempo real"
+    - "Sessions list + timeline viewer"
+    - "Export con manifest + SHA256 verification"
+    - "2 sesiones de capacitación (2h c/u)"
+    - "Soporte por email durante 60 días"
+
+  excluded:
+    - "❌ Ingestión de PHI (datos de pacientes reales)"
+    - "❌ Integración con EMR/EHR"
+    - "❌ Imágenes médicas (DICOM)"
+    - "❌ Audio transcription en producción (solo demo)"
+    - "❌ Soporte 24/7"
+    - "❌ Backup automático externo"
+
+  limits:
+    max_documents: 500
+    max_sessions: 100
+    max_storage_gb: 10
+    max_concurrent_users: 5
+    support_hours: "9am-6pm lun-vie"
+    response_time: "24h business days"
+
+# SLOs (Service Level Objectives)
+slos:
+  availability: "95% uptime durante horario laboral (9am-6pm)"
+  performance:
+    ingestion_api_p95: "< 2000ms"
+    timeline_api_p95: "< 300ms"
+    dashboard_load: "< 5s"
+  data_integrity: "100% eventos con content_hash SHA256"
+
+# Hardware Requirements
+hardware_requirements:
+  minimum:
+    cpu: "4 cores"
+    ram: "8 GB"
+    storage: "50 GB SSD"
+    network: "Gigabit LAN"
+  recommended:
+    cpu: "8 cores"
+    ram: "16 GB"
+    storage: "100 GB NVMe SSD"
+    network: "10 Gigabit LAN"
+  tested_on:
+    - "DELL PowerEdge T40"
+    - "HP ProLiant MicroServer Gen10"
+    - "Synology DS920+"
+
+# Software Stack
+software_stack:
+  os: "Ubuntu 22.04 LTS o macOS"
+  runtime: "Node.js 18+, Python 3.11+"
+  process_manager: "PM2 (ecosystem.config.js)"
+  services:
+    - name: "fi-backend-api"
+      port: 9001
+      memory_limit: "1G"
+    - name: "fi-timeline-api"
+      port: 9002
+      memory_limit: "512M"
+    - name: "fi-frontend"
+      port: 9000
+      memory_limit: "1G"
+  storage: "HDF5 (corpus.h5) + JSONL (sessions manifest)"
+
+# Success Criteria (60 días)
+success_criteria:
+  technical:
+    - "Sistema instalado y operacional en 1 semana"
+    - "500 documentos demo ingestados sin errores"
+    - "Dashboard mostrando métricas en tiempo real"
+    - "0 incidentes críticos (data loss, corruption)"
+  business:
+    - "2 usuarios activos usando dashboard semanalmente"
+    - "1 export con verification ejecutado exitosamente"
+    - "Cliente confirma valor percibido (encuesta NPS > 7)"
+
+# Next Steps (Post-Piloto)
+next_steps:
+  if_successful:
+    - "FI-Health: Upgrade con PHI + HIPAA compliance"
+    - "Integración con EMR existente"
+    - "Audio transcription en producción"
+    - "Multi-tenancy (varias clínicas)"
+  if_not_successful:
+    - "Retrospectiva con cliente (qué faltó)"
+    - "Refund parcial si no se cumplieron SLOs"
+
+# Legal & Privacy
+legal:
+  data_ownership: "100% cliente (datos nunca salen del servidor local)"
+  liability_limit: "Precio del contrato (ver pricing.yaml)"
+  warranty: "Software 'as-is', sin garantías implícitas"
+  termination: "Cliente puede cancelar en cualquier momento, sin penalización"
+
+# Differentiation (vs. competitors)
+differentiation:
+  vs_cloud_emr:
+    - "Sin costos recurrentes cloud"
+    - "Sin latencia de internet"
+    - "Sin vendor lock-in"
+  vs_on_premise_emr:
+    - "10x más barato (piloto $3,000 USD vs $30k+ EMR full)"
+    - "Instalación en 1 semana vs 3-6 meses"
+    - "Sin contrato multi-año"

@@ -1,0 +1,121 @@
+# Consulta Demo 002 - Diabetes Tipo 2
+# Paciente: Femenino, 52 años
+# Fecha: 2025-10-28 11:00
+# Duración: 12 minutos
+
+session_id: "demo_consulta_002_20251028_1100"
+timestamp: "2025-10-28T11:00:00-06:00"
+duration_seconds: 720
+
+audio:
+  filename: "consulta_002.wav"
+  size_mb: 5.7
+  format: "wav"
+  sample_rate: 16000
+  channels: 1
+  sha256: "c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5"
+
+transcription: |
+  Doctor: Buenas tardes señora López, pase adelante. ¿Cómo le ha ido con los niveles de azúcar?
+
+  Paciente: Ay doctor, pues no muy bien la verdad. Traigo aquí mis mediciones. [Muestra libreta] Mire, en las mañanas en ayunas me sale entre 160 y 180.
+
+  Doctor: Ya veo. Eso está alto, debería estar por debajo de 130. ¿Ha estado tomando la metformina?
+
+  Paciente: Sí doctor, la de 850 dos veces al día. Pero le confieso que a veces se me olvida la de la noche.
+
+  Doctor: Ajá, ese es un problema. La diabetes necesita control constante. Además, ¿cómo ha estado con la dieta?
+
+  Paciente: Pues ahí más o menos doctor. Dejé los refrescos, pero a veces como tortillas, pan...
+
+  Doctor: Entiende que los carbohidratos se convierten en azúcar. Tiene que reducir las porciones. ¿Cómo se ha sentido en general?
+
+  Paciente: Me da mucha sed, y voy mucho al baño. Y tengo un hormigueo en los pies que me molesta.
+
+  Doctor: Eso es neuropatía, señora. Es una complicación de la diabetes mal controlada. Necesitamos ser más estrictos. Voy a agregarle otro medicamento, glibenclamida, para ayudar a bajar la glucosa. Y también vitaminas del complejo B para la neuropatía.
+
+  Paciente: ¿Más pastillas doctor?
+
+  Doctor: Sí, es necesario. Y escuche bien: tiene que tomar la metformina SIN FALTA, dos veces al día. Tiene que cuidar su dieta: nada de tortillas, pan, arroz, pasta, dulces. Caminar 30 minutos al día. Y volver a verme en tres semanas con análisis de glucosa y hemoglobina glucosilada.
+
+  Paciente: Sí doctor, voy a hacer todo lo que me dice.
+
+  Doctor: Aquí está su receta y la orden de laboratorio. Cualquier duda me habla.
+
+  Paciente: Gracias doctor.
+
+summary:
+  motivo_consulta: "Control de diabetes mellitus tipo 2, hiperglucemia persistente"
+
+  sintomas_reportados:
+    - "Polidipsia (sed excesiva)"
+    - "Poliuria (micción frecuente)"
+    - "Parestesias en miembros inferiores (hormigueo en pies)"
+
+  signos_vitales:
+    glucosa_ayuno_domicilio: "160-180 mg/dL"
+    objetivo: "<130 mg/dL"
+
+  apego_tratamiento:
+    medicamento_actual: "Metformina 850mg BID"
+    apego: "Subóptimo (olvidos frecuentes en toma nocturna)"
+    dieta: "Adherencia parcial (redujo refrescos pero carbohidratos altos)"
+    ejercicio: "Insuficiente"
+
+  diagnostico:
+    principal: "Diabetes mellitus tipo 2 no controlada (E11.9)"
+    complicaciones:
+      - "Neuropatía diabética periférica (E11.40)"
+      - "Riesgo de complicaciones microvasculares"
+
+  plan_tratamiento:
+    farmacologico:
+      - accion: "Continuar"
+        medicamento: "Metformina"
+        dosis: "850mg BID"
+        enfasis: "ADHERENCIA ESTRICTA (sin omisiones)"
+
+      - accion: "Agregar"
+        medicamento: "Glibenclamida"
+        dosis: "5mg/día"
+        via: "oral"
+        horario: "con desayuno"
+
+      - accion: "Agregar"
+        medicamento: "Complejo B (B1, B6, B12)"
+        dosis: "1 tableta/día"
+        indicacion: "neuropatía"
+
+    no_farmacologico:
+      - "Dieta hipoglucémica estricta (eliminar carbohidratos refinados)"
+      - "Ejercicio aeróbico 30 min/día (caminata)"
+      - "Monitoreo de glucosa capilar en ayunas (diario)"
+
+    estudios_solicitados:
+      - nombre: "Glucosa en ayunas"
+        urgencia: "antes de próxima cita"
+      - nombre: "Hemoglobina glucosilada (HbA1c)"
+        urgencia: "antes de próxima cita"
+
+    seguimiento:
+      fecha_proxima_cita: "2025-11-18"
+      intervalo: "3 semanas"
+      instrucciones: "Traer resultados de laboratorio y bitácora de glucosa"
+
+  receta_emitida: true
+  referencia: false
+  educacion_paciente:
+    - "Explicación de complicaciones de diabetes no controlada"
+    - "Importancia de adherencia farmacológica"
+    - "Modificación dietética (reducción carbohidratos)"
+
+quality_metrics:
+  transcription_confidence: 0.92
+  audio_quality_score: 0.87
+  summary_completeness: 1.0
+  structured_data_extracted: 18
+
+integrity:
+  content_hash: "d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6"
+  timestamp_created: "2025-10-28T11:12:30-06:00"
+  version: "1.0"

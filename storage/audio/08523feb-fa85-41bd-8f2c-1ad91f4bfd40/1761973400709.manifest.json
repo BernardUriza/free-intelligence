@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "sessionId": "08523feb-fa85-41bd-8f2c-1ad91f4bfd40",
+  "timestampMs": 1761973400709,
+  "receivedAt": "2025-10-31T23:03:20.728141Z",
+  "filePath": "audio/08523feb-fa85-41bd-8f2c-1ad91f4bfd40/1761973400709.mp3",
+  "fileSize": 10593528,
+  "fileHash": "sha256:07c2abeee463618835365ce6f29c69c2c521d580225b33b6080e838c2cca2d3a",
+  "fileExtension": "mp3",
+  "ttlDays": 7,
+  "ttlExpiresAt": "2025-11-07T23:03:20.728133Z",
+  "metadata": {
+    "original_filename": "sppech2.mp3",
+    "purpose": "diarization"
+  }
+}

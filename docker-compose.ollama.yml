@@ -1,0 +1,54 @@
+version: "3.8"
+
+# Free Intelligence - Ollama LLM Service
+# Deployment: Synology DS923+ (CPU-only)
+#
+# Usage:
+#   docker compose -f docker-compose.ollama.yml up -d
+#   docker exec -it ollama bash -lc "ollama pull qwen2:7b-instruct"
+#   curl -s http://localhost:11434/api/tags
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: fi-ollama
+    restart: unless-stopped
+
+    ports:
+      - "11434:11434"           # API local (LAN-only)
+
+    volumes:
+      - /volume1/ollama:/root/.ollama   # Persistent model storage
+
+    environment:
+      # CPU optimization
+      - OLLAMA_NUM_PARALLEL=1   # 1 for CPU stability (avoid OOM)
+      - OLLAMA_MAX_LOADED_MODELS=2  # Max models in memory
+      - OLLAMA_KEEP_ALIVE=5m    # Unload after 5min idle
+
+      # Optional: Debug logging
+      # - OLLAMA_DEBUG=1
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 2s
+      retries: 15
+      start_period: 20s
+
+    # Resource limits (adjust for DS923+)
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'           # Max 4 cores (DS923+ has 4)
+          memory: 8G            # Adjust based on available RAM
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+
+    networks:
+      - fi-network
+
+networks:
+  fi-network:
+    driver: bridge
