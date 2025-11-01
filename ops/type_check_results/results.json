@@ -1,126 +1,84 @@
 {
   "tool": "pyright",
-  "timestamp": "2025-11-01T02:15:04.128616",
-  "total_errors": 338,
-  "total_warnings": 40,
+  "timestamp": "2025-11-01T02:24:41.649311",
+  "total_errors": 325,
+  "total_warnings": 15,
   "errors_by_file": {
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/audit.py": 8,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py": 18,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/exports.py": 9,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py": 22,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/system.py": 1,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/audit.py": 4,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py": 15,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/exports.py": 8,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py": 19,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/transcribe.py": 1,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audio_storage.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py": 8,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/aurity_gateway.py": 3,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/aurity_gateway.py": 2,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/config_loader.py": 5,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_identity.py": 14,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_identity.py": 13,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py": 5,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_service.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_service_v2.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker.py": 2,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py": 11,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/event_validator.py": 2,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/export_policy.py": 1,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py": 9,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_consult_service.py": 4,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py": 28,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py": 13,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py": 10,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py": 9,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/gatekeeper.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/llm_audit_policy.py": 2,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/llm_metrics.py": 1,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/llm_router.py": 8,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/llm_router.py": 7,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/log_rotation.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/logger.py": 2,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/logger_structured.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/medical_validators.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/mutation_validator.py": 1,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/policy_enforcer.py": 2,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/policy_enforcer.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/policy_loader.py": 2,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/preset_loader.py": 2,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/providers/claude.py": 1,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/preset_loader.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py": 14,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/base_repository.py": 6,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py": 27,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py": 19,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py": 18,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py": 8,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/audit_service.py": 16,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/corpus_service.py": 18,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py": 8,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_service.py": 20,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py": 6,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_service.py": 17,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/export_service.py": 17,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/session_service.py": 14,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_api.py": 1,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_auto.py": 8,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_auto.py": 4,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_models.py": 2,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py": 4,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/whisper_service.py": 3
   },
   "errors_by_rule": {
-    "reportUnusedImport": 16,
-    "reportAttributeAccessIssue": 75,
+    "reportAttributeAccessIssue": 72,
     "reportCallIssue": 134,
     "reportArgumentType": 28,
-    "reportUnnecessaryTypeIgnoreComment": 9,
+    "reportUnnecessaryTypeIgnoreComment": 6,
     "reportPossiblyUnboundVariable": 6,
-    "reportUnusedVariable": 14,
-    "reportImplicitStringConcatenation": 11,
+    "reportUnusedImport": 4,
     "reportIndexIssue": 9,
+    "reportUnusedVariable": 3,
     "reportAssignmentType": 5,
     "reportOptionalMemberAccess": 2,
     "reportOperatorIssue": 15,
     "reportMissingImports": 2,
     "reportPrivateUsage": 1,
     "reportGeneralTypeIssues": 27,
-    "reportUndefinedVariable": 4,
+    "reportUndefinedVariable": 6,
+    "reportImplicitStringConcatenation": 1,
     "reportIncompatibleMethodOverride": 10,
     "reportTypedDictNotRequiredAccess": 4,
     "reportReturnType": 2,
-    "reportMissingTypeStubs": 3,
+    "reportMissingTypeStubs": 2,
     "reportOptionalCall": 1
   },
   "errors_by_severity": {
-    "error": 338,
-    "warning": 40
+    "error": 325,
+    "warning": 15
   },
   "details": [
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/audit.py",
-      "line": 14,
-      "column": 20,
-      "severity": "error",
-      "message": "Import \"Any\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/audit.py",
-      "line": 20,
-      "column": 29,
-      "severity": "error",
-      "message": "Import \"success_response\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/audit.py",
-      "line": 20,
-      "column": 47,
-      "severity": "error",
-      "message": "Import \"error_response\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/audit.py",
-      "line": 20,
-      "column": 63,
-      "severity": "error",
-      "message": "Import \"StatusCode\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/audit.py",
       "line": 98,
@@ -159,7 +117,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 292,
+      "line": 281,
       "column": 24,
       "severity": "error",
       "message": "Argument of type \"str | None\" cannot be assigned to parameter \"session_id\" of type \"str\" in function \"create_diarization_job\"\n\u00a0\u00a0Type \"str | None\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"",
@@ -168,7 +126,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 293,
+      "line": 282,
       "column": 28,
       "severity": "error",
       "message": "Argument of type \"str | None\" cannot be assigned to parameter \"audio_filename\" of type \"str\" in function \"create_diarization_job\"\n\u00a0\u00a0Type \"str | None\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"",
@@ -177,7 +135,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 329,
+      "line": 318,
       "column": 28,
       "severity": "error",
       "message": "Argument of type \"str | None\" cannot be assigned to parameter \"session_id\" of type \"str\" in function \"save_audio_file\"\n\u00a0\u00a0Type \"str | None\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"",
@@ -186,7 +144,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 383,
+      "line": 372,
       "column": 66,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
@@ -195,7 +153,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 385,
+      "line": 374,
       "column": 90,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
@@ -204,7 +162,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 387,
+      "line": 376,
       "column": 68,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
@@ -213,7 +171,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 389,
+      "line": 378,
       "column": 58,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
@@ -222,7 +180,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 391,
+      "line": 380,
       "column": 60,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
@@ -231,7 +189,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 403,
+      "line": 392,
       "column": 41,
       "severity": "error",
       "message": "Argument of type \"str | None\" cannot be assigned to parameter \"session_id\" of type \"str\" in function \"create_diarization_job\"\n\u00a0\u00a0Type \"str | None\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"",
@@ -240,7 +198,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 412,
+      "line": 401,
       "column": 33,
       "severity": "error",
       "message": "Argument of type \"str | None\" cannot be assigned to parameter \"session_id\" of type \"str\" in function \"create_job\"\n\u00a0\u00a0Type \"str | None\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"",
@@ -249,7 +207,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 419,
+      "line": 408,
       "column": 21,
       "severity": "error",
       "message": "Argument of type \"str | None\" cannot be assigned to parameter \"session_id\" of type \"str\"\n\u00a0\u00a0Type \"str | None\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"",
@@ -258,7 +216,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 428,
+      "line": 417,
       "column": 21,
       "severity": "error",
       "message": "Argument of type \"str | None\" cannot be assigned to parameter \"session_id\" of type \"str\"\n\u00a0\u00a0Type \"str | None\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"",
@@ -267,7 +225,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 447,
+      "line": 436,
       "column": 9,
       "severity": "error",
       "message": "\"audit_service\" is possibly unbound",
@@ -276,7 +234,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 459,
+      "line": 448,
       "column": 9,
       "severity": "error",
       "message": "\"audit_service\" is possibly unbound",
@@ -285,47 +243,11 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 473,
+      "line": 462,
       "column": 9,
       "severity": "error",
       "message": "\"audit_service\" is possibly unbound",
       "rule": "reportPossiblyUnboundVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 758,
-      "column": 100,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 898,
-      "column": 24,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
-      "line": 968,
-      "column": 24,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/exports.py",
-      "line": 40,
-      "column": 36,
-      "severity": "error",
-      "message": "Import \"SessionsStore\" is not accessed",
-      "rule": "reportUnusedImport",
       "tool": "pyright"
     },
     {
@@ -406,33 +328,6 @@
       "column": 54,
       "severity": "error",
       "message": "Import \"status\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 29,
-      "column": 29,
-      "severity": "error",
-      "message": "Import \"success_response\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 29,
-      "column": 47,
-      "severity": "error",
-      "message": "Import \"error_response\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 29,
-      "column": 63,
-      "severity": "error",
-      "message": "Import \"StatusCode\" is not accessed",
       "rule": "reportUnusedImport",
       "tool": "pyright"
     },
@@ -599,30 +494,12 @@
       "tool": "pyright"
     },
     {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/system.py",
-      "line": 115,
-      "column": 9,
-      "severity": "warning",
-      "message": "Variable \"enforcer\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/transcribe.py",
       "line": 26,
       "column": 8,
       "severity": "error",
       "message": "Import \"logging\" is not accessed",
       "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audio_storage.py",
-      "line": 117,
-      "column": 13,
-      "severity": "warning",
-      "message": "Implicit string concatenation not allowed",
-      "rule": "reportImplicitStringConcatenation",
       "tool": "pyright"
     },
     {
@@ -716,15 +593,6 @@
       "tool": "pyright"
     },
     {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/aurity_gateway.py",
-      "line": 347,
-      "column": 13,
-      "severity": "warning",
-      "message": "Variable \"data\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
       "line": 160,
       "column": 56,
@@ -794,15 +662,6 @@
       "severity": "error",
       "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
       "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_identity.py",
-      "line": 124,
-      "column": 21,
-      "severity": "warning",
-      "message": "Implicit string concatenation not allowed",
-      "rule": "reportImplicitStringConcatenation",
       "tool": "pyright"
     },
     {
@@ -987,15 +846,6 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 24,
-      "column": 22,
-      "severity": "error",
-      "message": "\"UTC\" is unknown import symbol",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
       "line": 200,
       "column": 31,
       "severity": "error",
@@ -1010,15 +860,6 @@
       "severity": "error",
       "message": "Cannot access attribute \"flush\" for class \"File\"\n\u00a0\u00a0Attribute \"flush\" is unknown",
       "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 299,
-      "column": 32,
-      "severity": "warning",
-      "message": "Variable \"info\" is not accessed",
-      "rule": "reportUnusedVariable",
       "tool": "pyright"
     },
     {
@@ -1082,33 +923,6 @@
       "severity": "warning",
       "message": "\"_init_job_in_h5\" is protected and used outside of the class in which it is declared",
       "rule": "reportPrivateUsage",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/event_validator.py",
-      "line": 153,
-      "column": 13,
-      "severity": "warning",
-      "message": "Implicit string concatenation not allowed",
-      "rule": "reportImplicitStringConcatenation",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/event_validator.py",
-      "line": 199,
-      "column": 21,
-      "severity": "warning",
-      "message": "Implicit string concatenation not allowed",
-      "rule": "reportImplicitStringConcatenation",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/export_policy.py",
-      "line": 275,
-      "column": 13,
-      "severity": "warning",
-      "message": "Implicit string concatenation not allowed",
-      "rule": "reportImplicitStringConcatenation",
       "tool": "pyright"
     },
     {
@@ -1410,15 +1224,6 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 124,
-      "column": 17,
-      "severity": "warning",
-      "message": "Implicit string concatenation not allowed",
-      "rule": "reportImplicitStringConcatenation",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
       "line": 140,
       "column": 38,
       "severity": "error",
@@ -1496,24 +1301,6 @@
       "severity": "error",
       "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"bytearray\"",
       "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 459,
-      "column": 5,
-      "severity": "warning",
-      "message": "Variable \"list_parser\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 467,
-      "column": 5,
-      "severity": "warning",
-      "message": "Variable \"stats_parser\" is not accessed",
-      "rule": "reportUnusedVariable",
       "tool": "pyright"
     },
     {
@@ -1598,15 +1385,6 @@
       "tool": "pyright"
     },
     {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/gatekeeper.py",
-      "line": 477,
-      "column": 5,
-      "severity": "warning",
-      "message": "Variable \"test_parser\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/llm_audit_policy.py",
       "line": 104,
       "column": 13,
@@ -1680,15 +1458,6 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/llm_router.py",
-      "line": 472,
-      "column": 13,
-      "severity": "warning",
-      "message": "Implicit string concatenation not allowed",
-      "rule": "reportImplicitStringConcatenation",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/llm_router.py",
       "line": 562,
       "column": 24,
       "severity": "error",
@@ -1752,17 +1521,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/mutation_validator.py",
-      "line": 122,
-      "column": 33,
-      "severity": "warning",
-      "message": "Implicit string concatenation not allowed",
-      "rule": "reportImplicitStringConcatenation",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/policy_enforcer.py",
-      "line": 76,
-      "column": 13,
+      "line": 123,
+      "column": 25,
       "severity": "warning",
       "message": "Implicit string concatenation not allowed",
       "rule": "reportImplicitStringConcatenation",
@@ -1802,24 +1562,6 @@
       "severity": "error",
       "message": "Argument of type \"float\" cannot be assigned to parameter \"value\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0\"float\" is not assignable to \"str\"",
       "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/preset_loader.py",
-      "line": 307,
-      "column": 5,
-      "severity": "warning",
-      "message": "Variable \"list_parser\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/providers/claude.py",
-      "line": 96,
-      "column": 17,
-      "severity": "warning",
-      "message": "Implicit string concatenation not allowed",
-      "rule": "reportImplicitStringConcatenation",
       "tool": "pyright"
     },
     {
@@ -2251,15 +1993,6 @@
       "column": 8,
       "severity": "error",
       "message": "Import \"h5py\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 20,
-      "column": 27,
-      "severity": "error",
-      "message": "Import \"JobStatusDict\" is not accessed",
       "rule": "reportUnusedImport",
       "tool": "pyright"
     },
@@ -2796,43 +2529,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
-      "line": 20,
-      "column": 5,
-      "severity": "error",
-      "message": "\"cancel_job\" is unknown import symbol",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
-      "line": 26,
-      "column": 5,
-      "severity": "error",
-      "message": "\"restart_job\" is unknown import symbol",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
-      "line": 142,
-      "column": 25,
-      "severity": "warning",
-      "message": "Implicit string concatenation not allowed",
-      "rule": "reportImplicitStringConcatenation",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
-      "line": 257,
-      "column": 47,
-      "severity": "error",
-      "message": "Import \"AUDIO_STORAGE_DIR\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
-      "line": 268,
+      "line": 260,
       "column": 17,
       "severity": "error",
       "message": "No parameter named \"audio_path\"",
@@ -2841,7 +2538,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
-      "line": 269,
+      "line": 261,
       "column": 17,
       "severity": "error",
       "message": "No parameter named \"job_id\"",
@@ -2850,7 +2547,25 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
-      "line": 388,
+      "line": 288,
+      "column": 26,
+      "severity": "error",
+      "message": "\"restart_lowprio_job\" is not defined",
+      "rule": "reportUndefinedVariable",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
+      "line": 319,
+      "column": 26,
+      "severity": "error",
+      "message": "\"cancel_lowprio_job\" is not defined",
+      "rule": "reportUndefinedVariable",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
+      "line": 380,
       "column": 64,
       "severity": "error",
       "message": "\"list_jobs\" is unknown import symbol",
@@ -2859,20 +2574,11 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
-      "line": 399,
+      "line": 391,
       "column": 20,
       "severity": "error",
       "message": "Type \"list[DiarizationJob]\" is not assignable to return type \"list[dict[str, Any]]\"\n\u00a0\u00a0\"list[DiarizationJob]\" is not assignable to \"list[dict[str, Any]]\"\n\u00a0\u00a0\u00a0\u00a0Type parameter \"_T@list\" is invariant, but \"DiarizationJob\" is not the same as \"dict[str, Any]\"\n\u00a0\u00a0\u00a0\u00a0Consider switching from \"list\" to \"Sequence\" which is covariant",
       "rule": "reportReturnType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_service.py",
-      "line": 14,
-      "column": 21,
-      "severity": "error",
-      "message": "Import \"Path\" is not accessed",
-      "rule": "reportUnusedImport",
       "tool": "pyright"
     },
     {
@@ -3026,24 +2732,6 @@
       "severity": "error",
       "message": "No parameter named \"error\"",
       "rule": "reportCallIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_service.py",
-      "line": 369,
-      "column": 18,
-      "severity": "warning",
-      "message": "Stub file not found for \"faster_whisper\"",
-      "rule": "reportMissingTypeStubs",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_service.py",
-      "line": 369,
-      "column": 40,
-      "severity": "error",
-      "message": "Import \"WhisperModel\" is not accessed",
-      "rule": "reportUnusedImport",
       "tool": "pyright"
     },
     {
@@ -3354,24 +3042,6 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_auto.py",
-      "line": 325,
-      "column": 9,
-      "severity": "warning",
-      "message": "Variable \"strip_pii\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_auto.py",
-      "line": 326,
-      "column": 9,
-      "severity": "warning",
-      "message": "Variable \"use_active_verbs\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_auto.py",
       "line": 400,
       "column": 20,
       "severity": "error",
@@ -3381,29 +3051,11 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_auto.py",
-      "line": 418,
-      "column": 9,
-      "severity": "warning",
-      "message": "Variable \"groups\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_auto.py",
       "line": 421,
       "column": 20,
       "severity": "error",
       "message": "Arguments missing for parameters \"auto_events_count\", \"manual_events_count\"",
       "rule": "reportCallIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_auto.py",
-      "line": 429,
-      "column": 22,
-      "severity": "warning",
-      "message": "Variable \"success\" is not accessed",
-      "rule": "reportUnusedVariable",
       "tool": "pyright"
     },
     {

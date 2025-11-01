@@ -119,7 +119,7 @@ def scan_file_for_mutations(file_path: str) -> list[MutationViolation]:
                         line_number=node.lineno,
                         function_name=func_name,
                         violation_type="FORBIDDEN_MUTATION_FUNCTION",
-                        message=f"Function '{func_name}' matches forbidden pattern '{pattern}'. "
+                        message=f"Function '{func_name}' matches forbidden pattern '{pattern}'. " +
                         f"Mutations must be event-sourced, not direct. "
                         f"Use append-only operations instead.",
                     )

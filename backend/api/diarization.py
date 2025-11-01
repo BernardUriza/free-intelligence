@@ -868,6 +868,9 @@ async def get_job_logs(job_id: str):
             logs or [], message=f"Retrieved {len(logs) if logs else 0} log entries", code=200
         )
 
+    except ValueError as e:
+        logger.warning(f"DIARIZATION_LOGS_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"DIARIZATION_LOGS_FAILED: job_id={job_id}, error={str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve logs") from e

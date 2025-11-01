@@ -114,7 +114,7 @@ def save_audio_file(
     file_extension = file_extension.lower().lstrip(".")
     if file_extension not in allowed_extensions:
         raise ValueError(
-            f"Invalid file extension: {file_extension} "
+            f"Invalid file extension: {file_extension} " +
             f"(allowed: {', '.join(allowed_extensions)})"
         )
 

@@ -150,7 +150,7 @@ def validate_event_name(event_name: str, strict: bool = False) -> dict[str, Any]
     # Rule 1: Strict mode - must be in canonical list
     if strict and event_name not in CANONICAL_EVENTS:
         errors.append(
-            f"Event '{event_name}' not in canonical list. "
+            f"Event '{event_name}' not in canonical list. " +
             "See docs/events.md for approved events."
         )
 
@@ -196,7 +196,7 @@ def validate_event_name(event_name: str, strict: bool = False) -> dict[str, Any]
             )
             if not is_past_tense:
                 warnings.append(
-                    f"Event may not end with past participle. "
+                    f"Event may not end with past participle. " +
                     f"Got: '{last_part}'. Common endings: INITIALIZED, FAILED, ADDED, etc."
                 )
 

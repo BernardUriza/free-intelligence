@@ -121,7 +121,7 @@ def add_corpus_identity(
             if "corpus_id" in metadata.attrs:
                 existing_id = metadata.attrs["corpus_id"]
                 raise ValueError(
-                    f"Corpus already has identity (corpus_id: {existing_id}). " "Cannot overwrite."
+                    f"Corpus already has identity (corpus_id: {existing_id}). " + "Cannot overwrite."
                 )
 
             # Add identity attributes

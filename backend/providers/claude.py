@@ -93,7 +93,7 @@ class ClaudeAdapter(LLMAdapter):
         # Check budget
         if not self.budget.can_make_request(request.max_tokens):
             raise BudgetExceededError(
-                f"Budget exceeded: {self.budget.requests_made}/{self.budget.max_requests_per_hour} requests, "
+                f"Budget exceeded: {self.budget.requests_made}/{self.budget.max_requests_per_hour} requests, " +
                 f"{self.budget.tokens_used}/{self.budget.max_tokens_per_hour} tokens"
             )
 
