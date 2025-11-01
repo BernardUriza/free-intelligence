@@ -37,14 +37,14 @@ def enforcer_with_allowlist():
 class TestAllowlistSecurityBypass:
     """Test allowlist cannot be bypassed by attacker-controlled input"""
 
-    def test_egress_exact_host_allowed(self, enforcer_with_allowlist):
+    def test_egress_exact_host_allowed(self, enforcer_with_allowlist) -> None:
         """Exact host match should be allowed"""
         # Should NOT raise PolicyViolation
         enforcer_with_allowlist.check_egress("https://api.anthropic.com/v1/messages")
         enforcer_with_allowlist.check_egress("http://127.0.0.1:11434/api/chat")
         enforcer_with_allowlist.check_egress("http://localhost:11434/api/generate")
 
-    def test_egress_exact_host_port_required(self, enforcer_with_allowlist):
+    def test_egress_exact_host_port_required(self, enforcer_with_allowlist) -> None:
         """Port must match exactly if specified in allowlist"""
         # Allowed: exact port match
         enforcer_with_allowlist.check_egress("http://127.0.0.1:11434/api/chat")
@@ -57,7 +57,7 @@ class TestAllowlistSecurityBypass:
         with pytest.raises(PolicyViolation, match="External egress denied"):
             enforcer_with_allowlist.check_egress("http://127.0.0.1/api/chat")
 
-    def test_egress_wildcard_subdomain_allowed(self, enforcer_with_allowlist):
+    def test_egress_wildcard_subdomain_allowed(self, enforcer_with_allowlist) -> None:
         """Wildcard .example.com should match subdomains"""
         # Should allow subdomains
         enforcer_with_allowlist.check_egress("https://api.example.com/v1")
@@ -67,7 +67,7 @@ class TestAllowlistSecurityBypass:
         # Should also allow bare domain
         enforcer_with_allowlist.check_egress("https://example.com/")
 
-    def test_egress_substring_injection_blocked(self, enforcer_with_allowlist):
+    def test_egress_substring_injection_blocked(self, enforcer_with_allowlist) -> None:
         """Attacker cannot bypass allowlist by embedding domain in URL"""
         # Attack: Query param injection
         with pytest.raises(PolicyViolation, match="External egress denied"):
@@ -83,7 +83,7 @@ class TestAllowlistSecurityBypass:
         with pytest.raises(PolicyViolation, match="External egress denied"):
             enforcer_with_allowlist.check_egress("https://evil.com/steal#api.anthropic.com")
 
-    def test_egress_subdomain_injection_blocked(self, enforcer_with_allowlist):
+    def test_egress_subdomain_injection_blocked(self, enforcer_with_allowlist) -> None:
         """Allowlist domain should not match malicious subdomains"""
         # Attack: Add allowlisted domain as subdomain of evil domain
         with pytest.raises(PolicyViolation, match="External egress denied"):
@@ -92,7 +92,7 @@ class TestAllowlistSecurityBypass:
         with pytest.raises(PolicyViolation, match="External egress denied"):
             enforcer_with_allowlist.check_egress("https://api.anthropic.com-evil.com/phishing")
 
-    def test_egress_partial_domain_match_blocked(self, enforcer_with_allowlist):
+    def test_egress_partial_domain_match_blocked(self, enforcer_with_allowlist) -> None:
         """Allowlist entry should not match partial strings"""
         # Attack: Embed allowlisted string in different host
         with pytest.raises(PolicyViolation, match="External egress denied"):
@@ -101,7 +101,7 @@ class TestAllowlistSecurityBypass:
         with pytest.raises(PolicyViolation, match="External egress denied"):
             enforcer_with_allowlist.check_egress("http://prefix127.0.0.1:11434/api")
 
-    def test_egress_case_sensitivity_normalized(self, enforcer_with_allowlist):
+    def test_egress_case_sensitivity_normalized(self, enforcer_with_allowlist) -> None:
         """Allowlist matching should be case-insensitive"""
         # Lowercase (original)
         enforcer_with_allowlist.check_egress("https://api.anthropic.com")
@@ -111,7 +111,7 @@ class TestAllowlistSecurityBypass:
         enforcer_with_allowlist.check_egress("https://Api.Anthropic.Com")
         enforcer_with_allowlist.check_egress("HTTPS://API.ANTHROPIC.COM/V1/MESSAGES")
 
-    def test_egress_wildcard_does_not_match_unrelated(self, enforcer_with_allowlist):
+    def test_egress_wildcard_does_not_match_unrelated(self, enforcer_with_allowlist) -> None:
         """Wildcard .example.com should not match unrelated domains"""
         # Should NOT match: different domain
         with pytest.raises(PolicyViolation, match="External egress denied"):
@@ -123,7 +123,7 @@ class TestAllowlistSecurityBypass:
         with pytest.raises(PolicyViolation, match="External egress denied"):
             enforcer_with_allowlist.check_egress("https://evil-example.com/")
 
-    def test_egress_empty_allowlist_blocks_all(self):
+    def test_egress_empty_allowlist_blocks_all(self) -> None:
         """Empty allowlist should block all requests"""
         enforcer = PolicyEnforcer.__new__(PolicyEnforcer)
         enforcer.policy = {"sovereignty": {"egress": {"default": "deny", "allowlist": []}}}
@@ -139,7 +139,7 @@ class TestAllowlistSecurityBypass:
 class TestAllowlistPerformance:
     """Test allowlist check performance (should be <100μs)"""
 
-    def test_allowlist_check_performance(self, enforcer_with_allowlist, benchmark):
+    def test_allowlist_check_performance(self, enforcer_with_allowlist, benchmark) -> None:
         """Allowlist check should complete in <100μs"""
 
         def check_allowed_url():

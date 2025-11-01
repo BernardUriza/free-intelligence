@@ -19,7 +19,7 @@ def aggregator():
     return KPIsAggregator(bucket_sec=10, retention_min=60)
 
 
-def test_record_http_event(aggregator):
+def test_record_http_event(aggregator) -> None:
     """Test recording HTTP events."""
     aggregator.record_http_event(
         route="/api/sessions",
@@ -33,7 +33,7 @@ def test_record_http_event(aggregator):
     assert summary["latency"]["p95_ms"] == 150
 
 
-def test_record_llm_event(aggregator):
+def test_record_llm_event(aggregator) -> None:
     """Test recording LLM events."""
     aggregator.record_llm_event(
         provider="anthropic",
@@ -50,7 +50,7 @@ def test_record_llm_event(aggregator):
     assert summary["providers"][0]["id"] == "anthropic"
 
 
-def test_cache_hit_metrics(aggregator):
+def test_cache_hit_metrics(aggregator) -> None:
     """Test cache hit recording."""
     # Miss
     aggregator.record_llm_event(
@@ -76,7 +76,7 @@ def test_cache_hit_metrics(aggregator):
     assert summary["cache"]["hit_ratio"] == 0.5
 
 
-def test_unknown_tokens(aggregator):
+def test_unknown_tokens(aggregator) -> None:
     """Test handling of unknown tokens."""
     aggregator.record_llm_event(
         provider="local",
@@ -92,7 +92,7 @@ def test_unknown_tokens(aggregator):
     assert summary["tokens"]["unknown"] == 2  # Both in and out
 
 
-def test_multiple_providers(aggregator):
+def test_multiple_providers(aggregator) -> None:
     """Test provider distribution."""
     aggregator.record_llm_event(provider="anthropic", latency_ms=100)
     aggregator.record_llm_event(provider="anthropic", latency_ms=110)
@@ -110,7 +110,7 @@ def test_multiple_providers(aggregator):
     assert providers["local"]["pct"] == 0.25
 
 
-def test_p95_calculation(aggregator):
+def test_p95_calculation(aggregator) -> None:
     """Test p95 latency calculation."""
     # Record 20 samples (0-19ms)
     for i in range(20):
@@ -125,7 +125,7 @@ def test_p95_calculation(aggregator):
     assert summary["latency"]["p95_ms"] == 19
 
 
-def test_window_filtering(aggregator):
+def test_window_filtering(aggregator) -> None:
     """Test time window filtering."""
     # Record event now
     aggregator.record_http_event(
@@ -143,7 +143,7 @@ def test_window_filtering(aggregator):
     assert summary_5m["requests"]["total"] == 1
 
 
-def test_chips_format(aggregator):
+def test_chips_format(aggregator) -> None:
     """Test chips output format."""
     aggregator.record_llm_event(
         provider="anthropic",
@@ -173,7 +173,7 @@ def test_chips_format(aggregator):
     assert tokens_in_chip["unit"] == "tok"
 
 
-def test_timeseries_format(aggregator):
+def test_timeseries_format(aggregator) -> None:
     """Test timeseries output format."""
     # Record multiple events across time
     for i in range(5):
@@ -205,7 +205,7 @@ def test_timeseries_format(aggregator):
         assert len(series["p95_ms"][0]) == 2  # [ts, value]
 
 
-def test_empty_summary(aggregator):
+def test_empty_summary(aggregator) -> None:
     """Test empty summary when no data."""
     summary = aggregator.get_summary(window="1m")
 
@@ -216,7 +216,7 @@ def test_empty_summary(aggregator):
     assert summary["providers"] == []
 
 
-def test_http_status_codes(aggregator):
+def test_http_status_codes(aggregator) -> None:
     """Test HTTP status code tracking."""
     aggregator.record_http_event(route="/api/success", status=200, duration_ms=100)
     aggregator.record_http_event(route="/api/created", status=201, duration_ms=110)
@@ -230,7 +230,7 @@ def test_http_status_codes(aggregator):
     assert summary["requests"]["5xx"] == 1
 
 
-def test_bucket_cleanup(aggregator):
+def test_bucket_cleanup(aggregator) -> None:
     """Test bucket cleanup after retention window."""
     # Record event
     aggregator.record_http_event(
@@ -269,7 +269,7 @@ def test_bucket_cleanup(aggregator):
     assert summary["requests"]["total"] == 1  # Only new event
 
 
-def test_performance_p95_calculation():
+def test_performance_p95_calculation() -> None:
     """Test p95 calculation performance (<10ms requirement)."""
     aggregator = KPIsAggregator()
 

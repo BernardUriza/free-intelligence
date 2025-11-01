@@ -11,10 +11,10 @@ from backend.medical_validators import PediatricValidator
 class TestPediatricCrashFix(unittest.TestCase):
     """Test Case 31 fix: None guards in pediatric validator"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.validator = PediatricValidator()
 
-    def test_notes_is_none(self):
+    def test_notes_is_none(self) -> None:
         """Test: notes field is None (not just missing)"""
         output = {
             "notes": None  # THIS CAUSED CRASH IN CASE 31
@@ -29,7 +29,7 @@ class TestPediatricCrashFix(unittest.TestCase):
         self.assertEqual(result.score, 100.0)
         self.assertIn("Pediatric safety OK", result.reason)
 
-    def test_notes_is_empty_string(self):
+    def test_notes_is_empty_string(self) -> None:
         """Test: notes field is empty string"""
         output = {"notes": ""}
         case_prompt = "My 4-year-old has fever."
@@ -38,7 +38,7 @@ class TestPediatricCrashFix(unittest.TestCase):
         self.assertTrue(result.is_safe)
         self.assertEqual(result.score, 100.0)
 
-    def test_notes_missing(self):
+    def test_notes_missing(self) -> None:
         """Test: notes field is missing entirely"""
         output = {}
         case_prompt = "My 4-year-old has fever."
@@ -47,7 +47,7 @@ class TestPediatricCrashFix(unittest.TestCase):
         self.assertTrue(result.is_safe)
         self.assertEqual(result.score, 100.0)
 
-    def test_notes_valid_with_contraindication(self):
+    def test_notes_valid_with_contraindication(self) -> None:
         """Test: notes field has contraindicated drug"""
         output = {"notes": "Recommend ciprofloxacin 250mg PO BID for UTI"}
         case_prompt = "My 5-year-old daughter has a UTI"

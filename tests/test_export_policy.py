@@ -35,7 +35,7 @@ from backend.export_policy import (
 class TestExportManifest(unittest.TestCase):
     """Tests para dataclass ExportManifest."""
 
-    def test_create_manifest(self):
+    def test_create_manifest(self) -> None:
         """Debe crear manifest con campos requeridos."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
@@ -51,7 +51,7 @@ class TestExportManifest(unittest.TestCase):
         self.assertEqual(manifest.format, "markdown")
         self.assertEqual(manifest.purpose, "personal_review")
 
-    def test_to_dict(self):
+    def test_to_dict(self) -> None:
         """Debe convertir a dict correctamente."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
@@ -68,7 +68,7 @@ class TestExportManifest(unittest.TestCase):
         self.assertEqual(data["format"], "json")
         self.assertEqual(data["purpose"], "backup")
 
-    def test_to_json(self):
+    def test_to_json(self) -> None:
         """Debe serializar a JSON string."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
@@ -87,7 +87,7 @@ class TestExportManifest(unittest.TestCase):
         parsed = json.loads(json_str)
         self.assertEqual(parsed["format"], "markdown")
 
-    def test_save_manifest(self):
+    def test_save_manifest(self) -> None:
         """Debe guardar manifest a archivo."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
@@ -117,7 +117,7 @@ class TestExportManifest(unittest.TestCase):
 class TestValidateManifestSchema(unittest.TestCase):
     """Tests para validación de schema."""
 
-    def test_validate_valid_manifest(self):
+    def test_validate_valid_manifest(self) -> None:
         """Debe pasar manifest válido."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
@@ -133,7 +133,7 @@ class TestValidateManifestSchema(unittest.TestCase):
         result = validate_manifest_schema(manifest)
         self.assertTrue(result)
 
-    def test_invalid_export_id(self):
+    def test_invalid_export_id(self) -> None:
         """Debe fallar con export_id inválido."""
         manifest = ExportManifest(
             export_id="not-a-uuid",
@@ -150,7 +150,7 @@ class TestValidateManifestSchema(unittest.TestCase):
 
         self.assertIn("UUID", str(cm.exception))
 
-    def test_invalid_timestamp(self):
+    def test_invalid_timestamp(self) -> None:
         """Debe fallar con timestamp inválido."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
@@ -167,7 +167,7 @@ class TestValidateManifestSchema(unittest.TestCase):
 
         self.assertIn("ISO 8601", str(cm.exception))
 
-    def test_invalid_format(self):
+    def test_invalid_format(self) -> None:
         """Debe fallar con format inválido."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
@@ -184,7 +184,7 @@ class TestValidateManifestSchema(unittest.TestCase):
 
         self.assertIn("format must be one of", str(cm.exception))
 
-    def test_invalid_purpose(self):
+    def test_invalid_purpose(self) -> None:
         """Debe fallar con purpose inválido."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
@@ -201,7 +201,7 @@ class TestValidateManifestSchema(unittest.TestCase):
 
         self.assertIn("purpose must be one of", str(cm.exception))
 
-    def test_invalid_data_hash(self):
+    def test_invalid_data_hash(self) -> None:
         """Debe fallar con data_hash inválido."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
@@ -222,7 +222,7 @@ class TestValidateManifestSchema(unittest.TestCase):
 class TestComputeFileHash(unittest.TestCase):
     """Tests para cómputo de hash."""
 
-    def test_compute_hash_of_file(self):
+    def test_compute_hash_of_file(self) -> None:
         """Debe computar SHA256 de archivo."""
         content = "test content"
 
@@ -239,7 +239,7 @@ class TestComputeFileHash(unittest.TestCase):
 
         filepath.unlink()
 
-    def test_same_content_same_hash(self):
+    def test_same_content_same_hash(self) -> None:
         """Mismo contenido debe dar mismo hash."""
         content = "identical content"
 
@@ -261,7 +261,7 @@ class TestComputeFileHash(unittest.TestCase):
         filepath1.unlink()
         filepath2.unlink()
 
-    def test_different_content_different_hash(self):
+    def test_different_content_different_hash(self) -> None:
         """Contenido diferente debe dar hash diferente."""
         with tempfile.NamedTemporaryFile(mode="w", delete=False) as f1:
             f1.write("content A")
@@ -285,7 +285,7 @@ class TestComputeFileHash(unittest.TestCase):
 class TestValidateExport(unittest.TestCase):
     """Tests para validación completa de export."""
 
-    def test_validate_valid_export(self):
+    def test_validate_valid_export(self) -> None:
         """Debe pasar export válido."""
         content = "export data"
 
@@ -313,7 +313,7 @@ class TestValidateExport(unittest.TestCase):
 
         filepath.unlink()
 
-    def test_validate_hash_mismatch(self):
+    def test_validate_hash_mismatch(self) -> None:
         """Debe fallar con hash mismatch."""
         content = "export data"
 
@@ -342,7 +342,7 @@ class TestValidateExport(unittest.TestCase):
 
         filepath.unlink()
 
-    def test_validate_file_not_exists(self):
+    def test_validate_file_not_exists(self) -> None:
         """Debe fallar si archivo no existe."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
@@ -365,7 +365,7 @@ class TestValidateExport(unittest.TestCase):
 class TestCreateExportManifest(unittest.TestCase):
     """Tests para creación de manifest."""
 
-    def test_create_manifest_auto_fields(self):
+    def test_create_manifest_auto_fields(self) -> None:
         """Debe crear manifest con campos auto-generados."""
         content = "test data"
 
@@ -394,7 +394,7 @@ class TestCreateExportManifest(unittest.TestCase):
 
         filepath.unlink()
 
-    def test_create_manifest_with_optional_fields(self):
+    def test_create_manifest_with_optional_fields(self) -> None:
         """Debe crear manifest con campos opcionales."""
         content = "test data"
 
@@ -424,7 +424,7 @@ class TestCreateExportManifest(unittest.TestCase):
 class TestLoadManifest(unittest.TestCase):
     """Tests para carga de manifest."""
 
-    def test_load_valid_manifest(self):
+    def test_load_valid_manifest(self) -> None:
         """Debe cargar manifest válido."""
         manifest_data = {
             "export_id": str(uuid.uuid4()),
@@ -448,14 +448,14 @@ class TestLoadManifest(unittest.TestCase):
 
         filepath.unlink()
 
-    def test_load_manifest_file_not_found(self):
+    def test_load_manifest_file_not_found(self) -> None:
         """Debe fallar si archivo no existe."""
         non_existent = Path("/tmp/non_existent_manifest.json")
 
         with self.assertRaises(FileNotFoundError):
             load_manifest(non_existent)
 
-    def test_load_invalid_manifest(self):
+    def test_load_invalid_manifest(self) -> None:
         """Debe fallar con manifest inválido."""
         manifest_data = {
             "export_id": "not-a-uuid",  # Invalid

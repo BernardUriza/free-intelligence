@@ -19,13 +19,13 @@ from backend.policy_enforcer import PolicyViolation, get_policy_enforcer, redact
 class TestPolicyEnforcerIntegration:
     """Test policy enforcer integration and initialization."""
 
-    def test_policy_enforcer_singleton(self):
+    def test_policy_enforcer_singleton(self) -> None:
         """Test that get_policy_enforcer returns same instance."""
         policy1 = get_policy_enforcer()
         policy2 = get_policy_enforcer()
         assert policy1 is policy2
 
-    def test_policy_enforcer_has_required_methods(self):
+    def test_policy_enforcer_has_required_methods(self) -> None:
         """Test that PolicyEnforcer has all required methods."""
         policy = get_policy_enforcer()
         assert hasattr(policy, "check_egress")
@@ -35,7 +35,7 @@ class TestPolicyEnforcerIntegration:
         assert callable(policy.check_cost)
         assert callable(policy.check_phi)
 
-    def test_redact_function_exists(self):
+    def test_redact_function_exists(self) -> None:
         """Test that redact function is available."""
         assert callable(redact)
         # Test basic redaction
@@ -47,21 +47,21 @@ class TestPolicyEnforcerIntegration:
 class TestRedactionFunctionality:
     """Test redaction patterns work correctly."""
 
-    def test_email_redaction(self):
+    def test_email_redaction(self) -> None:
         """Test email redaction."""
         text = "Contact: john.doe@example.com"
         redacted = redact(text)
         assert "john.doe@example.com" not in redacted
         assert "[REDACTED" in redacted
 
-    def test_phone_redaction(self):
+    def test_phone_redaction(self) -> None:
         """Test phone number redaction."""
         text = "Call me: +1-555-123-4567"
         redacted = redact(text)
         assert "+1-555-123-4567" not in redacted
         assert "[REDACTED" in redacted
 
-    def test_multiple_pattern_redaction(self):
+    def test_multiple_pattern_redaction(self) -> None:
         """Test multiple patterns in same text."""
         text = "Email: test@test.com, Phone: +1-555-123-4567"
         redacted = redact(text)
@@ -69,13 +69,13 @@ class TestRedactionFunctionality:
         assert "+1-555-123-4567" not in redacted
         assert redacted.count("[REDACTED") >= 2
 
-    def test_preserve_non_sensitive_text(self):
+    def test_preserve_non_sensitive_text(self) -> None:
         """Test that non-sensitive text is preserved."""
         text = "This is a normal sentence with no PII."
         redacted = redact(text)
         assert redacted == text  # Should be unchanged
 
-    def test_redaction_with_stop_terms(self):
+    def test_redaction_with_stop_terms(self) -> None:
         """Test redaction of stop terms (password, token, etc)."""
         text = "My password is secret123"
         redacted = redact(text)
@@ -86,7 +86,7 @@ class TestRedactionFunctionality:
 class TestEgressPolicyCheck:
     """Test egress policy checking."""
 
-    def test_egress_check_blocks_external_url(self):
+    def test_egress_check_blocks_external_url(self) -> None:
         """Test that external URLs are blocked when policy=deny."""
         policy = get_policy_enforcer()
 
@@ -102,7 +102,7 @@ class TestEgressPolicyCheck:
             # If policy allows, should not raise
             policy.check_egress("https://api.anthropic.com")  # Should pass
 
-    def test_egress_check_allows_local_url(self):
+    def test_egress_check_allows_local_url(self) -> None:
         """Test that local URLs pass egress check."""
         policy = get_policy_enforcer()
 
@@ -119,7 +119,7 @@ class TestEgressPolicyCheck:
 class TestCostPolicyCheck:
     """Test cost budget enforcement."""
 
-    def test_cost_within_budget_passes(self):
+    def test_cost_within_budget_passes(self) -> None:
         """Test that costs within budget pass check."""
         policy = get_policy_enforcer()
 
@@ -131,7 +131,7 @@ class TestCostPolicyCheck:
         if budget_cents > 100:
             policy.check_cost(100)  # Should not raise
 
-    def test_cost_exceeds_budget_raises(self):
+    def test_cost_exceeds_budget_raises(self) -> None:
         """Test that costs exceeding budget raise PolicyViolation."""
         policy = get_policy_enforcer()
 
@@ -148,21 +148,21 @@ class TestCostPolicyCheck:
 class TestProvidersHavePolicyIntegration:
     """Test that providers have policy enforcement integrated."""
 
-    def test_claude_adapter_imports_policy(self):
+    def test_claude_adapter_imports_policy(self) -> None:
         """Test that Claude adapter imports PolicyEnforcer."""
         from backend.providers import claude
 
         assert hasattr(claude, "policy")
         assert hasattr(claude, "get_policy_enforcer")
 
-    def test_ollama_adapter_imports_policy(self):
+    def test_ollama_adapter_imports_policy(self) -> None:
         """Test that Ollama adapter imports PolicyEnforcer."""
         from backend.providers import ollama
 
         assert hasattr(ollama, "policy")
         assert hasattr(ollama, "get_policy_enforcer")
 
-    def test_llm_middleware_imports_policy(self):
+    def test_llm_middleware_imports_policy(self) -> None:
         """Test that LLM middleware imports PolicyEnforcer."""
         from backend import llm_middleware
 

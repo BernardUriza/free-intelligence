@@ -18,7 +18,7 @@ from backend.evidence_pack import (
 class TestClinicalSource(unittest.TestCase):
     """Tests for ClinicalSource dataclass"""
 
-    def test_create_minimal_source(self):
+    def test_create_minimal_source(self) -> None:
         """Test creating source with minimum required fields"""
         source = ClinicalSource(
             source_id="abc123",
@@ -31,7 +31,7 @@ class TestClinicalSource(unittest.TestCase):
         self.assertEqual(source.tipo_doc, "cita_medica")
         self.assertIsNone(source.hallazgo)
 
-    def test_create_full_source(self):
+    def test_create_full_source(self) -> None:
         """Test creating source with all fields"""
         source = ClinicalSource(
             source_id="abc123",
@@ -50,16 +50,16 @@ class TestClinicalSource(unittest.TestCase):
 class TestEvidencePackBuilder(unittest.TestCase):
     """Tests for EvidencePackBuilder"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up builder for tests"""
         self.builder = EvidencePackBuilder()
 
-    def test_builder_initialization(self):
+    def test_builder_initialization(self) -> None:
         """Test builder initializes correctly"""
         self.assertIsNotNone(self.builder.config)
         self.assertEqual(len(self.builder.sources), 0)
 
-    def test_add_single_source(self):
+    def test_add_single_source(self) -> None:
         """Test adding single source"""
         source = ClinicalSource(
             source_id="test1",
@@ -71,7 +71,7 @@ class TestEvidencePackBuilder(unittest.TestCase):
         self.builder.add_source(source)
         self.assertEqual(len(self.builder.sources), 1)
 
-    def test_add_multiple_sources(self):
+    def test_add_multiple_sources(self) -> None:
         """Test adding multiple sources"""
         for i in range(3):
             source = ClinicalSource(
@@ -84,7 +84,7 @@ class TestEvidencePackBuilder(unittest.TestCase):
 
         self.assertEqual(len(self.builder.sources), 3)
 
-    def test_compute_source_hash(self):
+    def test_compute_source_hash(self) -> None:
         """Test SHA256 hash computation"""
         source = ClinicalSource(
             source_id="test1",
@@ -100,7 +100,7 @@ class TestEvidencePackBuilder(unittest.TestCase):
         self.assertEqual(hash1, hash2)
         self.assertEqual(len(hash1), 64)  # SHA256 is 64 hex chars
 
-    def test_hash_uniqueness(self):
+    def test_hash_uniqueness(self) -> None:
         """Test that different sources produce different hashes"""
         source1 = ClinicalSource(
             source_id="test1",
@@ -121,7 +121,7 @@ class TestEvidencePackBuilder(unittest.TestCase):
 
         self.assertNotEqual(hash1, hash2)
 
-    def test_build_pack_from_sources(self):
+    def test_build_pack_from_sources(self) -> None:
         """Test building evidence pack from 5 sources"""
         # Add 5 dummy sources
         for i in range(5):
@@ -144,12 +144,12 @@ class TestEvidencePackBuilder(unittest.TestCase):
         self.assertEqual(len(pack.source_hashes), 5)
         self.assertEqual(pack.metadata["source_count"], 5)
 
-    def test_build_fails_without_sources(self):
+    def test_build_fails_without_sources(self) -> None:
         """Test that build fails if no sources added"""
         with self.assertRaises(ValueError):
             self.builder.build()
 
-    def test_pack_to_dict(self):
+    def test_pack_to_dict(self) -> None:
         """Test converting pack to dictionary"""
         source = ClinicalSource(
             source_id="test1",
@@ -170,7 +170,7 @@ class TestEvidencePackBuilder(unittest.TestCase):
         self.assertIn("policy_snapshot_id", pack_dict)
         self.assertIsInstance(pack_dict["sources"], list)
 
-    def test_pack_to_json(self):
+    def test_pack_to_json(self) -> None:
         """Test converting pack to JSON"""
         source = ClinicalSource(
             source_id="test1",
@@ -192,7 +192,7 @@ class TestEvidencePackBuilder(unittest.TestCase):
 class TestConvenienceFunction(unittest.TestCase):
     """Tests for convenience function"""
 
-    def test_create_pack_from_dicts(self):
+    def test_create_pack_from_dicts(self) -> None:
         """Test creating pack from source dictionaries"""
         sources = [
             {

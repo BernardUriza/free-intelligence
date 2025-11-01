@@ -33,15 +33,15 @@ class TestSprintAutomation(unittest.TestCase):
         cls.script_path = os.path.join(cls.repo_root, "scripts", "sprint-close.sh")
         cls.backup_dir = os.path.join(cls.repo_root, "backups")
 
-    def test_script_exists(self):
+    def test_script_exists(self) -> None:
         """Debe existir script sprint-close.sh."""
         self.assertTrue(os.path.exists(self.script_path), f"Script not found: {self.script_path}")
 
-    def test_script_is_executable(self):
+    def test_script_is_executable(self) -> None:
         """Debe ser ejecutable."""
         self.assertTrue(os.access(self.script_path, os.X_OK), "Script is not executable")
 
-    def test_dry_run_no_side_effects(self):
+    def test_dry_run_no_side_effects(self) -> None:
         """Dry run no debe crear tags ni bundles."""
         # Get current tags
         before_tags = subprocess.check_output(["git", "tag", "-l"], text=True).strip().split("\n")
@@ -74,7 +74,7 @@ class TestSprintAutomation(unittest.TestCase):
             len(before_bundles), len(after_bundles), "DRY_RUN should not create bundles"
         )
 
-    def test_dry_run_output_format(self):
+    def test_dry_run_output_format(self) -> None:
         """Dry run debe producir output con formato esperado."""
         result = subprocess.run(
             [self.script_path, "SPR-2025W44", "DRY_RUN"],
@@ -96,7 +96,7 @@ class TestSprintAutomation(unittest.TestCase):
         self.assertIn("Step 6: Actualizando claude.md", output)
         self.assertIn("RESUMEN FINAL", output)
 
-    def test_dry_run_warns_about_mode(self):
+    def test_dry_run_warns_about_mode(self) -> None:
         """Dry run debe advertir que es simulación."""
         result = subprocess.run(
             [self.script_path, "SPR-TEST", "DRY_RUN"],
@@ -109,7 +109,7 @@ class TestSprintAutomation(unittest.TestCase):
         self.assertIn("No se aplicaron cambios", result.stdout)
         self.assertIn("SIMULADO", result.stdout)
 
-    def test_version_increment_detection(self):
+    def test_version_increment_detection(self) -> None:
         """Debe detectar último tag y calcular nueva versión."""
         result = subprocess.run(
             [self.script_path, "SPR-TEST", "DRY_RUN"],
@@ -129,7 +129,7 @@ class TestSprintAutomation(unittest.TestCase):
         # Debe mostrar nueva versión
         self.assertRegex(output, r"Nueva versión: v\d+\.\d+\.\d+")
 
-    def test_release_notes_generation(self):
+    def test_release_notes_generation(self) -> None:
         """Debe generar archivo de release notes."""
         result = subprocess.run(
             [self.script_path, "SPR-TEST", "DRY_RUN"],
@@ -156,7 +156,7 @@ class TestSprintAutomation(unittest.TestCase):
         self.assertIn("Fecha", content)
         self.assertIn("Commits", content)
 
-    def test_sprint_label_validation(self):
+    def test_sprint_label_validation(self) -> None:
         """Debe aceptar diferentes formatos de sprint label."""
         valid_labels = [
             "SPR-2025W44",
@@ -175,7 +175,7 @@ class TestSprintAutomation(unittest.TestCase):
             self.assertEqual(result.returncode, 0, f"Should accept sprint label: {label}")
             self.assertIn(label, result.stdout)
 
-    def test_backup_directory_path(self):
+    def test_backup_directory_path(self) -> None:
         """Debe usar directorio backups/ correcto."""
         result = subprocess.run(
             [self.script_path, "SPR-TEST", "DRY_RUN"],
@@ -190,7 +190,7 @@ class TestSprintAutomation(unittest.TestCase):
         # Verificar path absoluto correcto
         self.assertIn(self.backup_dir, result.stdout)
 
-    def test_bundle_naming_convention(self):
+    def test_bundle_naming_convention(self) -> None:
         """Debe usar convención de nombres para bundles."""
         result = subprocess.run(
             [self.script_path, "SPR-2025W44", "DRY_RUN"],
@@ -202,7 +202,7 @@ class TestSprintAutomation(unittest.TestCase):
         # Formato: fi-{SPRINT}-{TAG}-{DATE}.bundle
         self.assertRegex(result.stdout, r"fi-SPR-2025W44-v\d+\.\d+\.\d+-\d{4}-\d{2}-\d{2}\.bundle")
 
-    def test_sha256_path_convention(self):
+    def test_sha256_path_convention(self) -> None:
         """Debe crear archivo SHA256 con convención correcta."""
         result = subprocess.run(
             [self.script_path, "SPR-2025W44", "DRY_RUN"],
@@ -215,7 +215,7 @@ class TestSprintAutomation(unittest.TestCase):
         # Verificar que menciona SHA256 en output
         self.assertIn("SHA256", result.stdout)
 
-    def test_retention_policy_mention(self):
+    def test_retention_policy_mention(self) -> None:
         """Debe mencionar política de retención."""
         result = subprocess.run(
             [self.script_path, "SPR-TEST", "DRY_RUN"],
@@ -227,7 +227,7 @@ class TestSprintAutomation(unittest.TestCase):
         self.assertIn("últimos 12 bundles", result.stdout)
         self.assertIn("Bundles actuales:", result.stdout)
 
-    def test_timezone_america_mexico_city(self):
+    def test_timezone_america_mexico_city(self) -> None:
         """Debe usar timezone America/Mexico_City."""
         result = subprocess.run(
             [self.script_path, "SPR-TEST", "DRY_RUN"],
@@ -238,7 +238,7 @@ class TestSprintAutomation(unittest.TestCase):
 
         self.assertIn("America/Mexico_City", result.stdout)
 
-    def test_exit_code_success(self):
+    def test_exit_code_success(self) -> None:
         """Debe retornar exit code 0 en éxito."""
         result = subprocess.run(
             [self.script_path, "SPR-TEST", "DRY_RUN"], capture_output=True, cwd=self.repo_root
@@ -246,7 +246,7 @@ class TestSprintAutomation(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, "Script should exit with code 0 on success")
 
-    def test_no_commits_scenario(self):
+    def test_no_commits_scenario(self) -> None:
         """Debe manejar caso de no commits desde último tag."""
         # Este test es conceptual porque depende del estado real del repo
         # Solo verificamos que el script puede ejecutarse
@@ -272,7 +272,7 @@ class TestSprintWorkflow(unittest.TestCase):
             ["git", "rev-parse", "--show-toplevel"], text=True
         ).strip()
 
-    def test_documentation_exists(self):
+    def test_documentation_exists(self) -> None:
         """Debe existir documentación de cadencia."""
         docs = [
             "docs/sprint-cadence.md",
@@ -283,7 +283,7 @@ class TestSprintWorkflow(unittest.TestCase):
             path = os.path.join(self.repo_root, doc)
             self.assertTrue(os.path.exists(path), f"Documentation should exist: {doc}")
 
-    def test_sprint_plan_template_concepts(self):
+    def test_sprint_plan_template_concepts(self) -> None:
         """Debe tener ejemplos de sprint plans."""
         # Verificar que existen sprints documentados (moved to docs/sprints/)
         sprint_files = [
@@ -301,7 +301,7 @@ class TestSprintWorkflow(unittest.TestCase):
 
         self.assertTrue(found_any, "Should have at least one sprint plan example in docs/sprints/")
 
-    def test_backups_directory_gitignored(self):
+    def test_backups_directory_gitignored(self) -> None:
         """Backups directory debe estar en .gitignore."""
         gitignore_path = os.path.join(self.repo_root, ".gitignore")
 

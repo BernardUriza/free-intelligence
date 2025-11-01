@@ -22,7 +22,7 @@ from backend.llm_adapter import (
 class TestLLMBudget(unittest.TestCase):
     """Test budget tracking"""
 
-    def test_budget_initialization(self):
+    def test_budget_initialization(self) -> None:
         """Test: Budget initializes with defaults"""
         budget = LLMBudget()
 
@@ -31,7 +31,7 @@ class TestLLMBudget(unittest.TestCase):
         self.assertEqual(budget.tokens_used, 0)
         self.assertEqual(budget.requests_made, 0)
 
-    def test_budget_can_make_request(self):
+    def test_budget_can_make_request(self) -> None:
         """Test: Budget allows requests within limits"""
         budget = LLMBudget(max_tokens_per_hour=1000, max_requests_per_hour=10)
 
@@ -47,7 +47,7 @@ class TestLLMBudget(unittest.TestCase):
         # Should deny request that would exceed budget
         self.assertFalse(budget.can_make_request(estimated_tokens=600))
 
-    def test_budget_request_limit(self):
+    def test_budget_request_limit(self) -> None:
         """Test: Budget enforces request count limit"""
         budget = LLMBudget(max_requests_per_hour=3)
 
@@ -59,7 +59,7 @@ class TestLLMBudget(unittest.TestCase):
         # 4th request should be denied
         self.assertFalse(budget.can_make_request())
 
-    def test_budget_reset_after_hour(self):
+    def test_budget_reset_after_hour(self) -> None:
         """Test: Budget resets after 1 hour"""
         budget = LLMBudget(max_tokens_per_hour=1000)
 
@@ -80,7 +80,7 @@ class TestLLMBudget(unittest.TestCase):
 class TestLLMRequest(unittest.TestCase):
     """Test request model"""
 
-    def test_request_creation(self):
+    def test_request_creation(self) -> None:
         """Test: Request creates with defaults"""
         request = LLMRequest(prompt="Test prompt")
 
@@ -90,7 +90,7 @@ class TestLLMRequest(unittest.TestCase):
         self.assertIsNone(request.schema)
         self.assertIsNone(request.system_prompt)
 
-    def test_request_with_schema(self):
+    def test_request_with_schema(self) -> None:
         """Test: Request accepts JSON schema"""
         schema = {"type": "object", "properties": {"answer": {"type": "string"}}}
         request = LLMRequest(prompt="Test", schema=schema)
@@ -101,14 +101,14 @@ class TestLLMRequest(unittest.TestCase):
 class TestAdapterFactory(unittest.TestCase):
     """Test adapter factory"""
 
-    def test_factory_ollama_stub(self):
+    def test_factory_ollama_stub(self) -> None:
         """Test: Factory creates Ollama stub"""
         adapter = create_adapter(provider="ollama")
 
         self.assertEqual(adapter.provider_name, "ollama")
         self.assertEqual(adapter.model, "llama3.2")
 
-    def test_factory_unknown_provider(self):
+    def test_factory_unknown_provider(self) -> None:
         """Test: Factory raises error for unknown provider"""
         with self.assertRaises(ValueError):
             create_adapter(provider="unknown")
@@ -117,7 +117,7 @@ class TestAdapterFactory(unittest.TestCase):
 class TestOllamaStub(unittest.TestCase):
     """Test Ollama stub implementation"""
 
-    def test_ollama_generate_not_implemented(self):
+    def test_ollama_generate_not_implemented(self) -> None:
         """Test: Ollama generate raises NotImplementedProviderError"""
         adapter = create_adapter(provider="ollama")
         request = LLMRequest(prompt="Test")
@@ -129,7 +129,7 @@ class TestOllamaStub(unittest.TestCase):
         self.assertIn("501 NOT IMPLEMENTED", str(ctx.exception))
         self.assertIn("Use provider='claude'", str(ctx.exception))
 
-    def test_ollama_stream_not_implemented(self):
+    def test_ollama_stream_not_implemented(self) -> None:
         """Test: Ollama stream raises NotImplementedProviderError"""
         adapter = create_adapter(provider="ollama")
         request = LLMRequest(prompt="Test")
@@ -141,7 +141,7 @@ class TestOllamaStub(unittest.TestCase):
 class TestPHIRedaction(unittest.TestCase):
     """Test PHI redaction"""
 
-    def test_redact_email(self):
+    def test_redact_email(self) -> None:
         """Test: Email addresses are redacted"""
         adapter = create_adapter(provider="ollama")
 
@@ -151,7 +151,7 @@ class TestPHIRedaction(unittest.TestCase):
         self.assertIn("[EMAIL]", redacted)
         self.assertNotIn("john@example.com", redacted)
 
-    def test_redact_phone(self):
+    def test_redact_phone(self) -> None:
         """Test: Phone numbers are redacted"""
         adapter = create_adapter(provider="ollama")
 
@@ -161,7 +161,7 @@ class TestPHIRedaction(unittest.TestCase):
         self.assertIn("[PHONE]", redacted)
         self.assertNotIn("555-123-4567", redacted)
 
-    def test_redact_ssn(self):
+    def test_redact_ssn(self) -> None:
         """Test: SSN patterns are redacted"""
         adapter = create_adapter(provider="ollama")
 

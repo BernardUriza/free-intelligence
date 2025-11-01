@@ -33,21 +33,21 @@ from backend.llm_router_policy import (
 class TestExtractImports(unittest.TestCase):
     """Tests para extracción de imports."""
 
-    def test_extract_simple_import(self):
+    def test_extract_simple_import(self) -> None:
         """Debe extraer import simple."""
         code = "import anthropic"
         tree = ast.parse(code)
         imports = extract_imports(tree)
         self.assertIn("anthropic", imports)
 
-    def test_extract_from_import(self):
+    def test_extract_from_import(self) -> None:
         """Debe extraer from import."""
         code = "from anthropic import Anthropic"
         tree = ast.parse(code)
         imports = extract_imports(tree)
         self.assertIn("anthropic", imports)
 
-    def test_extract_multiple_imports(self):
+    def test_extract_multiple_imports(self) -> None:
         """Debe extraer múltiples imports."""
         code = """
 import anthropic
@@ -60,7 +60,7 @@ from cohere import Client
         self.assertIn("openai", imports)
         self.assertIn("cohere", imports)
 
-    def test_extract_nested_import(self):
+    def test_extract_nested_import(self) -> None:
         """Debe extraer import con dots."""
         code = "from google.generativeai import GenerativeModel"
         tree = ast.parse(code)
@@ -71,32 +71,32 @@ from cohere import Client
 class TestHasForbiddenImport(unittest.TestCase):
     """Tests para detección de imports prohibidos."""
 
-    def test_detects_anthropic(self):
+    def test_detects_anthropic(self) -> None:
         """Debe detectar import de anthropic."""
         imports = {"anthropic", "os", "sys"}
         forbidden = has_forbidden_import(imports)
         self.assertIn("anthropic", forbidden)
 
-    def test_detects_openai(self):
+    def test_detects_openai(self) -> None:
         """Debe detectar import de openai."""
         imports = {"openai", "pathlib"}
         forbidden = has_forbidden_import(imports)
         self.assertIn("openai", forbidden)
 
-    def test_detects_nested_google(self):
+    def test_detects_nested_google(self) -> None:
         """Debe detectar import de google.generativeai."""
         imports = {"google.generativeai", "json"}
         forbidden = has_forbidden_import(imports)
         self.assertEqual(len(forbidden), 1)
         self.assertTrue(any("google.generativeai" in f for f in forbidden))
 
-    def test_ignores_safe_imports(self):
+    def test_ignores_safe_imports(self) -> None:
         """No debe marcar imports seguros."""
         imports = {"os", "sys", "pathlib", "json"}
         forbidden = has_forbidden_import(imports)
         self.assertEqual(len(forbidden), 0)
 
-    def test_detects_multiple_forbidden(self):
+    def test_detects_multiple_forbidden(self) -> None:
         """Debe detectar múltiples imports prohibidos."""
         imports = {"anthropic", "openai", "cohere", "os"}
         forbidden = has_forbidden_import(imports)
@@ -106,7 +106,7 @@ class TestHasForbiddenImport(unittest.TestCase):
 class TestExtractAttributeCalls(unittest.TestCase):
     """Tests para extracción de attribute calls."""
 
-    def test_extract_simple_call(self):
+    def test_extract_simple_call(self) -> None:
         """Debe extraer llamada simple."""
         code = "client.messages.create()"
         tree = ast.parse(code)
@@ -115,7 +115,7 @@ class TestExtractAttributeCalls(unittest.TestCase):
         _, chain = calls[0]
         self.assertEqual(chain, "messages.create")
 
-    def test_extract_nested_call(self):
+    def test_extract_nested_call(self) -> None:
         """Debe extraer llamada anidada."""
         code = "openai.chat.completions.create()"
         tree = ast.parse(code)
@@ -124,7 +124,7 @@ class TestExtractAttributeCalls(unittest.TestCase):
         _, chain = calls[0]
         self.assertEqual(chain, "chat.completions.create")
 
-    def test_extract_multiple_calls(self):
+    def test_extract_multiple_calls(self) -> None:
         """Debe extraer múltiples llamadas."""
         code = """
 client.messages.create()
@@ -138,26 +138,26 @@ api.generate()
 class TestHasForbiddenCall(unittest.TestCase):
     """Tests para detección de llamadas prohibidas."""
 
-    def test_detects_anthropic_messages_create(self):
+    def test_detects_anthropic_messages_create(self) -> None:
         """Debe detectar messages.create."""
         calls = [(1, "messages.create"), (2, "other.method")]
         forbidden = has_forbidden_call(calls)
         self.assertEqual(len(forbidden), 1)
         self.assertEqual(forbidden[0][1], "messages.create")
 
-    def test_detects_openai_completions_create(self):
+    def test_detects_openai_completions_create(self) -> None:
         """Debe detectar chat.completions.create."""
         calls = [(1, "chat.completions.create")]
         forbidden = has_forbidden_call(calls)
         self.assertEqual(len(forbidden), 1)
 
-    def test_detects_generate(self):
+    def test_detects_generate(self) -> None:
         """Debe detectar generate()."""
         calls = [(1, "model.generate")]
         forbidden = has_forbidden_call(calls)
         self.assertEqual(len(forbidden), 1)
 
-    def test_ignores_safe_calls(self):
+    def test_ignores_safe_calls(self) -> None:
         """No debe marcar llamadas seguras."""
         calls = [(1, "logger.info"), (2, "data.append")]
         forbidden = has_forbidden_call(calls)
@@ -167,7 +167,7 @@ class TestHasForbiddenCall(unittest.TestCase):
 class TestScanFile(unittest.TestCase):
     """Tests para escaneo de archivos."""
 
-    def test_scan_file_with_forbidden_import(self):
+    def test_scan_file_with_forbidden_import(self) -> None:
         """Debe detectar archivo con import prohibido."""
         code = """
 import anthropic
@@ -188,7 +188,7 @@ def my_function():
 
             filepath.unlink()
 
-    def test_scan_file_with_forbidden_call(self):
+    def test_scan_file_with_forbidden_call(self) -> None:
         """Debe detectar archivo con llamada prohibida."""
         code = """
 def call_api():
@@ -208,7 +208,7 @@ def call_api():
 
             filepath.unlink()
 
-    def test_scan_file_with_both_violations(self):
+    def test_scan_file_with_both_violations(self) -> None:
         """Debe detectar import y call prohibidos."""
         code = """
 import anthropic
@@ -234,7 +234,7 @@ def call_api():
 
             filepath.unlink()
 
-    def test_scan_clean_file(self):
+    def test_scan_clean_file(self) -> None:
         """Debe pasar archivo limpio (usando router)."""
         code = """
 from llm_router import route_llm_call
@@ -255,7 +255,7 @@ def call_api(prompt):
 
             filepath.unlink()
 
-    def test_scan_file_with_syntax_error(self):
+    def test_scan_file_with_syntax_error(self) -> None:
         """Debe manejar archivos con syntax errors."""
         code = """
 def invalid_syntax(
@@ -277,7 +277,7 @@ def invalid_syntax(
 class TestDirectoryScan(unittest.TestCase):
     """Tests para escaneo de directorios."""
 
-    def test_scan_directory_with_violations(self):
+    def test_scan_directory_with_violations(self) -> None:
         """Debe escanear directorio y detectar violaciones."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmppath = Path(tmpdir)
@@ -304,7 +304,7 @@ from llm_router import route_llm_call
             self.assertEqual(len(results), 1)
             self.assertIn("module1.py", str(list(results.keys())[0]))
 
-    def test_scan_directory_skips_tests(self):
+    def test_scan_directory_skips_tests(self) -> None:
         """Debe ignorar archivos test_*.py."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmppath = Path(tmpdir)
@@ -326,7 +326,7 @@ import anthropic
 class TestValidateCodebase(unittest.TestCase):
     """Tests para validación de codebase."""
 
-    def test_validate_clean_codebase(self):
+    def test_validate_clean_codebase(self) -> None:
         """Debe pasar validación si no hay violaciones."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmppath = Path(tmpdir)
@@ -344,7 +344,7 @@ def call_llm(prompt):
             is_valid = validate_codebase(tmppath)
             self.assertTrue(is_valid)
 
-    def test_validate_codebase_with_violations(self):
+    def test_validate_codebase_with_violations(self) -> None:
         """Debe fallar validación si hay violaciones."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmppath = Path(tmpdir)
@@ -363,7 +363,7 @@ def call_api():
             is_valid = validate_codebase(tmppath)
             self.assertFalse(is_valid)
 
-    def test_validate_empty_directory(self):
+    def test_validate_empty_directory(self) -> None:
         """Debe pasar validación si no hay archivos."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmppath = Path(tmpdir)
@@ -375,7 +375,7 @@ def call_api():
 class TestRouterViolation(unittest.TestCase):
     """Tests para dataclass RouterViolation."""
 
-    def test_router_violation_str(self):
+    def test_router_violation_str(self) -> None:
         """Debe formatear correctamente __str__."""
         violation = RouterViolation(
             filepath="test.py",

@@ -29,10 +29,10 @@ from backend.preset_loader import get_preset_loader
 class TestPresetLoader(unittest.TestCase):
     """Test PresetLoader basic functionality"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.loader = get_preset_loader()
 
-    def test_load_intake_coach_preset(self):
+    def test_load_intake_coach_preset(self) -> None:
         """Test loading intake_coach.yaml"""
         preset = self.loader.load_preset("intake_coach")
 
@@ -65,12 +65,12 @@ class TestPresetLoader(unittest.TestCase):
         # Verify examples
         self.assertGreater(len(preset.examples), 0)
 
-    def test_list_presets(self):
+    def test_list_presets(self) -> None:
         """Test listing available presets"""
         presets = self.loader.list_presets()
         self.assertIn("intake_coach", presets)
 
-    def test_load_schema(self):
+    def test_load_schema(self) -> None:
         """Test loading JSON Schema"""
         schema = self.loader.load_schema("schemas/intake.schema.json")
 
@@ -87,7 +87,7 @@ class TestPresetLoader(unittest.TestCase):
         urgency_enum = schema["properties"]["urgency"]["enum"]
         self.assertEqual(urgency_enum, ["LOW", "MODERATE", "HIGH", "CRITICAL"])
 
-    def test_cache_key_computation(self):
+    def test_cache_key_computation(self) -> None:
         """Test cache key computation"""
         preset = self.loader.load_preset("intake_coach")
 
@@ -109,11 +109,11 @@ class TestPresetLoader(unittest.TestCase):
 class TestIntakeSchemaValidation(unittest.TestCase):
     """Test JSON Schema validation for intake data"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.loader = get_preset_loader()
         self.schema = self.loader.load_schema("schemas/intake.schema.json")
 
-    def test_valid_complete_intake(self):
+    def test_valid_complete_intake(self) -> None:
         """Test validation of complete valid intake"""
         intake = {
             "demographics": {
@@ -136,7 +136,7 @@ class TestIntakeSchemaValidation(unittest.TestCase):
         # Should not raise
         self.assertTrue(self.loader.validate_output(intake, self.schema))
 
-    def test_valid_minimal_intake(self):
+    def test_valid_minimal_intake(self) -> None:
         """Test validation with null/empty fields"""
         intake = {
             "demographics": {"name": None, "age": None, "gender": None, "contact": None},
@@ -150,7 +150,7 @@ class TestIntakeSchemaValidation(unittest.TestCase):
         # Should not raise
         self.assertTrue(self.loader.validate_output(intake, self.schema))
 
-    def test_invalid_urgency_value(self):
+    def test_invalid_urgency_value(self) -> None:
         """Test validation fails with invalid urgency"""
         intake = {
             "demographics": {"name": None, "age": None, "gender": None, "contact": None},
@@ -164,7 +164,7 @@ class TestIntakeSchemaValidation(unittest.TestCase):
         with self.assertRaises(jsonschema.ValidationError):
             self.loader.validate_output(intake, self.schema)
 
-    def test_invalid_gender_value(self):
+    def test_invalid_gender_value(self) -> None:
         """Test validation fails with invalid gender"""
         intake = {
             "demographics": {
@@ -183,7 +183,7 @@ class TestIntakeSchemaValidation(unittest.TestCase):
         with self.assertRaises(jsonschema.ValidationError):
             self.loader.validate_output(intake, self.schema)
 
-    def test_missing_required_field(self):
+    def test_missing_required_field(self) -> None:
         """Test validation fails with missing required field"""
         intake = {
             "demographics": {"name": "Test", "age": 30, "gender": "M", "contact": None},
@@ -200,7 +200,7 @@ class TestIntakeSchemaValidation(unittest.TestCase):
 class TestIntakePrompts(unittest.TestCase):
     """Test 10 intake prompts with LLM"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.loader = get_preset_loader()
         self.preset = self.loader.load_preset("intake_coach")
         self.schema = self.loader.load_schema(self.preset.output_schema_path)
@@ -210,7 +210,7 @@ class TestIntakePrompts(unittest.TestCase):
         with open(test_prompts_path) as f:
             self.test_prompts = json.load(f)
 
-    def test_all_prompts_validation(self):
+    def test_all_prompts_validation(self) -> None:
         """Test all 10 prompts produce valid JSON"""
         from backend.llm_router import llm_generate
 

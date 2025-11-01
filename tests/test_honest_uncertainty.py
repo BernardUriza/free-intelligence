@@ -25,7 +25,7 @@ from event_validator import CANONICAL_EVENTS
 class TestHonestUncertainty(unittest.TestCase):
     """Tests para validar principios de honestidad en eventos."""
 
-    def test_no_passed_in_canonical_events(self):
+    def test_no_passed_in_canonical_events(self) -> None:
         """Eventos canónicos no deben usar 'PASSED' (falsa certeza)."""
         passed_events = [e for e in CANONICAL_EVENTS if "PASSED" in e]
 
@@ -35,7 +35,7 @@ class TestHonestUncertainty(unittest.TestCase):
             f"Found {len(passed_events)} events with 'PASSED': {passed_events}",
         )
 
-    def test_no_verified_in_canonical_events(self):
+    def test_no_verified_in_canonical_events(self) -> None:
         """Eventos canónicos no deben usar 'VERIFIED' (falsa prueba)."""
         verified_events = [e for e in CANONICAL_EVENTS if "VERIFIED" in e]
 
@@ -45,7 +45,7 @@ class TestHonestUncertainty(unittest.TestCase):
             f"Found {len(verified_events)} events with 'VERIFIED': {verified_events}",
         )
 
-    def test_no_success_in_canonical_events(self):
+    def test_no_success_in_canonical_events(self) -> None:
         """Eventos canónicos no deben usar 'SUCCESS' (binario falso)."""
         success_events = [e for e in CANONICAL_EVENTS if "SUCCESS" in e]
 
@@ -55,7 +55,7 @@ class TestHonestUncertainty(unittest.TestCase):
             f"Found {len(success_events)} events with 'SUCCESS': {success_events}",
         )
 
-    def test_validation_events_have_qualifiers(self):
+    def test_validation_events_have_qualifiers(self) -> None:
         """Eventos de validación deben tener calificadores honestos."""
         validation_events = [e for e in CANONICAL_EVENTS if "SCAN" in e or "CHECKS" in e]
 
@@ -71,7 +71,7 @@ class TestHonestUncertainty(unittest.TestCase):
                 f"Validation event should use COMPLETED or DETECTED: {event}",
             )
 
-    def test_ownership_events_admit_method(self):
+    def test_ownership_events_admit_method(self) -> None:
         """Eventos de ownership deben admitir método (hash comparison)."""
         ownership_events = [e for e in CANONICAL_EVENTS if "OWNERSHIP" in e]
 
@@ -80,7 +80,7 @@ class TestHonestUncertainty(unittest.TestCase):
 
         self.assertTrue(has_honest_ownership, "Ownership events should admit method (HASH_MATCHED)")
 
-    def test_stats_events_admit_snapshot_nature(self):
+    def test_stats_events_admit_snapshot_nature(self) -> None:
         """Eventos de stats deben admitir naturaleza temporal (snapshot)."""
         stats_events = [e for e in CANONICAL_EVENTS if "STATS" in e]
 
@@ -90,7 +90,7 @@ class TestHonestUncertainty(unittest.TestCase):
             has_snapshot, "Stats events should admit temporal nature (SNAPSHOT or COMPUTED)"
         )
 
-    def test_no_guaranteed_or_proven(self):
+    def test_no_guaranteed_or_proven(self) -> None:
         """No debe haber términos de certeza absoluta."""
         false_certainty_terms = ["GUARANTEED", "PROVEN", "CONFIRMED", "ENSURED"]
 
@@ -103,7 +103,7 @@ class TestHonestUncertainty(unittest.TestCase):
                 f"Should not use absolute certainty term '{term}': {events_with_term}",
             )
 
-    def test_export_events_use_hash_comparison(self):
+    def test_export_events_use_hash_comparison(self) -> None:
         """Eventos de export deben admitir método (hash comparison)."""
         export_events = [e for e in CANONICAL_EVENTS if "EXPORT" in e or "MANIFEST" in e]
 
@@ -111,7 +111,7 @@ class TestHonestUncertainty(unittest.TestCase):
 
         self.assertTrue(has_hash_events, "Export events should use HASH_COMPARED or HASH_MATCHED")
 
-    def test_canonical_events_count(self):
+    def test_canonical_events_count(self) -> None:
         """Debe haber suficientes eventos canónicos."""
         # Actualmente tenemos ~50+ eventos
         self.assertGreater(
@@ -120,7 +120,7 @@ class TestHonestUncertainty(unittest.TestCase):
             f"Should have at least 40 canonical events, got {len(CANONICAL_EVENTS)}",
         )
 
-    def test_event_names_are_uppercase_snake_case(self):
+    def test_event_names_are_uppercase_snake_case(self) -> None:
         """Todos los eventos deben estar en UPPER_SNAKE_CASE."""
         for event in CANONICAL_EVENTS:
             # Debe ser todo mayúsculas
@@ -138,7 +138,7 @@ class TestHonestUncertainty(unittest.TestCase):
                 f"Event should not start/end with underscore: {event}",
             )
 
-    def test_policy_events_use_scan_not_validation(self):
+    def test_policy_events_use_scan_not_validation(self) -> None:
         """Eventos de políticas deben usar SCAN en lugar de VALIDATION."""
         policy_keywords = ["LLM", "MUTATION", "ROUTER", "APPEND"]
 
@@ -159,7 +159,7 @@ class TestHonestUncertainty(unittest.TestCase):
 class TestHonestMessagingInCode(unittest.TestCase):
     """Tests para validar mensajes honestos en el código."""
 
-    def test_no_false_confidence_in_backend(self):
+    def test_no_false_confidence_in_backend(self) -> None:
         """Archivos backend no deben tener términos de falsa certeza en strings."""
         backend_dir = Path(__file__).parent.parent / "backend"
         false_confidence_patterns = [
@@ -184,7 +184,7 @@ class TestHonestMessagingInCode(unittest.TestCase):
             "Found false confidence patterns in backend:\n" + "\n".join(violations),
         )
 
-    def test_honest_terms_present_in_backend(self):
+    def test_honest_terms_present_in_backend(self) -> None:
         """Archivos backend deben usar términos honestos."""
         backend_dir = Path(__file__).parent.parent / "backend"
         honest_patterns = [

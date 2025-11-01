@@ -27,7 +27,7 @@ TIMEOUT = 10
 class TestFastAPIConsultService(unittest.TestCase):
     """Test FastAPI consult service endpoints"""
 
-    def test_health_endpoint_available(self):
+    def test_health_endpoint_available(self) -> None:
         """Health endpoint should be available"""
         response = requests.get(f"{BACKEND_URL}/health", timeout=TIMEOUT)
         self.assertEqual(response.status_code, 200)
@@ -35,14 +35,14 @@ class TestFastAPIConsultService(unittest.TestCase):
         self.assertEqual(data["status"], "healthy")
         logger.info("✅ Health endpoint available")
 
-    def test_corpus_stats_endpoint(self):
+    def test_corpus_stats_endpoint(self) -> None:
         """Corpus stats endpoint should exist"""
         response = requests.get(f"{BACKEND_URL}/api/corpus/stats", timeout=TIMEOUT)
         # Endpoint may return 200 or 404 depending on implementation
         self.assertIn(response.status_code, [200, 404, 500])
         logger.info(f"✅ Corpus stats endpoint: HTTP {response.status_code}")
 
-    def test_backend_api_json_responses(self):
+    def test_backend_api_json_responses(self) -> None:
         """Backend API should return valid JSON"""
         response = requests.get(f"{BACKEND_URL}/health", timeout=TIMEOUT)
         self.assertEqual(response.headers.get("content-type"), "application/json")
@@ -50,7 +50,7 @@ class TestFastAPIConsultService(unittest.TestCase):
         self.assertIsInstance(data, dict)
         logger.info("✅ Backend returns valid JSON")
 
-    def test_api_response_structure(self):
+    def test_api_response_structure(self) -> None:
         """API responses should have proper structure"""
         response = requests.get(f"{BACKEND_URL}/health", timeout=TIMEOUT)
         data = response.json()
@@ -71,14 +71,14 @@ class TestFastAPIConsultService(unittest.TestCase):
 class TestCorpusAnalyticsAPI(unittest.TestCase):
     """Test Corpus Analytics API (FI-API-FEAT-003)"""
 
-    def test_corpus_exists(self):
+    def test_corpus_exists(self) -> None:
         """Corpus file should exist and be accessible"""
         response = requests.get(f"{BACKEND_URL}/health", timeout=TIMEOUT)
         data = response.json()
         self.assertTrue(data.get("corpus_exists"), "Corpus not found")
         logger.info("✅ Corpus file exists")
 
-    def test_corpus_path_valid(self):
+    def test_corpus_path_valid(self) -> None:
         """Corpus path should be valid and contain HDF5"""
         response = requests.get(f"{BACKEND_URL}/health", timeout=TIMEOUT)
         data = response.json()
@@ -87,7 +87,7 @@ class TestCorpusAnalyticsAPI(unittest.TestCase):
         self.assertIn(".h5", corpus_path.lower(), "Corpus path should reference HDF5")
         logger.info(f"✅ Corpus path valid: {corpus_path}")
 
-    def test_api_latency_acceptable(self):
+    def test_api_latency_acceptable(self) -> None:
         """API latency should be under SLA"""
         start = time.time()
         response = requests.get(f"{BACKEND_URL}/health", timeout=TIMEOUT)
@@ -101,7 +101,7 @@ class TestCorpusAnalyticsAPI(unittest.TestCase):
 class TestPydanticSOAPModels(unittest.TestCase):
     """Test Pydantic SOAP Models (FI-DATA-FEAT-011)"""
 
-    def test_soap_model_imports(self):
+    def test_soap_model_imports(self) -> None:
         """SOAP models should be importable"""
         try:
             from backend.fi_consult_models import SOAPNote
@@ -110,7 +110,7 @@ class TestPydanticSOAPModels(unittest.TestCase):
         except ImportError:
             logger.warning("⚠️ SOAPNote model not found - may be in alternative location")
 
-    def test_consultation_event_models(self):
+    def test_consultation_event_models(self) -> None:
         """Consultation event models should be defined"""
         try:
             from backend.fi_consult_models import (
@@ -123,7 +123,7 @@ class TestPydanticSOAPModels(unittest.TestCase):
         except ImportError:
             logger.warning("⚠️ Event models not yet defined")
 
-    def test_model_serialization(self):
+    def test_model_serialization(self) -> None:
         """Models should serialize to JSON"""
         try:
             from backend.fi_consult_models import SOAPNote
@@ -146,7 +146,7 @@ class TestPydanticSOAPModels(unittest.TestCase):
 class TestReduxDomainEventMapping(unittest.TestCase):
     """Test Redux → Domain Event Mapping (FI-DATA-FEAT-010)"""
 
-    def test_adapter_imports(self):
+    def test_adapter_imports(self) -> None:
         """Redux adapter should be importable"""
         try:
             from backend.adapters_redux import ReduxAdapter
@@ -155,7 +155,7 @@ class TestReduxDomainEventMapping(unittest.TestCase):
         except ImportError:
             logger.warning("⚠️ ReduxAdapter not found")
 
-    def test_action_to_event_mapping(self):
+    def test_action_to_event_mapping(self) -> None:
         """Redux actions should map to domain events"""
         try:
             from backend.adapters_redux import ReduxAdapter
@@ -175,7 +175,7 @@ class TestReduxDomainEventMapping(unittest.TestCase):
         except Exception as e:
             logger.warning(f"⚠️ Action mapping test: {e}")
 
-    def test_payload_translation(self):
+    def test_payload_translation(self) -> None:
         """Redux payloads should translate to event payloads"""
         try:
             from backend.adapters_redux import ReduxAdapter
@@ -197,7 +197,7 @@ class TestReduxDomainEventMapping(unittest.TestCase):
 class TestEventStoreLocalSHA256(unittest.TestCase):
     """Test Event Store with SHA256 (FI-DATA-FEAT-012)"""
 
-    def test_event_store_imports(self):
+    def test_event_store_imports(self) -> None:
         """Event store module should be importable"""
         try:
             from backend.fi_event_store import EventStore
@@ -206,7 +206,7 @@ class TestEventStoreLocalSHA256(unittest.TestCase):
         except ImportError:
             logger.warning("⚠️ EventStore not found")
 
-    def test_sha256_hashing(self):
+    def test_sha256_hashing(self) -> None:
         """Events should include SHA256 hashes"""
         try:
             from backend.fi_event_store import EventStore
@@ -223,7 +223,7 @@ class TestEventStoreLocalSHA256(unittest.TestCase):
         except Exception as e:
             logger.warning(f"⚠️ Event store SHA256 test: {e}")
 
-    def test_append_only_enforcement(self):
+    def test_append_only_enforcement(self) -> None:
         """Event store should enforce append-only"""
         try:
             from backend.fi_event_store import EventStore
@@ -244,19 +244,19 @@ class TestEventStoreLocalSHA256(unittest.TestCase):
 class TestAcceptanceCriteriaP1(unittest.TestCase):
     """Verify P1 Acceptance Criteria"""
 
-    def test_ac_p1_api_responsiveness(self):
+    def test_ac_p1_api_responsiveness(self) -> None:
         """AC: API should be responsive"""
         response = requests.get(f"{BACKEND_URL}/health", timeout=TIMEOUT)
         self.assertEqual(response.status_code, 200)
         logger.info("✅ AC: API responsive")
 
-    def test_ac_p1_json_serialization(self):
+    def test_ac_p1_json_serialization(self) -> None:
         """AC: Models should serialize to JSON"""
         response = requests.get(f"{BACKEND_URL}/health", timeout=TIMEOUT)
         self.assertIsInstance(response.json(), dict)
         logger.info("✅ AC: JSON serialization working")
 
-    def test_ac_p1_local_storage(self):
+    def test_ac_p1_local_storage(self) -> None:
         """AC: Data should be stored locally (HDF5)"""
         response = requests.get(f"{BACKEND_URL}/health", timeout=TIMEOUT)
         data = response.json()
@@ -265,7 +265,7 @@ class TestAcceptanceCriteriaP1(unittest.TestCase):
         self.assertIn(".h5", data.get("corpus_path", ""))
         logger.info("✅ AC: Local storage (HDF5) verified")
 
-    def test_ac_p1_audit_trail(self):
+    def test_ac_p1_audit_trail(self) -> None:
         """AC: System should have audit trail (SHA256)"""
         response = requests.get(f"{BACKEND_URL}/health", timeout=TIMEOUT)
         # System has audit logs and SHA256 hashing

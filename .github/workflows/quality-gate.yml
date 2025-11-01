@@ -1,0 +1,164 @@
+name: Quality Gate - Type Safety & Coverage
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  type-safety:
+    name: Type Safety (MyPy Strict)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mypy types-PyYAML types-requests types-python-dateutil
+
+      - name: MyPy strict type checking
+        run: |
+          mypy backend/ --strict --ignore-missing-imports
+
+  code-quality:
+    name: Code Quality (Ruff + Formatting)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+
+      - name: Ruff lint check
+        run: |
+          ruff check backend/ tests/ --exit-zero
+
+      - name: Ruff format check (no auto-fix)
+        run: |
+          ruff format backend/ tests/ --check
+
+  coverage:
+    name: Code Coverage (80%+ threshold)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pyyaml structlog h5py
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ \
+            --cov=backend \
+            --cov-report=term-with-missing \
+            --cov-report=xml \
+            -v
+
+      - name: Check coverage threshold (80%)
+        run: |
+          coverage report --fail-under=80
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  security:
+    name: Security Audit (Bandit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install bandit
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit
+
+      - name: Bandit security scan
+        run: |
+          bandit -r backend/ -ll --exit-zero
+        continue-on-error: true
+
+  pre-commit:
+    name: Pre-commit Hooks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3
+
+  summary:
+    name: Quality Gate Summary
+    runs-on: ubuntu-latest
+    needs: [type-safety, code-quality, coverage, security, pre-commit]
+    if: always()
+
+    steps:
+      - name: Check Quality Gate Status
+        run: |
+          echo "=== Quality Gate Results ==="
+          echo "Type Safety: ${{ needs.type-safety.result }}"
+          echo "Code Quality: ${{ needs.code-quality.result }}"
+          echo "Coverage: ${{ needs.coverage.result }}"
+          echo "Security: ${{ needs.security.result }}"
+          echo "Pre-commit: ${{ needs.pre-commit.result }}"
+
+          if [[ "${{ needs.type-safety.result }}" == "failure" || \
+                "${{ needs.code-quality.result }}" == "failure" || \
+                "${{ needs.coverage.result }}" == "failure" || \
+                "${{ needs.pre-commit.result }}" == "failure" ]]; then
+            echo "❌ Quality Gate FAILED"
+            exit 1
+          else
+            echo "✅ Quality Gate PASSED"
+            exit 0
+          fi

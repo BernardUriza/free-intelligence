@@ -49,7 +49,7 @@ def evaluate_condition(condition: dict, context: dict) -> bool:
 class TestDecisionRules:
     """Test decision rule evaluation."""
 
-    def test_triage_red_creates_decision_applied_event(self, decision_rules):
+    def test_triage_red_creates_decision_applied_event(self, decision_rules) -> None:
         """Test triage=red creates DECISION_APPLIED event with high risk."""
         rule = next(r for r in decision_rules["rules"] if r["name"] == "triage_red_high_risk")
 
@@ -62,7 +62,7 @@ class TestDecisionRules:
         assert rule["action"]["event"] == "DECISION_APPLIED"
         assert rule["action"]["metadata"]["risk"] == "high"
 
-    def test_pii_detected_quarantine_and_redact(self, decision_rules):
+    def test_pii_detected_quarantine_and_redact(self, decision_rules) -> None:
         """Test contains_pii=true triggers quarantine + redact."""
         rule = next(r for r in decision_rules["rules"] if r["name"] == "pii_quarantine")
 
@@ -75,7 +75,7 @@ class TestDecisionRules:
         assert rule["action"]["redact"] is True
         assert rule["action"]["metadata"]["reason"] == "pii_detected"
 
-    def test_latency_breach_creates_slo_breach_event(self, decision_rules):
+    def test_latency_breach_creates_slo_breach_event(self, decision_rules) -> None:
         """Test latency_ms > 2000 creates SLO_BREACH event with warn severity."""
         rule = next(r for r in decision_rules["rules"] if r["name"] == "latency_slo_breach")
 
@@ -89,7 +89,7 @@ class TestDecisionRules:
         assert rule["action"]["severity"] == "warn"
         assert rule["action"]["metadata"]["threshold_ms"] == 2000
 
-    def test_auto_archive_rule(self, decision_rules):
+    def test_auto_archive_rule(self, decision_rules) -> None:
         """Test auto-archive rule for old sessions."""
         rule = next(r for r in decision_rules["rules"] if r["name"] == "auto_archive_old_sessions")
 
@@ -101,7 +101,7 @@ class TestDecisionRules:
         assert should_trigger is True
         assert rule["action"]["type"] == "archive"
 
-    def test_reject_large_export(self, decision_rules):
+    def test_reject_large_export(self, decision_rules) -> None:
         """Test reject rule for large exports."""
         rule = next(r for r in decision_rules["rules"] if r["name"] == "reject_large_export")
 
@@ -112,7 +112,7 @@ class TestDecisionRules:
         assert should_trigger is True
         assert rule["action"]["type"] == "reject"
 
-    def test_fallback_llm_on_latency(self, decision_rules):
+    def test_fallback_llm_on_latency(self, decision_rules) -> None:
         """Test LLM fallback rule on high latency."""
         rule = next(r for r in decision_rules["rules"] if r["name"] == "fallback_llm_on_latency")
 
@@ -124,7 +124,7 @@ class TestDecisionRules:
         assert rule["action"]["type"] == "route"
         assert rule["action"]["model"] == "ollama/llama3:8b"
 
-    def test_error_budget_alert(self, decision_rules):
+    def test_error_budget_alert(self, decision_rules) -> None:
         """Test error budget alert rule."""
         rule = next(r for r in decision_rules["rules"] if r["name"] == "alert_error_budget_low")
 
@@ -136,7 +136,7 @@ class TestDecisionRules:
         assert rule["action"]["type"] == "alert"
         assert rule["action"]["severity"] == "critical"
 
-    def test_block_mutation_without_event(self, decision_rules):
+    def test_block_mutation_without_event(self, decision_rules) -> None:
         """Test mutation blocking rule."""
         rule = next(
             r for r in decision_rules["rules"] if r["name"] == "block_mutation_without_event"
@@ -149,14 +149,14 @@ class TestDecisionRules:
         assert should_trigger is True
         assert rule["action"]["type"] == "reject"
 
-    def test_rule_disabled_check(self, decision_rules):
+    def test_rule_disabled_check(self, decision_rules) -> None:
         """Test that disabled rules are not evaluated."""
         chaos_rule = next(r for r in decision_rules["rules"] if r["name"] == "trigger_chaos_drill")
 
         # Rule should be disabled by default
         assert chaos_rule["enabled"] is False
 
-    def test_all_rules_have_required_fields(self, decision_rules):
+    def test_all_rules_have_required_fields(self, decision_rules) -> None:
         """Test that all rules have required fields."""
         required_fields = ["name", "enabled", "condition", "action"]
 

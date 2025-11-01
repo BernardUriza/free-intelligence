@@ -32,7 +32,7 @@ def enforcer():
 class TestSovereigntyPolicy:
     """Test sovereignty.egress enforcement"""
 
-    def test_egress_deny_blocks_external_url(self, enforcer):
+    def test_egress_deny_blocks_external_url(self, enforcer) -> None:
         """Egress to external URL should raise PolicyViolation when default=deny"""
         with pytest.raises(PolicyViolation) as exc_info:
             enforcer.check_egress("https://api.openai.com/v1/chat")
@@ -41,7 +41,7 @@ class TestSovereigntyPolicy:
         assert "egress denied" in exc_info.value.message.lower()
         assert "api.openai.com" in exc_info.value.message
 
-    def test_egress_deny_with_run_id(self, enforcer):
+    def test_egress_deny_with_run_id(self, enforcer) -> None:
         """Egress violation should include run_id in metadata"""
         run_id = "test_run_123"
 
@@ -50,7 +50,7 @@ class TestSovereigntyPolicy:
 
         assert exc_info.value.metadata["run_id"] == run_id
 
-    def test_egress_convenience_function(self):
+    def test_egress_convenience_function(self) -> None:
         """check_egress() convenience function should enforce policy"""
         with pytest.raises(PolicyViolation) as exc_info:
             check_egress("https://google.com")
@@ -61,21 +61,21 @@ class TestSovereigntyPolicy:
 class TestPrivacyPolicy:
     """Test privacy.phi and redaction enforcement"""
 
-    def test_phi_detection_mrn(self, enforcer):
+    def test_phi_detection_mrn(self, enforcer) -> None:
         """PHI detection should identify MRN patterns"""
         text = "Patient MRN: 1234567 shows symptoms"
 
         # PHI enabled=false in policy, so should return False
         assert enforcer.check_phi(text) is False
 
-    def test_phi_detection_disabled_by_policy(self, enforcer):
+    def test_phi_detection_disabled_by_policy(self, enforcer) -> None:
         """PHI detection should respect privacy.phi.enabled=false"""
         phi_text = "Patient: John Doe, MRN: 9876543"
 
         # Policy has phi.enabled=false
         assert enforcer.check_phi(phi_text) is False
 
-    def test_redact_email(self, enforcer):
+    def test_redact_email(self, enforcer) -> None:
         """Redaction should mask email addresses"""
         text = "Contact admin@example.com for support"
         redacted = enforcer.redact(text)
@@ -83,7 +83,7 @@ class TestPrivacyPolicy:
         assert "[REDACTED_EMAIL]" in redacted
         assert "admin@example.com" not in redacted
 
-    def test_redact_phone(self, enforcer):
+    def test_redact_phone(self, enforcer) -> None:
         """Redaction should mask phone numbers"""
         text = "Call me at +1-555-123-4567"
         redacted = enforcer.redact(text)
@@ -91,7 +91,7 @@ class TestPrivacyPolicy:
         assert "[REDACTED_PHONE]" in redacted
         assert "555-123-4567" not in redacted
 
-    def test_redact_curp(self, enforcer):
+    def test_redact_curp(self, enforcer) -> None:
         """Redaction should mask Mexican CURP"""
         # Valid CURP: 4 letters + 6 digits + H/M + 5 letters + 2 digits
         text = "My CURP is XEXX010101HNEXXS04"
@@ -103,14 +103,14 @@ class TestPrivacyPolicy:
         # Either the CURP word or the actual ID should be masked
         assert "XEXX010101HNEXXS04" not in redacted or "[REDACTED_CURP]" in redacted
 
-    def test_redact_rfc(self, enforcer):
+    def test_redact_rfc(self, enforcer) -> None:
         """Redaction should mask Mexican RFC"""
         text = "RFC: XAXX010101000"
         redacted = enforcer.redact(text)
 
         assert "[REDACTED_RFC]" in redacted
 
-    def test_redact_ssn(self, enforcer):
+    def test_redact_ssn(self, enforcer) -> None:
         """Redaction should mask SSN"""
         text = "SSN: 123-45-6789"
         redacted = enforcer.redact(text)
@@ -118,7 +118,7 @@ class TestPrivacyPolicy:
         assert "[REDACTED_SSN]" in redacted
         assert "123-45-6789" not in redacted
 
-    def test_redact_stop_terms(self, enforcer):
+    def test_redact_stop_terms(self, enforcer) -> None:
         """Redaction should mask stop terms (password, secret, etc)"""
         text = "My password is secret123 and the api_key is ABC"
         redacted = enforcer.redact(text)
@@ -127,7 +127,7 @@ class TestPrivacyPolicy:
         assert "password" not in redacted.lower() or "[redacted]" in redacted.lower()
         assert "secret" not in redacted.lower() or "[redacted]" in redacted.lower()
 
-    def test_redact_preserves_non_sensitive_text(self, enforcer):
+    def test_redact_preserves_non_sensitive_text(self, enforcer) -> None:
         """Redaction should preserve non-sensitive text"""
         text = "The patient arrived at 9:00 AM"
         redacted = enforcer.redact(text)
@@ -135,7 +135,7 @@ class TestPrivacyPolicy:
         assert "arrived" in redacted
         assert "9:00 AM" in redacted
 
-    def test_redact_multiple_patterns(self, enforcer):
+    def test_redact_multiple_patterns(self, enforcer) -> None:
         """Redaction should handle multiple patterns in one text"""
         text = "Email john@test.com, phone +1-555-123-4567, SSN 123-45-6789"
         redacted = enforcer.redact(text)
@@ -148,11 +148,11 @@ class TestPrivacyPolicy:
         assert "john@test.com" not in redacted
         assert "123-45-6789" not in redacted
 
-    def test_redact_empty_string(self, enforcer):
+    def test_redact_empty_string(self, enforcer) -> None:
         """Redaction should handle empty string gracefully"""
         assert enforcer.redact("") == ""
 
-    def test_redact_none(self, enforcer):
+    def test_redact_none(self, enforcer) -> None:
         """Redaction should handle None gracefully"""
         assert enforcer.redact(None) == None
 
@@ -160,12 +160,12 @@ class TestPrivacyPolicy:
 class TestCostPolicy:
     """Test llm.budgets enforcement"""
 
-    def test_cost_within_budget(self, enforcer):
+    def test_cost_within_budget(self, enforcer) -> None:
         """Cost within budget should not raise exception"""
         # Policy has monthly_usd=200, so 100 USD (10000 cents) is OK
         enforcer.check_cost(10000)  # 100 USD
 
-    def test_cost_exceeds_budget(self, enforcer):
+    def test_cost_exceeds_budget(self, enforcer) -> None:
         """Cost exceeding budget should raise PolicyViolation"""
         # Policy has monthly_usd=200, so 300 USD (30000 cents) exceeds
         with pytest.raises(PolicyViolation) as exc_info:
@@ -175,11 +175,11 @@ class TestCostPolicy:
         assert "30000" in str(exc_info.value.metadata["cents"])
         assert "20000" in str(exc_info.value.metadata["budget_cents"])
 
-    def test_cost_exactly_at_budget(self, enforcer):
+    def test_cost_exactly_at_budget(self, enforcer) -> None:
         """Cost exactly at budget should not raise exception"""
         enforcer.check_cost(20000)  # Exactly 200 USD
 
-    def test_cost_with_run_id(self, enforcer):
+    def test_cost_with_run_id(self, enforcer) -> None:
         """Cost violation should include run_id in metadata"""
         run_id = "cost_test_456"
 
@@ -188,7 +188,7 @@ class TestCostPolicy:
 
         assert exc_info.value.metadata["run_id"] == run_id
 
-    def test_cost_convenience_function(self):
+    def test_cost_convenience_function(self) -> None:
         """check_cost() convenience function should enforce policy"""
         with pytest.raises(PolicyViolation):
             check_cost(100000)  # 1000 USD exceeds 200 USD budget
@@ -197,19 +197,19 @@ class TestCostPolicy:
 class TestFeatureFlags:
     """Test timeline.auto and agents.enabled flags"""
 
-    def test_timeline_auto_disabled_by_policy(self, enforcer):
+    def test_timeline_auto_disabled_by_policy(self, enforcer) -> None:
         """timeline.auto.enabled should be false per policy"""
         assert enforcer.check_timeline_auto() is False
 
-    def test_agents_disabled_by_policy(self, enforcer):
+    def test_agents_disabled_by_policy(self, enforcer) -> None:
         """agents.enabled should be false per policy"""
         assert enforcer.check_agents_enabled() is False
 
-    def test_timeline_auto_convenience_function(self):
+    def test_timeline_auto_convenience_function(self) -> None:
         """check_timeline_auto() convenience function should work"""
         assert check_timeline_auto() is False
 
-    def test_agents_enabled_convenience_function(self):
+    def test_agents_enabled_convenience_function(self) -> None:
         """check_agents_enabled() convenience function should work"""
         assert check_agents_enabled() is False
 
@@ -217,27 +217,27 @@ class TestFeatureFlags:
 class TestPolicyUtilities:
     """Test policy utility functions"""
 
-    def test_get_policy_simple_key(self, enforcer):
+    def test_get_policy_simple_key(self, enforcer) -> None:
         """get_policy() should retrieve top-level key"""
         version = enforcer.get_policy("version")
         assert version == "1.0"
 
-    def test_get_policy_nested_key(self, enforcer):
+    def test_get_policy_nested_key(self, enforcer) -> None:
         """get_policy() should retrieve nested key"""
         egress_default = enforcer.get_policy("sovereignty.egress.default")
         assert egress_default == "deny"
 
-    def test_get_policy_deep_nested_key(self, enforcer):
+    def test_get_policy_deep_nested_key(self, enforcer) -> None:
         """get_policy() should retrieve deep nested key"""
         monthly_budget = enforcer.get_policy("llm.budgets.monthly_usd")
         assert monthly_budget == 200
 
-    def test_get_policy_missing_key_returns_default(self, enforcer):
+    def test_get_policy_missing_key_returns_default(self, enforcer) -> None:
         """get_policy() should return default for missing key"""
         value = enforcer.get_policy("nonexistent.key.path", default="MISSING")
         assert value == "MISSING"
 
-    def test_get_policy_digest(self, enforcer):
+    def test_get_policy_digest(self, enforcer) -> None:
         """get_policy_digest() should return SHA256 hash"""
         digest = enforcer.get_policy_digest()
 
@@ -245,7 +245,7 @@ class TestPolicyUtilities:
         assert len(digest) == 64
         assert all(c in "0123456789abcdef" for c in digest)
 
-    def test_log_violation(self, enforcer, caplog):
+    def test_log_violation(self, enforcer, caplog) -> None:
         """log_violation() should log to audit trail"""
         enforcer.log_violation("test.rule", {"key": "value"})
 

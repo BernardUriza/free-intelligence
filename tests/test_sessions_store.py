@@ -26,7 +26,7 @@ def temp_store():
     shutil.rmtree(temp_dir)
 
 
-def test_create_session(temp_store):
+def test_create_session(temp_store) -> None:
     """Test creating a new session"""
     session = temp_store.create(
         owner_hash="sha256:test123",
@@ -43,7 +43,7 @@ def test_create_session(temp_store):
     assert session.is_persisted is True
 
 
-def test_get_session(temp_store):
+def test_get_session(temp_store) -> None:
     """Test retrieving session by ID"""
     # Create session
     created = temp_store.create(owner_hash="sha256:test456")
@@ -57,19 +57,19 @@ def test_get_session(temp_store):
     assert retrieved.status == created.status
 
 
-def test_get_nonexistent_session(temp_store):
+def test_get_nonexistent_session(temp_store) -> None:
     """Test getting session that doesn't exist"""
     session = temp_store.get("NONEXISTENT_ID")
     assert session is None
 
 
-def test_list_sessions_empty(temp_store):
+def test_list_sessions_empty(temp_store) -> None:
     """Test listing sessions when store is empty"""
     sessions = temp_store.list()
     assert sessions == []
 
 
-def test_list_sessions_with_data(temp_store):
+def test_list_sessions_with_data(temp_store) -> None:
     """Test listing sessions with pagination"""
     # Create 5 sessions
     for i in range(5):
@@ -87,7 +87,7 @@ def test_list_sessions_with_data(temp_store):
     assert len(sessions_page2) == 2
 
 
-def test_list_sessions_by_owner(temp_store):
+def test_list_sessions_by_owner(temp_store) -> None:
     """Test filtering sessions by owner_hash"""
     # Create sessions for different owners
     temp_store.create(owner_hash="sha256:alice")
@@ -103,7 +103,7 @@ def test_list_sessions_by_owner(temp_store):
     assert len(bob_sessions) == 1
 
 
-def test_update_session(temp_store):
+def test_update_session(temp_store) -> None:
     """Test updating session"""
     # Create session
     session = temp_store.create(owner_hash="sha256:test")
@@ -123,7 +123,7 @@ def test_update_session(temp_store):
     assert updated.updated_at != session.updated_at  # changed
 
 
-def test_update_nonexistent_session(temp_store):
+def test_update_nonexistent_session(temp_store) -> None:
     """Test updating session that doesn't exist"""
     updated = temp_store.update(
         session_id="NONEXISTENT",
@@ -132,7 +132,7 @@ def test_update_nonexistent_session(temp_store):
     assert updated is None
 
 
-def test_count_sessions(temp_store):
+def test_count_sessions(temp_store) -> None:
     """Test counting total sessions"""
     # Initially empty
     assert temp_store.count() == 0
@@ -145,7 +145,7 @@ def test_count_sessions(temp_store):
     assert temp_store.count() == 3
 
 
-def test_count_sessions_by_owner(temp_store):
+def test_count_sessions_by_owner(temp_store) -> None:
     """Test counting sessions filtered by owner"""
     temp_store.create(owner_hash="sha256:alice")
     temp_store.create(owner_hash="sha256:alice")
@@ -155,7 +155,7 @@ def test_count_sessions_by_owner(temp_store):
     assert temp_store.count(owner_hash="sha256:bob") == 1
 
 
-def test_atomicity_create(temp_store):
+def test_atomicity_create(temp_store) -> None:
     """Test that create is atomic (index updated after manifest)"""
     session = temp_store.create(owner_hash="sha256:test")
 
@@ -169,7 +169,7 @@ def test_atomicity_create(temp_store):
     assert retrieved.id == session.id
 
 
-def test_persistence_across_instances(temp_store):
+def test_persistence_across_instances(temp_store) -> None:
     """Test that data persists across store instances"""
     # Create session
     session = temp_store.create(owner_hash="sha256:persist_test")
@@ -184,7 +184,7 @@ def test_persistence_across_instances(temp_store):
     assert retrieved.owner_hash == "sha256:persist_test"
 
 
-def test_sessions_sorted_by_created_at(temp_store):
+def test_sessions_sorted_by_created_at(temp_store) -> None:
     """Test that sessions are sorted newest first"""
     import time
 

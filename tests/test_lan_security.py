@@ -19,40 +19,40 @@ from backend.security.ip_validator import IPValidator
 class TestIPValidator:
     """Test IP validation and CIDR checking."""
 
-    def test_localhost_ipv4_allowed(self):
+    def test_localhost_ipv4_allowed(self) -> None:
         """Test localhost IPv4 is allowed."""
         validator = IPValidator()
         assert validator.is_allowed("127.0.0.1")
         assert validator.is_allowed("127.1.2.3")  # All 127.x.x.x
         assert validator.is_allowed("127.255.255.255")
 
-    def test_localhost_ipv6_allowed(self):
+    def test_localhost_ipv6_allowed(self) -> None:
         """Test localhost IPv6 is allowed."""
         validator = IPValidator()
         assert validator.is_allowed("::1")
 
-    def test_private_class_a_allowed(self):
+    def test_private_class_a_allowed(self) -> None:
         """Test private class A (10.x.x.x) is allowed."""
         validator = IPValidator()
         assert validator.is_allowed("10.0.0.1")
         assert validator.is_allowed("10.255.255.255")
         assert validator.is_allowed("10.123.45.67")
 
-    def test_private_class_b_allowed(self):
+    def test_private_class_b_allowed(self) -> None:
         """Test private class B (172.16-31.x.x) is allowed."""
         validator = IPValidator()
         assert validator.is_allowed("172.16.0.1")
         assert validator.is_allowed("172.31.255.255")
         assert validator.is_allowed("172.20.10.5")
 
-    def test_private_class_c_allowed(self):
+    def test_private_class_c_allowed(self) -> None:
         """Test private class C (192.168.x.x) is allowed."""
         validator = IPValidator()
         assert validator.is_allowed("192.168.1.1")
         assert validator.is_allowed("192.168.255.255")
         assert validator.is_allowed("192.168.0.100")
 
-    def test_public_ip_denied(self):
+    def test_public_ip_denied(self) -> None:
         """Test public IPs are denied."""
         validator = IPValidator()
         # Google DNS
@@ -65,7 +65,7 @@ class TestIPValidator:
         assert not validator.is_allowed("93.184.216.34")  # example.com
         assert not validator.is_allowed("142.250.80.46")  # google.com
 
-    def test_invalid_ip_denied(self):
+    def test_invalid_ip_denied(self) -> None:
         """Test invalid IP formats are denied."""
         validator = IPValidator()
         assert not validator.is_allowed("not-an-ip")
@@ -73,13 +73,13 @@ class TestIPValidator:
         assert not validator.is_allowed("")
         assert not validator.is_allowed("localhost")  # Hostname not allowed
 
-    def test_docker_bridge_allowed(self):
+    def test_docker_bridge_allowed(self) -> None:
         """Test Docker bridge network (172.17.x.x) is allowed."""
         validator = IPValidator()
         assert validator.is_allowed("172.17.0.1")
         assert validator.is_allowed("172.18.0.2")
 
-    def test_custom_cidrs(self):
+    def test_custom_cidrs(self) -> None:
         """Test custom CIDR allowlist."""
         validator = IPValidator(allowed_cidrs=["192.168.1.0/24"])
         # Allowed: 192.168.1.x
@@ -93,7 +93,7 @@ class TestIPValidator:
 class TestClientIPExtraction:
     """Test client IP extraction with proxy handling."""
 
-    def test_no_proxy_uses_remote_addr(self):
+    def test_no_proxy_uses_remote_addr(self) -> None:
         """Test direct connection uses REMOTE_ADDR."""
         validator = IPValidator()
         client_ip = validator.get_client_ip(
@@ -102,7 +102,7 @@ class TestClientIPExtraction:
         )
         assert client_ip == "192.168.1.100"
 
-    def test_untrusted_proxy_ignored(self):
+    def test_untrusted_proxy_ignored(self) -> None:
         """Test X-Forwarded-For from untrusted proxy is ignored."""
         validator = IPValidator()
         client_ip = validator.get_client_ip(
@@ -112,7 +112,7 @@ class TestClientIPExtraction:
         # Should use remote_addr (untrusted proxy)
         assert client_ip == "8.8.8.8"
 
-    def test_trusted_proxy_uses_forwarded(self):
+    def test_trusted_proxy_uses_forwarded(self) -> None:
         """Test X-Forwarded-For from trusted proxy is used."""
         validator = IPValidator()
         client_ip = validator.get_client_ip(
@@ -123,7 +123,7 @@ class TestClientIPExtraction:
         # Should extract leftmost IP (real client)
         assert client_ip == "192.168.1.100"
 
-    def test_multiple_proxies_extracts_leftmost(self):
+    def test_multiple_proxies_extracts_leftmost(self) -> None:
         """Test multiple proxies returns leftmost (original client)."""
         validator = IPValidator()
         client_ip = validator.get_client_ip(
@@ -133,7 +133,7 @@ class TestClientIPExtraction:
         )
         assert client_ip == "10.0.0.50"
 
-    def test_empty_forwarded_falls_back(self):
+    def test_empty_forwarded_falls_back(self) -> None:
         """Test empty X-Forwarded-For falls back to remote_addr."""
         validator = IPValidator()
         client_ip = validator.get_client_ip(
@@ -147,7 +147,7 @@ class TestClientIPExtraction:
 class TestSecurityMetrics:
     """Test security metrics collection."""
 
-    def test_metrics_initialization(self):
+    def test_metrics_initialization(self) -> None:
         """Test metrics start at zero."""
         from backend.security.lan_guard import LANGuardMiddleware
 
@@ -163,7 +163,7 @@ class TestSecurityMetrics:
         assert metrics["lan_guard.total_requests"] == 0
         assert metrics["lan_guard.block_rate"] == 0.0
 
-    def test_metrics_after_blocks(self):
+    def test_metrics_after_blocks(self) -> None:
         """Test metrics after blocking requests."""
         from backend.security.lan_guard import LANGuardMiddleware
 
@@ -187,7 +187,7 @@ class TestSecurityMetrics:
 class TestEdgeCases:
     """Test edge cases and security scenarios."""
 
-    def test_ipv6_private_ranges(self):
+    def test_ipv6_private_ranges(self) -> None:
         """Test IPv6 link-local and unique local addresses."""
         validator = IPValidator(
             allowed_cidrs=["::1/128", "fe80::/10", "fc00::/7"]  # Link-local, ULA
@@ -196,7 +196,7 @@ class TestEdgeCases:
         assert validator.is_allowed("fe80::1")  # Link-local
         assert validator.is_allowed("fc00::1")  # Unique local
 
-    def test_spoofed_forwarded_header(self):
+    def test_spoofed_forwarded_header(self) -> None:
         """Test spoofed X-Forwarded-For is ignored from public IP."""
         validator = IPValidator()
         # Attacker from public IP spoofs X-Forwarded-For

@@ -20,14 +20,14 @@ from backend.llm_metrics import LLMMetrics
 class TestLLMMetrics:
     """Test LLM metrics calculation."""
 
-    def test_empty_samples(self):
+    def test_empty_samples(self) -> None:
         """Test percentiles with no samples."""
         metrics = LLMMetrics()
         assert metrics.get_p50_latency() == 0
         assert metrics.get_p95_latency() == 0
         assert metrics.get_p99_latency() == 0
 
-    def test_single_sample(self):
+    def test_single_sample(self) -> None:
         """Test percentiles with n=1 (edge case for off-by-one)."""
         metrics = LLMMetrics()
         metrics.record_request("ollama", latency_ms=100, cache_hit=False)
@@ -37,7 +37,7 @@ class TestLLMMetrics:
         assert metrics.get_p95_latency() == 100
         assert metrics.get_p99_latency() == 100
 
-    def test_two_samples(self):
+    def test_two_samples(self) -> None:
         """Test percentiles with n=2."""
         metrics = LLMMetrics()
         metrics.record_request("ollama", latency_ms=100, cache_hit=False)
@@ -51,7 +51,7 @@ class TestLLMMetrics:
         assert metrics.get_p95_latency() == 200
         assert metrics.get_p99_latency() == 200
 
-    def test_ten_samples(self):
+    def test_ten_samples(self) -> None:
         """Test percentiles with n=10."""
         metrics = LLMMetrics()
         for i in range(1, 11):  # 10, 20, 30, ..., 100
@@ -65,7 +65,7 @@ class TestLLMMetrics:
         assert metrics.get_p95_latency() == 100
         assert metrics.get_p99_latency() == 100
 
-    def test_hundred_samples(self):
+    def test_hundred_samples(self) -> None:
         """Test percentiles with n=100."""
         metrics = LLMMetrics()
         for i in range(1, 101):  # 1, 2, 3, ..., 100
@@ -79,7 +79,7 @@ class TestLLMMetrics:
         assert metrics.get_p95_latency() == 96
         assert metrics.get_p99_latency() == 100
 
-    def test_thousand_samples(self):
+    def test_thousand_samples(self) -> None:
         """Test percentiles with n=1000 (max samples)."""
         metrics = LLMMetrics()
         for i in range(1, 1001):  # 1, 2, 3, ..., 1000
@@ -95,7 +95,7 @@ class TestLLMMetrics:
         assert metrics.get_p95_latency() == 951
         assert metrics.get_p99_latency() == 991
 
-    def test_percentile_invariant(self):
+    def test_percentile_invariant(self) -> None:
         """Test p50 <= p95 <= p99 invariant."""
         metrics = LLMMetrics()
 
@@ -111,7 +111,7 @@ class TestLLMMetrics:
         assert p50 <= p95, f"p50 ({p50}) should be <= p95 ({p95})"
         assert p95 <= p99, f"p95 ({p95}) should be <= p99 ({p99})"
 
-    def test_cache_hit_not_included_in_latency(self):
+    def test_cache_hit_not_included_in_latency(self) -> None:
         """Test that cache hits don't affect latency samples."""
         metrics = LLMMetrics()
 
@@ -126,7 +126,7 @@ class TestLLMMetrics:
         assert len(metrics.latency_samples) == 2
         assert metrics.get_p95_latency() == 200  # Not 999
 
-    def test_cache_hit_rate(self):
+    def test_cache_hit_rate(self) -> None:
         """Test cache hit rate calculation."""
         metrics = LLMMetrics()
 
@@ -143,7 +143,7 @@ class TestLLMMetrics:
         assert metrics.cache_hits_total == 3
         assert metrics.get_cache_hit_rate() == pytest.approx(3 / 7, rel=1e-3)
 
-    def test_prometheus_export_format(self):
+    def test_prometheus_export_format(self) -> None:
         """Test Prometheus metrics export."""
         metrics = LLMMetrics()
         metrics.record_request("ollama", latency_ms=100, cache_hit=False)
@@ -160,7 +160,7 @@ class TestLLMMetrics:
         assert 'llm_requests_total{provider="ollama"} 1' in prom
         assert 'llm_requests_total{provider="claude"} 1' in prom
 
-    def test_get_stats(self):
+    def test_get_stats(self) -> None:
         """Test stats dictionary output."""
         metrics = LLMMetrics()
         metrics.record_request("ollama", latency_ms=100, cache_hit=False)
@@ -178,7 +178,7 @@ class TestLLMMetrics:
         assert "uptime_seconds" in stats
         assert "provider_metrics" in stats
 
-    def test_reset(self):
+    def test_reset(self) -> None:
         """Test metrics reset."""
         metrics = LLMMetrics()
         metrics.record_request("ollama", latency_ms=100, cache_hit=False)

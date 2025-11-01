@@ -26,7 +26,7 @@ from config_loader import ConfigValidationError, get_default_config, load_config
 class TestConfigLoader(unittest.TestCase):
     """Test suite for YAML configuration loader."""
 
-    def test_valid_config(self):
+    def test_valid_config(self) -> None:
         """Test loading a valid configuration file."""
         valid_config = {
             "system": {
@@ -68,7 +68,7 @@ class TestConfigLoader(unittest.TestCase):
         finally:
             Path(temp_path).unlink()
 
-    def test_invalid_config_missing_section(self):
+    def test_invalid_config_missing_section(self) -> None:
         """Test that missing required section raises error."""
         invalid_config = {
             "system": {"name": "Test", "version": "0.1.0", "timezone": "UTC", "log_level": "INFO"}
@@ -86,7 +86,7 @@ class TestConfigLoader(unittest.TestCase):
         finally:
             Path(temp_path).unlink()
 
-    def test_invalid_config_bad_log_level(self):
+    def test_invalid_config_bad_log_level(self) -> None:
         """Test that invalid log level raises error."""
         invalid_config = {
             "system": {
@@ -127,7 +127,7 @@ class TestConfigLoader(unittest.TestCase):
         finally:
             Path(temp_path).unlink()
 
-    def test_invalid_config_bad_port(self):
+    def test_invalid_config_bad_port(self) -> None:
         """Test that invalid port number raises error."""
         invalid_config = {
             "system": {"name": "Test", "version": "0.1.0", "timezone": "UTC", "log_level": "INFO"},
@@ -167,7 +167,7 @@ class TestConfigLoader(unittest.TestCase):
         finally:
             Path(temp_path).unlink()
 
-    def test_missing_file_returns_defaults(self):
+    def test_missing_file_returns_defaults(self) -> None:
         """Test that missing config file returns safe defaults."""
         config = load_config("/nonexistent/path/config.yml")
 
@@ -177,7 +177,7 @@ class TestConfigLoader(unittest.TestCase):
         self.assertTrue(config["server"]["lan_only"])
         self.assertEqual(config["limits"]["retention_bundles"], 12)
 
-    def test_empty_file_raises_error(self):
+    def test_empty_file_raises_error(self) -> None:
         """Test that empty config file raises error."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
             f.write("")  # Empty file
@@ -190,7 +190,7 @@ class TestConfigLoader(unittest.TestCase):
         finally:
             Path(temp_path).unlink()
 
-    def test_get_default_config(self):
+    def test_get_default_config(self) -> None:
         """Test default configuration generation."""
         defaults = get_default_config()
 

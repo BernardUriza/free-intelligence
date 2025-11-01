@@ -21,7 +21,7 @@ import os
 import sys
 
 
-def test_environment_variables():
+def test_environment_variables() -> None:
     """Verify all environment variable configurations."""
 
     print("=" * 80)

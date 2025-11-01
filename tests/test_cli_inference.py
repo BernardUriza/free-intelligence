@@ -45,7 +45,7 @@ def mock_llm_response():
     )
 
 
-def test_cmd_prompt_basic(mock_args, mock_llm_response):
+def test_cmd_prompt_basic(mock_args, mock_llm_response) -> None:
     """Test basic prompt execution"""
     with patch("backend.cli.fi_test.create_adapter") as mock_create:
         mock_adapter = Mock()
@@ -68,7 +68,7 @@ def test_cmd_prompt_basic(mock_args, mock_llm_response):
             assert "session_id" in result
 
 
-def test_cmd_prompt_dry_run(mock_args, mock_llm_response):
+def test_cmd_prompt_dry_run(mock_args, mock_llm_response) -> None:
     """Test dry-run mode (no corpus save)"""
     mock_args.dry_run = True
 
@@ -85,7 +85,7 @@ def test_cmd_prompt_dry_run(mock_args, mock_llm_response):
             assert result["dry_run"] is True
 
 
-def test_cmd_prompt_verbose(mock_args, mock_llm_response):
+def test_cmd_prompt_verbose(mock_args, mock_llm_response) -> None:
     """Test verbose mode (debug output)"""
     mock_args.verbose = True
 
@@ -102,7 +102,7 @@ def test_cmd_prompt_verbose(mock_args, mock_llm_response):
                 assert mock_logger.info.call_count >= 3
 
 
-def test_cmd_prompt_adapter_creation_fails(mock_args):
+def test_cmd_prompt_adapter_creation_fails(mock_args) -> None:
     """Test error handling when adapter creation fails"""
     with patch("backend.cli.fi_test.create_adapter") as mock_create:
         mock_create.side_effect = ValueError("Unknown provider: fake")
@@ -114,7 +114,7 @@ def test_cmd_prompt_adapter_creation_fails(mock_args):
         assert "interaction_id" in result
 
 
-def test_cmd_prompt_llm_generation_fails(mock_args):
+def test_cmd_prompt_llm_generation_fails(mock_args) -> None:
     """Test error handling when LLM generation fails"""
     with patch("backend.cli.fi_test.create_adapter") as mock_create:
         mock_adapter = Mock()
@@ -127,7 +127,7 @@ def test_cmd_prompt_llm_generation_fails(mock_args):
         assert "API timeout" in result["message"]
 
 
-def test_cmd_prompt_corpus_save_fails_non_blocking(mock_args, mock_llm_response):
+def test_cmd_prompt_corpus_save_fails_non_blocking(mock_args, mock_llm_response) -> None:
     """Test that corpus save failure does not block response"""
     with patch("backend.cli.fi_test.create_adapter") as mock_create:
         mock_adapter = Mock()
@@ -144,7 +144,7 @@ def test_cmd_prompt_corpus_save_fails_non_blocking(mock_args, mock_llm_response)
             assert result["response"] == "Test response from LLM"
 
 
-def test_cmd_prompt_model_selection_claude(mock_args, mock_llm_response):
+def test_cmd_prompt_model_selection_claude(mock_args, mock_llm_response) -> None:
     """Test Claude model selection"""
     mock_args.model = "claude"
 
@@ -162,7 +162,7 @@ def test_cmd_prompt_model_selection_claude(mock_args, mock_llm_response):
             assert call_args["provider"] == "claude"
 
 
-def test_cmd_prompt_max_tokens_custom(mock_args, mock_llm_response):
+def test_cmd_prompt_max_tokens_custom(mock_args, mock_llm_response) -> None:
     """Test custom max_tokens parameter"""
     mock_args.max_tokens = 200
 
@@ -179,7 +179,7 @@ def test_cmd_prompt_max_tokens_custom(mock_args, mock_llm_response):
             assert call_args.max_tokens == 200
 
 
-def test_cmd_prompt_result_json_serializable(mock_args, mock_llm_response):
+def test_cmd_prompt_result_json_serializable(mock_args, mock_llm_response) -> None:
     """Test that result is JSON serializable"""
     with patch("backend.cli.fi_test.create_adapter") as mock_create:
         mock_adapter = Mock()

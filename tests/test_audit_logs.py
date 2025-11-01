@@ -30,7 +30,7 @@ class TestAuditLogs(unittest.TestCase):
     temp_dir: str
     corpus_path: str
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Create temporary corpus for testing."""
         self.temp_dir = tempfile.mkdtemp()
         self.corpus_path = os.path.join(self.temp_dir, "test_corpus.h5")
@@ -38,13 +38,13 @@ class TestAuditLogs(unittest.TestCase):
         # Initialize corpus
         init_corpus(self.corpus_path, owner_identifier="test@example.com")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up temporary files."""
         if os.path.exists(self.corpus_path):
             os.remove(self.corpus_path)
         os.rmdir(self.temp_dir)
 
-    def test_init_audit_logs_group(self):
+    def test_init_audit_logs_group(self) -> None:
         """Test initialization of audit_logs group."""
         result = init_audit_logs_group(self.corpus_path)
         self.assertTrue(result)
@@ -59,7 +59,7 @@ class TestAuditLogs(unittest.TestCase):
             for dataset_name in AUDIT_LOG_SCHEMA.keys():
                 self.assertIn(dataset_name, audit_logs)
 
-    def test_init_audit_logs_group_idempotent(self):
+    def test_init_audit_logs_group_idempotent(self) -> None:
         """Test that initializing twice is safe."""
         result1 = init_audit_logs_group(self.corpus_path)
         result2 = init_audit_logs_group(self.corpus_path)
@@ -67,7 +67,7 @@ class TestAuditLogs(unittest.TestCase):
         self.assertTrue(result1)
         self.assertTrue(result2)
 
-    def test_hash_payload_dict(self):
+    def test_hash_payload_dict(self) -> None:
         """Test hashing of dictionary payload."""
         payload1 = {"user": "bernard", "action": "test"}
         payload2 = {"action": "test", "user": "bernard"}  # Different order
@@ -79,7 +79,7 @@ class TestAuditLogs(unittest.TestCase):
         self.assertEqual(hash1, hash2)
         self.assertEqual(len(hash1), 64)  # SHA256 hex length
 
-    def test_hash_payload_string(self):
+    def test_hash_payload_string(self) -> None:
         """Test hashing of string payload."""
         payload = "test_string"
         hash_result = hash_payload(payload)
@@ -87,12 +87,12 @@ class TestAuditLogs(unittest.TestCase):
         self.assertEqual(len(hash_result), 64)
         self.assertIsInstance(hash_result, str)
 
-    def test_hash_payload_none(self):
+    def test_hash_payload_none(self) -> None:
         """Test hashing of None."""
         hash_result = hash_payload(None)
         self.assertEqual(len(hash_result), 64)
 
-    def test_append_audit_log(self):
+    def test_append_audit_log(self) -> None:
         """Test appending audit log entry."""
         # Init audit logs
         init_audit_logs_group(self.corpus_path)
@@ -112,7 +112,7 @@ class TestAuditLogs(unittest.TestCase):
         self.assertIsNotNone(audit_id)
         self.assertEqual(len(audit_id), 36)  # UUID length
 
-    def test_append_audit_log_without_init(self):
+    def test_append_audit_log_without_init(self) -> None:
         """Test that appending auto-initializes if needed."""
         # Don't init explicitly
         audit_id = append_audit_log(
@@ -124,7 +124,7 @@ class TestAuditLogs(unittest.TestCase):
 
         self.assertIsNotNone(audit_id)
 
-    def test_append_multiple_logs(self):
+    def test_append_multiple_logs(self) -> None:
         """Test appending multiple audit logs."""
         init_audit_logs_group(self.corpus_path)
 
@@ -142,7 +142,7 @@ class TestAuditLogs(unittest.TestCase):
         stats = get_audit_stats(self.corpus_path)
         self.assertEqual(stats["total_logs"], 5)
 
-    def test_get_audit_logs(self):
+    def test_get_audit_logs(self) -> None:
         """Test retrieving audit logs."""
         init_audit_logs_group(self.corpus_path)
 
@@ -164,19 +164,19 @@ class TestAuditLogs(unittest.TestCase):
         self.assertEqual(logs[0]["user_id"], "test_user")
         self.assertEqual(logs[0]["status"], "SUCCESS")
 
-    def test_get_audit_logs_empty(self):
+    def test_get_audit_logs_empty(self) -> None:
         """Test retrieving from empty audit logs."""
         init_audit_logs_group(self.corpus_path)
 
         logs = get_audit_logs(self.corpus_path, limit=10)
         self.assertEqual(len(logs), 0)
 
-    def test_get_audit_logs_no_group(self):
+    def test_get_audit_logs_no_group(self) -> None:
         """Test retrieving when group doesn't exist."""
         logs = get_audit_logs(self.corpus_path, limit=10)
         self.assertEqual(len(logs), 0)
 
-    def test_get_audit_logs_with_operation_filter(self):
+    def test_get_audit_logs_with_operation_filter(self) -> None:
         """Test filtering audit logs by operation."""
         init_audit_logs_group(self.corpus_path)
 
@@ -198,7 +198,7 @@ class TestAuditLogs(unittest.TestCase):
         for log in logs:
             self.assertEqual(log["operation"], "OPERATION_A")
 
-    def test_get_audit_logs_with_user_filter(self):
+    def test_get_audit_logs_with_user_filter(self) -> None:
         """Test filtering audit logs by user."""
         init_audit_logs_group(self.corpus_path)
 
@@ -214,7 +214,7 @@ class TestAuditLogs(unittest.TestCase):
         self.assertEqual(len(logs), 1)
         self.assertEqual(logs[0]["user_id"], "user_alice")
 
-    def test_get_audit_stats(self):
+    def test_get_audit_stats(self) -> None:
         """Test getting audit statistics."""
         init_audit_logs_group(self.corpus_path)
 
@@ -238,7 +238,7 @@ class TestAuditLogs(unittest.TestCase):
         self.assertEqual(stats["operation_breakdown"]["OP1"], 2)
         self.assertEqual(stats["operation_breakdown"]["OP2"], 1)
 
-    def test_get_audit_stats_empty(self):
+    def test_get_audit_stats_empty(self) -> None:
         """Test stats for empty audit logs."""
         init_audit_logs_group(self.corpus_path)
 
@@ -247,14 +247,14 @@ class TestAuditLogs(unittest.TestCase):
         self.assertEqual(stats["total_logs"], 0)
         self.assertTrue(stats["exists"])
 
-    def test_get_audit_stats_no_group(self):
+    def test_get_audit_stats_no_group(self) -> None:
         """Test stats when group doesn't exist."""
         stats = get_audit_stats(self.corpus_path)
 
         self.assertEqual(stats["total_logs"], 0)
         self.assertFalse(stats["exists"])
 
-    def test_audit_log_fields(self):
+    def test_audit_log_fields(self) -> None:
         """Test that all required fields are present."""
         init_audit_logs_group(self.corpus_path)
 
@@ -283,7 +283,7 @@ class TestAuditLogs(unittest.TestCase):
         self.assertIn("status", log)
         self.assertIn("metadata", log)
 
-    def test_payload_hashing_consistency(self):
+    def test_payload_hashing_consistency(self) -> None:
         """Test that payload hashing is consistent."""
         init_audit_logs_group(self.corpus_path)
 

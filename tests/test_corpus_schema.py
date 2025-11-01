@@ -30,25 +30,25 @@ class TestCorpusSchema(unittest.TestCase):
     temp_file: tempfile._TemporaryFileWrapper  # type: ignore
     temp_path: str
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Create temporary file for testing."""
         self.temp_file = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
         self.temp_path = self.temp_file.name
         self.temp_file.close()
         Path(self.temp_path).unlink()  # Remove it, will be created by tests
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up temporary file."""
         if Path(self.temp_path).exists():
             Path(self.temp_path).unlink()
 
-    def test_init_corpus_creates_file(self):
+    def test_init_corpus_creates_file(self) -> None:
         """Test that init_corpus creates HDF5 file."""
         success = init_corpus(self.temp_path, owner_identifier="test@example.com")
         self.assertTrue(success)
         self.assertTrue(Path(self.temp_path).exists())
 
-    def test_init_corpus_creates_required_groups(self):
+    def test_init_corpus_creates_required_groups(self) -> None:
         """Test that all required groups are created."""
         init_corpus(self.temp_path, owner_identifier="test@example.com")
 
@@ -56,7 +56,7 @@ class TestCorpusSchema(unittest.TestCase):
             for group in CorpusSchema.REQUIRED_GROUPS:
                 self.assertIn(group, f, f"Group /{group} not found")
 
-    def test_interactions_datasets(self):
+    def test_interactions_datasets(self) -> None:
         """Test that /interactions/ has all required datasets."""
         init_corpus(self.temp_path, owner_identifier="test@example.com")
 
@@ -67,7 +67,7 @@ class TestCorpusSchema(unittest.TestCase):
                     dataset_name, interactions, f"Dataset /interactions/{dataset_name} not found"
                 )
 
-    def test_embeddings_datasets(self):
+    def test_embeddings_datasets(self) -> None:
         """Test that /embeddings/ has all required datasets."""
         init_corpus(self.temp_path, owner_identifier="test@example.com")
 
@@ -81,7 +81,7 @@ class TestCorpusSchema(unittest.TestCase):
             # Check vector dimensions (768-dim)
             self.assertEqual(embeddings["vector"].shape[1], 768)
 
-    def test_metadata_attributes(self):
+    def test_metadata_attributes(self) -> None:
         """Test that /metadata/ has required attributes."""
         init_corpus(self.temp_path, owner_identifier="test@example.com")
 
@@ -91,7 +91,7 @@ class TestCorpusSchema(unittest.TestCase):
             self.assertIn("version", metadata.attrs)
             self.assertIn("schema_version", metadata.attrs)
 
-    def test_validate_corpus_valid(self):
+    def test_validate_corpus_valid(self) -> None:
         """Test validation of valid corpus."""
         init_corpus(self.temp_path, owner_identifier="test@example.com")
         result = validate_corpus(self.temp_path)
@@ -100,7 +100,7 @@ class TestCorpusSchema(unittest.TestCase):
         self.assertEqual(len(result["errors"]), 0)
         self.assertEqual(result["path"], self.temp_path)
 
-    def test_validate_corpus_missing_file(self):
+    def test_validate_corpus_missing_file(self) -> None:
         """Test validation of non-existent file."""
         result = validate_corpus("/nonexistent/corpus.h5")
 
@@ -108,7 +108,7 @@ class TestCorpusSchema(unittest.TestCase):
         self.assertGreater(len(result["errors"]), 0)
         self.assertIn("not found", result["errors"][0].lower())
 
-    def test_validate_corpus_missing_group(self):
+    def test_validate_corpus_missing_group(self) -> None:
         """Test validation detects missing groups."""
         # Create incomplete corpus
         with h5py.File(self.temp_path, "w") as f:
@@ -121,7 +121,7 @@ class TestCorpusSchema(unittest.TestCase):
         self.assertTrue(any("embeddings" in err for err in errors))
         self.assertTrue(any("metadata" in err for err in errors))
 
-    def test_init_corpus_force_overwrite(self):
+    def test_init_corpus_force_overwrite(self) -> None:
         """Test force overwrite of existing corpus."""
         # Create initial corpus
         init_corpus(self.temp_path, owner_identifier="test@example.com")
@@ -134,7 +134,7 @@ class TestCorpusSchema(unittest.TestCase):
         success = init_corpus(self.temp_path, owner_identifier="test@example.com", force=True)
         self.assertTrue(success)
 
-    def test_datasets_are_resizable(self):
+    def test_datasets_are_resizable(self) -> None:
         """Test that datasets are created with maxshape=None for appending."""
         init_corpus(self.temp_path, owner_identifier="test@example.com")
 

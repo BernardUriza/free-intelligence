@@ -13,13 +13,13 @@ from backend.fi_consult_service import app
 client = TestClient(app)
 
 
-def test_health_endpoint_exists():
+def test_health_endpoint_exists() -> None:
     """Test that health endpoint exists and returns 200"""
     response = client.get("/api/system/health")
     assert response.status_code == 200
 
 
-def test_health_response_structure():
+def test_health_response_structure() -> None:
     """Test health response has correct structure"""
     response = client.get("/api/system/health")
     assert response.status_code == 200
@@ -46,7 +46,7 @@ def test_health_response_structure():
     assert "policy" in services
 
 
-def test_backend_service_health():
+def test_backend_service_health() -> None:
     """Test backend service always reports healthy"""
     response = client.get("/api/system/health")
     data = response.json()
@@ -55,7 +55,7 @@ def test_backend_service_health():
     assert backend is True
 
 
-def test_service_health_structure():
+def test_service_health_structure() -> None:
     """Test each service has correct structure"""
     response = client.get("/api/system/health")
     data = response.json()
@@ -81,7 +81,7 @@ def test_service_health_structure():
     assert isinstance(services["llm"]["models"], list)
 
 
-def test_version_field():
+def test_version_field() -> None:
     """Test version field is present and valid"""
     response = client.get("/api/system/health")
     data = response.json()
@@ -91,7 +91,7 @@ def test_version_field():
     assert len(data["version"]) > 0
 
 
-def test_timestamp_field():
+def test_timestamp_field() -> None:
     """Test timestamp field is present and valid ISO format"""
     response = client.get("/api/system/health")
     data = response.json()

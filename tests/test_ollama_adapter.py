@@ -16,7 +16,7 @@ from backend.llm_adapter import LLMProviderError, LLMRequest
 from backend.providers.ollama import OllamaAdapter
 
 
-def test_ollama_adapter_init_local():
+def test_ollama_adapter_init_local() -> None:
     """Test OllamaAdapter initialization with local host."""
     adapter = OllamaAdapter(base_url="http://127.0.0.1:11434")
     assert adapter.provider_name == "ollama"
@@ -24,13 +24,13 @@ def test_ollama_adapter_init_local():
     assert adapter.timeout_seconds == 8
 
 
-def test_ollama_adapter_init_localhost():
+def test_ollama_adapter_init_localhost() -> None:
     """Test OllamaAdapter initialization with localhost."""
     adapter = OllamaAdapter(base_url="http://localhost:11434")
     assert adapter.base_url == "http://localhost:11434"
 
 
-def test_ollama_adapter_rejects_external_host():
+def test_ollama_adapter_rejects_external_host() -> None:
     """Test OllamaAdapter rejects non-local hosts."""
     with pytest.raises(ValueError, match="only accepts local hosts"):
         OllamaAdapter(base_url="http://example.com:11434")
@@ -40,7 +40,7 @@ def test_ollama_adapter_rejects_external_host():
 
 
 @patch("backend.providers.ollama.requests.post")
-def test_ollama_adapter_generate_success(mock_post):
+def test_ollama_adapter_generate_success(mock_post) -> None:
     """Test OllamaAdapter.generate() success."""
     # Mock successful response
     mock_response = Mock()
@@ -65,7 +65,7 @@ def test_ollama_adapter_generate_success(mock_post):
 
 
 @patch("backend.providers.ollama.requests.post")
-def test_ollama_adapter_timeout(mock_post):
+def test_ollama_adapter_timeout(mock_post) -> None:
     """Test OllamaAdapter handles timeout."""
     # Mock timeout
     import requests
@@ -80,7 +80,7 @@ def test_ollama_adapter_timeout(mock_post):
 
 
 @patch("backend.providers.ollama.requests.post")
-def test_ollama_adapter_retry_logic(mock_post):
+def test_ollama_adapter_retry_logic(mock_post) -> None:
     """Test OllamaAdapter retry logic."""
     import requests
 
@@ -106,7 +106,7 @@ def test_ollama_adapter_retry_logic(mock_post):
 
 
 @patch("backend.providers.ollama.requests.post")
-def test_ollama_adapter_long_prompt_redaction(mock_post):
+def test_ollama_adapter_long_prompt_redaction(mock_post) -> None:
     """Test OllamaAdapter redacts long prompts in logs."""
     # Mock successful response
     mock_response = Mock()
@@ -125,7 +125,7 @@ def test_ollama_adapter_long_prompt_redaction(mock_post):
     assert response.content == "Response"
 
 
-def test_ollama_adapter_stream_not_implemented():
+def test_ollama_adapter_stream_not_implemented() -> None:
     """Test OllamaAdapter.stream() raises NotImplementedError."""
     adapter = OllamaAdapter()
     request = LLMRequest(prompt="Test")

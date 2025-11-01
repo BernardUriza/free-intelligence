@@ -36,7 +36,7 @@ def mock_ollama_success():
         yield mock_post
 
 
-def test_generate_endpoint_success(client, mock_ollama_success):
+def test_generate_endpoint_success(client, mock_ollama_success) -> None:
     """Test /llm/generate returns 200 OK with valid payload."""
     payload = {
         "provider": "ollama",
@@ -61,7 +61,7 @@ def test_generate_endpoint_success(client, mock_ollama_success):
     assert data["cache_hit"] is False
 
 
-def test_generate_endpoint_invalid_provider(client):
+def test_generate_endpoint_invalid_provider(client) -> None:
     """Test /llm/generate returns 400 for invalid provider."""
     payload = {
         "provider": "invalid_provider",
@@ -75,7 +75,7 @@ def test_generate_endpoint_invalid_provider(client):
     assert response.status_code == 422  # Pydantic validation error
 
 
-def test_generate_endpoint_stream_not_supported(client):
+def test_generate_endpoint_stream_not_supported(client) -> None:
     """Test /llm/generate returns 422 when stream=true."""
     payload = {
         "provider": "ollama",
@@ -89,7 +89,7 @@ def test_generate_endpoint_stream_not_supported(client):
     assert response.status_code == 422  # Pydantic validation error
 
 
-def test_generate_endpoint_cache_hit(client, mock_ollama_success):
+def test_generate_endpoint_cache_hit(client, mock_ollama_success) -> None:
     """Test /llm/generate returns cache_hit=true on 2nd call."""
     payload = {
         "provider": "ollama",
@@ -115,7 +115,7 @@ def test_generate_endpoint_cache_hit(client, mock_ollama_success):
     assert data2["text"] == data1["text"]
 
 
-def test_generate_endpoint_missing_prompt(client):
+def test_generate_endpoint_missing_prompt(client) -> None:
     """Test /llm/generate returns 422 for missing prompt."""
     payload = {
         "provider": "ollama",
@@ -128,7 +128,7 @@ def test_generate_endpoint_missing_prompt(client):
     assert response.status_code == 422
 
 
-def test_health_endpoint(client):
+def test_health_endpoint(client) -> None:
     """Test /health endpoint returns status."""
     response = client.get("/health")
 

@@ -67,7 +67,7 @@ def worker_with_temp_h5(temp_h5_path, monkeypatch):
 # ============================================================================
 
 
-def test_cpu_scheduler_init():
+def test_cpu_scheduler_init() -> None:
     """Test CPUScheduler initialization."""
     scheduler = CPUScheduler(threshold=60.0, window=5)
     assert scheduler.threshold == 60.0
@@ -75,7 +75,7 @@ def test_cpu_scheduler_init():
 
 
 @patch("backend.diarization_worker_lowprio.psutil.cpu_percent")
-def test_cpu_scheduler_idle_detected(mock_cpu_percent):
+def test_cpu_scheduler_idle_detected(mock_cpu_percent) -> None:
     """Test CPU scheduler detects idle state."""
     # Mock CPU usage: 30% busy = 70% idle
     mock_cpu_percent.return_value = 30.0
@@ -88,7 +88,7 @@ def test_cpu_scheduler_idle_detected(mock_cpu_percent):
 
 
 @patch("backend.diarization_worker_lowprio.psutil.cpu_percent")
-def test_cpu_scheduler_busy_detected(mock_cpu_percent):
+def test_cpu_scheduler_busy_detected(mock_cpu_percent) -> None:
     """Test CPU scheduler detects busy state."""
     # Mock CPU usage: 80% busy = 20% idle
     mock_cpu_percent.return_value = 80.0
@@ -104,7 +104,7 @@ def test_cpu_scheduler_busy_detected(mock_cpu_percent):
 # ============================================================================
 
 
-def test_h5_storage_initialization(worker_with_temp_h5, temp_h5_path):
+def test_h5_storage_initialization(worker_with_temp_h5, temp_h5_path) -> None:
     """Test HDF5 storage is initialized correctly."""
     assert temp_h5_path.exists()
 
@@ -112,7 +112,7 @@ def test_h5_storage_initialization(worker_with_temp_h5, temp_h5_path):
         assert "diarization" in h5
 
 
-def test_save_chunk_to_h5(worker_with_temp_h5, temp_h5_path):
+def test_save_chunk_to_h5(worker_with_temp_h5, temp_h5_path) -> None:
     """Test saving chunk to HDF5."""
     job = DiarizationJob(
         job_id="test-job-001",
@@ -156,7 +156,7 @@ def test_save_chunk_to_h5(worker_with_temp_h5, temp_h5_path):
         assert (speaker.decode("utf-8") if isinstance(speaker, bytes) else speaker) == "PACIENTE"
 
 
-def test_save_multiple_chunks_incremental(worker_with_temp_h5, temp_h5_path):
+def test_save_multiple_chunks_incremental(worker_with_temp_h5, temp_h5_path) -> None:
     """Test incremental chunk saves (append-only)."""
     job = DiarizationJob(
         job_id="test-job-002",
@@ -199,7 +199,7 @@ def test_save_multiple_chunks_incremental(worker_with_temp_h5, temp_h5_path):
 # ============================================================================
 
 
-def test_get_job_status_from_h5(worker_with_temp_h5, temp_h5_path):
+def test_get_job_status_from_h5(worker_with_temp_h5, temp_h5_path) -> None:
     """Test retrieving job status from HDF5."""
     job = DiarizationJob(
         job_id="test-job-status",
@@ -242,7 +242,7 @@ def test_get_job_status_from_h5(worker_with_temp_h5, temp_h5_path):
     assert len(status["chunks"]) == 2
 
 
-def test_get_job_status_not_found(worker_with_temp_h5):
+def test_get_job_status_not_found(worker_with_temp_h5) -> None:
     """Test get_job_status returns None for unknown job."""
     status = worker_with_temp_h5.get_job_status("unknown-job-id")
     assert status is None
@@ -253,7 +253,7 @@ def test_get_job_status_not_found(worker_with_temp_h5):
 # ============================================================================
 
 
-def test_worker_start_stop(worker_with_temp_h5):
+def test_worker_start_stop(worker_with_temp_h5) -> None:
     """Test worker thread starts and stops cleanly."""
     # Worker fixture does NOT auto-start (fixture calls stop() in teardown)
     # Start manually for this test
@@ -267,7 +267,7 @@ def test_worker_start_stop(worker_with_temp_h5):
     assert worker_with_temp_h5.running is False
 
 
-def test_worker_singleton():
+def test_worker_singleton() -> None:
     """Test worker singleton pattern."""
     from backend.diarization_worker_lowprio import get_worker
 
@@ -284,7 +284,7 @@ def test_worker_singleton():
 
 
 @patch("backend.diarization_worker_lowprio.get_worker")
-def test_create_diarization_job(mock_get_worker, mock_audio_file):
+def test_create_diarization_job(mock_get_worker, mock_audio_file) -> None:
     """Test job creation and submission."""
     mock_worker = Mock()
     mock_get_worker.return_value = mock_worker
@@ -305,7 +305,7 @@ def test_create_diarization_job(mock_get_worker, mock_audio_file):
 # ============================================================================
 
 
-def test_process_job_whisper_unavailable(worker_with_temp_h5, mock_audio_file):
+def test_process_job_whisper_unavailable(worker_with_temp_h5, mock_audio_file) -> None:
     """Test job fails gracefully when Whisper unavailable."""
     job = DiarizationJob(
         job_id="test-fail-001",
@@ -338,7 +338,7 @@ def test_process_job_whisper_unavailable(worker_with_temp_h5, mock_audio_file):
 @patch("backend.diarization_worker_lowprio.is_whisper_available", return_value=True)
 def test_full_job_processing_mock(
     mock_whisper_avail, mock_get_model, worker_with_temp_h5, mock_audio_file, temp_h5_path
-):
+) -> None:
     """Test full job processing with mocked Whisper."""
     # Mock Whisper model
     mock_model = MagicMock()

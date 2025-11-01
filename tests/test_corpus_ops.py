@@ -30,7 +30,7 @@ class TestCorpusOps(unittest.TestCase):
     temp_file: tempfile._TemporaryFileWrapper  # type: ignore
     temp_path: str
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Create temporary corpus for testing."""
         self.temp_file = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
         self.temp_path = self.temp_file.name
@@ -40,12 +40,12 @@ class TestCorpusOps(unittest.TestCase):
         # Initialize corpus
         init_corpus(self.temp_path, owner_identifier="test@example.com")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up temporary file."""
         if Path(self.temp_path).exists():
             Path(self.temp_path).unlink()
 
-    def test_append_interaction(self):
+    def test_append_interaction(self) -> None:
         """Test appending interaction to corpus."""
         interaction_id = append_interaction(
             self.temp_path,
@@ -60,7 +60,7 @@ class TestCorpusOps(unittest.TestCase):
         self.assertIsNotNone(interaction_id)
         self.assertTrue(len(interaction_id) > 0)
 
-    def test_append_multiple_interactions(self):
+    def test_append_multiple_interactions(self) -> None:
         """Test appending multiple interactions."""
         for i in range(5):
             interaction_id = append_interaction(
@@ -77,7 +77,7 @@ class TestCorpusOps(unittest.TestCase):
         stats = get_corpus_stats(self.temp_path)
         self.assertEqual(stats["interactions_count"], 5)
 
-    def test_append_embedding(self):
+    def test_append_embedding(self) -> None:
         """Test appending embedding vector."""
         # First append interaction
         interaction_id = append_interaction(
@@ -99,7 +99,7 @@ class TestCorpusOps(unittest.TestCase):
         stats = get_corpus_stats(self.temp_path)
         self.assertEqual(stats["embeddings_count"], 1)
 
-    def test_append_embedding_wrong_dimension(self):
+    def test_append_embedding_wrong_dimension(self) -> None:
         """Test that wrong dimension raises error."""
         interaction_id = "test_id"
         vector = np.random.rand(512).astype(np.float32)  # Wrong dim
@@ -107,7 +107,7 @@ class TestCorpusOps(unittest.TestCase):
         with self.assertRaises(ValueError):
             append_embedding(self.temp_path, interaction_id, vector)
 
-    def test_get_corpus_stats(self):
+    def test_get_corpus_stats(self) -> None:
         """Test getting corpus statistics."""
         stats = get_corpus_stats(self.temp_path)
 
@@ -122,7 +122,7 @@ class TestCorpusOps(unittest.TestCase):
         self.assertEqual(stats["interactions_count"], 0)
         self.assertEqual(stats["embeddings_count"], 0)
 
-    def test_read_interactions(self):
+    def test_read_interactions(self) -> None:
         """Test reading interactions from corpus."""
         # Add some interactions
         for i in range(3):
@@ -143,7 +143,7 @@ class TestCorpusOps(unittest.TestCase):
         self.assertEqual(interactions[1]["response"], "Response 1")
         self.assertEqual(interactions[2]["tokens"], 102)
 
-    def test_read_interactions_with_limit(self):
+    def test_read_interactions_with_limit(self) -> None:
         """Test reading with limit."""
         # Add 5 interactions
         for i in range(5):
@@ -163,7 +163,7 @@ class TestCorpusOps(unittest.TestCase):
         self.assertEqual(interactions[0]["prompt"], "Prompt 3")
         self.assertEqual(interactions[1]["prompt"], "Prompt 4")
 
-    def test_read_interactions_empty_corpus(self):
+    def test_read_interactions_empty_corpus(self) -> None:
         """Test reading from empty corpus."""
         interactions = read_interactions(self.temp_path)
         self.assertEqual(len(interactions), 0)

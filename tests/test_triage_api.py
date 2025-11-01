@@ -37,7 +37,7 @@ def setup_teardown():
         shutil.rmtree(TEST_DATA_DIR)
 
 
-def test_intake_ok():
+def test_intake_ok() -> None:
     """Test successful triage intake"""
     payload = {
         "reason": "Consulta respiratoria",
@@ -91,7 +91,7 @@ def test_intake_ok():
     assert manifest["metadata"]["runId"] == "test_run_001"
 
 
-def test_intake_422_missing_reason():
+def test_intake_422_missing_reason() -> None:
     """Test intake validation: missing reason"""
     payload = {
         "symptoms": ["tos", "fiebre"],
@@ -104,7 +104,7 @@ def test_intake_422_missing_reason():
     assert "detail" in data
 
 
-def test_intake_422_short_reason():
+def test_intake_422_short_reason() -> None:
     """Test intake validation: reason too short"""
     payload = {
         "reason": "ab",  # Less than 3 chars
@@ -116,7 +116,7 @@ def test_intake_422_short_reason():
     assert response.status_code == 422
 
 
-def test_intake_422_transcription_too_long():
+def test_intake_422_transcription_too_long() -> None:
     """Test intake validation: transcription exceeds 32k chars"""
     payload = {
         "reason": "Consulta muy larga",
@@ -131,7 +131,7 @@ def test_intake_422_transcription_too_long():
     assert "32k" in str(data).lower() or "32000" in str(data)
 
 
-def test_manifest_fields():
+def test_manifest_fields() -> None:
     """Test manifest contains all required fields"""
     payload = {
         "reason": "Test manifest fields",
@@ -166,7 +166,7 @@ def test_manifest_fields():
     assert manifest["metadata"]["customField"] == "value"
 
 
-def test_symptoms_normalization():
+def test_symptoms_normalization() -> None:
     """Test symptoms normalization from string to list"""
     # Test with list input
     payload1 = {
@@ -201,7 +201,7 @@ def test_symptoms_normalization():
     assert intake2["payload"]["symptoms"] == ["tos", "fiebre", "dolor"]
 
 
-def test_get_manifest():
+def test_get_manifest() -> None:
     """Test GET /api/triage/manifest/{buffer_id}"""
     # Create intake first
     payload = {
@@ -222,7 +222,7 @@ def test_get_manifest():
     assert manifest["version"] == "1.0.0"
 
 
-def test_get_manifest_404():
+def test_get_manifest_404() -> None:
     """Test GET /api/triage/manifest/{buffer_id} with non-existent ID"""
     response = client.get("/api/triage/manifest/nonexistent_buffer_id")
     assert response.status_code == 404
@@ -232,7 +232,7 @@ def test_get_manifest_404():
     assert "not found" in error_text
 
 
-def test_atomic_write():
+def test_atomic_write() -> None:
     """Test that intake.json is written atomically (no .tmp file left)"""
     payload = {
         "reason": "Test atomic write",

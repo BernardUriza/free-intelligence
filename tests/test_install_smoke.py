@@ -15,7 +15,7 @@ import pytest
 class TestPrerequisites:
     """Test that all prerequisites are met."""
 
-    def test_node_version(self):
+    def test_node_version(self) -> None:
         """Test that Node.js 18+ is installed."""
         result = subprocess.run(["node", "--version"], capture_output=True, text=True)
         assert result.returncode == 0, "Node.js not found"
@@ -24,18 +24,18 @@ class TestPrerequisites:
         major_version = int(version.split(".")[0].replace("v", ""))
         assert major_version >= 18, f"Node.js 18+ required, found {version}"
 
-    def test_python_version(self):
+    def test_python_version(self) -> None:
         """Test that Python 3.11+ is installed."""
         version_info = sys.version_info
         assert version_info.major == 3, "Python 3.x required"
         assert version_info.minor >= 9, f"Python 3.9+ required, found {sys.version}"
 
-    def test_pnpm_installed(self):
+    def test_pnpm_installed(self) -> None:
         """Test that pnpm is installed."""
         result = subprocess.run(["pnpm", "--version"], capture_output=True, text=True)
         assert result.returncode == 0, "pnpm not found"
 
-    def test_python_packages(self):
+    def test_python_packages(self) -> None:
         """Test that required Python packages are installed."""
         required_packages = ["fastapi", "h5py", "structlog", "pydantic"]
 
@@ -50,35 +50,35 @@ class TestPrerequisites:
 class TestFileStructure:
     """Test that all required files exist."""
 
-    def test_ecosystem_config_exists(self):
+    def test_ecosystem_config_exists(self) -> None:
         """Test that ecosystem.config.js exists."""
         config_path = Path("ecosystem.config.js")
         assert config_path.exists(), "ecosystem.config.js not found"
         assert config_path.stat().st_size > 0, "ecosystem.config.js is empty"
 
-    def test_nas_setup_script_exists(self):
+    def test_nas_setup_script_exists(self) -> None:
         """Test that nas-setup.sh exists and is executable."""
         script_path = Path("scripts/nas-setup.sh")
         assert script_path.exists(), "scripts/nas-setup.sh not found"
         assert os.access(script_path, os.X_OK), "scripts/nas-setup.sh not executable"
 
-    def test_turbo_config_exists(self):
+    def test_turbo_config_exists(self) -> None:
         """Test that turbo.json exists."""
         turbo_path = Path("turbo.json")
         assert turbo_path.exists(), "turbo.json not found"
 
-    def test_npmrc_exists(self):
+    def test_npmrc_exists(self) -> None:
         """Test that .npmrc exists."""
         npmrc_path = Path(".npmrc")
         assert npmrc_path.exists(), ".npmrc not found"
 
-    def test_backend_directory_exists(self):
+    def test_backend_directory_exists(self) -> None:
         """Test that backend directory exists."""
         backend_path = Path("backend")
         assert backend_path.exists(), "backend/ not found"
         assert backend_path.is_dir(), "backend/ is not a directory"
 
-    def test_apps_aurity_exists(self):
+    def test_apps_aurity_exists(self) -> None:
         """Test that apps/aurity directory exists."""
         aurity_path = Path("apps/aurity")
         assert aurity_path.exists(), "apps/aurity/ not found"
@@ -88,7 +88,7 @@ class TestFileStructure:
 class TestPM2Configuration:
     """Test PM2 ecosystem configuration."""
 
-    def test_ecosystem_has_three_services(self):
+    def test_ecosystem_has_three_services(self) -> None:
         """Test that ecosystem.config.js defines 3 services."""
         config_path = Path("ecosystem.config.js")
         content = config_path.read_text()
@@ -98,7 +98,7 @@ class TestPM2Configuration:
         assert "fi-timeline-api" in content, "fi-timeline-api not in config"
         assert "fi-frontend" in content, "fi-frontend not in config"
 
-    def test_ecosystem_has_correct_ports(self):
+    def test_ecosystem_has_correct_ports(self) -> None:
         """Test that ecosystem.config.js has correct port configuration."""
         config_path = Path("ecosystem.config.js")
         content = config_path.read_text()
@@ -110,7 +110,7 @@ class TestPM2Configuration:
         # Frontend should reference port 9000
         assert "9000" in content, "Port 9000 not found in config"
 
-    def test_ecosystem_has_memory_limits(self):
+    def test_ecosystem_has_memory_limits(self) -> None:
         """Test that ecosystem.config.js has memory limits."""
         config_path = Path("ecosystem.config.js")
         content = config_path.read_text()
@@ -122,7 +122,7 @@ class TestPM2Configuration:
 class TestNASSetupScript:
     """Test NAS setup script."""
 
-    def test_nas_setup_dry_run(self):
+    def test_nas_setup_dry_run(self) -> None:
         """Test that nas-setup.sh --dry-run works."""
         result = subprocess.run(
             ["./scripts/nas-setup.sh", "--dry-run"],
@@ -133,7 +133,7 @@ class TestNASSetupScript:
         # Dry-run should exit 0 or show what would be done
         assert result.returncode in [0, 1], "nas-setup.sh --dry-run failed unexpectedly"
 
-    def test_nas_setup_has_prechecks(self):
+    def test_nas_setup_has_prechecks(self) -> None:
         """Test that nas-setup.sh has precheck logic."""
         script_path = Path("scripts/nas-setup.sh")
         content = script_path.read_text()
@@ -147,7 +147,7 @@ class TestNASSetupScript:
 class TestServiceHealth:
     """Test service health endpoints (if running)."""
 
-    def test_backend_health_endpoint_exists(self):
+    def test_backend_health_endpoint_exists(self) -> None:
         """Test that backend has health endpoint code."""
         # Check if health endpoint is defined in code
         backend_files = list(Path("backend").rglob("*.py"))
@@ -165,7 +165,7 @@ class TestServiceHealth:
         subprocess.run(["lsof", "-ti:7001"], capture_output=True).returncode != 0,
         reason="Backend not running",
     )
-    def test_backend_responds_to_health(self):
+    def test_backend_responds_to_health(self) -> None:
         """Test that backend responds to health check (if running)."""
         result = subprocess.run(
             ["curl", "-s", "http://localhost:7001/health"],
@@ -181,7 +181,7 @@ class TestServiceHealth:
 class TestStorageSetup:
     """Test that storage directories are configured."""
 
-    def test_storage_directory_structure(self):
+    def test_storage_directory_structure(self) -> None:
         """Test that storage directories exist or can be created."""
         required_dirs = [
             Path("storage"),
@@ -201,7 +201,7 @@ class TestStorageSetup:
 class TestDocumentation:
     """Test that documentation exists."""
 
-    def test_nas_deployment_doc_exists(self):
+    def test_nas_deployment_doc_exists(self) -> None:
         """Test that NAS_DEPLOYMENT.md exists."""
         doc_path = Path("NAS_DEPLOYMENT.md")
         assert doc_path.exists(), "NAS_DEPLOYMENT.md not found"
@@ -209,7 +209,7 @@ class TestDocumentation:
         content = doc_path.read_text()
         assert len(content) > 100, "NAS_DEPLOYMENT.md is too short"
 
-    def test_readme_exists(self):
+    def test_readme_exists(self) -> None:
         """Test that README.md exists."""
         readme_path = Path("README.md")
         assert readme_path.exists(), "README.md not found"
@@ -218,12 +218,12 @@ class TestDocumentation:
 class TestBuildArtifacts:
     """Test that build system is configured."""
 
-    def test_package_json_exists(self):
+    def test_package_json_exists(self) -> None:
         """Test that root package.json exists."""
         pkg_path = Path("package.json")
         assert pkg_path.exists(), "package.json not found"
 
-    def test_turbo_pipeline_configured(self):
+    def test_turbo_pipeline_configured(self) -> None:
         """Test that turbo.json has pipeline configuration."""
         turbo_path = Path("turbo.json")
         content = turbo_path.read_text()
@@ -232,7 +232,7 @@ class TestBuildArtifacts:
         assert "pipeline" in content or "tasks" in content, "No pipeline config in turbo.json"
 
 
-def test_smoke_summary():
+def test_smoke_summary() -> None:
     """Summary test that prints status."""
     print("\n" + "=" * 80)
     print("Installation Smoke Test Summary")

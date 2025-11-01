@@ -16,7 +16,7 @@ from backend.policy_loader import PolicyLoader, PolicyValidationError
 class TestPolicyLoader(unittest.TestCase):
     """Test policy loader"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Create temporary policy file for testing"""
         self.temp_dir = tempfile.mkdtemp()
         self.policy_path = Path(self.temp_dir) / "test_policy.yaml"
@@ -71,13 +71,13 @@ class TestPolicyLoader(unittest.TestCase):
         with open(self.policy_path, "w") as f:
             yaml.dump(self.valid_policy, f)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up temp files"""
         import shutil
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def test_load_valid_policy(self):
+    def test_load_valid_policy(self) -> None:
         """Test loading valid policy"""
         loader = PolicyLoader(self.policy_path)
         policy = loader.load()
@@ -85,21 +85,21 @@ class TestPolicyLoader(unittest.TestCase):
         self.assertIsNotNone(policy)
         self.assertEqual(policy["llm"]["primary_provider"], "claude")
 
-    def test_get_primary_provider(self):
+    def test_get_primary_provider(self) -> None:
         """Test getting primary provider"""
         loader = PolicyLoader(self.policy_path)
         loader.load()
 
         self.assertEqual(loader.get_primary_provider(), "claude")
 
-    def test_get_fallback_provider(self):
+    def test_get_fallback_provider(self) -> None:
         """Test getting fallback provider"""
         loader = PolicyLoader(self.policy_path)
         loader.load()
 
         self.assertEqual(loader.get_fallback_provider(), "claude")
 
-    def test_get_provider_config(self):
+    def test_get_provider_config(self) -> None:
         """Test getting provider configuration"""
         loader = PolicyLoader(self.policy_path)
         loader.load()
@@ -108,7 +108,7 @@ class TestPolicyLoader(unittest.TestCase):
         self.assertEqual(claude_config["model"], "claude-3-5-sonnet-20241022")
         self.assertEqual(claude_config["timeout_seconds"], 30)
 
-    def test_get_budgets(self):
+    def test_get_budgets(self) -> None:
         """Test getting budget configuration"""
         loader = PolicyLoader(self.policy_path)
         loader.load()
@@ -117,7 +117,7 @@ class TestPolicyLoader(unittest.TestCase):
         self.assertEqual(budgets["max_cost_per_day"], 10.0)
         self.assertEqual(budgets["max_requests_per_hour"], 100)
 
-    def test_get_fallback_rules(self):
+    def test_get_fallback_rules(self) -> None:
         """Test getting fallback rules"""
         loader = PolicyLoader(self.policy_path)
         loader.load()
@@ -127,14 +127,14 @@ class TestPolicyLoader(unittest.TestCase):
         self.assertEqual(rules[0]["condition"], "timeout")
         self.assertEqual(rules[0]["action"], "use_fallback")
 
-    def test_is_offline_enabled(self):
+    def test_is_offline_enabled(self) -> None:
         """Test offline mode check"""
         loader = PolicyLoader(self.policy_path)
         loader.load()
 
         self.assertFalse(loader.is_offline_enabled())
 
-    def test_missing_llm_section(self):
+    def test_missing_llm_section(self) -> None:
         """Test validation fails when llm section missing"""
         policy = self.valid_policy.copy()
         del policy["llm"]
@@ -148,7 +148,7 @@ class TestPolicyLoader(unittest.TestCase):
 
         self.assertIn("llm", str(cm.exception))
 
-    def test_missing_primary_provider(self):
+    def test_missing_primary_provider(self) -> None:
         """Test validation fails when primary_provider missing"""
         policy = self.valid_policy.copy()
         del policy["llm"]["primary_provider"]
@@ -162,7 +162,7 @@ class TestPolicyLoader(unittest.TestCase):
 
         self.assertIn("primary_provider", str(cm.exception))
 
-    def test_invalid_primary_provider(self):
+    def test_invalid_primary_provider(self) -> None:
         """Test validation fails when primary_provider not in providers"""
         policy = self.valid_policy.copy()
         policy["llm"]["primary_provider"] = "nonexistent"
@@ -176,7 +176,7 @@ class TestPolicyLoader(unittest.TestCase):
 
         self.assertIn("nonexistent", str(cm.exception))
 
-    def test_missing_export_section(self):
+    def test_missing_export_section(self) -> None:
         """Test validation fails when export section missing"""
         policy = self.valid_policy.copy()
         del policy["export"]
@@ -190,7 +190,7 @@ class TestPolicyLoader(unittest.TestCase):
 
         self.assertIn("export", str(cm.exception))
 
-    def test_missing_audit_section(self):
+    def test_missing_audit_section(self) -> None:
         """Test validation fails when audit section missing"""
         policy = self.valid_policy.copy()
         del policy["audit"]
@@ -204,14 +204,14 @@ class TestPolicyLoader(unittest.TestCase):
 
         self.assertIn("audit", str(cm.exception))
 
-    def test_policy_not_found(self):
+    def test_policy_not_found(self) -> None:
         """Test error when policy file doesn't exist"""
         loader = PolicyLoader("/nonexistent/policy.yaml")
 
         with self.assertRaises(FileNotFoundError):
             loader.load()
 
-    def test_empty_policy_file(self):
+    def test_empty_policy_file(self) -> None:
         """Test error when policy file is empty"""
         empty_path = Path(self.temp_dir) / "empty.yaml"
         empty_path.write_text("")
@@ -222,7 +222,7 @@ class TestPolicyLoader(unittest.TestCase):
 
         self.assertIn("empty", str(cm.exception))
 
-    def test_get_config_before_load(self):
+    def test_get_config_before_load(self) -> None:
         """Test error when accessing config before loading"""
         loader = PolicyLoader(self.policy_path)
 
