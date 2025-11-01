@@ -11,7 +11,7 @@ Endpoints:
 import hashlib
 import json
 import os
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from pathlib import Path
 from typing import Any, Literal, Optional, Union
 from uuid import uuid4
@@ -109,7 +109,7 @@ async def triage_intake(payload: IntakePayload, request: Request) -> IntakeAck:
         # Prepare intake data
         intake_data = {
             "bufferId": buffer_id,
-            "receivedAt": datetime.now(UTC).isoformat() + "Z",
+            "receivedAt": datetime.now(timezone.utc).isoformat() + "Z",
             "payload": payload.model_dump(),
             "client": {
                 "ip": request.client.host if request.client else "unknown",

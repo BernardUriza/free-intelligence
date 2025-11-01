@@ -1,0 +1,240 @@
+"""Repository for audit log operations.
+
+Handles append-only audit log storage for compliance and forensics.
+Ensures immutability and efficient queries over audit trail.
+
+Clean Code: Single Responsibility - only handles audit log persistence,
+not business logic or policy enforcement.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from uuid import uuid4
+
+import h5py
+
+from .base_repository import BaseRepository
+from backend.types import AuditLogDict
+
+logger = logging.getLogger(__name__)
+
+
+class AuditRepository(BaseRepository):
+    """Repository for audit log management (append-only).
+
+    Responsibilities:
+    - Store audit events (create, read, delete operations)
+    - Enforce immutability (no updates, only appends)
+    - Query audit trail by date, user, action, resource
+    - Maintain compliance with regulatory requirements
+    """
+
+    AUDIT_LOGS_GROUP = "audit_logs"
+
+    def __init__(self, h5_file_path: str | Path) -> None:
+        """Initialize audit repository."""
+        super().__init__(h5_file_path)
+        self._ensure_structure()
+
+    def _ensure_structure(self) -> None:
+        """Ensure required HDF5 structure exists."""
+        try:
+            with self._open_file("a") as f:
+                f.require_group(self.AUDIT_LOGS_GROUP)
+            logger.info("AUDIT_STRUCTURE_READY", path=str(self.h5_file_path))
+        except OSError as e:
+            logger.error("AUDIT_STRUCTURE_INIT_FAILED", error=str(e))
+            raise
+
+    def create(self, audit_log: AuditLogDict) -> str:
+        """Create audit log entry (append-only).
+
+        Args:
+            audit_log: Audit event data with action, user, resource, result
+
+        Returns:
+            Audit log ID (UUID)
+
+        Raises:
+            ValueError: If audit_log is invalid
+            IOError: If HDF5 operation fails
+        """
+        # Validate required fields
+        required_fields = {"action", "user_id", "resource", "result"}
+        if not all(key in audit_log for key in required_fields):
+            raise ValueError(
+                f"Audit log missing required fields: {required_fields}"
+            )
+
+        try:
+            log_id = str(uuid4())
+
+            with self._open_file("r+") as f:
+                logs_group = f[self.AUDIT_LOGS_GROUP]
+                log_group = logs_group.create_group(log_id)
+
+                # Store log data
+                log_group.attrs["timestamp"] = audit_log.get(
+                    "timestamp", datetime.now(timezone.utc).isoformat()
+                )
+                log_group.attrs["action"] = audit_log.get("action", "")
+                log_group.attrs["user_id"] = audit_log.get("user_id", "")
+                log_group.attrs["resource"] = audit_log.get("resource", "")
+                log_group.attrs["result"] = audit_log.get("result", "")
+
+                # Store additional details as JSON
+                if audit_log.get("details"):
+                    log_group.attrs["details"] = json.dumps(audit_log["details"])
+
+            self._log_operation("create", log_id)
+            return log_id
+
+        except Exception as e:
+            self._log_operation("create", status="failed", error=str(e))
+            raise
+
+    def read(self, log_id: str) -> Optional[dict[str, Any]]:
+        """Read audit log entry.
+
+        Args:
+            log_id: Audit log ID
+
+        Returns:
+            Audit log data, or None if not found
+        """
+        try:
+            with self._open_file("r") as f:
+                if log_id not in f[self.AUDIT_LOGS_GROUP]:
+                    return None
+
+                log_group = f[self.AUDIT_LOGS_GROUP][log_id]
+                log_data: dict[str, Any] = {
+                    "log_id": log_id,
+                    "timestamp": log_group.attrs.get("timestamp", ""),
+                    "action": log_group.attrs.get("action", ""),
+                    "user_id": log_group.attrs.get("user_id", ""),
+                    "resource": log_group.attrs.get("resource", ""),
+                    "result": log_group.attrs.get("result", ""),
+                }
+
+                # Parse details if present
+                if "details" in log_group.attrs:
+                    try:
+                        log_data["details"] = json.loads(log_group.attrs["details"])
+                    except json.JSONDecodeError:
+                        log_data["details"] = {}
+
+                return log_data
+
+        except Exception as e:
+            logger.error("AUDIT_READ_FAILED", log_id=log_id, error=str(e))
+            return None
+
+    def update(self, entity_id: str, entity: AuditLogDict) -> bool:
+        """Update is not allowed on audit logs (append-only).
+
+        Raises:
+            NotImplementedError: Audit logs are immutable
+        """
+        raise NotImplementedError("Audit logs are append-only and cannot be updated")
+
+    def delete(self, entity_id: str) -> bool:
+        """Delete is not allowed on audit logs (append-only).
+
+        Raises:
+            NotImplementedError: Audit logs are immutable
+        """
+        raise NotImplementedError("Audit logs are append-only and cannot be deleted")
+
+    def list_all(
+        self,
+        limit: Optional[int] = None,
+        action: Optional[str] = None,
+        user_id: Optional[str] = None,
+        resource: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """List audit logs with optional filtering.
+
+        Args:
+            limit: Maximum logs to return
+            action: Filter by action type
+            user_id: Filter by user ID
+            resource: Filter by resource
+
+        Returns:
+            List of audit logs
+        """
+        try:
+            with self._open_file("r") as f:
+                logs_group = f[self.AUDIT_LOGS_GROUP]
+                log_ids = sorted(logs_group.keys(), reverse=True)  # Most recent first
+
+                if limit:
+                    log_ids = log_ids[:limit]
+
+                results = []
+                for log_id in log_ids:
+                    log_data = self.read(log_id)
+                    if log_data:
+                        # Apply filters
+                        if action and log_data.get("action") != action:
+                            continue
+                        if user_id and log_data.get("user_id") != user_id:
+                            continue
+                        if resource and log_data.get("resource") != resource:
+                            continue
+
+                        results.append(log_data)
+
+                return results
+
+        except Exception as e:
+            logger.error("AUDIT_LIST_FAILED", error=str(e))
+            return []
+
+    def get_logs_by_date_range(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        limit: Optional[int] = None,
+    ) -> list[dict[str, Any]]:
+        """Get audit logs within date range.
+
+        Args:
+            start_date: Start of date range
+            end_date: End of date range
+            limit: Maximum logs to return
+
+        Returns:
+            List of audit logs in date range
+        """
+        try:
+            with self._open_file("r") as f:
+                logs_group = f[self.AUDIT_LOGS_GROUP]
+                results = []
+
+                for log_id in logs_group.keys():
+                    log_data = self.read(log_id)
+                    if not log_data:
+                        continue
+
+                    try:
+                        log_timestamp = datetime.fromisoformat(log_data["timestamp"])
+                        if start_date <= log_timestamp <= end_date:
+                            results.append(log_data)
+                    except (ValueError, KeyError):
+                        continue
+
+                    if limit and len(results) >= limit:
+                        break
+
+                return sorted(results, key=lambda x: x["timestamp"], reverse=True)
+
+        except Exception as e:
+            logger.error("AUDIT_DATE_RANGE_FAILED", error=str(e))
+            return []

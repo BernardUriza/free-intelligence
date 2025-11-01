@@ -28,7 +28,7 @@ import json
 import os
 import random
 import time
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -144,7 +144,7 @@ def generate_deterministic_content(
 
 Session ID: {session_id}
 Status: DEMO (session not found in store)
-Generated: {datetime.now(UTC).isoformat()}Z
+Generated: {datetime.now(timezone.utc).isoformat()}Z
 
 ## Transcript
 
@@ -188,7 +188,7 @@ Assistant: Of course! This export demonstrates deterministic content generation.
                     "status": "demo",
                     "transcript": demo_transcript if include.transcript else None,
                     "events": demo_events if include.events else None,
-                    "generated_at": datetime.now(UTC).isoformat() + "Z",
+                    "generated_at": datetime.now(timezone.utc).isoformat() + "Z",
                     "deterministic": True,
                     "seed": seed,
                 },
@@ -228,7 +228,7 @@ Interactions: {session_dict['interaction_count']}
                     "metadata": session_dict,
                     "transcript": "(Real transcript)" if include.transcript else None,
                     "events": "(Real events)" if include.events else None,
-                    "generated_at": datetime.now(UTC).isoformat() + "Z",
+                    "generated_at": datetime.now(timezone.utc).isoformat() + "Z",
                     "deterministic": True,
                 },
                 indent=2,
@@ -257,7 +257,7 @@ def create_manifest(
         "version": "1.0",
         "exportId": export_id,
         "sessionId": session_id,
-        "createdAt": datetime.now(UTC).isoformat() + "Z",
+        "createdAt": datetime.now(timezone.utc).isoformat() + "Z",
         "algorithm": "sha256",
         "files": files,
         "meta": {"generator": "FI", "commit": GIT_COMMIT, "deterministic": True},

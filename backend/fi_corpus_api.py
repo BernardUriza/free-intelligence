@@ -21,7 +21,7 @@ Usage:
 
 import os
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from pathlib import Path
 from typing import Any
 
@@ -142,7 +142,7 @@ async def health_check():
         status="healthy",
         corpus_path=str(corpus_path),
         corpus_exists=verify_corpus_exists(),
-        timestamp=datetime.now(UTC).isoformat() + "Z",
+        timestamp=datetime.now(timezone.utc).isoformat() + "Z",
     )
 
 

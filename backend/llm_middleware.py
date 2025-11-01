@@ -23,7 +23,7 @@ import hashlib
 import json
 import time
 import uuid
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -339,10 +339,10 @@ async def generate_llm(request: GenerateRequest) -> GenerateResponse:
         # Log to NDJSON (without prompt text)
         log_dir = Path("logs/llm")
         log_dir.mkdir(parents=True, exist_ok=True)
-        log_file = log_dir / f"llm_{datetime.now(UTC).strftime('%Y%m%d')}.ndjson"
+        log_file = log_dir / f"llm_{datetime.now(timezone.utc).strftime('%Y%m%d')}.ndjson"
 
         log_entry = {
-            "ts": datetime.now(UTC).isoformat() + "Z",
+            "ts": datetime.now(timezone.utc).isoformat() + "Z",
             "provider": request.provider,
             "model": request.model,
             "ok": True,
@@ -465,7 +465,7 @@ async def prompt_llm(request: PromptRequest) -> PromptResponse:
     """
     start_time = time.time()
     interaction_id = str(uuid.uuid4())
-    timestamp = datetime.now(UTC).isoformat() + "Z"
+    timestamp = datetime.now(timezone.utc).isoformat() + "Z"
     config = load_config()
 
     logger.info(
@@ -565,7 +565,7 @@ async def health_check() -> HealthResponse:
     """
     return HealthResponse(
         status="ok",
-        timestamp=datetime.now(UTC).isoformat() + "Z",
+        timestamp=datetime.now(timezone.utc).isoformat() + "Z",
         llm_adapters={
             "claude": "available" if claude_adapter else "unavailable",
             "ollama": "available" if ollama_adapter else "unavailable",
