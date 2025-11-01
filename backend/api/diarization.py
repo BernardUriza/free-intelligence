@@ -41,6 +41,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from backend.audio_storage import save_audio_file
+from backend.container import get_container
 from backend.diarization_jobs import (
     JobStatus,
     create_job,
@@ -59,6 +60,7 @@ from backend.diarization_worker_lowprio import (
 )
 from backend.diarization_worker_lowprio import get_job_status as get_lowprio_status
 from backend.logger import get_logger
+from backend.schemas import success_response, error_response, StatusCode
 
 logger = get_logger(__name__)
 
@@ -243,7 +245,7 @@ def _process_diarization_background(
         update_job_status(job_id, JobStatus.FAILED, error=str(e), last_event="DIARIZATION_FAILED")
 
 
-@router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/upload", status_code=status.HTTP_202_ACCEPTED)
 async def upload_audio_for_diarization(
     background_tasks: BackgroundTasks,
     audio: UploadFile = File(..., description="Audio file to diarize"),
@@ -263,6 +265,12 @@ async def upload_audio_for_diarization(
     """
     Upload audio file and start diarization job.
 
+    **Clean Code Architecture:**
+    - DiarizationService handles validation and job creation
+    - Audio file storage managed by CorpusService
+    - AuditService logs all uploads
+    - Uses DI container for dependency injection
+
     Low-priority mode (DIARIZATION_LOWPRIO=true):
     - Uses CPU scheduler (only runs when CPU idle ≥50%)
     - Saves chunks incrementally to HDF5
@@ -270,133 +278,203 @@ async def upload_audio_for_diarization(
 
     Returns job_id for tracking progress.
     """
-    # Validate session_id
-    if not x_session_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="X-Session-ID header required (UUID4 format)",
-        )
-
-    # Validate file extension
-    if not audio.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File must have a filename with extension (e.g., audio.mp3)",
-        )
-
-    ext: str = audio.filename.rsplit(".", 1)[-1].lower()
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported format. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
-        )
-
-    # Read file
-    audio_content = await audio.read()
-    file_size = len(audio_content)
-
-    # Check file size
-    if file_size > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File too large. Max: {MAX_FILE_SIZE / 1024 / 1024:.0f}MB",
-        )
-
-    logger.info(
-        "DIARIZATION_UPLOAD_START",
-        session_id=x_session_id,
-        filename=audio.filename,
-        size=file_size,
-        lowprio_mode=USE_LOWPRIO_WORKER,
-    )
-
-    # Save audio file
     try:
-        saved = save_audio_file(
+        # Get services from DI container (clean code pattern)
+        diarization_service = get_container().get_diarization_service()
+        audit_service = get_container().get_audit_service()
+
+        # Read audio file
+        audio_content = await audio.read()
+
+        # Validate and create job via service layer
+        # Service handles: filename validation, extension check, size validation, session validation
+        job_metadata = diarization_service.create_diarization_job(
             session_id=x_session_id,
+            audio_filename=audio.filename,
             audio_content=audio_content,
-            file_extension=ext,
-            metadata={"original_filename": audio.filename, "purpose": "diarization"},
-        )
-    except Exception as e:
-        logger.error("AUDIO_SAVE_FAILED", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save audio: {str(e)}",
-        ) from e
-
-    # Path hardening: resolve absolute path
-    from backend.audio_storage import AUDIO_STORAGE_DIR
-
-    relative_path = saved["file_path"]
-    abs_path = (AUDIO_STORAGE_DIR.parent / relative_path).resolve()
-
-    # Assert file exists
-    if not abs_path.is_file():
-        logger.error(
-            "AUDIO_FILE_NOT_FOUND_BEFORE_JOB",
-            session_id=x_session_id,
-            expected_path=str(abs_path),
-            relative_path=relative_path,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Audio file not found after save: {relative_path}",
+            language=language,
+            persist=persist,
+            whisper_model=whisper_model,
         )
 
-    logger.info(
-        "AUDIO_PATH_RESOLVED",
-        session_id=x_session_id,
-        absolute_path=str(abs_path),
-        file_exists=abs_path.is_file(),
-    )
+        job_id = job_metadata["job_id"]
 
-    # Build configuration dict from optional parameters
-    config_overrides: dict[str, Any] = {}
-    if whisper_model is not None:
-        config_overrides["whisper_model"] = whisper_model  # type: ignore
-    if enable_llm_classification is not None:
-        config_overrides["enable_llm_classification"] = enable_llm_classification  # type: ignore
-    if chunk_size_sec is not None:
-        config_overrides["chunk_size_sec"] = chunk_size_sec  # type: ignore
-    if beam_size is not None:
-        config_overrides["beam_size"] = beam_size  # type: ignore
-    if vad_filter is not None:
-        config_overrides["vad_filter"] = vad_filter  # type: ignore
+        # Log the upload action via audit service
+        audit_service.log_action(
+            action="audio_uploaded_for_diarization",
+            user_id="system",  # Could get from session/JWT token
+            resource=f"job:{job_id}",
+            result="success",
+            details={
+                "filename": audio.filename,
+                "language": language,
+                "session_id": x_session_id,
+                "persist": persist,
+            }
+        )
 
-    logger.info("CONFIG_OVERRIDES_RECEIVED", session_id=x_session_id, overrides=config_overrides)
-
-    # Route to low-priority worker or legacy pipelines
-    if USE_LOWPRIO_WORKER:
-        # Use low-priority worker with CPU scheduler + HDF5
-        job_id = create_lowprio_job(x_session_id, abs_path)
         logger.info(
-            "LOWPRIO_JOB_CREATED", job_id=job_id, session_id=x_session_id, config=config_overrides
+            "DIARIZATION_UPLOAD_START",
+            session_id=x_session_id,
+            job_id=job_id,
+            filename=audio.filename,
+            size=len(audio_content),
+            lowprio_mode=USE_LOWPRIO_WORKER,
         )
-    else:
-        # Legacy: create in-memory job and use background task
-        job_id = create_job(x_session_id, str(abs_path), file_size)
 
-        if USE_V2_PIPELINE:
-            background_tasks.add_task(
-                _process_diarization_background_v2,
-                job_id,
-                abs_path,
-                x_session_id,
-                language,
-                persist,
+        # Still need to save audio file for low-priority worker (for now)
+        # TODO: Move audio storage to DiarizationService in future iteration
+        try:
+            saved = save_audio_file(
+                session_id=x_session_id,
+                audio_content=audio_content,
+                file_extension=audio.filename.rsplit(".", 1)[-1].lower() if audio.filename else "mp3",
+                metadata={"original_filename": audio.filename, "purpose": "diarization"},
+            )
+        except Exception as e:
+            logger.error("AUDIO_SAVE_FAILED", job_id=job_id, error=str(e))
+            diarization_service.fail_job(job_id, f"Failed to save audio: {str(e)}")
+            audit_service.log_action(
+                action="audio_upload_failed",
+                user_id="system",
+                resource=f"job:{job_id}",
+                result="failure",
+                details={"error": str(e)}
+            )
+            return error_response(
+                "Failed to save audio file",
+                code=500,
+                status=StatusCode.INTERNAL_ERROR
+            )
+
+        # Path hardening: resolve absolute path
+        from backend.audio_storage import AUDIO_STORAGE_DIR
+
+        relative_path = saved["file_path"]
+        abs_path = (AUDIO_STORAGE_DIR.parent / relative_path).resolve()
+
+        # Assert file exists
+        if not abs_path.is_file():
+            logger.error(
+                "AUDIO_FILE_NOT_FOUND_BEFORE_JOB",
+                session_id=x_session_id,
+                job_id=job_id,
+                expected_path=str(abs_path),
+                relative_path=relative_path,
+            )
+            diarization_service.fail_job(job_id, f"Audio file not found: {relative_path}")
+            return error_response(
+                f"Audio file not found after save: {relative_path}",
+                code=500,
+                status=StatusCode.INTERNAL_ERROR
+            )
+
+        logger.info(
+            "AUDIO_PATH_RESOLVED",
+            session_id=x_session_id,
+            job_id=job_id,
+            absolute_path=str(abs_path),
+            file_exists=abs_path.is_file(),
+        )
+
+        # Build configuration dict from optional parameters
+        config_overrides: dict[str, Any] = {}
+        if whisper_model is not None:
+            config_overrides["whisper_model"] = whisper_model  # type: ignore
+        if enable_llm_classification is not None:
+            config_overrides["enable_llm_classification"] = enable_llm_classification  # type: ignore
+        if chunk_size_sec is not None:
+            config_overrides["chunk_size_sec"] = chunk_size_sec  # type: ignore
+        if beam_size is not None:
+            config_overrides["beam_size"] = beam_size  # type: ignore
+        if vad_filter is not None:
+            config_overrides["vad_filter"] = vad_filter  # type: ignore
+
+        logger.info("CONFIG_OVERRIDES_RECEIVED", session_id=x_session_id, job_id=job_id, overrides=config_overrides)
+
+        # Route to low-priority worker or legacy pipelines
+        if USE_LOWPRIO_WORKER:
+            # Use low-priority worker with CPU scheduler + HDF5
+            job_id = create_lowprio_job(x_session_id, abs_path)
+            logger.info(
+                "LOWPRIO_JOB_CREATED", job_id=job_id, session_id=x_session_id, config=config_overrides
             )
         else:
-            background_tasks.add_task(
-                _process_diarization_background, job_id, abs_path, x_session_id, language, persist
-            )
+            # Legacy: create in-memory job and use background task
+            job_id = create_job(x_session_id, str(abs_path), len(audio_content))
 
-    return UploadResponse(
-        job_id=job_id,
-        session_id=x_session_id,
-        status="pending",
-        message=f"Diarization job created. Poll /api/diarization/jobs/{job_id} for status.",
-    )
+            if USE_V2_PIPELINE:
+                background_tasks.add_task(
+                    _process_diarization_background_v2,
+                    job_id,
+                    abs_path,
+                    x_session_id,
+                    language,
+                    persist,
+                )
+            else:
+                background_tasks.add_task(
+                    _process_diarization_background, job_id, abs_path, x_session_id, language, persist
+                )
+
+        # Return standardized success response
+        return success_response(
+            {
+                "job_id": job_id,
+                "session_id": x_session_id,
+                "status": "pending",
+            },
+            message=f"Diarization job created. Poll /api/diarization/jobs/{job_id} for status.",
+            code=202
+        )
+
+    except ValueError as e:
+        # Validation error (bad input)
+        logger.warning("DIARIZATION_VALIDATION_FAILED", error=str(e), session_id=x_session_id)
+        audit_service.log_action(
+            action="diarization_upload_validation_failed",
+            user_id="system",
+            resource=f"upload",
+            result="failure",
+            details={"error": str(e), "session_id": x_session_id}
+        )
+        return error_response(
+            str(e),
+            code=400,
+            status=StatusCode.VALIDATION_ERROR
+        )
+
+    except IOError as e:
+        # Storage error
+        logger.error("DIARIZATION_STORAGE_FAILED", error=str(e), session_id=x_session_id)
+        audit_service.log_action(
+            action="diarization_upload_storage_failed",
+            user_id="system",
+            resource=f"upload",
+            result="failure",
+            details={"error": str(e), "session_id": x_session_id}
+        )
+        return error_response(
+            "Failed to store audio file",
+            code=500,
+            status=StatusCode.INTERNAL_ERROR
+        )
+
+    except Exception as e:
+        # Unexpected error
+        logger.error("DIARIZATION_UPLOAD_FAILED", error=str(e), session_id=x_session_id)
+        audit_service.log_action(
+            action="diarization_upload_failed",
+            user_id="system",
+            resource=f"upload",
+            result="failure",
+            details={"error": str(e), "session_id": x_session_id}
+        )
+        return error_response(
+            "Internal server error",
+            code=500,
+            status=StatusCode.INTERNAL_ERROR
+        )
 
 
 @router.get("/jobs/{job_id}", response_model=JobStatusResponse)
