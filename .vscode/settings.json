@@ -1,14 +1,15 @@
 {
   "python.defaultInterpreterPath": "/usr/bin/python3",
   "python.analysis.extraPaths": [
-    "${workspaceFolder}/backend"
+    "${workspaceFolder}"
   ],
   "python.autoComplete.extraPaths": [
-    "${workspaceFolder}/backend"
+    "${workspaceFolder}"
   ],
   "python.languageServer": "Pylance",
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.diagnosticMode": "workspace",
+  "python.linting.enabled": false,
   "python.analysis.diagnosticSeverityOverrides": {
     "reportAttributeAccessIssue": "none",
     "reportIndexIssue": "none",
@@ -17,7 +18,10 @@
     "reportAssignmentType": "none",
     "reportOptionalMemberAccess": "none",
     "reportOptionalSubscript": "none",
-    "reportGeneralTypeIssues": "none"
+    "reportGeneralTypeIssues": "none",
+    "reportMissingImports": "none",
+    "reportMissingTypeStubs": "none",
+    "reportUnusedVariable": "none"
   },
   "[python]": {
     "editor.formatOnSave": false,
@@ -28,6 +32,8 @@
   "files.exclude": {
     "**/__pycache__": true,
     "**/*.pyc": true,
-    "**/.pytest_cache": true
+    "**/.pytest_cache": true,
+    "**/.venv": true,
+    "**/venv": true
   }
 }
