@@ -53,9 +53,7 @@ class BaseRepository(ABC, Generic[T]):
         self.h5_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     @contextmanager
-    def _open_file(
-        self, mode: str = "r+"
-    ) -> Generator[h5py.File, None, None]:
+    def _open_file(self, mode: str = "r+") -> Generator[h5py.File, None, None]:
         """Context manager for safe HDF5 file operations.
 
         Args:

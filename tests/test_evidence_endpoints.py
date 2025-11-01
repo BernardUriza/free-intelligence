@@ -73,7 +73,8 @@ class TestCreateEvidencePack:
                     "fecha": "2025-11-01",
                     "paciente_id": "pat_123",
                 }
-            ] * 3,
+            ]
+            * 3,
         }
 
         response = test_client.post("/api/evidence/packs", json=payload)
@@ -268,9 +269,7 @@ class TestEvidenceIntegration:
 
         # Get session evidence
         session_id = "session_20251101_120000"
-        session_response = test_client.get(
-            f"/api/evidence/sessions/{session_id}/evidence"
-        )
+        session_response = test_client.get(f"/api/evidence/sessions/{session_id}/evidence")
         assert session_response.status_code == 200
         assert len(session_response.json()) > 0
 
@@ -302,9 +301,7 @@ class TestEvidenceIntegration:
             assert response.status_code == 200
 
         # Verify session contains all packs
-        session_response = test_client.get(
-            f"/api/evidence/sessions/{session_id}/evidence"
-        )
+        session_response = test_client.get(f"/api/evidence/sessions/{session_id}/evidence")
         assert response.status_code == 200
         assert len(session_response.json()) == 3
 
@@ -314,9 +311,7 @@ class TestEvidenceErrorHandling:
 
     def test_invalid_json_payload(self, test_client):
         """Test handling of invalid JSON payload."""
-        response = test_client.post(
-            "/api/evidence/packs", json={"invalid": "payload"}
-        )
+        response = test_client.post("/api/evidence/packs", json={"invalid": "payload"})
 
         assert response.status_code == 422
 

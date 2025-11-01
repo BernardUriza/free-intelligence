@@ -115,8 +115,7 @@ class EvidenceService:
             List of evidence pack dicts matching session
         """
         session_packs = [
-            pack for pack in self._evidence_store.values()
-            if pack.get("session_id") == session_id
+            pack for pack in self._evidence_store.values() if pack.get("session_id") == session_id
         ]
 
         logger.info(

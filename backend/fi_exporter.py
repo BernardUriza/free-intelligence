@@ -95,10 +95,10 @@ def export_session_to_markdown(
         # Frontmatter
         first_interaction = interactions[0]
         last_interaction = interactions[-1]
-        start_time = first_interaction['timestamp']
-        end_time = last_interaction['timestamp']
-        model = first_interaction['model']
-        total_tokens = sum(i['tokens'] for i in interactions)
+        start_time = first_interaction["timestamp"]
+        end_time = last_interaction["timestamp"]
+        model = first_interaction["model"]
+        total_tokens = sum(i["tokens"] for i in interactions)
         markdown_lines.extend(
             [
                 "---",
@@ -119,11 +119,11 @@ def export_session_to_markdown(
 
     # Interactions
     for idx, interaction in enumerate(interactions, 1):
-        timestamp = interaction['timestamp']
-        interaction_id = interaction['interaction_id']
+        timestamp = interaction["timestamp"]
+        interaction_id = interaction["interaction_id"]
         prompt = interaction["prompt"]
         response = interaction["response"]
-        tokens = interaction['tokens']
+        tokens = interaction["tokens"]
         markdown_lines.extend(
             [
                 f"## Interaction {idx}",
@@ -412,17 +412,17 @@ def export_user_to_markdown(
 
     # Sessions
     for session_id, interactions in sorted(sessions_dict.items()):
-        session_tokens = sum(i['tokens'] for i in interactions)
+        session_tokens = sum(i["tokens"] for i in interactions)
         markdown_lines.append(f"## Session: {session_id}\n")
         markdown_lines.append(f"**Interactions**: {len(interactions)}  ")
         markdown_lines.append(f"**Tokens**: {session_tokens}\n")
 
         if grouped_by_session:
             for idx, interaction in enumerate(interactions, 1):
-                timestamp = interaction['timestamp']
+                timestamp = interaction["timestamp"]
                 prompt = interaction["prompt"]
                 response = interaction["response"]
-                tokens = interaction['tokens']
+                tokens = interaction["tokens"]
                 markdown_lines.extend(
                     [
                         f"### {idx}. {timestamp}\n",
@@ -436,9 +436,9 @@ def export_user_to_markdown(
         else:
             # Flat list
             for interaction in interactions:
-                timestamp = interaction['timestamp']
-                prompt = interaction['prompt']
-                response = interaction['response']
+                timestamp = interaction["timestamp"]
+                prompt = interaction["prompt"]
+                response = interaction["response"]
                 markdown_lines.extend(
                     [
                         f"**{timestamp}**\n",
@@ -549,11 +549,11 @@ if __name__ == "__main__":
 
     if command == "stats":
         stats = get_export_stats(corpus_path)
-        sessions = stats['sessions']
-        interactions = stats['interactions']
-        total_tokens = stats['total_tokens']
-        earliest = stats['earliest']
-        latest = stats['latest']
+        sessions = stats["sessions"]
+        interactions = stats["interactions"]
+        total_tokens = stats["total_tokens"]
+        earliest = stats["earliest"]
+        latest = stats["latest"]
         print("\n📊 Export Statistics:")
         print(f"   Sessions: {sessions}")
         print(f"   Interactions: {interactions}")
@@ -581,7 +581,7 @@ if __name__ == "__main__":
         output_path = sys.argv[4]
         try:
             path, manifest = export_range_to_hdf5(corpus_path, output_path, start_date, end_date)
-            interactions_count = manifest.metadata['interactions_count']  # type: ignore[index]
+            interactions_count = manifest.metadata["interactions_count"]  # type: ignore[index]
             print(f"✅ Exported range to: {path}")
             print(f"   Interactions: {interactions_count}")
             manifest_path = output_path.replace(".h5", ".manifest.json")
@@ -597,8 +597,8 @@ if __name__ == "__main__":
         output_path = sys.argv[3]
         try:
             path, manifest = export_user_to_markdown(corpus_path, user_id, output_path)
-            sessions_count = manifest.metadata['sessions_count']  # type: ignore[index]
-            interactions_count = manifest.metadata['interactions_count']  # type: ignore[index]
+            sessions_count = manifest.metadata["sessions_count"]  # type: ignore[index]
+            interactions_count = manifest.metadata["interactions_count"]  # type: ignore[index]
             print(f"✅ Exported user to: {path}")
             print(f"   Sessions: {sessions_count}")
             print(f"   Interactions: {interactions_count}")
