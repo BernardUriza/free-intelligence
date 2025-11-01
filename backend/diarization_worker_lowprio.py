@@ -269,6 +269,10 @@ class DiarizationWorker:
             chunks = self._create_chunks(job.audio_path, CHUNK_DURATION_SEC, CHUNK_OVERLAP_SEC)
             job.total_chunks = len(chunks)
 
+            # CRITICAL: Persist total_chunks to HDF5 immediately
+            # (so status endpoint knows total from the start)
+            self._update_job_status(job.job_id, "in_progress", 0, total_chunks=job.total_chunks)
+
             self.logger.info(
                 "JOB_CHUNKS_CREATED",
                 job_id=job.job_id,
@@ -465,12 +469,20 @@ class DiarizationWorker:
 
                 h5.flush()
 
-    def _update_job_status(self, job_id: str, status: str, progress_pct: int, error: Optional[str] = None):
+    def _update_job_status(self, job_id: str, status: str, progress_pct: int,
+                          error: Optional[str] = None, total_chunks: Optional[int] = None):
         """
         Update job status in HDF5.
 
         This updates metadata attrs in the job group.
         Creates group if not exists (for early failures).
+
+        Args:
+            job_id: Job ID
+            status: Job status (pending, in_progress, completed, failed)
+            progress_pct: Progress percentage (0-100)
+            error: Error message if failed
+            total_chunks: Total number of chunks (persists when calculated)
         """
         with self.h5_lock:
             with h5py.File(self.h5_path, "a") as h5:
@@ -502,6 +514,11 @@ class DiarizationWorker:
                 job_group.attrs["status"] = status
                 job_group.attrs["progress_pct"] = progress_pct
                 job_group.attrs["updated_at"] = datetime.utcnow().isoformat() + "Z"
+
+                # CRITICAL FIX: Persist total_chunks when calculated
+                # This prevents stuck jobs with total_chunks=0
+                if total_chunks is not None:
+                    job_group.attrs["total_chunks"] = total_chunks
 
                 if error:
                     job_group.attrs["error"] = error
