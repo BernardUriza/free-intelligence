@@ -28,8 +28,10 @@ from backend.whisper_service import transcribe_audio, is_whisper_available
 logger = get_logger(__name__)
 
 # Configuration
-CHUNK_DURATION_SEC = int(os.getenv("DIARIZATION_CHUNK_SEC", "30"))  # 30s chunks (was 20s)
+CHUNK_DURATION_SEC = int(os.getenv("DIARIZATION_CHUNK_SEC", "60"))  # 60s chunks (default for speed, was 30s)
 MIN_SEGMENT_DURATION = float(os.getenv("MIN_SEGMENT_SEC", "0.5"))  # Filter <0.5s
+# Performance tuning (increase chunk size for 25% speedup, reduce for better speaker granularity)
+# Options: 20 (granular), 30 (balanced), 60 (fastest), 120 (very fast but coarse)
 OLLAMA_BASE_URL = os.getenv("LLM_BASE_URL", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
 OLLAMA_MODEL = os.getenv("LLM_MODEL", os.getenv("DIARIZATION_LLM_MODEL", "qwen2.5:7b-instruct-q4_0"))
 LLM_TEMPERATURE = float(os.getenv("DIARIZATION_LLM_TEMP", "0.1"))  # Low temp for determinism
@@ -37,8 +39,8 @@ LLM_TIMEOUT_MS = int(os.getenv("LLM_TIMEOUT_MS", "60000"))  # 60s timeout (was 3
 LLM_TIMEOUT_SEC = LLM_TIMEOUT_MS / 1000.0
 # Kill switches
 FI_ENRICHMENT = os.getenv("FI_ENRICHMENT", "on").lower() == "on"
-ENABLE_LLM_CLASSIFICATION = os.getenv("ENABLE_LLM_CLASSIFICATION", "true").lower() == "true"
-WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "small")  # Options: tiny, base, small (default), medium, large-v3
+ENABLE_LLM_CLASSIFICATION = os.getenv("ENABLE_LLM_CLASSIFICATION", "false").lower() == "true"  # OFF by default (3-4x speedup)
+WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "base")  # Options: tiny, base (default for speed), small, medium, large-v3
 
 # Ollama availability cache (check once at startup)
 _ollama_available = None
