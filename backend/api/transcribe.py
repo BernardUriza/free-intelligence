@@ -6,6 +6,7 @@ Cards: FI-BACKEND-FEAT-003, FI-UI-FEAT-210
 
 Endpoints:
   POST /api/transcribe - Upload audio and get transcription
+  GET /api/transcribe/health - Health check
 
 Features:
 - Audio upload with multipart/form-data
@@ -16,48 +17,24 @@ Features:
 - Whisper transcription (Spanish)
 - Graceful degradation if Whisper unavailable
 
+Updated to use clean code architecture with TranscriptionService.
+
 File: backend/api/transcribe.py
 Created: 2025-10-30
 """
 
-import os
-from pathlib import Path
-from typing import Optional
+import logging
+from typing import Any, Optional
 
 from fastapi import APIRouter, File, Header, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel, Field
 
-from backend.audio_storage import save_audio_file, validate_session_id
+from backend.container import get_container
 from backend.logger import get_logger
-from backend.whisper_service import (
-    convert_audio_to_wav,
-    is_whisper_available,
-    transcribe_audio,
-)
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/transcribe")
-
-# File size limit (100 MB)
-MAX_FILE_SIZE_MB = int(os.getenv("MAX_AUDIO_FILE_SIZE_MB", "100"))
-MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-
-# Allowed MIME types
-ALLOWED_MIME_TYPES = {
-    "audio/webm",
-    "audio/wav",
-    "audio/wave",
-    "audio/x-wav",
-    "audio/mpeg",
-    "audio/mp3",
-    "audio/mp4",
-    "audio/m4a",
-    "audio/ogg",
-}
-
-# Allowed file extensions
-ALLOWED_EXTENSIONS = {"webm", "wav", "mp3", "m4a", "ogg"}
 
 
 class TranscriptionResponse(BaseModel):
@@ -71,32 +48,6 @@ class TranscriptionResponse(BaseModel):
     audio_file: dict = Field(..., description="Stored audio file metadata")
 
 
-def validate_audio_file(file: UploadFile) -> None:
-    """
-    Validate uploaded audio file.
-
-    Args:
-        file: FastAPI UploadFile
-
-    Raises:
-        HTTPException 400: If file invalid (type, size, extension)
-    """
-    # Validate MIME type
-    if file.content_type not in ALLOWED_MIME_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid audio format. Allowed MIME types: {', '.join(ALLOWED_MIME_TYPES)}",
-        )
-
-    # Validate file extension
-    file_extension = Path(file.filename or "").suffix.lower().lstrip(".")
-    if file_extension not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file extension: .{file_extension}. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
-        )
-
-
 @router.post("", response_model=TranscriptionResponse, status_code=status.HTTP_200_OK)
 async def transcribe_audio_endpoint(
     request: Request,
@@ -105,6 +56,11 @@ async def transcribe_audio_endpoint(
 ) -> TranscriptionResponse:
     """
     Upload audio file and get transcription.
+
+    **Clean Code Architecture:**
+    - TranscriptionService handles audio validation, storage, and transcription
+    - Uses DI container for dependency injection
+    - AuditService logs all transcription operations
 
     **Request:**
     - Method: POST
@@ -129,114 +85,73 @@ async def transcribe_audio_endpoint(
     - TTL: 7 days (auto-delete after expiration)
     - If faster-whisper not installed, returns placeholder text with available=false
     """
-    # Validate session_id
+    # Validate session ID presence
     if not x_session_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing required header: X-Session-ID",
         )
 
-    if not validate_session_id(x_session_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid session_id format: {x_session_id} (must be UUID4)",
-        )
-
-    # Validate audio file
-    validate_audio_file(audio)
-
     try:
-        # Read file content
-        logger.info(
-            "AUDIO_UPLOAD_START",
-            session_id=x_session_id,
-            filename=audio.filename,
-            content_type=audio.content_type,
-        )
+        # Get services from DI container
+        transcription_service = get_container().get_transcription_service()
+        audit_service = get_container().get_audit_service()
 
+        # Read audio content
         audio_content = await audio.read()
-        file_size = len(audio_content)
 
-        # Check file size
-        if file_size > MAX_FILE_SIZE_BYTES:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File size {file_size / 1024 / 1024:.1f} MB exceeds limit of {MAX_FILE_SIZE_MB} MB",
-            )
-
-        # Get file extension
-        file_extension = Path(audio.filename or "").suffix.lower().lstrip(".")
-
-        # Save audio file
-        audio_metadata = save_audio_file(
+        # Delegate to service for processing
+        result = transcription_service.process_transcription(
             session_id=x_session_id,
             audio_content=audio_content,
-            file_extension=file_extension,
+            filename=audio.filename or "audio",
+            content_type=audio.content_type or "audio/wav",
             metadata={
-                "original_filename": audio.filename,
-                "content_type": audio.content_type,
-                "file_size": file_size,
+                "client_ip": request.client.host if request.client else "unknown",
+            },
+        )
+
+        # Log audit trail
+        audit_service.log_action(
+            action="transcription_completed",
+            user_id="system",
+            resource=f"session:{x_session_id}",
+            result="success" if result["available"] else "degraded",
+            details={
+                "filename": audio.filename,
+                "text_length": len(result["text"]),
+                "segments_count": len(result["segments"]),
+                "available": result["available"],
             },
         )
 
         logger.info(
-            "AUDIO_UPLOAD_COMPLETE",
-            session_id=x_session_id,
-            file_path=audio_metadata["file_path"],
-            file_size=file_size,
-            file_hash=audio_metadata["file_hash"],
-        )
-
-        # Transcribe audio
-        # Get absolute path to audio file
-        from backend.audio_storage import AUDIO_STORAGE_DIR
-
-        audio_path = AUDIO_STORAGE_DIR.parent / audio_metadata["file_path"]
-
-        # Convert to WAV if needed (Whisper works best with WAV)
-        if file_extension != "wav" and is_whisper_available():
-            wav_path = audio_path.with_suffix(".wav")
-            conversion_ok = convert_audio_to_wav(audio_path, wav_path)
-            if conversion_ok:
-                transcription_path = wav_path
-            else:
-                # Fallback to original file
-                transcription_path = audio_path
-        else:
-            transcription_path = audio_path
-
-        # Transcribe
-        transcription_result = transcribe_audio(
-            audio_path=transcription_path,
-            language="es",  # Force Spanish
-            vad_filter=True,  # Enable VAD filtering
-        )
-
-        logger.info(
-            "TRANSCRIPTION_COMPLETE",
-            session_id=x_session_id,
-            text_length=len(transcription_result["text"]),
-            segments_count=len(transcription_result["segments"]),
-            available=transcription_result["available"],
+            f"TRANSCRIPTION_SUCCESS: session_id={x_session_id}, text_length={len(result['text'])}, available={result['available']}"
         )
 
         return TranscriptionResponse(
-            text=transcription_result["text"],
-            segments=transcription_result["segments"],
-            language=transcription_result["language"],
-            duration=transcription_result["duration"],
-            available=transcription_result["available"],
-            audio_file=audio_metadata,
+            text=result["text"],
+            segments=result["segments"],
+            language=result["language"],
+            duration=result["duration"],
+            available=result["available"],
+            audio_file=result["audio_file"],
         )
 
-    except HTTPException:
-        raise
+    except ValueError as e:
+        logger.warning(f"TRANSCRIPTION_VALIDATION_FAILED: session_id={x_session_id}, error={str(e)}")
+        audit_service = get_container().get_audit_service()
+        audit_service.log_action(
+            action="transcription_failed",
+            user_id="system",
+            resource=f"session:{x_session_id}",
+            result="failure",
+            details={"error": str(e)},
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(
-            "TRANSCRIPTION_REQUEST_FAILED",
-            session_id=x_session_id,
-            filename=audio.filename,
-            error=str(e),
+            f"TRANSCRIPTION_FAILED: session_id={x_session_id}, filename={audio.filename}, error={str(e)}"
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -245,19 +160,23 @@ async def transcribe_audio_endpoint(
 
 
 @router.get("/health", status_code=status.HTTP_200_OK)
-async def transcribe_health_check():
+async def transcribe_health_check() -> dict[str, Any]:
     """
     Health check for transcription service.
 
+    **Clean Code Architecture:**
+    - TranscriptionService handles health check via DI container
+
     Returns:
-        Dict with whisper availability status
+        Dict with whisper availability status and service health
     """
-    whisper_ok = is_whisper_available()
+    transcription_service = get_container().get_transcription_service()
+    health = transcription_service.health_check()
 
     return {
-        "status": "operational" if whisper_ok else "degraded",
-        "whisper_available": whisper_ok,
+        "status": "operational" if health["whisper_available"] else "degraded",
+        "whisper_available": health["whisper_available"],
         "message": "Transcription ready"
-        if whisper_ok
+        if health["whisper_available"]
         else "Whisper not available (install faster-whisper)",
     }
