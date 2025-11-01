@@ -306,7 +306,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
             last_active = datetime.now(timezone.utc).isoformat() + "Z"
 
         # Delegate to service for update (handles validation)
-        success = session_service.update_session(
+        success = session_service.update_session(  # type: ignore[attr-defined]
             session_id=session_id,
             status=request.status,
             interaction_count=request.interaction_count,

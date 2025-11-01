@@ -217,7 +217,7 @@ class ClaudeProvider(LLMProvider):
             latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             # Extract response content
-            content = message.content[0].text if message.content else ""
+            content = message.content[0].text if message.content else ""  # type: ignore[attr-defined]
 
             # Calculate cost
             input_tokens = message.usage.input_tokens

@@ -101,8 +101,8 @@ def require_audit_log(func: Callable) -> Callable:
         return func(*args, **kwargs)
 
     # Marcar wrapper para detección
-    wrapper.__llm_audit_required__ = True
-    wrapper.__wrapped_function__ = func.__name__
+    wrapper.__llm_audit_required__ = True  # type: ignore[attr-defined]
+    wrapper.__wrapped_function__ = func.__name__  # type: ignore[attr-defined]
 
     return wrapper
 

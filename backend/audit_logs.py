@@ -495,7 +495,7 @@ def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = Tru
 
                 # Create new dataset with kept data only
                 spec = AUDIT_LOG_SCHEMA[dataset_name]
-                new_dataset = audit_logs.create_dataset(
+                new_dataset = audit_logs.create_dataset(  # type: ignore[attr-defined]
                     dataset_name,
                     shape=(len(kept_data),),
                     maxshape=(None,),

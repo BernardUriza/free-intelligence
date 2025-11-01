@@ -191,7 +191,7 @@ def search_by_session(corpus_path: str, session_id: str) -> list[dict]:
                 if curr_session_id == session_id:
                     results.append(
                         {
-                            "interaction_id": interactions_group["interaction_id"][i].decode(
+                            "interaction_id": interactions_group["interaction_id"][i].decode(  # type: ignore[attr-defined]
                                 "utf-8"
                             ),  # type: ignore[index,attr-defined]
                             "session_id": session_id,

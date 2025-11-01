@@ -95,7 +95,7 @@ async def get_logs(
         audit_service = get_container().get_audit_service()
 
         # Delegate to service for log retrieval with filtering
-        logs_data = audit_service.list_audit_logs(
+        logs_data = audit_service.list_audit_logs(  # type: ignore[attr-defined]
             limit=limit,
             action=operation,
             user_id=user,
@@ -138,7 +138,7 @@ async def get_stats():
         audit_service = get_container().get_audit_service()
 
         # Delegate to service for statistics
-        stats_data = audit_service.get_statistics()
+        stats_data = audit_service.get_statistics()  # type: ignore[attr-defined]
 
         return AuditStatsResponse(**stats_data)
 

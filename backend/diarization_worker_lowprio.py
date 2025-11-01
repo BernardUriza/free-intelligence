@@ -197,7 +197,7 @@ class DiarizationWorker:
                     job_group.attrs["updated_at"] = job.updated_at
 
                     # Create empty chunks dataset
-                    dt = h5py.special_dtype(vlen=str)
+                    dt = h5py.special_dtype(vlen=str)  # type: ignore[attr-defined]
                     h5.create_dataset(
                         f"{job_group_path}/chunks",
                         shape=(0,),
@@ -214,7 +214,7 @@ class DiarizationWorker:
                         ],
                     )
 
-                    h5.flush()
+                    h5.flush()  # type: ignore[attr-defined]
                     self.logger.info("JOB_INITIALIZED_IN_H5", job_id=job.job_id)
 
     def submit_job(self, job: DiarizationJob):
@@ -458,7 +458,7 @@ class DiarizationWorker:
                     job_group.attrs["total_chunks"] = job.total_chunks
 
                     # Create chunks dataset
-                    dt = h5py.special_dtype(vlen=str)
+                    dt = h5py.special_dtype(vlen=str)  # type: ignore[attr-defined]
                     h5.create_dataset(
                         f"{job_group_path}/chunks",
                         shape=(0,),
@@ -491,7 +491,7 @@ class DiarizationWorker:
                     chunk.timestamp,
                 )
 
-                h5.flush()
+                h5.flush()  # type: ignore[attr-defined]
 
     def _update_job_status(
         self,
@@ -523,7 +523,7 @@ class DiarizationWorker:
                     job_group = h5.create_group(job_group_path)
                     job_group.attrs["created_at"] = datetime.now(timezone.utc).isoformat() + "Z"
                     # Create empty chunks dataset
-                    dt = h5py.special_dtype(vlen=str)
+                    dt = h5py.special_dtype(vlen=str)  # type: ignore[attr-defined]
                     h5.create_dataset(
                         f"{job_group_path}/chunks",
                         shape=(0,),
@@ -553,7 +553,7 @@ class DiarizationWorker:
                 if error:
                     job_group.attrs["error"] = error  # type: ignore[attr-defined]
 
-                h5.flush()
+                h5.flush()  # type: ignore[attr-defined]
 
     def get_job_status(self, job_id: str) -> Optional[dict[str, Any]]:
         """
