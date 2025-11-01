@@ -99,10 +99,13 @@ trello board-overview $BOARD_ID
 
 🔬 Type Checking Automation (Pylance/Pyright)
 	•	CLI Tool: python3 tools/detect_type_errors.py backend/ (auto-detección)
-	•	Baseline: 798 errors (mostly h5py stubs missing) + 57 warnings, 44 files
+	•	Baseline: 821 errors + 57 warnings, 57 files (mostly h5py + attribute access issues)
+	•	Top Issues: reportAttributeAccessIssue (362), reportIndexIssue (253), reportArgumentType (155)
+	•	Top Files: audit_logs.py (152), fi_exporter.py (136), search.py (105), corpus_ops.py (102)
 	•	Strategy: Pyright (2 sec) → Export JSON → Batch fix con Claude Code
 	•	Config: pyrightconfig.json (standard mode, strict type checking)
 	•	Docs: docs/TYPE_CHECKING_QUICKSTART.md (profesional workflow)
+	•	Commands: make type-check (quick) | make type-check-all (15s) | make type-check-export (JSON)
 	•	Next: Remediate critical errors (reportArgumentType, reportAssignmentType) → CI/CD enforcement
 
 🔗 Referencias Rápidas
@@ -129,6 +132,7 @@ trello board-overview $BOARD_ID
 	•	KPIs API ✅: agregador in‑memory, p95 2ms, chips/timeseries.
 	•	NAS Deploy (Turborepo + PM2): scripts/productión sin cloud.
 	•	NAS DS923+ Deployment Stack ✅: Ollama (11434) + ASR worker (faster-whisper INT8), scripts automatizados, validation 7/7.
-	•	Type Checking Automation ✅: pyright CLI integration, tools/detect_type_errors.py, make type-check* commands, JSON export para batch fixing con Claude Code (798 errors baseline → remediation plan).
+	•	Type Checking Automation ✅: pyright CLI integration, tools/detect_type_errors.py, make type-check* commands, JSON export para batch fixing con Claude Code (821 errors baseline → remediation plan ready).
+	•	Python 3.9 Compatibility + Datetime Fix ✅: from __future__ imports (82 files), datetime.utcnow() → datetime.now(timezone.utc) (22 files), h5py type ignore (13 files).
 
 Nota: Este kernel es guía operativa mínima; las bitácoras y reportes viven en la conversación salvo docs permanentes.
