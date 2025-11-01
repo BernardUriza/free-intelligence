@@ -6,21 +6,22 @@ Free Intelligence - Evidence API
 
 FastAPI router for evidence packs.
 
+Updated to use clean code architecture with EvidenceService.
+
 File: backend/api/evidence.py
 Card: FI-DATA-RES-021
 Created: 2025-10-30
 """
 
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend.evidence_pack import EvidencePackBuilder, create_evidence_pack_from_sources
+from backend.container import get_container
 
-# ============================================================================
-# PYDANTIC MODELS
-# ============================================================================
+logger = logging.getLogger(__name__)
 
 
 class ClinicalSourceRequest(BaseModel):
@@ -54,58 +55,82 @@ class EvidencePackResponse(BaseModel):
     metadata: dict
 
 
-# ============================================================================
-# FASTAPI ROUTER
-# ============================================================================
-
 router = APIRouter(prefix="/api/evidence", tags=["evidence"])
-
-# In-memory store for demo (replace with persistent storage)
-evidence_store: dict[str, dict] = {}
 
 
 @router.post("/packs", response_model=EvidencePackResponse, status_code=201)
-async def create_evidence_pack(request: CreateEvidencePackRequest):
+async def create_evidence_pack(request: CreateEvidencePackRequest) -> EvidencePackResponse:
     """
     Create evidence pack from clinical sources.
+
+    **Clean Code Architecture:**
+    - EvidenceService handles pack creation and storage
+    - Uses DI container for dependency injection
+    - AuditService logs all pack creations
 
     Body:
     - session_id: Optional session ID
     - sources: List of clinical sources
 
     Returns:
-    - Evidence pack with hashes
+    - Evidence pack with hashes and metadata
     """
-    if not request.sources:
-        raise HTTPException(status_code=400, detail="No sources provided")
+    try:
+        # Get services from DI container
+        evidence_service = get_container().get_evidence_service()
+        audit_service = get_container().get_audit_service()
 
-    # Convert to dictionaries
-    sources_dicts = [src.dict() for src in request.sources]
+        # Convert to dictionaries
+        sources_dicts = [src.model_dump() for src in request.sources]
 
-    # Create pack
-    pack = create_evidence_pack_from_sources(sources_dicts, session_id=request.session_id)
+        # Delegate to service
+        result = evidence_service.create_evidence_pack(
+            sources=sources_dicts,
+            session_id=request.session_id,
+        )
 
-    # Store pack
-    builder = EvidencePackBuilder()
-    pack_dict = builder.to_dict(pack)
-    evidence_store[pack.pack_id] = pack_dict
+        # Log audit trail
+        audit_service.log_action(
+            action="evidence_pack_created",
+            user_id="system",
+            resource=f"evidence_pack:{result['pack_id']}",
+            result="success",
+            details={
+                "source_count": result["source_count"],
+                "session_id": request.session_id,
+            },
+        )
 
-    # Return response
-    return EvidencePackResponse(
-        pack_id=pack.pack_id,
-        created_at=pack.created_at,
-        session_id=pack.session_id,
-        source_count=len(pack.sources),
-        source_hashes=pack.source_hashes,
-        policy_snapshot_id=pack.policy_snapshot_id,
-        metadata=pack.metadata,
-    )
+        logger.info(
+            f"EVIDENCE_PACK_CREATED: pack_id={result['pack_id']}, sources={result['source_count']}"
+        )
+
+        return EvidencePackResponse(
+            pack_id=result["pack_id"],
+            created_at=result["created_at"],
+            session_id=result["session_id"],
+            source_count=result["source_count"],
+            source_hashes=result["source_hashes"],
+            policy_snapshot_id=result["policy_snapshot_id"],
+            metadata=result["metadata"],
+        )
+
+    except ValueError as e:
+        logger.warning(f"EVIDENCE_PACK_CREATION_VALIDATION_FAILED: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"EVIDENCE_PACK_CREATION_FAILED: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to create evidence pack")
 
 
 @router.get("/packs/{pack_id}", response_model=EvidencePackResponse)
-async def get_evidence_pack(pack_id: str):
+async def get_evidence_pack(pack_id: str) -> EvidencePackResponse:
     """
     Get evidence pack by ID.
+
+    **Clean Code Architecture:**
+    - EvidenceService handles pack retrieval
+    - Uses DI container for dependency injection
 
     Path params:
     - pack_id: Pack identifier
@@ -113,50 +138,92 @@ async def get_evidence_pack(pack_id: str):
     Returns:
     - Evidence pack details
     """
-    if pack_id not in evidence_store:
-        raise HTTPException(status_code=404, detail=f"Pack {pack_id} not found")
+    try:
+        # Get services from DI container
+        evidence_service = get_container().get_evidence_service()
+        audit_service = get_container().get_audit_service()
 
-    pack_dict = evidence_store[pack_id]
+        # Delegate to service
+        result = evidence_service.get_evidence_pack(pack_id)
 
-    return EvidencePackResponse(
-        pack_id=pack_dict["pack_id"],
-        created_at=pack_dict["created_at"],
-        session_id=pack_dict["session_id"],
-        source_count=pack_dict["metadata"]["source_count"],
-        source_hashes=pack_dict["source_hashes"],
-        policy_snapshot_id=pack_dict["policy_snapshot_id"],
-        metadata=pack_dict["metadata"],
-    )
+        if not result:
+            logger.warning(f"EVIDENCE_PACK_NOT_FOUND: pack_id={pack_id}")
+            raise HTTPException(status_code=404, detail=f"Pack {pack_id} not found")
+
+        # Log audit trail
+        audit_service.log_action(
+            action="evidence_pack_retrieved",
+            user_id="system",
+            resource=f"evidence_pack:{pack_id}",
+            result="success",
+        )
+
+        logger.info(f"EVIDENCE_PACK_RETRIEVED: pack_id={pack_id}")
+
+        return EvidencePackResponse(
+            pack_id=result["pack_id"],
+            created_at=result["created_at"],
+            session_id=result["session_id"],
+            source_count=result["source_count"],
+            source_hashes=result["source_hashes"],
+            policy_snapshot_id=result["policy_snapshot_id"],
+            metadata=result["metadata"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"EVIDENCE_PACK_RETRIEVAL_FAILED: pack_id={pack_id}, error={str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve evidence pack")
 
 
 @router.get("/sessions/{session_id}/evidence")
-async def get_session_evidence(session_id: str):
+async def get_session_evidence(session_id: str) -> list[EvidencePackResponse]:
     """
     Get all evidence packs for a session.
+
+    **Clean Code Architecture:**
+    - EvidenceService handles session-based filtering
+    - Uses DI container for dependency injection
 
     Path params:
     - session_id: Session identifier
 
     Returns:
-    - List of evidence packs
+    - List of evidence packs for the session
     """
-    # Filter packs by session_id
-    session_packs = [
-        pack for pack in evidence_store.values() if pack.get("session_id") == session_id
-    ]
+    try:
+        # Get services from DI container
+        evidence_service = get_container().get_evidence_service()
+        audit_service = get_container().get_audit_service()
 
-    if not session_packs:
-        return []
+        # Delegate to service
+        results = evidence_service.get_session_evidence(session_id)
 
-    return [
-        EvidencePackResponse(
-            pack_id=pack["pack_id"],
-            created_at=pack["created_at"],
-            session_id=pack["session_id"],
-            source_count=pack["metadata"]["source_count"],
-            source_hashes=pack["source_hashes"],
-            policy_snapshot_id=pack["policy_snapshot_id"],
-            metadata=pack["metadata"],
+        # Log audit trail
+        audit_service.log_action(
+            action="session_evidence_retrieved",
+            user_id="system",
+            resource=f"session:{session_id}",
+            result="success",
+            details={"pack_count": len(results)},
         )
-        for pack in session_packs
-    ]
+
+        logger.info(f"SESSION_EVIDENCE_RETRIEVED: session_id={session_id}, count={len(results)}")
+
+        return [
+            EvidencePackResponse(
+                pack_id=pack["pack_id"],
+                created_at=pack["created_at"],
+                session_id=pack["session_id"],
+                source_count=pack["source_count"],
+                source_hashes=pack["source_hashes"],
+                policy_snapshot_id=pack["policy_snapshot_id"],
+                metadata=pack["metadata"],
+            )
+            for pack in results
+        ]
+
+    except Exception as e:
+        logger.error(f"SESSION_EVIDENCE_RETRIEVAL_FAILED: session_id={session_id}, error={str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve session evidence")

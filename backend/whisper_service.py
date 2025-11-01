@@ -60,7 +60,7 @@ except ImportError:
         reason="faster-whisper not installed",
         install_cmd="pip install faster-whisper",
     )
-    WhisperModel = None  # type: ignore
+    WhisperModel = None
 
 
 def is_whisper_available() -> bool:

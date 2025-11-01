@@ -13,10 +13,10 @@ FI-DATA-FEAT-005
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
-import h5py  # type: ignore
+import h5py
 
 if TYPE_CHECKING:
-    pass  # type: ignore[attr-defined]
+    pass
 
 
 class AppendOnlyViolation(Exception):
@@ -59,11 +59,11 @@ class AppendOnlyPolicy:
         if not Path(self.corpus_path).exists():
             raise FileNotFoundError(f"Corpus not found: {self.corpus_path}")
 
-        with h5py.File(self.corpus_path, "r") as f:  # type: ignore
+        with h5py.File(self.corpus_path, "r") as f:
             # Record original sizes for all datasets
             for group_name in ["interactions", "embeddings"]:
                 if group_name in f:
-                    group = f[group_name]  # type: ignore
+                    group = f[group_name]
                     for dataset_name in group.keys():  # type: ignore
                         key = f"{group_name}/{dataset_name}"
                         self.original_sizes[key] = group[dataset_name].shape[0]  # type: ignore
@@ -77,10 +77,10 @@ class AppendOnlyPolicy:
             return False
 
         # Verify all dataset sizes increased or stayed same
-        with h5py.File(self.corpus_path, "r") as f:  # type: ignore
+        with h5py.File(self.corpus_path, "r") as f:
             for group_name in ["interactions", "embeddings"]:
                 if group_name in f:
-                    group = f[group_name]  # type: ignore
+                    group = f[group_name]
                     for dataset_name in group.keys():  # type: ignore
                         key = f"{group_name}/{dataset_name}"
                         original_size = self.original_sizes.get(key, 0)
@@ -223,7 +223,7 @@ def get_dataset_size(corpus_path: str, group_name: str, dataset_name: str) -> in
     Returns:
         Current dataset size
     """
-    with h5py.File(corpus_path, "r") as f:  # type: ignore
+    with h5py.File(corpus_path, "r") as f:
         return f[group_name][dataset_name].shape[0]  # type: ignore
 
 

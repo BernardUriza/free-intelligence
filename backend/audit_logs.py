@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
-import h5py  # type: ignore
+import h5py
 
 # Audit log schema
 AUDIT_LOG_SCHEMA = {
@@ -92,7 +92,7 @@ def init_audit_logs_group(corpus_path: str) -> bool:
                     dataset_name,
                     shape=(0,),
                     maxshape=(None,),
-                    dtype=spec["dtype"],  # type: ignore[index]
+                    dtype=spec["dtype"],
                     chunks=True,
                     compression="gzip",
                     compression_opts=4,
@@ -139,8 +139,8 @@ def append_audit_log(
     operation: str,
     user_id: str,
     endpoint: str,
-    payload: Optional[any] = None,
-    result: Optional[any] = None,
+    payload: Optional[Any] = None,
+    result: Optional[Any] = None,
     status: str = "SUCCESS",
     metadata: Optional[dict] = None,
 ) -> str:
@@ -198,7 +198,7 @@ def append_audit_log(
                 f.close()
                 f = h5py.File(corpus_path, "a")
 
-            audit_logs = f["audit_logs"]  # type: ignore[index]
+            audit_logs = f["audit_logs"]
 
             # Current size
             current_size = audit_logs["audit_id"].shape[0]  # type: ignore[index,attr-defined]
@@ -262,7 +262,7 @@ def get_audit_logs(
             if "audit_logs" not in f:
                 return []
 
-            audit_logs_group = f["audit_logs"]  # type: ignore[index]
+            audit_logs_group = f["audit_logs"]
             total = audit_logs_group["audit_id"].shape[0]  # type: ignore[index,attr-defined]
 
             if total == 0:
@@ -326,7 +326,7 @@ def get_audit_stats(corpus_path: str) -> dict:
             if "audit_logs" not in f:
                 return {"total_logs": 0, "exists": False}
 
-            audit_logs = f["audit_logs"]  # type: ignore[index]
+            audit_logs = f["audit_logs"]
             total = audit_logs["audit_id"].shape[0]  # type: ignore[index,attr-defined]
 
             # Count by status
@@ -377,7 +377,7 @@ def get_audit_logs_older_than(corpus_path: str, days: int = 90) -> list[int]:
             if "audit_logs" not in f:
                 return []
 
-            audit_logs = f["audit_logs"]  # type: ignore[index]
+            audit_logs = f["audit_logs"]
             total = audit_logs["timestamp"].shape[0]  # type: ignore[index,attr-defined]
 
             if total == 0:
@@ -477,7 +477,7 @@ def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = Tru
         # NOTE: HDF5 doesn't support in-place deletion of rows
         # We need to create new datasets without old rows
         with h5py.File(corpus_path, "a") as f:
-            audit_logs = f["audit_logs"]  # type: ignore[index]
+            audit_logs = f["audit_logs"]
             total = audit_logs["timestamp"].shape[0]  # type: ignore[index,attr-defined]
 
             # Indices to keep
@@ -499,7 +499,7 @@ def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = Tru
                     dataset_name,
                     shape=(len(kept_data),),
                     maxshape=(None,),
-                    dtype=spec["dtype"],  # type: ignore[index]
+                    dtype=spec["dtype"],
                     chunks=True,
                     compression="gzip",
                     compression_opts=4,
@@ -602,7 +602,7 @@ if __name__ == "__main__":
     from config_loader import load_config
 
     config = load_config()
-    corpus_path = config["storage"]["corpus_path"]  # type: ignore[index]
+    corpus_path = config["storage"]["corpus_path"]
 
     print("🔒 Audit Logs Demo - Free Intelligence\n")
 
@@ -626,7 +626,7 @@ if __name__ == "__main__":
 
     # Get stats
     print("\n📊 Audit Log Statistics:")
-    stats = get_audit_stats(corpus_path)  # type: ignore[index]
+    stats = get_audit_stats(corpus_path)
     print(f"  Total logs: {stats['total_logs']}")
     print(f"  Status breakdown: {stats.get('status_breakdown', {})}")
 
@@ -634,11 +634,11 @@ if __name__ == "__main__":
     print("\n📖 Recent Audit Logs:")
     logs = get_audit_logs(corpus_path, limit=5)
     for i, log in enumerate(logs, 1):
-        timestamp = log['timestamp']  # type: ignore[index]
-        operation = log['operation']  # type: ignore[index]
-        user_id = log['user_id']  # type: ignore[index]
-        status = log['status']  # type: ignore[index]
-        payload_hash = log['payload_hash']  # type: ignore[index]
+        timestamp = log['timestamp']
+        operation = log['operation']
+        user_id = log['user_id']
+        status = log['status']
+        payload_hash = log['payload_hash']
         print(f"\n  [{i}] {timestamp}")
         print(f"      Operation: {operation}")
         print(f"      User: {user_id}")

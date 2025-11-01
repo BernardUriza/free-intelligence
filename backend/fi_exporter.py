@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import h5py  # type: ignore
+import h5py
 
 from backend.export_policy import ExportManifest, create_export_manifest
 from backend.logger import get_logger
@@ -68,7 +68,7 @@ def export_session_to_markdown(
         if "/interactions" not in f:
             raise ValueError("No /interactions group in corpus")
 
-        group = f["/interactions"]  # type: ignore[index]
+        group = f["/interactions"]
         n_interactions = group["session_id"].shape[0]  # type: ignore[index,attr-defined]
 
         for i in range(n_interactions):
@@ -95,10 +95,10 @@ def export_session_to_markdown(
         # Frontmatter
         first_interaction = interactions[0]
         last_interaction = interactions[-1]
-        start_time = first_interaction['timestamp']  # type: ignore[index]
-        end_time = last_interaction['timestamp']  # type: ignore[index]
-        model = first_interaction['model']  # type: ignore[index]
-        total_tokens = sum(i['tokens'] for i in interactions)  # type: ignore[index]
+        start_time = first_interaction['timestamp']
+        end_time = last_interaction['timestamp']
+        model = first_interaction['model']
+        total_tokens = sum(i['tokens'] for i in interactions)
         markdown_lines.extend(
             [
                 "---",
@@ -119,11 +119,11 @@ def export_session_to_markdown(
 
     # Interactions
     for idx, interaction in enumerate(interactions, 1):
-        timestamp = interaction['timestamp']  # type: ignore[index]
-        interaction_id = interaction['interaction_id']  # type: ignore[index]
-        prompt = interaction["prompt"]  # type: ignore[index]
-        response = interaction["response"]  # type: ignore[index]
-        tokens = interaction['tokens']  # type: ignore[index]
+        timestamp = interaction['timestamp']
+        interaction_id = interaction['interaction_id']
+        prompt = interaction["prompt"]
+        response = interaction["response"]
+        tokens = interaction['tokens']
         markdown_lines.extend(
             [
                 f"## Interaction {idx}",
@@ -151,7 +151,7 @@ def export_session_to_markdown(
     )
 
     # Create export manifest
-    total_tokens_manifest = sum(i["tokens"] for i in interactions)  # type: ignore[index]
+    total_tokens_manifest = sum(i["tokens"] for i in interactions)
     manifest = create_export_manifest(
         exported_by="system",
         data_source=f"/interactions (session_id={session_id})",
@@ -225,7 +225,7 @@ def export_range_to_hdf5(
         if "/interactions" not in f_src:
             raise ValueError("No /interactions group in corpus")
 
-        group = f_src["/interactions"]  # type: ignore[index]
+        group = f_src["/interactions"]
         n_interactions = group["session_id"].shape[0]  # type: ignore[index,attr-defined]
 
         for i in range(n_interactions):
@@ -249,7 +249,7 @@ def export_range_to_hdf5(
 
     # Copy subset to new HDF5
     with h5py.File(corpus_path, "r") as f_src, h5py.File(output_path_obj, "w") as f_dst:
-        src_group = f_src["/interactions"]  # type: ignore[index]
+        src_group = f_src["/interactions"]
         dst_group = f_dst.create_group("/interactions")
 
         # Copy filtered data
@@ -275,13 +275,13 @@ def export_range_to_hdf5(
 
         # Copy metadata
         if "/metadata" in f_src:
-            src_meta = f_src["/metadata"]  # type: ignore[index]
+            src_meta = f_src["/metadata"]
             dst_meta = f_dst.create_group("/metadata")
             for attr_name, attr_value in src_meta.attrs.items():
                 dst_meta.attrs[attr_name] = attr_value
-            dst_meta.attrs["exported_at"] = datetime.now().isoformat()  # type: ignore[index]
-            dst_meta.attrs["original_corpus"] = str(corpus_path)  # type: ignore[index]
-            dst_meta.attrs["filtered_interactions"] = n_filtered  # type: ignore[index]
+            dst_meta.attrs["exported_at"] = datetime.now().isoformat()
+            dst_meta.attrs["original_corpus"] = str(corpus_path)
+            dst_meta.attrs["filtered_interactions"] = n_filtered
 
     logger.info(
         "EXPORT_RANGE_HDF5_COMPLETED",
@@ -361,7 +361,7 @@ def export_user_to_markdown(
         if "/interactions" not in f:
             raise ValueError("No /interactions group in corpus")
 
-        group = f["/interactions"]  # type: ignore[index]
+        group = f["/interactions"]
         n_interactions = group["session_id"].shape[0]  # type: ignore[index,attr-defined]
 
         for i in range(n_interactions):
@@ -389,7 +389,7 @@ def export_user_to_markdown(
     # Frontmatter
     total_interactions = sum(len(interactions) for interactions in sessions_dict.values())
     total_tokens = sum(
-        sum(i["tokens"] for i in interactions) for interactions in sessions_dict.values()  # type: ignore[index]
+        sum(i["tokens"] for i in interactions) for interactions in sessions_dict.values()
     )
 
     markdown_lines.extend(
@@ -412,17 +412,17 @@ def export_user_to_markdown(
 
     # Sessions
     for session_id, interactions in sorted(sessions_dict.items()):
-        session_tokens = sum(i['tokens'] for i in interactions)  # type: ignore[index]
+        session_tokens = sum(i['tokens'] for i in interactions)
         markdown_lines.append(f"## Session: {session_id}\n")
         markdown_lines.append(f"**Interactions**: {len(interactions)}  ")
         markdown_lines.append(f"**Tokens**: {session_tokens}\n")
 
         if grouped_by_session:
             for idx, interaction in enumerate(interactions, 1):
-                timestamp = interaction['timestamp']  # type: ignore[index]
-                prompt = interaction["prompt"]  # type: ignore[index]
-                response = interaction["response"]  # type: ignore[index]
-                tokens = interaction['tokens']  # type: ignore[index]
+                timestamp = interaction['timestamp']
+                prompt = interaction["prompt"]
+                response = interaction["response"]
+                tokens = interaction['tokens']
                 markdown_lines.extend(
                     [
                         f"### {idx}. {timestamp}\n",
@@ -436,9 +436,9 @@ def export_user_to_markdown(
         else:
             # Flat list
             for interaction in interactions:
-                timestamp = interaction['timestamp']  # type: ignore[index]
-                prompt = interaction['prompt']  # type: ignore[index]
-                response = interaction['response']  # type: ignore[index]
+                timestamp = interaction['timestamp']
+                prompt = interaction['prompt']
+                response = interaction['response']
                 markdown_lines.extend(
                     [
                         f"**{timestamp}**\n",
@@ -504,7 +504,7 @@ def get_export_stats(corpus_path: str) -> dict:
         if "/interactions" not in f:
             return stats
 
-        group = f["/interactions"]  # type: ignore[index]
+        group = f["/interactions"]
         n_interactions = group["session_id"].shape[0]  # type: ignore[index,attr-defined]
 
         if n_interactions == 0:
@@ -520,11 +520,11 @@ def get_export_stats(corpus_path: str) -> dict:
             timestamps.append(group["timestamp"][i].decode("utf-8"))  # type: ignore[index,attr-defined]
             tokens.append(int(group["tokens"][i]))  # type: ignore[index]
 
-        stats["sessions"] = len(sessions)  # type: ignore[index]
-        stats["interactions"] = n_interactions  # type: ignore[index]
-        stats["total_tokens"] = sum(tokens)  # type: ignore[index]
-        stats["earliest"] = min(timestamps)  # type: ignore[index]
-        stats["latest"] = max(timestamps)  # type: ignore[index]
+        stats["sessions"] = len(sessions)
+        stats["interactions"] = n_interactions
+        stats["total_tokens"] = sum(tokens)
+        stats["earliest"] = min(timestamps)
+        stats["latest"] = max(timestamps)
 
     return stats
 
@@ -549,11 +549,11 @@ if __name__ == "__main__":
 
     if command == "stats":
         stats = get_export_stats(corpus_path)
-        sessions = stats['sessions']  # type: ignore[index]
-        interactions = stats['interactions']  # type: ignore[index]
-        total_tokens = stats['total_tokens']  # type: ignore[index]
-        earliest = stats['earliest']  # type: ignore[index]
-        latest = stats['latest']  # type: ignore[index]
+        sessions = stats['sessions']
+        interactions = stats['interactions']
+        total_tokens = stats['total_tokens']
+        earliest = stats['earliest']
+        latest = stats['latest']
         print("\n📊 Export Statistics:")
         print(f"   Sessions: {sessions}")
         print(f"   Interactions: {interactions}")

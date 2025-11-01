@@ -14,7 +14,7 @@ import logging
 import os
 import random
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -111,7 +111,7 @@ class ExportService:
             "version": "1.0",
             "exportId": export_id,
             "sessionId": session_id,
-            "createdAt": datetime.now(timezone.utc).isoformat() + "Z",
+            "createdAt": datetime.now(UTC).isoformat() + "Z",
             "algorithm": "sha256",
             "files": files,
             "meta": {"generator": "FI", "commit": self.git_commit, "deterministic": True},
@@ -230,7 +230,7 @@ class ExportService:
                 "manifest_sha256": manifest_sha256,
             }
 
-        except IOError as e:
+        except OSError as e:
             logger.error("EXPORT_CREATION_FAILED", error=str(e))
             raise
 
@@ -294,7 +294,7 @@ class ExportService:
                 "created_at": manifest.get("createdAt"),
             }
 
-        except IOError as e:
+        except OSError as e:
             logger.error("EXPORT_METADATA_FAILED", export_id=export_id, error=str(e))
             raise
 
@@ -314,13 +314,13 @@ class ExportService:
         export_path = self.export_dir / export_id
 
         if not export_path.exists():
-            raise IOError(f"Export {export_id} not found")
+            raise OSError(f"Export {export_id} not found")
 
         try:
             # Read manifest
             manifest_path = export_path / "manifest.json"
             if not manifest_path.exists():
-                raise IOError(f"Manifest not found in {export_id}")
+                raise OSError(f"Manifest not found in {export_id}")
 
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
@@ -415,7 +415,7 @@ class ExportService:
                 "results": results,
             }
 
-        except IOError as e:
+        except OSError as e:
             logger.error("EXPORT_VERIFICATION_FAILED", export_id=export_id, error=str(e))
             raise
 
@@ -437,13 +437,11 @@ class ExportService:
         try:
             # Mark as deleted (keep for audit trail)
             delete_marker = export_path / ".deleted"
-            delete_marker.write_text(
-                datetime.now(timezone.utc).isoformat(), encoding="utf-8"
-            )
+            delete_marker.write_text(datetime.now(UTC).isoformat(), encoding="utf-8")
 
             logger.info("EXPORT_DELETED", export_id=export_id)
             return True
 
-        except IOError as e:
+        except OSError as e:
             logger.error("EXPORT_DELETION_FAILED", export_id=export_id, error=str(e))
             raise

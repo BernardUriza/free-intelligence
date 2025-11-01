@@ -21,14 +21,13 @@ Usage:
 
 import os
 from collections import defaultdict
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import h5py  # type: ignore
-from fastapi import FastAPI, HTTPException
+import h5py
+from fastapi import FastAPI, HTTPException, Query, status
 from fastapi import Path as PathParam
-from fastapi import Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -142,7 +141,7 @@ async def health_check():
         status="healthy",
         corpus_path=str(corpus_path),
         corpus_exists=verify_corpus_exists(),
-        timestamp=datetime.now(timezone.utc).isoformat() + "Z",
+        timestamp=datetime.now(UTC).isoformat() + "Z",
     )
 
 

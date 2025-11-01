@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import h5py  # type: ignore
+import h5py
 import numpy as np
 
 

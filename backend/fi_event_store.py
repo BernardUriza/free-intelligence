@@ -33,11 +33,11 @@ Usage:
 
 import hashlib
 import json
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
-import h5py  # type: ignore
+import h5py
 
 from backend.fi_consult_models import ConsultationEvent
 from backend.logger import get_logger
@@ -155,7 +155,7 @@ class EventStore:
 
         # Ensure metadata attributes
         if "created_at" not in consultation_group.attrs:
-            consultation_group.attrs["created_at"] = datetime.now(timezone.utc).isoformat()
+            consultation_group.attrs["created_at"] = datetime.now(UTC).isoformat()
             consultation_group.attrs["event_count"] = 0
 
         return consultation_group
@@ -198,7 +198,7 @@ class EventStore:
 
             # Update metadata
             consultation_group.attrs["event_count"] = current_size + 1
-            consultation_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()
+            consultation_group.attrs["updated_at"] = datetime.now(UTC).isoformat()
 
         logger.info(
             "EVENT_APPENDED",
@@ -361,7 +361,7 @@ class EventStore:
             snapshots_group = consultation_group.require_group("snapshots")
 
             # Create snapshot dataset
-            snapshot_name = datetime.now(timezone.utc).isoformat()
+            snapshot_name = datetime.now(UTC).isoformat()
             snapshot_json = json.dumps(state)
 
             dt = h5py.special_dtype(vlen=str)
