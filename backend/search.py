@@ -6,13 +6,13 @@ Semantic search over interactions using cosine similarity on embeddings.
 FI-SEARCH-FEAT-001
 """
 
-import h5py
-import numpy as np
-from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 
-from backend.logger import get_logger
+import h5py
+import numpy as np
+
 from backend.llm_router import llm_embed, pad_embedding_to_768
+from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -45,11 +45,8 @@ def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
 
 
 def semantic_search(
-    corpus_path: str,
-    query: str,
-    top_k: int = 5,
-    min_score: float = 0.0
-) -> List[Dict]:
+    corpus_path: str, query: str, top_k: int = 5, min_score: float = 0.0
+) -> list[dict]:
     """
     Perform semantic search over corpus interactions.
 
@@ -83,7 +80,7 @@ def semantic_search(
         logger.info("QUERY_EMBEDDING_GENERATED", embedding_dim=query_embedding.shape[0])
 
         # Read corpus embeddings and interactions
-        with h5py.File(corpus_path, 'r') as f:
+        with h5py.File(corpus_path, "r") as f:
             embeddings_group = f["embeddings"]
             interactions_group = f["interactions"]
 
@@ -100,14 +97,14 @@ def semantic_search(
             interaction_map = {}
             total_interactions = interactions_group["interaction_id"].shape[0]
             for j in range(total_interactions):
-                iid = interactions_group["interaction_id"][j].decode('utf-8')
+                iid = interactions_group["interaction_id"][j].decode("utf-8")
                 interaction_map[iid] = {
-                    'session_id': interactions_group["session_id"][j].decode('utf-8'),
-                    'timestamp': interactions_group["timestamp"][j].decode('utf-8'),
-                    'prompt': interactions_group["prompt"][j].decode('utf-8'),
-                    'response': interactions_group["response"][j].decode('utf-8'),
-                    'model': interactions_group["model"][j].decode('utf-8'),
-                    'tokens': int(interactions_group["tokens"][j])
+                    "session_id": interactions_group["session_id"][j].decode("utf-8"),
+                    "timestamp": interactions_group["timestamp"][j].decode("utf-8"),
+                    "prompt": interactions_group["prompt"][j].decode("utf-8"),
+                    "response": interactions_group["response"][j].decode("utf-8"),
+                    "model": interactions_group["model"][j].decode("utf-8"),
+                    "tokens": int(interactions_group["tokens"][j]),
                 }
 
             logger.info("INTERACTION_MAP_BUILT", total_interactions=total_interactions)
@@ -126,27 +123,33 @@ def semantic_search(
                     continue
 
                 # Get interaction data via O(1) dictionary lookup
-                interaction_id = embeddings_group["interaction_id"][i].decode('utf-8')
+                interaction_id = embeddings_group["interaction_id"][i].decode("utf-8")
 
                 if interaction_id in interaction_map:
                     interaction_data = interaction_map[interaction_id]
-                    results.append({
-                        'score': similarity,
-                        'interaction_id': interaction_id,
-                        **interaction_data  # Unpack all fields
-                    })
+                    results.append(
+                        {
+                            "score": similarity,
+                            "interaction_id": interaction_id,
+                            **interaction_data,  # Unpack all fields
+                        }
+                    )
                 else:
-                    logger.warning("INTERACTION_NOT_FOUND",
-                                 interaction_id=interaction_id,
-                                 message="Embedding without matching interaction")
+                    logger.warning(
+                        "INTERACTION_NOT_FOUND",
+                        interaction_id=interaction_id,
+                        message="Embedding without matching interaction",
+                    )
 
             # Sort by similarity (descending) and take top_k
-            results.sort(key=lambda x: x['score'], reverse=True)
+            results.sort(key=lambda x: x["score"], reverse=True)
             results = results[:top_k]
 
-            logger.info("SEMANTIC_SEARCH_COMPLETED",
-                       total_results=len(results),
-                       top_score=results[0]['score'] if results else 0.0)
+            logger.info(
+                "SEMANTIC_SEARCH_COMPLETED",
+                total_results=len(results),
+                top_score=results[0]["score"] if results else 0.0,
+            )
 
             return results
 
@@ -155,10 +158,7 @@ def semantic_search(
         raise
 
 
-def search_by_session(
-    corpus_path: str,
-    session_id: str
-) -> List[Dict]:
+def search_by_session(corpus_path: str, session_id: str) -> list[dict]:
     """
     Get all interactions from a specific session.
 
@@ -178,26 +178,30 @@ def search_by_session(
     logger.info("SESSION_SEARCH_STARTED", session_id=session_id)
 
     try:
-        with h5py.File(corpus_path, 'r') as f:
+        with h5py.File(corpus_path, "r") as f:
             interactions_group = f["interactions"]
             total = interactions_group["session_id"].shape[0]
 
             results = []
             for i in range(total):
-                if interactions_group["session_id"][i].decode('utf-8') == session_id:
-                    results.append({
-                        'interaction_id': interactions_group["interaction_id"][i].decode('utf-8'),
-                        'session_id': session_id,
-                        'timestamp': interactions_group["timestamp"][i].decode('utf-8'),
-                        'prompt': interactions_group["prompt"][i].decode('utf-8'),
-                        'response': interactions_group["response"][i].decode('utf-8'),
-                        'model': interactions_group["model"][i].decode('utf-8'),
-                        'tokens': int(interactions_group["tokens"][i])
-                    })
+                if interactions_group["session_id"][i].decode("utf-8") == session_id:
+                    results.append(
+                        {
+                            "interaction_id": interactions_group["interaction_id"][i].decode(
+                                "utf-8"
+                            ),
+                            "session_id": session_id,
+                            "timestamp": interactions_group["timestamp"][i].decode("utf-8"),
+                            "prompt": interactions_group["prompt"][i].decode("utf-8"),
+                            "response": interactions_group["response"][i].decode("utf-8"),
+                            "model": interactions_group["model"][i].decode("utf-8"),
+                            "tokens": int(interactions_group["tokens"][i]),
+                        }
+                    )
 
-            logger.info("SESSION_SEARCH_COMPLETED",
-                       session_id=session_id,
-                       interactions_found=len(results))
+            logger.info(
+                "SESSION_SEARCH_COMPLETED", session_id=session_id, interactions_found=len(results)
+            )
 
             return results
 
@@ -209,6 +213,7 @@ def search_by_session(
 if __name__ == "__main__":
     """Demo script"""
     import sys
+
     from backend.config_loader import load_config
 
     config = load_config()
@@ -222,7 +227,7 @@ if __name__ == "__main__":
         print(f"\n❌ Corpus not found: {corpus_path}")
         sys.exit(1)
 
-    with h5py.File(corpus_path, 'r') as f:
+    with h5py.File(corpus_path, "r") as f:
         embeddings_count = f["embeddings"]["interaction_id"].shape[0]
 
     if embeddings_count == 0:
@@ -232,14 +237,10 @@ if __name__ == "__main__":
     print(f"\n📊 Corpus has {embeddings_count} embeddings")
 
     # Demo queries
-    queries = [
-        "What is Free Intelligence?",
-        "How does the system work?",
-        "database and storage"
-    ]
+    queries = ["What is Free Intelligence?", "How does the system work?", "database and storage"]
 
     for query in queries:
-        print(f"\n🔍 Query: \"{query}\"")
+        print(f'\n🔍 Query: "{query}"')
         print("─" * 60)
 
         results = semantic_search(corpus_path, query, top_k=3)

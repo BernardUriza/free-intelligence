@@ -18,30 +18,29 @@ File: backend/diarization_service_v2.py
 Created: 2025-10-30
 """
 
+import asyncio
 import os
 import time
-import asyncio
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import List, Optional, Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict
+from typing import Optional
 
-from backend.logger import get_logger
-from backend.whisper_service import transcribe_audio, is_whisper_available
 from backend.diarization_service import (
-    DiarizationSegment,
-    DiarizationResult,
-    chunk_audio_fixed,
-    extract_chunk,
-    classify_speaker_with_llm,
-    merge_consecutive_segments,
-    check_ollama_available,
-    compute_audio_hash,
     CHUNK_DURATION_SEC,
-    MIN_SEGMENT_DURATION,
+    ENABLE_LLM_CLASSIFICATION,
     FI_ENRICHMENT,
-    ENABLE_LLM_CLASSIFICATION
+    MIN_SEGMENT_DURATION,
+    DiarizationResult,
+    DiarizationSegment,
+    chunk_audio_fixed,
+    classify_speaker_with_llm,
+    compute_audio_hash,
+    extract_chunk,
+    merge_consecutive_segments,
 )
+from backend.logger import get_logger
+from backend.whisper_service import is_whisper_available, transcribe_audio
 
 logger = get_logger(__name__)
 
@@ -56,12 +55,8 @@ WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")  # Auto-detected by worker
 
 
 def _process_single_chunk(
-    chunk_path: Path,
-    start_offset: float,
-    end_offset: float,
-    language: str,
-    chunk_index: int
-) -> Optional[List[DiarizationSegment]]:
+    chunk_path: Path, start_offset: float, end_offset: float, language: str, chunk_index: int
+) -> Optional[list[DiarizationSegment]]:
     """
     Process a single chunk (CPU/GPU-bound operation).
 
@@ -81,14 +76,10 @@ def _process_single_chunk(
             "CHUNK_TRANSCRIPTION_START",
             chunk_index=chunk_index,
             path=str(chunk_path),
-            duration=end_offset - start_offset
+            duration=end_offset - start_offset,
         )
 
-        transcription = transcribe_audio(
-            chunk_path,
-            language=language,
-            vad_filter=True
-        )
+        transcription = transcribe_audio(chunk_path, language=language, vad_filter=True)
 
         segments_data = transcription.get("segments", [])
         if not segments_data:
@@ -118,17 +109,14 @@ def _process_single_chunk(
                 except Exception as e:
                     logger.warning("SPEAKER_CLASSIFICATION_FAILED", error=str(e), text=text[:50])
 
-            segments.append(DiarizationSegment(
-                start_time=seg_start,
-                end_time=seg_end,
-                speaker=speaker,
-                text=text
-            ))
+            segments.append(
+                DiarizationSegment(
+                    start_time=seg_start, end_time=seg_end, speaker=speaker, text=text
+                )
+            )
 
         logger.info(
-            "CHUNK_TRANSCRIPTION_COMPLETE",
-            chunk_index=chunk_index,
-            segments_count=len(segments)
+            "CHUNK_TRANSCRIPTION_COMPLETE", chunk_index=chunk_index, segments_count=len(segments)
         )
 
         return segments if segments else None
@@ -143,7 +131,7 @@ async def diarize_audio_parallel(
     session_id: str,
     language: str = "es",
     persist: bool = False,
-    progress_callback: Optional[Callable] = None
+    progress_callback: Optional[Callable] = None,
 ) -> DiarizationResult:
     """
     Diarize audio with parallel chunk processing.
@@ -181,7 +169,7 @@ async def diarize_audio_parallel(
             audio_exists=audio_path.is_file(),
             device=WHISPER_DEVICE,
             parallel_chunks=MAX_PARALLEL_CHUNKS,
-            language=language
+            language=language,
         )
 
         # Compute audio hash
@@ -225,9 +213,7 @@ async def diarize_audio_parallel(
             # Submit all chunk processing tasks
             futures = {
                 loop.run_in_executor(
-                    executor,
-                    _process_single_chunk,
-                    path, start, end, language, idx
+                    executor, _process_single_chunk, path, start, end, language, idx
                 ): idx
                 for idx, start, end, path in chunk_tasks
             }
@@ -246,10 +232,7 @@ async def diarize_audio_parallel(
 
                 if progress_callback:
                     progress_callback(
-                        progress_pct,
-                        completed,
-                        len(chunk_tasks),
-                        f"CHUNK_{chunk_idx:04d}_COMPLETE"
+                        progress_pct, completed, len(chunk_tasks), f"CHUNK_{chunk_idx:04d}_COMPLETE"
                     )
 
         logger.info("PARALLEL_PROCESSING_COMPLETE", segments_raw=len(all_segments))
@@ -264,7 +247,9 @@ async def diarize_audio_parallel(
             "SEGMENTS_MERGED",
             segments_before=len(all_segments),
             segments_after=len(merged_segments),
-            reduction_pct=int((1 - len(merged_segments)/len(all_segments))*100) if all_segments else 0
+            reduction_pct=int((1 - len(merged_segments) / len(all_segments)) * 100)
+            if all_segments
+            else 0,
         )
 
         # Step 5: Build result
@@ -278,10 +263,12 @@ async def diarize_audio_parallel(
             duration_sec=total_duration,
             language=language,
             model_asr=f"faster-whisper-{os.getenv('WHISPER_MODEL_SIZE', 'small')}@{WHISPER_DEVICE}",
-            model_llm=os.getenv("OLLAMA_MODEL", "qwen2.5:7b-instruct-q4_0") if FI_ENRICHMENT else "none",
+            model_llm=os.getenv("OLLAMA_MODEL", "qwen2.5:7b-instruct-q4_0")
+            if FI_ENRICHMENT
+            else "none",
             segments=merged_segments,
             processing_time_sec=processing_time,
-            created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
 
         if progress_callback:
@@ -293,7 +280,7 @@ async def diarize_audio_parallel(
             segments=len(merged_segments),
             duration=total_duration,
             processing_time=processing_time,
-            realtime_factor=processing_time / total_duration if total_duration > 0 else 0
+            realtime_factor=processing_time / total_duration if total_duration > 0 else 0,
         )
 
         # Cleanup temp chunks

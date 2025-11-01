@@ -28,10 +28,7 @@ from typing import Any, Optional
 import yaml
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("chaos_drill")
 
 
@@ -115,9 +112,9 @@ class ChaosDrill:
 class NetworkPartitionDrill(ChaosDrill):
     """Network partition drill (Linux iptables, macOS pfctl/app-mock)"""
 
-    def __init__(self, config: dict[str, Any], dry_run: bool = True,
-                 port: int = 7001,
-                 duration: int = 20):
+    def __init__(
+        self, config: dict[str, Any], dry_run: bool = True, port: int = 7001, duration: int = 20
+    ):
         super().__init__(config, dry_run)
         self.port = port
         self.duration = duration
@@ -154,8 +151,7 @@ class NetworkPartitionDrill(ChaosDrill):
                 if result.returncode == 0:
                     # Check if lo0 is skipped (common default)
                     skip_check = subprocess.run(
-                        ["grep", "-q", "skip on lo0", "/etc/pf.conf"],
-                        capture_output=True
+                        ["grep", "-q", "skip on lo0", "/etc/pf.conf"], capture_output=True
                     )
                     if skip_check.returncode == 0:
                         logger.warning("pf.conf has 'skip on lo0' - localhost filtering disabled")
@@ -196,11 +192,22 @@ class NetworkPartitionDrill(ChaosDrill):
         """Linux: Block port with iptables"""
         logger.info(f"Injecting iptables rule to block port {self.port}")
         try:
-            subprocess.run([
-                "sudo", "iptables", "-I", "OUTPUT",
-                "-p", "tcp", "--dport", str(self.port),
-                "-j", "DROP"
-            ], check=True, timeout=10)
+            subprocess.run(
+                [
+                    "sudo",
+                    "iptables",
+                    "-I",
+                    "OUTPUT",
+                    "-p",
+                    "tcp",
+                    "--dport",
+                    str(self.port),
+                    "-j",
+                    "DROP",
+                ],
+                check=True,
+                timeout=10,
+            )
             logger.info(f"✅ Port {self.port} blocked via iptables")
         except Exception as e:
             self.errors.append(f"iptables inject failed: {e}")
@@ -223,7 +230,7 @@ class NetworkPartitionDrill(ChaosDrill):
                 ["sudo", "pfctl", "-a", "fi/chaos", "-f", "-"],
                 input=rule.encode(),
                 check=True,
-                timeout=10
+                timeout=10,
             )
             logger.info(f"✅ Port {self.port} blocked via pf")
         except Exception as e:
@@ -251,6 +258,7 @@ class NetworkPartitionDrill(ChaosDrill):
         if self.mode != "app-mock":
             try:
                 import socket
+
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.settimeout(2)
                 result = sock.connect_ex(("127.0.0.1", self.port))
@@ -282,11 +290,22 @@ class NetworkPartitionDrill(ChaosDrill):
         """Remove iptables rule"""
         logger.info("Removing iptables rule...")
         try:
-            subprocess.run([
-                "sudo", "iptables", "-D", "OUTPUT",
-                "-p", "tcp", "--dport", str(self.port),
-                "-j", "DROP"
-            ], check=True, timeout=10)
+            subprocess.run(
+                [
+                    "sudo",
+                    "iptables",
+                    "-D",
+                    "OUTPUT",
+                    "-p",
+                    "tcp",
+                    "--dport",
+                    str(self.port),
+                    "-j",
+                    "DROP",
+                ],
+                check=True,
+                timeout=10,
+            )
             logger.info("✅ iptables rule removed")
         except Exception as e:
             self.errors.append(f"iptables restore failed: {e}")
@@ -321,7 +340,7 @@ class NetworkPartitionDrill(ChaosDrill):
                 "mode": self.mode,
                 "target_port": self.port,
                 "duration_sec": self.duration,
-                "details": "Dry run validation"
+                "details": "Dry run validation",
             }
 
         # Test that port is accessible again
@@ -329,11 +348,12 @@ class NetworkPartitionDrill(ChaosDrill):
         if self.mode != "app-mock":
             try:
                 import socket
+
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.settimeout(2)
                 result = sock.connect_ex(("127.0.0.1", self.port))
                 sock.close()
-                accessible = (result == 0)
+                accessible = result == 0
             except:
                 pass
 
@@ -350,25 +370,32 @@ class NetworkPartitionDrill(ChaosDrill):
             "platform": self.platform_name,
             "port_accessible_after_restore": accessible if self.mode != "app-mock" else None,
             "errors": self.errors,
-            "details": f"Executed {self.mode} on {self.platform_name}, {len(self.errors)} errors"
+            "details": f"Executed {self.mode} on {self.platform_name}, {len(self.errors)} errors",
         }
 
 
 class CorpusFileLockDrill(ChaosDrill):
     """Corpus file lock drill (concurrent access)"""
 
-    def __init__(self, config: dict[str, Any], dry_run: bool = True,
-                 file_path: str = "storage/corpus.h5",
-                 concurrency: int = 10,
-                 duration: int = 20,
-                 join_grace: Optional[int] = None):
+    def __init__(
+        self,
+        config: dict[str, Any],
+        dry_run: bool = True,
+        file_path: str = "storage/corpus.h5",
+        concurrency: int = 10,
+        duration: int = 20,
+        join_grace: Optional[int] = None,
+    ):
         super().__init__(config, dry_run)
         self.file_path = file_path
         self.concurrency = concurrency
         self.duration = duration
         # Calculate realistic join timeout for serial queue: ceil(duration * concurrency * 1.2) + 5
         import math
-        self.join_grace = join_grace if join_grace is not None else math.ceil(duration * concurrency * 1.2) + 5
+
+        self.join_grace = (
+            join_grace if join_grace is not None else math.ceil(duration * concurrency * 1.2) + 5
+        )
         self.processes: list[mp.Process] = []
         self.pids: list[int] = []
         self.errors: list[str] = []
@@ -427,17 +454,23 @@ class CorpusFileLockDrill(ChaosDrill):
             logger.info("  - Lock wait time")
             logger.info("  - Retry attempts")
             logger.info("  - Error rate")
-            logger.info(f"  - join_grace={self.join_grace}s (calculated from concurrency*duration*1.2)")
+            logger.info(
+                f"  - join_grace={self.join_grace}s (calculated from concurrency*duration*1.2)"
+            )
             time.sleep(2)
             return
 
         queueing_estimate = self.duration * self.concurrency
-        logger.info(f"Waiting for {len(self.processes)} processes (join_grace={self.join_grace}s, queue estimate={queueing_estimate}s)...")
+        logger.info(
+            f"Waiting for {len(self.processes)} processes (join_grace={self.join_grace}s, queue estimate={queueing_estimate}s)..."
+        )
 
         for i, p in enumerate(self.processes):
             p.join(timeout=self.join_grace)
             if p.is_alive():
-                logger.warning(f"Process {i} (PID {p.pid}) still alive after join_grace={self.join_grace}s")
+                logger.warning(
+                    f"Process {i} (PID {p.pid}) still alive after join_grace={self.join_grace}s"
+                )
                 self.join_timeout_count += 1
                 # Don't add to errors - this is expected behavior for serial queue
             elif p.exitcode != 0:
@@ -473,7 +506,7 @@ class CorpusFileLockDrill(ChaosDrill):
                 "passed": True,
                 "status": "SUCCESS",
                 "criteria": self.config.get("success_criteria", []),
-                "details": "Dry run validation"
+                "details": "Dry run validation",
             }
 
         all_dead = all(not p.is_alive() for p in self.processes)
@@ -507,19 +540,23 @@ class CorpusFileLockDrill(ChaosDrill):
             "join_timeout_applied": self.join_grace,
             "errors": self.errors,
             "all_completed": all_dead,
-            "details": f"{len(self.pids)} processes spawned, {self.crash_count} crashes, {self.join_timeout_count} join timeouts"
+            "details": f"{len(self.pids)} processes spawned, {self.crash_count} crashes, {self.join_timeout_count} join timeouts",
         }
 
 
 class LLMTimeoutStormDrill(ChaosDrill):
     """LLM timeout storm drill (app-mock or HTTP hammering)"""
 
-    def __init__(self, config: dict[str, Any], dry_run: bool = True,
-                 mode: str = "app-mock",
-                 duration: int = 20,
-                 concurrency: int = 10,
-                 timeout_ms: int = 1500,
-                 rps: int = 5):
+    def __init__(
+        self,
+        config: dict[str, Any],
+        dry_run: bool = True,
+        mode: str = "app-mock",
+        duration: int = 20,
+        concurrency: int = 10,
+        timeout_ms: int = 1500,
+        rps: int = 5,
+    ):
         super().__init__(config, dry_run)
         self.mode = mode  # "app-mock" or "http"
         self.duration = duration
@@ -541,12 +578,15 @@ class LLMTimeoutStormDrill(ChaosDrill):
             # Check if LLM endpoint is accessible
             try:
                 import socket
+
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.settimeout(2)
                 result = sock.connect_ex(("127.0.0.1", 11434))
                 sock.close()
                 if result != 0:
-                    logger.warning("LLM endpoint (localhost:11434) not accessible, using app-mock fallback")
+                    logger.warning(
+                        "LLM endpoint (localhost:11434) not accessible, using app-mock fallback"
+                    )
                     self.mode = "app-mock"
             except Exception as e:
                 logger.warning(f"HTTP check failed: {e}, using app-mock")
@@ -559,7 +599,9 @@ class LLMTimeoutStormDrill(ChaosDrill):
         """Inject timeout storm"""
         if self.dry_run:
             logger.info(f"[DRY RUN] Would inject {self.mode} timeout storm")
-            logger.info(f"[DRY RUN] Duration={self.duration}s, concurrency={self.concurrency}, timeout={self.timeout_ms}ms, rps={self.rps}")
+            logger.info(
+                f"[DRY RUN] Duration={self.duration}s, concurrency={self.concurrency}, timeout={self.timeout_ms}ms, rps={self.rps}"
+            )
             return
 
         if self.mode == "app-mock":
@@ -576,8 +618,9 @@ class LLMTimeoutStormDrill(ChaosDrill):
 
     def _inject_http_storm(self) -> None:
         """HTTP: Hammer LLM endpoint with concurrent requests"""
-        import requests
         from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        import requests
 
         logger.info(f"Starting HTTP storm: {self.concurrency} workers, {self.rps} RPS")
 
@@ -587,7 +630,7 @@ class LLMTimeoutStormDrill(ChaosDrill):
                 resp = requests.post(
                     "http://localhost:11434/api/generate",
                     json={"model": "llama3.2:1b", "prompt": "test", "stream": False},
-                    timeout=self.timeout_ms / 1000.0
+                    timeout=self.timeout_ms / 1000.0,
                 )
                 latency_ms = (time.time() - start) * 1000
                 self.latencies.append(latency_ms)
@@ -645,11 +688,7 @@ class LLMTimeoutStormDrill(ChaosDrill):
     def validate(self) -> dict[str, Any]:
         """Validate drill results"""
         if self.dry_run:
-            return {
-                "passed": True,
-                "mode": self.mode,
-                "details": "Dry run validation"
-            }
+            return {"passed": True, "mode": self.mode, "details": "Dry run validation"}
 
         if self.mode == "app-mock":
             return {
@@ -657,12 +696,16 @@ class LLMTimeoutStormDrill(ChaosDrill):
                 "mode": self.mode,
                 "timeout_ms": self.timeout_ms,
                 "duration": self.duration,
-                "details": "App-mock storm completed (check application logs for degradation)"
+                "details": "App-mock storm completed (check application logs for degradation)",
             }
 
         # HTTP mode: calculate metrics
-        timeout_pct = (self.timeout_count / self.total_requests * 100) if self.total_requests > 0 else 0
-        p95_latency = sorted(self.latencies)[int(len(self.latencies) * 0.95)] if self.latencies else 0
+        timeout_pct = (
+            (self.timeout_count / self.total_requests * 100) if self.total_requests > 0 else 0
+        )
+        p95_latency = (
+            sorted(self.latencies)[int(len(self.latencies) * 0.95)] if self.latencies else 0
+        )
 
         return {
             "passed": timeout_pct > 0,  # We expect some timeouts
@@ -676,18 +719,22 @@ class LLMTimeoutStormDrill(ChaosDrill):
             "timeout_count": self.timeout_count,
             "timeout_pct": round(timeout_pct, 2),
             "p95_latency_ms": round(p95_latency, 2) if p95_latency else None,
-            "details": f"{self.total_requests} requests, {timeout_pct:.1f}% timeouts, p95={p95_latency:.0f}ms"
+            "details": f"{self.total_requests} requests, {timeout_pct:.1f}% timeouts, p95={p95_latency:.0f}ms",
         }
 
 
 class DiskFullDrill(ChaosDrill):
     """Disk full drill (safe, reversible)"""
 
-    def __init__(self, config: dict[str, Any], dry_run: bool = True,
-                 path: str = "/tmp/fi-chaos-disk",
-                 fill_until_pct: int = 95,
-                 max_gb: float = 2.0,
-                 duration: int = 20):
+    def __init__(
+        self,
+        config: dict[str, Any],
+        dry_run: bool = True,
+        path: str = "/tmp/fi-chaos-disk",
+        fill_until_pct: int = 95,
+        max_gb: float = 2.0,
+        duration: int = 20,
+    ):
         super().__init__(config, dry_run)
         self.path = Path(path)
         self.fill_until_pct = fill_until_pct
@@ -704,7 +751,12 @@ class DiskFullDrill(ChaosDrill):
             return True
 
         # Safety: only allow /tmp or test paths
-        safe_paths = ["/tmp", "/var/tmp", "/private/tmp", "/private/var/tmp"]  # macOS uses /private/tmp
+        safe_paths = [
+            "/tmp",
+            "/var/tmp",
+            "/private/tmp",
+            "/private/var/tmp",
+        ]  # macOS uses /private/tmp
         path_str = str(self.path.resolve())
 
         is_safe = any(path_str.startswith(p) for p in safe_paths)
@@ -720,10 +772,14 @@ class DiskFullDrill(ChaosDrill):
     def inject_chaos(self) -> None:
         """Fill disk to specified percentage or max GB"""
         if self.dry_run:
-            logger.info(f"[DRY RUN] Would fill {self.path} to {self.fill_until_pct}% or {self.max_gb}GB max")
+            logger.info(
+                f"[DRY RUN] Would fill {self.path} to {self.fill_until_pct}% or {self.max_gb}GB max"
+            )
             return
 
-        logger.info(f"Filling disk at {self.path} (target: {self.fill_until_pct}%, max: {self.max_gb}GB)")
+        logger.info(
+            f"Filling disk at {self.path} (target: {self.fill_until_pct}%, max: {self.max_gb}GB)"
+        )
 
         chunk_size_mb = 128
         chunk_bytes = chunk_size_mb * 1024 * 1024
@@ -806,14 +862,11 @@ class DiskFullDrill(ChaosDrill):
     def validate(self) -> dict[str, Any]:
         """Validate drill execution"""
         if self.dry_run:
-            return {
-                "passed": True,
-                "path": str(self.path),
-                "details": "Dry run validation"
-            }
+            return {"passed": True, "path": str(self.path), "details": "Dry run validation"}
 
         # Get filesystem stats
         import shutil
+
         try:
             usage = shutil.disk_usage(self.path)
             fs_pct = (usage.used / usage.total) * 100
@@ -829,7 +882,7 @@ class DiskFullDrill(ChaosDrill):
             "files_created": len(self.created_files),
             "fs_pct_after": round(fs_pct, 1),
             "backend_write_error_detected": self.backend_write_error,
-            "details": f"Filled {self.filled_gb:.2f}GB, write error: {self.backend_write_error}"
+            "details": f"Filled {self.filled_gb:.2f}GB, write error: {self.backend_write_error}",
         }
 
 
@@ -850,95 +903,59 @@ def main():
     parser.add_argument(
         "drill_type",
         choices=["network_partition", "corpus_file_lock", "llm_timeout_storm", "disk_full"],
-        help="Type of chaos drill to run"
+        help="Type of chaos drill to run",
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Dry run (no actual chaos injection)"
+        "--dry-run", action="store_true", help="Dry run (no actual chaos injection)"
     )
     parser.add_argument(
         "--execute",
         action="store_true",
-        help="Execute drill (requires --no-dry-run or explicit --execute)"
+        help="Execute drill (requires --no-dry-run or explicit --execute)",
     )
+    parser.add_argument("--output", type=str, help="Output JSON report file")
     parser.add_argument(
-        "--output",
-        type=str,
-        help="Output JSON report file"
-    )
-    parser.add_argument(
-        "--yes",
-        action="store_true",
-        help="Skip confirmation prompt (auto-confirm)"
+        "--yes", action="store_true", help="Skip confirmation prompt (auto-confirm)"
     )
     parser.add_argument(
         "--concurrency",
         type=int,
         default=10,
-        help="Number of concurrent processes (corpus_file_lock)"
+        help="Number of concurrent processes (corpus_file_lock)",
     )
     parser.add_argument(
-        "--file",
-        type=str,
-        default="storage/corpus.h5",
-        help="File path for corpus_file_lock drill"
+        "--file", type=str, default="storage/corpus.h5", help="File path for corpus_file_lock drill"
     )
+    parser.add_argument("--duration", type=int, default=20, help="Duration in seconds for drill")
     parser.add_argument(
-        "--duration",
-        type=int,
-        default=20,
-        help="Duration in seconds for drill"
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=7001,
-        help="Port to block for network_partition drill"
+        "--port", type=int, default=7001, help="Port to block for network_partition drill"
     )
     parser.add_argument(
         "--join-grace",
         type=int,
         default=None,
-        help="Join timeout in seconds (corpus_file_lock, auto-calculated if not set)"
+        help="Join timeout in seconds (corpus_file_lock, auto-calculated if not set)",
     )
     parser.add_argument(
         "--mode",
         type=str,
         default="app-mock",
         choices=["app-mock", "http"],
-        help="Mode for llm_timeout_storm (app-mock or http)"
+        help="Mode for llm_timeout_storm (app-mock or http)",
     )
     parser.add_argument(
-        "--timeout-ms",
-        type=int,
-        default=1500,
-        help="Timeout in milliseconds (llm_timeout_storm)"
+        "--timeout-ms", type=int, default=1500, help="Timeout in milliseconds (llm_timeout_storm)"
     )
     parser.add_argument(
-        "--rps",
-        type=int,
-        default=5,
-        help="Requests per second (llm_timeout_storm http mode)"
+        "--rps", type=int, default=5, help="Requests per second (llm_timeout_storm http mode)"
     )
     parser.add_argument(
-        "--path",
-        type=str,
-        default="/tmp/fi-chaos-disk",
-        help="Path for disk_full drill"
+        "--path", type=str, default="/tmp/fi-chaos-disk", help="Path for disk_full drill"
     )
     parser.add_argument(
-        "--fill-until-pct",
-        type=int,
-        default=95,
-        help="Fill disk until percentage (disk_full)"
+        "--fill-until-pct", type=int, default=95, help="Fill disk until percentage (disk_full)"
     )
-    parser.add_argument(
-        "--max-gb",
-        type=float,
-        default=2.0,
-        help="Maximum GB to fill (disk_full)"
-    )
+    parser.add_argument("--max-gb", type=float, default=2.0, help="Maximum GB to fill (disk_full)")
 
     args = parser.parse_args()
 
@@ -972,21 +989,18 @@ def main():
 
     # Create drill instance with type-specific parameters
     if args.drill_type == "corpus_file_lock":
-        join_grace_val = getattr(args, 'join_grace', None)
+        join_grace_val = getattr(args, "join_grace", None)
         drill = CorpusFileLockDrill(
             drill_config,
             dry_run=dry_run,
             file_path=args.file,
             concurrency=args.concurrency,
             duration=args.duration,
-            join_grace=join_grace_val
+            join_grace=join_grace_val,
         )
     elif args.drill_type == "network_partition":
         drill = NetworkPartitionDrill(
-            drill_config,
-            dry_run=dry_run,
-            port=args.port,
-            duration=args.duration
+            drill_config, dry_run=dry_run, port=args.port, duration=args.duration
         )
     elif args.drill_type == "llm_timeout_storm":
         drill = LLMTimeoutStormDrill(
@@ -996,7 +1010,7 @@ def main():
             duration=args.duration,
             concurrency=args.concurrency,
             timeout_ms=args.timeout_ms,
-            rps=args.rps
+            rps=args.rps,
         )
     elif args.drill_type == "disk_full":
         drill = DiskFullDrill(
@@ -1005,7 +1019,7 @@ def main():
             path=args.path,
             fill_until_pct=args.fill_until_pct,
             max_gb=args.max_gb,
-            duration=args.duration
+            duration=args.duration,
         )
     else:
         logger.error(f"Drill type '{args.drill_type}' not implemented yet")

@@ -3,15 +3,14 @@ Test suite for buffered_writer.py
 
 Validates buffer operations, auto-flush, rotation, and integrity checks
 """
-import unittest
-import sys
 import os
-import tempfile
 import shutil
-from pathlib import Path
+import sys
+import tempfile
+import unittest
 
 # Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../backend'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../backend"))
 
 from buffered_writer import BufferedHDF5Writer
 from corpus_schema import init_corpus
@@ -34,10 +33,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
     def test_writer_initialization(self):
         """Test: Writer initializes correctly"""
-        writer = BufferedHDF5Writer(
-            self.corpus_path,
-            buffer_size=10
-        )
+        writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
         self.assertEqual(writer.buffer_size, 10)
         self.assertEqual(len(writer.buffer), 0)
@@ -47,17 +43,14 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
     def test_write_interaction_buffered(self):
         """Test: Interaction is buffered (not flushed immediately)"""
-        writer = BufferedHDF5Writer(
-            self.corpus_path,
-            buffer_size=10
-        )
+        writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
         interaction_id = writer.write_interaction(
             session_id="session_test",
             prompt="Test prompt",
             response="Test response",
             model="test-model",
-            tokens=50
+            tokens=50,
         )
 
         self.assertIsNotNone(interaction_id)
@@ -68,10 +61,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
     def test_manual_flush(self):
         """Test: Manual flush writes buffer to HDF5"""
-        writer = BufferedHDF5Writer(
-            self.corpus_path,
-            buffer_size=10
-        )
+        writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
         # Write 3 interactions
         for i in range(3):
@@ -80,7 +70,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
                 prompt=f"Prompt {i}",
                 response=f"Response {i}",
                 model="test-model",
-                tokens=50
+                tokens=50,
             )
 
         self.assertEqual(len(writer.buffer), 3)
@@ -99,7 +89,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
         """Test: Auto-flush when buffer is full"""
         writer = BufferedHDF5Writer(
             self.corpus_path,
-            buffer_size=5  # Small buffer
+            buffer_size=5,  # Small buffer
         )
 
         # Write 5 interactions (should trigger auto-flush)
@@ -109,7 +99,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
                 prompt=f"Prompt {i}",
                 response=f"Response {i}",
                 model="test-model",
-                tokens=50
+                tokens=50,
             )
 
         # Buffer should be empty after auto-flush
@@ -121,10 +111,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
     def test_flush_empty_buffer(self):
         """Test: Flush empty buffer is no-op"""
-        writer = BufferedHDF5Writer(
-            self.corpus_path,
-            buffer_size=10
-        )
+        writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
         count = writer.flush()
 
@@ -135,10 +122,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
     def test_get_stats(self):
         """Test: Get writer statistics"""
-        writer = BufferedHDF5Writer(
-            self.corpus_path,
-            buffer_size=10
-        )
+        writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
         # Write 2 interactions
         for i in range(2):
@@ -147,7 +131,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
                 prompt=f"Prompt {i}",
                 response=f"Response {i}",
                 model="test-model",
-                tokens=50
+                tokens=50,
             )
 
         stats = writer.get_stats()
@@ -162,18 +146,11 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
     def test_verify_integrity_success(self):
         """Test: Integrity check passes for valid corpus"""
-        writer = BufferedHDF5Writer(
-            self.corpus_path,
-            buffer_size=10
-        )
+        writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
         # Write and flush
         writer.write_interaction(
-            session_id="session_test",
-            prompt="Test",
-            response="Test",
-            model="test-model",
-            tokens=50
+            session_id="session_test", prompt="Test", response="Test", model="test-model", tokens=50
         )
         writer.flush()
 
@@ -187,10 +164,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
     def test_verify_integrity_missing_corpus(self):
         """Test: Integrity check fails for missing corpus"""
         nonexistent_path = os.path.join(self.test_dir, "nonexistent.h5")
-        writer = BufferedHDF5Writer(
-            nonexistent_path,
-            buffer_size=10
-        )
+        writer = BufferedHDF5Writer(nonexistent_path, buffer_size=10)
 
         is_valid = writer.verify_integrity()
 
@@ -207,7 +181,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
                     prompt=f"Prompt {i}",
                     response=f"Response {i}",
                     model="test-model",
-                    tokens=50
+                    tokens=50,
                 )
 
             # Still buffered
@@ -216,7 +190,8 @@ class TestBufferedHDF5Writer(unittest.TestCase):
         # After context exit, should be flushed
         # (can't check writer.buffer after close, but verify corpus has data)
         import h5py
-        with h5py.File(self.corpus_path, 'r') as f:
+
+        with h5py.File(self.corpus_path, "r") as f:
             interactions = f["interactions"]
             size = interactions["session_id"].shape[0]
             # Should have 3 interactions (excluding any initial data)
@@ -224,10 +199,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
     def test_close_flushes_buffer(self):
         """Test: Close() flushes remaining buffer"""
-        writer = BufferedHDF5Writer(
-            self.corpus_path,
-            buffer_size=10
-        )
+        writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
         # Write 2 interactions
         for i in range(2):
@@ -236,7 +208,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
                 prompt=f"Prompt {i}",
                 response=f"Response {i}",
                 model="test-model",
-                tokens=50
+                tokens=50,
             )
 
         self.assertEqual(len(writer.buffer), 2)
@@ -246,17 +218,15 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
         # Verify data was written
         import h5py
-        with h5py.File(self.corpus_path, 'r') as f:
+
+        with h5py.File(self.corpus_path, "r") as f:
             interactions = f["interactions"]
             size = interactions["session_id"].shape[0]
             self.assertGreaterEqual(size, 2)
 
     def test_thread_safety_lock(self):
         """Test: Lock prevents concurrent writes"""
-        writer = BufferedHDF5Writer(
-            self.corpus_path,
-            buffer_size=10
-        )
+        writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
         # Acquire lock
         writer.lock.acquire()
@@ -275,10 +245,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
     def test_atomic_write_all_or_nothing(self):
         """Test: Flush is atomic (all records or none)"""
-        writer = BufferedHDF5Writer(
-            self.corpus_path,
-            buffer_size=10
-        )
+        writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
         # Write 3 interactions
         for i in range(3):
@@ -287,25 +254,26 @@ class TestBufferedHDF5Writer(unittest.TestCase):
                 prompt=f"Prompt {i}",
                 response=f"Response {i}",
                 model="test-model",
-                tokens=50
+                tokens=50,
             )
 
         # Get initial corpus size
         import h5py
-        with h5py.File(self.corpus_path, 'r') as f:
+
+        with h5py.File(self.corpus_path, "r") as f:
             initial_size = f["interactions"]["session_id"].shape[0]
 
         # Flush
         writer.flush()
 
         # Verify all 3 written
-        with h5py.File(self.corpus_path, 'r') as f:
+        with h5py.File(self.corpus_path, "r") as f:
             final_size = f["interactions"]["session_id"].shape[0]
             self.assertEqual(final_size - initial_size, 3)
 
         writer.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Run with verbose output
     unittest.main(verbosity=2)

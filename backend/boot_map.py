@@ -11,14 +11,13 @@ Author: Bernard Uriza Orozco
 License: MIT
 """
 
-import uuid
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Optional
+
 import h5py
 import numpy as np
 
 from backend.logger import get_logger
-from backend.config_loader import load_config
 
 logger = get_logger(__name__)
 
@@ -41,10 +40,7 @@ def init_boot_map_group(h5file: h5py.File) -> None:
     """
     if "/system" in h5file:
         if "/system/boot_map" in h5file:
-            logger.warning(
-                "BOOT_MAP_GROUP_EXISTS",
-                path="/system/boot_map"
-            )
+            logger.warning("BOOT_MAP_GROUP_EXISTS", path="/system/boot_map")
             raise ValueError("Boot map group already exists")
     else:
         h5file.create_group("/system")
@@ -58,22 +54,24 @@ def init_boot_map_group(h5file: h5py.File) -> None:
         "boot_sequence",
         shape=(0,),
         maxshape=(None,),
-        dtype=h5py.string_dtype(encoding='utf-8', length=200),
+        dtype=h5py.string_dtype(encoding="utf-8", length=200),
         chunks=True,
         compression="gzip",
-        compression_opts=4
+        compression_opts=4,
     )
 
     # Dataset: core_functions
     # Lista de funciones críticas del sistema
-    dt_functions = np.dtype([
-        ('function_name', h5py.string_dtype(encoding='utf-8', length=100)),
-        ('module_path', h5py.string_dtype(encoding='utf-8', length=200)),
-        ('category', h5py.string_dtype(encoding='utf-8', length=50)),
-        ('priority', 'i4'),
-        ('registered_at', h5py.string_dtype(encoding='utf-8', length=50)),
-        ('status', h5py.string_dtype(encoding='utf-8', length=20))
-    ])
+    dt_functions = np.dtype(
+        [
+            ("function_name", h5py.string_dtype(encoding="utf-8", length=100)),
+            ("module_path", h5py.string_dtype(encoding="utf-8", length=200)),
+            ("category", h5py.string_dtype(encoding="utf-8", length=50)),
+            ("priority", "i4"),
+            ("registered_at", h5py.string_dtype(encoding="utf-8", length=50)),
+            ("status", h5py.string_dtype(encoding="utf-8", length=20)),
+        ]
+    )
     boot_group.create_dataset(
         "core_functions",
         shape=(0,),
@@ -81,18 +79,20 @@ def init_boot_map_group(h5file: h5py.File) -> None:
         dtype=dt_functions,
         chunks=True,
         compression="gzip",
-        compression_opts=4
+        compression_opts=4,
     )
 
     # Dataset: health_checks
     # Estado de salud de cada componente
-    dt_health = np.dtype([
-        ('component', h5py.string_dtype(encoding='utf-8', length=100)),
-        ('status', h5py.string_dtype(encoding='utf-8', length=20)),
-        ('message', h5py.string_dtype(encoding='utf-8', length=200)),
-        ('checked_at', h5py.string_dtype(encoding='utf-8', length=50)),
-        ('duration_ms', 'f4')
-    ])
+    dt_health = np.dtype(
+        [
+            ("component", h5py.string_dtype(encoding="utf-8", length=100)),
+            ("status", h5py.string_dtype(encoding="utf-8", length=20)),
+            ("message", h5py.string_dtype(encoding="utf-8", length=200)),
+            ("checked_at", h5py.string_dtype(encoding="utf-8", length=50)),
+            ("duration_ms", "f4"),
+        ]
+    )
     boot_group.create_dataset(
         "health_checks",
         shape=(0,),
@@ -100,25 +100,22 @@ def init_boot_map_group(h5file: h5py.File) -> None:
         dtype=dt_health,
         chunks=True,
         compression="gzip",
-        compression_opts=4
+        compression_opts=4,
     )
 
     # Metadata del boot map
-    boot_group.attrs['created_at'] = datetime.now(timezone.utc).isoformat()
-    boot_group.attrs['schema_version'] = '1.0'
-    boot_group.attrs['boot_map_version'] = '0.2.0'
+    boot_group.attrs["created_at"] = datetime.now(UTC).isoformat()
+    boot_group.attrs["schema_version"] = "1.0"
+    boot_group.attrs["boot_map_version"] = "0.2.0"
 
     logger.info(
         "BOOT_MAP_GROUP_INITIALIZED",
         path="/system/boot_map",
-        datasets=["boot_sequence", "core_functions", "health_checks"]
+        datasets=["boot_sequence", "core_functions", "health_checks"],
     )
 
 
-def append_boot_event(
-    h5file: h5py.File,
-    event: str
-) -> None:
+def append_boot_event(h5file: h5py.File, event: str) -> None:
     """
     Registra un evento en la secuencia de arranque.
 
@@ -137,15 +134,11 @@ def append_boot_event(
     dataset.resize((current_size + 1,))
 
     # Format: timestamp|event
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     entry = f"{timestamp}|{event}"
     dataset[current_size] = entry
 
-    logger.info(
-        "BOOT_EVENT_APPENDED",
-        boot_event=event,
-        sequence_index=current_size
-    )
+    logger.info("BOOT_EVENT_APPENDED", boot_event=event, sequence_index=current_size)
 
 
 def register_core_function(
@@ -154,7 +147,7 @@ def register_core_function(
     module_path: str,
     category: str,
     priority: int = 100,
-    status: str = "REGISTERED"
+    status: str = "REGISTERED",
 ) -> None:
     """
     Registra una función crítica del sistema.
@@ -177,32 +170,21 @@ def register_core_function(
     current_size = dataset.shape[0]
     dataset.resize((current_size + 1,))
 
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
 
-    dataset[current_size] = (
-        function_name,
-        module_path,
-        category,
-        priority,
-        timestamp,
-        status
-    )
+    dataset[current_size] = (function_name, module_path, category, priority, timestamp, status)
 
     logger.info(
         "CORE_FUNCTION_REGISTERED",
         function=function_name,
         module=module_path,
         category=category,
-        priority=priority
+        priority=priority,
     )
 
 
 def append_health_check(
-    h5file: h5py.File,
-    component: str,
-    status: str,
-    message: str,
-    duration_ms: float = 0.0
+    h5file: h5py.File, component: str, status: str, message: str, duration_ms: float = 0.0
 ) -> None:
     """
     Registra el resultado de un health check.
@@ -224,25 +206,16 @@ def append_health_check(
     current_size = dataset.shape[0]
     dataset.resize((current_size + 1,))
 
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
 
-    dataset[current_size] = (
-        component,
-        status,
-        message,
-        timestamp,
-        duration_ms
-    )
+    dataset[current_size] = (component, status, message, timestamp, duration_ms)
 
     logger.info(
-        "HEALTH_CHECK_RECORDED",
-        component=component,
-        status=status,
-        duration_ms=duration_ms
+        "HEALTH_CHECK_RECORDED", component=component, status=status, duration_ms=duration_ms
     )
 
 
-def get_boot_sequence(h5file: h5py.File) -> List[Tuple[str, str]]:
+def get_boot_sequence(h5file: h5py.File) -> list[tuple[str, str]]:
     """
     Recupera la secuencia de arranque completa.
 
@@ -259,23 +232,17 @@ def get_boot_sequence(h5file: h5py.File) -> List[Tuple[str, str]]:
     sequence = []
 
     for entry in dataset:
-        entry_str = entry.decode('utf-8') if isinstance(entry, bytes) else entry
-        parts = entry_str.split('|', 1)
+        entry_str = entry.decode("utf-8") if isinstance(entry, bytes) else entry
+        parts = entry_str.split("|", 1)
         if len(parts) == 2:
             sequence.append((parts[0], parts[1]))
 
-    logger.info(
-        "BOOT_SEQUENCE_READ",
-        total_events=len(sequence)
-    )
+    logger.info("BOOT_SEQUENCE_READ", total_events=len(sequence))
 
     return sequence
 
 
-def get_core_functions(
-    h5file: h5py.File,
-    category: Optional[str] = None
-) -> List[Dict]:
+def get_core_functions(h5file: h5py.File, category: Optional[str] = None) -> list[dict]:
     """
     Recupera funciones core registradas.
 
@@ -296,30 +263,38 @@ def get_core_functions(
     functions = []
 
     for entry in dataset:
-        entry_category = entry['category'].decode('utf-8') if isinstance(entry['category'], bytes) else entry['category']
+        entry_category = (
+            entry["category"].decode("utf-8")
+            if isinstance(entry["category"], bytes)
+            else entry["category"]
+        )
 
         func_dict = {
-            'function_name': entry['function_name'].decode('utf-8') if isinstance(entry['function_name'], bytes) else entry['function_name'],
-            'module_path': entry['module_path'].decode('utf-8') if isinstance(entry['module_path'], bytes) else entry['module_path'],
-            'category': entry_category,
-            'priority': int(entry['priority']),
-            'registered_at': entry['registered_at'].decode('utf-8') if isinstance(entry['registered_at'], bytes) else entry['registered_at'],
-            'status': entry['status'].decode('utf-8') if isinstance(entry['status'], bytes) else entry['status']
+            "function_name": entry["function_name"].decode("utf-8")
+            if isinstance(entry["function_name"], bytes)
+            else entry["function_name"],
+            "module_path": entry["module_path"].decode("utf-8")
+            if isinstance(entry["module_path"], bytes)
+            else entry["module_path"],
+            "category": entry_category,
+            "priority": int(entry["priority"]),
+            "registered_at": entry["registered_at"].decode("utf-8")
+            if isinstance(entry["registered_at"], bytes)
+            else entry["registered_at"],
+            "status": entry["status"].decode("utf-8")
+            if isinstance(entry["status"], bytes)
+            else entry["status"],
         }
 
         if category is None or entry_category == category:
             functions.append(func_dict)
 
-    logger.info(
-        "CORE_FUNCTIONS_READ",
-        total_functions=len(functions),
-        category=category or "all"
-    )
+    logger.info("CORE_FUNCTIONS_READ", total_functions=len(functions), category=category or "all")
 
     return functions
 
 
-def get_health_status(h5file: h5py.File) -> Dict[str, List[Dict]]:
+def get_health_status(h5file: h5py.File) -> dict[str, list[dict]]:
     """
     Recupera el estado de salud de todos los componentes.
 
@@ -333,22 +308,27 @@ def get_health_status(h5file: h5py.File) -> Dict[str, List[Dict]]:
         raise KeyError("Boot map group not initialized")
 
     dataset = h5file["/system/boot_map/health_checks"]
-    health = {
-        'OK': [],
-        'WARNING': [],
-        'ERROR': [],
-        'CRITICAL': []
-    }
+    health = {"OK": [], "WARNING": [], "ERROR": [], "CRITICAL": []}
 
     for entry in dataset:
-        entry_status = entry['status'].decode('utf-8') if isinstance(entry['status'], bytes) else entry['status']
+        entry_status = (
+            entry["status"].decode("utf-8")
+            if isinstance(entry["status"], bytes)
+            else entry["status"]
+        )
 
         check_dict = {
-            'component': entry['component'].decode('utf-8') if isinstance(entry['component'], bytes) else entry['component'],
-            'status': entry_status,
-            'message': entry['message'].decode('utf-8') if isinstance(entry['message'], bytes) else entry['message'],
-            'checked_at': entry['checked_at'].decode('utf-8') if isinstance(entry['checked_at'], bytes) else entry['checked_at'],
-            'duration_ms': float(entry['duration_ms'])
+            "component": entry["component"].decode("utf-8")
+            if isinstance(entry["component"], bytes)
+            else entry["component"],
+            "status": entry_status,
+            "message": entry["message"].decode("utf-8")
+            if isinstance(entry["message"], bytes)
+            else entry["message"],
+            "checked_at": entry["checked_at"].decode("utf-8")
+            if isinstance(entry["checked_at"], bytes)
+            else entry["checked_at"],
+            "duration_ms": float(entry["duration_ms"]),
         }
 
         if entry_status in health:
@@ -356,16 +336,16 @@ def get_health_status(h5file: h5py.File) -> Dict[str, List[Dict]]:
 
     logger.info(
         "HEALTH_STATUS_READ",
-        ok=len(health['OK']),
-        warning=len(health['WARNING']),
-        error=len(health['ERROR']),
-        critical=len(health['CRITICAL'])
+        ok=len(health["OK"]),
+        warning=len(health["WARNING"]),
+        error=len(health["ERROR"]),
+        critical=len(health["CRITICAL"]),
     )
 
     return health
 
 
-def get_boot_map_stats(h5file: h5py.File) -> Dict:
+def get_boot_map_stats(h5file: h5py.File) -> dict:
     """
     Obtiene estadísticas del boot map.
 
@@ -381,12 +361,12 @@ def get_boot_map_stats(h5file: h5py.File) -> Dict:
     boot_group = h5file["/system/boot_map"]
 
     stats = {
-        'created_at': boot_group.attrs.get('created_at', 'unknown'),
-        'schema_version': boot_group.attrs.get('schema_version', 'unknown'),
-        'boot_map_version': boot_group.attrs.get('boot_map_version', 'unknown'),
-        'total_boot_events': boot_group["boot_sequence"].shape[0],
-        'total_core_functions': boot_group["core_functions"].shape[0],
-        'total_health_checks': boot_group["health_checks"].shape[0]
+        "created_at": boot_group.attrs.get("created_at", "unknown"),
+        "schema_version": boot_group.attrs.get("schema_version", "unknown"),
+        "boot_map_version": boot_group.attrs.get("boot_map_version", "unknown"),
+        "total_boot_events": boot_group["boot_sequence"].shape[0],
+        "total_core_functions": boot_group["core_functions"].shape[0],
+        "total_health_checks": boot_group["health_checks"].shape[0],
     }
 
     logger.info("BOOT_MAP_STATS_RETRIEVED", **stats)
@@ -395,7 +375,6 @@ def get_boot_map_stats(h5file: h5py.File) -> Dict:
 
 
 if __name__ == "__main__":
-    import sys
     from pathlib import Path
 
     # Demo
@@ -453,6 +432,8 @@ if __name__ == "__main__":
             if checks:
                 print(f"   {status}: {len(checks)} component(s)")
                 for check in checks:
-                    print(f"      - {check['component']}: {check['message']} ({check['duration_ms']}ms)")
+                    print(
+                        f"      - {check['component']}: {check['message']} ({check['duration_ms']}ms)"
+                    )
 
     print(f"\n✅ Demo completed. Test file: {test_file}")

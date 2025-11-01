@@ -3,14 +3,9 @@ Tests for Artifact Verifier
 Card: FI-GOV-TOOL-001
 """
 
-import json
-import pytest
 from pathlib import Path
-from tools.verify_artifact import (
-    verify_artifact,
-    verify_all,
-    ARTIFACT_REGISTRY,
-)
+
+from tools.verify_artifact import ARTIFACT_REGISTRY, verify_all, verify_artifact
 
 
 class TestVerifyArtifact:
@@ -126,8 +121,8 @@ class TestArtifactRegistry:
         """Test that registry includes required governance cards."""
         required_cards = [
             "FI-GOV-TOOL-001",  # Self-reference
-            "FI-POLICY-001",    # Policy config
-            "FI-EVAL-001",      # Evaluation prompts
+            "FI-POLICY-001",  # Policy config
+            "FI-EVAL-001",  # Evaluation prompts
         ]
 
         for card_id in required_cards:
@@ -168,4 +163,5 @@ class TestIntegration:
         assert script_path.stat().st_size > 0, "verify_artifact.py is empty"
         # Check it's executable (Unix permissions)
         import os
+
         assert os.access(script_path, os.X_OK), "verify_artifact.py not executable"

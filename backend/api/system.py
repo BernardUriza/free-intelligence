@@ -9,11 +9,9 @@ Endpoints:
   GET /api/system/health - Unified health check aggregating all services
 """
 
-import os
-import shutil
 import subprocess
 from datetime import datetime
-from typing import Dict, Optional, Any, List
+from typing import Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -27,8 +25,9 @@ router = APIRouter(prefix="/api/system")
 
 class SystemHealthResponse(BaseModel):
     """Unified system health response"""
+
     ok: bool
-    services: Dict[str, Any]
+    services: dict[str, Any]
     version: str
     time: str
 
@@ -38,7 +37,7 @@ def check_backend_health() -> bool:
     return True
 
 
-def check_diarization_health() -> Dict[str, bool]:
+def check_diarization_health() -> dict[str, bool]:
     """
     Check diarization service health.
 
@@ -53,6 +52,7 @@ def check_diarization_health() -> Dict[str, bool]:
     whisper_ok = False
     try:
         from backend.whisper_service import is_whisper_available
+
         whisper_ok = is_whisper_available()
     except Exception as e:
         logger.warning("WHISPER_CHECK_FAILED", error=str(e))
@@ -60,23 +60,15 @@ def check_diarization_health() -> Dict[str, bool]:
     # Check ffmpeg/ffprobe
     ffmpeg_ok = False
     try:
-        result = subprocess.run(
-            ["ffprobe", "-version"],
-            capture_output=True,
-            timeout=2,
-            text=True
-        )
+        result = subprocess.run(["ffprobe", "-version"], capture_output=True, timeout=2, text=True)
         ffmpeg_ok = result.returncode == 0
     except Exception as e:
         logger.warning("FFMPEG_CHECK_FAILED", error=str(e))
 
-    return {
-        "whisper": whisper_ok,
-        "ffmpeg": ffmpeg_ok
-    }
+    return {"whisper": whisper_ok, "ffmpeg": ffmpeg_ok}
 
 
-def check_llm_health() -> Dict[str, Any]:
+def check_llm_health() -> dict[str, Any]:
     """
     Check LLM service health.
 
@@ -91,12 +83,10 @@ def check_llm_health() -> Dict[str, Any]:
 
     try:
         import requests
+
         from backend.diarization_service import OLLAMA_BASE_URL
 
-        response = requests.get(
-            f"{OLLAMA_BASE_URL}/api/tags",
-            timeout=0.8
-        )
+        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=0.8)
 
         if response.status_code == 200:
             ollama_ok = True
@@ -105,10 +95,7 @@ def check_llm_health() -> Dict[str, Any]:
     except Exception as e:
         logger.debug("OLLAMA_CHECK_FAILED", error=str(e))
 
-    return {
-        "ollama": ollama_ok,
-        "models": models
-    }
+    return {"ollama": ollama_ok, "models": models}
 
 
 def check_policy_health() -> bool:
@@ -122,6 +109,7 @@ def check_policy_health() -> bool:
     """
     try:
         from backend.policy_enforcer import PolicyEnforcer
+
         enforcer = PolicyEnforcer()
         return True
     except Exception as e:
@@ -158,22 +146,17 @@ async def get_system_health() -> SystemHealthResponse:
     # Critical services: backend, diarization.whisper, diarization.ffmpeg, policy
     # LLM is optional (graceful degradation)
     critical_ok = (
-        backend_ok and
-        diarization.get("whisper", False) and
-        diarization.get("ffmpeg", False) and
-        policy_ok
+        backend_ok
+        and diarization.get("whisper", False)
+        and diarization.get("ffmpeg", False)
+        and policy_ok
     )
 
-    services = {
-        "backend": backend_ok,
-        "diarization": diarization,
-        "llm": llm,
-        "policy": policy_ok
-    }
+    services = {"backend": backend_ok, "diarization": diarization, "llm": llm, "policy": policy_ok}
 
     return SystemHealthResponse(
         ok=critical_ok,
         services=services,
         version="v0.3.0",
-        time=datetime.utcnow().isoformat() + "Z"
+        time=datetime.utcnow().isoformat() + "Z",
     )

@@ -15,8 +15,9 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.llm_router import llm_generate, llm_embed
+from backend.llm_router import llm_embed, llm_generate
 from backend.metrics import get_metrics_collector
+
 
 def main():
     print("=" * 70)
@@ -32,10 +33,7 @@ def main():
 
     print("\n🤖 Generating with Ollama...")
     try:
-        response = llm_generate(
-            prompt="What is 2+2?",
-            provider="ollama"
-        )
+        response = llm_generate(prompt="What is 2+2?", provider="ollama")
         print(f"✅ Response: {response.content[:100]}")
         print(f"   Latency: {response.latency_ms:.0f}ms")
         print(f"   Tokens: {response.tokens_used}")
@@ -72,10 +70,7 @@ def main():
 
     print("\n🔥 Triggering error with invalid provider...")
     try:
-        response = llm_generate(
-            prompt="Test",
-            provider="invalid_provider"
-        )
+        response = llm_generate(prompt="Test", provider="invalid_provider")
     except Exception as e:
         print(f"   ✅ Error caught (expected): {type(e).__name__}")
 
@@ -97,8 +92,8 @@ def main():
     print(f"   Total: ${summary['cost']['total_usd']:.6f}")
     print(f"   Tokens: {summary['cost']['tokens']:,}")
     print(f"   Requests: {summary['cost']['requests']}")
-    print(f"   By Provider:")
-    for provider, cost in summary['cost']['by_provider'].items():
+    print("   By Provider:")
+    for provider, cost in summary["cost"]["by_provider"].items():
         print(f"      {provider}: ${cost:.6f}")
 
     print("\n🔄 Cache Metrics:")
@@ -107,12 +102,12 @@ def main():
     print(f"   Misses: {summary['cache']['misses']}")
 
     print("\n📡 Provider Distribution:")
-    for provider, count in summary['provider_distribution'].items():
+    for provider, count in summary["provider_distribution"].items():
         print(f"   {provider}: {count} requests")
 
     print("\n❌ Errors by Provider:")
-    if summary['errors_by_provider']:
-        for provider, count in summary['errors_by_provider'].items():
+    if summary["errors_by_provider"]:
+        for provider, count in summary["errors_by_provider"].items():
             print(f"   {provider}: {count} errors")
     else:
         print("   No errors recorded")
@@ -123,10 +118,10 @@ def main():
     print("=" * 70)
 
     checks = [
-        ("Latency metrics recorded", summary['latency']['count'] > 0),
-        ("Cost metrics recorded", summary['cost']['requests'] > 0),
-        ("Cache events recorded", (summary['cache']['hits'] + summary['cache']['misses']) > 0),
-        ("Provider distribution tracked", len(summary['provider_distribution']) > 0),
+        ("Latency metrics recorded", summary["latency"]["count"] > 0),
+        ("Cost metrics recorded", summary["cost"]["requests"] > 0),
+        ("Cache events recorded", (summary["cache"]["hits"] + summary["cache"]["misses"]) > 0),
+        ("Provider distribution tracked", len(summary["provider_distribution"]) > 0),
     ]
 
     all_passed = True

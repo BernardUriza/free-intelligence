@@ -19,14 +19,13 @@ Environment Variables:
     MAX_WORKERS: Max parallel transcriptions
 """
 
-import os
 import json
-import time
-import glob
 import logging
-from pathlib import Path
-from typing import Dict, List
+import os
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
 from faster_whisper import WhisperModel
 
 # Configuration from environment
@@ -47,11 +46,8 @@ LOG_DIR = Path(os.getenv("LOG_DIR", "/data/asr/logs"))
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler(LOG_DIR / "worker.log"),
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.FileHandler(LOG_DIR / "worker.log"), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -70,19 +66,14 @@ logger.info(f"  Max workers: {MAX_WORKERS}")
 
 # Initialize Whisper model
 logger.info("Loading Whisper model...")
-model = WhisperModel(
-    MODEL_SIZE,
-    device="cpu",
-    compute_type=COMPUTE_TYPE,
-    num_workers=MAX_WORKERS
-)
+model = WhisperModel(MODEL_SIZE, device="cpu", compute_type=COMPUTE_TYPE, num_workers=MAX_WORKERS)
 logger.info("Model loaded successfully")
 
 # Create output directory
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def transcribe_file(audio_path: Path) -> Dict:
+def transcribe_file(audio_path: Path) -> dict:
     """
     Transcribe a single audio file.
 
@@ -101,10 +92,11 @@ def transcribe_file(audio_path: Path) -> Dict:
         logger.info(f"TRANSCRIBE START: {audio_path.name}")
 
         # Transcribe with VAD if enabled
-        vad_params = {
-            "min_silence_duration_ms": VAD_MIN_SILENCE,
-            "speech_pad_ms": 400
-        } if VAD_ENABLED else None
+        vad_params = (
+            {"min_silence_duration_ms": VAD_MIN_SILENCE, "speech_pad_ms": 400}
+            if VAD_ENABLED
+            else None
+        )
 
         segments, info = model.transcribe(
             str(audio_path),
@@ -112,17 +104,15 @@ def transcribe_file(audio_path: Path) -> Dict:
             vad_filter=VAD_ENABLED,
             vad_parameters=vad_params,
             beam_size=BEAM_SIZE,
-            best_of=BEAM_SIZE
+            best_of=BEAM_SIZE,
         )
 
         # Convert generator to list and format
         segments_list = []
         for seg in segments:
-            segments_list.append({
-                "start": round(seg.start, 2),
-                "end": round(seg.end, 2),
-                "text": seg.text.strip()
-            })
+            segments_list.append(
+                {"start": round(seg.start, 2), "end": round(seg.end, 2), "text": seg.text.strip()}
+            )
 
         # Build result
         result = {
@@ -135,7 +125,7 @@ def transcribe_file(audio_path: Path) -> Dict:
             "model": MODEL_SIZE,
             "compute_type": COMPUTE_TYPE,
             "vad_enabled": VAD_ENABLED,
-            "processing_time_sec": round(time.time() - start_time, 2)
+            "processing_time_sec": round(time.time() - start_time, 2),
         }
 
         # Write JSON output

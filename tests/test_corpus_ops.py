@@ -5,22 +5,23 @@ Unit tests for corpus operations (append, read, stats).
 FI-DATA-OPS (Test)
 """
 
-import unittest
-import tempfile
 import sys
-import numpy as np
+import tempfile
+import unittest
 from pathlib import Path
+
+import numpy as np
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
-from corpus_schema import init_corpus
 from corpus_ops import (
-    append_interaction,
     append_embedding,
+    append_interaction,
     get_corpus_stats,
-    read_interactions
+    read_interactions,
 )
+from corpus_schema import init_corpus
 
 
 class TestCorpusOps(unittest.TestCase):
@@ -31,7 +32,7 @@ class TestCorpusOps(unittest.TestCase):
 
     def setUp(self):
         """Create temporary corpus for testing."""
-        self.temp_file = tempfile.NamedTemporaryFile(suffix='.h5', delete=False)
+        self.temp_file = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
         self.temp_path = self.temp_file.name
         self.temp_file.close()
         Path(self.temp_path).unlink()
@@ -53,7 +54,7 @@ class TestCorpusOps(unittest.TestCase):
             response="Test response",
             model="test-model",
             tokens=50,
-            timestamp="2025-10-24T23:00:00-06:00"
+            timestamp="2025-10-24T23:00:00-06:00",
         )
 
         self.assertIsNotNone(interaction_id)
@@ -68,7 +69,7 @@ class TestCorpusOps(unittest.TestCase):
                 prompt=f"Test prompt {i}",
                 response=f"Test response {i}",
                 model="test-model",
-                tokens=50 + i
+                tokens=50 + i,
             )
             self.assertIsNotNone(interaction_id)
 
@@ -85,16 +86,12 @@ class TestCorpusOps(unittest.TestCase):
             prompt="Test",
             response="Response",
             model="test-model",
-            tokens=50
+            tokens=50,
         )
 
         # Append embedding
         vector = np.random.rand(768).astype(np.float32)
-        success = append_embedding(
-            self.temp_path,
-            interaction_id=interaction_id,
-            vector=vector
-        )
+        success = append_embedding(self.temp_path, interaction_id=interaction_id, vector=vector)
 
         self.assertTrue(success)
 
@@ -135,7 +132,7 @@ class TestCorpusOps(unittest.TestCase):
                 prompt=f"Prompt {i}",
                 response=f"Response {i}",
                 model="test-model",
-                tokens=100 + i
+                tokens=100 + i,
             )
 
         # Read them back
@@ -156,7 +153,7 @@ class TestCorpusOps(unittest.TestCase):
                 prompt=f"Prompt {i}",
                 response=f"Response {i}",
                 model="test-model",
-                tokens=100
+                tokens=100,
             )
 
         # Read only last 2

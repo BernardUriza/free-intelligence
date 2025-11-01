@@ -12,16 +12,17 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
-import structlog
+from typing import Any, Optional
 from zoneinfo import ZoneInfo
+
+import structlog
 
 
 def get_logger(
     name: str = "free-intelligence",
     log_level: Optional[str] = None,
     timezone: str = "America/Mexico_City",
-    log_file: Optional[str] = None
+    log_file: Optional[str] = None,
 ) -> structlog.BoundLogger:
     """
     Get configured structured logger with timezone-aware timestamps.
@@ -47,6 +48,7 @@ def get_logger(
     if log_level is None:
         try:
             from config_loader import load_config
+
             config = load_config()
             log_level = config["system"]["log_level"]
         except Exception:
@@ -63,15 +65,12 @@ def get_logger(
         handlers.append(logging.FileHandler(log_file))
 
     # Configure standard logging
-    logging.basicConfig(
-        format="%(message)s",
-        level=numeric_level,
-        handlers=handlers,
-        force=True
-    )
+    logging.basicConfig(format="%(message)s", level=numeric_level, handlers=handlers, force=True)
 
     # Timezone-aware timestamp processor
-    def add_timestamp(logger, method_name, event_dict):
+    def add_timestamp(
+        logger: logging.Logger, method_name: str, event_dict: dict[str, Any]
+    ) -> dict[str, Any]:
         """Add timezone-aware timestamp to log entries."""
         tz = ZoneInfo(timezone)
         event_dict["timestamp"] = datetime.now(tz).isoformat()
@@ -84,7 +83,7 @@ def get_logger(
             add_timestamp,
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -110,6 +109,7 @@ def init_logger_from_config(config_path: Optional[str] = None) -> structlog.Boun
     """
     try:
         from config_loader import load_config
+
         config = load_config(config_path)
 
         log_level = config["system"]["log_level"]
@@ -120,19 +120,12 @@ def init_logger_from_config(config_path: Optional[str] = None) -> structlog.Boun
         # Future: Add log_file configuration to config.yml if needed
 
         return get_logger(
-            name="free-intelligence",
-            log_level=log_level,
-            timezone=timezone,
-            log_file=log_file
+            name="free-intelligence", log_level=log_level, timezone=timezone, log_file=log_file
         )
     except Exception as e:
         # Fallback to defaults if config loading fails
         fallback_logger = get_logger(log_level="INFO")
-        fallback_logger.warning(
-            "config_load_failed",
-            error=str(e),
-            using_defaults=True
-        )
+        fallback_logger.warning("config_load_failed", error=str(e), using_defaults=True)
         return fallback_logger
 
 

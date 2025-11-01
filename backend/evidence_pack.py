@@ -18,10 +18,11 @@ Philosophy:
 import hashlib
 import json
 import time
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
-from dataclasses import dataclass, asdict
+from typing import Optional
+
 import yaml
 
 
@@ -45,10 +46,10 @@ class EvidencePack:
     pack_id: str  # Unique pack identifier
     created_at: str  # ISO-8601 timestamp
     session_id: Optional[str]  # Associated session
-    sources: List[ClinicalSource]  # Clinical sources
-    source_hashes: List[str]  # SHA256 of each source
+    sources: list[ClinicalSource]  # Clinical sources
+    source_hashes: list[str]  # SHA256 of each source
     policy_snapshot_id: str  # Policy version at creation
-    metadata: Dict  # Additional metadata
+    metadata: dict  # Additional metadata
 
 
 class EvidencePackBuilder:
@@ -65,9 +66,9 @@ class EvidencePackBuilder:
             config_path = Path("config/extract/clinical_min.yaml")
 
         self.config = self._load_config(config_path)
-        self.sources: List[ClinicalSource] = []
+        self.sources: list[ClinicalSource] = []
 
-    def _load_config(self, path: Path) -> Dict:
+    def _load_config(self, path: Path) -> dict:
         """Load extraction configuration"""
         if not path.exists():
             # Return default config if file doesn't exist
@@ -111,9 +112,7 @@ class EvidencePackBuilder:
         content = json.dumps(asdict(source), sort_keys=True)
         return hashlib.sha256(content.encode()).hexdigest()
 
-    def build(
-        self, session_id: Optional[str] = None, policy_version: str = "v1.0"
-    ) -> EvidencePack:
+    def build(self, session_id: Optional[str] = None, policy_version: str = "v1.0") -> EvidencePack:
         """
         Build evidence pack from sources.
 
@@ -151,7 +150,7 @@ class EvidencePackBuilder:
 
         return pack
 
-    def to_dict(self, pack: EvidencePack) -> Dict:
+    def to_dict(self, pack: EvidencePack) -> dict:
         """
         Convert evidence pack to dictionary.
 
@@ -185,7 +184,7 @@ class EvidencePackBuilder:
 
 
 def create_evidence_pack_from_sources(
-    sources: List[Dict], session_id: Optional[str] = None
+    sources: list[dict], session_id: Optional[str] = None
 ) -> EvidencePack:
     """
     Convenience function to create evidence pack from source dictionaries.

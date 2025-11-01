@@ -6,11 +6,11 @@ Card: FI-POLICY-STR-001
 Creates manifest.json with policy digest and test results
 """
 
-import json
 import hashlib
+import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -21,15 +21,18 @@ def main():
         print("❌ Policy file not found: config/fi.policy.yaml")
         sys.exit(1)
 
-    with open(policy_path, 'rb') as f:
+    with open(policy_path, "rb") as f:
         policy_digest = hashlib.sha256(f.read()).hexdigest()
 
     # Get git SHA
     try:
-        git_sha = subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            stderr=subprocess.DEVNULL
-        ).decode().strip()
+        git_sha = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL
+            )
+            .decode()
+            .strip()
+        )
     except:
         git_sha = "unknown"
 
@@ -37,7 +40,7 @@ def main():
     result = subprocess.run(
         ["python3", "-m", "pytest", "tests/test_policy_enforcement.py", "-q"],
         capture_output=True,
-        text=True
+        text=True,
     )
     tests_passed = result.returncode == 0
     test_output = result.stdout
@@ -47,23 +50,23 @@ def main():
 
     # Create manifest
     manifest = {
-        "id": f"POLICY_RUN_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
+        "id": f"POLICY_RUN_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
         "git_sha": git_sha,
         "policy_digest": policy_digest,
         "policy_version": "1.0",
         "results": {
             "tests_passed": tests_passed,
             "count": test_count,
-            "test_output": test_output.strip()
+            "test_output": test_output.strip(),
         },
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "policies": {
             "sovereignty.egress.default": "deny",
             "privacy.phi.enabled": False,
             "llm.budgets.monthly_usd": 200,
             "timeline.auto.enabled": False,
-            "agents.enabled": False
-        }
+            "agents.enabled": False,
+        },
     }
 
     # Ensure output directory exists

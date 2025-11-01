@@ -19,12 +19,7 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.decision_mw import (
-    DecisionMiddleware,
-    ConditionEvaluator,
-    DecisionEvent,
-    get_decision_middleware
-)
+from backend.decision_mw import ConditionEvaluator, get_decision_middleware
 
 
 class TestConditionEvaluator(unittest.TestCase):
@@ -138,8 +133,8 @@ class TestConditionEvaluator(unittest.TestCase):
             "operator": "and",
             "conditions": [
                 {"field": "urgency", "operator": "equals", "value": "HIGH"},
-                {"field": "age", "operator": "less_than", "value": 18}
-            ]
+                {"field": "age", "operator": "less_than", "value": 18},
+            ],
         }
 
         data = {"urgency": "HIGH", "age": 5}
@@ -154,8 +149,8 @@ class TestConditionEvaluator(unittest.TestCase):
             "operator": "or",
             "conditions": [
                 {"field": "urgency", "operator": "equals", "value": "CRITICAL"},
-                {"field": "urgency", "operator": "equals", "value": "HIGH"}
-            ]
+                {"field": "urgency", "operator": "equals", "value": "HIGH"},
+            ],
         }
 
         data = {"urgency": "CRITICAL"}
@@ -200,7 +195,7 @@ class TestDecisionMiddleware(unittest.TestCase):
             "symptoms": ["chest pain", "shortness of breath"],
             "medical_history": {"allergies": [], "medications": [], "conditions": []},
             "urgency": "CRITICAL",
-            "notes": None
+            "notes": None,
         }
 
         events = self.mw.apply_rules("intake_coach", data, stop_on_first_match=True)
@@ -217,7 +212,7 @@ class TestDecisionMiddleware(unittest.TestCase):
             "symptoms": ["fever", "cough"],
             "medical_history": {"allergies": [], "medications": [], "conditions": []},
             "urgency": "HIGH",
-            "notes": None
+            "notes": None,
         }
 
         events = self.mw.apply_rules("intake_coach", data, stop_on_first_match=True)
@@ -234,7 +229,7 @@ class TestDecisionMiddleware(unittest.TestCase):
             "symptoms": [],
             "medical_history": {"allergies": [], "medications": [], "conditions": []},
             "urgency": "MODERATE",
-            "notes": None
+            "notes": None,
         }
 
         events = self.mw.apply_rules("intake_coach", data, stop_on_first_match=True)
@@ -251,10 +246,10 @@ class TestDecisionMiddleware(unittest.TestCase):
             "medical_history": {
                 "allergies": [],
                 "medications": [],
-                "conditions": ["hypertension", "diabetes", "COPD", "CKD"]
+                "conditions": ["hypertension", "diabetes", "COPD", "CKD"],
             },
             "urgency": "LOW",
-            "notes": None
+            "notes": None,
         }
 
         events = self.mw.apply_rules("intake_coach", data, stop_on_first_match=False)
@@ -275,10 +270,10 @@ class TestDecisionMiddleware(unittest.TestCase):
             "medical_history": {
                 "allergies": ["penicillin", "sulfa"],
                 "medications": [],
-                "conditions": []
+                "conditions": [],
             },
             "urgency": "LOW",
-            "notes": None
+            "notes": None,
         }
 
         events = self.mw.apply_rules("intake_coach", data, stop_on_first_match=False)
@@ -294,7 +289,7 @@ class TestDecisionMiddleware(unittest.TestCase):
             "symptoms": [],
             "medical_history": {"allergies": [], "medications": [], "conditions": []},
             "urgency": "LOW",
-            "notes": None
+            "notes": None,
         }
 
         events = self.mw.apply_rules("intake_coach", data, stop_on_first_match=False)
@@ -308,13 +303,9 @@ class TestDecisionMiddleware(unittest.TestCase):
             "demographics": {"name": "Patient", "age": 30, "gender": "M", "contact": None},
             "chief_complaint": "Test",
             "symptoms": [],
-            "medical_history": {
-                "allergies": ["penicillin"],
-                "medications": [],
-                "conditions": []
-            },
+            "medical_history": {"allergies": ["penicillin"], "medications": [], "conditions": []},
             "urgency": "LOW",
-            "notes": None
+            "notes": None,
         }
 
         # Without stop_on_first_match (should get multiple events)
@@ -332,5 +323,5 @@ def main():
     unittest.main(verbosity=2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

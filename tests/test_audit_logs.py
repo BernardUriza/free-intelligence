@@ -5,23 +5,23 @@ Tests for Audit Logs
 FI-SEC-FEAT-003
 """
 
-import unittest
-import tempfile
 import os
 import sys
+import tempfile
+import unittest
 
 # Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
-from corpus_schema import init_corpus
 from audit_logs import (
-    init_audit_logs_group,
-    hash_payload,
+    AUDIT_LOG_SCHEMA,
     append_audit_log,
     get_audit_logs,
     get_audit_stats,
-    AUDIT_LOG_SCHEMA
+    hash_payload,
+    init_audit_logs_group,
 )
+from corpus_schema import init_corpus
 
 
 class TestAuditLogs(unittest.TestCase):
@@ -51,7 +51,8 @@ class TestAuditLogs(unittest.TestCase):
 
         # Verify group exists
         import h5py
-        with h5py.File(self.corpus_path, 'r') as f:
+
+        with h5py.File(self.corpus_path, "r") as f:
             self.assertIn("audit_logs", f)
 
             audit_logs = f["audit_logs"]
@@ -105,7 +106,7 @@ class TestAuditLogs(unittest.TestCase):
             payload={"key": "value"},
             result={"success": True},
             status="SUCCESS",
-            metadata={"source": "test"}
+            metadata={"source": "test"},
         )
 
         self.assertIsNotNone(audit_id)
@@ -118,7 +119,7 @@ class TestAuditLogs(unittest.TestCase):
             self.corpus_path,
             operation="AUTO_INIT_TEST",
             user_id="test_user",
-            endpoint="test_endpoint"
+            endpoint="test_endpoint",
         )
 
         self.assertIsNotNone(audit_id)
@@ -134,7 +135,7 @@ class TestAuditLogs(unittest.TestCase):
                 operation=f"TEST_OPERATION_{i}",
                 user_id=f"user_{i}",
                 endpoint="test_endpoint",
-                status="SUCCESS"
+                status="SUCCESS",
             )
 
         # Verify count
@@ -152,7 +153,7 @@ class TestAuditLogs(unittest.TestCase):
             user_id="test_user",
             endpoint="test_endpoint",
             payload={"test": "data"},
-            status="SUCCESS"
+            status="SUCCESS",
         )
 
         # Retrieve logs
@@ -181,30 +182,17 @@ class TestAuditLogs(unittest.TestCase):
 
         # Append different operations
         append_audit_log(
-            self.corpus_path,
-            operation="OPERATION_A",
-            user_id="user1",
-            endpoint="test"
+            self.corpus_path, operation="OPERATION_A", user_id="user1", endpoint="test"
         )
         append_audit_log(
-            self.corpus_path,
-            operation="OPERATION_B",
-            user_id="user1",
-            endpoint="test"
+            self.corpus_path, operation="OPERATION_B", user_id="user1", endpoint="test"
         )
         append_audit_log(
-            self.corpus_path,
-            operation="OPERATION_A",
-            user_id="user2",
-            endpoint="test"
+            self.corpus_path, operation="OPERATION_A", user_id="user2", endpoint="test"
         )
 
         # Filter by OPERATION_A
-        logs = get_audit_logs(
-            self.corpus_path,
-            limit=100,
-            operation_filter="OPERATION_A"
-        )
+        logs = get_audit_logs(self.corpus_path, limit=100, operation_filter="OPERATION_A")
 
         self.assertEqual(len(logs), 2)
         for log in logs:
@@ -216,24 +204,12 @@ class TestAuditLogs(unittest.TestCase):
 
         # Append different users
         append_audit_log(
-            self.corpus_path,
-            operation="TEST_OP",
-            user_id="user_alice",
-            endpoint="test"
+            self.corpus_path, operation="TEST_OP", user_id="user_alice", endpoint="test"
         )
-        append_audit_log(
-            self.corpus_path,
-            operation="TEST_OP",
-            user_id="user_bob",
-            endpoint="test"
-        )
+        append_audit_log(self.corpus_path, operation="TEST_OP", user_id="user_bob", endpoint="test")
 
         # Filter by user_alice
-        logs = get_audit_logs(
-            self.corpus_path,
-            limit=100,
-            user_filter="user_alice"
-        )
+        logs = get_audit_logs(self.corpus_path, limit=100, user_filter="user_alice")
 
         self.assertEqual(len(logs), 1)
         self.assertEqual(logs[0]["user_id"], "user_alice")
@@ -244,25 +220,13 @@ class TestAuditLogs(unittest.TestCase):
 
         # Append logs with different statuses
         append_audit_log(
-            self.corpus_path,
-            operation="OP1",
-            user_id="user1",
-            endpoint="test",
-            status="SUCCESS"
+            self.corpus_path, operation="OP1", user_id="user1", endpoint="test", status="SUCCESS"
         )
         append_audit_log(
-            self.corpus_path,
-            operation="OP2",
-            user_id="user1",
-            endpoint="test",
-            status="FAILED"
+            self.corpus_path, operation="OP2", user_id="user1", endpoint="test", status="FAILED"
         )
         append_audit_log(
-            self.corpus_path,
-            operation="OP1",
-            user_id="user2",
-            endpoint="test",
-            status="SUCCESS"
+            self.corpus_path, operation="OP1", user_id="user2", endpoint="test", status="SUCCESS"
         )
 
         stats = get_audit_stats(self.corpus_path)
@@ -302,7 +266,7 @@ class TestAuditLogs(unittest.TestCase):
             payload={"data": "test"},
             result={"result": "ok"},
             status="SUCCESS",
-            metadata={"meta": "data"}
+            metadata={"meta": "data"},
         )
 
         logs = get_audit_logs(self.corpus_path, limit=1)
@@ -327,18 +291,10 @@ class TestAuditLogs(unittest.TestCase):
 
         # Append twice with same payload
         append_audit_log(
-            self.corpus_path,
-            operation="TEST1",
-            user_id="user1",
-            endpoint="test",
-            payload=payload
+            self.corpus_path, operation="TEST1", user_id="user1", endpoint="test", payload=payload
         )
         append_audit_log(
-            self.corpus_path,
-            operation="TEST2",
-            user_id="user1",
-            endpoint="test",
-            payload=payload
+            self.corpus_path, operation="TEST2", user_id="user1", endpoint="test", payload=payload
         )
 
         logs = get_audit_logs(self.corpus_path, limit=2)
@@ -347,5 +303,5 @@ class TestAuditLogs(unittest.TestCase):
         self.assertEqual(logs[0]["payload_hash"], logs[1]["payload_hash"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

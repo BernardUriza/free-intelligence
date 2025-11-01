@@ -9,22 +9,23 @@ Usage:
     python3 cli/fi.py chat --provider ollama
 """
 
-import sys
 import argparse
-from typing import Optional
+import sys
 from pathlib import Path
+from typing import Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.llm_router import llm_generate
-from backend.policy_loader import get_policy_loader
-from backend.logger import get_logger
-from backend.corpus_ops import append_interaction_with_embedding
-from backend.config_loader import load_config
-from backend.search import semantic_search, search_by_session
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+from backend.config_loader import load_config
+from backend.corpus_ops import append_interaction_with_embedding
+from backend.llm_router import llm_generate
+from backend.logger import get_logger
+from backend.policy_loader import get_policy_loader
+from backend.search import semantic_search
 
 logger = get_logger(__name__)
 
@@ -39,7 +40,7 @@ def chat_mode(provider: Optional[str] = None, model: Optional[str] = None):
     """
     # Load config and policy
     config = load_config()
-    corpus_path = config['storage']['corpus_path']
+    corpus_path = config["storage"]["corpus_path"]
     policy_loader = get_policy_loader()
 
     # Generate session ID
@@ -52,7 +53,7 @@ def chat_mode(provider: Optional[str] = None, model: Optional[str] = None):
 
     if model is None:
         provider_config = policy_loader.get_provider_config(provider)
-        model = provider_config.get('model', 'unknown')
+        model = provider_config.get("model", "unknown")
 
     # Welcome banner
     print("╔════════════════════════════════════════════════════════════╗")
@@ -63,8 +64,8 @@ def chat_mode(provider: Optional[str] = None, model: Optional[str] = None):
     print(f"🤖 Model:     {model}")
     print(f"🆔 Session:   {session_id}")
     print(f"💾 Corpus:    {corpus_path}")
-    print(f"💡 Tip:       Type 'exit', 'quit', or Ctrl+C to end session")
-    print(f"📝 Note:      All conversations are auto-saved to corpus")
+    print("💡 Tip:       Type 'exit', 'quit', or Ctrl+C to end session")
+    print("📝 Note:      All conversations are auto-saved to corpus")
     print()
     print("─" * 60)
     print()
@@ -76,7 +77,7 @@ def chat_mode(provider: Optional[str] = None, model: Optional[str] = None):
             prompt = input("You: ").strip()
 
             # Check for exit commands
-            if prompt.lower() in ['exit', 'quit', 'q']:
+            if prompt.lower() in ["exit", "quit", "q"]:
                 print("\n👋 Goodbye!")
                 break
 
@@ -89,10 +90,10 @@ def chat_mode(provider: Optional[str] = None, model: Optional[str] = None):
 
             kwargs = {}
             if provider:
-                kwargs['provider'] = provider
+                kwargs["provider"] = provider
             if model:
                 # Pass model via provider_config
-                kwargs['provider_config'] = {'model': model}
+                kwargs["provider_config"] = {"model": model}
 
             response = llm_generate(prompt, **kwargs)
 
@@ -108,7 +109,7 @@ def chat_mode(provider: Optional[str] = None, model: Optional[str] = None):
                     response=response.content,
                     model=response.model,
                     tokens=response.tokens_used,
-                    auto_embed=True
+                    auto_embed=True,
                 )
                 print(f"💾 Saved: {interaction_id[:8]}...\n")
             except Exception as e:
@@ -116,7 +117,7 @@ def chat_mode(provider: Optional[str] = None, model: Optional[str] = None):
                 logger.error("CLI_SAVE_FAILED", error=str(e))
 
             # Display metadata
-            print(f"┌─ Metadata ─────────────────────────────────────────────┐")
+            print("┌─ Metadata ─────────────────────────────────────────────┐")
             print(f"│ Provider: {response.provider:20s}                    │")
             print(f"│ Model:    {response.model:20s}                    │")
             print(f"│ Tokens:   {response.tokens_used:5d}                                    │")
@@ -124,7 +125,7 @@ def chat_mode(provider: Optional[str] = None, model: Optional[str] = None):
                 print(f"│ Cost:     ${response.cost_usd:.6f}                                 │")
             if response.latency_ms:
                 print(f"│ Latency:  {response.latency_ms:.2f}ms                                 │")
-            print(f"└────────────────────────────────────────────────────────┘")
+            print("└────────────────────────────────────────────────────────┘")
             print()
 
         except KeyboardInterrupt:
@@ -149,13 +150,15 @@ def show_config():
         print("📋 LLM Configuration:")
         print(f"   Primary Provider:  {policy_loader.get_primary_provider()}")
         print(f"   Fallback Provider: {policy_loader.get_fallback_provider()}")
-        print(f"   Offline Mode:      {'✅ Enabled' if policy_loader.is_offline_enabled() else '❌ Disabled'}")
+        print(
+            f"   Offline Mode:      {'✅ Enabled' if policy_loader.is_offline_enabled() else '❌ Disabled'}"
+        )
         print()
 
         # Claude Config
         print("🤖 Claude Configuration:")
         try:
-            claude_config = policy_loader.get_provider_config('claude')
+            claude_config = policy_loader.get_provider_config("claude")
             print(f"   Model:        {claude_config.get('model')}")
             print(f"   Timeout:      {claude_config.get('timeout_seconds')}s")
             print(f"   Max Tokens:   {claude_config.get('max_tokens')}")
@@ -195,7 +198,7 @@ def search_mode(query: str, top_k: int = 5):
     try:
         # Load config
         config = load_config()
-        corpus_path = config['storage']['corpus_path']
+        corpus_path = config["storage"]["corpus_path"]
 
         print("╔════════════════════════════════════════════════════════════╗")
         print("║         🔍 Free Intelligence - Semantic Search            ║")
@@ -231,7 +234,7 @@ def search_mode(query: str, top_k: int = 5):
 def main():
     """Main CLI entry point"""
     parser = argparse.ArgumentParser(
-        description='Free Intelligence - Interactive LLM CLI',
+        description="Free Intelligence - Interactive LLM CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -246,32 +249,34 @@ Examples:
 
   # Show configuration
   python3 cli/fi.py config
-        """
+        """,
     )
 
-    subparsers = parser.add_subparsers(dest='command', help='Command to run')
+    subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # Chat command
-    chat_parser = subparsers.add_parser('chat', help='Start interactive chat')
-    chat_parser.add_argument('--provider', type=str, help='Override provider (claude, ollama)')
-    chat_parser.add_argument('--model', type=str, help='Override model')
+    chat_parser = subparsers.add_parser("chat", help="Start interactive chat")
+    chat_parser.add_argument("--provider", type=str, help="Override provider (claude, ollama)")
+    chat_parser.add_argument("--model", type=str, help="Override model")
 
     # Config command
-    subparsers.add_parser('config', help='Show current configuration')
+    subparsers.add_parser("config", help="Show current configuration")
 
     # Search command
-    search_parser = subparsers.add_parser('search', help='Semantic search over corpus')
-    search_parser.add_argument('query', type=str, help='Search query text')
-    search_parser.add_argument('--top-k', type=int, default=5, help='Number of results (default: 5)')
+    search_parser = subparsers.add_parser("search", help="Semantic search over corpus")
+    search_parser.add_argument("query", type=str, help="Search query text")
+    search_parser.add_argument(
+        "--top-k", type=int, default=5, help="Number of results (default: 5)"
+    )
 
     args = parser.parse_args()
 
     # Handle commands
-    if args.command == 'chat':
+    if args.command == "chat":
         chat_mode(provider=args.provider, model=args.model)
-    elif args.command == 'config':
+    elif args.command == "config":
         show_config()
-    elif args.command == 'search':
+    elif args.command == "search":
         search_mode(query=args.query, top_k=args.top_k)
     else:
         parser.print_help()

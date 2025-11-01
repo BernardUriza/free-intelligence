@@ -10,24 +10,26 @@ Created: 2025-10-28
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
-from uuid import UUID, uuid4
+from typing import Any, Optional
+from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
-
 
 # ============================================================================
 # ENUMS
 # ============================================================================
 
+
 class MessageRole(str, Enum):
     """Message role in consultation."""
+
     USER = "user"
     ASSISTANT = "assistant"
 
 
 class Severity(str, Enum):
     """Symptom severity levels."""
+
     MILD = "mild"
     MODERATE = "moderate"
     SEVERE = "severe"
@@ -35,6 +37,7 @@ class Severity(str, Enum):
 
 class Gender(str, Enum):
     """Patient gender."""
+
     MALE = "male"
     FEMALE = "female"
     OTHER = "other"
@@ -42,6 +45,7 @@ class Gender(str, Enum):
 
 class UrgencyLevel(str, Enum):
     """Urgency classification levels."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -50,6 +54,7 @@ class UrgencyLevel(str, Enum):
 
 class Gravedad(str, Enum):
     """Gravedad (gravity) levels for differential diagnoses."""
+
     BAJA = "baja"
     MODERADA = "moderada"
     ALTA = "alta"
@@ -58,6 +63,7 @@ class Gravedad(str, Enum):
 
 class UrgenciaTriaje(str, Enum):
     """Urgency triage categories (NOM-004 compatible)."""
+
     NO_URGENTE = "no_urgente"
     SEMI_URGENTE = "semi_urgente"
     URGENTE = "urgente"
@@ -66,13 +72,15 @@ class UrgenciaTriaje(str, Enum):
 
 class EstudioUrgencia(str, Enum):
     """Urgency level for diagnostic studies."""
-    STAT = "stat"              # Immediate
-    URGENTE = "urgente"        # Within 1-2 hours
-    RUTINA = "rutina"          # Routine scheduling
+
+    STAT = "stat"  # Immediate
+    URGENTE = "urgente"  # Within 1-2 hours
+    RUTINA = "rutina"  # Routine scheduling
 
 
 class EventType(str, Enum):
     """Domain event types (from MAPPING.json)."""
+
     # Consultation lifecycle
     MESSAGE_RECEIVED = "MESSAGE_RECEIVED"
     MESSAGE_UPDATED = "MESSAGE_UPDATED"
@@ -122,14 +130,15 @@ class EventType(str, Enum):
 # PATIENT & DEMOGRAPHICS
 # ============================================================================
 
+
 class PatientStub(BaseModel):
     """
     Patient identification stub (non-PHI).
     For demo/MVP - does not include full patient record.
     """
+
     patient_id: Optional[str] = Field(
-        default=None,
-        description="De-identified patient ID (not real PHI)"
+        default=None, description="De-identified patient ID (not real PHI)"
     )
     age: Optional[int] = Field(default=None, ge=0, le=120)
     gender: Optional[Gender] = None
@@ -137,7 +146,7 @@ class PatientStub(BaseModel):
     height: Optional[float] = Field(default=None, ge=0, description="Height in cm")
     occupation: Optional[str] = None
 
-    @field_validator('age')
+    @field_validator("age")
     @classmethod
     def validate_age(cls, v: Optional[int]) -> Optional[int]:
         """Validate age is reasonable."""
@@ -148,6 +157,7 @@ class PatientStub(BaseModel):
 
 class Demographics(BaseModel):
     """Demographics extracted from conversation."""
+
     age: Optional[int] = None
     gender: Optional[Gender] = None
     weight: Optional[float] = None
@@ -157,40 +167,45 @@ class Demographics(BaseModel):
 
 class Symptoms(BaseModel):
     """Symptom data structure."""
-    primary_symptoms: List[str] = Field(default_factory=list)
-    secondary_symptoms: Optional[List[str]] = None
+
+    primary_symptoms: list[str] = Field(default_factory=list)
+    secondary_symptoms: Optional[list[str]] = None
     duration: Optional[str] = None
     severity: Optional[Severity] = None
     location: Optional[str] = None
     quality: Optional[str] = None
-    aggravating_factors: Optional[List[str]] = None
-    relieving_factors: Optional[List[str]] = None
+    aggravating_factors: Optional[list[str]] = None
+    relieving_factors: Optional[list[str]] = None
 
 
 class MedicalContext(BaseModel):
     """Medical history and context."""
-    past_medical_history: Optional[List[str]] = None
-    family_history: Optional[List[str]] = None
-    medications: Optional[List[str]] = None
-    allergies: Optional[List[str]] = None
-    surgeries: Optional[List[str]] = None
+
+    past_medical_history: Optional[list[str]] = None
+    family_history: Optional[list[str]] = None
+    medications: Optional[list[str]] = None
+    allergies: Optional[list[str]] = None
+    surgeries: Optional[list[str]] = None
 
 
 # ============================================================================
 # SOAP COMPONENTS (NOM-004-SSA3-2012)
 # ============================================================================
 
+
 class Antecedentes(BaseModel):
     """Antecedentes médicos (Medical history)."""
-    personales: List[str] = Field(default_factory=list)
-    familiares: List[str] = Field(default_factory=list)
-    medicamentos: List[str] = Field(default_factory=list)
-    alergias: List[str] = Field(default_factory=list)
-    quirurgicos: List[str] = Field(default_factory=list)
+
+    personales: list[str] = Field(default_factory=list)
+    familiares: list[str] = Field(default_factory=list)
+    medicamentos: list[str] = Field(default_factory=list)
+    alergias: list[str] = Field(default_factory=list)
+    quirurgicos: list[str] = Field(default_factory=list)
 
 
 class Habitos(BaseModel):
     """Hábitos y estilo de vida (Lifestyle habits)."""
+
     tabaquismo: Optional[str] = None
     alcoholismo: Optional[str] = None
     drogas: Optional[str] = None
@@ -200,6 +215,7 @@ class Habitos(BaseModel):
 
 class Subjetivo(BaseModel):
     """S - Subjetivo (Subjective) section."""
+
     motivo_consulta: str = Field(description="Chief complaint")
     historia_actual: str = Field(description="Present illness history")
     antecedentes: Antecedentes
@@ -210,6 +226,7 @@ class Subjetivo(BaseModel):
 
 class SignosVitales(BaseModel):
     """Signos vitales (Vital signs)."""
+
     presion_arterial: Optional[str] = None
     frecuencia_cardiaca: Optional[int] = None
     frecuencia_respiratoria: Optional[int] = None
@@ -223,6 +240,7 @@ class SignosVitales(BaseModel):
 
 class ExploracionFisica(BaseModel):
     """Exploración física (Physical examination)."""
+
     aspecto: str
     cabeza_cuello: Optional[str] = None
     torax: Optional[str] = None
@@ -236,22 +254,25 @@ class ExploracionFisica(BaseModel):
 
 class Objetivo(BaseModel):
     """O - Objetivo (Objective) section."""
+
     signos_vitales: SignosVitales
     exploracion_fisica: ExploracionFisica
-    estudios_complementarios: Optional[Dict[str, Any]] = None
+    estudios_complementarios: Optional[dict[str, Any]] = None
 
 
 class DiagnosticoPrincipal(BaseModel):
     """Diagnóstico principal (Primary diagnosis)."""
+
     condicion: str
     cie10: str = Field(description="ICD-10 code")
-    evidencia: List[str] = Field(default_factory=list)
+    evidencia: list[str] = Field(default_factory=list)
     probabilidad: float = Field(ge=0, le=1)
     confianza: float = Field(ge=0, le=1)
 
 
 class DiagnosticoDiferencial(BaseModel):
     """Diagnóstico diferencial (Differential diagnosis)."""
+
     condicion: str
     cie10: str
     probabilidad: float = Field(ge=0, le=1)
@@ -260,12 +281,13 @@ class DiagnosticoDiferencial(BaseModel):
     defensive_score: float = Field(
         description="Defensive score = gravity * 0.7 + probability * 0.3"
     )
-    evidencia: List[str] = Field(default_factory=list)
-    descartar_mediante: List[str] = Field(default_factory=list)
+    evidencia: list[str] = Field(default_factory=list)
+    descartar_mediante: list[str] = Field(default_factory=list)
 
 
 class Pronostico(BaseModel):
     """Pronóstico (Prognosis)."""
+
     inmediato: str
     corto: str
     largo: str
@@ -273,12 +295,12 @@ class Pronostico(BaseModel):
 
 class Analisis(BaseModel):
     """A - Análisis (Assessment) section."""
+
     diagnostico_principal: DiagnosticoPrincipal
-    diagnosticos_diferenciales: List[DiagnosticoDiferencial]
-    factores_riesgo: List[str] = Field(default_factory=list)
-    senos_peligro: List[str] = Field(
-        default_factory=list,
-        description="Red flags (widow maker patterns)"
+    diagnosticos_diferenciales: list[DiagnosticoDiferencial]
+    factores_riesgo: list[str] = Field(default_factory=list)
+    senos_peligro: list[str] = Field(
+        default_factory=list, description="Red flags (widow maker patterns)"
     )
     pronostico: Pronostico
     razonamiento_clinico: Optional[str] = None
@@ -286,6 +308,7 @@ class Analisis(BaseModel):
 
 class TratamientoFarmacologico(BaseModel):
     """Tratamiento farmacológico (Pharmacological treatment)."""
+
     medicamento: str
     dosis: str
     via: str
@@ -296,6 +319,7 @@ class TratamientoFarmacologico(BaseModel):
 
 class TratamientoNoFarmacologico(BaseModel):
     """Tratamiento no farmacológico (Non-pharmacological treatment)."""
+
     intervencion: str
     frecuencia: str
     duracion: str
@@ -304,6 +328,7 @@ class TratamientoNoFarmacologico(BaseModel):
 
 class EstudioAdicional(BaseModel):
     """Estudio adicional (Additional study/lab/imaging)."""
+
     estudio: str
     urgencia: EstudioUrgencia
     justificacion: str
@@ -312,6 +337,7 @@ class EstudioAdicional(BaseModel):
 
 class Interconsulta(BaseModel):
     """Interconsulta (Specialist referral)."""
+
     especialidad: str
     urgencia: EstudioUrgencia
     motivo: str
@@ -319,28 +345,27 @@ class Interconsulta(BaseModel):
 
 class Seguimiento(BaseModel):
     """Seguimiento (Follow-up plan)."""
+
     proxima_cita: str
-    vigilar: List[str] = Field(default_factory=list)
-    criterios_emergencia: List[str] = Field(default_factory=list)
-    educacion_paciente: List[str] = Field(default_factory=list)
+    vigilar: list[str] = Field(default_factory=list)
+    criterios_emergencia: list[str] = Field(default_factory=list)
+    educacion_paciente: list[str] = Field(default_factory=list)
 
 
 class Plan(BaseModel):
     """P - Plan section."""
-    tratamiento_farmacologico: List[TratamientoFarmacologico] = Field(
-        default_factory=list
-    )
-    tratamiento_no_farmacologico: List[TratamientoNoFarmacologico] = Field(
-        default_factory=list
-    )
-    estudios_adicionales: List[EstudioAdicional] = Field(default_factory=list)
-    interconsultas: List[Interconsulta] = Field(default_factory=list)
+
+    tratamiento_farmacologico: list[TratamientoFarmacologico] = Field(default_factory=list)
+    tratamiento_no_farmacologico: list[TratamientoNoFarmacologico] = Field(default_factory=list)
+    estudios_adicionales: list[EstudioAdicional] = Field(default_factory=list)
+    interconsultas: list[Interconsulta] = Field(default_factory=list)
     seguimiento: Seguimiento
-    criterios_hospitalizacion: Optional[List[str]] = None
+    criterios_hospitalizacion: Optional[list[str]] = None
 
 
 class SOAPMetadata(BaseModel):
     """SOAP note metadata."""
+
     medico: str
     especialidad: str
     fecha: datetime
@@ -354,9 +379,9 @@ class SOAPNote(BaseModel):
     Complete SOAP note (NOM-004-SSA3-2012 compliant).
     Structured medical note for consultation.
     """
+
     consultation_id: str = Field(
-        default_factory=lambda: str(uuid4()),
-        description="Unique consultation identifier"
+        default_factory=lambda: str(uuid4()), description="Unique consultation identifier"
     )
     subjetivo: Subjetivo
     objetivo: Objetivo
@@ -374,8 +399,10 @@ class SOAPNote(BaseModel):
 # EVENTS
 # ============================================================================
 
+
 class EventMetadata(BaseModel):
     """Event metadata for audit and traceability."""
+
     source: str = Field(default="fi_consultation_service")
     user_id: str
     session_id: str
@@ -387,32 +414,34 @@ class ConsultationEvent(BaseModel):
     Base domain event for event-sourcing.
     All consultation events inherit from this.
     """
+
     event_id: str = Field(default_factory=lambda: str(uuid4()))
     consultation_id: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     event_type: EventType
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     metadata: EventMetadata
 
     # For audit compliance
     audit_hash: Optional[str] = Field(
-        default=None,
-        description="SHA256 hash of payload for non-repudiation"
+        default=None, description="SHA256 hash of payload for non-repudiation"
     )
 
 
 class MessageReceivedEvent(ConsultationEvent):
     """Event: User or assistant message received."""
+
     event_type: EventType = EventType.MESSAGE_RECEIVED
 
     class PayloadSchema(BaseModel):
         message_content: str
         message_role: MessageRole
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[dict[str, Any]] = None
 
 
 class ExtractionStartedEvent(ConsultationEvent):
     """Event: Medical data extraction started."""
+
     event_type: EventType = EventType.EXTRACTION_STARTED
 
     class PayloadSchema(BaseModel):
@@ -423,45 +452,49 @@ class ExtractionStartedEvent(ConsultationEvent):
 
 class ExtractionCompletedEvent(ConsultationEvent):
     """Event: Medical data extraction completed."""
+
     event_type: EventType = EventType.EXTRACTION_COMPLETED
 
     class PayloadSchema(BaseModel):
         iteration: int
         completeness: float = Field(ge=0, le=100)
         nom_compliance: float = Field(ge=0, le=100)
-        missing_fields: List[str]
-        extraction_data: Dict[str, Any]
+        missing_fields: list[str]
+        extraction_data: dict[str, Any]
 
 
 class SOAPGenerationCompletedEvent(ConsultationEvent):
     """Event: SOAP note generation completed."""
+
     event_type: EventType = EventType.SOAP_GENERATION_COMPLETED
 
     class PayloadSchema(BaseModel):
-        soap_data: Dict[str, Any]  # Full SOAP structure
+        soap_data: dict[str, Any]  # Full SOAP structure
         quality_score: float = Field(ge=0, le=1)
         ready_for_commit: bool
 
 
 class CriticalPatternDetectedEvent(ConsultationEvent):
     """Event: Life-threatening pattern detected."""
+
     event_type: EventType = EventType.CRITICAL_PATTERN_DETECTED
 
     class PayloadSchema(BaseModel):
         pattern_name: str
         gravity_score: int = Field(ge=1, le=10)
         widow_maker_alert: bool
-        symptoms_matched: List[str]
-        critical_differentials: List[str]
+        symptoms_matched: list[str]
+        critical_differentials: list[str]
         time_to_action: str
 
 
 class ConsultationCommittedEvent(ConsultationEvent):
     """Event: SOAP note committed (final, immutable)."""
+
     event_type: EventType = EventType.CONSULTATION_COMMITTED
 
     class PayloadSchema(BaseModel):
-        soap_data: Dict[str, Any]
+        soap_data: dict[str, Any]
         committed_by: str
         commit_hash: str = Field(description="SHA256 of SOAP data")
         quality_score: float
@@ -473,25 +506,28 @@ class ConsultationCommittedEvent(ConsultationEvent):
 # CONSULTATION AGGREGATE
 # ============================================================================
 
+
 class CompletenessMetrics(BaseModel):
     """Completeness metrics for extraction/SOAP."""
+
     percentage: float = Field(ge=0, le=100)
-    sections: Optional[Dict[str, float]] = None
-    critical_fields_present: List[str] = Field(default_factory=list)
-    critical_fields_missing: List[str] = Field(default_factory=list)
+    sections: Optional[dict[str, float]] = None
+    critical_fields_present: list[str] = Field(default_factory=list)
+    critical_fields_missing: list[str] = Field(default_factory=list)
     nom_compliance: float = Field(ge=0, le=100)
-    nom_violations: List[str] = Field(default_factory=list)
+    nom_violations: list[str] = Field(default_factory=list)
     ready_for_commit: bool
 
 
 class UrgencyAssessment(BaseModel):
     """Urgency assessment result."""
+
     urgency_level: UrgencyLevel
     gravity_score: int = Field(ge=1, le=10)
     time_to_action: str
-    identified_patterns: List[Dict[str, Any]] = Field(default_factory=list)
-    risk_factors: List[str] = Field(default_factory=list)
-    immediate_actions: List[str] = Field(default_factory=list)
+    identified_patterns: list[dict[str, Any]] = Field(default_factory=list)
+    risk_factors: list[str] = Field(default_factory=list)
+    immediate_actions: list[str] = Field(default_factory=list)
 
 
 class Consultation(BaseModel):
@@ -499,15 +535,16 @@ class Consultation(BaseModel):
     Consultation aggregate root.
     Reconstructed from event stream.
     """
+
     consultation_id: str = Field(default_factory=lambda: str(uuid4()))
     session_id: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Current state
-    messages: List[Dict[str, Any]] = Field(default_factory=list)
+    messages: list[dict[str, Any]] = Field(default_factory=list)
     patient_data: Optional[PatientStub] = None
-    extraction_data: Optional[Dict[str, Any]] = None
+    extraction_data: Optional[dict[str, Any]] = None
     soap_note: Optional[SOAPNote] = None
     urgency_assessment: Optional[UrgencyAssessment] = None
 
@@ -523,23 +560,25 @@ class Consultation(BaseModel):
 
     class Config:
         """Pydantic config."""
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+
+        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 # ============================================================================
 # API REQUEST/RESPONSE MODELS
 # ============================================================================
 
+
 class StartConsultationRequest(BaseModel):
     """Request to start a new consultation."""
+
     user_id: str
     patient_stub: Optional[PatientStub] = None
 
 
 class StartConsultationResponse(BaseModel):
     """Response when consultation started."""
+
     consultation_id: str
     session_id: str
     created_at: datetime
@@ -547,13 +586,15 @@ class StartConsultationResponse(BaseModel):
 
 class AppendEventRequest(BaseModel):
     """Request to append event to consultation."""
+
     event_type: EventType
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     user_id: str
 
 
 class AppendEventResponse(BaseModel):
     """Response after event appended."""
+
     event_id: str
     consultation_id: str
     event_count: int
@@ -562,11 +603,13 @@ class AppendEventResponse(BaseModel):
 
 class GetConsultationResponse(BaseModel):
     """Response with full consultation state."""
+
     consultation: Consultation
 
 
 class GetSOAPResponse(BaseModel):
     """Response with SOAP note view."""
+
     consultation_id: str
     soap_note: Optional[SOAPNote]
     completeness: Optional[CompletenessMetrics]

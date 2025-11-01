@@ -15,19 +15,27 @@ Created: 2025-10-30
 
 import os
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any, Optional
 
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
 # Whisper configuration
-WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "small")  # small (default for CPU), tiny, base, medium, large-v3
-WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")  # int8 fastest on CPU (50-70% faster than float16)
+WHISPER_MODEL_SIZE = os.getenv(
+    "WHISPER_MODEL_SIZE", "small"
+)  # small (default for CPU), tiny, base, medium, large-v3
+WHISPER_COMPUTE_TYPE = os.getenv(
+    "WHISPER_COMPUTE_TYPE", "int8"
+)  # int8 fastest on CPU (50-70% faster than float16)
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")  # cpu or cuda
 WHISPER_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "es")  # Force Spanish
-WHISPER_BEAM_SIZE = int(os.getenv("WHISPER_BEAM_SIZE", "5"))  # 1=fastest, 5=balanced (default), 10+=most accurate
-WHISPER_VAD_FILTER = os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true"  # Voice Activity Detection
+WHISPER_BEAM_SIZE = int(
+    os.getenv("WHISPER_BEAM_SIZE", "5")
+)  # 1=fastest, 5=balanced (default), 10+=most accurate
+WHISPER_VAD_FILTER = (
+    os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true"
+)  # Voice Activity Detection
 # CPU optimization (DS923+: Ryzen R1600, 4 threads → use 3, leave 1 free)
 CPU_THREADS = int(os.getenv("ASR_CPU_THREADS", "3"))
 NUM_WORKERS = int(os.getenv("ASR_NUM_WORKERS", "1"))
@@ -41,7 +49,9 @@ try:
     from faster_whisper import WhisperModel
 
     _whisper_available = True
-    logger.info("WHISPER_AVAILABLE", model_size=WHISPER_MODEL_SIZE, compute_type=WHISPER_COMPUTE_TYPE)
+    logger.info(
+        "WHISPER_AVAILABLE", model_size=WHISPER_MODEL_SIZE, compute_type=WHISPER_COMPUTE_TYPE
+    )
 except ImportError:
     logger.warning(
         "WHISPER_NOT_AVAILABLE",
@@ -86,7 +96,7 @@ def get_whisper_model() -> Optional[Any]:
                 model_size=WHISPER_MODEL_SIZE,
                 device=WHISPER_DEVICE,
                 compute_type=WHISPER_COMPUTE_TYPE,
-                message="First transcription will be slow (~10-30s for model load)"
+                message="First transcription will be slow (~10-30s for model load)",
             )
 
             _whisper_model_instance = WhisperModel(
@@ -102,7 +112,7 @@ def get_whisper_model() -> Optional[Any]:
                 "WHISPER_MODEL_LOADED",
                 model_size=WHISPER_MODEL_SIZE,
                 device=WHISPER_DEVICE,
-                message="Model ready for transcription"
+                message="Model ready for transcription",
             )
         except Exception as e:
             logger.error(
@@ -119,7 +129,7 @@ def transcribe_audio(
     audio_path: Path,
     language: Optional[str] = None,
     vad_filter: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Transcribe audio file using Whisper.
 

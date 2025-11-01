@@ -13,21 +13,21 @@ Fecha: 2025-10-25
 Task: FI-CORE-FIX-001
 """
 
-import unittest
+import ast
 import tempfile
+import unittest
 from pathlib import Path
 
 from backend.llm_router_policy import (
-    extract_imports,
-    has_forbidden_import,
+    RouterViolation,
     extract_attribute_calls,
+    extract_imports,
     has_forbidden_call,
-    scan_file_for_router_violations,
+    has_forbidden_import,
     scan_directory,
+    scan_file_for_router_violations,
     validate_codebase,
-    RouterViolation
 )
-import ast
 
 
 class TestExtractImports(unittest.TestCase):
@@ -38,14 +38,14 @@ class TestExtractImports(unittest.TestCase):
         code = "import anthropic"
         tree = ast.parse(code)
         imports = extract_imports(tree)
-        self.assertIn('anthropic', imports)
+        self.assertIn("anthropic", imports)
 
     def test_extract_from_import(self):
         """Debe extraer from import."""
         code = "from anthropic import Anthropic"
         tree = ast.parse(code)
         imports = extract_imports(tree)
-        self.assertIn('anthropic', imports)
+        self.assertIn("anthropic", imports)
 
     def test_extract_multiple_imports(self):
         """Debe extraer múltiples imports."""
@@ -56,16 +56,16 @@ from cohere import Client
 """
         tree = ast.parse(code)
         imports = extract_imports(tree)
-        self.assertIn('anthropic', imports)
-        self.assertIn('openai', imports)
-        self.assertIn('cohere', imports)
+        self.assertIn("anthropic", imports)
+        self.assertIn("openai", imports)
+        self.assertIn("cohere", imports)
 
     def test_extract_nested_import(self):
         """Debe extraer import con dots."""
         code = "from google.generativeai import GenerativeModel"
         tree = ast.parse(code)
         imports = extract_imports(tree)
-        self.assertIn('google.generativeai', imports)
+        self.assertIn("google.generativeai", imports)
 
 
 class TestHasForbiddenImport(unittest.TestCase):
@@ -73,32 +73,32 @@ class TestHasForbiddenImport(unittest.TestCase):
 
     def test_detects_anthropic(self):
         """Debe detectar import de anthropic."""
-        imports = {'anthropic', 'os', 'sys'}
+        imports = {"anthropic", "os", "sys"}
         forbidden = has_forbidden_import(imports)
-        self.assertIn('anthropic', forbidden)
+        self.assertIn("anthropic", forbidden)
 
     def test_detects_openai(self):
         """Debe detectar import de openai."""
-        imports = {'openai', 'pathlib'}
+        imports = {"openai", "pathlib"}
         forbidden = has_forbidden_import(imports)
-        self.assertIn('openai', forbidden)
+        self.assertIn("openai", forbidden)
 
     def test_detects_nested_google(self):
         """Debe detectar import de google.generativeai."""
-        imports = {'google.generativeai', 'json'}
+        imports = {"google.generativeai", "json"}
         forbidden = has_forbidden_import(imports)
         self.assertEqual(len(forbidden), 1)
-        self.assertTrue(any('google.generativeai' in f for f in forbidden))
+        self.assertTrue(any("google.generativeai" in f for f in forbidden))
 
     def test_ignores_safe_imports(self):
         """No debe marcar imports seguros."""
-        imports = {'os', 'sys', 'pathlib', 'json'}
+        imports = {"os", "sys", "pathlib", "json"}
         forbidden = has_forbidden_import(imports)
         self.assertEqual(len(forbidden), 0)
 
     def test_detects_multiple_forbidden(self):
         """Debe detectar múltiples imports prohibidos."""
-        imports = {'anthropic', 'openai', 'cohere', 'os'}
+        imports = {"anthropic", "openai", "cohere", "os"}
         forbidden = has_forbidden_import(imports)
         self.assertGreaterEqual(len(forbidden), 3)
 
@@ -113,7 +113,7 @@ class TestExtractAttributeCalls(unittest.TestCase):
         calls = extract_attribute_calls(tree)
         self.assertEqual(len(calls), 1)
         _, chain = calls[0]
-        self.assertEqual(chain, 'messages.create')
+        self.assertEqual(chain, "messages.create")
 
     def test_extract_nested_call(self):
         """Debe extraer llamada anidada."""
@@ -122,7 +122,7 @@ class TestExtractAttributeCalls(unittest.TestCase):
         calls = extract_attribute_calls(tree)
         self.assertEqual(len(calls), 1)
         _, chain = calls[0]
-        self.assertEqual(chain, 'chat.completions.create')
+        self.assertEqual(chain, "chat.completions.create")
 
     def test_extract_multiple_calls(self):
         """Debe extraer múltiples llamadas."""
@@ -140,26 +140,26 @@ class TestHasForbiddenCall(unittest.TestCase):
 
     def test_detects_anthropic_messages_create(self):
         """Debe detectar messages.create."""
-        calls = [(1, 'messages.create'), (2, 'other.method')]
+        calls = [(1, "messages.create"), (2, "other.method")]
         forbidden = has_forbidden_call(calls)
         self.assertEqual(len(forbidden), 1)
-        self.assertEqual(forbidden[0][1], 'messages.create')
+        self.assertEqual(forbidden[0][1], "messages.create")
 
     def test_detects_openai_completions_create(self):
         """Debe detectar chat.completions.create."""
-        calls = [(1, 'chat.completions.create')]
+        calls = [(1, "chat.completions.create")]
         forbidden = has_forbidden_call(calls)
         self.assertEqual(len(forbidden), 1)
 
     def test_detects_generate(self):
         """Debe detectar generate()."""
-        calls = [(1, 'model.generate')]
+        calls = [(1, "model.generate")]
         forbidden = has_forbidden_call(calls)
         self.assertEqual(len(forbidden), 1)
 
     def test_ignores_safe_calls(self):
         """No debe marcar llamadas seguras."""
-        calls = [(1, 'logger.info'), (2, 'data.append')]
+        calls = [(1, "logger.info"), (2, "data.append")]
         forbidden = has_forbidden_call(calls)
         self.assertEqual(len(forbidden), 0)
 
@@ -175,7 +175,7 @@ import anthropic
 def my_function():
     return "ok"
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -183,8 +183,8 @@ def my_function():
             violations = scan_file_for_router_violations(filepath)
 
             self.assertEqual(len(violations), 1)
-            self.assertEqual(violations[0].violation_type, 'import')
-            self.assertIn('anthropic', violations[0].details)
+            self.assertEqual(violations[0].violation_type, "import")
+            self.assertIn("anthropic", violations[0].details)
 
             filepath.unlink()
 
@@ -195,7 +195,7 @@ def call_api():
     response = client.messages.create(model="claude")
     return response
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -203,8 +203,8 @@ def call_api():
             violations = scan_file_for_router_violations(filepath)
 
             self.assertEqual(len(violations), 1)
-            self.assertEqual(violations[0].violation_type, 'call')
-            self.assertIn('messages.create', violations[0].details)
+            self.assertEqual(violations[0].violation_type, "call")
+            self.assertIn("messages.create", violations[0].details)
 
             filepath.unlink()
 
@@ -218,7 +218,7 @@ def call_api():
     response = client.messages.create()
     return response
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -229,8 +229,8 @@ def call_api():
             self.assertGreaterEqual(len(violations), 2)
 
             violation_types = [v.violation_type for v in violations]
-            self.assertIn('import', violation_types)
-            self.assertIn('call', violation_types)
+            self.assertIn("import", violation_types)
+            self.assertIn("call", violation_types)
 
             filepath.unlink()
 
@@ -243,7 +243,7 @@ def call_api(prompt):
     response = route_llm_call(prompt=prompt, model="claude")
     return response
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -261,7 +261,7 @@ def call_api(prompt):
 def invalid_syntax(
     # Missing closing parenthesis
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -284,21 +284,25 @@ class TestDirectoryScan(unittest.TestCase):
 
             # Archivo 1: Con violación
             file1 = tmppath / "module1.py"
-            file1.write_text("""
+            file1.write_text(
+                """
 import anthropic
-""")
+"""
+            )
 
             # Archivo 2: Sin violación
             file2 = tmppath / "module2.py"
-            file2.write_text("""
+            file2.write_text(
+                """
 from llm_router import route_llm_call
-""")
+"""
+            )
 
             results = scan_directory(tmppath)
 
             # Debe encontrar 1 archivo con violaciones
             self.assertEqual(len(results), 1)
-            self.assertIn('module1.py', str(list(results.keys())[0]))
+            self.assertIn("module1.py", str(list(results.keys())[0]))
 
     def test_scan_directory_skips_tests(self):
         """Debe ignorar archivos test_*.py."""
@@ -307,9 +311,11 @@ from llm_router import route_llm_call
 
             # Test file (debe ser ignorado)
             test_file = tmppath / "test_something.py"
-            test_file.write_text("""
+            test_file.write_text(
+                """
 import anthropic
-""")
+"""
+            )
 
             results = scan_directory(tmppath)
 
@@ -326,12 +332,14 @@ class TestValidateCodebase(unittest.TestCase):
             tmppath = Path(tmpdir)
 
             file1 = tmppath / "clean.py"
-            file1.write_text("""
+            file1.write_text(
+                """
 from llm_router import route_llm_call
 
 def call_llm(prompt):
     return route_llm_call(prompt=prompt)
-""")
+"""
+            )
 
             is_valid = validate_codebase(tmppath)
             self.assertTrue(is_valid)
@@ -342,13 +350,15 @@ def call_llm(prompt):
             tmppath = Path(tmpdir)
 
             file1 = tmppath / "violation.py"
-            file1.write_text("""
+            file1.write_text(
+                """
 import anthropic
 
 def call_api():
     client = anthropic.Anthropic()
     return client.messages.create()
-""")
+"""
+            )
 
             is_valid = validate_codebase(tmppath)
             self.assertFalse(is_valid)
@@ -371,7 +381,7 @@ class TestRouterViolation(unittest.TestCase):
             filepath="test.py",
             lineno=10,
             violation_type="import",
-            details="Direct import of 'anthropic'"
+            details="Direct import of 'anthropic'",
         )
 
         result = str(violation)
@@ -380,5 +390,5 @@ class TestRouterViolation(unittest.TestCase):
         self.assertIn("anthropic", result)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

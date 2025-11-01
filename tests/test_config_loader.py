@@ -10,16 +10,17 @@ Tests cover:
 FI-CONFIG-FEAT-001
 """
 
-import unittest
-import tempfile
-import yaml
-from pathlib import Path
 import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+import yaml
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
-from config_loader import load_config, ConfigValidationError, get_default_config
+from config_loader import ConfigValidationError, get_default_config, load_config
 
 
 class TestConfigLoader(unittest.TestCase):
@@ -32,37 +33,30 @@ class TestConfigLoader(unittest.TestCase):
                 "name": "Free Intelligence",
                 "version": "0.1.0",
                 "timezone": "America/Mexico_City",
-                "log_level": "INFO"
+                "log_level": "INFO",
             },
             "storage": {
                 "corpus_path": "/tmp/corpus.h5",
                 "backup_path": "/tmp/backups",
                 "exports_path": "/tmp/exports",
-                "max_file_size_gb": 4
+                "max_file_size_gb": 4,
             },
-            "server": {
-                "host": "127.0.0.1",
-                "port": 7000,
-                "lan_only": True
-            },
+            "server": {"host": "127.0.0.1", "port": 7000, "lan_only": True},
             "models": {
                 "default": "claude-3-5-sonnet-20241022",
                 "available": ["claude-3-5-sonnet-20241022"],
                 "embedding_model": "all-MiniLM-L6-v2",
-                "embedding_dim": 768
+                "embedding_dim": 768,
             },
-            "features": {
-                "semantic_search": True,
-                "session_persistence": True
-            },
+            "features": {"semantic_search": True, "session_persistence": True},
             "limits": {
                 "max_sessions": 1000,
                 "max_interactions_per_session": 10000,
-                "retention_bundles": 12
-            }
+                "retention_bundles": 12,
+            },
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
             yaml.dump(valid_config, f)
             temp_path = f.name
 
@@ -77,16 +71,11 @@ class TestConfigLoader(unittest.TestCase):
     def test_invalid_config_missing_section(self):
         """Test that missing required section raises error."""
         invalid_config = {
-            "system": {
-                "name": "Test",
-                "version": "0.1.0",
-                "timezone": "UTC",
-                "log_level": "INFO"
-            }
+            "system": {"name": "Test", "version": "0.1.0", "timezone": "UTC", "log_level": "INFO"}
             # Missing: storage, server, models, features, limits
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
             yaml.dump(invalid_config, f)
             temp_path = f.name
 
@@ -104,37 +93,30 @@ class TestConfigLoader(unittest.TestCase):
                 "name": "Test",
                 "version": "0.1.0",
                 "timezone": "UTC",
-                "log_level": "INVALID_LEVEL"  # Invalid
+                "log_level": "INVALID_LEVEL",  # Invalid
             },
             "storage": {
                 "corpus_path": "/tmp/corpus.h5",
                 "backup_path": "/tmp/backups",
                 "exports_path": "/tmp/exports",
-                "max_file_size_gb": 4
+                "max_file_size_gb": 4,
             },
-            "server": {
-                "host": "127.0.0.1",
-                "port": 7000,
-                "lan_only": True
-            },
+            "server": {"host": "127.0.0.1", "port": 7000, "lan_only": True},
             "models": {
                 "default": "claude-3-5-sonnet-20241022",
                 "available": ["claude-3-5-sonnet-20241022"],
                 "embedding_model": "all-MiniLM-L6-v2",
-                "embedding_dim": 768
+                "embedding_dim": 768,
             },
-            "features": {
-                "semantic_search": True,
-                "session_persistence": True
-            },
+            "features": {"semantic_search": True, "session_persistence": True},
             "limits": {
                 "max_sessions": 1000,
                 "max_interactions_per_session": 10000,
-                "retention_bundles": 12
-            }
+                "retention_bundles": 12,
+            },
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
             yaml.dump(invalid_config, f)
             temp_path = f.name
 
@@ -148,41 +130,33 @@ class TestConfigLoader(unittest.TestCase):
     def test_invalid_config_bad_port(self):
         """Test that invalid port number raises error."""
         invalid_config = {
-            "system": {
-                "name": "Test",
-                "version": "0.1.0",
-                "timezone": "UTC",
-                "log_level": "INFO"
-            },
+            "system": {"name": "Test", "version": "0.1.0", "timezone": "UTC", "log_level": "INFO"},
             "storage": {
                 "corpus_path": "/tmp/corpus.h5",
                 "backup_path": "/tmp/backups",
                 "exports_path": "/tmp/exports",
-                "max_file_size_gb": 4
+                "max_file_size_gb": 4,
             },
             "server": {
                 "host": "127.0.0.1",
                 "port": 99999,  # Invalid port
-                "lan_only": True
+                "lan_only": True,
             },
             "models": {
                 "default": "claude-3-5-sonnet-20241022",
                 "available": ["claude-3-5-sonnet-20241022"],
                 "embedding_model": "all-MiniLM-L6-v2",
-                "embedding_dim": 768
+                "embedding_dim": 768,
             },
-            "features": {
-                "semantic_search": True,
-                "session_persistence": True
-            },
+            "features": {"semantic_search": True, "session_persistence": True},
             "limits": {
                 "max_sessions": 1000,
                 "max_interactions_per_session": 10000,
-                "retention_bundles": 12
-            }
+                "retention_bundles": 12,
+            },
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
             yaml.dump(invalid_config, f)
             temp_path = f.name
 
@@ -205,7 +179,7 @@ class TestConfigLoader(unittest.TestCase):
 
     def test_empty_file_raises_error(self):
         """Test that empty config file raises error."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
             f.write("")  # Empty file
             temp_path = f.name
 

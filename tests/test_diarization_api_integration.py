@@ -12,7 +12,7 @@ Card: FI-BACKEND-FEAT-004 + FI-RELIABILITY-IMPL-004
 import io
 import os
 import uuid
-from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -28,7 +28,8 @@ def test_audio_file():
     mp3_content = (
         b"ID3\x04\x00\x00\x00\x00\x00\x00"  # ID3 header
         + b"TSSE\x00\x00\x00\x0f\x00\x00\x00\x00test\x00"  # Frame
-        + b"\xff\xfb\x10\x00" + b"\x00" * 1024  # MPEG frame
+        + b"\xff\xfb\x10\x00"
+        + b"\x00" * 1024  # MPEG frame
     )
     return io.BytesIO(mp3_content)
 
@@ -37,6 +38,7 @@ def test_audio_file():
 def client():
     """Create FastAPI test client."""
     from backend.fi_consult_service import app
+
     return TestClient(app)
 
 
@@ -59,7 +61,7 @@ def test_diarization_upload_and_status(client, test_audio_file):
         "/api/diarization/upload",
         files={"audio": ("test.mp3", test_audio_file, "audio/mp3")},
         headers={"X-Session-ID": session_id},
-        params={"language": "es", "persist": "false"}
+        params={"language": "es", "persist": "false"},
     )
 
     # Verify upload succeeded
@@ -104,7 +106,7 @@ def test_diarization_list_jobs(client, test_audio_file):
     upload_response = client.post(
         "/api/diarization/upload",
         files={"audio": ("test.mp3", test_audio_file, "audio/mp3")},
-        headers={"X-Session-ID": session_id}
+        headers={"X-Session-ID": session_id},
     )
 
     assert upload_response.status_code == 202
@@ -133,17 +135,14 @@ def test_diarization_list_jobs_filtered(client, test_audio_file):
     upload_response = client.post(
         "/api/diarization/upload",
         files={"audio": ("test.mp3", test_audio_file, "audio/mp3")},
-        headers={"X-Session-ID": session_id}
+        headers={"X-Session-ID": session_id},
     )
 
     assert upload_response.status_code == 202
     job_id = upload_response.json()["job_id"]
 
     # Filter jobs by session_id
-    list_response = client.get(
-        "/api/diarization/jobs",
-        params={"session_id": session_id}
-    )
+    list_response = client.get("/api/diarization/jobs", params={"session_id": session_id})
 
     assert list_response.status_code == 200
     jobs = list_response.json()["jobs"]

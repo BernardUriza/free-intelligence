@@ -12,7 +12,8 @@ Created: 2025-10-30
 """
 
 import pytest
-from backend.policy_enforcer import get_policy_enforcer, redact, PolicyViolation
+
+from backend.policy_enforcer import PolicyViolation, get_policy_enforcer, redact
 
 
 class TestPolicyEnforcerIntegration:
@@ -150,18 +151,21 @@ class TestProvidersHavePolicyIntegration:
     def test_claude_adapter_imports_policy(self):
         """Test that Claude adapter imports PolicyEnforcer."""
         from backend.providers import claude
+
         assert hasattr(claude, "policy")
         assert hasattr(claude, "get_policy_enforcer")
 
     def test_ollama_adapter_imports_policy(self):
         """Test that Ollama adapter imports PolicyEnforcer."""
         from backend.providers import ollama
+
         assert hasattr(ollama, "policy")
         assert hasattr(ollama, "get_policy_enforcer")
 
     def test_llm_middleware_imports_policy(self):
         """Test that LLM middleware imports PolicyEnforcer."""
         from backend import llm_middleware
+
         assert hasattr(llm_middleware, "policy")
         assert hasattr(llm_middleware, "get_policy_enforcer")
         assert hasattr(llm_middleware, "redact")

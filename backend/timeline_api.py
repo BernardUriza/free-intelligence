@@ -20,24 +20,24 @@ Usage:
   uvicorn backend.timeline_api:app --reload --port 9002 --host 0.0.0.0
 """
 
-import hashlib
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException, Path as PathParam, Query, status
+from fastapi import FastAPI, HTTPException
+from fastapi import Path as PathParam
+from fastapi import Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
 from backend.timeline_models import (
+    RedactionPolicy,
     Timeline,
     TimelineEvent,
     TimelineEventType,
-    RedactionPolicy,
     TimelineMode,
 )
 
@@ -52,7 +52,9 @@ class PolicyBadges(BaseModel):
     """Policy verification badges for a session"""
 
     hash_verified: str = Field(..., description="Hash integrity status: OK, FAIL, PENDING, N/A")
-    policy_compliant: str = Field(..., description="Append-only policy status: OK, FAIL, PENDING, N/A")
+    policy_compliant: str = Field(
+        ..., description="Append-only policy status: OK, FAIL, PENDING, N/A"
+    )
     redaction_applied: str = Field(..., description="PII redaction status: OK, FAIL, PENDING, N/A")
     audit_logged: str = Field(..., description="Audit trail status: OK, FAIL, PENDING, N/A")
 
@@ -107,8 +109,8 @@ class EventResponse(BaseModel):
     summary: Optional[str]
     content_hash: str
     redaction_policy: str
-    causality: List[Dict[str, Any]]
-    tags: List[str]
+    causality: list[dict[str, Any]]
+    tags: list[str]
     auto_generated: bool
     generation_mode: str
     confidence_score: float
@@ -121,11 +123,11 @@ class SessionDetail(BaseModel):
     timespan: SessionTimespan
     size: SessionSize
     policy_badges: PolicyBadges
-    events: List[EventResponse]
+    events: list[EventResponse]
     generation_mode: str
     auto_events_count: int
     manual_events_count: int
-    redaction_stats: Dict[str, int]
+    redaction_stats: dict[str, int]
 
 
 class TimelineStats(BaseModel):
@@ -135,10 +137,10 @@ class TimelineStats(BaseModel):
     total_events: int
     total_tokens: int
     avg_events_per_session: float
-    event_types_breakdown: Dict[str, int]
-    redaction_stats: Dict[str, int]
-    generation_modes: Dict[str, int]
-    date_range: Dict[str, str]
+    event_types_breakdown: dict[str, int]
+    redaction_stats: dict[str, int]
+    generation_modes: dict[str, int]
+    date_range: dict[str, str]
 
 
 class HealthResponse(BaseModel):
@@ -185,7 +187,7 @@ app.add_middleware(
 STORAGE_PATH = Path(__file__).parent.parent / "storage"
 
 # Mock timeline storage (will be replaced with actual persistence)
-MOCK_TIMELINES: Dict[str, Timeline] = {}
+MOCK_TIMELINES: dict[str, Timeline] = {}
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -245,10 +247,11 @@ def compute_policy_badges(timeline: Timeline) -> PolicyBadges:
     policy_compliant = "OK"
 
     # Redaction: Check if any redaction policy is applied
-    redaction_applied = "OK" if any(
-        event.redaction_policy != RedactionPolicy.NONE
-        for event in timeline.events
-    ) else "N/A"
+    redaction_applied = (
+        "OK"
+        if any(event.redaction_policy != RedactionPolicy.NONE for event in timeline.events)
+        else "N/A"
+    )
 
     # Audit: Assume OK (would check audit_logs in production)
     audit_logged = "OK"
@@ -259,27 +262,22 @@ def compute_policy_badges(timeline: Timeline) -> PolicyBadges:
         hash_verified=hash_verified,
         policy_compliant=policy_compliant,
         redaction_applied=redaction_applied,
-        audit_logged=audit_logged
+        audit_logged=audit_logged,
     )
 
     return PolicyBadges(
         hash_verified=hash_verified,
         policy_compliant=policy_compliant,
         redaction_applied=redaction_applied,
-        audit_logged=audit_logged
+        audit_logged=audit_logged,
     )
 
 
 def compute_session_timespan(timeline: Timeline) -> SessionTimespan:
     """Compute session timespan from events"""
     if not timeline.events:
-        now = datetime.now(timezone.utc).isoformat()
-        return SessionTimespan(
-            start=now,
-            end=now,
-            duration_ms=0,
-            duration_human="0s"
-        )
+        now = datetime.now(UTC).isoformat()
+        return SessionTimespan(start=now, end=now, duration_ms=0, duration_human="0s")
 
     # Sort events by timestamp
     sorted_events = sorted(timeline.events, key=lambda e: e.timestamp)
@@ -293,7 +291,7 @@ def compute_session_timespan(timeline: Timeline) -> SessionTimespan:
         start=start.isoformat(),
         end=end.isoformat(),
         duration_ms=duration_ms,
-        duration_human=duration_human
+        duration_human=duration_human,
     )
 
 
@@ -302,10 +300,7 @@ def compute_session_size(timeline: Timeline) -> SessionSize:
     interaction_count = len(timeline.events)
 
     # Calculate total characters from what + summary
-    total_chars = sum(
-        len(event.what) + len(event.summary or "")
-        for event in timeline.events
-    )
+    total_chars = sum(len(event.what) + len(event.summary or "") for event in timeline.events)
 
     # Mock tokens (would come from actual LLM metadata)
     total_tokens = 0
@@ -318,7 +313,7 @@ def compute_session_size(timeline: Timeline) -> SessionSize:
         total_tokens=total_tokens,
         total_chars=total_chars,
         avg_tokens_per_interaction=avg_tokens,
-        size_human=size_human
+        size_human=size_human,
     )
 
 
@@ -329,7 +324,7 @@ def timeline_to_session_summary(timeline: Timeline) -> SessionSummary:
         thread_id=None,
         owner_hash=timeline.owner_hash[:16],  # Only first 16 chars
         created_at=timeline.created_at.isoformat(),
-        updated_at=timeline.updated_at.isoformat()
+        updated_at=timeline.updated_at.isoformat(),
     )
 
     timespan = compute_session_timespan(timeline)
@@ -344,7 +339,7 @@ def timeline_to_session_summary(timeline: Timeline) -> SessionSummary:
         timespan=timespan,
         size=size,
         policy_badges=policy_badges,
-        preview=preview
+        preview=preview,
     )
 
 
@@ -363,7 +358,7 @@ def event_to_response(event: TimelineEvent) -> EventResponse:
         tags=event.tags,
         auto_generated=event.auto_generated,
         generation_mode=event.generation_mode.value,
-        confidence_score=event.confidence_score
+        confidence_score=event.confidence_score,
     )
 
 
@@ -374,7 +369,7 @@ def timeline_to_session_detail(timeline: Timeline) -> SessionDetail:
         thread_id=None,
         owner_hash=timeline.owner_hash[:16],
         created_at=timeline.created_at.isoformat(),
-        updated_at=timeline.updated_at.isoformat()
+        updated_at=timeline.updated_at.isoformat(),
     )
 
     timespan = compute_session_timespan(timeline)
@@ -394,7 +389,7 @@ def timeline_to_session_detail(timeline: Timeline) -> SessionDetail:
         generation_mode=timeline.generation_mode.value,
         auto_events_count=timeline.auto_events_count,
         manual_events_count=timeline.manual_events_count,
-        redaction_stats=timeline.redaction_stats
+        redaction_stats=timeline.redaction_stats,
     )
 
 
@@ -402,14 +397,18 @@ def timeline_to_session_detail(timeline: Timeline) -> SessionDetail:
 # MOCK DATA INITIALIZATION (for development)
 # ============================================================================
 
+
 def init_mock_data():
     """Initialize mock timeline data for development"""
-    from backend.timeline_models import create_timeline_event, create_causality, CausalityType
+    from backend.timeline_models import (
+        CausalityType,
+        create_causality,
+        create_timeline_event,
+    )
 
     # Create sample timeline
     timeline = Timeline(
-        session_id="session_20251029_100000",
-        owner_hash="abc123def456789012345678901234567890"
+        session_id="session_20251029_100000", owner_hash="abc123def456789012345678901234567890"
     )
 
     # Event 1: User message
@@ -422,7 +421,7 @@ def init_mock_data():
         redaction_policy=RedactionPolicy.SUMMARY,
         session_id=timeline.session_id,
         tags=["symptoms", "chest_pain", "urgent"],
-        auto_generated=False
+        auto_generated=False,
     )
     timeline.add_event(event1)
 
@@ -437,14 +436,14 @@ def init_mock_data():
                 related_event_id=event1.event_id,
                 causality_type=CausalityType.TRIGGERED,
                 explanation="Usuario envió mensaje inicial",
-                confidence=1.0
+                confidence=1.0,
             )
         ],
         redaction_policy=RedactionPolicy.METADATA,
         session_id=timeline.session_id,
         tags=["system", "extraction"],
         auto_generated=True,
-        generation_mode=TimelineMode.AUTO
+        generation_mode=TimelineMode.AUTO,
     )
     timeline.add_event(event2)
 
@@ -460,14 +459,14 @@ def init_mock_data():
                 related_event_id=event2.event_id,
                 causality_type=CausalityType.CAUSED_BY,
                 explanation="Extracción identificó patrón de alto riesgo",
-                confidence=0.85
+                confidence=0.85,
             )
         ],
         redaction_policy=RedactionPolicy.SUMMARY,
         session_id=timeline.session_id,
         tags=["critical", "acs", "widow_maker"],
         auto_generated=True,
-        generation_mode=TimelineMode.AUTO
+        generation_mode=TimelineMode.AUTO,
     )
     timeline.add_event(event3)
 
@@ -482,14 +481,14 @@ def init_mock_data():
                 related_event_id=event3.event_id,
                 causality_type=CausalityType.TRIGGERED,
                 explanation="Patrón crítico requiere escalamiento inmediato",
-                confidence=1.0
+                confidence=1.0,
             )
         ],
         redaction_policy=RedactionPolicy.METADATA,
         session_id=timeline.session_id,
         tags=["critical", "escalation", "emergency"],
         auto_generated=True,
-        generation_mode=TimelineMode.AUTO
+        generation_mode=TimelineMode.AUTO,
     )
     timeline.add_event(event4)
 
@@ -499,7 +498,7 @@ def init_mock_data():
         "MOCK_DATA_INITIALIZED",
         sessions=len(MOCK_TIMELINES),
         sample_session=timeline.session_id,
-        events=len(timeline.events)
+        events=len(timeline.events),
     )
 
 
@@ -515,15 +514,15 @@ async def health_check():
         status="healthy",
         storage_path=str(STORAGE_PATH),
         storage_exists=STORAGE_PATH.exists(),
-        timestamp=datetime.now(timezone.utc).isoformat()
+        timestamp=datetime.now(UTC).isoformat(),
     )
 
 
-@app.get("/api/timeline/sessions", response_model=List[SessionSummary], tags=["timeline"])
+@app.get("/api/timeline/sessions", response_model=list[SessionSummary], tags=["timeline"])
 async def list_sessions(
     limit: int = Query(50, ge=1, le=500, description="Maximum number of sessions"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
-    sort: str = Query("recent", description="Sort order: recent, oldest, events_desc, events_asc")
+    sort: str = Query("recent", description="Sort order: recent, oldest, events_desc, events_asc"),
 ):
     """
     List timeline sessions with pagination.
@@ -539,12 +538,7 @@ async def list_sessions(
     """
     start_time = time.time()
 
-    logger.info(
-        "TIMELINE_SESSIONS_LIST_REQUEST",
-        limit=limit,
-        offset=offset,
-        sort=sort
-    )
+    logger.info("TIMELINE_SESSIONS_LIST_REQUEST", limit=limit, offset=offset, sort=sort)
 
     # Get all timelines
     timelines = list(MOCK_TIMELINES.values())
@@ -571,16 +565,14 @@ async def list_sessions(
         "TIMELINE_SESSIONS_LIST_RESPONSE",
         total=len(timelines),
         returned=len(summaries),
-        latency_ms=latency_ms
+        latency_ms=latency_ms,
     )
 
     return summaries
 
 
 @app.get("/api/timeline/sessions/{session_id}", response_model=SessionDetail, tags=["timeline"])
-async def get_session_detail(
-    session_id: str = PathParam(..., description="Session ID")
-):
+async def get_session_detail(session_id: str = PathParam(..., description="Session ID")):
     """
     Get detailed session with all events.
 
@@ -594,21 +586,14 @@ async def get_session_detail(
     """
     start_time = time.time()
 
-    logger.info(
-        "TIMELINE_SESSION_DETAIL_REQUEST",
-        session_id=session_id
-    )
+    logger.info("TIMELINE_SESSION_DETAIL_REQUEST", session_id=session_id)
 
     timeline = MOCK_TIMELINES.get(session_id)
 
     if not timeline:
-        logger.warning(
-            "TIMELINE_SESSION_NOT_FOUND",
-            session_id=session_id
-        )
+        logger.warning("TIMELINE_SESSION_NOT_FOUND", session_id=session_id)
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Session {session_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found"
         )
 
     detail = timeline_to_session_detail(timeline)
@@ -619,19 +604,19 @@ async def get_session_detail(
         "TIMELINE_SESSION_DETAIL_RESPONSE",
         session_id=session_id,
         events=len(timeline.events),
-        latency_ms=latency_ms
+        latency_ms=latency_ms,
     )
 
     return detail
 
 
-@app.get("/api/timeline/events", response_model=List[EventResponse], tags=["timeline"])
+@app.get("/api/timeline/events", response_model=list[EventResponse], tags=["timeline"])
 async def list_events(
     session_id: Optional[str] = Query(None, description="Filter by session ID"),
     event_type: Optional[str] = Query(None, description="Filter by event type"),
     who: Optional[str] = Query(None, description="Filter by actor"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum events to return"),
-    offset: int = Query(0, ge=0, description="Offset for pagination")
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
 ):
     """
     Stream timeline events with filters.
@@ -651,7 +636,7 @@ async def list_events(
         event_type=event_type,
         who=who,
         limit=limit,
-        offset=offset
+        offset=offset,
     )
 
     # Collect all events from all timelines
@@ -683,7 +668,7 @@ async def list_events(
         "TIMELINE_EVENTS_LIST_RESPONSE",
         total=len(all_events),
         returned=len(events),
-        latency_ms=latency_ms
+        latency_ms=latency_ms,
     )
 
     return events
@@ -715,19 +700,19 @@ async def get_stats():
     avg_events = total_events / total_sessions if total_sessions > 0 else 0.0
 
     # Event types breakdown
-    event_types_breakdown: Dict[str, int] = defaultdict(int)
+    event_types_breakdown: dict[str, int] = defaultdict(int)
     for timeline in MOCK_TIMELINES.values():
         for event in timeline.events:
             event_types_breakdown[event.event_type.value] += 1
 
     # Redaction stats (aggregate from all timelines)
-    redaction_stats: Dict[str, int] = defaultdict(int)
+    redaction_stats: dict[str, int] = defaultdict(int)
     for timeline in MOCK_TIMELINES.values():
         for policy, count in timeline.redaction_stats.items():
             redaction_stats[policy] += count
 
     # Generation modes
-    generation_modes: Dict[str, int] = defaultdict(int)
+    generation_modes: dict[str, int] = defaultdict(int)
     for timeline in MOCK_TIMELINES.values():
         generation_modes[timeline.generation_mode.value] += 1
 
@@ -742,7 +727,7 @@ async def get_stats():
         all_timestamps.sort()
         date_range = {
             "earliest": all_timestamps[0].isoformat(),
-            "latest": all_timestamps[-1].isoformat()
+            "latest": all_timestamps[-1].isoformat(),
         }
 
     latency_ms = int((time.time() - start_time) * 1000)
@@ -751,7 +736,7 @@ async def get_stats():
         "TIMELINE_STATS_RESPONSE",
         total_sessions=total_sessions,
         total_events=total_events,
-        latency_ms=latency_ms
+        latency_ms=latency_ms,
     )
 
     return TimelineStats(
@@ -762,7 +747,7 @@ async def get_stats():
         event_types_breakdown=dict(event_types_breakdown),
         redaction_stats=dict(redaction_stats),
         generation_modes=dict(generation_modes),
-        date_range=date_range
+        date_range=date_range,
     )
 
 
@@ -780,10 +765,10 @@ async def startup_event():
         "TIMELINE_API_STARTUP",
         port=9002,
         storage_path=str(STORAGE_PATH),
-        mock_sessions=len(MOCK_TIMELINES)
+        mock_sessions=len(MOCK_TIMELINES),
     )
 
-    print(f"🚀 FI Timeline API starting on port 9002")
+    print("🚀 FI Timeline API starting on port 9002")
     print(f"📁 Storage path: {STORAGE_PATH}")
     print(f"📊 Mock sessions: {len(MOCK_TIMELINES)}")
 

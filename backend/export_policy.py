@@ -47,26 +47,31 @@ Sprint: SPR-2025W44 (Sprint 2)
 Task: FI-SEC-FEAT-004
 """
 
-import json
 import hashlib
-from pathlib import Path
-from typing import Optional, Dict, Any
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
+import json
 import uuid
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Optional
 
 # Optional logger import
 try:
     from logger import get_logger
+
     logger = get_logger(__name__)
 except ImportError:
+
     class SimpleLogger:
         def info(self, event, **kwargs):
             print(f"INFO: {event} - {kwargs}")
+
         def warning(self, event, **kwargs):
             print(f"WARNING: {event} - {kwargs}")
+
         def error(self, event, **kwargs):
             print(f"ERROR: {event} - {kwargs}")
+
     logger = SimpleLogger()
 
 
@@ -74,13 +79,16 @@ except ImportError:
 # EXCEPTIONS
 # ============================================================================
 
+
 class ExportPolicyViolation(Exception):
     """Raised when export policy is violated."""
+
     pass
 
 
 class InvalidManifest(Exception):
     """Raised when manifest schema is invalid."""
+
     pass
 
 
@@ -89,39 +97,34 @@ class InvalidManifest(Exception):
 # ============================================================================
 
 # Allowed export formats
-ALLOWED_FORMATS = {
-    'markdown',
-    'json',
-    'hdf5',
-    'csv',
-    'txt'
-}
+ALLOWED_FORMATS = {"markdown", "json", "hdf5", "csv", "txt"}
 
 # Allowed export purposes
 ALLOWED_PURPOSES = {
-    'personal_review',   # User reviewing own data
-    'backup',            # Backup to external storage
-    'migration',         # Moving to different system
-    'analysis',          # Data analysis
-    'compliance',        # Legal/compliance requirement
-    'research',          # Research purposes
+    "personal_review",  # User reviewing own data
+    "backup",  # Backup to external storage
+    "migration",  # Moving to different system
+    "analysis",  # Data analysis
+    "compliance",  # Legal/compliance requirement
+    "research",  # Research purposes
 }
 
 # Required manifest fields
 REQUIRED_FIELDS = {
-    'export_id',
-    'timestamp',
-    'exported_by',
-    'data_source',
-    'data_hash',
-    'format',
-    'purpose',
+    "export_id",
+    "timestamp",
+    "exported_by",
+    "data_source",
+    "data_hash",
+    "format",
+    "purpose",
 }
 
 
 # ============================================================================
 # DATACLASS
 # ============================================================================
+
 
 @dataclass
 class ExportManifest:
@@ -140,6 +143,7 @@ class ExportManifest:
         includes_pii: Si incluye datos personales
         metadata: Metadata adicional (opcional)
     """
+
     export_id: str
     timestamp: str
     exported_by: str
@@ -149,9 +153,9 @@ class ExportManifest:
     purpose: str
     retention_days: Optional[int] = None
     includes_pii: bool = True
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[dict[str, Any]] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convierte a dict (para JSON serialization)."""
         data = asdict(self)
         # Remove None values
@@ -163,17 +167,14 @@ class ExportManifest:
 
     def save(self, filepath: Path):
         """Guarda manifest a archivo JSON."""
-        filepath.write_text(self.to_json(), encoding='utf-8')
-        logger.info(
-            "EXPORT_MANIFEST_SAVED",
-            export_id=self.export_id,
-            filepath=str(filepath)
-        )
+        filepath.write_text(self.to_json(), encoding="utf-8")
+        logger.info("EXPORT_MANIFEST_SAVED", export_id=self.export_id, filepath=str(filepath))
 
 
 # ============================================================================
 # VALIDATORS
 # ============================================================================
+
 
 def validate_manifest_schema(manifest: ExportManifest) -> bool:
     """
@@ -187,9 +188,7 @@ def validate_manifest_schema(manifest: ExportManifest) -> bool:
     missing_fields = REQUIRED_FIELDS - set(manifest_dict.keys())
 
     if missing_fields:
-        raise InvalidManifest(
-            f"Missing required fields: {', '.join(missing_fields)}"
-        )
+        raise InvalidManifest(f"Missing required fields: {', '.join(missing_fields)}")
 
     # Validate export_id is UUID
     try:
@@ -199,33 +198,29 @@ def validate_manifest_schema(manifest: ExportManifest) -> bool:
 
     # Validate timestamp is ISO 8601
     try:
-        datetime.fromisoformat(manifest.timestamp.replace('Z', '+00:00'))
+        datetime.fromisoformat(manifest.timestamp.replace("Z", "+00:00"))
     except ValueError:
         raise InvalidManifest(f"timestamp must be ISO 8601: {manifest.timestamp}")
 
     # Validate format
     if manifest.format not in ALLOWED_FORMATS:
-        raise InvalidManifest(
-            f"format must be one of {ALLOWED_FORMATS}, got: {manifest.format}"
-        )
+        raise InvalidManifest(f"format must be one of {ALLOWED_FORMATS}, got: {manifest.format}")
 
     # Validate purpose
     if manifest.purpose not in ALLOWED_PURPOSES:
-        raise InvalidManifest(
-            f"purpose must be one of {ALLOWED_PURPOSES}, got: {manifest.purpose}"
-        )
+        raise InvalidManifest(f"purpose must be one of {ALLOWED_PURPOSES}, got: {manifest.purpose}")
 
     # Validate data_hash is SHA256 (64 hex chars)
-    if len(manifest.data_hash) != 64 or not all(c in '0123456789abcdef' for c in manifest.data_hash):
-        raise InvalidManifest(
-            f"data_hash must be SHA256 (64 hex chars): {manifest.data_hash}"
-        )
+    if len(manifest.data_hash) != 64 or not all(
+        c in "0123456789abcdef" for c in manifest.data_hash
+    ):
+        raise InvalidManifest(f"data_hash must be SHA256 (64 hex chars): {manifest.data_hash}")
 
     logger.info(
         "MANIFEST_HASH_COMPARED",
         export_id=manifest.export_id,
         format=manifest.format,
-        purpose=manifest.purpose
+        purpose=manifest.purpose,
     )
 
     return True
@@ -240,17 +235,14 @@ def compute_file_hash(filepath: Path) -> str:
     """
     sha256 = hashlib.sha256()
 
-    with open(filepath, 'rb') as f:
+    with open(filepath, "rb") as f:
         while chunk := f.read(8192):
             sha256.update(chunk)
 
     return sha256.hexdigest()
 
 
-def validate_export(
-    manifest: ExportManifest,
-    export_filepath: Path
-) -> bool:
+def validate_export(manifest: ExportManifest, export_filepath: Path) -> bool:
     """
     Valida export completo: manifest schema + data hash match.
 
@@ -270,9 +262,7 @@ def validate_export(
 
     # 2. Validate export file exists
     if not export_filepath.exists():
-        raise ExportPolicyViolation(
-            f"Export file does not exist: {export_filepath}"
-        )
+        raise ExportPolicyViolation(f"Export file does not exist: {export_filepath}")
 
     # 3. Compute actual file hash
     actual_hash = compute_file_hash(export_filepath)
@@ -280,16 +270,14 @@ def validate_export(
     # 4. Verify hash matches manifest
     if actual_hash != manifest.data_hash:
         raise ExportPolicyViolation(
-            f"Data hash mismatch! "
-            f"Manifest: {manifest.data_hash}, "
-            f"Actual: {actual_hash}"
+            f"Data hash mismatch! " f"Manifest: {manifest.data_hash}, " f"Actual: {actual_hash}"
         )
 
     logger.info(
         "EXPORT_HASH_MATCHED",
         export_id=manifest.export_id,
         filepath=str(export_filepath),
-        data_hash=actual_hash[:16] + "..."
+        data_hash=actual_hash[:16] + "...",
     )
 
     return True
@@ -299,6 +287,7 @@ def validate_export(
 # MANIFEST CREATION
 # ============================================================================
 
+
 def create_export_manifest(
     exported_by: str,
     data_source: str,
@@ -307,7 +296,7 @@ def create_export_manifest(
     purpose: str,
     retention_days: Optional[int] = None,
     includes_pii: bool = True,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[dict[str, Any]] = None,
 ) -> ExportManifest:
     """
     Crea manifest de export con metadata completa.
@@ -329,7 +318,7 @@ def create_export_manifest(
     export_id = str(uuid.uuid4())
 
     # Generate timestamp
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
 
     # Compute data hash
     data_hash = compute_file_hash(export_filepath)
@@ -345,7 +334,7 @@ def create_export_manifest(
         purpose=purpose,
         retention_days=retention_days,
         includes_pii=includes_pii,
-        metadata=metadata
+        metadata=metadata,
     )
 
     # Validate schema
@@ -356,7 +345,7 @@ def create_export_manifest(
         export_id=export_id,
         data_source=data_source,
         format=format,
-        purpose=purpose
+        purpose=purpose,
     )
 
     return manifest
@@ -375,18 +364,14 @@ def load_manifest(filepath: Path) -> ExportManifest:
     if not filepath.exists():
         raise FileNotFoundError(f"Manifest not found: {filepath}")
 
-    data = json.loads(filepath.read_text(encoding='utf-8'))
+    data = json.loads(filepath.read_text(encoding="utf-8"))
 
     manifest = ExportManifest(**data)
 
     # Validate schema
     validate_manifest_schema(manifest)
 
-    logger.info(
-        "EXPORT_MANIFEST_LOADED",
-        export_id=manifest.export_id,
-        filepath=str(filepath)
-    )
+    logger.info("EXPORT_MANIFEST_LOADED", export_id=manifest.export_id, filepath=str(filepath))
 
     return manifest
 
@@ -400,19 +385,27 @@ if __name__ == "__main__":
 
     if len(sys.argv) < 2:
         print("Usage:")
-        print("  python3 backend/export_policy.py create <export_file> <data_source> <format> <purpose> <user_id>")
+        print(
+            "  python3 backend/export_policy.py create <export_file> <data_source> <format> <purpose> <user_id>"
+        )
         print("  python3 backend/export_policy.py validate <manifest.json> <export_file>")
         print("  python3 backend/export_policy.py load <manifest.json>")
         print("\nExamples:")
-        print("  python3 backend/export_policy.py create exports/data.md /interactions/ markdown personal_review user123")
-        print("  python3 backend/export_policy.py validate exports/data.manifest.json exports/data.md")
+        print(
+            "  python3 backend/export_policy.py create exports/data.md /interactions/ markdown personal_review user123"
+        )
+        print(
+            "  python3 backend/export_policy.py validate exports/data.manifest.json exports/data.md"
+        )
         sys.exit(1)
 
     command = sys.argv[1]
 
     if command == "create":
         if len(sys.argv) < 7:
-            print("Error: create requires: <export_file> <data_source> <format> <purpose> <user_id>")
+            print(
+                "Error: create requires: <export_file> <data_source> <format> <purpose> <user_id>"
+            )
             sys.exit(1)
 
         export_file = Path(sys.argv[2])
@@ -432,11 +425,11 @@ if __name__ == "__main__":
             data_source=data_source,
             export_filepath=export_file,
             format=format_type,
-            purpose=purpose
+            purpose=purpose,
         )
 
         # Save manifest
-        manifest_file = export_file.with_suffix('.manifest.json')
+        manifest_file = export_file.with_suffix(".manifest.json")
         manifest.save(manifest_file)
 
         print(f"\n✅ Manifest created: {manifest_file}")
@@ -453,19 +446,19 @@ if __name__ == "__main__":
         manifest_file = Path(sys.argv[2])
         export_file = Path(sys.argv[3])
 
-        print(f"🔍 Validating export...")
+        print("🔍 Validating export...")
 
         try:
             manifest = load_manifest(manifest_file)
             validate_export(manifest, export_file)
 
-            print(f"\n✅ EXPORT VALIDATION PASSED")
+            print("\n✅ EXPORT VALIDATION PASSED")
             print(f"   Export ID: {manifest.export_id}")
             print(f"   Data hash: {manifest.data_hash[:16]}... ✓")
-            print(f"   Schema: Valid ✓")
+            print("   Schema: Valid ✓")
 
         except (InvalidManifest, ExportPolicyViolation) as e:
-            print(f"\n❌ EXPORT VALIDATION FAILED")
+            print("\n❌ EXPORT VALIDATION FAILED")
             print(f"   Error: {str(e)}")
             sys.exit(1)
 
@@ -481,11 +474,11 @@ if __name__ == "__main__":
         try:
             manifest = load_manifest(manifest_file)
 
-            print(f"\n✅ Manifest loaded:")
+            print("\n✅ Manifest loaded:")
             print(json.dumps(manifest.to_dict(), indent=2))
 
         except (FileNotFoundError, InvalidManifest) as e:
-            print(f"\n❌ Failed to load manifest")
+            print("\n❌ Failed to load manifest")
             print(f"   Error: {str(e)}")
             sys.exit(1)
 

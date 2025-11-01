@@ -9,18 +9,19 @@ FI-CORE-FEAT-003
 """
 
 from pathlib import Path
-from typing import Optional, Dict, Any, Literal
+from typing import Any, Literal, Optional
+
+from log_manifest import LogManifest
+from log_rotation import LogRotation
 from logger_structured import (
     BaseLogEvent,
     ServiceChannel,
     UserRole,
-    log_server_request,
+    log_access_event,
     log_llm_request,
+    log_server_request,
     log_storage_segment,
-    log_access_event
 )
-from log_rotation import LogRotation
-from log_manifest import LogManifest
 
 
 class LogWriter:
@@ -81,8 +82,8 @@ class LogWriter:
         log_path = self.rotation.get_current_log_path(event.service)
 
         # Append event
-        with open(log_path, 'a', encoding='utf-8') as f:
-            f.write(event.to_ndjson() + '\n')
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(event.to_ndjson() + "\n")
 
     def write_server(
         self,
@@ -95,7 +96,7 @@ class LogWriter:
         trace_id: Optional[str] = None,
         session_id: Optional[str] = None,
         user: str = "system",
-        role: UserRole = UserRole.SYSTEM
+        role: UserRole = UserRole.SYSTEM,
     ):
         """Write server request log."""
         event = log_server_request(
@@ -108,7 +109,7 @@ class LogWriter:
             trace_id=trace_id,
             session_id=session_id,
             user=user,
-            role=role
+            role=role,
         )
         self._write_event(event)
 
@@ -128,7 +129,7 @@ class LogWriter:
         trace_id: Optional[str] = None,
         session_id: Optional[str] = None,
         user: str = "system",
-        role: UserRole = UserRole.SYSTEM
+        role: UserRole = UserRole.SYSTEM,
     ):
         """Write LLM request log."""
         event = log_llm_request(
@@ -146,7 +147,7 @@ class LogWriter:
             trace_id=trace_id,
             session_id=session_id,
             user=user,
-            role=role
+            role=role,
         )
         self._write_event(event)
 
@@ -158,7 +159,7 @@ class LogWriter:
         ready: bool,
         trace_id: Optional[str] = None,
         session_id: Optional[str] = None,
-        user: str = "system"
+        user: str = "system",
     ):
         """Write storage segment log."""
         event = log_storage_segment(
@@ -168,7 +169,7 @@ class LogWriter:
             ready=ready,
             trace_id=trace_id,
             session_id=session_id,
-            user=user
+            user=user,
         )
         self._write_event(event)
 
@@ -182,7 +183,7 @@ class LogWriter:
         new_role: Optional[UserRole] = None,
         trace_id: Optional[str] = None,
         session_id: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[dict[str, Any]] = None,
     ):
         """Write access event log (AUDIT)."""
         event = log_access_event(
@@ -194,11 +195,11 @@ class LogWriter:
             new_role=new_role,
             trace_id=trace_id,
             session_id=session_id,
-            details=details
+            details=details,
         )
         self._write_event(event)
 
-    def rotate_all(self) -> Dict[ServiceChannel, Optional[Path]]:
+    def rotate_all(self) -> dict[ServiceChannel, Optional[Path]]:
         """
         Rotate all logs.
 
@@ -211,7 +212,7 @@ class LogWriter:
             results[channel] = compressed
         return results
 
-    def cleanup_all(self) -> Dict[ServiceChannel, int]:
+    def cleanup_all(self) -> dict[ServiceChannel, int]:
         """
         Cleanup old logs for all channels.
 
@@ -224,7 +225,7 @@ class LogWriter:
             results[channel] = len(deleted)
         return results
 
-    def create_manifest(self, date: Optional[str] = None) -> Dict[str, Any]:
+    def create_manifest(self, date: Optional[str] = None) -> dict[str, Any]:
         """
         Create daily manifest for access logs.
 
@@ -236,7 +237,7 @@ class LogWriter:
         """
         return self.manifest.create_daily_manifest(date)
 
-    def verify_manifests(self) -> Dict[str, Any]:
+    def verify_manifests(self) -> dict[str, Any]:
         """
         Verify manifest chain integrity.
 
@@ -245,7 +246,7 @@ class LogWriter:
         """
         return self.manifest.verify_manifest_chain()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get statistics for all logs and manifests.
 
@@ -258,10 +259,7 @@ class LogWriter:
 
         manifest_stats = self.manifest.get_manifest_stats()
 
-        return {
-            "log_stats": log_stats,
-            "manifest_stats": manifest_stats
-        }
+        return {"log_stats": log_stats, "manifest_stats": manifest_stats}
 
 
 # ============================================================================
@@ -270,7 +268,6 @@ class LogWriter:
 
 if __name__ == "__main__":
     import sys
-    import time
     import uuid
 
     print("📝 FREE INTELLIGENCE - LOG WRITER DEMO")
@@ -298,7 +295,7 @@ if __name__ == "__main__":
                 result=True,
                 user="bernard@example.com",
                 trace_id=trace_id,
-                session_id=session_id
+                session_id=session_id,
             )
             print("   ✅ Written to data/logs/access/")
 
@@ -314,7 +311,7 @@ if __name__ == "__main__":
                 trace_id=trace_id,
                 session_id=session_id,
                 user="bernard@example.com",
-                role=UserRole.OWNER
+                role=UserRole.OWNER,
             )
             print("   ✅ Written to data/logs/server/")
 
@@ -333,7 +330,7 @@ if __name__ == "__main__":
                 trace_id=trace_id,
                 session_id=session_id,
                 user="bernard@example.com",
-                role=UserRole.OWNER
+                role=UserRole.OWNER,
             )
             print("   ✅ Written to data/logs/llm/")
 
@@ -345,7 +342,7 @@ if __name__ == "__main__":
                 segment_seconds=0.045,
                 ready=True,
                 trace_id=trace_id,
-                session_id=session_id
+                session_id=session_id,
             )
             print("   ✅ Written to data/logs/storage/")
 
@@ -371,7 +368,7 @@ if __name__ == "__main__":
                 print()
 
             manifest_stats = stats["manifest_stats"]
-            print(f"MANIFESTS:")
+            print("MANIFESTS:")
             print(f"   Count: {manifest_stats['manifest_count']}")
             print(f"   Range: {manifest_stats['oldest_date']} → {manifest_stats['newest_date']}")
             print(f"   Total events: {manifest_stats['total_events']}")
@@ -401,7 +398,7 @@ if __name__ == "__main__":
         elif command == "manifest":
             # Create manifest
             date = sys.argv[2] if len(sys.argv) > 2 else None
-            print(f"🔗 Creating manifest...")
+            print("🔗 Creating manifest...")
             manifest = writer.create_manifest(date)
 
             print(f"   Date: {manifest['date']}")

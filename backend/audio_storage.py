@@ -23,7 +23,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from backend.logger import get_logger
@@ -32,7 +32,9 @@ logger = get_logger(__name__)
 
 # Storage configuration
 # FI_AUDIO_ROOT override for path hardening (FI-UI-FEAT-206)
-AUDIO_STORAGE_DIR = Path(os.getenv("FI_AUDIO_ROOT", os.getenv("AUDIO_STORAGE_DIR", "./storage/audio"))).resolve()
+AUDIO_STORAGE_DIR = Path(
+    os.getenv("FI_AUDIO_ROOT", os.getenv("AUDIO_STORAGE_DIR", "./storage/audio"))
+).resolve()
 AUDIO_TTL_DAYS = int(os.getenv("AUDIO_TTL_DAYS", "7"))
 
 # Ensure storage directory exists
@@ -78,8 +80,8 @@ def save_audio_file(
     session_id: str,
     audio_content: bytes,
     file_extension: str,
-    metadata: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    metadata: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
     """
     Save audio file to storage with atomic write and manifest.
 
@@ -180,7 +182,7 @@ def save_audio_file(
     }
 
 
-def get_audio_manifest(session_id: str, timestamp_ms: int) -> Optional[Dict[str, Any]]:
+def get_audio_manifest(session_id: str, timestamp_ms: int) -> Optional[dict[str, Any]]:
     """
     Retrieve audio manifest by session_id and timestamp.
 

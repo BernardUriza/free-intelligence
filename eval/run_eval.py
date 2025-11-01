@@ -23,16 +23,14 @@ import sys
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import numpy as np
 import requests
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("eval")
 
 
@@ -109,7 +107,7 @@ class GoldenSetEvaluator:
         self.warmup_count = warmup_count
         self.prompts: list[PromptSpec] = []
         self.results: list[PromptResult] = []
-        self.run_id = f"RUN_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+        self.run_id = f"RUN_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
         self.rng = np.random.default_rng(self._seed_to_int(seed))
 
         logger.info(f"Evaluator initialized: mode=prod, seed={seed}")
@@ -239,9 +237,7 @@ class GoldenSetEvaluator:
     ) -> PromptMetrics:
         """Compute metrics (NO ESTIMATION - report unknowns as None)"""
         # Adequacy: keyword coverage
-        keywords_matched = [
-            kw for kw in prompt.expected_keywords if kw.lower() in response.lower()
-        ]
+        keywords_matched = [kw for kw in prompt.expected_keywords if kw.lower() in response.lower()]
         adequacy = (
             len(keywords_matched) / len(prompt.expected_keywords)
             if prompt.expected_keywords
@@ -257,14 +253,10 @@ class GoldenSetEvaluator:
             cost_usd = 0.0
         elif self.provider == "anthropic":
             # Claude Sonnet 3.5 pricing (as of 2025)
-            cost_usd = (
-                (tokens_in or 0) / 1_000_000
-            ) * 3.0 + ((tokens_out or 0) / 1_000_000) * 15.0
+            cost_usd = ((tokens_in or 0) / 1_000_000) * 3.0 + ((tokens_out or 0) / 1_000_000) * 15.0
         elif self.provider == "openai":
             # GPT-4o pricing
-            cost_usd = (
-                (tokens_in or 0) / 1_000_000
-            ) * 5.0 + ((tokens_out or 0) / 1_000_000) * 15.0
+            cost_usd = ((tokens_in or 0) / 1_000_000) * 5.0 + ((tokens_out or 0) / 1_000_000) * 15.0
         else:
             cost_usd = 0.0
 
@@ -291,7 +283,7 @@ class GoldenSetEvaluator:
         - measure-both: Run cold pass + warm pass
         """
         logger.info(f"Starting evaluation (run_id={self.run_id})...")
-        logger.info(f"  Mode: PRODUCTION (NO MOCKS)")
+        logger.info("  Mode: PRODUCTION (NO MOCKS)")
         logger.info(f"  Cache policy: {self.cache_policy}")
         logger.info(f"  Total prompts: {len(self.prompts)}")
 
@@ -380,8 +372,12 @@ class GoldenSetEvaluator:
 
                 logger.info(
                     f"  ✓ adequacy={metrics.adequacy:.2f}, latency={metrics.latency_ms}ms"
-                    + (f" (server={metrics.server_latency_ms}ms)" if metrics.server_latency_ms else "")
-                    + (f", cache_hit" if metrics.cache_hit else "")
+                    + (
+                        f" (server={metrics.server_latency_ms}ms)"
+                        if metrics.server_latency_ms
+                        else ""
+                    )
+                    + (", cache_hit" if metrics.cache_hit else "")
                 )
 
                 # Rate limiting
@@ -404,13 +400,9 @@ class GoldenSetEvaluator:
         adequacy_scores = [r.metrics["adequacy"] for r in results]
         factuality_scores = [r.metrics["factuality"] for r in results]
         latencies = [r.metrics["latency_ms"] for r in results]
-        tokens_in = [
-            r.metrics["tokens_in"] for r in results if r.metrics["tokens_in"] is not None
-        ]
+        tokens_in = [r.metrics["tokens_in"] for r in results if r.metrics["tokens_in"] is not None]
         tokens_out = [
-            r.metrics["tokens_out"]
-            for r in results
-            if r.metrics["tokens_out"] is not None
+            r.metrics["tokens_out"] for r in results if r.metrics["tokens_out"] is not None
         ]
         tokens_unknown_count = sum(r.metrics["tokens_unknown"] for r in results)
         costs = [r.metrics["cost_usd"] for r in results]
@@ -418,9 +410,7 @@ class GoldenSetEvaluator:
 
         return {
             "avg_adequacy": round(np.mean(adequacy_scores), 3) if adequacy_scores else 0.0,
-            "avg_factuality": round(np.mean(factuality_scores), 3)
-            if factuality_scores
-            else 0.0,
+            "avg_factuality": round(np.mean(factuality_scores), 3) if factuality_scores else 0.0,
             "p50_latency_ms": int(np.percentile(latencies, 50)) if latencies else 0,
             "p95_latency_ms": int(np.percentile(latencies, 95)) if latencies else 0,
             "p99_latency_ms": int(np.percentile(latencies, 99)) if latencies else 0,
@@ -436,7 +426,7 @@ class GoldenSetEvaluator:
         """Save results in schema-compliant format"""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
 
         # Compute aggregates for each cache pass
         aggregates_cold = self.compute_aggregates(cache_pass="cold")
@@ -485,10 +475,9 @@ class GoldenSetEvaluator:
         try:
             import subprocess
 
-            git_sha = (
-                subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True)
-                .strip()
-            )
+            git_sha = subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"], text=True
+            ).strip()
         except:
             git_sha = "unknown"
 
@@ -507,7 +496,7 @@ class GoldenSetEvaluator:
             "cache_policy": self.cache_policy,
             "metrics": aggregates_combined,
             "files": [str(results_file.name), "report/QA_REPORT.md"],
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         with open(output_path, "w") as f:
@@ -531,7 +520,7 @@ def main():
     args = parser.parse_args()
 
     # Default output paths
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     output_path = Path(args.output or f"eval/results/run_{timestamp}.json")
     manifest_path = Path(args.manifest or "eval/results/manifest.json")
 

@@ -6,17 +6,18 @@ FI-DATA-FEAT-003: Mapa de boot cognitivo
 
 import unittest
 from pathlib import Path
+
 import h5py
 
 from backend.boot_map import (
-    init_boot_map_group,
     append_boot_event,
-    register_core_function,
     append_health_check,
+    get_boot_map_stats,
     get_boot_sequence,
     get_core_functions,
     get_health_status,
-    get_boot_map_stats
+    init_boot_map_group,
+    register_core_function,
 )
 
 
@@ -129,7 +130,7 @@ class TestBootEvents(unittest.TestCase):
             self.assertEqual(dataset.shape[0], 1)
 
             # Verificar formato: timestamp|event
-            entry = dataset[0].decode('utf-8')
+            entry = dataset[0].decode("utf-8")
             self.assertIn("|SYSTEM_START", entry)
 
     def test_append_boot_event_raises_without_init(self):
@@ -159,7 +160,7 @@ class TestBootEvents(unittest.TestCase):
 
             # Verificar todos los eventos
             for i, expected_event in enumerate(events):
-                entry = dataset[i].decode('utf-8')
+                entry = dataset[i].decode("utf-8")
                 self.assertIn(f"|{expected_event}", entry)
 
 
@@ -185,40 +186,30 @@ class TestCoreFunctions(unittest.TestCase):
         """Test que register_core_function agrega función correctamente"""
         with h5py.File(self.test_file, "a") as h5f:
             register_core_function(
-                h5f,
-                "init_corpus",
-                "backend.corpus_schema",
-                "DATA",
-                10,
-                "REGISTERED"
+                h5f, "init_corpus", "backend.corpus_schema", "DATA", 10, "REGISTERED"
             )
 
             dataset = h5f["/system/boot_map/core_functions"]
             self.assertEqual(dataset.shape[0], 1)
 
             entry = dataset[0]
-            self.assertEqual(entry["function_name"].decode('utf-8'), "init_corpus")
-            self.assertEqual(entry["module_path"].decode('utf-8'), "backend.corpus_schema")
-            self.assertEqual(entry["category"].decode('utf-8'), "DATA")
+            self.assertEqual(entry["function_name"].decode("utf-8"), "init_corpus")
+            self.assertEqual(entry["module_path"].decode("utf-8"), "backend.corpus_schema")
+            self.assertEqual(entry["category"].decode("utf-8"), "DATA")
             self.assertEqual(entry["priority"], 10)
-            self.assertEqual(entry["status"].decode('utf-8'), "REGISTERED")
+            self.assertEqual(entry["status"].decode("utf-8"), "REGISTERED")
 
     def test_register_core_function_default_values(self):
         """Test que register_core_function usa defaults correctos"""
         with h5py.File(self.test_file, "a") as h5f:
-            register_core_function(
-                h5f,
-                "test_func",
-                "test.module",
-                "CORE"
-            )
+            register_core_function(h5f, "test_func", "test.module", "CORE")
 
             dataset = h5f["/system/boot_map/core_functions"]
             entry = dataset[0]
 
             # Defaults
             self.assertEqual(entry["priority"], 100)
-            self.assertEqual(entry["status"].decode('utf-8'), "REGISTERED")
+            self.assertEqual(entry["status"].decode("utf-8"), "REGISTERED")
 
     def test_multiple_core_functions_different_categories(self):
         """Test que se pueden registrar funciones de diferentes categorías"""
@@ -226,7 +217,7 @@ class TestCoreFunctions(unittest.TestCase):
             ("init_corpus", "backend.corpus_schema", "DATA", 10),
             ("get_logger", "backend.logger", "CORE", 5),
             ("validate_corpus", "backend.corpus_ops", "DATA", 20),
-            ("load_config", "backend.config_loader", "CORE", 1)
+            ("load_config", "backend.config_loader", "CORE", 1),
         ]
 
         with h5py.File(self.test_file, "a") as h5f:
@@ -258,21 +249,15 @@ class TestHealthChecks(unittest.TestCase):
     def test_append_health_check_adds_entry(self):
         """Test que append_health_check agrega check correctamente"""
         with h5py.File(self.test_file, "a") as h5f:
-            append_health_check(
-                h5f,
-                "CONFIG",
-                "OK",
-                "Configuration loaded successfully",
-                12.5
-            )
+            append_health_check(h5f, "CONFIG", "OK", "Configuration loaded successfully", 12.5)
 
             dataset = h5f["/system/boot_map/health_checks"]
             self.assertEqual(dataset.shape[0], 1)
 
             entry = dataset[0]
-            self.assertEqual(entry["component"].decode('utf-8'), "CONFIG")
-            self.assertEqual(entry["status"].decode('utf-8'), "OK")
-            self.assertEqual(entry["message"].decode('utf-8'), "Configuration loaded successfully")
+            self.assertEqual(entry["component"].decode("utf-8"), "CONFIG")
+            self.assertEqual(entry["status"].decode("utf-8"), "OK")
+            self.assertEqual(entry["message"].decode("utf-8"), "Configuration loaded successfully")
             self.assertAlmostEqual(entry["duration_ms"], 12.5, places=1)
 
     def test_append_health_check_default_duration(self):
@@ -291,7 +276,7 @@ class TestHealthChecks(unittest.TestCase):
             ("CONFIG", "OK", "Configuration OK"),
             ("CORPUS", "OK", "Corpus accessible"),
             ("NETWORK", "WARNING", "Slow response"),
-            ("DISK", "ERROR", "Low space")
+            ("DISK", "ERROR", "Low space"),
         ]
 
         with h5py.File(self.test_file, "a") as h5f:

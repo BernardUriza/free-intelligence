@@ -11,20 +11,17 @@ Tests cover:
 FI-DATA-FEAT-001
 """
 
-import unittest
-import tempfile
-import h5py
 import sys
+import tempfile
+import unittest
 from pathlib import Path
+
+import h5py
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
-from corpus_schema import (
-    init_corpus,
-    validate_corpus,
-    CorpusSchema
-)
+from corpus_schema import CorpusSchema, init_corpus, validate_corpus
 
 
 class TestCorpusSchema(unittest.TestCase):
@@ -35,7 +32,7 @@ class TestCorpusSchema(unittest.TestCase):
 
     def setUp(self):
         """Create temporary file for testing."""
-        self.temp_file = tempfile.NamedTemporaryFile(suffix='.h5', delete=False)
+        self.temp_file = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
         self.temp_path = self.temp_file.name
         self.temp_file.close()
         Path(self.temp_path).unlink()  # Remove it, will be created by tests
@@ -55,7 +52,7 @@ class TestCorpusSchema(unittest.TestCase):
         """Test that all required groups are created."""
         init_corpus(self.temp_path, owner_identifier="test@example.com")
 
-        with h5py.File(self.temp_path, 'r') as f:
+        with h5py.File(self.temp_path, "r") as f:
             for group in CorpusSchema.REQUIRED_GROUPS:
                 self.assertIn(group, f, f"Group /{group} not found")
 
@@ -63,21 +60,23 @@ class TestCorpusSchema(unittest.TestCase):
         """Test that /interactions/ has all required datasets."""
         init_corpus(self.temp_path, owner_identifier="test@example.com")
 
-        with h5py.File(self.temp_path, 'r') as f:
+        with h5py.File(self.temp_path, "r") as f:
             interactions = f["interactions"]
             for dataset_name in CorpusSchema.INTERACTION_DATASETS:
-                self.assertIn(dataset_name, interactions,
-                            f"Dataset /interactions/{dataset_name} not found")
+                self.assertIn(
+                    dataset_name, interactions, f"Dataset /interactions/{dataset_name} not found"
+                )
 
     def test_embeddings_datasets(self):
         """Test that /embeddings/ has all required datasets."""
         init_corpus(self.temp_path, owner_identifier="test@example.com")
 
-        with h5py.File(self.temp_path, 'r') as f:
+        with h5py.File(self.temp_path, "r") as f:
             embeddings = f["embeddings"]
             for dataset_name in CorpusSchema.EMBEDDING_DATASETS:
-                self.assertIn(dataset_name, embeddings,
-                            f"Dataset /embeddings/{dataset_name} not found")
+                self.assertIn(
+                    dataset_name, embeddings, f"Dataset /embeddings/{dataset_name} not found"
+                )
 
             # Check vector dimensions (768-dim)
             self.assertEqual(embeddings["vector"].shape[1], 768)
@@ -86,7 +85,7 @@ class TestCorpusSchema(unittest.TestCase):
         """Test that /metadata/ has required attributes."""
         init_corpus(self.temp_path, owner_identifier="test@example.com")
 
-        with h5py.File(self.temp_path, 'r') as f:
+        with h5py.File(self.temp_path, "r") as f:
             metadata = f["metadata"]
             self.assertIn("created_at", metadata.attrs)
             self.assertIn("version", metadata.attrs)
@@ -112,7 +111,7 @@ class TestCorpusSchema(unittest.TestCase):
     def test_validate_corpus_missing_group(self):
         """Test validation detects missing groups."""
         # Create incomplete corpus
-        with h5py.File(self.temp_path, 'w') as f:
+        with h5py.File(self.temp_path, "w") as f:
             f.create_group("interactions")
             # Missing: embeddings, metadata
 
@@ -139,12 +138,11 @@ class TestCorpusSchema(unittest.TestCase):
         """Test that datasets are created with maxshape=None for appending."""
         init_corpus(self.temp_path, owner_identifier="test@example.com")
 
-        with h5py.File(self.temp_path, 'r') as f:
+        with h5py.File(self.temp_path, "r") as f:
             # Check interactions datasets are resizable
             for dataset_name in CorpusSchema.INTERACTION_DATASETS:
                 dataset = f["interactions"][dataset_name]
-                self.assertEqual(dataset.maxshape, (None,),
-                               f"Dataset {dataset_name} not resizable")
+                self.assertEqual(dataset.maxshape, (None,), f"Dataset {dataset_name} not resizable")
 
             # Check embeddings datasets are resizable
             self.assertEqual(f["embeddings"]["interaction_id"].maxshape, (None,))

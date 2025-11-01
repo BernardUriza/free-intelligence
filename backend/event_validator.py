@@ -14,8 +14,7 @@ FI-API-FEAT-001
 """
 
 import re
-from typing import List, Dict, Optional, Any
-
+from typing import Any, Optional
 
 # Canonical list of approved events (from docs/events.md + docs/honest-uncertainty.md)
 CANONICAL_EVENTS = {
@@ -25,7 +24,6 @@ CANONICAL_EVENTS = {
     "CORPUS_SCHEMA_CHECKS_COMPLETED",  # Was: CORPUS_VALIDATION_PASSED
     "CORPUS_STATS_FAILED",
     "STATS_SNAPSHOT_COMPUTED",  # Was: CORPUS_STATS_RETRIEVED
-
     # Identity events (updated for honest uncertainty)
     "CORPUS_IDENTITY_ADDED",
     "CORPUS_IDENTITY_ADD_FAILED",
@@ -35,26 +33,21 @@ CANONICAL_EVENTS = {
     "OWNERSHIP_HASH_MATCHED",  # Was: CORPUS_OWNERSHIP_VERIFIED
     "OWNERSHIP_HASH_MISMATCH",  # Was: CORPUS_OWNERSHIP_MISMATCH
     "CORPUS_VERIFICATION_ERROR",
-
     # Interaction events
     "INTERACTION_APPENDED",
     "INTERACTION_APPEND_FAILED",
     "INTERACTIONS_READ",
     "INTERACTIONS_READ_FAILED",
-
     # Embedding events
     "EMBEDDING_APPENDED",
     "EMBEDDING_APPEND_FAILED",
-
     # Config events
     "CONFIG_LOADED",
     "CONFIG_LOAD_FAILED",
     "CONFIG_VALIDATION_FAILED",
-
     # Logger events
     "LOGGER_INITIALIZED",
     "LOGGER_INIT_FAILED",
-
     # Policy/Validation events (honest uncertainty)
     "LLM_AUDIT_SCAN_COMPLETED",  # Was: LLM_AUDIT_VALIDATION_PASSED
     "LLM_AUDIT_VIOLATIONS_DETECTED",
@@ -64,20 +57,17 @@ CANONICAL_EVENTS = {
     "ROUTER_POLICY_VIOLATIONS_DETECTED",
     "APPEND_ONLY_CHECKS_COMPLETED",  # Was: APPEND_ONLY_VERIFIED
     "APPEND_ONLY_VIOLATION_DETECTED",
-
     # Export events (honest uncertainty)
     "EXPORT_MANIFEST_CREATED",
     "MANIFEST_HASH_COMPARED",  # Was: EXPORT_MANIFEST_VALIDATED
     "EXPORT_HASH_MATCHED",  # Was: EXPORT_VALIDATED
     "EXPORT_HASH_MISMATCH",
-
     # Audit log events
     "AUDIT_LOGS_GROUP_INITIALIZED",
     "AUDIT_LOGS_GROUP_EXISTS",
     "AUDIT_LOG_APPENDED",
     "AUDIT_LOGS_READ_FAILED",
     "AUDIT_STATS_FAILED",
-
     # Retention policy events (FI-DATA-FEAT-007)
     "RETENTION_DRY_RUN",
     "RETENTION_CLEANUP_COMPLETED",
@@ -89,21 +79,44 @@ CANONICAL_EVENTS = {
 
 # Common past participles for validation (updated for honest uncertainty)
 COMMON_PAST_PARTICIPLES = {
-    "INITIALIZED", "CREATED", "ADDED", "UPDATED", "DELETED",
-    "LOADED", "SAVED", "APPENDED",
-    "STARTED", "STOPPED", "COMPLETED",
-    "FAILED", "MISMATCH", "REJECTED", "BLOCKED",
-    "NOT_FOUND", "NOT_SET", "READ",
+    "INITIALIZED",
+    "CREATED",
+    "ADDED",
+    "UPDATED",
+    "DELETED",
+    "LOADED",
+    "SAVED",
+    "APPENDED",
+    "STARTED",
+    "STOPPED",
+    "COMPLETED",
+    "FAILED",
+    "MISMATCH",
+    "REJECTED",
+    "BLOCKED",
+    "NOT_FOUND",
+    "NOT_SET",
+    "READ",
     # Honest uncertainty terms (preferred)
-    "MATCHED", "COMPUTED", "SCANNED", "DETECTED",
-    "COMPARED", "RECORDED", "ATTEMPTED", "CHECKED",
-    "SNAPSHOT", "OBSERVED",
+    "MATCHED",
+    "COMPUTED",
+    "SCANNED",
+    "DETECTED",
+    "COMPARED",
+    "RECORDED",
+    "ATTEMPTED",
+    "CHECKED",
+    "SNAPSHOT",
+    "OBSERVED",
     # Legacy terms (avoid in new code, kept for backwards compatibility)
-    "RETRIEVED", "VERIFIED", "VALIDATED", "PASSED",
+    "RETRIEVED",
+    "VERIFIED",
+    "VALIDATED",
+    "PASSED",
 }
 
 
-def validate_event_name(event_name: str, strict: bool = False) -> Dict[str, Any]:
+def validate_event_name(event_name: str, strict: bool = False) -> dict[str, Any]:
     """
     Validate event name against naming convention.
 
@@ -144,15 +157,15 @@ def validate_event_name(event_name: str, strict: bool = False) -> Dict[str, Any]
         errors.append("Event name must be UPPER_SNAKE_CASE")
 
     # Rule 3: Only alphanumeric + underscores
-    if not re.match(r'^[A-Z0-9_]+$', event_name):
+    if not re.match(r"^[A-Z0-9_]+$", event_name):
         errors.append("Event name must contain only uppercase letters, numbers, and underscores")
 
     # Rule 4: No consecutive underscores
-    if '__' in event_name:
+    if "__" in event_name:
         errors.append("Event name cannot have consecutive underscores")
 
     # Rule 5: No leading/trailing underscores
-    if event_name.startswith('_') or event_name.endswith('_'):
+    if event_name.startswith("_") or event_name.endswith("_"):
         errors.append("Event name cannot start or end with underscore")
 
     # Rule 6: Maximum 50 characters
@@ -160,7 +173,7 @@ def validate_event_name(event_name: str, strict: bool = False) -> Dict[str, Any]
         errors.append(f"Event name too long ({len(event_name)} chars). Maximum: 50")
 
     # Rule 7: Minimum 2 components (ENTITY_ACTION or AREA_ENTITY_ACTION)
-    parts = event_name.split('_')
+    parts = event_name.split("_")
     if len(parts) < 2:
         errors.append("Event name must have at least 2 components: ENTITY_ACTION")
 
@@ -170,13 +183,15 @@ def validate_event_name(event_name: str, strict: bool = False) -> Dict[str, Any]
         # Check if last part is a known past participle
         if last_part not in COMMON_PAST_PARTICIPLES:
             # Also check for common compound endings
-            is_past_tense = any([
-                last_part.endswith('ED'),
-                last_part.endswith('SET'),
-                last_part.endswith('FOUND'),
-                last_part == 'FAILED',
-                last_part == 'PASSED',
-            ])
+            is_past_tense = any(
+                [
+                    last_part.endswith("ED"),
+                    last_part.endswith("SET"),
+                    last_part.endswith("FOUND"),
+                    last_part == "FAILED",
+                    last_part == "PASSED",
+                ]
+            )
             if not is_past_tense:
                 warnings.append(
                     f"Event may not end with past participle. "
@@ -187,11 +202,11 @@ def validate_event_name(event_name: str, strict: bool = False) -> Dict[str, Any]
         "valid": len(errors) == 0,
         "errors": errors,
         "warnings": warnings,
-        "event_name": event_name
+        "event_name": event_name,
     }
 
 
-def validate_events_in_code(file_path: str) -> List[Dict]:
+def validate_events_in_code(file_path: str) -> list[dict]:
     """
     Extract and validate all event names from a Python file.
 
@@ -232,7 +247,7 @@ def validate_events_in_code(file_path: str) -> List[Dict]:
     return results
 
 
-def get_canonical_events() -> List[str]:
+def get_canonical_events() -> list[str]:
     """
     Get list of all canonical (approved) event names.
 
@@ -268,7 +283,7 @@ def suggest_event_name(description: str) -> Optional[str]:
     description = description.upper()
 
     # Remove common words
-    stop_words = ['THE', 'A', 'AN', 'WAS', 'IS', 'TO', 'FROM']
+    stop_words = ["THE", "A", "AN", "WAS", "IS", "TO", "FROM"]
     words = [w for w in description.split() if w not in stop_words]
 
     if not words:
@@ -276,15 +291,15 @@ def suggest_event_name(description: str) -> Optional[str]:
 
     # Convert to past participle if needed
     past_participle_map = {
-        'INITIALIZE': 'INITIALIZED',
-        'LOAD': 'LOADED',
-        'SAVE': 'SAVED',
-        'CREATE': 'CREATED',
-        'ADD': 'ADDED',
-        'FAIL': 'FAILED',
-        'VERIFY': 'VERIFIED',
-        'RETRIEVE': 'RETRIEVED',
-        'APPEND': 'APPENDED',
+        "INITIALIZE": "INITIALIZED",
+        "LOAD": "LOADED",
+        "SAVE": "SAVED",
+        "CREATE": "CREATED",
+        "ADD": "ADDED",
+        "FAIL": "FAILED",
+        "VERIFY": "VERIFIED",
+        "RETRIEVE": "RETRIEVED",
+        "APPEND": "APPENDED",
     }
 
     # Replace with past participles
@@ -295,7 +310,7 @@ def suggest_event_name(description: str) -> Optional[str]:
         else:
             converted_words.append(word)
 
-    suggested = '_'.join(converted_words)
+    suggested = "_".join(converted_words)
 
     # Validate suggestion
     result = validate_event_name(suggested)
@@ -320,20 +335,20 @@ if __name__ == "__main__":
         print(f"Event: {event_name}")
         print(f"Valid: {result['valid']}")
 
-        if result['errors']:
+        if result["errors"]:
             print("\nErrors:")
-            for error in result['errors']:
+            for error in result["errors"]:
                 print(f"  ❌ {error}")
 
-        if result['warnings']:
+        if result["warnings"]:
             print("\nWarnings:")
-            for warning in result['warnings']:
+            for warning in result["warnings"]:
                 print(f"  ⚠️  {warning}")
 
-        if result['valid'] and not result['warnings']:
+        if result["valid"] and not result["warnings"]:
             print("✅ Event name is valid!")
 
-        sys.exit(0 if result['valid'] else 1)
+        sys.exit(0 if result["valid"] else 1)
 
     elif len(sys.argv) > 1 and sys.argv[1] == "scan":
         # Scan a file for events
@@ -349,16 +364,16 @@ if __name__ == "__main__":
 
         invalid_count = 0
         for result in results:
-            status = "✅" if result['valid'] else "❌"
+            status = "✅" if result["valid"] else "❌"
             print(f"{status} {result['event_name']} ({result['level']})")
 
-            if result['errors']:
-                for error in result['errors']:
+            if result["errors"]:
+                for error in result["errors"]:
                     print(f"     ❌ {error}")
                 invalid_count += 1
 
-            if result['warnings']:
-                for warning in result['warnings']:
+            if result["warnings"]:
+                for warning in result["warnings"]:
                     print(f"     ⚠️  {warning}")
 
         print(f"\nSummary: {len(results) - invalid_count}/{len(results)} valid")

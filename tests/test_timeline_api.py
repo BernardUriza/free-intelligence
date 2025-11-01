@@ -21,27 +21,24 @@ Target: 90%+ coverage
 
 import time
 import unittest
-from datetime import datetime, timezone
-from typing import Dict, Any
 
 from fastapi.testclient import TestClient
 
 # Import app
 from backend.timeline_api import (
-    app,
     MOCK_TIMELINES,
-    PolicyBadges,
+    app,
     compute_policy_badges,
-    compute_session_timespan,
     compute_session_size,
+    compute_session_timespan,
     format_duration_human,
     format_size_human,
 )
 from backend.timeline_models import (
+    RedactionPolicy,
     Timeline,
     TimelineEvent,
     TimelineEventType,
-    RedactionPolicy,
     TimelineMode,
     create_timeline_event,
 )
@@ -60,8 +57,7 @@ class TestTimelineAPI(unittest.TestCase):
 
         # Create test timeline
         cls.test_timeline = Timeline(
-            session_id="session_test_001",
-            owner_hash="test_owner_hash_1234567890abcdef"
+            session_id="session_test_001", owner_hash="test_owner_hash_1234567890abcdef"
         )
 
         # Add test events
@@ -74,7 +70,7 @@ class TestTimelineAPI(unittest.TestCase):
             redaction_policy=RedactionPolicy.SUMMARY,
             session_id=cls.test_timeline.session_id,
             tags=["test"],
-            auto_generated=False
+            auto_generated=False,
         )
         cls.test_timeline.add_event(event1)
 
@@ -88,7 +84,7 @@ class TestTimelineAPI(unittest.TestCase):
             session_id=cls.test_timeline.session_id,
             tags=["test", "response"],
             auto_generated=True,
-            generation_mode=TimelineMode.AUTO
+            generation_mode=TimelineMode.AUTO,
         )
         cls.test_timeline.add_event(event2)
 
@@ -309,10 +305,7 @@ class TestPolicyBadges(unittest.TestCase):
 
     def test_compute_policy_badges_all_ok(self):
         """Test policy badges with valid timeline"""
-        timeline = Timeline(
-            session_id="session_test",
-            owner_hash="test_hash"
-        )
+        timeline = Timeline(session_id="session_test", owner_hash="test_hash")
 
         event = create_timeline_event(
             event_type=TimelineEventType.USER_MESSAGE,
@@ -320,7 +313,7 @@ class TestPolicyBadges(unittest.TestCase):
             what="Test",
             raw_content="Test content",
             redaction_policy=RedactionPolicy.SUMMARY,
-            session_id=timeline.session_id
+            session_id=timeline.session_id,
         )
         timeline.add_event(event)
 
@@ -333,10 +326,7 @@ class TestPolicyBadges(unittest.TestCase):
 
     def test_compute_policy_badges_invalid_hash(self):
         """Test policy badges with invalid hash"""
-        timeline = Timeline(
-            session_id="session_test",
-            owner_hash="test_hash"
-        )
+        timeline = Timeline(session_id="session_test", owner_hash="test_hash")
 
         # Create event with invalid hash
         event = TimelineEvent(
@@ -345,7 +335,7 @@ class TestPolicyBadges(unittest.TestCase):
             what="Test",
             content_hash="invalid_hash",  # Too short
             redaction_policy=RedactionPolicy.SUMMARY,
-            session_id=timeline.session_id
+            session_id=timeline.session_id,
         )
         timeline.add_event(event)
 
@@ -355,10 +345,7 @@ class TestPolicyBadges(unittest.TestCase):
 
     def test_compute_policy_badges_no_redaction(self):
         """Test policy badges with no redaction"""
-        timeline = Timeline(
-            session_id="session_test",
-            owner_hash="test_hash"
-        )
+        timeline = Timeline(session_id="session_test", owner_hash="test_hash")
 
         event = create_timeline_event(
             event_type=TimelineEventType.USER_MESSAGE,
@@ -366,7 +353,7 @@ class TestPolicyBadges(unittest.TestCase):
             what="Test",
             raw_content="Test content",
             redaction_policy=RedactionPolicy.NONE,  # No redaction
-            session_id=timeline.session_id
+            session_id=timeline.session_id,
         )
         timeline.add_event(event)
 
@@ -419,10 +406,7 @@ class TestHelperFunctions(unittest.TestCase):
 
     def test_compute_session_timespan(self):
         """Test session timespan computation"""
-        timeline = Timeline(
-            session_id="session_test",
-            owner_hash="test_hash"
-        )
+        timeline = Timeline(session_id="session_test", owner_hash="test_hash")
 
         # Add events with different timestamps
         event1 = create_timeline_event(
@@ -430,7 +414,7 @@ class TestHelperFunctions(unittest.TestCase):
             who="user",
             what="First",
             raw_content="First",
-            session_id=timeline.session_id
+            session_id=timeline.session_id,
         )
         timeline.add_event(event1)
 
@@ -440,7 +424,7 @@ class TestHelperFunctions(unittest.TestCase):
             who="assistant",
             what="Second",
             raw_content="Second",
-            session_id=timeline.session_id
+            session_id=timeline.session_id,
         )
         timeline.add_event(event2)
 
@@ -453,10 +437,7 @@ class TestHelperFunctions(unittest.TestCase):
 
     def test_compute_session_size(self):
         """Test session size computation"""
-        timeline = Timeline(
-            session_id="session_test",
-            owner_hash="test_hash"
-        )
+        timeline = Timeline(session_id="session_test", owner_hash="test_hash")
 
         event = create_timeline_event(
             event_type=TimelineEventType.USER_MESSAGE,
@@ -464,7 +445,7 @@ class TestHelperFunctions(unittest.TestCase):
             what="Test message",
             raw_content="Test content",
             summary="Test summary",
-            session_id=timeline.session_id
+            session_id=timeline.session_id,
         )
         timeline.add_event(event)
 

@@ -8,16 +8,17 @@ Enforces append-only, event-sourced architecture.
 FI-DATA-FIX-001
 """
 
-import re
 import ast
-from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+import re
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
 
 
 @dataclass
 class MutationViolation:
     """Represents a mutation policy violation."""
+
     file_path: str
     line_number: int
     function_name: str
@@ -27,32 +28,32 @@ class MutationViolation:
 
 # Forbidden function name patterns
 FORBIDDEN_PATTERNS = [
-    r'^update_',
-    r'^delete_',
-    r'^remove_',
-    r'^modify_',
-    r'^edit_',
-    r'^change_',
-    r'^overwrite_',
-    r'^truncate_',
-    r'^drop_',
-    r'^clear_',
-    r'^reset_',
-    r'^set_'  # Mutations often use set_*
+    r"^update_",
+    r"^delete_",
+    r"^remove_",
+    r"^modify_",
+    r"^edit_",
+    r"^change_",
+    r"^overwrite_",
+    r"^truncate_",
+    r"^drop_",
+    r"^clear_",
+    r"^reset_",
+    r"^set_",  # Mutations often use set_*
 ]
 
 # Allowed exceptions (system/utility functions)
 ALLOWED_EXCEPTIONS = [
-    'setUp',           # unittest
-    'tearDown',        # unittest
-    'setUpClass',      # unittest
-    'tearDownClass',   # unittest
-    'set_logger',      # logger configuration
-    'set_config'       # config initialization
+    "setUp",  # unittest
+    "tearDown",  # unittest
+    "setUpClass",  # unittest
+    "tearDownClass",  # unittest
+    "set_logger",  # logger configuration
+    "set_config",  # config initialization
 ]
 
 
-def is_forbidden_function_name(func_name: str) -> Tuple[bool, Optional[str]]:
+def is_forbidden_function_name(func_name: str) -> tuple[bool, Optional[str]]:
     """
     Check if function name matches forbidden mutation patterns.
 
@@ -80,7 +81,7 @@ def is_forbidden_function_name(func_name: str) -> Tuple[bool, Optional[str]]:
     return False, None
 
 
-def scan_file_for_mutations(file_path: str) -> List[MutationViolation]:
+def scan_file_for_mutations(file_path: str) -> list[MutationViolation]:
     """
     Scan Python file for forbidden mutation functions.
 
@@ -98,7 +99,7 @@ def scan_file_for_mutations(file_path: str) -> List[MutationViolation]:
     violations = []
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         # Parse AST
@@ -117,15 +118,15 @@ def scan_file_for_mutations(file_path: str) -> List[MutationViolation]:
                         function_name=func_name,
                         violation_type="FORBIDDEN_MUTATION_FUNCTION",
                         message=f"Function '{func_name}' matches forbidden pattern '{pattern}'. "
-                                f"Mutations must be event-sourced, not direct. "
-                                f"Use append-only operations instead."
+                        f"Mutations must be event-sourced, not direct. "
+                        f"Use append-only operations instead.",
                     )
                     violations.append(violation)
 
-    except SyntaxError as e:
+    except SyntaxError:
         # File has syntax errors, skip
         pass
-    except Exception as e:
+    except Exception:
         # Other errors, skip file
         pass
 
@@ -133,9 +134,8 @@ def scan_file_for_mutations(file_path: str) -> List[MutationViolation]:
 
 
 def scan_directory(
-    directory: str,
-    exclude_dirs: Optional[List[str]] = None
-) -> Dict[str, List[MutationViolation]]:
+    directory: str, exclude_dirs: Optional[list[str]] = None
+) -> dict[str, list[MutationViolation]]:
     """
     Scan directory recursively for mutation violations.
 
@@ -151,12 +151,12 @@ def scan_directory(
         >>> total_violations = sum(len(v) for v in results.values())
     """
     if exclude_dirs is None:
-        exclude_dirs = ['__pycache__', '.git', 'venv', 'env', '.venv']
+        exclude_dirs = ["__pycache__", ".git", "venv", "env", ".venv"]
 
     results = {}
 
     directory_path = Path(directory)
-    for py_file in directory_path.rglob('*.py'):
+    for py_file in directory_path.rglob("*.py"):
         # Skip excluded directories
         if any(excluded in str(py_file) for excluded in exclude_dirs):
             continue
@@ -168,7 +168,7 @@ def scan_directory(
     return results
 
 
-def get_allowed_patterns() -> List[str]:
+def get_allowed_patterns() -> list[str]:
     """
     Get list of allowed function name patterns.
 
@@ -176,31 +176,30 @@ def get_allowed_patterns() -> List[str]:
         List of allowed patterns
     """
     return [
-        '^append_',     # Append operations
-        '^add_',        # Add operations (append synonym)
-        '^get_',        # Read operations
-        '^read_',       # Read operations
-        '^fetch_',      # Read operations
-        '^find_',       # Query operations
-        '^search_',     # Query operations
-        '^list_',       # List operations
-        '^count_',      # Count operations
-        '^validate_',   # Validation
-        '^verify_',     # Verification
-        '^check_',      # Checks
-        '^init_',       # Initialization
-        '^generate_',   # Generation
-        '^create_',     # Creation (new entities)
-        '^build_',      # Building
-        '^load_',       # Loading
-        '^parse_',      # Parsing
+        "^append_",  # Append operations
+        "^add_",  # Add operations (append synonym)
+        "^get_",  # Read operations
+        "^read_",  # Read operations
+        "^fetch_",  # Read operations
+        "^find_",  # Query operations
+        "^search_",  # Query operations
+        "^list_",  # List operations
+        "^count_",  # Count operations
+        "^validate_",  # Validation
+        "^verify_",  # Verification
+        "^check_",  # Checks
+        "^init_",  # Initialization
+        "^generate_",  # Generation
+        "^create_",  # Creation (new entities)
+        "^build_",  # Building
+        "^load_",  # Loading
+        "^parse_",  # Parsing
     ]
 
 
 def validate_codebase(
-    backend_dir: str = "backend",
-    exclude_tests: bool = True
-) -> Tuple[bool, Dict[str, List[MutationViolation]]]:
+    backend_dir: str = "backend", exclude_tests: bool = True
+) -> tuple[bool, dict[str, list[MutationViolation]]]:
     """
     Validate entire codebase for mutation policy compliance.
 
@@ -216,9 +215,9 @@ def validate_codebase(
         >>> if not is_valid:
         ...     print(f"Found {sum(len(v) for v in violations.values())} violations")
     """
-    exclude_dirs = ['__pycache__', '.git', 'venv', 'env', '.venv']
+    exclude_dirs = ["__pycache__", ".git", "venv", "env", ".venv"]
     if exclude_tests:
-        exclude_dirs.append('tests')
+        exclude_dirs.append("tests")
 
     violations = scan_directory(backend_dir, exclude_dirs=exclude_dirs)
     is_valid = len(violations) == 0
@@ -226,7 +225,7 @@ def validate_codebase(
     return is_valid, violations
 
 
-def print_violations_report(violations: Dict[str, List[MutationViolation]]):
+def print_violations_report(violations: dict[str, list[MutationViolation]]):
     """
     Print formatted report of violations.
 
@@ -239,9 +238,7 @@ def print_violations_report(violations: Dict[str, List[MutationViolation]]):
 
     if not violations:
         logger.info(
-            "MUTATION_SCAN_COMPLETED",
-            message="No mutation functions detected",
-            files_scanned=0
+            "MUTATION_SCAN_COMPLETED", message="No mutation functions detected", files_scanned=0
         )
         return
 
@@ -250,7 +247,7 @@ def print_violations_report(violations: Dict[str, List[MutationViolation]]):
     logger.warning(
         "MUTATION_VIOLATIONS_DETECTED",
         total_violations=total_violations,
-        affected_files=len(violations)
+        affected_files=len(violations),
     )
 
     print("\n🚫 Mutation Policy Violations Detected\n")

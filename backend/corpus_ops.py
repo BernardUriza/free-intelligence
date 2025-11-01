@@ -8,12 +8,13 @@ Demonstrates end-to-end flow: config → logger → corpus storage.
 FI-DATA-OPS (Test/Demo)
 """
 
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
 import h5py
 import numpy as np
-from pathlib import Path
-from typing import Dict, List, Optional
-from datetime import datetime
-import uuid
 
 
 def append_interaction(
@@ -23,7 +24,7 @@ def append_interaction(
     response: str,
     model: str,
     tokens: int,
-    timestamp: Optional[str] = None
+    timestamp: Optional[str] = None,
 ) -> str:
     """
     Append interaction to corpus.
@@ -53,19 +54,20 @@ def append_interaction(
         ...     150
         ... )
     """
-    from backend.logger import get_logger
     from backend.append_only_policy import AppendOnlyPolicy
+    from backend.logger import get_logger
 
     logger = get_logger()
     interaction_id = str(uuid.uuid4())
 
     if timestamp is None:
         from zoneinfo import ZoneInfo
+
         tz = ZoneInfo("America/Mexico_City")
         timestamp = datetime.now(tz).isoformat()
 
     try:
-        with AppendOnlyPolicy(corpus_path), h5py.File(corpus_path, 'a') as f:
+        with AppendOnlyPolicy(corpus_path), h5py.File(corpus_path, "a") as f:
             interactions = f["interactions"]
 
             # Current size
@@ -90,7 +92,7 @@ def append_interaction(
             interaction_id=interaction_id,
             session_id=session_id,
             tokens=tokens,
-            model=model
+            model=model,
         )
 
         return interaction_id
@@ -101,10 +103,7 @@ def append_interaction(
 
 
 def append_embedding(
-    corpus_path: str,
-    interaction_id: str,
-    vector: np.ndarray,
-    model: str = "all-MiniLM-L6-v2"
+    corpus_path: str, interaction_id: str, vector: np.ndarray, model: str = "all-MiniLM-L6-v2"
 ) -> bool:
     """
     Append embedding vector to corpus.
@@ -126,8 +125,8 @@ def append_embedding(
         >>> append_embedding("storage/corpus.h5", interaction_id, vector)
         True
     """
-    from backend.logger import get_logger
     from backend.append_only_policy import AppendOnlyPolicy
+    from backend.logger import get_logger
 
     logger = get_logger()
 
@@ -135,7 +134,7 @@ def append_embedding(
         raise ValueError(f"Vector must be 768-dim, got {vector.shape}")
 
     try:
-        with AppendOnlyPolicy(corpus_path), h5py.File(corpus_path, 'a') as f:
+        with AppendOnlyPolicy(corpus_path), h5py.File(corpus_path, "a") as f:
             embeddings = f["embeddings"]
 
             # Current size
@@ -156,7 +155,7 @@ def append_embedding(
             "EMBEDDING_APPENDED",
             interaction_id=interaction_id,
             model=model,
-            vector_dim=vector.shape[0]
+            vector_dim=vector.shape[0],
         )
 
         return True
@@ -174,7 +173,7 @@ def append_interaction_with_embedding(
     model: str,
     tokens: int,
     timestamp: Optional[str] = None,
-    auto_embed: bool = True
+    auto_embed: bool = True,
 ) -> str:
     """
     Append interaction to corpus WITH automatic embedding generation.
@@ -208,15 +207,13 @@ def append_interaction_with_embedding(
         ...     150
         ... )
     """
-    from backend.logger import get_logger
     from backend.llm_router import llm_embed, pad_embedding_to_768
+    from backend.logger import get_logger
 
     logger = get_logger()
 
     # Step 1: Append interaction
-    logger.info("INTERACTION_WITH_EMBEDDING_STARTED",
-                session_id=session_id,
-                auto_embed=auto_embed)
+    logger.info("INTERACTION_WITH_EMBEDDING_STARTED", session_id=session_id, auto_embed=auto_embed)
 
     interaction_id = append_interaction(
         corpus_path=corpus_path,
@@ -225,7 +222,7 @@ def append_interaction_with_embedding(
         response=response,
         model=model,
         tokens=tokens,
-        timestamp=timestamp
+        timestamp=timestamp,
     )
 
     # Step 2: Generate and append embedding (if enabled)
@@ -234,9 +231,11 @@ def append_interaction_with_embedding(
             # Combine prompt and response for embedding
             text_to_embed = f"{prompt}\n\n{response}"
 
-            logger.info("EMBEDDING_GENERATION_STARTED",
-                       interaction_id=interaction_id,
-                       text_length=len(text_to_embed))
+            logger.info(
+                "EMBEDDING_GENERATION_STARTED",
+                interaction_id=interaction_id,
+                text_length=len(text_to_embed),
+            )
 
             # Use LLM router to generate embedding
             # Will use policy-configured provider or fall back to sentence-transformers
@@ -250,23 +249,20 @@ def append_interaction_with_embedding(
                 corpus_path=corpus_path,
                 interaction_id=interaction_id,
                 vector=embedding_vector,
-                model="all-MiniLM-L6-v2"  # Could be dynamic based on provider
+                model="all-MiniLM-L6-v2",  # Could be dynamic based on provider
             )
 
-            logger.info("INTERACTION_WITH_EMBEDDING_COMPLETED",
-                       interaction_id=interaction_id)
+            logger.info("INTERACTION_WITH_EMBEDDING_COMPLETED", interaction_id=interaction_id)
 
         except Exception as e:
-            logger.error("EMBEDDING_GENERATION_FAILED",
-                        interaction_id=interaction_id,
-                        error=str(e))
+            logger.error("EMBEDDING_GENERATION_FAILED", interaction_id=interaction_id, error=str(e))
             # Don't fail the whole operation if embedding fails
             # The interaction is already saved
 
     return interaction_id
 
 
-def get_corpus_stats(corpus_path: str) -> Dict:
+def get_corpus_stats(corpus_path: str) -> dict:
     """
     Get corpus statistics.
 
@@ -285,7 +281,7 @@ def get_corpus_stats(corpus_path: str) -> Dict:
     logger = get_logger()
 
     try:
-        with h5py.File(corpus_path, 'r') as f:
+        with h5py.File(corpus_path, "r") as f:
             interactions_count = f["interactions"]["session_id"].shape[0]
             embeddings_count = f["embeddings"]["interaction_id"].shape[0]
 
@@ -302,7 +298,7 @@ def get_corpus_stats(corpus_path: str) -> Dict:
                 "file_size_mb": round(file_size / 1024 / 1024, 2),
                 "created_at": metadata.get("created_at"),
                 "version": metadata.get("version"),
-                "schema_version": metadata.get("schema_version")
+                "schema_version": metadata.get("schema_version"),
             }
 
             logger.info("STATS_SNAPSHOT_COMPUTED", **stats)
@@ -314,7 +310,7 @@ def get_corpus_stats(corpus_path: str) -> Dict:
         return {}
 
 
-def read_interactions(corpus_path: str, limit: int = 10) -> List[Dict]:
+def read_interactions(corpus_path: str, limit: int = 10) -> list[dict]:
     """
     Read recent interactions from corpus.
 
@@ -331,7 +327,7 @@ def read_interactions(corpus_path: str, limit: int = 10) -> List[Dict]:
         ...     print(interaction["prompt"])
     """
     try:
-        with h5py.File(corpus_path, 'r') as f:
+        with h5py.File(corpus_path, "r") as f:
             interactions_group = f["interactions"]
             total = interactions_group["session_id"].shape[0]
 
@@ -345,13 +341,13 @@ def read_interactions(corpus_path: str, limit: int = 10) -> List[Dict]:
             results = []
             for i in range(start, end):
                 interaction = {
-                    "session_id": interactions_group["session_id"][i].decode('utf-8'),
-                    "interaction_id": interactions_group["interaction_id"][i].decode('utf-8'),
-                    "timestamp": interactions_group["timestamp"][i].decode('utf-8'),
-                    "prompt": interactions_group["prompt"][i].decode('utf-8'),
-                    "response": interactions_group["response"][i].decode('utf-8'),
-                    "model": interactions_group["model"][i].decode('utf-8'),
-                    "tokens": int(interactions_group["tokens"][i])
+                    "session_id": interactions_group["session_id"][i].decode("utf-8"),
+                    "interaction_id": interactions_group["interaction_id"][i].decode("utf-8"),
+                    "timestamp": interactions_group["timestamp"][i].decode("utf-8"),
+                    "prompt": interactions_group["prompt"][i].decode("utf-8"),
+                    "response": interactions_group["response"][i].decode("utf-8"),
+                    "model": interactions_group["model"][i].decode("utf-8"),
+                    "tokens": int(interactions_group["tokens"][i]),
                 }
                 results.append(interaction)
 
@@ -359,6 +355,7 @@ def read_interactions(corpus_path: str, limit: int = 10) -> List[Dict]:
 
     except Exception as e:
         from backend.logger import get_logger
+
         logger = get_logger()
         logger.error("INTERACTIONS_READ_FAILED", error=str(e))
         return []

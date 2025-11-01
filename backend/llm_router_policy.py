@@ -33,23 +33,26 @@ Task: FI-CORE-FIX-001
 """
 
 import ast
-from pathlib import Path
-from typing import List, Dict, Set
 from dataclasses import dataclass
+from pathlib import Path
 
 # Optional logger import (for runtime logging)
 try:
     from logger import get_logger
+
     logger = get_logger(__name__)
 except ImportError:
     # Fallback to print for CLI usage
     class SimpleLogger:
         def info(self, event, **kwargs):
             print(f"INFO: {event} - {kwargs}")
+
         def warning(self, event, **kwargs):
             print(f"WARNING: {event} - {kwargs}")
+
         def error(self, event, **kwargs):
             print(f"ERROR: {event} - {kwargs}")
+
     logger = SimpleLogger()
 
 
@@ -57,8 +60,10 @@ except ImportError:
 # EXCEPTIONS
 # ============================================================================
 
+
 class LLMRouterViolation(Exception):
     """Raised when direct LLM API call is detected."""
+
     pass
 
 
@@ -68,28 +73,28 @@ class LLMRouterViolation(Exception):
 
 # Forbidden direct imports (LLM provider libraries)
 FORBIDDEN_IMPORTS = {
-    'anthropic',
-    'openai',
-    'cohere',
-    'google.generativeai',
-    'huggingface_hub',
-    'transformers',
+    "anthropic",
+    "openai",
+    "cohere",
+    "google.generativeai",
+    "huggingface_hub",
+    "transformers",
 }
 
 # Allowed router modules (whitelist)
 ALLOWED_ROUTER_MODULES = {
-    'llm_router',
-    'backend.llm_router',
+    "llm_router",
+    "backend.llm_router",
 }
 
 # Forbidden call patterns (API methods)
 FORBIDDEN_CALL_PATTERNS = {
-    'messages.create',      # anthropic
-    'chat.completions.create',  # openai
-    'ChatCompletion.create',    # openai legacy
-    'Completion.create',        # openai legacy
-    'generate',             # cohere, huggingface
-    'generate_content',     # google
+    "messages.create",  # anthropic
+    "chat.completions.create",  # openai
+    "ChatCompletion.create",  # openai legacy
+    "Completion.create",  # openai legacy
+    "generate",  # cohere, huggingface
+    "generate_content",  # google
 }
 
 
@@ -97,9 +102,11 @@ FORBIDDEN_CALL_PATTERNS = {
 # DATACLASSES
 # ============================================================================
 
+
 @dataclass
 class RouterViolation:
     """Información de violación de router policy."""
+
     filepath: str
     lineno: int
     violation_type: str  # 'import' | 'call'
@@ -113,7 +120,8 @@ class RouterViolation:
 # VALIDATORS
 # ============================================================================
 
-def extract_imports(tree: ast.AST) -> Set[str]:
+
+def extract_imports(tree: ast.AST) -> set[str]:
     """
     Extrae todos los imports de un AST.
 
@@ -136,7 +144,7 @@ def extract_imports(tree: ast.AST) -> Set[str]:
     return imports
 
 
-def has_forbidden_import(imports: Set[str]) -> List[str]:
+def has_forbidden_import(imports: set[str]) -> list[str]:
     """
     Verifica si hay imports prohibidos.
 
@@ -153,14 +161,14 @@ def has_forbidden_import(imports: Set[str]) -> List[str]:
 
         # Check prefix match (e.g., google.generativeai)
         for forbidden_imp in FORBIDDEN_IMPORTS:
-            if imp.startswith(forbidden_imp + '.'):
+            if imp.startswith(forbidden_imp + "."):
                 forbidden.append(imp)
                 break
 
     return forbidden
 
 
-def extract_attribute_calls(tree: ast.AST) -> List[tuple]:
+def extract_attribute_calls(tree: ast.AST) -> list[tuple]:
     """
     Extrae llamadas a métodos con atributos (e.g., client.messages.create()).
 
@@ -180,13 +188,13 @@ def extract_attribute_calls(tree: ast.AST) -> List[tuple]:
                 current = current.value
 
             if call_chain:
-                chain_str = '.'.join(call_chain)
+                chain_str = ".".join(call_chain)
                 calls.append((node.lineno, chain_str))
 
     return calls
 
 
-def has_forbidden_call(calls: List[tuple]) -> List[tuple]:
+def has_forbidden_call(calls: list[tuple]) -> list[tuple]:
     """
     Verifica si hay llamadas prohibidas a APIs de LLM.
 
@@ -204,7 +212,7 @@ def has_forbidden_call(calls: List[tuple]) -> List[tuple]:
     return forbidden
 
 
-def scan_file_for_router_violations(filepath: Path) -> List[RouterViolation]:
+def scan_file_for_router_violations(filepath: Path) -> list[RouterViolation]:
     """
     Escanea un archivo Python en busca de violaciones de router policy.
 
@@ -212,14 +220,10 @@ def scan_file_for_router_violations(filepath: Path) -> List[RouterViolation]:
         Lista de RouterViolation con información de violaciones
     """
     try:
-        content = filepath.read_text(encoding='utf-8')
+        content = filepath.read_text(encoding="utf-8")
         tree = ast.parse(content, filename=str(filepath))
     except SyntaxError as e:
-        logger.warning(
-            "FILE_PARSE_FAILED",
-            filepath=str(filepath),
-            error=str(e)
-        )
+        logger.warning("FILE_PARSE_FAILED", filepath=str(filepath), error=str(e))
         return []
 
     violations = []
@@ -229,29 +233,33 @@ def scan_file_for_router_violations(filepath: Path) -> List[RouterViolation]:
     forbidden_imports = has_forbidden_import(imports)
 
     for imp in forbidden_imports:
-        violations.append(RouterViolation(
-            filepath=str(filepath),
-            lineno=1,  # Import line not tracked in this simple version
-            violation_type='import',
-            details=f"Direct import of LLM library: '{imp}'"
-        ))
+        violations.append(
+            RouterViolation(
+                filepath=str(filepath),
+                lineno=1,  # Import line not tracked in this simple version
+                violation_type="import",
+                details=f"Direct import of LLM library: '{imp}'",
+            )
+        )
 
     # Check calls
     calls = extract_attribute_calls(tree)
     forbidden_calls = has_forbidden_call(calls)
 
     for lineno, call_pattern in forbidden_calls:
-        violations.append(RouterViolation(
-            filepath=str(filepath),
-            lineno=lineno,
-            violation_type='call',
-            details=f"Direct LLM API call: '{call_pattern}'"
-        ))
+        violations.append(
+            RouterViolation(
+                filepath=str(filepath),
+                lineno=lineno,
+                violation_type="call",
+                details=f"Direct LLM API call: '{call_pattern}'",
+            )
+        )
 
     return violations
 
 
-def scan_directory(directory: Path) -> Dict[str, List[RouterViolation]]:
+def scan_directory(directory: Path) -> dict[str, list[RouterViolation]]:
     """
     Escanea un directorio recursivamente en busca de violaciones.
 
@@ -260,9 +268,9 @@ def scan_directory(directory: Path) -> Dict[str, List[RouterViolation]]:
     """
     results = {}
 
-    for pyfile in directory.rglob('*.py'):
+    for pyfile in directory.rglob("*.py"):
         # Skip test files y __pycache__
-        if 'test_' in pyfile.name or '__pycache__' in str(pyfile):
+        if "test_" in pyfile.name or "__pycache__" in str(pyfile):
             continue
 
         violations = scan_file_for_router_violations(pyfile)
@@ -286,7 +294,7 @@ def validate_codebase(root_dir: Path) -> bool:
         logger.info(
             "ROUTER_POLICY_SCAN_COMPLETED",
             directory=str(root_dir),
-            message="No direct LLM API calls detected"
+            message="No direct LLM API calls detected",
         )
         return True
 
@@ -296,13 +304,13 @@ def validate_codebase(root_dir: Path) -> bool:
         "ROUTER_POLICY_VIOLATIONS_DETECTED",
         directory=str(root_dir),
         total_violations=total_violations,
-        files_with_violations=len(results)
+        files_with_violations=len(results),
     )
 
     return False
 
 
-def print_violations_report(results: Dict[str, List[RouterViolation]]):
+def print_violations_report(results: dict[str, list[RouterViolation]]):
     """
     Imprime reporte formateado de violaciones.
     """
@@ -319,8 +327,8 @@ def print_violations_report(results: Dict[str, List[RouterViolation]]):
         print(f"📁 {filepath}")
 
         # Group by type
-        import_violations = [v for v in violations if v.violation_type == 'import']
-        call_violations = [v for v in violations if v.violation_type == 'call']
+        import_violations = [v for v in violations if v.violation_type == "import"]
+        call_violations = [v for v in violations if v.violation_type == "call"]
 
         if import_violations:
             print("   🚫 Forbidden Imports:")

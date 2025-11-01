@@ -8,19 +8,19 @@ Implementa 4 canales: server, llm, storage, access (AUDIT).
 FI-CORE-FEAT-003
 """
 
-import json
 import hashlib
+import json
 import socket
 import uuid
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Dict, Any, Optional, Literal
-from pathlib import Path
-from dataclasses import dataclass, asdict, field
+from typing import Any, Literal, Optional
 
 
 class LogLevel(str, Enum):
     """Log levels."""
+
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARN = "WARN"
@@ -30,6 +30,7 @@ class LogLevel(str, Enum):
 
 class ServiceChannel(str, Enum):
     """Service channels for logging."""
+
     SERVER = "server"
     LLM = "llm"
     STORAGE = "storage"
@@ -38,6 +39,7 @@ class ServiceChannel(str, Enum):
 
 class UserRole(str, Enum):
     """User roles for RBAC."""
+
     OWNER = "owner"
     ADMIN = "admin"
     ANALYST = "analyst"
@@ -70,7 +72,7 @@ class BaseLogEvent:
     """
 
     # Required fields
-    ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    ts: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     host: str = field(default_factory=lambda: socket.gethostname())
     service: ServiceChannel = ServiceChannel.SERVER
     version: str = "0.3.0"
@@ -85,7 +87,7 @@ class BaseLogEvent:
     latency_ms: Optional[float] = None
     ref: Optional[str] = None
     pii: bool = False  # Siempre false en MVP
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
     def to_ndjson(self) -> str:
         """Convert to NDJSON line (single-line JSON)."""
@@ -173,6 +175,7 @@ def truncate_preview(text: str, max_length: int = 120, sensitive: bool = False) 
 # Channel-specific log events
 # ============================================================================
 
+
 def log_server_request(
     method: str,
     path: str,
@@ -183,7 +186,7 @@ def log_server_request(
     trace_id: Optional[str] = None,
     session_id: Optional[str] = None,
     user: str = "system",
-    role: UserRole = UserRole.SYSTEM
+    role: UserRole = UserRole.SYSTEM,
 ) -> BaseLogEvent:
     """
     Log server API request.
@@ -206,8 +209,8 @@ def log_server_request(
             "path": path,
             "status": status,
             "bytes_sent": bytes_sent,
-            "client_ip": anonymize_ip(client_ip)
-        }
+            "client_ip": anonymize_ip(client_ip),
+        },
     )
 
 
@@ -226,7 +229,7 @@ def log_llm_request(
     trace_id: Optional[str] = None,
     session_id: Optional[str] = None,
     user: str = "system",
-    role: UserRole = UserRole.SYSTEM
+    role: UserRole = UserRole.SYSTEM,
 ) -> BaseLogEvent:
     """
     Log LLM API request.
@@ -257,8 +260,8 @@ def log_llm_request(
             "prompt_hash": prompt_hash_val,
             "response_preview": response_preview,
             "timeout": timeout,
-            "retry_count": retry_count
-        }
+            "retry_count": retry_count,
+        },
     )
 
 
@@ -269,7 +272,7 @@ def log_storage_segment(
     ready: bool,
     trace_id: Optional[str] = None,
     session_id: Optional[str] = None,
-    user: str = "system"
+    user: str = "system",
 ) -> BaseLogEvent:
     """
     Log storage segmentation event.
@@ -291,8 +294,8 @@ def log_storage_segment(
             "file": file_path,
             "sha256": sha256,
             "segment_seconds": segment_seconds,
-            "ready": ready
-        }
+            "ready": ready,
+        },
     )
 
 
@@ -305,7 +308,7 @@ def log_access_event(
     new_role: Optional[UserRole] = None,
     trace_id: Optional[str] = None,
     session_id: Optional[str] = None,
-    details: Optional[Dict[str, Any]] = None
+    details: Optional[dict[str, Any]] = None,
 ) -> BaseLogEvent:
     """
     Log access event (AUDIT).
@@ -318,7 +321,7 @@ def log_access_event(
 
     event_details = {
         "client_ip": anonymize_ip(client_ip),
-        "result": "success" if result else "failed"
+        "result": "success" if result else "failed",
     }
 
     if action == "role_change" and old_role and new_role:
@@ -337,7 +340,7 @@ def log_access_event(
         role=new_role if action == "role_change" else UserRole.GUEST,
         action=action_name,
         ok=result,
-        details=event_details
+        details=event_details,
     )
 
 
@@ -360,7 +363,7 @@ if __name__ == "__main__":
         client_ip="192.168.1.100",
         latency_ms=45.3,
         user="bernard@example.com",
-        role=UserRole.OWNER
+        role=UserRole.OWNER,
     )
     print(f"   {server_event.to_ndjson()}")
     print()
@@ -378,7 +381,7 @@ if __name__ == "__main__":
         latency_ms=1234.5,
         sensitive=False,
         user="bernard@example.com",
-        role=UserRole.OWNER
+        role=UserRole.OWNER,
     )
     print(f"   {llm_event.to_ndjson()[:200]}...")
     print()
@@ -386,10 +389,7 @@ if __name__ == "__main__":
     # Demo 3: Storage segment
     print("3️⃣  Storage Segment Log")
     storage_event = log_storage_segment(
-        file_path="storage/corpus.h5",
-        sha256="abc123def456...",
-        segment_seconds=0.045,
-        ready=True
+        file_path="storage/corpus.h5", sha256="abc123def456...", segment_seconds=0.045, ready=True
     )
     print(f"   {storage_event.to_ndjson()}")
     print()
@@ -397,10 +397,7 @@ if __name__ == "__main__":
     # Demo 4: Access event (AUDIT)
     print("4️⃣  Access Event Log (AUDIT)")
     access_event = log_access_event(
-        action="login",
-        client_ip="192.168.1.100",
-        result=True,
-        user="bernard@example.com"
+        action="login", client_ip="192.168.1.100", result=True, user="bernard@example.com"
     )
     print(f"   {access_event.to_ndjson()}")
     print()
@@ -417,10 +414,10 @@ if __name__ == "__main__":
         response="I cannot process SSN data",
         latency_ms=500.0,
         sensitive=True,  # No guarda preview
-        user="system"
+        user="system",
     )
     print(f"   response_preview: {sensitive_llm.details.get('response_preview')}")
-    print(f"   (Expected: None)")
+    print("   (Expected: None)")
     print()
 
     print("✅ Demo complete!")

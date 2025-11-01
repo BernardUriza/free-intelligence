@@ -9,16 +9,12 @@ Card: FI-DATA-RES-021
 Created: 2025-10-30
 """
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend.evidence_pack import (
-    ClinicalSource,
-    EvidencePackBuilder,
-    create_evidence_pack_from_sources,
-)
+from backend.evidence_pack import EvidencePackBuilder, create_evidence_pack_from_sources
 
 # ============================================================================
 # PYDANTIC MODELS
@@ -41,7 +37,7 @@ class CreateEvidencePackRequest(BaseModel):
     """Create evidence pack request"""
 
     session_id: Optional[str] = None
-    sources: List[ClinicalSourceRequest]
+    sources: list[ClinicalSourceRequest]
 
 
 class EvidencePackResponse(BaseModel):
@@ -51,9 +47,9 @@ class EvidencePackResponse(BaseModel):
     created_at: str
     session_id: Optional[str]
     source_count: int
-    source_hashes: List[str]
+    source_hashes: list[str]
     policy_snapshot_id: str
-    metadata: Dict
+    metadata: dict
 
 
 # ============================================================================
@@ -63,7 +59,7 @@ class EvidencePackResponse(BaseModel):
 router = APIRouter(prefix="/api/evidence", tags=["evidence"])
 
 # In-memory store for demo (replace with persistent storage)
-evidence_store: Dict[str, Dict] = {}
+evidence_store: dict[str, dict] = {}
 
 
 @router.post("/packs", response_model=EvidencePackResponse, status_code=201)
@@ -85,9 +81,7 @@ async def create_evidence_pack(request: CreateEvidencePackRequest):
     sources_dicts = [src.dict() for src in request.sources]
 
     # Create pack
-    pack = create_evidence_pack_from_sources(
-        sources_dicts, session_id=request.session_id
-    )
+    pack = create_evidence_pack_from_sources(sources_dicts, session_id=request.session_id)
 
     # Store pack
     builder = EvidencePackBuilder()

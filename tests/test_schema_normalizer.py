@@ -3,14 +3,14 @@ Test suite for schema_normalizer.py
 
 Validates null → [] conversions for array fields
 """
-import unittest
-import sys
 import os
+import sys
+import unittest
 
 # Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../backend'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../backend"))
 
-from schema_normalizer import normalize_output, normalize_intake_output
+from schema_normalizer import normalize_intake_output, normalize_output
 
 
 class TestSchemaNoralizer(unittest.TestCase):
@@ -20,12 +20,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
     def test_null_to_array(self):
         """Test: null → [] for array fields"""
-        schema = {
-            "type": "object",
-            "properties": {
-                "items": {"type": "array"}
-            }
-        }
+        schema = {"type": "object", "properties": {"items": {"type": "array"}}}
         output = {"items": None}
 
         normalized = normalize_output(output, schema)
@@ -34,12 +29,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
     def test_null_to_object(self):
         """Test: null → {} for object fields"""
-        schema = {
-            "type": "object",
-            "properties": {
-                "metadata": {"type": "object"}
-            }
-        }
+        schema = {"type": "object", "properties": {"metadata": {"type": "object"}}}
         output = {"metadata": None}
 
         normalized = normalize_output(output, schema)
@@ -48,12 +38,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
     def test_array_type_with_null_union(self):
         """Test: ["array", "null"] type spec"""
-        schema = {
-            "type": "object",
-            "properties": {
-                "tags": {"type": ["array", "null"]}
-            }
-        }
+        schema = {"type": "object", "properties": {"tags": {"type": ["array", "null"]}}}
         output = {"tags": None}
 
         normalized = normalize_output(output, schema)
@@ -64,10 +49,8 @@ class TestSchemaNoralizer(unittest.TestCase):
         """Test: Add missing required array field"""
         schema = {
             "type": "object",
-            "properties": {
-                "items": {"type": "array"}
-            },
-            "required": ["items"]
+            "properties": {"items": {"type": "array"}},
+            "required": ["items"],
         }
         output = {}
 
@@ -80,10 +63,8 @@ class TestSchemaNoralizer(unittest.TestCase):
         """Test: Add missing required object field"""
         schema = {
             "type": "object",
-            "properties": {
-                "metadata": {"type": "object"}
-            },
-            "required": ["metadata"]
+            "properties": {"metadata": {"type": "object"}},
+            "required": ["metadata"],
         }
         output = {}
 
@@ -97,13 +78,8 @@ class TestSchemaNoralizer(unittest.TestCase):
         schema = {
             "type": "object",
             "properties": {
-                "parent": {
-                    "type": "object",
-                    "properties": {
-                        "child_array": {"type": "array"}
-                    }
-                }
-            }
+                "parent": {"type": "object", "properties": {"child_array": {"type": "array"}}}
+            },
         }
         output = {"parent": {"child_array": None}}
 
@@ -115,10 +91,7 @@ class TestSchemaNoralizer(unittest.TestCase):
         """Test: Don't modify valid values"""
         schema = {
             "type": "object",
-            "properties": {
-                "items": {"type": "array"},
-                "count": {"type": "integer"}
-            }
+            "properties": {"items": {"type": "array"}, "count": {"type": "integer"}},
         }
         output = {"items": ["a", "b"], "count": 5}
 
@@ -135,12 +108,8 @@ class TestSchemaNoralizer(unittest.TestCase):
             "demographics": {},
             "chief_complaint": None,
             "symptoms": None,  # Should become []
-            "medical_history": {
-                "allergies": [],
-                "medications": [],
-                "conditions": []
-            },
-            "urgency": "LOW"
+            "medical_history": {"allergies": [], "medications": [], "conditions": []},
+            "urgency": "LOW",
         }
 
         normalized = normalize_intake_output(output)
@@ -155,9 +124,9 @@ class TestSchemaNoralizer(unittest.TestCase):
             "medical_history": {
                 "allergies": None,  # Should become []
                 "medications": [],
-                "conditions": []
+                "conditions": [],
             },
-            "urgency": "LOW"
+            "urgency": "LOW",
         }
 
         normalized = normalize_intake_output(output)
@@ -172,9 +141,9 @@ class TestSchemaNoralizer(unittest.TestCase):
             "medical_history": {
                 "allergies": [],
                 "medications": None,  # Should become []
-                "conditions": []
+                "conditions": [],
             },
-            "urgency": "LOW"
+            "urgency": "LOW",
         }
 
         normalized = normalize_intake_output(output)
@@ -189,9 +158,9 @@ class TestSchemaNoralizer(unittest.TestCase):
             "medical_history": {
                 "allergies": [],
                 "medications": [],
-                "conditions": None  # Should become []
+                "conditions": None,  # Should become []
             },
-            "urgency": "LOW"
+            "urgency": "LOW",
         }
 
         normalized = normalize_intake_output(output)
@@ -201,21 +170,16 @@ class TestSchemaNoralizer(unittest.TestCase):
     def test_intake_case_7_scenario(self):
         """Test: Case 7 scenario (truncated medical_history)"""
         output = {
-            "demographics": {
-                "name": None,
-                "age": 28,
-                "gender": None,
-                "contact": None
-            },
+            "demographics": {"name": None, "age": 28, "gender": None, "contact": None},
             "chief_complaint": None,
             "symptoms": [],
             "medical_history": {
                 "allergies": ["penicillin"],
                 "medications": None,  # TRUNCATED
-                "conditions": None    # TRUNCATED
+                "conditions": None,  # TRUNCATED
             },
             "urgency": None,
-            "notes": None
+            "notes": None,
         }
 
         normalized = normalize_intake_output(output)
@@ -233,7 +197,7 @@ class TestSchemaNoralizer(unittest.TestCase):
         output = {
             "demographics": {},
             "symptoms": [],
-            "urgency": "LOW"
+            "urgency": "LOW",
             # medical_history is missing
         }
 
@@ -250,7 +214,7 @@ class TestSchemaNoralizer(unittest.TestCase):
             "demographics": {},
             "symptoms": [],
             "medical_history": None,  # Null object
-            "urgency": "LOW"
+            "urgency": "LOW",
         }
 
         normalized = normalize_intake_output(output)
@@ -268,9 +232,9 @@ class TestSchemaNoralizer(unittest.TestCase):
             "medical_history": {
                 "allergies": [],
                 # medications missing
-                "conditions": []
+                "conditions": [],
             },
-            "urgency": "LOW"
+            "urgency": "LOW",
         }
 
         normalized = normalize_intake_output(output)
@@ -286,9 +250,9 @@ class TestSchemaNoralizer(unittest.TestCase):
             "medical_history": {
                 "allergies": ["penicillin"],
                 "medications": ["aspirin"],
-                "conditions": ["hypertension"]
+                "conditions": ["hypertension"],
             },
-            "urgency": "MODERATE"
+            "urgency": "MODERATE",
         }
 
         normalized = normalize_intake_output(output)
@@ -300,6 +264,6 @@ class TestSchemaNoralizer(unittest.TestCase):
         self.assertEqual(normalized["medical_history"]["conditions"], ["hypertension"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Run with verbose output
     unittest.main(verbosity=2)

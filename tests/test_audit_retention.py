@@ -13,24 +13,26 @@ Fecha: 2025-10-26
 Task: FI-DATA-FEAT-007
 """
 
-import unittest
-import h5py
-import tempfile
 import os
-from pathlib import Path
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 # Add backend to path
 import sys
+import tempfile
+import unittest
+from datetime import datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+import h5py
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
 from audit_logs import (
-    init_audit_logs_group,
     append_audit_log,
-    get_audit_logs_older_than,
     cleanup_old_audit_logs,
-    get_retention_stats
+    get_audit_logs_older_than,
+    get_retention_stats,
+    init_audit_logs_group,
 )
 
 
@@ -39,12 +41,12 @@ class TestAuditLogRetention(unittest.TestCase):
 
     def setUp(self):
         """Create temporary HDF5 file for each test."""
-        self.temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.h5')
+        self.temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".h5")
         self.corpus_path = self.temp_file.name
         self.temp_file.close()
 
         # Initialize minimal corpus structure
-        with h5py.File(self.corpus_path, 'w') as f:
+        with h5py.File(self.corpus_path, "w") as f:
             metadata = f.create_group("metadata")
             metadata.attrs["created_at"] = datetime.now(ZoneInfo("America/Mexico_City")).isoformat()
             metadata.attrs["version"] = "0.1.0"
@@ -72,7 +74,7 @@ class TestAuditLogRetention(unittest.TestCase):
             user_id="test_user",
             endpoint="test",
             payload={"test": "data"},
-            result={"success": True}
+            result={"success": True},
         )
 
         old_indices = get_audit_logs_older_than(self.corpus_path, days=90)
@@ -82,9 +84,11 @@ class TestAuditLogRetention(unittest.TestCase):
     def test_get_audit_logs_older_than_with_old_logs(self):
         """Debe detectar logs antiguos correctamente."""
         # Manually insert old log (100 days ago)
-        old_timestamp = (datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=100)).isoformat()
+        old_timestamp = (
+            datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=100)
+        ).isoformat()
 
-        with h5py.File(self.corpus_path, 'a') as f:
+        with h5py.File(self.corpus_path, "a") as f:
             audit_logs = f["audit_logs"]
 
             # Resize datasets
@@ -111,9 +115,11 @@ class TestAuditLogRetention(unittest.TestCase):
     def test_cleanup_old_audit_logs_dry_run(self):
         """Dry run no debe modificar datos."""
         # Insert old log
-        old_timestamp = (datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=100)).isoformat()
+        old_timestamp = (
+            datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=100)
+        ).isoformat()
 
-        with h5py.File(self.corpus_path, 'a') as f:
+        with h5py.File(self.corpus_path, "a") as f:
             audit_logs = f["audit_logs"]
             for dataset_name in audit_logs.keys():
                 audit_logs[dataset_name].resize((1,))
@@ -135,17 +141,19 @@ class TestAuditLogRetention(unittest.TestCase):
         self.assertEqual(result["would_delete"], 1)
 
         # Verify data not modified
-        with h5py.File(self.corpus_path, 'r') as f:
+        with h5py.File(self.corpus_path, "r") as f:
             total = f["audit_logs"]["timestamp"].shape[0]
             self.assertEqual(total, 1, "Dry run should not delete data")
 
     def test_cleanup_old_audit_logs_actual_cleanup(self):
         """Cleanup real debe eliminar logs antiguos."""
         # Insert 1 old log and 1 recent log
-        old_timestamp = (datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=100)).isoformat()
+        old_timestamp = (
+            datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=100)
+        ).isoformat()
         recent_timestamp = datetime.now(ZoneInfo("America/Mexico_City")).isoformat()
 
-        with h5py.File(self.corpus_path, 'a') as f:
+        with h5py.File(self.corpus_path, "a") as f:
             audit_logs = f["audit_logs"]
 
             # Resize to 2 logs
@@ -183,11 +191,11 @@ class TestAuditLogRetention(unittest.TestCase):
         self.assertEqual(result["kept"], 1)
 
         # Verify only recent log remains
-        with h5py.File(self.corpus_path, 'r') as f:
+        with h5py.File(self.corpus_path, "r") as f:
             total = f["audit_logs"]["timestamp"].shape[0]
             self.assertEqual(total, 1)
 
-            remaining_id = f["audit_logs"]["audit_id"][0].decode('utf-8')
+            remaining_id = f["audit_logs"]["audit_id"][0].decode("utf-8")
             self.assertEqual(remaining_id, "recent-log")
 
     def test_cleanup_old_audit_logs_nothing_to_delete(self):
@@ -199,7 +207,7 @@ class TestAuditLogRetention(unittest.TestCase):
             user_id="user",
             endpoint="test",
             payload={"test": "data"},
-            result={"success": True}
+            result={"success": True},
         )
 
         # Try cleanup
@@ -208,7 +216,7 @@ class TestAuditLogRetention(unittest.TestCase):
         self.assertEqual(result["deleted"], 0)
 
         # Verify log still exists
-        with h5py.File(self.corpus_path, 'r') as f:
+        with h5py.File(self.corpus_path, "r") as f:
             total = f["audit_logs"]["timestamp"].shape[0]
             self.assertEqual(total, 1)
 
@@ -228,7 +236,7 @@ class TestAuditLogRetention(unittest.TestCase):
         old_timestamp = (now - timedelta(days=100)).isoformat()
         recent_timestamp = now.isoformat()
 
-        with h5py.File(self.corpus_path, 'a') as f:
+        with h5py.File(self.corpus_path, "a") as f:
             audit_logs = f["audit_logs"]
 
             # Resize to 5 logs
@@ -273,9 +281,11 @@ class TestAuditLogRetention(unittest.TestCase):
     def test_custom_retention_days(self):
         """Debe respetar período de retención custom."""
         # Insert log 50 days old
-        timestamp_50_days = (datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=50)).isoformat()
+        timestamp_50_days = (
+            datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=50)
+        ).isoformat()
 
-        with h5py.File(self.corpus_path, 'a') as f:
+        with h5py.File(self.corpus_path, "a") as f:
             audit_logs = f["audit_logs"]
             for dataset_name in audit_logs.keys():
                 audit_logs[dataset_name].resize((1,))
@@ -298,5 +308,5 @@ class TestAuditLogRetention(unittest.TestCase):
         self.assertEqual(len(old_indices_30), 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

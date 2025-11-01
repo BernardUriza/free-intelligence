@@ -10,16 +10,17 @@ File: backend/buffered_writer.py
 Created: 2025-10-28
 """
 
-import h5py
 import threading
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-from datetime import datetime
-from collections import deque
 import uuid
+from collections import deque
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Optional
 
-from backend.logger import get_logger
+import h5py
+
 from backend.append_only_policy import AppendOnlyPolicy
+from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -53,7 +54,7 @@ class BufferedHDF5Writer:
         corpus_path: str,
         buffer_size: int = 100,
         max_corpus_size_gb: float = 4.0,
-        auto_flush_seconds: int = 60
+        auto_flush_seconds: int = 60,
     ):
         """
         Initialize buffered writer.
@@ -82,7 +83,7 @@ class BufferedHDF5Writer:
             "BUFFERED_WRITER_INITIALIZED",
             corpus_path=str(self.corpus_path),
             buffer_size=buffer_size,
-            max_corpus_size_gb=max_corpus_size_gb
+            max_corpus_size_gb=max_corpus_size_gb,
         )
 
     def write_interaction(
@@ -92,7 +93,7 @@ class BufferedHDF5Writer:
         response: str,
         model: str,
         tokens: int,
-        timestamp: Optional[str] = None
+        timestamp: Optional[str] = None,
     ) -> str:
         """
         Write interaction to buffer (non-blocking).
@@ -114,6 +115,7 @@ class BufferedHDF5Writer:
 
         if timestamp is None:
             from zoneinfo import ZoneInfo
+
             tz = ZoneInfo("America/Mexico_City")
             timestamp = datetime.now(tz).isoformat()
 
@@ -125,7 +127,7 @@ class BufferedHDF5Writer:
             "prompt": prompt,
             "response": response,
             "model": model,
-            "tokens": tokens
+            "tokens": tokens,
         }
 
         with self.lock:
@@ -136,7 +138,7 @@ class BufferedHDF5Writer:
             "INTERACTION_BUFFERED",
             interaction_id=interaction_id,
             buffer_size=buffer_len,
-            buffer_limit=self.buffer_size
+            buffer_limit=self.buffer_size,
         )
 
         # Auto-flush conditions
@@ -187,12 +189,14 @@ class BufferedHDF5Writer:
                     logger.warning(
                         "CORPUS_SIZE_LIMIT_REACHED",
                         size_bytes=corpus_size,
-                        limit_bytes=self.max_corpus_size_bytes
+                        limit_bytes=self.max_corpus_size_bytes,
                     )
                     self._rotate_corpus()
 
             # Atomic write: all-or-nothing
-            with AppendOnlyPolicy(str(self.corpus_path)), h5py.File(str(self.corpus_path), 'a') as f:
+            with AppendOnlyPolicy(str(self.corpus_path)), h5py.File(
+                str(self.corpus_path), "a"
+            ) as f:
                 interactions = f["interactions"]
 
                 # Current size
@@ -227,7 +231,7 @@ class BufferedHDF5Writer:
                 "FLUSH_COMPLETED",
                 count=buffer_len,
                 total_writes=self.total_writes,
-                total_flushes=self.total_flushes
+                total_flushes=self.total_flushes,
             )
 
             return buffer_len
@@ -237,7 +241,7 @@ class BufferedHDF5Writer:
                 "FLUSH_FAILED",
                 error=str(e),
                 buffer_size=buffer_len,
-                message="Buffer NOT cleared - data preserved"
+                message="Buffer NOT cleared - data preserved",
             )
             raise
 
@@ -254,28 +258,28 @@ class BufferedHDF5Writer:
         logger.warning(
             "CORPUS_ROTATION_STARTED",
             current_path=str(self.corpus_path),
-            archived_path=str(archived_path)
+            archived_path=str(archived_path),
         )
 
         # Rename current corpus
         self.corpus_path.rename(archived_path)
 
         # Initialize new corpus
-        from backend.corpus_schema import init_corpus
         from backend.config_loader import load_config
+        from backend.corpus_schema import init_corpus
 
         config = load_config()
-        owner_id = config.get('owner', {}).get('identifier', 'bernard.uriza@example.com')
+        owner_id = config.get("owner", {}).get("identifier", "bernard.uriza@example.com")
 
         init_corpus(str(self.corpus_path), owner_identifier=owner_id)
 
         logger.info(
             "CORPUS_ROTATION_COMPLETED",
             new_corpus=str(self.corpus_path),
-            archived=str(archived_path)
+            archived=str(archived_path),
         )
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get writer statistics.
 
@@ -295,7 +299,7 @@ class BufferedHDF5Writer:
             "corpus_size_bytes": corpus_size,
             "corpus_size_mb": round(corpus_size / (1024 * 1024), 2),
             "corpus_path": str(self.corpus_path),
-            "last_flush": self.last_flush_time.isoformat()
+            "last_flush": self.last_flush_time.isoformat(),
         }
 
     def verify_integrity(self) -> bool:
@@ -315,7 +319,7 @@ class BufferedHDF5Writer:
             return False
 
         try:
-            with h5py.File(str(self.corpus_path), 'r') as f:
+            with h5py.File(str(self.corpus_path), "r") as f:
                 # Check required groups
                 if "interactions" not in f:
                     logger.error("INTEGRITY_CHECK_FAILED", reason="missing_interactions_group")
@@ -327,16 +331,11 @@ class BufferedHDF5Writer:
                 sizes = [interactions[key].shape[0] for key in interactions.keys()]
                 if len(set(sizes)) > 1:
                     logger.error(
-                        "INTEGRITY_CHECK_FAILED",
-                        reason="inconsistent_dataset_sizes",
-                        sizes=sizes
+                        "INTEGRITY_CHECK_FAILED", reason="inconsistent_dataset_sizes", sizes=sizes
                     )
                     return False
 
-                logger.info(
-                    "INTEGRITY_CHECK_PASSED",
-                    interactions_count=sizes[0] if sizes else 0
-                )
+                logger.info("INTEGRITY_CHECK_PASSED", interactions_count=sizes[0] if sizes else 0)
                 return True
 
         except Exception as e:
@@ -355,7 +354,7 @@ class BufferedHDF5Writer:
         logger.info(
             "BUFFERED_WRITER_CLOSED",
             total_writes=self.total_writes,
-            total_flushes=self.total_flushes
+            total_flushes=self.total_flushes,
         )
 
     def __enter__(self):
@@ -378,9 +377,9 @@ if __name__ == "__main__":
     writer = BufferedHDF5Writer(
         "storage/corpus.h5",
         buffer_size=5,  # Small buffer for demo
-        auto_flush_seconds=30
+        auto_flush_seconds=30,
     )
-    print(f"   ✅ Writer initialized (buffer_size=5)")
+    print("   ✅ Writer initialized (buffer_size=5)")
 
     # Test 2: Write interactions (buffered)
     print("\n2️⃣  Writing 3 interactions (buffered)...")
@@ -390,7 +389,7 @@ if __name__ == "__main__":
             prompt=f"Test prompt {i+1}",
             response=f"Test response {i+1}",
             model="claude-3-5-sonnet-20241022",
-            tokens=50
+            tokens=50,
         )
         print(f"   ✅ Buffered: {interaction_id}")
 

@@ -11,7 +11,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -37,9 +37,9 @@ class IntakePayload(BaseModel):
     """Triage intake payload from frontend"""
 
     reason: constr(min_length=3)  # type: ignore
-    symptoms: Union[str, List[str]] = []
+    symptoms: Union[str, list[str]] = []
     audioTranscription: Optional[str] = None
-    metadata: Dict[str, Any] = {}
+    metadata: dict[str, Any] = {}
 
     @field_validator("audioTranscription")
     @classmethod
@@ -51,7 +51,7 @@ class IntakePayload(BaseModel):
 
     @field_validator("symptoms")
     @classmethod
-    def normalize_symptoms(cls, v: Union[str, List[str]]) -> List[str]:
+    def normalize_symptoms(cls, v: Union[str, list[str]]) -> list[str]:
         """Normalize symptoms to list"""
         if isinstance(v, str):
             return [s.strip() for s in v.split(",") if s.strip()]
@@ -186,7 +186,7 @@ async def triage_intake(payload: IntakePayload, request: Request) -> IntakeAck:
 
 
 @router.get("/manifest/{buffer_id}")
-async def get_manifest(buffer_id: str) -> Dict[str, Any]:
+async def get_manifest(buffer_id: str) -> dict[str, Any]:
     """
     Retrieve manifest for a triage buffer.
 

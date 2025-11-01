@@ -5,22 +5,21 @@ Tests for Mutation Validator
 FI-DATA-FIX-001
 """
 
-import unittest
-import tempfile
 import os
 import sys
-from pathlib import Path
+import tempfile
+import unittest
 
 # Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
 from mutation_validator import (
-    is_forbidden_function_name,
-    scan_file_for_mutations,
-    scan_directory,
+    MutationViolation,
     get_allowed_patterns,
+    is_forbidden_function_name,
+    scan_directory,
+    scan_file_for_mutations,
     validate_codebase,
-    MutationViolation
 )
 
 
@@ -31,67 +30,64 @@ class TestMutationValidator(unittest.TestCase):
         """Test detection of forbidden function names."""
         # Forbidden names
         forbidden = [
-            'update_user',
-            'delete_interaction',
-            'remove_entry',
-            'modify_corpus',
-            'edit_data',
-            'change_value',
-            'overwrite_file',
-            'truncate_table',
-            'drop_database',
-            'clear_cache',
-            'reset_counter',
-            'set_value'
+            "update_user",
+            "delete_interaction",
+            "remove_entry",
+            "modify_corpus",
+            "edit_data",
+            "change_value",
+            "overwrite_file",
+            "truncate_table",
+            "drop_database",
+            "clear_cache",
+            "reset_counter",
+            "set_value",
         ]
 
         for func_name in forbidden:
             is_forbidden, pattern = is_forbidden_function_name(func_name)
-            self.assertTrue(
-                is_forbidden,
-                f"Expected '{func_name}' to be forbidden"
-            )
+            self.assertTrue(is_forbidden, f"Expected '{func_name}' to be forbidden")
             self.assertIsNotNone(pattern)
 
     def test_allowed_function_names(self):
         """Test that allowed function names are not flagged."""
         allowed = [
-            'append_interaction',
-            'add_embedding',
-            'get_corpus_stats',
-            'read_interactions',
-            'fetch_data',
-            'find_user',
-            'search_corpus',
-            'list_sessions',
-            'count_interactions',
-            'validate_corpus',
-            'verify_ownership',
-            'check_integrity',
-            'init_corpus',
-            'generate_id',
-            'create_session',
-            'build_index',
-            'load_config',
-            'parse_json'
+            "append_interaction",
+            "add_embedding",
+            "get_corpus_stats",
+            "read_interactions",
+            "fetch_data",
+            "find_user",
+            "search_corpus",
+            "list_sessions",
+            "count_interactions",
+            "validate_corpus",
+            "verify_ownership",
+            "check_integrity",
+            "init_corpus",
+            "generate_id",
+            "create_session",
+            "build_index",
+            "load_config",
+            "parse_json",
         ]
 
         for func_name in allowed:
             is_forbidden, pattern = is_forbidden_function_name(func_name)
             self.assertFalse(
                 is_forbidden,
-                f"Expected '{func_name}' to be allowed but was flagged with pattern '{pattern}'"
+                f"Expected '{func_name}' to be allowed but was flagged with pattern '{pattern}'",
             )
 
     def test_allowed_exceptions(self):
         """Test that unittest methods are allowed."""
         exceptions = [
-            'setUp',
-            'tearDown',
-            'setUpClass',
-            'tearDownClass',
-            'set_logger',
-            'set_config'
+            "setUp",
+            "tearDown",
+            "setUpClass",
+            "tearDownClass",
+            "set_logger",
+            "set_config",
         ]
 
         for func_name in exceptions:
@@ -101,12 +97,9 @@ class TestMutationValidator(unittest.TestCase):
     def test_scan_file_with_violations(self):
         """Test scanning file with mutation functions."""
         # Create temp file with violation
-        with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.py',
-            delete=False
-        ) as f:
-            f.write("""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(
+                """
 def append_data():
     pass
 
@@ -116,7 +109,8 @@ def update_user(user_id):
 
 def get_data():
     pass
-""")
+"""
+            )
             temp_file = f.name
 
         try:
@@ -124,21 +118,18 @@ def get_data():
 
             # Should find 1 violation (update_user)
             self.assertEqual(len(violations), 1)
-            self.assertEqual(violations[0].function_name, 'update_user')
-            self.assertEqual(violations[0].violation_type, 'FORBIDDEN_MUTATION_FUNCTION')
-            self.assertIn('append-only', violations[0].message)
+            self.assertEqual(violations[0].function_name, "update_user")
+            self.assertEqual(violations[0].violation_type, "FORBIDDEN_MUTATION_FUNCTION")
+            self.assertIn("append-only", violations[0].message)
 
         finally:
             os.unlink(temp_file)
 
     def test_scan_file_without_violations(self):
         """Test scanning file with only allowed functions."""
-        with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.py',
-            delete=False
-        ) as f:
-            f.write("""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(
+                """
 def append_interaction():
     pass
 
@@ -147,7 +138,8 @@ def get_stats():
 
 def read_data():
     pass
-""")
+"""
+            )
             temp_file = f.name
 
         try:
@@ -164,20 +156,20 @@ def read_data():
 
         try:
             # File 1: No violations
-            file1 = os.path.join(temp_dir, 'good.py')
-            with open(file1, 'w') as f:
+            file1 = os.path.join(temp_dir, "good.py")
+            with open(file1, "w") as f:
                 f.write("def append_data(): pass\n")
 
             # File 2: Has violation
-            file2 = os.path.join(temp_dir, 'bad.py')
-            with open(file2, 'w') as f:
+            file2 = os.path.join(temp_dir, "bad.py")
+            with open(file2, "w") as f:
                 f.write("def delete_data(): pass\n")
 
             violations = scan_directory(temp_dir)
 
             # Should find violations in file2 only
             self.assertEqual(len(violations), 1)
-            self.assertIn('bad.py', list(violations.keys())[0])
+            self.assertIn("bad.py", list(violations.keys())[0])
 
         finally:
             # Cleanup
@@ -192,9 +184,9 @@ def read_data():
 
         self.assertIsInstance(patterns, list)
         self.assertGreater(len(patterns), 0)
-        self.assertIn('^append_', patterns)
-        self.assertIn('^get_', patterns)
-        self.assertIn('^read_', patterns)
+        self.assertIn("^append_", patterns)
+        self.assertIn("^get_", patterns)
+        self.assertIn("^read_", patterns)
 
     def test_validate_codebase_real(self):
         """Test validation of real backend directory."""
@@ -202,10 +194,7 @@ def read_data():
         is_valid, violations = validate_codebase("backend", exclude_tests=True)
 
         # Should be valid (no mutation functions)
-        self.assertTrue(
-            is_valid,
-            f"Expected codebase to be valid, found violations: {violations}"
-        )
+        self.assertTrue(is_valid, f"Expected codebase to be valid, found violations: {violations}")
         self.assertEqual(len(violations), 0)
 
     def test_mutation_violation_dataclass(self):
@@ -215,7 +204,7 @@ def read_data():
             line_number=42,
             function_name="update_user",
             violation_type="FORBIDDEN_MUTATION_FUNCTION",
-            message="Test message"
+            message="Test message",
         )
 
         self.assertEqual(violation.file_path, "/test/file.py")
@@ -224,11 +213,7 @@ def read_data():
 
     def test_scan_file_with_syntax_error(self):
         """Test that files with syntax errors are handled gracefully."""
-        with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.py',
-            delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("def broken syntax here!!!")
             temp_file = f.name
 
@@ -243,12 +228,9 @@ def read_data():
 
     def test_multiple_violations_in_file(self):
         """Test detection of multiple violations in single file."""
-        with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.py',
-            delete=False
-        ) as f:
-            f.write("""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(
+                """
 def append_data():
     pass
 
@@ -263,7 +245,8 @@ def get_stats():
 
 def modify_corpus():
     pass
-""")
+"""
+            )
             temp_file = f.name
 
         try:
@@ -273,10 +256,7 @@ def modify_corpus():
             self.assertEqual(len(violations), 3)
 
             violation_names = {v.function_name for v in violations}
-            self.assertEqual(
-                violation_names,
-                {'update_user', 'delete_session', 'modify_corpus'}
-            )
+            self.assertEqual(violation_names, {"update_user", "delete_session", "modify_corpus"})
 
         finally:
             os.unlink(temp_file)
@@ -285,18 +265,17 @@ def modify_corpus():
         """Test that patterns are specific (prefix-based)."""
         # These should NOT be flagged (pattern is prefix-based)
         ok_names = [
-            'append_update_log',  # starts with append_
-            'get_deleted_items',  # starts with get_
-            'read_modified_data'  # starts with read_
+            "append_update_log",  # starts with append_
+            "get_deleted_items",  # starts with get_
+            "read_modified_data",  # starts with read_
         ]
 
         for func_name in ok_names:
             is_forbidden, _ = is_forbidden_function_name(func_name)
             self.assertFalse(
-                is_forbidden,
-                f"Expected '{func_name}' to be allowed (pattern is prefix-based)"
+                is_forbidden, f"Expected '{func_name}' to be allowed (pattern is prefix-based)"
             )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

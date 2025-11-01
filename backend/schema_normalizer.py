@@ -14,13 +14,14 @@ File: backend/schema_normalizer.py
 Created: 2025-10-28
 """
 
-from typing import Dict, Any, List
+from typing import Any
+
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-def normalize_output(output: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_output(output: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:
     """
     Normalize LLM output to match schema requirements.
 
@@ -50,9 +51,11 @@ def normalize_output(output: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str
         >>> assert normalized == {"items": [], "count": 5}
     """
     if not isinstance(output, dict) or not isinstance(schema, dict):
-        logger.warning("NORMALIZE_SKIP_INVALID_TYPES",
-                      output_type=type(output).__name__,
-                      schema_type=type(schema).__name__)
+        logger.warning(
+            "NORMALIZE_SKIP_INVALID_TYPES",
+            output_type=type(output).__name__,
+            schema_type=type(schema).__name__,
+        )
         return output
 
     properties = schema.get("properties", {})
@@ -74,18 +77,12 @@ def normalize_output(output: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str
         # Fix 1: null → [] for array fields
         if field_type == "array" and current_value is None:
             normalized[field_name] = []
-            logger.info("NORMALIZE_NULL_TO_ARRAY",
-                       field=field_name,
-                       before="null",
-                       after="[]")
+            logger.info("NORMALIZE_NULL_TO_ARRAY", field=field_name, before="null", after="[]")
 
         # Fix 2: null → {} for object fields
         elif field_type == "object" and current_value is None:
             normalized[field_name] = {}
-            logger.info("NORMALIZE_NULL_TO_OBJECT",
-                       field=field_name,
-                       before="null",
-                       after="{}")
+            logger.info("NORMALIZE_NULL_TO_OBJECT", field=field_name, before="null", after="{}")
 
         # Fix 3: Recursively normalize nested objects
         elif field_type == "object" and isinstance(current_value, dict):
@@ -119,15 +116,17 @@ def normalize_output(output: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str
 
             if default_value is not None:
                 normalized[field_name] = default_value
-                logger.warning("NORMALIZE_MISSING_REQUIRED_FIELD",
-                             field=field_name,
-                             type=field_type,
-                             default=default_value)
+                logger.warning(
+                    "NORMALIZE_MISSING_REQUIRED_FIELD",
+                    field=field_name,
+                    type=field_type,
+                    default=default_value,
+                )
 
     return normalized
 
 
-def normalize_intake_output(output: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_intake_output(output: dict[str, Any]) -> dict[str, Any]:
     """
     Normalize IntakeCoach output specifically.
 
@@ -200,11 +199,7 @@ def normalize_intake_output(output: Dict[str, Any]) -> Dict[str, Any]:
 
     # Fix 3: Add missing medical_history object
     elif "medical_history" not in normalized or normalized["medical_history"] is None:
-        normalized["medical_history"] = {
-            "allergies": [],
-            "medications": [],
-            "conditions": []
-        }
+        normalized["medical_history"] = {"allergies": [], "medications": [], "conditions": []}
         logger.warning("NORMALIZE_INTAKE_MISSING_MEDICAL_HISTORY", added="{...}")
 
     return normalized
@@ -224,22 +219,26 @@ if __name__ == "__main__":
             "items": {"type": "array"},
             "tags": {"type": "array"},
             "metadata": {"type": "object"},
-            "count": {"type": "integer"}
+            "count": {"type": "integer"},
         },
-        "required": ["items", "count"]
+        "required": ["items", "count"],
     }
 
     output = {
         "items": None,  # Should become []
-        "tags": None,   # Should become []
+        "tags": None,  # Should become []
         "metadata": None,  # Should become {}
-        "count": 5
+        "count": 5,
     }
 
     normalized = normalize_output(output, schema)
 
-    print(f"   Before: items={output['items']}, tags={output['tags']}, metadata={output['metadata']}")
-    print(f"   After:  items={normalized['items']}, tags={normalized['tags']}, metadata={normalized['metadata']}")
+    print(
+        f"   Before: items={output['items']}, tags={output['tags']}, metadata={output['metadata']}"
+    )
+    print(
+        f"   After:  items={normalized['items']}, tags={normalized['tags']}, metadata={normalized['metadata']}"
+    )
     assert normalized["items"] == []
     assert normalized["tags"] == []
     assert normalized["metadata"] == {}
@@ -250,21 +249,16 @@ if __name__ == "__main__":
     print("\n2️⃣  Test: IntakeCoach normalization (Case 7 scenario)")
 
     output = {
-        "demographics": {
-            "name": None,
-            "age": 28,
-            "gender": None,
-            "contact": None
-        },
+        "demographics": {"name": None, "age": 28, "gender": None, "contact": None},
         "chief_complaint": None,
         "symptoms": [],
         "medical_history": {
             "allergies": ["penicillin"],
             "medications": None,  # TRUNCATED - should become []
-            "conditions": None    # TRUNCATED - should become []
+            "conditions": None,  # TRUNCATED - should become []
         },
         "urgency": None,
-        "notes": None
+        "notes": None,
     }
 
     normalized = normalize_intake_output(output)
@@ -294,9 +288,9 @@ if __name__ == "__main__":
             "chief_complaint": {"type": "string"},
             "symptoms": {"type": "array"},
             "medical_history": {"type": "object"},
-            "urgency": {"type": "string"}
+            "urgency": {"type": "string"},
         },
-        "required": ["demographics", "chief_complaint", "symptoms", "medical_history", "urgency"]
+        "required": ["demographics", "chief_complaint", "symptoms", "medical_history", "urgency"],
     }
 
     normalized = normalize_output(output, schema)

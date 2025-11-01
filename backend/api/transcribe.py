@@ -19,7 +19,6 @@ Created: 2025-10-30
 """
 
 import os
-import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -28,7 +27,11 @@ from pydantic import BaseModel, Field
 
 from backend.audio_storage import save_audio_file, validate_session_id
 from backend.logger import get_logger
-from backend.whisper_service import convert_audio_to_wav, is_whisper_available, transcribe_audio
+from backend.whisper_service import (
+    convert_audio_to_wav,
+    is_whisper_available,
+    transcribe_audio,
+)
 
 logger = get_logger(__name__)
 
@@ -252,5 +255,7 @@ async def transcribe_health_check():
     return {
         "status": "operational" if whisper_ok else "degraded",
         "whisper_available": whisper_ok,
-        "message": "Transcription ready" if whisper_ok else "Whisper not available (install faster-whisper)",
+        "message": "Transcription ready"
+        if whisper_ok
+        else "Whisper not available (install faster-whisper)",
     }

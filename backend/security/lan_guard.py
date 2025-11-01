@@ -15,7 +15,8 @@ Philosophy:
 
 import os
 import random
-from typing import Callable, List, Optional
+from collections.abc import Callable
+from typing import Optional
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -34,7 +35,7 @@ class LANGuardMiddleware(BaseHTTPMiddleware):
     Blocks all requests from IPs outside configured CIDR ranges.
     """
 
-    def __init__(self, app, allowed_cidrs: Optional[List[str]] = None, sample_rate: float = 0.02):
+    def __init__(self, app, allowed_cidrs: Optional[list[str]] = None, sample_rate: float = 0.02):
         """
         Initialize LAN guard middleware.
 
@@ -117,7 +118,13 @@ class LANGuardMiddleware(BaseHTTPMiddleware):
             content={
                 "error": "lan_only",
                 "message": "Access restricted to local network",
-                "allowed_networks": ["127.0.0.0/8", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"],
+                "allowed_networks": [
+                    "127.0.0.0/8",
+                    "::1",
+                    "10.0.0.0/8",
+                    "172.16.0.0/12",
+                    "192.168.0.0/16",
+                ],
             },
         )
 
@@ -133,6 +140,8 @@ class LANGuardMiddleware(BaseHTTPMiddleware):
             "lan_guard.allow_count": self.allow_count,
             "lan_guard.total_requests": self.block_count + self.allow_count,
             "lan_guard.block_rate": (
-                self.block_count / (self.block_count + self.allow_count) if (self.block_count + self.allow_count) > 0 else 0.0
+                self.block_count / (self.block_count + self.allow_count)
+                if (self.block_count + self.allow_count) > 0
+                else 0.0
             ),
         }

@@ -8,25 +8,26 @@ Supports incremental backups, integrity verification, and retention policies.
 FI-SEC-FEAT-001
 """
 
-import os
-import shutil
+import base64
 import hashlib
 import json
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+import os
+import shutil
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Optional
+
 from cryptography.fernet import Fernet
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
-import base64
 
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-def generate_key_from_password(password: str, salt: Optional[bytes] = None) -> Tuple[bytes, bytes]:
+def generate_key_from_password(password: str, salt: Optional[bytes] = None) -> tuple[bytes, bytes]:
     """
     Generate encryption key from password using PBKDF2.
 
@@ -50,7 +51,7 @@ def generate_key_from_password(password: str, salt: Optional[bytes] = None) -> T
         length=32,
         salt=salt,
         iterations=100000,
-        backend=default_backend()
+        backend=default_backend(),
     )
     key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
     return key, salt
@@ -74,11 +75,7 @@ def encrypt_file(input_path: Path, output_path: Path, key: bytes) -> str:
         >>> key, salt = generate_key_from_password("password")
         >>> hash_val = encrypt_file(Path("corpus.h5"), Path("corpus.h5.enc"), key)
     """
-    logger.info(
-        "FILE_ENCRYPTION_STARTED",
-        input_path=str(input_path),
-        output_path=str(output_path)
-    )
+    logger.info("FILE_ENCRYPTION_STARTED", input_path=str(input_path), output_path=str(output_path))
 
     fernet = Fernet(key)
 
@@ -102,7 +99,7 @@ def encrypt_file(input_path: Path, output_path: Path, key: bytes) -> str:
         input_path=str(input_path),
         output_path=str(output_path),
         encrypted_size=len(encrypted_data),
-        sha256=hash_hex[:16]
+        sha256=hash_hex[:16],
     )
 
     return hash_hex
@@ -126,11 +123,7 @@ def decrypt_file(input_path: Path, output_path: Path, key: bytes) -> str:
         >>> key, salt = generate_key_from_password("password")
         >>> hash_val = decrypt_file(Path("corpus.h5.enc"), Path("corpus_restored.h5"), key)
     """
-    logger.info(
-        "FILE_DECRYPTION_STARTED",
-        input_path=str(input_path),
-        output_path=str(output_path)
-    )
+    logger.info("FILE_DECRYPTION_STARTED", input_path=str(input_path), output_path=str(output_path))
 
     fernet = Fernet(key)
 
@@ -159,7 +152,7 @@ def decrypt_file(input_path: Path, output_path: Path, key: bytes) -> str:
         input_path=str(input_path),
         output_path=str(output_path),
         decrypted_size=len(decrypted_data),
-        sha256=hash_hex[:16]
+        sha256=hash_hex[:16],
     )
 
     return hash_hex
@@ -189,12 +182,8 @@ def compute_file_hash(file_path: Path) -> str:
 
 
 def create_backup(
-    corpus_path: str,
-    backup_dir: str,
-    password: str,
-    encrypt: bool = True,
-    retention_days: int = 30
-) -> Tuple[str, Dict]:
+    corpus_path: str, backup_dir: str, password: str, encrypt: bool = True, retention_days: int = 30
+) -> tuple[str, dict]:
     """
     Create encrypted backup of corpus.
 
@@ -221,10 +210,7 @@ def create_backup(
         >>> print(f"Backup: {backup_path}")
     """
     logger.info(
-        "BACKUP_CREATION_STARTED",
-        corpus_path=corpus_path,
-        backup_dir=backup_dir,
-        encrypt=encrypt
+        "BACKUP_CREATION_STARTED", corpus_path=corpus_path, backup_dir=backup_dir, encrypt=encrypt
     )
 
     corpus_path_obj = Path(corpus_path)
@@ -277,7 +263,7 @@ def create_backup(
         "original_size": corpus_path_obj.stat().st_size,
         "backup_size": backup_path.stat().st_size,
         "retention_days": retention_days,
-        "expires_at": (datetime.now() + timedelta(days=retention_days)).isoformat()
+        "expires_at": (datetime.now() + timedelta(days=retention_days)).isoformat(),
     }
 
     # Save metadata
@@ -290,17 +276,13 @@ def create_backup(
         encrypted=encrypt,
         original_size=metadata["original_size"],
         backup_size=metadata["backup_size"],
-        retention_days=retention_days
+        retention_days=retention_days,
     )
 
     return str(backup_path), metadata
 
 
-def restore_backup(
-    backup_path: str,
-    output_path: str,
-    password: Optional[str] = None
-) -> str:
+def restore_backup(backup_path: str, output_path: str, password: Optional[str] = None) -> str:
     """
     Restore corpus from backup.
 
@@ -321,11 +303,7 @@ def restore_backup(
         ...     password="my_password"
         ... )
     """
-    logger.info(
-        "BACKUP_RESTORATION_STARTED",
-        backup_path=backup_path,
-        output_path=output_path
-    )
+    logger.info("BACKUP_RESTORATION_STARTED", backup_path=backup_path, output_path=output_path)
 
     backup_path_obj = Path(backup_path)
     output_path_obj = Path(output_path)
@@ -362,7 +340,7 @@ def restore_backup(
         "BACKUP_RESTORED",
         backup_path=backup_path,
         output_path=output_path,
-        restored_hash=restored_hash[:16]
+        restored_hash=restored_hash[:16],
     )
 
     return restored_hash
@@ -393,7 +371,9 @@ def verify_backup(backup_path: str, password: Optional[str] = None) -> bool:
         return False
 
     # Load metadata
-    meta_path = backup_path_obj.parent / backup_path_obj.name.replace(".h5.enc", ".meta.json").replace(".h5", ".meta.json")
+    meta_path = backup_path_obj.parent / backup_path_obj.name.replace(
+        ".h5.enc", ".meta.json"
+    ).replace(".h5", ".meta.json")
     if not meta_path.exists():
         logger.warning("BACKUP_METADATA_MISSING", backup_path=backup_path)
         # Can still verify file exists and is readable
@@ -403,7 +383,7 @@ def verify_backup(backup_path: str, password: Optional[str] = None) -> bool:
             return False
         return True
 
-    with open(meta_path, "r") as f:
+    with open(meta_path) as f:
         metadata = json.load(f)
 
     # Verify backup hash
@@ -413,19 +393,22 @@ def verify_backup(backup_path: str, password: Optional[str] = None) -> bool:
             "BACKUP_VERIFICATION_FAILED",
             reason="Hash mismatch",
             expected=metadata["backup_hash"][:16],
-            actual=current_hash[:16]
+            actual=current_hash[:16],
         )
         return False
 
     # If encrypted, try decrypting to temp file
     if metadata["encrypted"]:
         if not password:
-            logger.warning("BACKUP_VERIFICATION_INCOMPLETE", reason="No password for decryption test")
+            logger.warning(
+                "BACKUP_VERIFICATION_INCOMPLETE", reason="No password for decryption test"
+            )
             # Hash matched, assume valid
             return True
 
         # Try decrypt to temp
         import tempfile
+
         with tempfile.NamedTemporaryFile(delete=True) as tmp:
             try:
                 restore_backup(backup_path, tmp.name, password)
@@ -439,7 +422,7 @@ def verify_backup(backup_path: str, password: Optional[str] = None) -> bool:
     return True
 
 
-def cleanup_old_backups(backup_dir: str, retention_days: int = 30) -> List[str]:
+def cleanup_old_backups(backup_dir: str, retention_days: int = 30) -> list[str]:
     """
     Remove backups older than retention policy.
 
@@ -456,11 +439,7 @@ def cleanup_old_backups(backup_dir: str, retention_days: int = 30) -> List[str]:
         >>> removed = cleanup_old_backups("backups/", retention_days=30)
         >>> print(f"Removed {len(removed)} old backups")
     """
-    logger.info(
-        "BACKUP_CLEANUP_STARTED",
-        backup_dir=backup_dir,
-        retention_days=retention_days
-    )
+    logger.info("BACKUP_CLEANUP_STARTED", backup_dir=backup_dir, retention_days=retention_days)
 
     backup_dir_obj = Path(backup_dir)
     if not backup_dir_obj.exists():
@@ -471,7 +450,7 @@ def cleanup_old_backups(backup_dir: str, retention_days: int = 30) -> List[str]:
 
     # Find all metadata files
     for meta_file in backup_dir_obj.glob("*.meta.json"):
-        with open(meta_file, "r") as f:
+        with open(meta_file) as f:
             metadata = json.load(f)
 
         backup_date = datetime.fromisoformat(metadata["timestamp"])
@@ -491,19 +470,15 @@ def cleanup_old_backups(backup_dir: str, retention_days: int = 30) -> List[str]:
             logger.info(
                 "BACKUP_REMOVED",
                 backup_path=str(backup_path),
-                age_days=(datetime.now() - backup_date).days
+                age_days=(datetime.now() - backup_date).days,
             )
 
-    logger.info(
-        "BACKUPS_CLEANED_UP",
-        backup_dir=backup_dir,
-        removed_count=len(removed)
-    )
+    logger.info("BACKUPS_CLEANED_UP", backup_dir=backup_dir, removed_count=len(removed))
 
     return removed
 
 
-def list_backups(backup_dir: str) -> List[Dict]:
+def list_backups(backup_dir: str) -> list[dict]:
     """
     List all backups with metadata.
 
@@ -524,7 +499,7 @@ def list_backups(backup_dir: str) -> List[Dict]:
 
     backups = []
     for meta_file in sorted(backup_dir_obj.glob("*.meta.json")):
-        with open(meta_file, "r") as f:
+        with open(meta_file) as f:
             metadata = json.load(f)
         backups.append(metadata)
 
@@ -536,8 +511,8 @@ def list_backups(backup_dir: str) -> List[Dict]:
 # ============================================================================
 
 if __name__ == "__main__":
-    import sys
     import getpass
+    import sys
 
     if len(sys.argv) < 2:
         print("Usage:")
@@ -625,7 +600,9 @@ if __name__ == "__main__":
         else:
             print(f"\n📦 Backups in {backup_dir}:")
             for b in backups:
-                print(f"   [{b['backup_id']}] {b['backup_size']} bytes (encrypted: {b['encrypted']})")
+                print(
+                    f"   [{b['backup_id']}] {b['backup_size']} bytes (encrypted: {b['encrypted']})"
+                )
 
     elif command == "cleanup" and len(sys.argv) >= 3:
         backup_dir = sys.argv[2]

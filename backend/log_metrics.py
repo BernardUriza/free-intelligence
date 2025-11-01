@@ -16,9 +16,9 @@ FI-CORE-FEAT-003
 """
 
 import json
-from pathlib import Path
-from typing import Dict, Any, List
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 from log_rotation import LogRotation
 from logger_structured import ServiceChannel
 
@@ -47,11 +47,7 @@ class LogMetrics:
         """
         self.rotation = LogRotation(base_path=base_path)
 
-    def _read_recent_logs(
-        self,
-        channel: ServiceChannel,
-        hours: int = 24
-    ) -> List[Dict[str, Any]]:
+    def _read_recent_logs(self, channel: ServiceChannel, hours: int = 24) -> list[dict[str, Any]]:
         """
         Read recent log events from channel.
 
@@ -62,7 +58,7 @@ class LogMetrics:
         Returns:
             List of log events
         """
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
 
         # Get current log file
         log_path = self.rotation.get_current_log_path(channel)
@@ -82,7 +78,7 @@ class LogMetrics:
 
         return events
 
-    def compute_percentile(self, values: List[float], percentile: int) -> float:
+    def compute_percentile(self, values: list[float], percentile: int) -> float:
         """
         Compute percentile of values.
 
@@ -104,7 +100,7 @@ class LogMetrics:
 
         return sorted_values[index]
 
-    def get_llm_metrics(self, hours: int = 24) -> Dict[str, Any]:
+    def get_llm_metrics(self, hours: int = 24) -> dict[str, Any]:
         """
         Get LLM metrics for last N hours.
 
@@ -119,13 +115,12 @@ class LogMetrics:
                 "llm_latency_p95": 0.0,
                 "llm_tokens_total": 0,
                 "llm_cost_total": 0.0,
-                "llm_timeout_total": 0
+                "llm_timeout_total": 0,
             }
 
         latencies = [e["latency_ms"] for e in events if e.get("latency_ms")]
         tokens = sum(
-            e["details"].get("tokens_in", 0) + e["details"].get("tokens_out", 0)
-            for e in events
+            e["details"].get("tokens_in", 0) + e["details"].get("tokens_out", 0) for e in events
         )
         cost = sum(e["details"].get("cost_est", 0.0) for e in events)
         timeouts = sum(1 for e in events if e["details"].get("timeout", False))
@@ -135,10 +130,10 @@ class LogMetrics:
             "llm_latency_p95": round(self.compute_percentile(latencies, 95), 2),
             "llm_tokens_total": tokens,
             "llm_cost_total": round(cost, 4),
-            "llm_timeout_total": timeouts
+            "llm_timeout_total": timeouts,
         }
 
-    def get_api_metrics(self, hours: int = 24) -> Dict[str, Any]:
+    def get_api_metrics(self, hours: int = 24) -> dict[str, Any]:
         """
         Get API metrics for last N hours.
 
@@ -148,11 +143,7 @@ class LogMetrics:
         events = self._read_recent_logs(ServiceChannel.SERVER, hours=hours)
 
         if not events:
-            return {
-                "api_requests_total": 0,
-                "api_errors_total": 0,
-                "api_latency_p95": 0.0
-            }
+            return {"api_requests_total": 0, "api_errors_total": 0, "api_latency_p95": 0.0}
 
         errors = sum(1 for e in events if not e.get("ok", True))
         latencies = [e["latency_ms"] for e in events if e.get("latency_ms")]
@@ -160,10 +151,10 @@ class LogMetrics:
         return {
             "api_requests_total": len(events),
             "api_errors_total": errors,
-            "api_latency_p95": round(self.compute_percentile(latencies, 95), 2)
+            "api_latency_p95": round(self.compute_percentile(latencies, 95), 2),
         }
 
-    def get_storage_metrics(self, hours: int = 24) -> Dict[str, Any]:
+    def get_storage_metrics(self, hours: int = 24) -> dict[str, Any]:
         """
         Get storage metrics for last N hours.
 
@@ -173,19 +164,13 @@ class LogMetrics:
         events = self._read_recent_logs(ServiceChannel.STORAGE, hours=hours)
 
         if not events:
-            return {
-                "storage_segments_total": 0,
-                "storage_ready_total": 0
-            }
+            return {"storage_segments_total": 0, "storage_ready_total": 0}
 
         ready = sum(1 for e in events if e["details"].get("ready", False))
 
-        return {
-            "storage_segments_total": len(events),
-            "storage_ready_total": ready
-        }
+        return {"storage_segments_total": len(events), "storage_ready_total": ready}
 
-    def get_audit_metrics(self, hours: int = 24) -> Dict[str, Any]:
+    def get_audit_metrics(self, hours: int = 24) -> dict[str, Any]:
         """
         Get audit metrics for last N hours.
 
@@ -199,7 +184,7 @@ class LogMetrics:
                 "audit_events_total": 0,
                 "audit_failures_total": 0,
                 "audit_logins_total": 0,
-                "audit_role_changes_total": 0
+                "audit_role_changes_total": 0,
             }
 
         failures = sum(1 for e in events if not e.get("ok", True))
@@ -210,10 +195,10 @@ class LogMetrics:
             "audit_events_total": len(events),
             "audit_failures_total": failures,
             "audit_logins_total": logins,
-            "audit_role_changes_total": role_changes
+            "audit_role_changes_total": role_changes,
         }
 
-    def get_all_metrics(self, hours: int = 24) -> Dict[str, Any]:
+    def get_all_metrics(self, hours: int = 24) -> dict[str, Any]:
         """
         Get all metrics for last N hours.
 
@@ -223,10 +208,7 @@ class LogMetrics:
         Returns:
             Combined metrics dict
         """
-        metrics = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "hours": hours
-        }
+        metrics = {"timestamp": datetime.now(UTC).isoformat(), "hours": hours}
 
         metrics.update(self.get_llm_metrics(hours))
         metrics.update(self.get_api_metrics(hours))

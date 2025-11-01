@@ -14,8 +14,9 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.llm_router import llm_generate
 from backend.gatekeeper import Gatekeeper, QualityScorer
+from backend.llm_router import llm_generate
+
 
 def main():
     print("=" * 70)
@@ -47,10 +48,12 @@ def main():
 
     print(f"\n📊 Quality Score: {quality_score1.total_score}/100")
     print(f"  {quality_score1.explanation}")
-    print(f"  Breakdown: Length={quality_score1.length_score}/30, "
-          f"Keywords={quality_score1.keyword_score}/30, "
-          f"Coherence={quality_score1.coherence_score}/20, "
-          f"Completeness={quality_score1.completeness_score}/20")
+    print(
+        f"  Breakdown: Length={quality_score1.length_score}/30, "
+        f"Keywords={quality_score1.keyword_score}/30, "
+        f"Coherence={quality_score1.coherence_score}/20, "
+        f"Completeness={quality_score1.completeness_score}/20"
+    )
 
     if quality_score1.total_score >= 70:
         print("\n✅ PASS: Quality score above threshold (70)")
@@ -91,10 +94,14 @@ def main():
     print("📊 Test Summary")
     print("=" * 70)
 
-    print(f"\nTest 1 (Alice): {quality_score1.total_score}/100 - " +
-          ("✅ PASS" if quality_score1.total_score >= 70 else "❌ FAIL"))
-    print(f"Test 2 (Capital): {quality_score2.total_score}/100 - " +
-          ("✅ PASS" if quality_score2.total_score >= 70 else "❌ FAIL"))
+    print(
+        f"\nTest 1 (Alice): {quality_score1.total_score}/100 - "
+        + ("✅ PASS" if quality_score1.total_score >= 70 else "❌ FAIL")
+    )
+    print(
+        f"Test 2 (Capital): {quality_score2.total_score}/100 - "
+        + ("✅ PASS" if quality_score2.total_score >= 70 else "❌ FAIL")
+    )
 
     print("\n🚦 Gatekeeper Behavior:")
     print("  - Scores >= 70: Use Ollama (fast, free, private)")
@@ -107,6 +114,7 @@ def main():
     print("\n" + "=" * 70)
     print("🎉 Gatekeeper E2E Test Complete")
     print("=" * 70)
+
 
 if __name__ == "__main__":
     main()

@@ -9,6 +9,7 @@ Reference: Peer Review Report 2025-10-30 (Critical Finding #2)
 """
 
 import pytest
+
 from backend.policy_enforcer import PolicyEnforcer, PolicyViolation
 
 
@@ -70,9 +71,7 @@ class TestAllowlistSecurityBypass:
         """Attacker cannot bypass allowlist by embedding domain in URL"""
         # Attack: Query param injection
         with pytest.raises(PolicyViolation, match="External egress denied"):
-            enforcer_with_allowlist.check_egress(
-                "https://evil.com/?redirect=api.anthropic.com"
-            )
+            enforcer_with_allowlist.check_egress("https://evil.com/?redirect=api.anthropic.com")
 
         # Attack: Path injection
         with pytest.raises(PolicyViolation, match="External egress denied"):
@@ -82,30 +81,22 @@ class TestAllowlistSecurityBypass:
 
         # Attack: Fragment injection
         with pytest.raises(PolicyViolation, match="External egress denied"):
-            enforcer_with_allowlist.check_egress(
-                "https://evil.com/steal#api.anthropic.com"
-            )
+            enforcer_with_allowlist.check_egress("https://evil.com/steal#api.anthropic.com")
 
     def test_egress_subdomain_injection_blocked(self, enforcer_with_allowlist):
         """Allowlist domain should not match malicious subdomains"""
         # Attack: Add allowlisted domain as subdomain of evil domain
         with pytest.raises(PolicyViolation, match="External egress denied"):
-            enforcer_with_allowlist.check_egress(
-                "https://api.anthropic.com.evil.com/steal"
-            )
+            enforcer_with_allowlist.check_egress("https://api.anthropic.com.evil.com/steal")
 
         with pytest.raises(PolicyViolation, match="External egress denied"):
-            enforcer_with_allowlist.check_egress(
-                "https://api.anthropic.com-evil.com/phishing"
-            )
+            enforcer_with_allowlist.check_egress("https://api.anthropic.com-evil.com/phishing")
 
     def test_egress_partial_domain_match_blocked(self, enforcer_with_allowlist):
         """Allowlist entry should not match partial strings"""
         # Attack: Embed allowlisted string in different host
         with pytest.raises(PolicyViolation, match="External egress denied"):
-            enforcer_with_allowlist.check_egress(
-                "http://malicious-127.0.0.1:11434.evil.com"
-            )
+            enforcer_with_allowlist.check_egress("http://malicious-127.0.0.1:11434.evil.com")
 
         with pytest.raises(PolicyViolation, match="External egress denied"):
             enforcer_with_allowlist.check_egress("http://prefix127.0.0.1:11434/api")
@@ -135,9 +126,7 @@ class TestAllowlistSecurityBypass:
     def test_egress_empty_allowlist_blocks_all(self):
         """Empty allowlist should block all requests"""
         enforcer = PolicyEnforcer.__new__(PolicyEnforcer)
-        enforcer.policy = {
-            "sovereignty": {"egress": {"default": "deny", "allowlist": []}}
-        }
+        enforcer.policy = {"sovereignty": {"egress": {"default": "deny", "allowlist": []}}}
 
         with pytest.raises(PolicyViolation, match="External egress denied"):
             enforcer.check_egress("https://api.anthropic.com")

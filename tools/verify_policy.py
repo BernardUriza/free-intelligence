@@ -6,8 +6,8 @@ Card: FI-POLICY-STR-001
 Verifies policy files, digest, and test results
 """
 
-import json
 import hashlib
+import json
 import sys
 from pathlib import Path
 
@@ -19,7 +19,7 @@ def main():
         "config/redaction_style.yaml",
         "config/decision_rules.yaml",
         "backend/policy_enforcer.py",
-        "tests/test_policy_enforcement.py"
+        "tests/test_policy_enforcement.py",
     ]
 
     missing = []
@@ -46,24 +46,24 @@ def main():
 
     # Verify policy digest matches
     policy_path = Path("config/fi.policy.yaml")
-    with open(policy_path, 'rb') as f:
+    with open(policy_path, "rb") as f:
         current_digest = hashlib.sha256(f.read()).hexdigest()
 
     if current_digest != manifest["policy_digest"]:
-        print(f"⚠️  Policy file changed since manifest")
+        print("⚠️  Policy file changed since manifest")
         print(f"   Manifest: {manifest['policy_digest'][:16]}...")
         print(f"   Current:  {current_digest[:16]}...")
-        print(f"   Run 'make policy-report' to regenerate manifest")
+        print("   Run 'make policy-report' to regenerate manifest")
     else:
         print(f"✅ Policy digest verified: {current_digest[:16]}...")
 
     # Verify tests passed
     if not manifest["results"]["tests_passed"]:
-        print(f"❌ Tests failed in manifest")
+        print("❌ Tests failed in manifest")
         sys.exit(1)
 
     print(f"✅ All {manifest['results']['count']} tests passed")
-    print(f"✅ Artifacts verified")
+    print("✅ Artifacts verified")
 
     # Display policy summary
     print("\n📋 Policy Summary:")

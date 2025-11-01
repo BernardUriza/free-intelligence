@@ -10,9 +10,10 @@ FI-DATA-FEAT-004
 
 import hashlib
 import uuid
-from typing import Optional, Tuple
-import h5py
 from pathlib import Path
+from typing import Optional
+
+import h5py
 
 
 def generate_corpus_id() -> str:
@@ -62,7 +63,7 @@ def generate_owner_hash(owner_identifier: str, salt: Optional[str] = None) -> st
         data = f"{owner_identifier}{salt}"
 
     # Generate SHA256 hash
-    hash_object = hashlib.sha256(data.encode('utf-8'))
+    hash_object = hashlib.sha256(data.encode("utf-8"))
     return hash_object.hexdigest()
 
 
@@ -70,8 +71,8 @@ def add_corpus_identity(
     corpus_path: str,
     owner_identifier: str,
     corpus_id: Optional[str] = None,
-    salt: Optional[str] = None
-) -> Tuple[str, str]:
+    salt: Optional[str] = None,
+) -> tuple[str, str]:
     """
     Add corpus_id and owner_hash to existing corpus.
 
@@ -111,15 +112,14 @@ def add_corpus_identity(
     owner_hash = generate_owner_hash(owner_identifier, salt=salt)
 
     try:
-        with h5py.File(corpus_path, 'a') as f:
+        with h5py.File(corpus_path, "a") as f:
             metadata = f["metadata"]
 
             # Check if identity already exists
             if "corpus_id" in metadata.attrs:
                 existing_id = metadata.attrs["corpus_id"]
                 raise ValueError(
-                    f"Corpus already has identity (corpus_id: {existing_id}). "
-                    "Cannot overwrite."
+                    f"Corpus already has identity (corpus_id: {existing_id}). " "Cannot overwrite."
                 )
 
             # Add identity attributes
@@ -130,7 +130,7 @@ def add_corpus_identity(
             "CORPUS_IDENTITY_ADDED",
             corpus_id=corpus_id,
             owner_hash=owner_hash[:16] + "...",  # Log only prefix for security
-            path=str(path)
+            path=str(path),
         )
 
         return corpus_id, owner_hash
@@ -140,7 +140,9 @@ def add_corpus_identity(
         raise
 
 
-def verify_corpus_ownership(corpus_path: str, owner_identifier: str, salt: Optional[str] = None) -> bool:
+def verify_corpus_ownership(
+    corpus_path: str, owner_identifier: str, salt: Optional[str] = None
+) -> bool:
     """
     Verify ownership of a corpus by comparing owner_hash.
 
@@ -169,14 +171,12 @@ def verify_corpus_ownership(corpus_path: str, owner_identifier: str, salt: Optio
     logger = get_logger()
 
     try:
-        with h5py.File(corpus_path, 'r') as f:
+        with h5py.File(corpus_path, "r") as f:
             metadata = f["metadata"]
 
             if "owner_hash" not in metadata.attrs:
                 logger.warning(
-                    "CORPUS_VERIFICATION_FAILED",
-                    reason="No owner_hash attribute",
-                    path=corpus_path
+                    "CORPUS_VERIFICATION_FAILED", reason="No owner_hash attribute", path=corpus_path
                 )
                 return False
 
@@ -221,7 +221,7 @@ def get_corpus_identity(corpus_path: str) -> Optional[dict]:
     logger = get_logger()
 
     try:
-        with h5py.File(corpus_path, 'r') as f:
+        with h5py.File(corpus_path, "r") as f:
             metadata = f["metadata"]
 
             if "corpus_id" not in metadata.attrs or "owner_hash" not in metadata.attrs:
@@ -233,7 +233,7 @@ def get_corpus_identity(corpus_path: str) -> Optional[dict]:
                 "owner_hash": metadata.attrs["owner_hash"],
                 "created_at": metadata.attrs.get("created_at"),
                 "version": metadata.attrs.get("version"),
-                "schema_version": metadata.attrs.get("schema_version")
+                "schema_version": metadata.attrs.get("schema_version"),
             }
 
             logger.info("IDENTITY_METADATA_READ", corpus_id=identity["corpus_id"], path=corpus_path)
@@ -248,6 +248,7 @@ def get_corpus_identity(corpus_path: str) -> Optional[dict]:
 if __name__ == "__main__":
     # CLI demonstration
     import sys
+
     from config_loader import load_config
 
     config = load_config()
@@ -264,7 +265,7 @@ if __name__ == "__main__":
 
         try:
             corpus_id, owner_hash = add_corpus_identity(corpus_path, owner_identifier, salt=salt)
-            print(f"✅ Identity added:")
+            print("✅ Identity added:")
             print(f"   Corpus ID: {corpus_id}")
             print(f"   Owner Hash: {owner_hash}")
         except Exception as e:

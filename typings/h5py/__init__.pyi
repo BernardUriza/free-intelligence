@@ -1,6 +1,7 @@
 """Type stubs for h5py to suppress false positives in Pylance."""
-from typing import Any, Iterator, overload
+from collections.abc import Iterator
 from os import PathLike
+from typing import Any, overload
 
 # Basic type aliases
 _T = Any  # Generic type variable
@@ -20,7 +21,7 @@ class Group:
         shape: tuple[int, ...] | None = None,
         dtype: Any = None,
         data: Any = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dataset: ...
     @property
     def attrs(self) -> AttributeManager: ...
@@ -43,6 +44,7 @@ class Dataset:
 
 class Datatype:
     """HDF5 Datatype stub."""
+
     pass
 
 class File(Group):

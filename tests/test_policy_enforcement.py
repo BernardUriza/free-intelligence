@@ -10,15 +10,14 @@ Tests runtime enforcement of:
 """
 
 import pytest
+
 from backend.policy_enforcer import (
     PolicyEnforcer,
     PolicyViolation,
-    check_egress,
-    check_cost,
-    check_phi,
-    redact,
-    check_timeline_auto,
     check_agents_enabled,
+    check_cost,
+    check_egress,
+    check_timeline_auto,
 )
 
 
@@ -26,8 +25,7 @@ from backend.policy_enforcer import (
 def enforcer():
     """Fresh PolicyEnforcer instance for each test"""
     return PolicyEnforcer(
-        policy_path="config/fi.policy.yaml",
-        redaction_path="config/redaction_style.yaml"
+        policy_path="config/fi.policy.yaml", redaction_path="config/redaction_style.yaml"
     )
 
 
@@ -103,7 +101,7 @@ class TestPrivacyPolicy:
         # The actual CURP pattern should also be redacted
         assert "[REDACTED" in redacted  # Either [REDACTED] or [REDACTED_CURP]
         # Either the CURP word or the actual ID should be masked
-        assert ("XEXX010101HNEXXS04" not in redacted or "[REDACTED_CURP]" in redacted)
+        assert "XEXX010101HNEXXS04" not in redacted or "[REDACTED_CURP]" in redacted
 
     def test_redact_rfc(self, enforcer):
         """Redaction should mask Mexican RFC"""
@@ -143,7 +141,9 @@ class TestPrivacyPolicy:
         redacted = enforcer.redact(text)
 
         assert "[REDACTED_EMAIL]" in redacted
-        assert "[REDACTED_PHONE]" in redacted or "phone" in redacted  # "phone" might be redacted too
+        assert (
+            "[REDACTED_PHONE]" in redacted or "phone" in redacted
+        )  # "phone" might be redacted too
         assert "[REDACTED_SSN]" in redacted
         assert "john@test.com" not in redacted
         assert "123-45-6789" not in redacted

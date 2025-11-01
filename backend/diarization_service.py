@@ -13,34 +13,42 @@ File: backend/diarization_service.py
 Created: 2025-10-30
 """
 
-import os
-import json
-import time
 import hashlib
+import json
+import os
+import time
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
+from typing import Optional
 
 from backend.logger import get_logger
-from backend.whisper_service import transcribe_audio, is_whisper_available
+from backend.whisper_service import is_whisper_available, transcribe_audio
 
 logger = get_logger(__name__)
 
 # Configuration
-CHUNK_DURATION_SEC = int(os.getenv("DIARIZATION_CHUNK_SEC", "60"))  # 60s chunks (default for speed, was 30s)
+CHUNK_DURATION_SEC = int(
+    os.getenv("DIARIZATION_CHUNK_SEC", "60")
+)  # 60s chunks (default for speed, was 30s)
 MIN_SEGMENT_DURATION = float(os.getenv("MIN_SEGMENT_SEC", "0.5"))  # Filter <0.5s
 # Performance tuning (increase chunk size for 25% speedup, reduce for better speaker granularity)
 # Options: 20 (granular), 30 (balanced), 60 (fastest), 120 (very fast but coarse)
 OLLAMA_BASE_URL = os.getenv("LLM_BASE_URL", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
-OLLAMA_MODEL = os.getenv("LLM_MODEL", os.getenv("DIARIZATION_LLM_MODEL", "qwen2.5:7b-instruct-q4_0"))
+OLLAMA_MODEL = os.getenv(
+    "LLM_MODEL", os.getenv("DIARIZATION_LLM_MODEL", "qwen2.5:7b-instruct-q4_0")
+)
 LLM_TEMPERATURE = float(os.getenv("DIARIZATION_LLM_TEMP", "0.1"))  # Low temp for determinism
 LLM_TIMEOUT_MS = int(os.getenv("LLM_TIMEOUT_MS", "60000"))  # 60s timeout (was 30s)
 LLM_TIMEOUT_SEC = LLM_TIMEOUT_MS / 1000.0
 # Kill switches
 FI_ENRICHMENT = os.getenv("FI_ENRICHMENT", "on").lower() == "on"
-ENABLE_LLM_CLASSIFICATION = os.getenv("ENABLE_LLM_CLASSIFICATION", "false").lower() == "true"  # OFF by default (3-4x speedup)
-WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "base")  # Options: tiny, base (default for speed), small, medium, large-v3
+ENABLE_LLM_CLASSIFICATION = (
+    os.getenv("ENABLE_LLM_CLASSIFICATION", "false").lower() == "true"
+)  # OFF by default (3-4x speedup)
+WHISPER_MODEL_SIZE = os.getenv(
+    "WHISPER_MODEL_SIZE", "base"
+)  # Options: tiny, base (default for speed), small, medium, large-v3
 
 # Ollama availability cache (check once at startup)
 _ollama_available = None
@@ -49,16 +57,18 @@ _ollama_available = None
 @dataclass
 class DiarizationSegment:
     """Single diarized segment with speaker label."""
+
     start_time: float  # seconds
-    end_time: float    # seconds
-    speaker: str       # PACIENTE | MEDICO | DESCONOCIDO
-    text: str          # transcribed text
+    end_time: float  # seconds
+    speaker: str  # PACIENTE | MEDICO | DESCONOCIDO
+    text: str  # transcribed text
     confidence: Optional[float] = None  # optional confidence score
 
 
 @dataclass
 class DiarizationResult:
     """Complete diarization result with metadata."""
+
     session_id: str
     audio_file_path: str
     audio_file_hash: str
@@ -66,7 +76,7 @@ class DiarizationResult:
     language: str
     model_asr: str
     model_llm: str
-    segments: List[DiarizationSegment]
+    segments: list[DiarizationSegment]
     processing_time_sec: float
     created_at: str
 
@@ -87,6 +97,7 @@ def check_ollama_available() -> bool:
 
     try:
         import requests
+
         response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2)
         _ollama_available = response.status_code == 200
 
@@ -111,7 +122,9 @@ def compute_audio_hash(file_path: Path) -> str:
     return f"sha256:{sha256.hexdigest()}"
 
 
-def chunk_audio_fixed(audio_path: Path, chunk_sec: int = CHUNK_DURATION_SEC) -> List[Tuple[float, float]]:
+def chunk_audio_fixed(
+    audio_path: Path, chunk_sec: int = CHUNK_DURATION_SEC
+) -> list[tuple[float, float]]:
     """
     Create fixed-duration chunks for audio file.
 
@@ -123,11 +136,19 @@ def chunk_audio_fixed(audio_path: Path, chunk_sec: int = CHUNK_DURATION_SEC) -> 
     # Get audio duration using ffprobe
     try:
         result = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-             "-of", "default=noprint_wrappers=1:nokey=1", str(audio_path)],
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(audio_path),
+            ],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
         duration = float(result.stdout.strip())
     except Exception as e:
@@ -142,7 +163,9 @@ def chunk_audio_fixed(audio_path: Path, chunk_sec: int = CHUNK_DURATION_SEC) -> 
         chunks.append((current, end))
         current = end
 
-    logger.info("AUDIO_CHUNKED", total_duration=duration, chunk_count=len(chunks), chunk_sec=chunk_sec)
+    logger.info(
+        "AUDIO_CHUNKED", total_duration=duration, chunk_count=len(chunks), chunk_sec=chunk_sec
+    )
     return chunks
 
 
@@ -164,10 +187,21 @@ def extract_chunk(audio_path: Path, start_sec: float, end_sec: float, output_pat
     duration = end_sec - start_sec
     try:
         subprocess.run(
-            ["ffmpeg", "-i", str(audio_path), "-ss", str(start_sec),
-             "-t", str(duration), "-y", str(output_path), "-loglevel", "error"],
+            [
+                "ffmpeg",
+                "-i",
+                str(audio_path),
+                "-ss",
+                str(start_sec),
+                "-t",
+                str(duration),
+                "-y",
+                str(output_path),
+                "-loglevel",
+                "error",
+            ],
             check=True,
-            timeout=30
+            timeout=30,
         )
         return True
     except Exception as e:
@@ -194,10 +228,12 @@ def classify_speaker_with_llm(text: str, context_before: str = "", context_after
     """
     # Early exit if LLM classification is disabled (kill switches)
     if not FI_ENRICHMENT or not ENABLE_LLM_CLASSIFICATION:
-        logger.debug("LLM_CLASSIFICATION_DISABLED",
-                     fi_enrichment=FI_ENRICHMENT,
-                     enable_llm=ENABLE_LLM_CLASSIFICATION,
-                     text_preview=text[:50])
+        logger.debug(
+            "LLM_CLASSIFICATION_DISABLED",
+            fi_enrichment=FI_ENRICHMENT,
+            enable_llm=ENABLE_LLM_CLASSIFICATION,
+            text_preview=text[:50],
+        )
         return "DESCONOCIDO"
 
     # Early exit if Ollama is not available
@@ -230,9 +266,9 @@ Clasificación:"""
                 "prompt": prompt,
                 "temperature": LLM_TEMPERATURE,
                 "stream": False,
-                "options": {"num_predict": 20}  # Limit tokens
+                "options": {"num_predict": 20},  # Limit tokens
             },
-            timeout=LLM_TIMEOUT_SEC
+            timeout=LLM_TIMEOUT_SEC,
         )
 
         if response.status_code == 200:
@@ -241,7 +277,9 @@ Clasificación:"""
 
             # Extract first valid label
             if "PACIENTE" in classification:
-                logger.debug("LLM_CLASSIFICATION_SUCCESS", speaker="PACIENTE", text_preview=text[:30])
+                logger.debug(
+                    "LLM_CLASSIFICATION_SUCCESS", speaker="PACIENTE", text_preview=text[:30]
+                )
                 return "PACIENTE"
             elif "MEDICO" in classification or "MÉDICO" in classification:
                 logger.debug("LLM_CLASSIFICATION_SUCCESS", speaker="MEDICO", text_preview=text[:30])
@@ -250,7 +288,9 @@ Clasificación:"""
                 logger.debug("LLM_CLASSIFICATION_AMBIGUOUS", text_preview=text[:30])
                 return "DESCONOCIDO"
         else:
-            logger.warning("LLM_CLASSIFICATION_FAILED", status=response.status_code, text_preview=text[:30])
+            logger.warning(
+                "LLM_CLASSIFICATION_FAILED", status=response.status_code, text_preview=text[:30]
+            )
             return "DESCONOCIDO"
 
     except requests.exceptions.Timeout:
@@ -261,7 +301,7 @@ Clasificación:"""
         return "DESCONOCIDO"
 
 
-def merge_consecutive_segments(segments: List[DiarizationSegment]) -> List[DiarizationSegment]:
+def merge_consecutive_segments(segments: list[DiarizationSegment]) -> list[DiarizationSegment]:
     """
     Merge consecutive segments from the same speaker.
 
@@ -287,7 +327,7 @@ def merge_consecutive_segments(segments: List[DiarizationSegment]) -> List[Diari
                 end_time=seg.end_time,
                 speaker=last.speaker,
                 text=f"{last.text} {seg.text}".strip(),
-                confidence=None
+                confidence=None,
             )
         else:
             merged.append(seg)
@@ -301,7 +341,7 @@ def diarize_audio(
     session_id: str,
     language: str = "es",
     persist: bool = False,
-    progress_callback = None
+    progress_callback=None,
 ) -> DiarizationResult:
     """
     Main diarization pipeline.
@@ -328,7 +368,7 @@ def diarize_audio(
         llm_url=OLLAMA_BASE_URL if ENABLE_LLM_CLASSIFICATION else "N/A",
         llm_model=OLLAMA_MODEL if ENABLE_LLM_CLASSIFICATION else "N/A",
         llm_timeout=LLM_TIMEOUT_SEC if ENABLE_LLM_CLASSIFICATION else "N/A",
-        chunk_duration=CHUNK_DURATION_SEC
+        chunk_duration=CHUNK_DURATION_SEC,
     )
 
     # Check Whisper availability
@@ -338,7 +378,12 @@ def diarize_audio(
     # Compute audio hash
     try:
         audio_hash = compute_audio_hash(audio_path)
-        logger.info("DIARIZATION_START", session_id=session_id, audio_path=str(audio_path), audio_hash=audio_hash)
+        logger.info(
+            "DIARIZATION_START",
+            session_id=session_id,
+            audio_path=str(audio_path),
+            audio_hash=audio_hash,
+        )
     except FileNotFoundError as e:
         logger.error(
             "AUDIO_FILE_NOT_FOUND",
@@ -346,7 +391,7 @@ def diarize_audio(
             audio_path=str(audio_path),
             audio_path_absolute=str(audio_path.absolute()),
             cwd=str(Path.cwd()),
-            error=str(e)
+            error=str(e),
         )
         raise
 
@@ -377,7 +422,9 @@ def diarize_audio(
 
             # Emit event: Whisper transcription start
             if progress_callback:
-                progress_callback(10 + int(i / total_chunks * 85), i, total_chunks, "WHISPER_TRANSCRIPTION_START")
+                progress_callback(
+                    10 + int(i / total_chunks * 85), i, total_chunks, "WHISPER_TRANSCRIPTION_START"
+                )
 
             # Transcribe chunk
             transcription = transcribe_audio(chunk_path, language=language, vad_filter=True)
@@ -395,7 +442,12 @@ def diarize_audio(
 
             # Emit event: Whisper transcription complete
             if progress_callback:
-                progress_callback(10 + int(i / total_chunks * 85), i, total_chunks, "WHISPER_TRANSCRIPTION_COMPLETE")
+                progress_callback(
+                    10 + int(i / total_chunks * 85),
+                    i,
+                    total_chunks,
+                    "WHISPER_TRANSCRIPTION_COMPLETE",
+                )
 
             # Build context for LLM
             context_before = segments[-1].text if segments else ""
@@ -406,10 +458,7 @@ def diarize_audio(
 
             # Create segment
             seg = DiarizationSegment(
-                start_time=start_sec,
-                end_time=end_sec,
-                speaker=speaker,
-                text=text
+                start_time=start_sec, end_time=end_sec, speaker=speaker, text=text
             )
             segments.append(seg)
 
@@ -419,7 +468,9 @@ def diarize_audio(
             if progress_callback and (i % 2 == 0 or i == total_chunks - 1):
                 progress_pct = 10 + int((i + 1) / total_chunks * 85)
                 progress_callback(progress_pct, i + 1, total_chunks, "CHUNK_CLASSIFIED")
-                logger.debug("PROGRESS_UPDATE", chunk=i+1, total=total_chunks, progress=progress_pct)
+                logger.debug(
+                    "PROGRESS_UPDATE", chunk=i + 1, total=total_chunks, progress=progress_pct
+                )
 
         # Step 4: Merge consecutive segments
         if progress_callback:
@@ -444,14 +495,14 @@ def diarize_audio(
             model_llm=OLLAMA_MODEL,
             segments=segments,
             processing_time_sec=time.time() - start_time,
-            created_at=datetime.utcnow().isoformat() + "Z"
+            created_at=datetime.utcnow().isoformat() + "Z",
         )
 
         logger.info(
             "DIARIZATION_COMPLETE",
             session_id=session_id,
             segments_count=len(segments),
-            processing_time=result.processing_time_sec
+            processing_time=result.processing_time_sec,
         )
 
         # Optionally persist
@@ -463,6 +514,7 @@ def diarize_audio(
     finally:
         # Cleanup temp chunks
         import shutil
+
         if chunk_dir.exists():
             shutil.rmtree(chunk_dir, ignore_errors=True)
             logger.debug("CHUNKS_CLEANED", chunk_dir=str(chunk_dir))
@@ -503,19 +555,20 @@ def _persist_result(result: DiarizationResult) -> Path:
     manifest = {
         "session_id": result.session_id,
         "audio_file_hash": result.audio_file_hash,
-        "result_files": {
-            "json": str(json_path.name),
-            "markdown": str(md_path.name)
-        },
+        "result_files": {"json": str(json_path.name), "markdown": str(md_path.name)},
         "created_at": result.created_at,
-        "processing_time_sec": result.processing_time_sec
+        "processing_time_sec": result.processing_time_sec,
     }
 
     manifest_path = export_dir / "manifest.json"
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
 
-    logger.info("RESULT_PERSISTED", export_dir=str(export_dir), files=["result.json", "result.md", "manifest.json"])
+    logger.info(
+        "RESULT_PERSISTED",
+        export_dir=str(export_dir),
+        files=["result.json", "result.md", "manifest.json"],
+    )
     return export_dir
 
 
@@ -545,18 +598,20 @@ def export_diarization(result: DiarizationResult, format: str = "json") -> str:
             f"**Hash Audio:** {result.audio_file_hash[:16]}...",
             "",
             "---",
-            ""
+            "",
         ]
 
         for i, seg in enumerate(result.segments, 1):
-            lines.extend([
-                f"## Segmento {i} - {seg.speaker}",
-                "",
-                f"**Tiempo:** {seg.start_time:.1f}s - {seg.end_time:.1f}s",
-                "",
-                seg.text,
-                ""
-            ])
+            lines.extend(
+                [
+                    f"## Segmento {i} - {seg.speaker}",
+                    "",
+                    f"**Tiempo:** {seg.start_time:.1f}s - {seg.end_time:.1f}s",
+                    "",
+                    seg.text,
+                    "",
+                ]
+            )
 
         return "\n".join(lines)
 

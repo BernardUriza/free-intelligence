@@ -21,12 +21,13 @@ import os
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import h5py
-from fastapi import FastAPI, HTTPException, Path as PathParam, Query, status
+from fastapi import FastAPI, HTTPException
+from fastapi import Path as PathParam
+from fastapi import Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 # ============================================================================
@@ -41,10 +42,8 @@ class CorpusStats(BaseModel):
     total_sessions: int = Field(..., description="Total number of unique sessions")
     total_tokens: int = Field(..., description="Total tokens processed")
     corpus_size_bytes: int = Field(..., description="Size of corpus file in bytes")
-    date_range: Dict[str, str] = Field(
-        ..., description="Earliest and latest timestamps"
-    )
-    models_used: Dict[str, int] = Field(..., description="Count of interactions per model")
+    date_range: dict[str, str] = Field(..., description="Earliest and latest timestamps")
+    models_used: dict[str, int] = Field(..., description="Count of interactions per model")
 
 
 class SessionSummary(BaseModel):
@@ -62,7 +61,7 @@ class SessionDetail(BaseModel):
     """Detailed session response model"""
 
     session_id: str
-    interactions: List[Dict[str, Any]]
+    interactions: list[dict[str, Any]]
     total_tokens: int
     first_timestamp: str
     last_timestamp: str
@@ -175,7 +174,9 @@ async def get_corpus_stats():
 
             # Get unique sessions
             session_ids_raw = interactions["session_id"][:]
-            session_ids = [s.decode('utf-8') if isinstance(s, bytes) else str(s) for s in session_ids_raw]
+            session_ids = [
+                s.decode("utf-8") if isinstance(s, bytes) else str(s) for s in session_ids_raw
+            ]
             unique_sessions = set(session_ids)
             total_sessions = len(unique_sessions)
 
@@ -185,14 +186,16 @@ async def get_corpus_stats():
 
             # Get date range
             timestamps_raw = interactions["timestamp"][:]
-            timestamps = [t.decode('utf-8') if isinstance(t, bytes) else str(t) for t in timestamps_raw]
+            timestamps = [
+                t.decode("utf-8") if isinstance(t, bytes) else str(t) for t in timestamps_raw
+            ]
             earliest = min(timestamps) if len(timestamps) > 0 else ""
             latest = max(timestamps) if len(timestamps) > 0 else ""
 
             # Get models used
             models_raw = interactions["model"][:]
-            models = [m.decode('utf-8') if isinstance(m, bytes) else str(m) for m in models_raw]
-            models_count: Dict[str, int] = defaultdict(int)
+            models = [m.decode("utf-8") if isinstance(m, bytes) else str(m) for m in models_raw]
+            models_count: dict[str, int] = defaultdict(int)
             for model in models:
                 models_count[model] += 1
 
@@ -215,7 +218,7 @@ async def get_corpus_stats():
         )
 
 
-@app.get("/api/sessions/summary", response_model=List[SessionSummary], tags=["sessions"])
+@app.get("/api/sessions/summary", response_model=list[SessionSummary], tags=["sessions"])
 async def get_sessions_summary(
     limit: int = Query(50, ge=1, le=500, description="Maximum number of sessions to return"),
     offset: int = Query(0, ge=0, description="Number of sessions to skip"),
@@ -250,12 +253,16 @@ async def get_sessions_summary(
             tokens = interactions["tokens"][:]
 
             # Decode bytes to strings
-            session_ids = [s.decode('utf-8') if isinstance(s, bytes) else str(s) for s in session_ids_raw]
-            timestamps = [t.decode('utf-8') if isinstance(t, bytes) else str(t) for t in timestamps_raw]
-            prompts = [p.decode('utf-8') if isinstance(p, bytes) else str(p) for p in prompts_raw]
+            session_ids = [
+                s.decode("utf-8") if isinstance(s, bytes) else str(s) for s in session_ids_raw
+            ]
+            timestamps = [
+                t.decode("utf-8") if isinstance(t, bytes) else str(t) for t in timestamps_raw
+            ]
+            prompts = [p.decode("utf-8") if isinstance(p, bytes) else str(p) for p in prompts_raw]
 
             # Group by session
-            sessions_data: Dict[str, Dict[str, Any]] = defaultdict(
+            sessions_data: dict[str, dict[str, Any]] = defaultdict(
                 lambda: {
                     "interaction_count": 0,
                     "total_tokens": 0,
@@ -339,12 +346,20 @@ async def get_session_detail(
             tokens = interactions["tokens"][:]
 
             # Decode bytes to strings
-            session_ids = [s.decode('utf-8') if isinstance(s, bytes) else str(s) for s in session_ids_raw]
-            interaction_ids = [i.decode('utf-8') if isinstance(i, bytes) else str(i) for i in interaction_ids_raw]
-            timestamps = [t.decode('utf-8') if isinstance(t, bytes) else str(t) for t in timestamps_raw]
-            prompts = [p.decode('utf-8') if isinstance(p, bytes) else str(p) for p in prompts_raw]
-            responses = [r.decode('utf-8') if isinstance(r, bytes) else str(r) for r in responses_raw]
-            models = [m.decode('utf-8') if isinstance(m, bytes) else str(m) for m in models_raw]
+            session_ids = [
+                s.decode("utf-8") if isinstance(s, bytes) else str(s) for s in session_ids_raw
+            ]
+            interaction_ids = [
+                i.decode("utf-8") if isinstance(i, bytes) else str(i) for i in interaction_ids_raw
+            ]
+            timestamps = [
+                t.decode("utf-8") if isinstance(t, bytes) else str(t) for t in timestamps_raw
+            ]
+            prompts = [p.decode("utf-8") if isinstance(p, bytes) else str(p) for p in prompts_raw]
+            responses = [
+                r.decode("utf-8") if isinstance(r, bytes) else str(r) for r in responses_raw
+            ]
+            models = [m.decode("utf-8") if isinstance(m, bytes) else str(m) for m in models_raw]
 
             # Filter by session_id
             session_interactions = []
@@ -401,7 +416,7 @@ async def get_session_detail(
 async def startup_event():
     """Log startup info"""
     corpus_path = get_corpus_path()
-    print(f"🚀 FI Corpus API starting on port 9001")
+    print("🚀 FI Corpus API starting on port 9001")
     print(f"📁 Corpus path: {corpus_path}")
     print(f"✅ Corpus exists: {verify_corpus_exists()}")
 
