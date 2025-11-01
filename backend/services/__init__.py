@@ -11,10 +11,12 @@ Clean Code Principles:
 
 from .audit_service import AuditService
 from .corpus_service import CorpusService
+from .diagnostics_service import DiagnosticsService
 from .diarization_service import DiarizationService
 from .evidence_service import EvidenceService
 from .export_service import ExportService
 from .session_service import SessionService
+from .system_health_service import SystemHealthService
 from .transcription_service import TranscriptionService
 from .triage_service import TriageService
 
@@ -22,9 +24,11 @@ __all__ = [
     "AuditService",
     "CorpusService",
     "DiarizationService",
+    "DiagnosticsService",
     "EvidenceService",
     "ExportService",
     "SessionService",
+    "SystemHealthService",
     "TranscriptionService",
     "TriageService",
 ]

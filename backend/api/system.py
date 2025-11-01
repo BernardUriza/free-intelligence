@@ -9,15 +9,20 @@ Created: 2025-10-30
 
 Endpoints:
   GET /api/system/health - Unified health check aggregating all services
+
+Clean Code Architecture:
+- Thin controller delegates all health check logic to SystemHealthService
+- Service layer encapsulates backend, diarization, LLM, policy checks
+- Endpoint focuses only on HTTP response formatting
 """
 
-import subprocess
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from backend.container import get_container
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
@@ -34,95 +39,12 @@ class SystemHealthResponse(BaseModel):
     time: str
 
 
-def check_backend_health() -> bool:
-    """Backend is always healthy if we can respond."""
-    return True
-
-
-def check_diarization_health() -> dict[str, bool]:
-    """
-    Check diarization service health.
-
-    Checks:
-    - Whisper: faster-whisper import + model can load (non-allocating)
-    - ffmpeg: ffprobe -version (non-blocking)
-
-    Returns:
-        Dict with whisper and ffmpeg booleans
-    """
-    # Check Whisper
-    whisper_ok = False
-    try:
-        from backend.whisper_service import is_whisper_available
-
-        whisper_ok = is_whisper_available()
-    except Exception as e:
-        logger.warning("WHISPER_CHECK_FAILED", error=str(e))
-
-    # Check ffmpeg/ffprobe
-    ffmpeg_ok = False
-    try:
-        result = subprocess.run(["ffprobe", "-version"], capture_output=True, timeout=2, text=True)
-        ffmpeg_ok = result.returncode == 0
-    except Exception as e:
-        logger.warning("FFMPEG_CHECK_FAILED", error=str(e))
-
-    return {"whisper": whisper_ok, "ffmpeg": ffmpeg_ok}
-
-
-def check_llm_health() -> dict[str, Any]:
-    """
-    Check LLM service health.
-
-    Checks:
-    - Ollama: GET http://127.0.0.1:11434/api/tags (timeout 800ms)
-
-    Returns:
-        Dict with ollama boolean and models list
-    """
-    ollama_ok = False
-    models = []
-
-    try:
-        import requests
-
-        from backend.diarization_service import OLLAMA_BASE_URL
-
-        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=0.8)
-
-        if response.status_code == 200:
-            ollama_ok = True
-            data = response.json()
-            models = [m.get("name", "") for m in data.get("models", [])]
-    except Exception as e:
-        logger.debug("OLLAMA_CHECK_FAILED", error=str(e))
-
-    return {"ollama": ollama_ok, "models": models}
-
-
-def check_policy_health() -> bool:
-    """
-    Check policy service health.
-
-    Attempts to instantiate PolicyEnforcer without raising.
-
-    Returns:
-        True if PolicyEnforcer can be instantiated
-    """
-    try:
-        from backend.policy_enforcer import PolicyEnforcer
-
-        _enforcer = PolicyEnforcer()
-        return True
-    except Exception as e:
-        logger.warning("POLICY_CHECK_FAILED", error=str(e))
-        return False
-
-
 @router.get("/health", response_model=SystemHealthResponse)
 async def get_system_health() -> SystemHealthResponse:
     """
     Unified health check aggregating all services.
+
+    Delegates all health check logic to SystemHealthService.
 
     Response shape:
     {
@@ -140,25 +62,25 @@ async def get_system_health() -> SystemHealthResponse:
     Returns:
         SystemHealthResponse with ok=True only if critical services are healthy
     """
-    backend_ok = check_backend_health()
-    diarization = check_diarization_health()
-    llm = check_llm_health()
-    policy_ok = check_policy_health()
+    try:
+        container = get_container()
+        health_service = container.get_system_health_service()
+        health_data = health_service.get_system_health()
 
-    # Critical services: backend, diarization.whisper, diarization.ffmpeg, policy
-    # LLM is optional (graceful degradation)
-    critical_ok = (
-        backend_ok
-        and diarization.get("whisper", False)
-        and diarization.get("ffmpeg", False)
-        and policy_ok
-    )
+        logger.info("SYSTEM_HEALTH_RETRIEVED", ok=health_data["ok"])
 
-    services = {"backend": backend_ok, "diarization": diarization, "llm": llm, "policy": policy_ok}
-
-    return SystemHealthResponse(
-        ok=critical_ok,
-        services=services,
-        version="v0.3.0",
-        time=datetime.now(timezone.utc).isoformat() + "Z",
-    )
+        return SystemHealthResponse(
+            ok=health_data["ok"],
+            services=health_data["services"],
+            version="v0.3.0",
+            time=datetime.now(UTC).isoformat() + "Z",
+        )
+    except Exception as e:
+        logger.error(f"SYSTEM_HEALTH_FAILED: {str(e)}")
+        # Return degraded response on error
+        return SystemHealthResponse(
+            ok=False,
+            services={"error": str(e)},
+            version="v0.3.0",
+            time=datetime.now(UTC).isoformat() + "Z",
+        )

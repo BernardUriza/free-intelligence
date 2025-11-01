@@ -19,10 +19,12 @@ from backend.repositories import AuditRepository, CorpusRepository, SessionRepos
 from backend.services import (
     AuditService,
     CorpusService,
+    DiagnosticsService,
     DiarizationService,
     EvidenceService,
     ExportService,
     SessionService,
+    SystemHealthService,
     TranscriptionService,
     TriageService,
 )
@@ -59,9 +61,11 @@ class DIContainer:
         self._corpus_service: Optional[CorpusService] = None
         self._diarization_service: Optional[DiarizationService] = None
         self._diarization_job_service: Optional[DiarizationJobService] = None
+        self._diagnostics_service: Optional[DiagnosticsService] = None
         self._evidence_service: Optional[EvidenceService] = None
         self._export_service: Optional[ExportService] = None
         self._session_service: Optional[SessionService] = None
+        self._system_health_service: Optional[SystemHealthService] = None
         self._transcription_service: Optional[TranscriptionService] = None
         self._triage_service: Optional[TriageService] = None
 
@@ -314,6 +318,44 @@ class DIContainer:
 
         return self._triage_service
 
+    def get_system_health_service(self) -> SystemHealthService:
+        """Get or create SystemHealthService singleton.
+
+        Returns:
+            SystemHealthService instance
+
+        Raises:
+            OSError: If service initialization fails
+        """
+        if self._system_health_service is None:
+            try:
+                self._system_health_service = SystemHealthService()
+                logger.info("SystemHealthService initialized")
+            except OSError as e:
+                logger.error(f"SYSTEM_HEALTH_SERVICE_INIT_FAILED: {str(e)}")
+                raise OSError(f"Failed to initialize SystemHealthService: {e}") from e
+
+        return self._system_health_service
+
+    def get_diagnostics_service(self) -> DiagnosticsService:
+        """Get or create DiagnosticsService singleton.
+
+        Returns:
+            DiagnosticsService instance
+
+        Raises:
+            OSError: If service initialization fails
+        """
+        if self._diagnostics_service is None:
+            try:
+                self._diagnostics_service = DiagnosticsService()
+                logger.info("DiagnosticsService initialized")
+            except OSError as e:
+                logger.error(f"DIAGNOSTICS_SERVICE_INIT_FAILED: {str(e)}")
+                raise OSError(f"Failed to initialize DiagnosticsService: {e}") from e
+
+        return self._diagnostics_service
+
     def reset(self) -> None:
         """Reset all singletons (useful for testing).
 
@@ -329,9 +371,11 @@ class DIContainer:
         self._corpus_service = None
         self._diarization_service = None
         self._diarization_job_service = None
+        self._diagnostics_service = None
         self._evidence_service = None
         self._export_service = None
         self._session_service = None
+        self._system_health_service = None
         self._transcription_service = None
         self._triage_service = None
 
