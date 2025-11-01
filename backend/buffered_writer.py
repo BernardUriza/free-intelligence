@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-import h5py  # type: ignore
+import h5py
 
 from backend.append_only_policy import AppendOnlyPolicy
 from backend.logger import get_logger

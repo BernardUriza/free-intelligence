@@ -15,7 +15,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-import h5py  # type: ignore
+import h5py
 
 
 def generate_corpus_id() -> str:

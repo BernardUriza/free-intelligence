@@ -140,7 +140,7 @@ def get_default_config() -> dict[str, Any]:
     }
 
 
-def load_config(config_path: str = None) -> dict[str, Any]:
+def load_config(config_path: Optional[str] = None) -> dict[str, Any]:
     """
     Load and validate YAML configuration.
 

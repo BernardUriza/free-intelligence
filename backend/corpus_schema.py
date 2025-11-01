@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-import h5py  # type: ignore
+import h5py
 
 
 class CorpusSchema:
@@ -25,12 +25,12 @@ class CorpusSchema:
 
     # Dataset specifications for interactions
     INTERACTION_DATASETS = {
-        "session_id": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
-        "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
-        "timestamp": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
-        "prompt": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
-        "response": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
-        "model": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
+        "session_id": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
+        "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
+        "timestamp": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
+        "prompt": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
+        "response": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
+        "model": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
         "tokens": {"dtype": "int32"},
     }
 

@@ -11,14 +11,15 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
 import h5py
 
-from .base_repository import BaseRepository
 from backend.types import DiarizationChunkDict
+
+from .base_repository import BaseRepository
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +131,9 @@ class CorpusRepository(BaseRepository):
                     return None
 
                 dataset = f[self.DOCUMENTS_GROUP][document_id]
-                content = dataset[()].decode("utf-8") if isinstance(dataset[()], bytes) else dataset[()]
+                content = (
+                    dataset[()].decode("utf-8") if isinstance(dataset[()], bytes) else dataset[()]
+                )
 
                 # Extract metadata
                 metadata = dict(dataset.attrs)
@@ -239,9 +242,7 @@ class CorpusRepository(BaseRepository):
             logger.error("CORPUS_LIST_FAILED", error=str(e))
             return []
 
-    def add_chunk(
-        self, chunk: DiarizationChunkDict, document_id: str
-    ) -> bool:
+    def add_chunk(self, chunk: DiarizationChunkDict, document_id: str) -> bool:
         """Add diarization chunk to document.
 
         Args:
@@ -291,7 +292,7 @@ class CorpusRepository(BaseRepository):
                         chunk_group = chunks_group[chunk_id]
                         chunk_data: DiarizationChunkDict = {}
                         for key, value in chunk_group.attrs.items():
-                            chunk_data[key] = value  # type: ignore
+                            chunk_data[key] = value
                         chunks.append(chunk_data)
 
                 return sorted(chunks, key=lambda c: c.get("chunk_idx", 0))

@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generator, Generic, Optional, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
 import h5py
 
@@ -54,7 +55,7 @@ class BaseRepository(ABC, Generic[T]):
     @contextmanager
     def _open_file(
         self, mode: str = "r+"
-    ) -> Generator[h5py.File, None, None]:  # type: ignore
+    ) -> Generator[h5py.File, None, None]:
         """Context manager for safe HDF5 file operations.
 
         Args:
@@ -78,7 +79,7 @@ class BaseRepository(ABC, Generic[T]):
                 mode=mode,
                 error=str(e),
             )
-            raise IOError(f"Failed to open HDF5 file: {e}") from e
+            raise OSError(f"Failed to open HDF5 file: {e}") from e
         finally:
             if file_obj:
                 file_obj.close()

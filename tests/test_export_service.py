@@ -6,11 +6,11 @@ manifest creation, and file integrity verification.
 
 from __future__ import annotations
 
-import pytest
 import tempfile
-import json
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, timezone
+
+import pytest
 
 from backend.services.export_service import ExportService
 
@@ -54,9 +54,9 @@ class TestExportServiceId:
 
     def test_generate_export_id_timestamp(self, export_service):
         """Test export ID contains timestamp."""
-        before = int(datetime.now(timezone.utc).timestamp())
+        before = int(datetime.now(UTC).timestamp())
         export_id = export_service.generate_export_id()
-        after = int(datetime.now(timezone.utc).timestamp())
+        after = int(datetime.now(UTC).timestamp())
 
         parts = export_id.split("_")
         ts = int(parts[1])
@@ -333,9 +333,7 @@ class TestExportServiceCreation:
         )
 
         # Get hash of json artifact
-        json_artifact = next(
-            a for a in result1["artifacts"] if a["format"] == "json"
-        )
+        json_artifact = next(a for a in result1["artifacts"] if a["format"] == "json")
         hash1 = json_artifact["sha256"]
 
         # Create same export again with different service instance
@@ -349,9 +347,7 @@ class TestExportServiceCreation:
             formats=["json"],
         )
 
-        json_artifact2 = next(
-            a for a in result2["artifacts"] if a["format"] == "json"
-        )
+        json_artifact2 = next(a for a in result2["artifacts"] if a["format"] == "json")
         hash2 = json_artifact2["sha256"]
 
         # Content hash should be same (different export_id/session shouldn't affect content hash)

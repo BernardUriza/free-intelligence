@@ -1,0 +1,304 @@
+{
+  "metadata": {
+    "generated": "2025-11-01",
+    "total_errors": 600,
+    "total_warnings": 124,
+    "files_affected": 57,
+    "h5py_related": 337,
+    "h5py_percentage": "56%"
+  },
+  "top_10_errors_to_fix": [
+    {
+      "rank": 1,
+      "priority": "QUICK_WIN",
+      "effort_minutes": 5,
+      "impact_errors": 39,
+      "impact_type": "warnings_cleared",
+      "file": "fi_exporter.py",
+      "lines": "multiple",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "error_message": "Unnecessary '# type: ignore' comment",
+      "fix": "Remove all 39 comment lines flagged as unnecessary",
+      "strategy": "Automated deletion + re-check",
+      "risk": "VERY_LOW"
+    },
+    {
+      "rank": 2,
+      "priority": "QUICK_WIN",
+      "effort_minutes": 5,
+      "impact_errors": 2,
+      "impact_type": "errors_fixed",
+      "file": "audit_logs.py",
+      "lines": "142-143",
+      "rule": "reportGeneralTypeIssues",
+      "error_message": "Expected class but received bool (for 'any')",
+      "code": "payload: Optional[any] = None",
+      "fix": "from typing import Any; change 'any' to 'Any'",
+      "strategy": "Manual rename",
+      "risk": "VERY_LOW"
+    },
+    {
+      "rank": 3,
+      "priority": "QUICK_WIN",
+      "effort_minutes": 5,
+      "impact_errors": 12,
+      "impact_type": "warnings_cleared",
+      "file": "search.py",
+      "lines": "multiple",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "error_message": "Unnecessary '# type: ignore' comment",
+      "fix": "Remove all 12 comment lines flagged as unnecessary",
+      "strategy": "Automated deletion + re-check",
+      "risk": "VERY_LOW"
+    },
+    {
+      "rank": 4,
+      "priority": "QUICK_WIN",
+      "effort_minutes": 10,
+      "impact_errors": 2,
+      "impact_type": "errors_fixed",
+      "file": "config_loader.py",
+      "lines": "143, 239",
+      "rule": "reportArgumentType",
+      "error_message": "str | None cannot be assigned to parameter of type str",
+      "code": "load_config(config_path)  # config_path can be None",
+      "fix": "Add None check before call OR change param to Optional[str]",
+      "strategy": "Manual type annotation update",
+      "risk": "LOW"
+    },
+    {
+      "rank": 5,
+      "priority": "QUICK_WIN",
+      "effort_minutes": 30,
+      "impact_errors": 7,
+      "impact_type": "errors_fixed",
+      "file": "container.py",
+      "lines": "56, 74, 93, 112, 134, 154, 174",
+      "rule": "reportCallIssue",
+      "error_message": "No parameter named 'error'",
+      "code": "SomeClass(error=exception_obj)  # 'error' param doesn't exist",
+      "fix": "Audit function definitions to find correct parameter names",
+      "strategy": "Code inspection + manual call site fixes",
+      "risk": "MEDIUM"
+    },
+    {
+      "rank": 6,
+      "priority": "MEDIUM",
+      "effort_minutes": 20,
+      "impact_errors": 6,
+      "impact_type": "errors_fixed",
+      "file": "audit_repository.py",
+      "lines": "49, 51",
+      "rule": "reportCallIssue",
+      "error_message": "No parameter named 'path' / 'error'",
+      "fix": "Find actual parameter names in function signatures",
+      "strategy": "Code inspection + call site fixes",
+      "risk": "MEDIUM"
+    },
+    {
+      "rank": 7,
+      "priority": "BULK_SUPPRESS",
+      "effort_minutes": 15,
+      "impact_errors": 43,
+      "impact_type": "errors_suppressed",
+      "file": "corpus_ops.py",
+      "lines": "76, 80, 81, 84, 85, ...",
+      "rule": "reportIndexIssue",
+      "error_message": "__getitem__ method not defined on type Datatype",
+      "code": "dataset[i] where dataset is union type Group | Dataset | Datatype",
+      "fix": "Add # type: ignore[index] to all indexing lines",
+      "strategy": "Bulk regex replacement + manual review",
+      "risk": "LOW",
+      "note": "h5py union type issue - pragmatic band-aid"
+    },
+    {
+      "rank": 8,
+      "priority": "BULK_SUPPRESS",
+      "effort_minutes": 10,
+      "impact_errors": 70,
+      "impact_type": "errors_suppressed",
+      "file": "distributed",
+      "rule": "reportAttributeAccessIssue",
+      "error_message": "Cannot access attribute 'attrs' for class Datatype",
+      "code": "obj.attrs['key'] = value  # attrs not on all union members",
+      "fix": "Add # type: ignore[attr-defined] to .attrs access lines",
+      "strategy": "Bulk regex replacement + manual review",
+      "risk": "LOW",
+      "note": "h5py union type issue - pragmatic band-aid"
+    },
+    {
+      "rank": 9,
+      "priority": "BULK_SUPPRESS",
+      "effort_minutes": 15,
+      "impact_errors": 17,
+      "impact_type": "errors_suppressed",
+      "file": "buffered_writer.py",
+      "lines": "205, 210, 215-221",
+      "rule": "reportIndexIssue",
+      "error_message": "__getitem__ method not defined on type Datatype",
+      "fix": "Add # type: ignore[index] to all indexing operations",
+      "strategy": "Bulk type: ignore comments",
+      "risk": "LOW"
+    },
+    {
+      "rank": 10,
+      "priority": "BULK_SUPPRESS",
+      "effort_minutes": 5,
+      "impact_errors": 34,
+      "impact_type": "errors_suppressed",
+      "file": "corpus_ops.py, corpus_repository.py",
+      "rule": "reportAttributeAccessIssue",
+      "error_message": "Cannot access attribute 'keys' for class Dataset",
+      "code": "for key in interactions.keys()  # Dataset doesn't have .keys()",
+      "fix": "Add # type: ignore[attr-defined] to .keys() calls",
+      "strategy": "Bulk type: ignore comments",
+      "risk": "LOW"
+    }
+  ],
+  "phase_1_quick_hygiene": {
+    "duration_minutes": 30,
+    "expected_reduction": "100 errors",
+    "tasks": [
+      {
+        "task": "Remove 95 unnecessary type: ignore comments",
+        "files": ["fi_exporter.py", "search.py", "audit_logs.py", "append_only_policy.py", "others"],
+        "automation": "possible",
+        "effort": "5 minutes"
+      },
+      {
+        "task": "Fix audit_logs.py type hints (any → Any)",
+        "files": ["audit_logs.py"],
+        "lines": ["142", "143"],
+        "automation": "not_needed",
+        "effort": "5 minutes"
+      },
+      {
+        "task": "Fix config_loader.py None handling",
+        "files": ["config_loader.py"],
+        "lines": ["143", "239"],
+        "automation": "not_needed",
+        "effort": "10 minutes"
+      },
+      {
+        "task": "Verify changes, commit",
+        "automation": "not_needed",
+        "effort": "10 minutes"
+      }
+    ],
+    "expected_outcome": "600 → 500 errors"
+  },
+  "phase_2_parameter_audit": {
+    "duration_minutes": 45,
+    "expected_reduction": "13-20 errors",
+    "tasks": [
+      {
+        "task": "Audit container.py function signatures",
+        "files": ["container.py"],
+        "error_count": 7,
+        "automation": "not_possible",
+        "effort": "20 minutes"
+      },
+      {
+        "task": "Audit audit_repository.py function signatures",
+        "files": ["audit_repository.py"],
+        "error_count": 6,
+        "automation": "not_possible",
+        "effort": "15 minutes"
+      },
+      {
+        "task": "Search for other 'No parameter named' patterns",
+        "error_count": 10,
+        "automation": "grep_based",
+        "effort": "10 minutes"
+      }
+    ],
+    "expected_outcome": "500 → 480 errors"
+  },
+  "phase_3_bulk_h5py_suppression": {
+    "duration_minutes": 30,
+    "expected_reduction": "180 errors (suppressed, not fixed)",
+    "tasks": [
+      {
+        "task": "Apply # type: ignore[index] to __getitem__ patterns",
+        "files": ["corpus_ops.py", "buffered_writer.py", "fi_corpus_api.py", "others"],
+        "error_count": 111,
+        "automation": "regex_assisted",
+        "effort": "15 minutes"
+      },
+      {
+        "task": "Apply # type: ignore[attr-defined] to .attrs access",
+        "files": ["distributed"],
+        "error_count": 70,
+        "automation": "regex_assisted",
+        "effort": "10 minutes"
+      },
+      {
+        "task": "Apply # type: ignore[attr-defined] to .keys() issues",
+        "files": ["corpus_ops.py", "corpus_repository.py"],
+        "error_count": 34,
+        "automation": "regex_assisted",
+        "effort": "5 minutes"
+      }
+    ],
+    "expected_outcome": "480 → 300 errors (50% reduction via pragmatic suppression)"
+  },
+  "error_distribution_before": {
+    "h5py_union_type_issues": 337,
+    "parameter_mismatches": 122,
+    "unnecessary_type_ignores": 95,
+    "misc": 46
+  },
+  "error_distribution_after_phase_1": {
+    "h5py_union_type_issues": 337,
+    "parameter_mismatches": 122,
+    "unnecessary_type_ignores": 0,
+    "misc": 41
+  },
+  "error_distribution_after_phase_2": {
+    "h5py_union_type_issues": 337,
+    "parameter_mismatches": 109,
+    "unnecessary_type_ignores": 0,
+    "misc": 34
+  },
+  "error_distribution_after_phase_3": {
+    "h5py_union_type_issues": 180,
+    "parameter_mismatches": 109,
+    "suppressed_via_type_ignore": 157,
+    "misc": 34
+  },
+  "key_insights": {
+    "h5py_root_cause": "h5py stubs return union types (Group | Dataset | Datatype | Any | Unknown) that cannot be narrowed through subsequent operations, causing 2-4 duplicate errors per logical operation",
+    "cascade_effect": "Single type ambiguity cascades into dozens of reported issues due to union type coverage",
+    "audit_logs_mystery": "25 errors are mostly 'unnecessary type: ignore' warnings (15), because previous PR added defensive comments. Removing them will expose 10 underlying h5py union errors.",
+    "long_term_strategy": "Type narrowing with isinstance checks is the permanent fix, but requires 2-3 hours of refactoring. Pragmatic approach: suppress with type: ignore comments until h5py stubs improve."
+  },
+  "files_to_avoid": [
+    {
+      "file": "fi_exporter.py",
+      "reason": "Most errors are unnecessary type: ignore comments - low hanging fruit but tedious"
+    }
+  ],
+  "files_to_prioritize": [
+    {
+      "file": "corpus_ops.py",
+      "errors": 102,
+      "h5py_ratio": 0.82,
+      "high_impact": true,
+      "reason": "82% h5py issues, concentrated in indexing operations"
+    },
+    {
+      "file": "buffered_writer.py",
+      "errors": 37,
+      "h5py_ratio": 0.89,
+      "high_impact": true,
+      "reason": "89% h5py issues, focused operations"
+    },
+    {
+      "file": "fi_corpus_api.py",
+      "errors": 88,
+      "h5py_ratio": 0.39,
+      "high_impact": true,
+      "reason": "88 errors total, mixed issues, requires audit"
+    }
+  ]
+}

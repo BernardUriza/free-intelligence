@@ -10,7 +10,7 @@ FI-SEARCH-FEAT-001
 
 from pathlib import Path
 
-import h5py  # type: ignore
+import h5py
 import numpy as np
 
 from backend.llm_router import llm_embed, pad_embedding_to_768
@@ -79,13 +79,13 @@ def semantic_search(
         # Pad to 768 dimensions if needed (shared utility)
         query_embedding = pad_embedding_to_768(query_embedding)
 
-        embedding_dim = query_embedding.shape[0]  # type: ignore[attr-defined]
+        embedding_dim = query_embedding.shape[0]
         logger.info("QUERY_EMBEDDING_GENERATED", embedding_dim=embedding_dim)
 
         # Read corpus embeddings and interactions
         with h5py.File(corpus_path, "r") as f:
-            embeddings_group = f["embeddings"]  # type: ignore[index]
-            interactions_group = f["interactions"]  # type: ignore[index]
+            embeddings_group = f["embeddings"]
+            interactions_group = f["interactions"]
 
             total_embeddings = embeddings_group["interaction_id"].shape[0]  # type: ignore[index,attr-defined]
 
@@ -145,7 +145,7 @@ def semantic_search(
                     )
 
             # Sort by similarity (descending) and take top_k
-            results.sort(key=lambda x: x["score"], reverse=True)  # type: ignore[index]
+            results.sort(key=lambda x: x["score"], reverse=True)
             results = results[:top_k]
 
             logger.info(
@@ -182,7 +182,7 @@ def search_by_session(corpus_path: str, session_id: str) -> list[dict]:
 
     try:
         with h5py.File(corpus_path, "r") as f:
-            interactions_group = f["interactions"]  # type: ignore[index]
+            interactions_group = f["interactions"]
             total = interactions_group["session_id"].shape[0]  # type: ignore[index,attr-defined]
 
             results = []
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     from backend.config_loader import load_config
 
     config = load_config()
-    corpus_path = config["storage"]["corpus_path"]  # type: ignore[index]
+    corpus_path = config["storage"]["corpus_path"]
 
     print("🔍 Free Intelligence - Semantic Search Demo")
     print("=" * 60)
@@ -252,11 +252,11 @@ if __name__ == "__main__":
             continue
 
         for i, result in enumerate(results, 1):
-            score = result['score']  # type: ignore[index]
-            prompt = result['prompt']  # type: ignore[index]
-            response = result['response']  # type: ignore[index]
-            model = result['model']  # type: ignore[index]
-            tokens = result['tokens']  # type: ignore[index]
+            score = result['score']
+            prompt = result['prompt']
+            response = result['response']
+            model = result['model']
+            tokens = result['tokens']
             print(f"\n   [{i}] Score: {score:.3f}")
             print(f"       Prompt: {prompt[:70]}...")
             print(f"       Response: {response[:70]}...")

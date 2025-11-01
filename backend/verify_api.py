@@ -23,7 +23,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-import h5py  # type: ignore
+import h5py
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
