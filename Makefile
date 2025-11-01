@@ -115,9 +115,39 @@ format-check: ## Check code formatting
 	@echo "🔍 Checking code formatting..."
 	black --check backend/ tests/
 
-type-check: ## Run type checker (mypy)
-	@echo "🔍 Type checking..."
-	mypy backend/ --ignore-missing-imports
+type-check: ## Run Pyright type checker (fast)
+	@echo "🔍 Type checking with Pyright..."
+	@command -v pyright >/dev/null 2>&1 || (echo "Installing pyright..." && npm install -g pyright)
+	pyright backend/
+
+type-check-mypy: ## Run mypy type checker (thorough)
+	@echo "🔍 Type checking with Mypy..."
+	mypy backend/ --ignore-missing-imports --show-error-codes
+
+type-check-all: ## Run all type checkers (Pyright + Mypy + Ruff)
+	@echo "🔍 Running all type checkers..."
+	@echo ""
+	@echo "1️⃣  Pyright (fast)..."
+	@command -v pyright >/dev/null 2>&1 || (echo "Installing pyright..." && npm install -g pyright)
+	pyright backend/ || true
+	@echo ""
+	@echo "2️⃣  Mypy (thorough)..."
+	mypy backend/ --ignore-missing-imports || true
+	@echo ""
+	@echo "3️⃣  Ruff (linting)..."
+	ruff check backend/ || true
+	@echo ""
+	@echo "✅ All type checkers complete"
+
+type-check-export: ## Export type errors as JSON for Claude Code
+	@echo "📤 Exporting type errors..."
+	@command -v pyright >/dev/null 2>&1 || (echo "Installing pyright..." && npm install -g pyright)
+	python3 tools/detect_type_errors.py backend/ --export
+	@echo "✅ Results saved to ops/type_check_results/results.json"
+
+type-check-batch: ## Detect and report all type errors (comprehensive)
+	@echo "🔍 Running batch type detection..."
+	python3 tools/detect_type_errors.py backend/ --all --export
 
 # ============================================================================
 # Docker
