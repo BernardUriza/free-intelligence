@@ -207,7 +207,12 @@ async def upload_audio_for_diarization(
     audio: UploadFile = File(..., description="Audio file to diarize"),
     x_session_id: Optional[str] = Header(None, alias="X-Session-ID"),
     language: str = Query("es", description="Language code"),
-    persist: bool = Query(False, description="Save results to disk")
+    persist: bool = Query(False, description="Save results to disk"),
+    whisper_model: str = Query(None, description="Whisper model: tiny, base, small, medium, large-v3"),
+    enable_llm_classification: bool = Query(None, description="Enable LLM speaker classification"),
+    chunk_size_sec: int = Query(None, description="Audio chunk size in seconds"),
+    beam_size: int = Query(None, description="Whisper beam size"),
+    vad_filter: bool = Query(None, description="Enable Voice Activity Detection")
 ):
     """
     Upload audio file and start diarization job.
@@ -295,11 +300,30 @@ async def upload_audio_for_diarization(
         file_exists=abs_path.is_file()
     )
 
+    # Build configuration dict from optional parameters
+    config_overrides = {}
+    if whisper_model is not None:
+        config_overrides['whisper_model'] = whisper_model
+    if enable_llm_classification is not None:
+        config_overrides['enable_llm_classification'] = enable_llm_classification
+    if chunk_size_sec is not None:
+        config_overrides['chunk_size_sec'] = chunk_size_sec
+    if beam_size is not None:
+        config_overrides['beam_size'] = beam_size
+    if vad_filter is not None:
+        config_overrides['vad_filter'] = vad_filter
+
+    logger.info(
+        "CONFIG_OVERRIDES_RECEIVED",
+        session_id=x_session_id,
+        overrides=config_overrides
+    )
+
     # Route to low-priority worker or legacy pipelines
     if USE_LOWPRIO_WORKER:
         # Use low-priority worker with CPU scheduler + HDF5
-        job_id = create_lowprio_job(x_session_id, abs_path)
-        logger.info("LOWPRIO_JOB_CREATED", job_id=job_id, session_id=x_session_id)
+        job_id = create_lowprio_job(x_session_id, abs_path, config_overrides)
+        logger.info("LOWPRIO_JOB_CREATED", job_id=job_id, session_id=x_session_id, config=config_overrides)
     else:
         # Legacy: create in-memory job and use background task
         job_id = create_job(x_session_id, str(abs_path), file_size)
