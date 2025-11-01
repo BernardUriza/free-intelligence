@@ -6,29 +6,23 @@ Card: FI-API-FEAT-014
 
 Endpoints:
   POST /api/triage/intake - Receive triage intake with optional audio transcription
+  GET /api/triage/manifest/{buffer_id} - Retrieve manifest for a triage buffer
+
+Updated to use clean code architecture with TriageService.
 """
 
-import hashlib
-import json
-import os
-from datetime import timezone, datetime
-from pathlib import Path
+import logging
+from datetime import datetime
 from typing import Any, Literal, Optional, Union
-from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, constr, field_validator
 
-# Import audit logger
-from backend.logger import get_logger
+from backend.container import get_container
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/triage", tags=["triage"])
-
-# Data directory for triage buffers
-DATA_DIR = Path(os.getenv("TRIAGE_DATA_DIR", "./data/triage_buffers"))
-DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # ============================================================================
 # MODELS
@@ -79,13 +73,10 @@ async def triage_intake(payload: IntakePayload, request: Request) -> IntakeAck:
     """
     Receive triage intake and store atomically in buffer directory.
 
-    Steps:
-    1. Generate unique bufferId
-    2. Create buffer directory
-    3. Write intake.json atomically with fsync
-    4. Generate manifest with SHA256 hash
-    5. Log audit event
-    6. Return acknowledgment
+    **Clean Code Architecture:**
+    - TriageService handles buffer creation and storage
+    - Uses DI container for dependency injection
+    - AuditService logs all triage intakes
 
     Args:
         payload: Triage intake data
@@ -95,102 +86,68 @@ async def triage_intake(payload: IntakePayload, request: Request) -> IntakeAck:
         IntakeAck with bufferId and manifest URL
 
     Raises:
-        HTTPException 422: Validation errors
         HTTPException 500: Storage errors
     """
-    # Generate unique buffer ID
-    buffer_id = f"tri_{uuid4().hex}"
-    buffer_dir = DATA_DIR / buffer_id
-
     try:
-        # Create buffer directory
-        buffer_dir.mkdir(parents=True, exist_ok=True)
+        # Get services from DI container
+        triage_service = get_container().get_triage_service()
+        audit_service = get_container().get_audit_service()
 
-        # Prepare intake data
-        intake_data = {
-            "bufferId": buffer_id,
-            "receivedAt": datetime.now(timezone.utc).isoformat() + "Z",
-            "payload": payload.model_dump(),
-            "client": {
-                "ip": request.client.host if request.client else "unknown",
-                "userAgent": request.headers.get("user-agent", "unknown"),
+        # Extract client info
+        client_ip = request.client.host if request.client else "unknown"
+        user_agent = request.headers.get("user-agent", "unknown")
+
+        # Delegate to service
+        result = triage_service.create_buffer(
+            payload=payload.model_dump(),
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
+
+        # Log audit trail
+        audit_service.log_action(
+            action="triage_intake_received",
+            user_id="system",
+            resource=f"triage_buffer:{result['buffer_id']}",
+            result="success",
+            details={
+                "payload_hash": result["payload_hash"],
+                "client_ip": client_ip,
             },
-        }
+        )
 
-        # Compute payload hash (SHA256)
-        payload_json = json.dumps(payload.model_dump(), sort_keys=True)
-        payload_hash = hashlib.sha256(payload_json.encode()).hexdigest()
-
-        # Create manifest
-        manifest = {
-            "version": "1.0.0",
-            "bufferId": buffer_id,
-            "receivedAt": intake_data["receivedAt"],
-            "payloadHash": f"sha256:{payload_hash}",
-            "payloadSubset": {
-                "reason": payload.reason[:100],  # First 100 chars
-                "symptomsCount": len(payload.symptoms),
-                "hasTranscription": payload.audioTranscription is not None,
-            },
-            "metadata": payload.metadata,
-        }
-
-        # Write intake.json atomically
-        intake_path = buffer_dir / "intake.json"
-        intake_tmp = buffer_dir / "intake.json.tmp"
-
-        with open(intake_tmp, "w") as f:
-            json.dump(intake_data, f, indent=2)
-            f.flush()
-            os.fsync(f.fileno())  # Atomic write guarantee
-
-        # Atomic rename
-        intake_tmp.rename(intake_path)
-
-        # Write manifest.json
-        manifest_path = buffer_dir / "manifest.json"
-        with open(manifest_path, "w") as f:
-            json.dump(manifest, f, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-
-        # Log audit event
         logger.info(
-            "TRIAGE_INTAKE_RECEIVED",
-            bufferId=buffer_id,
-            bytes=len(payload_json),
-            ip=intake_data["client"]["ip"],
-            symptomsCount=len(payload.symptoms),
-            hasTranscription=payload.audioTranscription is not None,
-            payloadHash=payload_hash,
+            f"TRIAGE_INTAKE_RECEIVED: buffer_id={result['buffer_id']}, payload_hash={result['payload_hash']}, ip={client_ip}"
         )
 
         # Return acknowledgment
-        received_at = datetime.fromisoformat(intake_data["receivedAt"].replace("Z", "+00:00"))
+        received_at = datetime.fromisoformat(result["received_at"].replace("Z", "+00:00"))
         return IntakeAck(
-            bufferId=buffer_id,
+            bufferId=result["buffer_id"],
             status="received",
             receivedAt=received_at,
-            manifestUrl=f"/api/triage/manifest/{buffer_id}",
+            manifestUrl=result["manifest_url"],
         )
 
-    except Exception as e:
-        logger.error(
-            "TRIAGE_INTAKE_FAILED",
-            bufferId=buffer_id,
-            error=str(e),
-            errorType=type(e).__name__,
-        )
+    except OSError as e:
+        logger.warning(f"TRIAGE_INTAKE_STORAGE_FAILED: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to store triage intake: {str(e)}",
+            status_code=500, detail=f"Failed to store triage intake: {str(e)}"
         ) from e
+    except Exception as e:
+        logger.error(f"TRIAGE_INTAKE_FAILED: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to process triage intake") from e
 
 
 @router.get("/manifest/{buffer_id}")
 async def get_manifest(buffer_id: str) -> dict[str, Any]:
     """
     Retrieve manifest for a triage buffer.
+
+    **Clean Code Architecture:**
+    - TriageService handles manifest retrieval
+    - Uses DI container for dependency injection
+    - AuditService logs all manifest retrievals
 
     Args:
         buffer_id: Buffer identifier
@@ -201,13 +158,34 @@ async def get_manifest(buffer_id: str) -> dict[str, Any]:
     Raises:
         HTTPException 404: Buffer not found
     """
-    manifest_path = DATA_DIR / buffer_id / "manifest.json"
+    try:
+        # Get services from DI container
+        triage_service = get_container().get_triage_service()
+        audit_service = get_container().get_audit_service()
 
-    if not manifest_path.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Manifest not found for buffer {buffer_id}",
+        # Delegate to service
+        result = triage_service.get_manifest(buffer_id)
+
+        if not result:
+            logger.warning(f"TRIAGE_MANIFEST_NOT_FOUND: buffer_id={buffer_id}")
+            raise HTTPException(
+                status_code=404, detail=f"Manifest not found for buffer {buffer_id}"
+            )
+
+        # Log audit trail
+        audit_service.log_action(
+            action="triage_manifest_retrieved",
+            user_id="system",
+            resource=f"triage_buffer:{buffer_id}",
+            result="success",
         )
 
-    with open(manifest_path) as f:
-        return json.load(f)
+        logger.info(f"TRIAGE_MANIFEST_RETRIEVED: buffer_id={buffer_id}")
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"TRIAGE_MANIFEST_RETRIEVAL_FAILED: buffer_id={buffer_id}, error={str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve manifest") from e
