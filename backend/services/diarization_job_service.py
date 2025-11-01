@@ -254,7 +254,7 @@ class DiarizationJobService:
             # Use existing export function (backend/diarization_service.py)
             # This function handles format conversion
             from pathlib import Path
-            from backend.audio_storage import AUDIO_STORAGE_DIR
+
 
             # Try to find audio file
             job = get_job(job_id)

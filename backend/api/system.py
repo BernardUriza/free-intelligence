@@ -112,7 +112,7 @@ def check_policy_health() -> bool:
     try:
         from backend.policy_enforcer import PolicyEnforcer
 
-        enforcer = PolicyEnforcer()
+        _enforcer = PolicyEnforcer()
         return True
     except Exception as e:
         logger.warning("POLICY_CHECK_FAILED", error=str(e))

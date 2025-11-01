@@ -296,7 +296,7 @@ class DiarizationWorker:
                 # Transcribe chunk (auto-detect language)
                 chunk_start_time = time.time()
 
-                segments_iter, info = model.transcribe(
+                segments_iter, _info = model.transcribe(
                     str(chunk_path),
                     language=None,  # Auto-detect (en, es, etc.)
                     vad_filter=True,

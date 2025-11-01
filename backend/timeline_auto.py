@@ -322,8 +322,8 @@ class AutoTimelineGenerator:
 
         redaction_config = self.auto_config.get("redaction", {})
         max_chars = redaction_config.get("max_summary_chars", 180)
-        strip_pii = redaction_config.get("strip_pii", True)
-        use_active_verbs = redaction_config.get("use_active_verbs", True)
+        _strip_pii = redaction_config.get("strip_pii", True)
+        _use_active_verbs = redaction_config.get("use_active_verbs", True)
 
         # Build prompt
         prompt = f"""Summarize this event in Spanish using active voice.
@@ -415,7 +415,7 @@ Summary:"""
         )
 
         # 2. Group by windows
-        groups = self.group_events_by_window(selected)
+        _groups = self.group_events_by_window(selected)
 
         # 3. Generate timeline events
         timeline = Timeline(
@@ -426,7 +426,7 @@ Summary:"""
 
         for candidate in selected:
             # Generate summary with LLM
-            summary, success = self.generate_summary_with_llm(
+            summary, _success = self.generate_summary_with_llm(
                 raw_content=candidate.raw_content,
                 event_type=candidate.event_type,
                 sensitive=candidate.sensitive,

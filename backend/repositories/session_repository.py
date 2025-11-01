@@ -17,7 +17,7 @@ from typing import Any, Optional
 import h5py
 
 from .base_repository import BaseRepository
-from backend.types import JobStatusDict
+
 
 logger = logging.getLogger(__name__)
 
