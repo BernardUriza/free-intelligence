@@ -104,6 +104,10 @@ async def list_sessions(
     """
     List sessions with pagination.
 
+    **Clean Code Architecture:**
+    - SessionService handles session retrieval and filtering
+    - Uses DI container for dependency injection
+
     Query params:
     - limit: Max sessions to return (1-100, default 50)
     - offset: Number of sessions to skip (default 0)
@@ -115,21 +119,43 @@ async def list_sessions(
     - limit: Limit used
     - offset: Offset used
     """
-    sessions = store.list(limit=limit, offset=offset, owner_hash=owner_hash)
-    total = store.count(owner_hash=owner_hash)
+    try:
+        # Get session service from DI container
+        session_service = get_container().get_session_service()
+        audit_service = get_container().get_audit_service()
 
-    return SessionsListResponse(
-        items=[SessionResponse(**s.to_dict()) for s in sessions],
-        total=total,
-        limit=limit,
-        offset=offset,
-    )
+        # Delegate to service for listing
+        sessions = session_service.list_sessions(user_id=owner_hash)
+
+        # Log audit trail
+        audit_service.log_action(
+            action="sessions_listed",
+            user_id="system",
+            resource="sessions",
+            result="success",
+            details={"limit": limit, "owner_hash": owner_hash},
+        )
+
+        return SessionsListResponse(
+            items=[SessionResponse(**s) for s in sessions],
+            total=len(sessions),
+            limit=limit,
+            offset=offset,
+        )
+
+    except Exception as e:
+        logger.error("LIST_SESSIONS_FAILED", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to list sessions: {str(e)}")
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(session_id: str):
     """
     Get single session by ID.
+
+    **Clean Code Architecture:**
+    - SessionService handles session retrieval
+    - Uses DI container for dependency injection
 
     Path params:
     - session_id: Session ID (ULID)
@@ -140,18 +166,44 @@ async def get_session(session_id: str):
     Raises:
     - 404: Session not found
     """
-    session = store.get(session_id)
+    try:
+        # Get session service from DI container
+        session_service = get_container().get_session_service()
+        audit_service = get_container().get_audit_service()
 
-    if not session:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+        # Delegate to service for retrieval
+        session = session_service.get_session(session_id)
 
-    return SessionResponse(**session.to_dict())
+        if not session:
+            logger.warning("SESSION_NOT_FOUND", session_id=session_id)
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+        # Log audit trail
+        audit_service.log_action(
+            action="session_retrieved",
+            user_id="system",
+            resource=f"session:{session_id}",
+            result="success",
+        )
+
+        return SessionResponse(**session)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("GET_SESSION_FAILED", session_id=session_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve session: {str(e)}")
 
 
 @router.post("", response_model=SessionResponse, status_code=201)
 async def create_session(request: CreateSessionRequest):
     """
     Create new session.
+
+    **Clean Code Architecture:**
+    - SessionService handles session creation with validation
+    - Uses DI container for dependency injection
+    - AuditService logs all session creations
 
     Body:
     - owner_hash: SHA256 hash of owner (required)
@@ -161,19 +213,54 @@ async def create_session(request: CreateSessionRequest):
     Returns:
     - Created session object
     """
-    session = store.create(
-        owner_hash=request.owner_hash,
-        status=request.status,
-        thread_id=request.thread_id,
-    )
+    try:
+        # Get services from DI container
+        session_service = get_container().get_session_service()
+        audit_service = get_container().get_audit_service()
 
-    return SessionResponse(**session.to_dict())
+        # Delegate to service for creation (handles validation)
+        session = session_service.create_session(user_id=request.owner_hash)
+
+        # Log audit trail
+        audit_service.log_action(
+            action="session_created",
+            user_id="system",
+            resource=f"session:{session['session_id']}",
+            result="success",
+            details={
+                "owner_hash": request.owner_hash,
+                "status": request.status,
+            },
+        )
+
+        logger.info("SESSION_CREATED", session_id=session["session_id"], owner_hash=request.owner_hash)
+
+        return SessionResponse(**session)
+
+    except ValueError as e:
+        logger.warning("SESSION_CREATION_VALIDATION_FAILED", error=str(e))
+        audit_service.log_action(
+            action="session_creation_failed",
+            user_id="system",
+            resource="session",
+            result="failure",
+            details={"error": str(e)},
+        )
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("SESSION_CREATION_FAILED", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
 
 
 @router.patch("/{session_id}", response_model=SessionResponse)
 async def update_session(session_id: str, request: UpdateSessionRequest):
     """
     Update existing session (partial update).
+
+    **Clean Code Architecture:**
+    - SessionService handles session updates with validation
+    - Uses DI container for dependency injection
+    - AuditService logs all session updates
 
     Path params:
     - session_id: Session ID (ULID)
@@ -189,24 +276,56 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
     Raises:
     - 404: Session not found
     """
-    # Auto-set last_active if not provided
-    last_active = request.last_active
-    if last_active is None and (
-        request.status is not None or request.interaction_count is not None
-    ):
-        last_active = datetime.now(timezone.utc).isoformat() + "Z"
+    try:
+        # Get services from DI container
+        session_service = get_container().get_session_service()
+        audit_service = get_container().get_audit_service()
 
-    session = store.update(
-        session_id=session_id,
-        status=request.status,
-        last_active=last_active,
-        interaction_count=request.interaction_count,
-    )
+        # Auto-set last_active if not provided
+        last_active = request.last_active
+        if last_active is None and (
+            request.status is not None or request.interaction_count is not None
+        ):
+            last_active = datetime.now(timezone.utc).isoformat() + "Z"
 
-    if not session:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+        # Delegate to service for update (handles validation)
+        success = session_service.update_session(
+            session_id=session_id,
+            status=request.status,
+            interaction_count=request.interaction_count,
+        )
 
-    return SessionResponse(**session.to_dict())
+        if not success:
+            logger.warning("SESSION_NOT_FOUND_FOR_UPDATE", session_id=session_id)
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+        # Retrieve updated session
+        session = session_service.get_session(session_id)
+
+        # Log audit trail
+        audit_service.log_action(
+            action="session_updated",
+            user_id="system",
+            resource=f"session:{session_id}",
+            result="success",
+            details={
+                "status": request.status,
+                "interaction_count": request.interaction_count,
+            },
+        )
+
+        logger.info("SESSION_UPDATED", session_id=session_id)
+
+        return SessionResponse(**session)
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        logger.warning("SESSION_UPDATE_VALIDATION_FAILED", session_id=session_id, error=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("SESSION_UPDATE_FAILED", session_id=session_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to update session: {str(e)}")
 
 
 # ============================================================================
