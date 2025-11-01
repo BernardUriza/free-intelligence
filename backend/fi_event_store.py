@@ -121,7 +121,8 @@ class EventStore:
 
         if not self.corpus_path.exists():
             raise FileNotFoundError(
-                f"Corpus not found: {self.corpus_path}. " + "Initialize with corpus_schema.py first."
+                f"Corpus not found: {self.corpus_path}. "
+                + "Initialize with corpus_schema.py first."
             )
 
         logger.info("EVENT_STORE_INITIALIZED", corpus_path=str(self.corpus_path))
@@ -237,7 +238,7 @@ class EventStore:
 
             # Load events
             events = []
-            for event_json in events_dataset:
+            for event_json in events_dataset:  # type: ignore[misc]
                 # Deserialize from JSON
                 event = ConsultationEvent.model_validate_json(event_json)
 

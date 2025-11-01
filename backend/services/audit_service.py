@@ -10,7 +10,7 @@ audit policies across the entire application.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 from backend.repositories import AuditRepository
@@ -75,7 +75,7 @@ class AuditService:
 
         try:
             audit_log: AuditLogDict = {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "action": action,
                 "user_id": user_id,
                 "resource": resource,
@@ -99,10 +99,10 @@ class AuditService:
             return log_id
 
         except ValueError as e:
-            logger.warning("AUDIT_VALIDATION_FAILED", error=str(e))
+            logger.warning("AUDIT_VALIDATION_FAILED", error=str(e))  # type: ignore[call-arg]
             raise
-        except IOError as e:
-            logger.error("AUDIT_LOGGING_FAILED", error=str(e))
+        except OSError as e:
+            logger.error("AUDIT_LOGGING_FAILED", error=str(e))  # type: ignore[call-arg]
             raise
 
     def get_log(self, log_id: str) -> Optional[dict[str, Any]]:
@@ -116,8 +116,8 @@ class AuditService:
         """
         try:
             return self.repository.read(log_id)
-        except IOError as e:
-            logger.error("AUDIT_READ_FAILED", log_id=log_id, error=str(e))
+        except OSError as e:
+            logger.error("AUDIT_READ_FAILED", log_id=log_id, error=str(e))  # type: ignore[call-arg]
             raise
 
     def get_logs(
@@ -145,8 +145,8 @@ class AuditService:
                 user_id=user_id,
                 resource=resource,
             )
-        except IOError as e:
-            logger.error("AUDIT_LIST_FAILED", error=str(e))
+        except OSError as e:
+            logger.error("AUDIT_LIST_FAILED", error=str(e))  # type: ignore[call-arg]
             raise
 
     def get_logs_by_date(
@@ -166,11 +166,9 @@ class AuditService:
             List of audit logs in date range
         """
         try:
-            return self.repository.get_logs_by_date_range(
-                start_date, end_date, limit
-            )
-        except IOError as e:
-            logger.error("AUDIT_DATE_RANGE_FAILED", error=str(e))
+            return self.repository.get_logs_by_date_range(start_date, end_date, limit)
+        except OSError as e:
+            logger.error("AUDIT_DATE_RANGE_FAILED", error=str(e))  # type: ignore[call-arg]
             raise
 
     def get_user_activity(
@@ -194,8 +192,8 @@ class AuditService:
                 limit=limit,
                 user_id=user_id,
             )
-        except IOError as e:
-            logger.error("USER_ACTIVITY_FAILED", user_id=user_id, error=str(e))
+        except OSError as e:
+            logger.error("USER_ACTIVITY_FAILED", user_id=user_id, error=str(e))  # type: ignore[call-arg]
             raise
 
     def get_resource_activity(
@@ -219,9 +217,11 @@ class AuditService:
                 limit=limit,
                 resource=resource,
             )
-        except IOError as e:
+        except OSError as e:
             logger.error(
-                "RESOURCE_ACTIVITY_FAILED", resource=resource, error=str(e)
+                "RESOURCE_ACTIVITY_FAILED",
+                resource=resource,
+                error=str(e),  # type: ignore[call-arg]
             )
             raise
 

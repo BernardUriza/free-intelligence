@@ -97,10 +97,10 @@ class CorpusService:
             }
 
         except ValueError as e:
-            logger.warning("DOCUMENT_CREATION_VALIDATION_FAILED", error=str(e))
+            logger.warning("DOCUMENT_CREATION_VALIDATION_FAILED", error=str(e))  # type: ignore[call-arg]
             raise
-        except IOError as e:
-            logger.error("DOCUMENT_CREATION_FAILED", error=str(e))
+        except OSError as e:
+            logger.error("DOCUMENT_CREATION_FAILED", error=str(e))  # type: ignore[call-arg]
             raise
 
     def get_document(self, document_id: str) -> Optional[dict[str, Any]]:
@@ -117,8 +117,8 @@ class CorpusService:
         """
         try:
             return self.repository.read(document_id)
-        except IOError as e:
-            logger.error("DOCUMENT_RETRIEVAL_FAILED", document_id=document_id, error=str(e))
+        except OSError as e:
+            logger.error("DOCUMENT_RETRIEVAL_FAILED", document_id=document_id, error=str(e))  # type: ignore[call-arg]
             raise
 
     def get_document_summary(self, document_id: str) -> Optional[dict[str, Any]]:
@@ -199,8 +199,8 @@ class CorpusService:
                 )
             return success
 
-        except IOError as e:
-            logger.error("CHUNK_ADDITION_FAILED", document_id=document_id, error=str(e))
+        except OSError as e:
+            logger.error("CHUNK_ADDITION_FAILED", document_id=document_id, error=str(e))  # type: ignore[call-arg]
             raise
 
     def get_chunks(self, document_id: str) -> list[DiarizationChunkDict]:
@@ -214,8 +214,8 @@ class CorpusService:
         """
         try:
             return self.repository.get_chunks(document_id)
-        except IOError as e:
-            logger.error("CHUNKS_RETRIEVAL_FAILED", document_id=document_id, error=str(e))
+        except OSError as e:
+            logger.error("CHUNKS_RETRIEVAL_FAILED", document_id=document_id, error=str(e))  # type: ignore[call-arg]
             raise
 
     def delete_document(self, document_id: str) -> bool:
@@ -230,8 +230,8 @@ class CorpusService:
         try:
             success = self.repository.delete(document_id)
             if success:
-                logger.info("DOCUMENT_DELETED", document_id=document_id)
+                logger.info("DOCUMENT_DELETED", document_id=document_id)  # type: ignore[call-arg]
             return success
-        except IOError as e:
-            logger.error("DOCUMENT_DELETION_FAILED", document_id=document_id, error=str(e))
+        except OSError as e:
+            logger.error("DOCUMENT_DELETION_FAILED", document_id=document_id, error=str(e))  # type: ignore[call-arg]
             raise

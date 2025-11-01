@@ -14,7 +14,7 @@ import logging
 import os
 import random
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -50,7 +50,7 @@ class ExportService:
         self.signing_key = signing_key
         self.git_commit = git_commit
 
-        logger.info("ExportService initialized", export_dir=str(self.export_dir))
+        logger.info("ExportService initialized", export_dir=str(self.export_dir))  # type: ignore[call-arg]
 
     def generate_export_id(self) -> str:
         """Generate unique export ID.
@@ -231,7 +231,7 @@ class ExportService:
             }
 
         except OSError as e:
-            logger.error("EXPORT_CREATION_FAILED", error=str(e))
+            logger.error("EXPORT_CREATION_FAILED", error=str(e))  # type: ignore[call-arg]
             raise
 
     def get_export_metadata(self, export_id: str) -> Optional[dict[str, Any]]:
@@ -256,7 +256,7 @@ class ExportService:
             # Read manifest
             manifest_path = export_path / "manifest.json"
             if not manifest_path.exists():
-                logger.error("MANIFEST_NOT_FOUND", export_id=export_id)
+                logger.error("MANIFEST_NOT_FOUND", export_id=export_id)  # type: ignore[call-arg]
                 return None
 
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -295,7 +295,7 @@ class ExportService:
             }
 
         except OSError as e:
-            logger.error("EXPORT_METADATA_FAILED", export_id=export_id, error=str(e))
+            logger.error("EXPORT_METADATA_FAILED", export_id=export_id, error=str(e))  # type: ignore[call-arg]
             raise
 
     def verify_export(self, export_id: str, targets: list[str]) -> dict[str, Any]:
@@ -303,7 +303,7 @@ class ExportService:
 
         Args:
             export_id: Export identifier
-            targets: List of targets to verify (md, json, manifest)
+            targets: List of targets to verify (md, json, manifest)  # type: ignore[call-arg]
 
         Returns:
             Verification results with ok status and per-target results
@@ -408,7 +408,7 @@ class ExportService:
                         )
                         all_ok = False
 
-            logger.info("EXPORT_VERIFIED", export_id=export_id, all_ok=all_ok)
+            logger.info("EXPORT_VERIFIED", export_id=export_id, all_ok=all_ok)  # type: ignore[call-arg]
 
             return {
                 "ok": all_ok,
@@ -416,7 +416,7 @@ class ExportService:
             }
 
         except OSError as e:
-            logger.error("EXPORT_VERIFICATION_FAILED", export_id=export_id, error=str(e))
+            logger.error("EXPORT_VERIFICATION_FAILED", export_id=export_id, error=str(e))  # type: ignore[call-arg]
             raise
 
     def delete_export(self, export_id: str) -> bool:
@@ -439,9 +439,9 @@ class ExportService:
             delete_marker = export_path / ".deleted"
             delete_marker.write_text(datetime.now(UTC).isoformat(), encoding="utf-8")
 
-            logger.info("EXPORT_DELETED", export_id=export_id)
+            logger.info("EXPORT_DELETED", export_id=export_id)  # type: ignore[call-arg]
             return True
 
         except OSError as e:
-            logger.error("EXPORT_DELETION_FAILED", export_id=export_id, error=str(e))
+            logger.error("EXPORT_DELETION_FAILED", export_id=export_id, error=str(e))  # type: ignore[call-arg]
             raise

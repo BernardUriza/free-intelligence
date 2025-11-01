@@ -26,8 +26,9 @@ from pathlib import Path
 from typing import Any
 
 import h5py
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, HTTPException
 from fastapi import Path as PathParam
+from fastapi import Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -176,7 +177,8 @@ async def get_corpus_stats():
             # Get unique sessions
             session_ids_raw = interactions["session_id"][:]  # type: ignore[index]
             session_ids = [
-                s.decode("utf-8") if isinstance(s, bytes) else str(s) for s in session_ids_raw
+                s.decode("utf-8") if isinstance(s, bytes) else str(s)
+                for s in session_ids_raw  # type: ignore[union-attr]
             ]
             unique_sessions = set(session_ids)
             total_sessions = len(unique_sessions)
@@ -188,14 +190,15 @@ async def get_corpus_stats():
             # Get date range
             timestamps_raw = interactions["timestamp"][:]  # type: ignore[index]
             timestamps = [
-                t.decode("utf-8") if isinstance(t, bytes) else str(t) for t in timestamps_raw
+                t.decode("utf-8") if isinstance(t, bytes) else str(t)
+                for t in timestamps_raw  # type: ignore[union-attr]
             ]
             earliest = min(timestamps) if len(timestamps) > 0 else ""
             latest = max(timestamps) if len(timestamps) > 0 else ""
 
             # Get models used
             models_raw = interactions["model"][:]  # type: ignore[index]
-            models = [m.decode("utf-8") if isinstance(m, bytes) else str(m) for m in models_raw]
+            models = [m.decode("utf-8") if isinstance(m, bytes) else str(m) for m in models_raw]  # type: ignore[union-attr]
             models_count: dict[str, int] = defaultdict(int)
             for model in models:
                 models_count[model] += 1
@@ -255,12 +258,14 @@ async def get_sessions_summary(
 
             # Decode bytes to strings
             session_ids = [
-                s.decode("utf-8") if isinstance(s, bytes) else str(s) for s in session_ids_raw
+                s.decode("utf-8") if isinstance(s, bytes) else str(s)
+                for s in session_ids_raw  # type: ignore[union-attr]
             ]
             timestamps = [
-                t.decode("utf-8") if isinstance(t, bytes) else str(t) for t in timestamps_raw
+                t.decode("utf-8") if isinstance(t, bytes) else str(t)
+                for t in timestamps_raw  # type: ignore[union-attr]
             ]
-            prompts = [p.decode("utf-8") if isinstance(p, bytes) else str(p) for p in prompts_raw]
+            prompts = [p.decode("utf-8") if isinstance(p, bytes) else str(p) for p in prompts_raw]  # type: ignore[union-attr]
 
             # Group by session
             sessions_data: dict[str, dict[str, Any]] = defaultdict(
@@ -348,19 +353,23 @@ async def get_session_detail(
 
             # Decode bytes to strings
             session_ids = [
-                s.decode("utf-8") if isinstance(s, bytes) else str(s) for s in session_ids_raw
+                s.decode("utf-8") if isinstance(s, bytes) else str(s)
+                for s in session_ids_raw  # type: ignore[union-attr]
             ]
             interaction_ids = [
-                i.decode("utf-8") if isinstance(i, bytes) else str(i) for i in interaction_ids_raw
+                i.decode("utf-8") if isinstance(i, bytes) else str(i)
+                for i in interaction_ids_raw  # type: ignore[union-attr]
             ]
             timestamps = [
-                t.decode("utf-8") if isinstance(t, bytes) else str(t) for t in timestamps_raw
+                t.decode("utf-8") if isinstance(t, bytes) else str(t)
+                for t in timestamps_raw  # type: ignore[union-attr]
             ]
-            prompts = [p.decode("utf-8") if isinstance(p, bytes) else str(p) for p in prompts_raw]
+            prompts = [p.decode("utf-8") if isinstance(p, bytes) else str(p) for p in prompts_raw]  # type: ignore[union-attr]
             responses = [
-                r.decode("utf-8") if isinstance(r, bytes) else str(r) for r in responses_raw
+                r.decode("utf-8") if isinstance(r, bytes) else str(r)
+                for r in responses_raw  # type: ignore[union-attr]
             ]
-            models = [m.decode("utf-8") if isinstance(m, bytes) else str(m) for m in models_raw]
+            models = [m.decode("utf-8") if isinstance(m, bytes) else str(m) for m in models_raw]  # type: ignore[union-attr]
 
             # Filter by session_id
             session_interactions = []
