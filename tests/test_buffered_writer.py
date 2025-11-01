@@ -19,7 +19,7 @@ from corpus_schema import init_corpus
 class TestBufferedHDF5Writer(unittest.TestCase):
     """Test buffered HDF5 writer"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Create temporary corpus for testing"""
         self.test_dir = tempfile.mkdtemp()
         self.corpus_path = os.path.join(self.test_dir, "test_corpus.h5")
@@ -27,11 +27,11 @@ class TestBufferedHDF5Writer(unittest.TestCase):
         # Initialize corpus
         init_corpus(self.corpus_path, owner_identifier="test@example.com")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up temporary files"""
         shutil.rmtree(self.test_dir)
 
-    def test_writer_initialization(self):
+    def test_writer_initialization(self) -> None:
         """Test: Writer initializes correctly"""
         writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
@@ -41,7 +41,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
         writer.close()
 
-    def test_write_interaction_buffered(self):
+    def test_write_interaction_buffered(self) -> None:
         """Test: Interaction is buffered (not flushed immediately)"""
         writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
@@ -59,7 +59,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
         writer.close()
 
-    def test_manual_flush(self):
+    def test_manual_flush(self) -> None:
         """Test: Manual flush writes buffer to HDF5"""
         writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
@@ -85,7 +85,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
         writer.close()
 
-    def test_auto_flush_buffer_full(self):
+    def test_auto_flush_buffer_full(self) -> None:
         """Test: Auto-flush when buffer is full"""
         writer = BufferedHDF5Writer(
             self.corpus_path,
@@ -109,7 +109,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
         writer.close()
 
-    def test_flush_empty_buffer(self):
+    def test_flush_empty_buffer(self) -> None:
         """Test: Flush empty buffer is no-op"""
         writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
@@ -120,7 +120,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
         writer.close()
 
-    def test_get_stats(self):
+    def test_get_stats(self) -> None:
         """Test: Get writer statistics"""
         writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
@@ -144,7 +144,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
         writer.close()
 
-    def test_verify_integrity_success(self):
+    def test_verify_integrity_success(self) -> None:
         """Test: Integrity check passes for valid corpus"""
         writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
@@ -161,7 +161,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
         writer.close()
 
-    def test_verify_integrity_missing_corpus(self):
+    def test_verify_integrity_missing_corpus(self) -> None:
         """Test: Integrity check fails for missing corpus"""
         nonexistent_path = os.path.join(self.test_dir, "nonexistent.h5")
         writer = BufferedHDF5Writer(nonexistent_path, buffer_size=10)
@@ -172,7 +172,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
         writer.close()
 
-    def test_context_manager(self):
+    def test_context_manager(self) -> None:
         """Test: Context manager auto-flushes on exit"""
         with BufferedHDF5Writer(self.corpus_path, buffer_size=10) as writer:
             for i in range(3):
@@ -197,7 +197,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
             # Should have 3 interactions (excluding any initial data)
             self.assertGreaterEqual(size, 3)
 
-    def test_close_flushes_buffer(self):
+    def test_close_flushes_buffer(self) -> None:
         """Test: Close() flushes remaining buffer"""
         writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
@@ -224,7 +224,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
             size = interactions["session_id"].shape[0]
             self.assertGreaterEqual(size, 2)
 
-    def test_thread_safety_lock(self):
+    def test_thread_safety_lock(self) -> None:
         """Test: Lock prevents concurrent writes"""
         writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 
@@ -243,7 +243,7 @@ class TestBufferedHDF5Writer(unittest.TestCase):
 
         writer.close()
 
-    def test_atomic_write_all_or_nothing(self):
+    def test_atomic_write_all_or_nothing(self) -> None:
         """Test: Flush is atomic (all records or none)"""
         writer = BufferedHDF5Writer(self.corpus_path, buffer_size=10)
 

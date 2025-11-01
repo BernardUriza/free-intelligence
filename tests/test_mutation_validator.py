@@ -26,7 +26,7 @@ from mutation_validator import (
 class TestMutationValidator(unittest.TestCase):
     """Test mutation validator."""
 
-    def test_forbidden_function_names(self):
+    def test_forbidden_function_names(self) -> None:
         """Test detection of forbidden function names."""
         # Forbidden names
         forbidden = [
@@ -49,7 +49,7 @@ class TestMutationValidator(unittest.TestCase):
             self.assertTrue(is_forbidden, f"Expected '{func_name}' to be forbidden")
             self.assertIsNotNone(pattern)
 
-    def test_allowed_function_names(self):
+    def test_allowed_function_names(self) -> None:
         """Test that allowed function names are not flagged."""
         allowed = [
             "append_interaction",
@@ -79,7 +79,7 @@ class TestMutationValidator(unittest.TestCase):
                 f"Expected '{func_name}' to be allowed but was flagged with pattern '{pattern}'",
             )
 
-    def test_allowed_exceptions(self):
+    def test_allowed_exceptions(self) -> None:
         """Test that unittest methods are allowed."""
         exceptions = [
             "setUp",
@@ -94,7 +94,7 @@ class TestMutationValidator(unittest.TestCase):
             is_forbidden, _ = is_forbidden_function_name(func_name)
             self.assertFalse(is_forbidden)
 
-    def test_scan_file_with_violations(self):
+    def test_scan_file_with_violations(self) -> None:
         """Test scanning file with mutation functions."""
         # Create temp file with violation
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
@@ -125,7 +125,7 @@ def get_data():
         finally:
             os.unlink(temp_file)
 
-    def test_scan_file_without_violations(self):
+    def test_scan_file_without_violations(self) -> None:
         """Test scanning file with only allowed functions."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(
@@ -149,7 +149,7 @@ def read_data():
         finally:
             os.unlink(temp_file)
 
-    def test_scan_directory(self):
+    def test_scan_directory(self) -> None:
         """Test scanning directory for violations."""
         # Create temp directory with multiple files
         temp_dir = tempfile.mkdtemp()
@@ -178,7 +178,7 @@ def read_data():
                     os.unlink(f)
             os.rmdir(temp_dir)
 
-    def test_get_allowed_patterns(self):
+    def test_get_allowed_patterns(self) -> None:
         """Test getting allowed patterns."""
         patterns = get_allowed_patterns()
 
@@ -188,7 +188,7 @@ def read_data():
         self.assertIn("^get_", patterns)
         self.assertIn("^read_", patterns)
 
-    def test_validate_codebase_real(self):
+    def test_validate_codebase_real(self) -> None:
         """Test validation of real backend directory."""
         # This should pass since our codebase has no mutations
         is_valid, violations = validate_codebase("backend", exclude_tests=True)
@@ -197,7 +197,7 @@ def read_data():
         self.assertTrue(is_valid, f"Expected codebase to be valid, found violations: {violations}")
         self.assertEqual(len(violations), 0)
 
-    def test_mutation_violation_dataclass(self):
+    def test_mutation_violation_dataclass(self) -> None:
         """Test MutationViolation dataclass."""
         violation = MutationViolation(
             file_path="/test/file.py",
@@ -211,7 +211,7 @@ def read_data():
         self.assertEqual(violation.line_number, 42)
         self.assertEqual(violation.function_name, "update_user")
 
-    def test_scan_file_with_syntax_error(self):
+    def test_scan_file_with_syntax_error(self) -> None:
         """Test that files with syntax errors are handled gracefully."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("def broken syntax here!!!")
@@ -226,7 +226,7 @@ def read_data():
         finally:
             os.unlink(temp_file)
 
-    def test_multiple_violations_in_file(self):
+    def test_multiple_violations_in_file(self) -> None:
         """Test detection of multiple violations in single file."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(
@@ -261,7 +261,7 @@ def modify_corpus():
         finally:
             os.unlink(temp_file)
 
-    def test_pattern_specificity(self):
+    def test_pattern_specificity(self) -> None:
         """Test that patterns are specific (prefix-based)."""
         # These should NOT be flagged (pattern is prefix-based)
         ok_names = [

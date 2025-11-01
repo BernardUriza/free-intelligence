@@ -26,17 +26,17 @@ from logger import get_logger, init_logger_from_config
 class TestLogger(unittest.TestCase):
     """Test suite for structured logger."""
 
-    def test_logger_initialization(self):
+    def test_logger_initialization(self) -> None:
         """Test basic logger initialization."""
         logger = get_logger(log_level="INFO")
         self.assertIsNotNone(logger)
 
-    def test_logger_with_custom_level(self):
+    def test_logger_with_custom_level(self) -> None:
         """Test logger with custom log level."""
         logger = get_logger(log_level="DEBUG")
         self.assertIsNotNone(logger)
 
-    def test_logger_output_format(self):
+    def test_logger_output_format(self) -> None:
         """Test that logger outputs JSON with required fields."""
         # Capture stderr
         captured_output = StringIO()
@@ -64,7 +64,7 @@ class TestLogger(unittest.TestCase):
         finally:
             sys.stderr = original_stderr
 
-    def test_timezone_aware_timestamp(self):
+    def test_timezone_aware_timestamp(self) -> None:
         """Test that timestamps include timezone information."""
         captured_output = StringIO()
         original_stderr = sys.stderr
@@ -89,12 +89,12 @@ class TestLogger(unittest.TestCase):
         finally:
             sys.stderr = original_stderr
 
-    def test_init_from_config(self):
+    def test_init_from_config(self) -> None:
         """Test logger initialization from config file."""
         logger = init_logger_from_config()
         self.assertIsNotNone(logger)
 
-    def test_multiple_log_levels(self):
+    def test_multiple_log_levels(self) -> None:
         """Test different log levels."""
         captured_output = StringIO()
         original_stderr = sys.stderr

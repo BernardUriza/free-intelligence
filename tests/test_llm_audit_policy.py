@@ -33,17 +33,17 @@ from backend.llm_audit_policy import (
 class TestRequireAuditLogDecorator(unittest.TestCase):
     """Tests para decorator @require_audit_log."""
 
-    def test_decorator_marks_function(self):
+    def test_decorator_marks_function(self) -> None:
         """Decorator debe marcar función con __llm_audit_required__."""
 
         @require_audit_log
-        def test_function():
+        def test_function() -> None:
             return "result"
 
         self.assertTrue(hasattr(test_function, "__llm_audit_required__"))
         self.assertTrue(test_function.__llm_audit_required__)
 
-    def test_decorator_preserves_function_name(self):
+    def test_decorator_preserves_function_name(self) -> None:
         """Decorator debe preservar nombre de función."""
 
         @require_audit_log
@@ -52,7 +52,7 @@ class TestRequireAuditLogDecorator(unittest.TestCase):
 
         self.assertEqual(call_claude_api.__name__, "call_claude_api")
 
-    def test_decorator_preserves_wrapped_function(self):
+    def test_decorator_preserves_wrapped_function(self) -> None:
         """Decorator debe guardar referencia a función original."""
 
         @require_audit_log
@@ -62,7 +62,7 @@ class TestRequireAuditLogDecorator(unittest.TestCase):
         self.assertTrue(hasattr(invoke_llm, "__wrapped_function__"))
         self.assertEqual(invoke_llm.__wrapped_function__, "invoke_llm")
 
-    def test_decorated_function_executes(self):
+    def test_decorated_function_executes(self) -> None:
         """Función decorada debe ejecutarse normalmente."""
 
         @require_audit_log
@@ -76,7 +76,7 @@ class TestRequireAuditLogDecorator(unittest.TestCase):
 class TestLLMFunctionNameDetection(unittest.TestCase):
     """Tests para detección de nombres de función LLM."""
 
-    def test_detects_high_confidence_patterns(self):
+    def test_detects_high_confidence_patterns(self) -> None:
         """Debe detectar patrones de alta confianza."""
         self.assertTrue(is_llm_function_name("call_claude_api"))
         self.assertTrue(is_llm_function_name("call_openai"))
@@ -84,25 +84,25 @@ class TestLLMFunctionNameDetection(unittest.TestCase):
         self.assertTrue(is_llm_function_name("invoke_model"))
         self.assertTrue(is_llm_function_name("query_llm"))
 
-    def test_detects_llm_keywords(self):
+    def test_detects_llm_keywords(self) -> None:
         """Debe detectar keywords de LLM."""
         self.assertTrue(is_llm_function_name("process_claude_response"))
         self.assertTrue(is_llm_function_name("anthropic_handler"))
         self.assertTrue(is_llm_function_name("openai_completion"))
 
-    def test_excludes_validator_functions(self):
+    def test_excludes_validator_functions(self) -> None:
         """Debe excluir funciones del validador."""
         self.assertFalse(is_llm_function_name("scan_file_for_llm_functions"))
         self.assertFalse(is_llm_function_name("is_llm_function_name"))
         self.assertFalse(is_llm_function_name("validate_codebase"))
 
-    def test_excludes_internal_generators(self):
+    def test_excludes_internal_generators(self) -> None:
         """Debe excluir funciones generate_* internas."""
         self.assertFalse(is_llm_function_name("generate_corpus_id"))
         self.assertFalse(is_llm_function_name("generate_owner_hash"))
         self.assertFalse(is_llm_function_name("generate_test_data"))
 
-    def test_ignores_normal_functions(self):
+    def test_ignores_normal_functions(self) -> None:
         """No debe marcar funciones normales."""
         self.assertFalse(is_llm_function_name("get_data"))
         self.assertFalse(is_llm_function_name("append_interaction"))
@@ -112,7 +112,7 @@ class TestLLMFunctionNameDetection(unittest.TestCase):
 class TestDecoratorDetection(unittest.TestCase):
     """Tests para detección de decorator en AST."""
 
-    def test_detects_simple_decorator(self):
+    def test_detects_simple_decorator(self) -> None:
         """Debe detectar @require_audit_log simple."""
         code = """
 @require_audit_log
@@ -123,7 +123,7 @@ def call_llm():
         func_node = tree.body[0]
         self.assertTrue(has_require_audit_decorator(func_node))
 
-    def test_detects_module_decorator(self):
+    def test_detects_module_decorator(self) -> None:
         """Debe detectar @module.require_audit_log."""
         code = """
 @llm_audit_policy.require_audit_log
@@ -134,7 +134,7 @@ def invoke_model():
         func_node = tree.body[0]
         self.assertTrue(has_require_audit_decorator(func_node))
 
-    def test_ignores_other_decorators(self):
+    def test_ignores_other_decorators(self) -> None:
         """No debe detectar otros decorators."""
         code = """
 @some_other_decorator
@@ -145,7 +145,7 @@ def my_function():
         func_node = tree.body[0]
         self.assertFalse(has_require_audit_decorator(func_node))
 
-    def test_no_decorator(self):
+    def test_no_decorator(self) -> None:
         """Debe retornar False si no hay decorators."""
         code = """
 def plain_function():
@@ -159,7 +159,7 @@ def plain_function():
 class TestAuditLogCallDetection(unittest.TestCase):
     """Tests para detección de append_audit_log() call."""
 
-    def test_detects_direct_call(self):
+    def test_detects_direct_call(self) -> None:
         """Debe detectar append_audit_log() directo."""
         code = """
 def call_llm():
@@ -171,7 +171,7 @@ def call_llm():
         func_node = tree.body[0]
         self.assertTrue(calls_append_audit_log(func_node))
 
-    def test_detects_module_call(self):
+    def test_detects_module_call(self) -> None:
         """Debe detectar audit_logs.append_audit_log()."""
         code = """
 def invoke_model():
@@ -183,7 +183,7 @@ def invoke_model():
         func_node = tree.body[0]
         self.assertTrue(calls_append_audit_log(func_node))
 
-    def test_no_audit_call(self):
+    def test_no_audit_call(self) -> None:
         """Debe retornar False si no hay llamada a audit."""
         code = """
 def query_llm():
@@ -197,7 +197,7 @@ def query_llm():
 class TestFileScan(unittest.TestCase):
     """Tests para escaneo de archivos."""
 
-    def test_scan_compliant_file(self):
+    def test_scan_compliant_file(self) -> None:
         """Debe detectar función LLM compliant."""
         code = """
 from llm_audit_policy import require_audit_log
@@ -224,7 +224,7 @@ def call_claude_api(prompt):
 
             filepath.unlink()
 
-    def test_scan_non_compliant_file(self):
+    def test_scan_non_compliant_file(self) -> None:
         """Debe detectar función LLM non-compliant."""
         code = """
 def call_openai_api(prompt):
@@ -246,7 +246,7 @@ def call_openai_api(prompt):
 
             filepath.unlink()
 
-    def test_scan_file_with_syntax_error(self):
+    def test_scan_file_with_syntax_error(self) -> None:
         """Debe manejar archivos con syntax errors."""
         code = """
 def invalid_syntax(
@@ -268,7 +268,7 @@ def invalid_syntax(
 class TestDirectoryScan(unittest.TestCase):
     """Tests para escaneo de directorios."""
 
-    def test_scan_directory_with_violations(self):
+    def test_scan_directory_with_violations(self) -> None:
         """Debe escanear directorio y detectar violaciones."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmppath = Path(tmpdir)
@@ -305,7 +305,7 @@ def invoke_model():
 
             self.assertEqual(len(all_functions), 2)
 
-    def test_scan_directory_skips_tests(self):
+    def test_scan_directory_skips_tests(self) -> None:
         """Debe ignorar archivos test_*.py."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmppath = Path(tmpdir)
@@ -328,7 +328,7 @@ def call_llm():
 class TestValidateCodebase(unittest.TestCase):
     """Tests para validación de codebase."""
 
-    def test_validate_compliant_codebase(self):
+    def test_validate_compliant_codebase(self) -> None:
         """Debe pasar validación si todo es compliant."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmppath = Path(tmpdir)
@@ -346,7 +346,7 @@ def call_claude():
             is_valid = validate_codebase(tmppath)
             self.assertTrue(is_valid)
 
-    def test_validate_non_compliant_codebase(self):
+    def test_validate_non_compliant_codebase(self) -> None:
         """Debe fallar validación si hay violaciones."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmppath = Path(tmpdir)
@@ -362,7 +362,7 @@ def invoke_llm():
             is_valid = validate_codebase(tmppath)
             self.assertFalse(is_valid)
 
-    def test_validate_empty_directory(self):
+    def test_validate_empty_directory(self) -> None:
         """Debe pasar validación si no hay funciones LLM."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmppath = Path(tmpdir)
@@ -382,14 +382,14 @@ def get_data():
 class TestLLMFunctionInfo(unittest.TestCase):
     """Tests para dataclass LLMFunctionInfo."""
 
-    def test_is_compliant_when_both_true(self):
+    def test_is_compliant_when_both_true(self) -> None:
         """Debe ser compliant si tiene decorator y audit call."""
         info = LLMFunctionInfo(
             name="call_llm", lineno=10, has_decorator=True, calls_audit_log=True, filepath="test.py"
         )
         self.assertTrue(info.is_compliant())
 
-    def test_not_compliant_without_decorator(self):
+    def test_not_compliant_without_decorator(self) -> None:
         """No debe ser compliant sin decorator."""
         info = LLMFunctionInfo(
             name="call_llm",
@@ -400,7 +400,7 @@ class TestLLMFunctionInfo(unittest.TestCase):
         )
         self.assertFalse(info.is_compliant())
 
-    def test_not_compliant_without_audit_call(self):
+    def test_not_compliant_without_audit_call(self) -> None:
         """No debe ser compliant sin audit call."""
         info = LLMFunctionInfo(
             name="call_llm",

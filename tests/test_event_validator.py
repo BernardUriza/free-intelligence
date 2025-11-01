@@ -25,7 +25,7 @@ from event_validator import (
 class TestEventValidator(unittest.TestCase):
     """Test suite for event name validation."""
 
-    def test_valid_event_names(self):
+    def test_valid_event_names(self) -> None:
         """Test that valid event names pass validation."""
         valid_events = [
             "CORPUS_INITIALIZED",
@@ -41,47 +41,47 @@ class TestEventValidator(unittest.TestCase):
                 self.assertTrue(result["valid"], f"{event} should be valid")
                 self.assertEqual(len(result["errors"]), 0)
 
-    def test_lowercase_fails(self):
+    def test_lowercase_fails(self) -> None:
         """Test that lowercase event names fail."""
         result = validate_event_name("corpus_initialized")
         self.assertFalse(result["valid"])
         self.assertTrue(any("uppercase" in err.lower() for err in result["errors"]))
 
-    def test_mixed_case_fails(self):
+    def test_mixed_case_fails(self) -> None:
         """Test that mixed case event names fail."""
         result = validate_event_name("Corpus_Initialized")
         self.assertFalse(result["valid"])
 
-    def test_consecutive_underscores_fails(self):
+    def test_consecutive_underscores_fails(self) -> None:
         """Test that consecutive underscores fail."""
         result = validate_event_name("CORPUS__INITIALIZED")
         self.assertFalse(result["valid"])
         self.assertTrue(any("consecutive" in err.lower() for err in result["errors"]))
 
-    def test_leading_underscore_fails(self):
+    def test_leading_underscore_fails(self) -> None:
         """Test that leading underscore fails."""
         result = validate_event_name("_CORPUS_INITIALIZED")
         self.assertFalse(result["valid"])
 
-    def test_trailing_underscore_fails(self):
+    def test_trailing_underscore_fails(self) -> None:
         """Test that trailing underscore fails."""
         result = validate_event_name("CORPUS_INITIALIZED_")
         self.assertFalse(result["valid"])
 
-    def test_too_long_fails(self):
+    def test_too_long_fails(self) -> None:
         """Test that names over 50 characters fail."""
         long_name = "A" * 51
         result = validate_event_name(long_name)
         self.assertFalse(result["valid"])
         self.assertTrue(any("too long" in err.lower() for err in result["errors"]))
 
-    def test_minimum_components(self):
+    def test_minimum_components(self) -> None:
         """Test that at least 2 components are required."""
         result = validate_event_name("INITIALIZED")
         self.assertFalse(result["valid"])
         self.assertTrue(any("2 components" in err.lower() for err in result["errors"]))
 
-    def test_special_characters_fail(self):
+    def test_special_characters_fail(self) -> None:
         """Test that special characters fail."""
         invalid_events = [
             "CORPUS-INITIALIZED",
@@ -94,7 +94,7 @@ class TestEventValidator(unittest.TestCase):
                 result = validate_event_name(event)
                 self.assertFalse(result["valid"])
 
-    def test_strict_mode_canonical_only(self):
+    def test_strict_mode_canonical_only(self) -> None:
         """Test that strict mode only allows canonical events."""
         # Valid format but not canonical
         result = validate_event_name("CUSTOM_EVENT_ADDED", strict=True)
@@ -105,14 +105,14 @@ class TestEventValidator(unittest.TestCase):
         result = validate_event_name("CORPUS_INITIALIZED", strict=True)
         self.assertTrue(result["valid"])
 
-    def test_past_participle_warning(self):
+    def test_past_participle_warning(self) -> None:
         """Test that non-past-participle endings generate warnings."""
         # Present tense should warn
         result = validate_event_name("CORPUS_INITIALIZE")
         self.assertTrue(result["valid"])  # Still valid, just warned
         self.assertGreater(len(result["warnings"]), 0)
 
-    def test_canonical_events_list(self):
+    def test_canonical_events_list(self) -> None:
         """Test getting canonical events list."""
         events = get_canonical_events()
         self.assertIsInstance(events, list)
@@ -122,7 +122,7 @@ class TestEventValidator(unittest.TestCase):
         # Should be sorted
         self.assertEqual(events, sorted(events))
 
-    def test_validate_events_in_code(self):
+    def test_validate_events_in_code(self) -> None:
         """Test scanning Python file for event names."""
         # Create temporary Python file with events
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
@@ -131,7 +131,7 @@ class TestEventValidator(unittest.TestCase):
 import logging
 logger = logging.getLogger()
 
-def test_func():
+def test_func() -> None:
     logger.info("CORPUS_INITIALIZED", path="/test")
     logger.error("CORPUS_INIT_FAILED", error="test")
     logger.warning("invalid_event_name", msg="bad")
@@ -158,12 +158,12 @@ def test_func():
         finally:
             Path(temp_path).unlink()
 
-    def test_validate_events_nonexistent_file(self):
+    def test_validate_events_nonexistent_file(self) -> None:
         """Test scanning non-existent file."""
         results = validate_events_in_code("/nonexistent/file.py")
         self.assertEqual(len(results), 0)
 
-    def test_suggest_event_name(self):
+    def test_suggest_event_name(self) -> None:
         """Test event name suggestion."""
         test_cases = [
             ("corpus was initialized", "CORPUS_INITIALIZED"),
@@ -182,7 +182,7 @@ def test_func():
             result = validate_event_name(suggested)
             self.assertTrue(result["valid"], f"Suggested event '{suggested}' should be valid")
 
-    def test_all_canonical_events_are_valid(self):
+    def test_all_canonical_events_are_valid(self) -> None:
         """Test that all canonical events pass validation."""
         for event in CANONICAL_EVENTS:
             with self.subTest(event=event):

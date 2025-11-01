@@ -6,7 +6,7 @@ Card: FI-BACKEND-FEAT-004
 from backend.diarization_service import DiarizationSegment, merge_consecutive_segments
 
 
-def test_merge_consecutive_same_speaker():
+def test_merge_consecutive_same_speaker() -> None:
     """Test merging consecutive segments from same speaker."""
     segments = [
         DiarizationSegment(0.0, 5.0, "PACIENTE", "Hola doctor"),
@@ -23,7 +23,7 @@ def test_merge_consecutive_same_speaker():
     assert merged[1].speaker == "MEDICO"
 
 
-def test_merge_no_merge_different_speakers():
+def test_merge_no_merge_different_speakers() -> None:
     """Test no merge when speakers different."""
     segments = [
         DiarizationSegment(0.0, 5.0, "PACIENTE", "Text 1"),
@@ -35,20 +35,20 @@ def test_merge_no_merge_different_speakers():
     assert len(merged) == 2
 
 
-def test_merge_empty_list():
+def test_merge_empty_list() -> None:
     """Test merge with empty list."""
     merged = merge_consecutive_segments([])
     assert len(merged) == 0
 
 
-def test_merge_single_segment():
+def test_merge_single_segment() -> None:
     """Test merge with single segment."""
     segments = [DiarizationSegment(0.0, 5.0, "PACIENTE", "Text")]
     merged = merge_consecutive_segments(segments)
     assert len(merged) == 1
 
 
-def test_merge_large_gap_no_merge():
+def test_merge_large_gap_no_merge() -> None:
     """Test no merge when gap > 1 second."""
     segments = [
         DiarizationSegment(0.0, 5.0, "PACIENTE", "Text 1"),
@@ -60,7 +60,7 @@ def test_merge_large_gap_no_merge():
     assert len(merged) == 2  # Should NOT merge
 
 
-def test_segment_dataclass():
+def test_segment_dataclass() -> None:
     """Test DiarizationSegment dataclass."""
     seg = DiarizationSegment(
         start_time=0.0, end_time=5.5, speaker="MEDICO", text="Test text", confidence=0.95

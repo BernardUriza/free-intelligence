@@ -26,7 +26,7 @@ from corpus_schema import init_corpus
 class TestCorpusIdentityGenerators(unittest.TestCase):
     """Test corpus_id and owner_hash generators."""
 
-    def test_generate_corpus_id_format(self):
+    def test_generate_corpus_id_format(self) -> None:
         """Test corpus_id is valid UUID v4."""
         corpus_id = generate_corpus_id()
 
@@ -38,7 +38,7 @@ class TestCorpusIdentityGenerators(unittest.TestCase):
         corpus_id2 = generate_corpus_id()
         self.assertNotEqual(corpus_id, corpus_id2)
 
-    def test_generate_owner_hash_format(self):
+    def test_generate_owner_hash_format(self) -> None:
         """Test owner_hash is valid SHA256."""
         owner_hash = generate_owner_hash("bernard@example.com")
 
@@ -46,19 +46,19 @@ class TestCorpusIdentityGenerators(unittest.TestCase):
         self.assertEqual(len(owner_hash), 64)
         self.assertTrue(all(c in "0123456789abcdef" for c in owner_hash))
 
-    def test_generate_owner_hash_deterministic(self):
+    def test_generate_owner_hash_deterministic(self) -> None:
         """Test owner_hash is deterministic (same input = same output)."""
         hash1 = generate_owner_hash("bernard@example.com")
         hash2 = generate_owner_hash("bernard@example.com")
         self.assertEqual(hash1, hash2)
 
-    def test_generate_owner_hash_different_inputs(self):
+    def test_generate_owner_hash_different_inputs(self) -> None:
         """Test different inputs produce different hashes."""
         hash1 = generate_owner_hash("bernard@example.com")
         hash2 = generate_owner_hash("other@example.com")
         self.assertNotEqual(hash1, hash2)
 
-    def test_generate_owner_hash_with_salt(self):
+    def test_generate_owner_hash_with_salt(self) -> None:
         """Test salt changes the hash."""
         hash_no_salt = generate_owner_hash("bernard@example.com")
         hash_with_salt = generate_owner_hash("bernard@example.com", salt="secret")
@@ -68,7 +68,7 @@ class TestCorpusIdentityGenerators(unittest.TestCase):
         hash_with_salt2 = generate_owner_hash("bernard@example.com", salt="secret")
         self.assertEqual(hash_with_salt, hash_with_salt2)
 
-    def test_generate_owner_hash_empty_identifier(self):
+    def test_generate_owner_hash_empty_identifier(self) -> None:
         """Test empty identifier raises ValueError."""
         with self.assertRaises(ValueError):
             generate_owner_hash("")
@@ -80,16 +80,16 @@ class TestCorpusIdentityOperations(unittest.TestCase):
     test_dir: str
     corpus_path: str
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Create temporary directory for test corpora."""
         self.test_dir = tempfile.mkdtemp()
         self.corpus_path = str(Path(self.test_dir) / "test_corpus.h5")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up temporary directory."""
         shutil.rmtree(self.test_dir)
 
-    def test_add_corpus_identity(self):
+    def test_add_corpus_identity(self) -> None:
         """Test adding identity to corpus."""
         # Create corpus without identity
         init_corpus(self.corpus_path, owner_identifier="bernard@example.com")
@@ -106,13 +106,13 @@ class TestCorpusIdentityOperations(unittest.TestCase):
         # Verify owner_hash format
         self.assertEqual(len(identity["owner_hash"]), 64)
 
-    def test_add_corpus_identity_with_custom_corpus_id(self):
+    def test_add_corpus_identity_with_custom_corpus_id(self) -> None:
         """Test adding identity with pre-generated corpus_id."""
         # Create empty corpus first (we need to modify init_corpus for this test)
         # For now, skip this test as init_corpus auto-generates identity
         pass
 
-    def test_verify_corpus_ownership_success(self):
+    def test_verify_corpus_ownership_success(self) -> None:
         """Test successful ownership verification."""
         # Create corpus
         init_corpus(self.corpus_path, owner_identifier="bernard@example.com")
@@ -121,7 +121,7 @@ class TestCorpusIdentityOperations(unittest.TestCase):
         is_owner = verify_corpus_ownership(self.corpus_path, "bernard@example.com")
         self.assertTrue(is_owner)
 
-    def test_verify_corpus_ownership_failure(self):
+    def test_verify_corpus_ownership_failure(self) -> None:
         """Test failed ownership verification."""
         # Create corpus
         init_corpus(self.corpus_path, owner_identifier="bernard@example.com")
@@ -130,7 +130,7 @@ class TestCorpusIdentityOperations(unittest.TestCase):
         is_owner = verify_corpus_ownership(self.corpus_path, "other@example.com")
         self.assertFalse(is_owner)
 
-    def test_verify_corpus_ownership_with_salt(self):
+    def test_verify_corpus_ownership_with_salt(self) -> None:
         """Test ownership verification with salt."""
         # Create corpus with salt
         init_corpus(self.corpus_path, owner_identifier="bernard@example.com", salt="secret")
@@ -143,7 +143,7 @@ class TestCorpusIdentityOperations(unittest.TestCase):
         is_owner = verify_corpus_ownership(self.corpus_path, "bernard@example.com")
         self.assertFalse(is_owner)
 
-    def test_get_corpus_identity(self):
+    def test_get_corpus_identity(self) -> None:
         """Test retrieving corpus identity."""
         # Create corpus
         init_corpus(self.corpus_path, owner_identifier="bernard@example.com")
@@ -157,7 +157,7 @@ class TestCorpusIdentityOperations(unittest.TestCase):
         self.assertIn("version", identity)
         self.assertIn("schema_version", identity)
 
-    def test_get_corpus_identity_nonexistent(self):
+    def test_get_corpus_identity_nonexistent(self) -> None:
         """Test getting identity from non-existent corpus."""
         identity = get_corpus_identity("/tmp/nonexistent.h5")
         self.assertIsNone(identity)

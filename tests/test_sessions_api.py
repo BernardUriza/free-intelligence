@@ -55,7 +55,7 @@ def reset_store():
     shutil.rmtree(temp_dir)
 
 
-def test_list_sessions_empty(client):
+def test_list_sessions_empty(client) -> None:
     """Test listing sessions when empty"""
     response = client.get("/api/sessions")
 
@@ -67,7 +67,7 @@ def test_list_sessions_empty(client):
     assert data["offset"] == 0
 
 
-def test_create_session(client):
+def test_create_session(client) -> None:
     """Test creating a new session"""
     response = client.post(
         "/api/sessions",
@@ -87,7 +87,7 @@ def test_create_session(client):
     assert data["interaction_count"] == 0
 
 
-def test_create_session_minimal(client):
+def test_create_session_minimal(client) -> None:
     """Test creating session with minimal data"""
     response = client.post(
         "/api/sessions",
@@ -100,7 +100,7 @@ def test_create_session_minimal(client):
     assert data["status"] == "new"  # default
 
 
-def test_get_session(client):
+def test_get_session(client) -> None:
     """Test retrieving session by ID"""
     # Create session
     create_resp = client.post(
@@ -118,7 +118,7 @@ def test_get_session(client):
     assert data["owner_hash"] == "sha256:get_test"
 
 
-def test_get_session_not_found(client):
+def test_get_session_not_found(client) -> None:
     """Test getting non-existent session"""
     response = client.get("/api/sessions/NONEXISTENT_ID")
 
@@ -126,7 +126,7 @@ def test_get_session_not_found(client):
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_list_sessions_with_pagination(client):
+def test_list_sessions_with_pagination(client) -> None:
     """Test list sessions with pagination"""
     # Create 5 sessions
     for i in range(5):
@@ -156,7 +156,7 @@ def test_list_sessions_with_pagination(client):
     assert data["offset"] == 2
 
 
-def test_list_sessions_filter_by_owner(client):
+def test_list_sessions_filter_by_owner(client) -> None:
     """Test filtering sessions by owner_hash"""
     # Create sessions
     client.post("/api/sessions", json={"owner_hash": "sha256:alice"})
@@ -176,7 +176,7 @@ def test_list_sessions_filter_by_owner(client):
     assert data["total"] == 1
 
 
-def test_update_session_status(client):
+def test_update_session_status(client) -> None:
     """Test updating session status"""
     # Create session
     create_resp = client.post(
@@ -197,7 +197,7 @@ def test_update_session_status(client):
     assert data["id"] == session_id
 
 
-def test_update_session_interaction_count(client):
+def test_update_session_interaction_count(client) -> None:
     """Test updating interaction count"""
     # Create session
     create_resp = client.post(
@@ -217,7 +217,7 @@ def test_update_session_interaction_count(client):
     assert data["interaction_count"] == 10
 
 
-def test_update_session_not_found(client):
+def test_update_session_not_found(client) -> None:
     """Test updating non-existent session"""
     response = client.patch(
         "/api/sessions/NONEXISTENT",
@@ -227,7 +227,7 @@ def test_update_session_not_found(client):
     assert response.status_code == 404
 
 
-def test_create_session_invalid_status(client):
+def test_create_session_invalid_status(client) -> None:
     """Test creating session with invalid status"""
     response = client.post(
         "/api/sessions",
@@ -240,7 +240,7 @@ def test_create_session_invalid_status(client):
     assert response.status_code == 422  # Validation error
 
 
-def test_update_session_invalid_status(client):
+def test_update_session_invalid_status(client) -> None:
     """Test updating with invalid status"""
     # Create session
     create_resp = client.post(
@@ -258,7 +258,7 @@ def test_update_session_invalid_status(client):
     assert response.status_code == 422
 
 
-def test_health_check_via_list(client):
+def test_health_check_via_list(client) -> None:
     """Test API health via list endpoint (health check moved to app level)"""
     response = client.get("/api/sessions")
 
@@ -267,7 +267,7 @@ def test_health_check_via_list(client):
     assert "items" in response.json()
 
 
-def test_timestamps_auto_updated(client):
+def test_timestamps_auto_updated(client) -> None:
     """Test that timestamps are auto-updated on PATCH"""
     # Create session
     create_resp = client.post(

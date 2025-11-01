@@ -24,19 +24,19 @@ from backend.boot_map import (
 class TestBootMapInitialization(unittest.TestCase):
     """Tests para inicialización del boot map"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Crear archivo temporal para tests"""
         self.test_file = Path("storage/test_boot_map_init.h5")
         self.test_file.parent.mkdir(exist_ok=True)
         if self.test_file.exists():
             self.test_file.unlink()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Limpiar archivo temporal"""
         if self.test_file.exists():
             self.test_file.unlink()
 
-    def test_init_boot_map_group_creates_structure(self):
+    def test_init_boot_map_group_creates_structure(self) -> None:
         """Test que init_boot_map_group crea la estructura correcta"""
         with h5py.File(self.test_file, "w") as h5f:
             init_boot_map_group(h5f)
@@ -56,7 +56,7 @@ class TestBootMapInitialization(unittest.TestCase):
             self.assertIn("boot_map_version", boot_group.attrs)
             self.assertEqual(boot_group.attrs["schema_version"], "1.0")
 
-    def test_init_boot_map_group_raises_if_exists(self):
+    def test_init_boot_map_group_raises_if_exists(self) -> None:
         """Test que init_boot_map_group lanza error si ya existe"""
         with h5py.File(self.test_file, "w") as h5f:
             init_boot_map_group(h5f)
@@ -65,7 +65,7 @@ class TestBootMapInitialization(unittest.TestCase):
             with self.assertRaises(ValueError):
                 init_boot_map_group(h5f)
 
-    def test_boot_sequence_dataset_is_resizable(self):
+    def test_boot_sequence_dataset_is_resizable(self) -> None:
         """Test que boot_sequence es redimensionable"""
         with h5py.File(self.test_file, "w") as h5f:
             init_boot_map_group(h5f)
@@ -75,7 +75,7 @@ class TestBootMapInitialization(unittest.TestCase):
             self.assertEqual(dataset.shape[0], 0)
             self.assertIsNone(dataset.maxshape[0])  # Unlimited
 
-    def test_core_functions_dataset_has_correct_dtype(self):
+    def test_core_functions_dataset_has_correct_dtype(self) -> None:
         """Test que core_functions tiene dtype correcto"""
         with h5py.File(self.test_file, "w") as h5f:
             init_boot_map_group(h5f)
@@ -89,7 +89,7 @@ class TestBootMapInitialization(unittest.TestCase):
             self.assertIn("registered_at", dataset.dtype.names)
             self.assertIn("status", dataset.dtype.names)
 
-    def test_health_checks_dataset_has_correct_dtype(self):
+    def test_health_checks_dataset_has_correct_dtype(self) -> None:
         """Test que health_checks tiene dtype correcto"""
         with h5py.File(self.test_file, "w") as h5f:
             init_boot_map_group(h5f)
@@ -106,7 +106,7 @@ class TestBootMapInitialization(unittest.TestCase):
 class TestBootEvents(unittest.TestCase):
     """Tests para eventos de arranque"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Crear archivo temporal con boot map"""
         self.test_file = Path("storage/test_boot_events.h5")
         self.test_file.parent.mkdir(exist_ok=True)
@@ -116,12 +116,12 @@ class TestBootEvents(unittest.TestCase):
         with h5py.File(self.test_file, "w") as h5f:
             init_boot_map_group(h5f)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Limpiar archivo temporal"""
         if self.test_file.exists():
             self.test_file.unlink()
 
-    def test_append_boot_event_adds_entry(self):
+    def test_append_boot_event_adds_entry(self) -> None:
         """Test que append_boot_event agrega evento correctamente"""
         with h5py.File(self.test_file, "a") as h5f:
             append_boot_event(h5f, "SYSTEM_START")
@@ -133,7 +133,7 @@ class TestBootEvents(unittest.TestCase):
             entry = dataset[0].decode("utf-8")
             self.assertIn("|SYSTEM_START", entry)
 
-    def test_append_boot_event_raises_without_init(self):
+    def test_append_boot_event_raises_without_init(self) -> None:
         """Test que append_boot_event lanza error sin init"""
         empty_file = Path("storage/test_boot_no_init.h5")
         if empty_file.exists():
@@ -147,7 +147,7 @@ class TestBootEvents(unittest.TestCase):
             if empty_file.exists():
                 empty_file.unlink()
 
-    def test_multiple_boot_events_sequential(self):
+    def test_multiple_boot_events_sequential(self) -> None:
         """Test que múltiples eventos se agregan secuencialmente"""
         events = ["SYSTEM_START", "CONFIG_LOADED", "LOGGER_INIT", "CORPUS_OPEN"]
 
@@ -167,7 +167,7 @@ class TestBootEvents(unittest.TestCase):
 class TestCoreFunctions(unittest.TestCase):
     """Tests para registro de funciones core"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Crear archivo temporal con boot map"""
         self.test_file = Path("storage/test_core_functions.h5")
         self.test_file.parent.mkdir(exist_ok=True)
@@ -177,12 +177,12 @@ class TestCoreFunctions(unittest.TestCase):
         with h5py.File(self.test_file, "w") as h5f:
             init_boot_map_group(h5f)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Limpiar archivo temporal"""
         if self.test_file.exists():
             self.test_file.unlink()
 
-    def test_register_core_function_adds_entry(self):
+    def test_register_core_function_adds_entry(self) -> None:
         """Test que register_core_function agrega función correctamente"""
         with h5py.File(self.test_file, "a") as h5f:
             register_core_function(
@@ -199,7 +199,7 @@ class TestCoreFunctions(unittest.TestCase):
             self.assertEqual(entry["priority"], 10)
             self.assertEqual(entry["status"].decode("utf-8"), "REGISTERED")
 
-    def test_register_core_function_default_values(self):
+    def test_register_core_function_default_values(self) -> None:
         """Test que register_core_function usa defaults correctos"""
         with h5py.File(self.test_file, "a") as h5f:
             register_core_function(h5f, "test_func", "test.module", "CORE")
@@ -211,7 +211,7 @@ class TestCoreFunctions(unittest.TestCase):
             self.assertEqual(entry["priority"], 100)
             self.assertEqual(entry["status"].decode("utf-8"), "REGISTERED")
 
-    def test_multiple_core_functions_different_categories(self):
+    def test_multiple_core_functions_different_categories(self) -> None:
         """Test que se pueden registrar funciones de diferentes categorías"""
         functions = [
             ("init_corpus", "backend.corpus_schema", "DATA", 10),
@@ -231,7 +231,7 @@ class TestCoreFunctions(unittest.TestCase):
 class TestHealthChecks(unittest.TestCase):
     """Tests para health checks"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Crear archivo temporal con boot map"""
         self.test_file = Path("storage/test_health_checks.h5")
         self.test_file.parent.mkdir(exist_ok=True)
@@ -241,12 +241,12 @@ class TestHealthChecks(unittest.TestCase):
         with h5py.File(self.test_file, "w") as h5f:
             init_boot_map_group(h5f)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Limpiar archivo temporal"""
         if self.test_file.exists():
             self.test_file.unlink()
 
-    def test_append_health_check_adds_entry(self):
+    def test_append_health_check_adds_entry(self) -> None:
         """Test que append_health_check agrega check correctamente"""
         with h5py.File(self.test_file, "a") as h5f:
             append_health_check(h5f, "CONFIG", "OK", "Configuration loaded successfully", 12.5)
@@ -260,7 +260,7 @@ class TestHealthChecks(unittest.TestCase):
             self.assertEqual(entry["message"].decode("utf-8"), "Configuration loaded successfully")
             self.assertAlmostEqual(entry["duration_ms"], 12.5, places=1)
 
-    def test_append_health_check_default_duration(self):
+    def test_append_health_check_default_duration(self) -> None:
         """Test que append_health_check usa duration default"""
         with h5py.File(self.test_file, "a") as h5f:
             append_health_check(h5f, "TEST", "OK", "Test message")
@@ -270,7 +270,7 @@ class TestHealthChecks(unittest.TestCase):
 
             self.assertAlmostEqual(entry["duration_ms"], 0.0, places=1)
 
-    def test_multiple_health_checks_different_statuses(self):
+    def test_multiple_health_checks_different_statuses(self) -> None:
         """Test que se pueden registrar checks con diferentes estados"""
         checks = [
             ("CONFIG", "OK", "Configuration OK"),
@@ -290,7 +290,7 @@ class TestHealthChecks(unittest.TestCase):
 class TestBootMapQueries(unittest.TestCase):
     """Tests para queries del boot map"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Crear archivo temporal con datos de ejemplo"""
         self.test_file = Path("storage/test_boot_queries.h5")
         self.test_file.parent.mkdir(exist_ok=True)
@@ -310,12 +310,12 @@ class TestBootMapQueries(unittest.TestCase):
             append_health_check(h5f, "CONFIG", "OK", "Config OK", 12.5)
             append_health_check(h5f, "CORPUS", "WARNING", "Slow access", 250.0)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Limpiar archivo temporal"""
         if self.test_file.exists():
             self.test_file.unlink()
 
-    def test_get_boot_sequence_returns_all_events(self):
+    def test_get_boot_sequence_returns_all_events(self) -> None:
         """Test que get_boot_sequence retorna todos los eventos"""
         with h5py.File(self.test_file, "r") as h5f:
             sequence = get_boot_sequence(h5f)
@@ -324,7 +324,7 @@ class TestBootMapQueries(unittest.TestCase):
             self.assertEqual(sequence[0][1], "SYSTEM_START")
             self.assertEqual(sequence[1][1], "CONFIG_LOADED")
 
-    def test_get_core_functions_returns_all_functions(self):
+    def test_get_core_functions_returns_all_functions(self) -> None:
         """Test que get_core_functions retorna todas las funciones"""
         with h5py.File(self.test_file, "r") as h5f:
             functions = get_core_functions(h5f)
@@ -333,7 +333,7 @@ class TestBootMapQueries(unittest.TestCase):
             self.assertEqual(functions[0]["function_name"], "init_corpus")
             self.assertEqual(functions[1]["function_name"], "get_logger")
 
-    def test_get_core_functions_filter_by_category(self):
+    def test_get_core_functions_filter_by_category(self) -> None:
         """Test que get_core_functions filtra por categoría"""
         with h5py.File(self.test_file, "r") as h5f:
             data_functions = get_core_functions(h5f, category="DATA")
@@ -345,7 +345,7 @@ class TestBootMapQueries(unittest.TestCase):
             self.assertEqual(len(core_functions), 1)
             self.assertEqual(core_functions[0]["function_name"], "get_logger")
 
-    def test_get_health_status_groups_by_status(self):
+    def test_get_health_status_groups_by_status(self) -> None:
         """Test que get_health_status agrupa por estado"""
         with h5py.File(self.test_file, "r") as h5f:
             health = get_health_status(h5f)
@@ -360,7 +360,7 @@ class TestBootMapQueries(unittest.TestCase):
             self.assertEqual(len(health["ERROR"]), 0)
             self.assertEqual(len(health["CRITICAL"]), 0)
 
-    def test_get_boot_map_stats_returns_correct_counts(self):
+    def test_get_boot_map_stats_returns_correct_counts(self) -> None:
         """Test que get_boot_map_stats retorna stats correctos"""
         with h5py.File(self.test_file, "r") as h5f:
             stats = get_boot_map_stats(h5f)
@@ -375,7 +375,7 @@ class TestBootMapQueries(unittest.TestCase):
 class TestBootMapErrors(unittest.TestCase):
     """Tests para manejo de errores"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Crear archivo sin boot map"""
         self.test_file = Path("storage/test_boot_errors.h5")
         self.test_file.parent.mkdir(exist_ok=True)
@@ -386,12 +386,12 @@ class TestBootMapErrors(unittest.TestCase):
         with h5py.File(self.test_file, "w") as h5f:
             pass
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Limpiar archivo temporal"""
         if self.test_file.exists():
             self.test_file.unlink()
 
-    def test_operations_raise_without_init(self):
+    def test_operations_raise_without_init(self) -> None:
         """Test que operaciones lanzan error sin init"""
         with h5py.File(self.test_file, "a") as h5f:
             # Todas estas deben lanzar KeyError

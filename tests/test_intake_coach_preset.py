@@ -18,31 +18,31 @@ import yaml
 class TestIntakeCoachPreset(unittest.TestCase):
     """Test IntakeCoach YAML preset"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Load preset file"""
         preset_path = Path(__file__).parent.parent / "backend" / "prompts" / "intake_coach.yaml"
         with open(preset_path) as f:
             self.preset = yaml.safe_load(f)
 
-    def test_preset_has_required_fields(self):
+    def test_preset_has_required_fields(self) -> None:
         """Test: Preset contains all required top-level fields"""
         required_fields = ["name", "version", "description", "provider", "model", "system_prompt"]
 
         for field in required_fields:
             self.assertIn(field, self.preset, f"Missing required field: {field}")
 
-    def test_preset_name_and_version(self):
+    def test_preset_name_and_version(self) -> None:
         """Test: Preset has correct name and version"""
         self.assertEqual(self.preset["name"], "IntakeCoach")
         self.assertIsNotNone(self.preset["version"])
         self.assertRegex(self.preset["version"], r"^\d+\.\d+\.\d+$")  # Semantic versioning
 
-    def test_system_prompt_not_empty(self):
+    def test_system_prompt_not_empty(self) -> None:
         """Test: System prompt is non-empty"""
         self.assertIsInstance(self.preset["system_prompt"], str)
         self.assertGreater(len(self.preset["system_prompt"]), 100)
 
-    def test_urgency_rules_defined(self):
+    def test_urgency_rules_defined(self) -> None:
         """Test: Urgency classification rules exist"""
         self.assertIn("urgency_rules", self.preset)
 
@@ -50,7 +50,7 @@ class TestIntakeCoachPreset(unittest.TestCase):
         for level in urgency_levels:
             self.assertIn(level, self.preset["urgency_rules"])
 
-    def test_critical_urgency_keywords(self):
+    def test_critical_urgency_keywords(self) -> None:
         """Test: CRITICAL urgency has proper keywords"""
         critical = self.preset["urgency_rules"]["CRITICAL"]
 
@@ -62,7 +62,7 @@ class TestIntakeCoachPreset(unittest.TestCase):
         for symptom in life_threatening:
             self.assertIn(symptom, keywords)
 
-    def test_required_fields_list(self):
+    def test_required_fields_list(self) -> None:
         """Test: Required fields are specified"""
         self.assertIn("required_fields", self.preset)
 
@@ -72,7 +72,7 @@ class TestIntakeCoachPreset(unittest.TestCase):
         for field in expected_required:
             self.assertIn(field, required)
 
-    def test_phi_redaction_enabled(self):
+    def test_phi_redaction_enabled(self) -> None:
         """Test: PHI redaction is enabled"""
         self.assertIn("phi_redaction", self.preset)
         self.assertTrue(self.preset["phi_redaction"]["enabled"])
@@ -82,7 +82,7 @@ class TestIntakeCoachPreset(unittest.TestCase):
         self.assertIn("phone", fields_to_redact)
         self.assertIn("email", fields_to_redact)
 
-    def test_llm_config_parameters(self):
+    def test_llm_config_parameters(self) -> None:
         """Test: LLM configuration has valid parameters"""
         self.assertIn("llm_config", self.preset)
 
@@ -101,17 +101,17 @@ class TestIntakeCoachPreset(unittest.TestCase):
 class TestIntakeSchema(unittest.TestCase):
     """Test intake JSON schema"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Load schema file"""
         schema_path = Path(__file__).parent.parent / "backend" / "schemas" / "intake.schema.json"
         with open(schema_path) as f:
             self.schema = json.load(f)
 
-    def test_schema_is_valid_json(self):
+    def test_schema_is_valid_json(self) -> None:
         """Test: Schema is valid JSON"""
         self.assertIsInstance(self.schema, dict)
 
-    def test_schema_has_required_properties(self):
+    def test_schema_has_required_properties(self) -> None:
         """Test: Schema defines required properties"""
         self.assertIn("required", self.schema)
 
@@ -121,7 +121,7 @@ class TestIntakeSchema(unittest.TestCase):
         for field in expected:
             self.assertIn(field, required)
 
-    def test_demographics_schema(self):
+    def test_demographics_schema(self) -> None:
         """Test: Demographics has proper structure"""
         demographics = self.schema["properties"]["demographics"]
 
@@ -140,7 +140,7 @@ class TestIntakeSchema(unittest.TestCase):
         self.assertGreaterEqual(age_schema["minimum"], 0)
         self.assertLessEqual(age_schema["maximum"], 150)
 
-    def test_symptoms_schema(self):
+    def test_symptoms_schema(self) -> None:
         """Test: Symptoms is array with required fields"""
         symptoms = self.schema["properties"]["symptoms"]
 
@@ -162,7 +162,7 @@ class TestIntakeSchema(unittest.TestCase):
         self.assertEqual(severity["minimum"], 1)
         self.assertEqual(severity["maximum"], 10)
 
-    def test_urgency_schema(self):
+    def test_urgency_schema(self) -> None:
         """Test: Urgency has level and reasoning"""
         urgency = self.schema["properties"]["urgency"]
 
@@ -185,13 +185,13 @@ class TestIntakeSchema(unittest.TestCase):
 class TestSchemaValidation(unittest.TestCase):
     """Test schema validation with sample data"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Load schema"""
         schema_path = Path(__file__).parent.parent / "backend" / "schemas" / "intake.schema.json"
         with open(schema_path) as f:
             self.schema = json.load(f)
 
-    def test_valid_intake_data(self):
+    def test_valid_intake_data(self) -> None:
         """Test: Valid intake data passes schema"""
         # Install jsonschema if available, otherwise skip
         try:
@@ -212,7 +212,7 @@ class TestSchemaValidation(unittest.TestCase):
         # Should not raise exception
         jsonschema.validate(instance=valid_data, schema=self.schema)
 
-    def test_invalid_urgency_level(self):
+    def test_invalid_urgency_level(self) -> None:
         """Test: Invalid urgency level fails validation"""
         try:
             import jsonschema

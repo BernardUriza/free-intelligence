@@ -25,10 +25,10 @@ from backend.decision_mw import ConditionEvaluator, get_decision_middleware
 class TestConditionEvaluator(unittest.TestCase):
     """Test ConditionEvaluator operators"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.evaluator = ConditionEvaluator()
 
-    def test_equals_operator(self):
+    def test_equals_operator(self) -> None:
         """Test equals operator"""
         condition = {"field": "urgency", "operator": "equals", "value": "CRITICAL"}
         data = {"urgency": "CRITICAL"}
@@ -37,7 +37,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"urgency": "LOW"}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_not_equals_operator(self):
+    def test_not_equals_operator(self) -> None:
         """Test not_equals operator"""
         condition = {"field": "urgency", "operator": "not_equals", "value": "LOW"}
         data = {"urgency": "CRITICAL"}
@@ -46,7 +46,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"urgency": "LOW"}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_greater_than_operator(self):
+    def test_greater_than_operator(self) -> None:
         """Test greater_than operator"""
         condition = {"field": "age", "operator": "greater_than", "value": 65}
         data = {"age": 70}
@@ -55,7 +55,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"age": 60}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_less_than_operator(self):
+    def test_less_than_operator(self) -> None:
         """Test less_than operator"""
         condition = {"field": "age", "operator": "less_than", "value": 18}
         data = {"age": 5}
@@ -64,7 +64,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"age": 25}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_contains_operator(self):
+    def test_contains_operator(self) -> None:
         """Test contains operator"""
         condition = {"field": "complaint", "operator": "contains", "value": "chest pain"}
         data = {"complaint": "Patient has chest pain and shortness of breath"}
@@ -73,7 +73,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"complaint": "Headache"}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_array_contains_operator(self):
+    def test_array_contains_operator(self) -> None:
         """Test array_contains operator"""
         condition = {"field": "symptoms", "operator": "array_contains", "value": "fever"}
         data = {"symptoms": ["fever", "cough", "headache"]}
@@ -82,7 +82,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"symptoms": ["cough", "headache"]}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_array_not_empty_operator(self):
+    def test_array_not_empty_operator(self) -> None:
         """Test array_not_empty operator"""
         condition = {"field": "allergies", "operator": "array_not_empty"}
         data = {"allergies": ["penicillin"]}
@@ -91,7 +91,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"allergies": []}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_array_length_gte_operator(self):
+    def test_array_length_gte_operator(self) -> None:
         """Test array_length_gte operator"""
         condition = {"field": "conditions", "operator": "array_length_gte", "value": 3}
         data = {"conditions": ["hypertension", "diabetes", "COPD"]}
@@ -100,7 +100,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"conditions": ["hypertension"]}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_is_null_operator(self):
+    def test_is_null_operator(self) -> None:
         """Test is_null operator"""
         condition = {"field": "name", "operator": "is_null"}
         data = {"name": None}
@@ -109,7 +109,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"name": "John"}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_is_not_null_operator(self):
+    def test_is_not_null_operator(self) -> None:
         """Test is_not_null operator"""
         condition = {"field": "name", "operator": "is_not_null"}
         data = {"name": "John"}
@@ -118,7 +118,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"name": None}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_nested_field_access(self):
+    def test_nested_field_access(self) -> None:
         """Test dot notation for nested fields"""
         condition = {"field": "demographics.age", "operator": "less_than", "value": 18}
         data = {"demographics": {"age": 5}}
@@ -127,7 +127,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"demographics": {"age": 30}}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_and_operator(self):
+    def test_and_operator(self) -> None:
         """Test AND logical operator"""
         condition = {
             "operator": "and",
@@ -143,7 +143,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"urgency": "LOW", "age": 5}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_or_operator(self):
+    def test_or_operator(self) -> None:
         """Test OR logical operator"""
         condition = {
             "operator": "or",
@@ -162,7 +162,7 @@ class TestConditionEvaluator(unittest.TestCase):
         data = {"urgency": "LOW"}
         self.assertFalse(self.evaluator.evaluate(condition, data))
 
-    def test_always_operator(self):
+    def test_always_operator(self) -> None:
         """Test always operator (default rule)"""
         condition = {"operator": "always"}
         data = {}
@@ -172,22 +172,22 @@ class TestConditionEvaluator(unittest.TestCase):
 class TestDecisionMiddleware(unittest.TestCase):
     """Test DecisionMiddleware"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.mw = get_decision_middleware()
 
-    def test_load_rules(self):
+    def test_load_rules(self) -> None:
         """Test rules loading from YAML"""
         presets = self.mw.list_presets()
         self.assertIn("intake_coach", presets)
 
-    def test_get_preset_rules(self):
+    def test_get_preset_rules(self) -> None:
         """Test getting rules for a preset"""
         rules = self.mw.get_preset_rules("intake_coach")
         self.assertIn("schema", rules)
         self.assertIn("rules", rules)
         self.assertGreater(len(rules["rules"]), 0)
 
-    def test_critical_urgency_rule(self):
+    def test_critical_urgency_rule(self) -> None:
         """Test CRITICAL urgency triggers correct event"""
         data = {
             "demographics": {"name": "John", "age": 45, "gender": "M", "contact": None},
@@ -204,7 +204,7 @@ class TestDecisionMiddleware(unittest.TestCase):
         self.assertEqual(events[0].event, "CRITICAL_TRIAGE_REQUIRED")
         self.assertEqual(events[0].priority, "P0")
 
-    def test_pediatric_urgent_rule(self):
+    def test_pediatric_urgent_rule(self) -> None:
         """Test pediatric + HIGH urgency triggers correct event"""
         data = {
             "demographics": {"name": "Child", "age": 5, "gender": "F", "contact": None},
@@ -221,7 +221,7 @@ class TestDecisionMiddleware(unittest.TestCase):
         self.assertEqual(events[0].event, "PEDIATRIC_URGENT_CARE_REQUIRED")
         self.assertEqual(events[0].priority, "P1")
 
-    def test_chest_pain_cardiac_screening(self):
+    def test_chest_pain_cardiac_screening(self) -> None:
         """Test chest pain triggers cardiac screening"""
         data = {
             "demographics": {"name": "Patient", "age": 50, "gender": "M", "contact": None},
@@ -237,7 +237,7 @@ class TestDecisionMiddleware(unittest.TestCase):
         self.assertGreater(len(events), 0)
         self.assertEqual(events[0].event, "CARDIAC_SCREENING_REQUIRED")
 
-    def test_complex_patient_coordination(self):
+    def test_complex_patient_coordination(self) -> None:
         """Test 3+ conditions triggers care coordination"""
         data = {
             "demographics": {"name": "Patient", "age": 65, "gender": "M", "contact": None},
@@ -261,7 +261,7 @@ class TestDecisionMiddleware(unittest.TestCase):
         event_names = [e.event for e in events]
         self.assertIn("CARE_COORDINATION_REQUIRED", event_names)
 
-    def test_allergy_alert(self):
+    def test_allergy_alert(self) -> None:
         """Test allergies trigger alert"""
         data = {
             "demographics": {"name": "Patient", "age": 30, "gender": "F", "contact": None},
@@ -281,7 +281,7 @@ class TestDecisionMiddleware(unittest.TestCase):
         event_names = [e.event for e in events]
         self.assertIn("ALLERGY_ALERT_ACTIVE", event_names)
 
-    def test_incomplete_demographics(self):
+    def test_incomplete_demographics(self) -> None:
         """Test missing demographics triggers completion event"""
         data = {
             "demographics": {"name": None, "age": None, "gender": None, "contact": None},
@@ -297,7 +297,7 @@ class TestDecisionMiddleware(unittest.TestCase):
         event_names = [e.event for e in events]
         self.assertIn("DEMOGRAPHICS_COMPLETION_REQUIRED", event_names)
 
-    def test_stop_on_first_match(self):
+    def test_stop_on_first_match(self) -> None:
         """Test stop_on_first_match flag"""
         data = {
             "demographics": {"name": "Patient", "age": 30, "gender": "M", "contact": None},

@@ -12,14 +12,14 @@ import pytest
 from fi_diag.run import DiagnosticRunner
 
 
-def test_diagnostic_runner_init():
+def test_diagnostic_runner_init() -> None:
     """Test DiagnosticRunner initialization"""
     runner = DiagnosticRunner(dry_run=True)
     assert runner.dry_run is True
     assert runner.results == []
 
 
-def test_run_all_checks():
+def test_run_all_checks() -> None:
     """Test running all diagnostic checks"""
     runner = DiagnosticRunner(dry_run=True)
     results = runner.run_all_checks()
@@ -35,7 +35,7 @@ def test_run_all_checks():
     assert "docker_health" in check_names
 
 
-def test_check_corpus_integrity():
+def test_check_corpus_integrity() -> None:
     """Test corpus integrity check"""
     runner = DiagnosticRunner(dry_run=True)
     result = runner.check_corpus_integrity()
@@ -46,7 +46,7 @@ def test_check_corpus_integrity():
     assert result.duration_ms >= 0
 
 
-def test_check_api_latency():
+def test_check_api_latency() -> None:
     """Test API latency check"""
     runner = DiagnosticRunner(dry_run=True)
     result = runner.check_api_latency()
@@ -56,7 +56,7 @@ def test_check_api_latency():
     assert result.duration_ms >= 0
 
 
-def test_check_disk_space():
+def test_check_disk_space() -> None:
     """Test disk space check"""
     runner = DiagnosticRunner(dry_run=True)
     result = runner.check_disk_space()
@@ -71,7 +71,7 @@ def test_check_disk_space():
         assert 0 <= result.details["used_pct"] <= 100
 
 
-def test_check_docker_health():
+def test_check_docker_health() -> None:
     """Test Docker health check"""
     runner = DiagnosticRunner(dry_run=True)
     result = runner.check_docker_health()
@@ -81,7 +81,7 @@ def test_check_docker_health():
     assert result.duration_ms >= 0
 
 
-def test_generate_report():
+def test_generate_report() -> None:
     """Test report generation"""
     runner = DiagnosticRunner(dry_run=True)
     runner.run_all_checks()
@@ -103,7 +103,7 @@ def test_generate_report():
     assert report["overall_status"] in ["OK", "WARNING", "CRITICAL"]
 
 
-def test_report_json_serialization(tmp_path):
+def test_report_json_serialization(tmp_path) -> None:
     """Test that report can be serialized to JSON"""
     runner = DiagnosticRunner(dry_run=True)
     runner.run_all_checks()
@@ -124,7 +124,7 @@ def test_report_json_serialization(tmp_path):
 
 
 @pytest.mark.skipif(not Path("storage/corpus.h5").exists(), reason="Corpus file not found")
-def test_corpus_integrity_with_real_corpus():
+def test_corpus_integrity_with_real_corpus() -> None:
     """Test corpus integrity with actual corpus.h5 file"""
     runner = DiagnosticRunner(dry_run=True)
     result = runner.check_corpus_integrity()

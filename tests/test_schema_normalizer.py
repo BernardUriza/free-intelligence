@@ -18,7 +18,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
     # Generic normalize_output tests
 
-    def test_null_to_array(self):
+    def test_null_to_array(self) -> None:
         """Test: null → [] for array fields"""
         schema = {"type": "object", "properties": {"items": {"type": "array"}}}
         output = {"items": None}
@@ -27,7 +27,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
         self.assertEqual(normalized["items"], [])
 
-    def test_null_to_object(self):
+    def test_null_to_object(self) -> None:
         """Test: null → {} for object fields"""
         schema = {"type": "object", "properties": {"metadata": {"type": "object"}}}
         output = {"metadata": None}
@@ -36,7 +36,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
         self.assertEqual(normalized["metadata"], {})
 
-    def test_array_type_with_null_union(self):
+    def test_array_type_with_null_union(self) -> None:
         """Test: ["array", "null"] type spec"""
         schema = {"type": "object", "properties": {"tags": {"type": ["array", "null"]}}}
         output = {"tags": None}
@@ -45,7 +45,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
         self.assertEqual(normalized["tags"], [])
 
-    def test_missing_required_field_array(self):
+    def test_missing_required_field_array(self) -> None:
         """Test: Add missing required array field"""
         schema = {
             "type": "object",
@@ -59,7 +59,7 @@ class TestSchemaNoralizer(unittest.TestCase):
         self.assertIn("items", normalized)
         self.assertEqual(normalized["items"], [])
 
-    def test_missing_required_field_object(self):
+    def test_missing_required_field_object(self) -> None:
         """Test: Add missing required object field"""
         schema = {
             "type": "object",
@@ -73,7 +73,7 @@ class TestSchemaNoralizer(unittest.TestCase):
         self.assertIn("metadata", normalized)
         self.assertEqual(normalized["metadata"], {})
 
-    def test_nested_object_normalization(self):
+    def test_nested_object_normalization(self) -> None:
         """Test: Recursively normalize nested objects"""
         schema = {
             "type": "object",
@@ -87,7 +87,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
         self.assertEqual(normalized["parent"]["child_array"], [])
 
-    def test_preserve_valid_values(self):
+    def test_preserve_valid_values(self) -> None:
         """Test: Don't modify valid values"""
         schema = {
             "type": "object",
@@ -102,7 +102,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
     # IntakeCoach-specific normalize_intake_output tests
 
-    def test_intake_symptoms_null_to_array(self):
+    def test_intake_symptoms_null_to_array(self) -> None:
         """Test: symptoms null → []"""
         output = {
             "demographics": {},
@@ -116,7 +116,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
         self.assertEqual(normalized["symptoms"], [])
 
-    def test_intake_medical_history_allergies_null(self):
+    def test_intake_medical_history_allergies_null(self) -> None:
         """Test: medical_history.allergies null → []"""
         output = {
             "demographics": {},
@@ -133,7 +133,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
         self.assertEqual(normalized["medical_history"]["allergies"], [])
 
-    def test_intake_medical_history_medications_null(self):
+    def test_intake_medical_history_medications_null(self) -> None:
         """Test: medical_history.medications null → []"""
         output = {
             "demographics": {},
@@ -150,7 +150,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
         self.assertEqual(normalized["medical_history"]["medications"], [])
 
-    def test_intake_medical_history_conditions_null(self):
+    def test_intake_medical_history_conditions_null(self) -> None:
         """Test: medical_history.conditions null → []"""
         output = {
             "demographics": {},
@@ -167,7 +167,7 @@ class TestSchemaNoralizer(unittest.TestCase):
 
         self.assertEqual(normalized["medical_history"]["conditions"], [])
 
-    def test_intake_case_7_scenario(self):
+    def test_intake_case_7_scenario(self) -> None:
         """Test: Case 7 scenario (truncated medical_history)"""
         output = {
             "demographics": {"name": None, "age": 28, "gender": None, "contact": None},
@@ -192,7 +192,7 @@ class TestSchemaNoralizer(unittest.TestCase):
         self.assertEqual(normalized["medical_history"]["allergies"], ["penicillin"])
         self.assertEqual(normalized["demographics"]["age"], 28)
 
-    def test_intake_missing_medical_history(self):
+    def test_intake_missing_medical_history(self) -> None:
         """Test: Missing medical_history object"""
         output = {
             "demographics": {},
@@ -208,7 +208,7 @@ class TestSchemaNoralizer(unittest.TestCase):
         self.assertEqual(normalized["medical_history"]["medications"], [])
         self.assertEqual(normalized["medical_history"]["conditions"], [])
 
-    def test_intake_medical_history_null(self):
+    def test_intake_medical_history_null(self) -> None:
         """Test: medical_history is null"""
         output = {
             "demographics": {},
@@ -224,7 +224,7 @@ class TestSchemaNoralizer(unittest.TestCase):
         self.assertEqual(normalized["medical_history"]["medications"], [])
         self.assertEqual(normalized["medical_history"]["conditions"], [])
 
-    def test_intake_missing_medications_field(self):
+    def test_intake_missing_medications_field(self) -> None:
         """Test: medications field completely missing"""
         output = {
             "demographics": {},
@@ -242,7 +242,7 @@ class TestSchemaNoralizer(unittest.TestCase):
         self.assertIn("medications", normalized["medical_history"])
         self.assertEqual(normalized["medical_history"]["medications"], [])
 
-    def test_intake_preserve_valid_arrays(self):
+    def test_intake_preserve_valid_arrays(self) -> None:
         """Test: Don't modify valid array values"""
         output = {
             "demographics": {},

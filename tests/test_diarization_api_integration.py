@@ -22,7 +22,7 @@ os.environ["DIARIZATION_USE_V2"] = "true"
 
 
 @pytest.fixture
-def test_audio_file():
+def test_audio_file() -> None:
     """Create a minimal valid MP3 file for testing."""
     # Minimal MP3 header (ID3v2.4)
     mp3_content = (
@@ -42,7 +42,7 @@ def client():
     return TestClient(app)
 
 
-def test_diarization_upload_and_status(client, test_audio_file):
+def test_diarization_upload_and_status(client, test_audio_file) -> None:
     """
     Test: Upload audio and immediately retrieve job status.
 
@@ -95,7 +95,7 @@ def test_diarization_upload_and_status(client, test_audio_file):
     print("✅ No 404 error - job is immediately queryable!")
 
 
-def test_diarization_list_jobs(client, test_audio_file):
+def test_diarization_list_jobs(client, test_audio_file) -> None:
     """
     Test: List jobs returns newly created job.
     """
@@ -124,7 +124,7 @@ def test_diarization_list_jobs(client, test_audio_file):
     print(f"✓ Job {job_id} appears in list_jobs")
 
 
-def test_diarization_list_jobs_filtered(client, test_audio_file):
+def test_diarization_list_jobs_filtered(client, test_audio_file) -> None:
     """
     Test: Filter jobs by session_id.
     """

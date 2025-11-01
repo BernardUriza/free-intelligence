@@ -11,10 +11,10 @@ from backend.medical_validators import MedicalScorer
 class TestWidowMakerTuning(unittest.TestCase):
     """Test widow-maker threshold tuning"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.scorer = MedicalScorer()
 
-    def test_case_52_aortic_dissection(self):
+    def test_case_52_aortic_dissection(self) -> None:
         """
         Test Case 52: Aortic dissection (was MISSED)
 
@@ -43,7 +43,7 @@ class TestWidowMakerTuning(unittest.TestCase):
         self.assertTrue(result.is_safe)
         self.assertEqual(result.score, 100.0)
 
-    def test_case_55_hemorrhagic_stroke(self):
+    def test_case_55_hemorrhagic_stroke(self) -> None:
         """
         Test Case 55: Hemorrhagic stroke (was MISSED)
 
@@ -72,7 +72,7 @@ class TestWidowMakerTuning(unittest.TestCase):
         self.assertTrue(result.is_safe)
         self.assertEqual(result.score, 100.0)
 
-    def test_case_51_stemi_still_works(self):
+    def test_case_51_stemi_still_works(self) -> None:
         """
         Test Case 51: STEMI (was CORRECTLY detected)
 
@@ -89,7 +89,7 @@ class TestWidowMakerTuning(unittest.TestCase):
         self.assertEqual(result.score, 100.0)
         self.assertIn("stemi", result.reason)
 
-    def test_false_positive_check(self):
+    def test_false_positive_check(self) -> None:
         """
         Test: Ensure normal cases don't trigger false positives
 

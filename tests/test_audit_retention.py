@@ -39,7 +39,7 @@ from audit_logs import (
 class TestAuditLogRetention(unittest.TestCase):
     """Tests para política de retención de audit logs."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Create temporary HDF5 file for each test."""
         self.temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".h5")
         self.corpus_path = self.temp_file.name
@@ -54,18 +54,18 @@ class TestAuditLogRetention(unittest.TestCase):
         # Initialize audit_logs group
         init_audit_logs_group(self.corpus_path)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Remove temporary file."""
         if os.path.exists(self.corpus_path):
             os.unlink(self.corpus_path)
 
-    def test_get_audit_logs_older_than_empty(self):
+    def test_get_audit_logs_older_than_empty(self) -> None:
         """Debe retornar lista vacía si no hay logs."""
         old_indices = get_audit_logs_older_than(self.corpus_path, days=90)
 
         self.assertEqual(len(old_indices), 0)
 
-    def test_get_audit_logs_older_than_all_recent(self):
+    def test_get_audit_logs_older_than_all_recent(self) -> None:
         """Debe retornar lista vacía si todos los logs son recientes."""
         # Append recent log
         append_audit_log(
@@ -81,7 +81,7 @@ class TestAuditLogRetention(unittest.TestCase):
 
         self.assertEqual(len(old_indices), 0)
 
-    def test_get_audit_logs_older_than_with_old_logs(self):
+    def test_get_audit_logs_older_than_with_old_logs(self) -> None:
         """Debe detectar logs antiguos correctamente."""
         # Manually insert old log (100 days ago)
         old_timestamp = (
@@ -112,7 +112,7 @@ class TestAuditLogRetention(unittest.TestCase):
         self.assertEqual(len(old_indices), 1)
         self.assertEqual(old_indices[0], 0)
 
-    def test_cleanup_old_audit_logs_dry_run(self):
+    def test_cleanup_old_audit_logs_dry_run(self) -> None:
         """Dry run no debe modificar datos."""
         # Insert old log
         old_timestamp = (
@@ -145,7 +145,7 @@ class TestAuditLogRetention(unittest.TestCase):
             total = f["audit_logs"]["timestamp"].shape[0]
             self.assertEqual(total, 1, "Dry run should not delete data")
 
-    def test_cleanup_old_audit_logs_actual_cleanup(self):
+    def test_cleanup_old_audit_logs_actual_cleanup(self) -> None:
         """Cleanup real debe eliminar logs antiguos."""
         # Insert 1 old log and 1 recent log
         old_timestamp = (
@@ -198,7 +198,7 @@ class TestAuditLogRetention(unittest.TestCase):
             remaining_id = f["audit_logs"]["audit_id"][0].decode("utf-8")
             self.assertEqual(remaining_id, "recent-log")
 
-    def test_cleanup_old_audit_logs_nothing_to_delete(self):
+    def test_cleanup_old_audit_logs_nothing_to_delete(self) -> None:
         """Si no hay logs antiguos, no debe hacer nada."""
         # Insert recent log
         append_audit_log(
@@ -220,7 +220,7 @@ class TestAuditLogRetention(unittest.TestCase):
             total = f["audit_logs"]["timestamp"].shape[0]
             self.assertEqual(total, 1)
 
-    def test_get_retention_stats_empty(self):
+    def test_get_retention_stats_empty(self) -> None:
         """Debe manejar caso de no logs."""
         stats = get_retention_stats(self.corpus_path, retention_days=90)
 
@@ -229,7 +229,7 @@ class TestAuditLogRetention(unittest.TestCase):
         self.assertEqual(stats["within_retention"], 0)
         self.assertEqual(stats["beyond_retention"], 0)
 
-    def test_get_retention_stats_with_mixed_logs(self):
+    def test_get_retention_stats_with_mixed_logs(self) -> None:
         """Debe calcular stats correctamente con logs mixtos."""
         # Insert 2 old logs and 3 recent logs
         now = datetime.now(ZoneInfo("America/Mexico_City"))
@@ -278,7 +278,7 @@ class TestAuditLogRetention(unittest.TestCase):
         self.assertIsNotNone(stats["oldest_log"])
         self.assertIsNotNone(stats["newest_log"])
 
-    def test_custom_retention_days(self):
+    def test_custom_retention_days(self) -> None:
         """Debe respetar período de retención custom."""
         # Insert log 50 days old
         timestamp_50_days = (

@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 
-def test_cli_help():
+def test_cli_help() -> None:
     """Test fi-llm --help shows usage."""
     result = subprocess.run(
         ["python3", "tools/fi_llm.py", "--help"],
@@ -30,7 +30,7 @@ def test_cli_help():
     assert "--model" in result.stdout
 
 
-def test_cli_missing_required_args():
+def test_cli_missing_required_args() -> None:
     """Test fi-llm fails without required arguments."""
     result = subprocess.run(
         ["python3", "tools/fi_llm.py"],
@@ -43,7 +43,7 @@ def test_cli_missing_required_args():
     assert "required" in result.stderr.lower()
 
 
-def test_cli_json_output(tmp_path):
+def test_cli_json_output(tmp_path) -> None:
     """Test fi-llm --json returns valid JSON (requires mock or live server)."""
     # This test requires either:
     # 1. A live LLM server (port 9001) running
@@ -87,7 +87,7 @@ def test_cli_json_output(tmp_path):
         assert "text" in data
 
 
-def test_cli_text_output(tmp_path):
+def test_cli_text_output(tmp_path) -> None:
     """Test fi-llm returns text output (not JSON)."""
     # This test would need a mock or actual Ollama server
     # For now, we test that --json flag changes output format
@@ -120,7 +120,7 @@ def test_cli_text_output(tmp_path):
         assert not result.stdout.strip().startswith("{")
 
 
-def test_cli_reads_prompt_from_file(tmp_path):
+def test_cli_reads_prompt_from_file(tmp_path) -> None:
     """Test fi-llm reads prompt from file."""
     prompt_file = tmp_path / "test_prompt.txt"
     prompt_file.write_text("Read this from file")
@@ -133,7 +133,7 @@ def test_cli_reads_prompt_from_file(tmp_path):
     assert content == "Read this from file"
 
 
-def test_cli_uses_prompt_as_literal():
+def test_cli_uses_prompt_as_literal() -> None:
     """Test fi-llm uses prompt as literal string if not a file."""
     from tools.fi_llm import read_input
 

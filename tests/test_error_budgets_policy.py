@@ -20,7 +20,7 @@ def policy():
         return yaml.safe_load(f)
 
 
-def test_policy_structure(policy):
+def test_policy_structure(policy) -> None:
     """Test policy has required sections"""
     required_sections = [
         "slos",
@@ -35,7 +35,7 @@ def test_policy_structure(policy):
         assert section in policy, f"Missing section: {section}"
 
 
-def test_slos_defined(policy):
+def test_slos_defined(policy) -> None:
     """Test all SLOs are properly defined"""
     slos = policy["slos"]
 
@@ -57,7 +57,7 @@ def test_slos_defined(policy):
         assert "description" in slo
 
 
-def test_slo_targets(policy):
+def test_slo_targets(policy) -> None:
     """Test SLO targets match expected values"""
     slos = policy["slos"]
 
@@ -74,7 +74,7 @@ def test_slo_targets(policy):
     assert slos["corpus_writes"]["target_pct"] == 99.9
 
 
-def test_budget_thresholds(policy):
+def test_budget_thresholds(policy) -> None:
     """Test budget threshold actions"""
     thresholds = policy["budget_thresholds"]
 
@@ -91,7 +91,7 @@ def test_budget_thresholds(policy):
     assert thresholds["emergency"]["action"] == "emergency_mode"
 
 
-def test_degradation_policies(policy):
+def test_degradation_policies(policy) -> None:
     """Test degradation policies are defined"""
     degradation = policy["degradation"]
 
@@ -104,7 +104,7 @@ def test_degradation_policies(policy):
         assert "log_event" in degradation[pol]
 
 
-def test_chaos_drills_scheduled(policy):
+def test_chaos_drills_scheduled(policy) -> None:
     """Test chaos drills are scheduled"""
     drills = policy["chaos_drills"]
 
@@ -122,7 +122,7 @@ def test_chaos_drills_scheduled(policy):
         assert "success_criteria" in drills[drill]
 
 
-def test_network_partition_drill(policy):
+def test_network_partition_drill(policy) -> None:
     """Test network partition drill config"""
     drill = policy["chaos_drills"]["network_partition"]
 
@@ -137,7 +137,7 @@ def test_network_partition_drill(policy):
     assert any("Data integrity" in c for c in criteria)
 
 
-def test_monitoring_config(policy):
+def test_monitoring_config(policy) -> None:
     """Test monitoring dashboards and alerts"""
     monitoring = policy["monitoring"]
 
@@ -156,7 +156,7 @@ def test_monitoring_config(policy):
     assert "INCIDENT" in severities
 
 
-def test_review_process(policy):
+def test_review_process(policy) -> None:
     """Test review process is defined"""
     review = policy["review"]
 
