@@ -1,15 +1,15 @@
 {
   "tool": "pyright",
-  "timestamp": "2025-11-01T00:38:32.741958",
-  "total_errors": 601,
-  "total_warnings": 191,
+  "timestamp": "2025-11-01T00:57:03.224724",
+  "total_errors": 600,
+  "total_warnings": 124,
   "errors_by_file": {
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/audit.py": 2,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py": 8,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py": 10,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/system.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/append_only_policy.py": 7,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audio_storage.py": 1,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py": 72,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py": 25,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/aurity_gateway.py": 3,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py": 37,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/config_loader.py": 4,
@@ -23,11 +23,10 @@
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py": 63,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/event_validator.py": 2,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/export_policy.py": 1,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/exporter.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_consult_service.py": 4,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py": 88,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py": 38,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py": 55,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py": 48,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/gatekeeper.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/llm_audit_policy.py": 2,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/llm_metrics.py": 1,
@@ -45,7 +44,7 @@
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/base_repository.py": 7,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py": 53,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py": 31,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py": 34,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py": 13,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/audit_service.py": 16,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/corpus_service.py": 18,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/session_service.py": 14,
@@ -56,53 +55,35 @@
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/whisper_service.py": 4
   },
   "errors_by_rule": {
-    "reportAttributeAccessIssue": 198,
-    "reportUnnecessaryTypeIgnoreComment": 155,
-    "reportUnusedVariable": 21,
+    "reportUnnecessaryTypeIgnoreComment": 95,
+    "reportUnusedImport": 12,
+    "reportUndefinedVariable": 7,
+    "reportUnusedVariable": 14,
     "reportImplicitStringConcatenation": 10,
-    "unknown": 19,
-    "reportInvalidTypeForm": 3,
-    "reportUndefinedVariable": 3,
     "reportGeneralTypeIssues": 30,
-    "reportReturnType": 4,
-    "reportOperatorIssue": 14,
+    "reportIndexIssue": 133,
+    "reportArgumentType": 88,
+    "reportAttributeAccessIssue": 204,
     "reportCallIssue": 83,
     "reportPossiblyUnboundVariable": 2,
-    "reportIndexIssue": 126,
-    "reportArgumentType": 87,
     "reportAssignmentType": 4,
-    "reportUnusedImport": 12,
+    "unknown": 5,
+    "reportInvalidTypeForm": 2,
     "reportMissingImports": 2,
     "reportPrivateUsage": 1,
     "reportOptionalMemberAccess": 1,
     "reportIncompatibleMethodOverride": 10,
     "reportTypedDictNotRequiredAccess": 4,
+    "reportOperatorIssue": 13,
+    "reportReturnType": 1,
     "reportMissingTypeStubs": 2,
     "reportOptionalCall": 1
   },
   "errors_by_severity": {
-    "error": 601,
-    "warning": 191
+    "warning": 124,
+    "error": 600
   },
   "details": [
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/audit.py",
-      "line": 16,
-      "column": 32,
-      "severity": "error",
-      "message": "\"get_audit_logs\" is unknown import symbol",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/audit.py",
-      "line": 16,
-      "column": 48,
-      "severity": "error",
-      "message": "\"get_audit_stats\" is unknown import symbol",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py",
       "line": 357,
@@ -173,6 +154,96 @@
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
+      "line": 24,
+      "column": 54,
+      "severity": "error",
+      "message": "Import \"status\" is not accessed",
+      "rule": "reportUnusedImport",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
+      "line": 27,
+      "column": 31,
+      "severity": "error",
+      "message": "Import \"get_container\" is not accessed",
+      "rule": "reportUnusedImport",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
+      "line": 28,
+      "column": 29,
+      "severity": "error",
+      "message": "Import \"success_response\" is not accessed",
+      "rule": "reportUnusedImport",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
+      "line": 28,
+      "column": 47,
+      "severity": "error",
+      "message": "Import \"error_response\" is not accessed",
+      "rule": "reportUnusedImport",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
+      "line": 28,
+      "column": 63,
+      "severity": "error",
+      "message": "Import \"StatusCode\" is not accessed",
+      "rule": "reportUnusedImport",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
+      "line": 118,
+      "column": 16,
+      "severity": "error",
+      "message": "\"store\" is not defined",
+      "rule": "reportUndefinedVariable",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
+      "line": 119,
+      "column": 13,
+      "severity": "error",
+      "message": "\"store\" is not defined",
+      "rule": "reportUndefinedVariable",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
+      "line": 143,
+      "column": 15,
+      "severity": "error",
+      "message": "\"store\" is not defined",
+      "rule": "reportUndefinedVariable",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
+      "line": 164,
+      "column": 15,
+      "severity": "error",
+      "message": "\"store\" is not defined",
+      "rule": "reportUndefinedVariable",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
+      "line": 199,
+      "column": 15,
+      "severity": "error",
+      "message": "\"store\" is not defined",
+      "rule": "reportUndefinedVariable",
       "tool": "pyright"
     },
     {
@@ -267,161 +338,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 22,
-      "column": 20,
-      "severity": "error",
-      "message": "\"{\" was not closed",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 23,
-      "column": 17,
-      "severity": "error",
-      "message": "\"{\" was not closed",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 25,
-      "column": 9,
-      "severity": "error",
-      "message": "Statements must be separated by newlines or semicolons",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 25,
-      "column": 24,
-      "severity": "error",
-      "message": "Type annotation not supported for this statement",
-      "rule": "reportInvalidTypeForm",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 25,
-      "column": 24,
-      "severity": "error",
-      "message": "Unexpected token at end of expression",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 25,
-      "column": 25,
-      "severity": "error",
-      "message": "\"UUID\" is not defined",
-      "rule": "reportUndefinedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 25,
-      "column": 49,
-      "severity": "error",
-      "message": "Statements must be separated by newlines or semicolons",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 25,
-      "column": 49,
-      "severity": "error",
-      "message": "Expected expression",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 28,
-      "column": 68,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 32,
-      "column": 69,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 36,
-      "column": 69,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 40,
-      "column": 69,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 44,
-      "column": 68,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 48,
-      "column": 68,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 52,
-      "column": 68,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 56,
-      "column": 69,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 91,
-      "column": 42,
-      "severity": "error",
-      "message": "\"(\" was not closed",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
       "line": 95,
-      "column": 44,
+      "column": 45,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -447,170 +365,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 146,
-      "column": 6,
-      "severity": "error",
-      "message": "Function with declared return type \"str\" must return value on all code paths\n\u00a0\u00a0\"None\" is not assignable to \"str\"",
-      "rule": "reportReturnType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 178,
-      "column": 5,
-      "severity": "warning",
-      "message": "Variable \"logger\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 179,
-      "column": 5,
-      "severity": "warning",
-      "message": "Variable \"audit_id\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 183,
-      "column": 5,
-      "severity": "warning",
-      "message": "Variable \"timestamp\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 186,
-      "column": 5,
-      "severity": "warning",
-      "message": "Variable \"payload_hash\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 187,
-      "column": 5,
-      "severity": "warning",
-      "message": "Variable \"result_hash\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 190,
-      "column": 5,
-      "severity": "warning",
-      "message": "Variable \"metadata_str\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 192,
-      "column": 5,
-      "severity": "error",
-      "message": "Try statement must have at least one except or finally clause",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
       "line": 201,
       "column": 45,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 205,
-      "column": 24,
-      "severity": "error",
-      "message": "Operator \"+\" not supported for types \"Group | Dataset | Datatype | Any | Unknown\" and \"Literal[1]\"\n\u00a0\u00a0Operator \"+\" not supported for types \"Group\" and \"Literal[1]\"\n\u00a0\u00a0Operator \"+\" not supported for types \"Dataset\" and \"Literal[1]\"\n\u00a0\u00a0Operator \"+\" not supported for types \"Datatype\" and \"Literal[1]\"",
-      "rule": "reportOperatorIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 212,
-      "column": 39,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 213,
-      "column": 40,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 214,
-      "column": 40,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 215,
-      "column": 38,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 216,
-      "column": 39,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 217,
-      "column": 43,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 218,
-      "column": 42,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 219,
-      "column": 37,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 220,
-      "column": 39,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -627,125 +383,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 266,
-      "column": 53,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 278,
-      "column": 62,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 279,
-      "column": 58,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 288,
-      "column": 65,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 289,
-      "column": 67,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 292,
-      "column": 65,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 293,
-      "column": 73,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 294,
-      "column": 71,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 295,
-      "column": 61,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 296,
-      "column": 65,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
       "line": 329,
       "column": 45,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 330,
-      "column": 47,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 337,
-      "column": 50,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 338,
-      "column": 56,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -762,24 +401,6 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 381,
-      "column": 48,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 392,
-      "column": 60,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
       "line": 480,
       "column": 45,
       "severity": "warning",
@@ -789,44 +410,80 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 481,
-      "column": 48,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "line": 488,
+      "column": 27,
+      "severity": "error",
+      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
+      "rule": "reportIndexIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
+      "line": 491,
+      "column": 30,
+      "severity": "error",
+      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
+      "rule": "reportArgumentType",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
+      "line": 491,
+      "column": 30,
+      "severity": "error",
+      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
+      "rule": "reportIndexIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
+      "line": 494,
+      "column": 21,
+      "severity": "error",
+      "message": "\"__delitem__\" method not defined on type \"Group\"",
+      "rule": "reportIndexIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
+      "line": 494,
+      "column": 21,
+      "severity": "error",
+      "message": "\"__delitem__\" method not defined on type \"Dataset\"",
+      "rule": "reportIndexIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
+      "line": 494,
+      "column": 21,
+      "severity": "error",
+      "message": "\"__delitem__\" method not defined on type \"Datatype\"",
+      "rule": "reportIndexIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
+      "line": 498,
+      "column": 42,
+      "severity": "error",
+      "message": "Cannot access attribute \"create_dataset\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"create_dataset\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
+      "line": 498,
+      "column": 42,
+      "severity": "error",
+      "message": "Cannot access attribute \"create_dataset\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"create_dataset\" is unknown",
+      "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
       "line": 502,
-      "column": 44,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 564,
-      "column": 40,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 577,
-      "column": 49,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 578,
-      "column": 49,
+      "column": 45,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -835,33 +492,6 @@
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
       "line": 605,
-      "column": 40,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 630,
-      "column": 51,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 637,
-      "column": 48,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 638,
       "column": 55,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
@@ -870,8 +500,35 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
+      "line": 629,
+      "column": 45,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
+      "line": 637,
+      "column": 41,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
+      "line": 638,
+      "column": 41,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
       "line": 639,
-      "column": 48,
+      "column": 37,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -880,7 +537,7 @@
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
       "line": 640,
-      "column": 49,
+      "column": 35,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -889,19 +546,10 @@
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
       "line": 641,
-      "column": 61,
+      "column": 47,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py",
-      "line": 642,
-      "column": 1,
-      "severity": "error",
-      "message": "Statements must be separated by newlines or semicolons",
-      "rule": "unknown",
       "tool": "pyright"
     },
     {
@@ -3191,15 +2839,6 @@
       "tool": "pyright"
     },
     {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/exporter.py",
-      "line": 19,
-      "column": 28,
-      "severity": "error",
-      "message": "\"search_by_session\" is unknown import symbol",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_consult_service.py",
       "line": 223,
       "column": 59,
@@ -4371,56 +4010,11 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 13,
-      "column": 8,
-      "severity": "error",
-      "message": "Import \"json\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 14,
-      "column": 22,
-      "severity": "error",
-      "message": "Import \"datetime\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 16,
-      "column": 20,
-      "severity": "error",
-      "message": "Import \"Optional\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
       "line": 18,
       "column": 16,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 20,
-      "column": 51,
-      "severity": "error",
-      "message": "Import \"create_export_manifest\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 28,
-      "column": 6,
-      "severity": "error",
-      "message": "Function with declared return type \"tuple[str, ExportManifest]\" must return value on all code paths\n\u00a0\u00a0\"None\" is not assignable to \"tuple[str, ExportManifest]\"",
-      "rule": "reportReturnType",
       "tool": "pyright"
     },
     {
@@ -4434,160 +4028,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 74,
-      "column": 13,
-      "severity": "warning",
-      "message": "Variable \"i\" is not accessed",
-      "rule": "reportUnusedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 74,
-      "column": 24,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"stop\" of type \"SupportsIndex\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"SupportsIndex\"\n\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__index__\" is not present",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 77,
-      "column": 36,
-      "severity": "error",
-      "message": "\"(\" was not closed",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 78,
-      "column": 21,
-      "severity": "error",
-      "message": "\"{\" was not closed",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 80,
-      "column": 60,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 81,
-      "column": 54,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 82,
-      "column": 58,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 83,
-      "column": 52,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 84,
-      "column": 58,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 102,
-      "column": 66,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 103,
-      "column": 63,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 105,
-      "column": 57,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 106,
-      "column": 53,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 121,
-      "column": 58,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 122,
-      "column": 62,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 124,
-      "column": 42,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 126,
-      "column": 44,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 127,
+      "line": 98,
       "column": 56,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
@@ -4596,8 +4037,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 155,
-      "column": 48,
+      "line": 99,
+      "column": 53,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4605,43 +4046,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 218,
-      "column": 43,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 219,
-      "column": 49,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 224,
-      "column": 50,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 229,
-      "column": 51,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 242,
+      "line": 100,
       "column": 47,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
@@ -4650,70 +4055,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 268,
-      "column": 46,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 272,
-      "column": 46,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 273,
-      "column": 50,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 274,
-      "column": 56,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 354,
-      "column": 39,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 355,
-      "column": 49,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 358,
-      "column": 49,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 364,
+      "line": 101,
       "column": 66,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
@@ -4722,8 +4064,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 365,
-      "column": 56,
+      "line": 122,
+      "column": 49,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4731,8 +4073,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 366,
-      "column": 50,
+      "line": 123,
+      "column": 59,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4740,8 +4082,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 367,
-      "column": 54,
+      "line": 124,
+      "column": 43,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4749,8 +4091,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 368,
-      "column": 48,
+      "line": 125,
+      "column": 47,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4758,8 +4100,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 369,
-      "column": 54,
+      "line": 126,
+      "column": 43,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4767,8 +4109,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 382,
-      "column": 28,
+      "line": 154,
+      "column": 71,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4776,8 +4118,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 407,
-      "column": 65,
+      "line": 228,
+      "column": 43,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4785,8 +4127,143 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 413,
-      "column": 67,
+      "line": 252,
+      "column": 47,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 257,
+      "column": 39,
+      "severity": "error",
+      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 257,
+      "column": 39,
+      "severity": "error",
+      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 258,
+      "column": 27,
+      "severity": "error",
+      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
+      "rule": "reportIndexIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 259,
+      "column": 33,
+      "severity": "error",
+      "message": "Cannot access attribute \"dtype\" for class \"Group\"\n\u00a0\u00a0Attribute \"dtype\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 259,
+      "column": 33,
+      "severity": "error",
+      "message": "Cannot access attribute \"dtype\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"dtype\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 260,
+      "column": 36,
+      "severity": "error",
+      "message": "Cannot access attribute \"maxshape\" for class \"Group\"\n\u00a0\u00a0Attribute \"maxshape\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 260,
+      "column": 36,
+      "severity": "error",
+      "message": "Cannot access attribute \"maxshape\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"maxshape\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 274,
+      "column": 40,
+      "severity": "error",
+      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
+      "rule": "reportIndexIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 278,
+      "column": 46,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 280,
+      "column": 51,
+      "severity": "error",
+      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 282,
+      "column": 75,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 283,
+      "column": 69,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 284,
+      "column": 69,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 364,
+      "column": 39,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 392,
+      "column": 94,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4795,7 +4272,7 @@
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
       "line": 415,
-      "column": 50,
+      "column": 68,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4803,8 +4280,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 417,
-      "column": 52,
+      "line": 422,
+      "column": 57,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4812,8 +4289,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 418,
-      "column": 64,
+      "line": 423,
+      "column": 51,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4821,8 +4298,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 426,
-      "column": 58,
+      "line": 424,
+      "column": 55,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4830,8 +4307,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 427,
-      "column": 63,
+      "line": 425,
+      "column": 51,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4839,8 +4316,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 428,
-      "column": 67,
+      "line": 439,
+      "column": 57,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4848,8 +4325,8 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 477,
-      "column": 53,
+      "line": 440,
+      "column": 51,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -4857,11 +4334,110 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
-      "line": 590,
-      "column": 1,
-      "severity": "error",
-      "message": "Statements must be separated by newlines or semicolons",
-      "rule": "unknown",
+      "line": 441,
+      "column": 55,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 507,
+      "column": 39,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 523,
+      "column": 46,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 524,
+      "column": 51,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 525,
+      "column": 48,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 526,
+      "column": 48,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 527,
+      "column": 46,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 552,
+      "column": 41,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 553,
+      "column": 49,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 554,
+      "column": 49,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 555,
+      "column": 41,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py",
+      "line": 556,
+      "column": 37,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
       "tool": "pyright"
     },
     {
@@ -6153,35 +5729,17 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 11,
-      "column": 21,
-      "severity": "error",
-      "message": "Import \"Path\" is not accessed",
-      "rule": "reportUnusedImport",
+      "line": 13,
+      "column": 16,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
       "tool": "pyright"
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 51,
-      "column": 6,
-      "severity": "error",
-      "message": "Function with declared return type \"list[dict[Unknown, Unknown]]\" must return value on all code paths\n\u00a0\u00a0\"None\" is not assignable to \"list[dict[Unknown, Unknown]]\"",
-      "rule": "reportReturnType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 75,
-      "column": 5,
-      "severity": "error",
-      "message": "Try statement must have at least one except or finally clause",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 86,
-      "column": 51,
+      "line": 82,
+      "column": 53,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -6190,6 +5748,15 @@
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
       "line": 87,
+      "column": 51,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 88,
       "column": 55,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
@@ -6198,116 +5765,17 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 89,
-      "column": 70,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "line": 122,
+      "column": 65,
+      "severity": "error",
+      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"vec2\" of type \"ndarray[Unknown, Unknown]\" in function \"cosine_similarity\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ndarray[Unknown, Unknown]\"\n\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"ndarray[Unknown, Unknown]\"",
+      "rule": "reportArgumentType",
       "tool": "pyright"
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 100,
-      "column": 74,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 102,
-      "column": 63,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 104,
-      "column": 71,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 105,
+      "line": 148,
       "column": 69,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 106,
-      "column": 63,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 107,
-      "column": 67,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 108,
-      "column": 61,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 109,
-      "column": 67,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 118,
-      "column": 63,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 128,
-      "column": 72,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 147,
-      "column": 54,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 184,
-      "column": 55,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
       "rule": "reportUnnecessaryTypeIgnoreComment",
@@ -6316,132 +5784,6 @@
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
       "line": 185,
-      "column": 57,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 189,
-      "column": 56,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 192,
-      "column": 87,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 194,
-      "column": 34,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 196,
-      "column": 77,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 197,
-      "column": 71,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 198,
-      "column": 75,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 199,
-      "column": 69,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 200,
-      "column": 75,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 222,
-      "column": 40,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 233,
-      "column": 47,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 255,
-      "column": 59,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 256,
-      "column": 57,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 257,
-      "column": 61,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 258,
       "column": 55,
       "severity": "warning",
       "message": "Unnecessary \"# type: ignore\" comment",
@@ -6450,11 +5792,56 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
-      "line": 262,
-      "column": 1,
-      "severity": "error",
-      "message": "Statements must be separated by newlines or semicolons",
-      "rule": "unknown",
+      "line": 222,
+      "column": 55,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 255,
+      "column": 40,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 256,
+      "column": 42,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 257,
+      "column": 46,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 258,
+      "column": 40,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 259,
+      "column": 42,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
       "tool": "pyright"
     },
     {
