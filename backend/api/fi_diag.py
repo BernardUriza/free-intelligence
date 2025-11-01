@@ -5,17 +5,21 @@ FI Diagnostics API Router
 Card: FI-INFRA-STR-014
 
 Endpoints para health checks y diagnósticos del sistema.
+
+Clean Code Architecture:
+- Thin controllers delegate all diagnostics logic to DiagnosticsService
+- Service layer encapsulates system probes (Python, storage, corpus, Node.js, pnpm, PM2)
+- Endpoints focus only on HTTP response formatting
 """
+
 import os
-import subprocess
-import sys
-from datetime import timezone, datetime
-from pathlib import Path
-from typing import Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from backend.container import get_container
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
@@ -43,241 +47,142 @@ class ServiceStatus(BaseModel):
 
 
 @router.get("/health", response_model=HealthStatus)
-async def health_check():
+async def health_check() -> HealthStatus:
     """
     Comprehensive health check endpoint.
+
+    Delegates all diagnostics logic to DiagnosticsService.
 
     Returns:
         HealthStatus with all subsystem checks
     """
-    checks = {}
-
-    # Check 1: Python runtime
-    checks["python"] = {
-        "status": "healthy",
-        "version": sys.version.split()[0],
-        "executable": sys.executable,
-    }
-
-    # Check 2: Storage directories
-    storage_path = Path("storage")
-    data_path = Path("data")
-
-    checks["storage"] = {
-        "status": "healthy" if storage_path.exists() else "degraded",
-        "path": str(storage_path.absolute()),
-        "writable": os.access(storage_path.parent, os.W_OK),
-    }
-
-    checks["data"] = {
-        "status": "healthy" if data_path.exists() else "degraded",
-        "path": str(data_path.absolute()),
-        "writable": os.access(data_path.parent, os.W_OK),
-    }
-
-    # Check 3: HDF5 corpus
-    corpus_path = Path("storage/corpus.h5")
-    checks["corpus"] = {
-        "status": "healthy" if corpus_path.exists() else "warning",
-        "exists": corpus_path.exists(),
-        "size_mb": round(corpus_path.stat().st_size / 1024 / 1024, 2)
-        if corpus_path.exists()
-        else 0,
-    }
-
-    # Check 4: Node.js (for frontend)
     try:
-        node_result = subprocess.run(
-            ["node", "--version"], capture_output=True, text=True, timeout=2
+        container = get_container()
+        diag_service = container.get_diagnostics_service()
+        diag_data = diag_service.get_diagnostics()
+
+        logger.info("DIAGNOSTICS_HEALTH_RETRIEVED", status=diag_data["status"])
+
+        return HealthStatus(
+            status=diag_data["status"],
+            timestamp=datetime.now(UTC).isoformat() + "Z",
+            checks=diag_data["checks"],
+            version="0.1.0",
         )
-        checks["nodejs"] = {
-            "status": "healthy" if node_result.returncode == 0 else "unhealthy",
-            "version": node_result.stdout.strip() if node_result.returncode == 0 else None,
-        }
     except Exception as e:
-        checks["nodejs"] = {"status": "unhealthy", "error": str(e)}
-
-    # Check 5: pnpm
-    try:
-        pnpm_result = subprocess.run(
-            ["pnpm", "--version"], capture_output=True, text=True, timeout=2
+        logger.error(f"DIAGNOSTICS_HEALTH_FAILED: {str(e)}")
+        # Return degraded response on error with empty checks
+        return HealthStatus(
+            status="degraded",
+            timestamp=datetime.now(UTC).isoformat() + "Z",
+            checks={},
+            version="0.1.0",
         )
-        checks["pnpm"] = {
-            "status": "healthy" if pnpm_result.returncode == 0 else "unhealthy",
-            "version": pnpm_result.stdout.strip() if pnpm_result.returncode == 0 else None,
-        }
-    except Exception as e:
-        checks["pnpm"] = {"status": "unhealthy", "error": str(e)}
-
-    # Check 6: PM2 (if installed)
-    try:
-        pm2_result = subprocess.run(["pm2", "jlist"], capture_output=True, text=True, timeout=2)
-        checks["pm2"] = {
-            "status": "healthy" if pm2_result.returncode == 0 else "warning",
-            "installed": pm2_result.returncode == 0,
-        }
-    except FileNotFoundError:
-        checks["pm2"] = {"status": "warning", "installed": False}
-    except Exception as e:
-        checks["pm2"] = {"status": "warning", "error": str(e)}
-
-    # Determine overall status
-    statuses = [check["status"] for check in checks.values()]
-    if all(s == "healthy" for s in statuses):
-        overall_status = "healthy"
-    elif any(s == "unhealthy" for s in statuses):
-        overall_status = "unhealthy"
-    else:
-        overall_status = "degraded"
-
-    return HealthStatus(
-        status=overall_status,
-        timestamp=datetime.now(timezone.utc).isoformat() + "Z",
-        checks=checks,
-        version="0.1.0",
-    )
 
 
 @router.get("/services", response_model=list[ServiceStatus])
-async def service_status():
+async def service_status() -> list[ServiceStatus]:
     """
     Get status of all PM2-managed services.
+
+    Delegates to DiagnosticsService for PM2/lsof checks.
 
     Returns:
         List of ServiceStatus for each service
     """
-    services = []
-
     try:
-        # Try to get PM2 process list
-        result = subprocess.run(["pm2", "jlist"], capture_output=True, text=True, timeout=5)
+        container = get_container()
+        diag_service = container.get_diagnostics_service()
+        pm2_data = diag_service.check_pm2()
 
-        if result.returncode == 0:
-            import json
-
-            processes = json.loads(result.stdout)
-
-            for proc in processes:
-                services.append(
-                    ServiceStatus(
-                        service=proc.get("name", "unknown"),
-                        status=proc.get("pm2_env", {}).get("status", "unknown"),
-                        pid=proc.get("pid"),
-                        uptime_seconds=proc.get("pm2_env", {}).get("pm_uptime"),
-                        memory_mb=round(proc.get("monit", {}).get("memory", 0) / 1024 / 1024, 2)
-                        if proc.get("monit")
-                        else None,
-                    )
-                )
-        else:
-            logger.warning("PM2 not available or no processes running")
-
-    except FileNotFoundError:
-        logger.warning("PM2 not installed")
-    except Exception as e:
-        logger.error(f"Error getting service status: {e}")
-
-    # If no PM2 processes, check ports directly
-    if not services:
-        port_services = {
-            "fi-backend-api": 7001,
-            "fi-timeline-api": 9002,
-            "fi-frontend": 9000,
-        }
-
-        for service_name, port in port_services.items():
-            result = subprocess.run(["lsof", f"-ti:{port}"], capture_output=True)
-            status = "online" if result.returncode == 0 else "stopped"
-            pid = int(result.stdout.strip()) if result.returncode == 0 else None
-
+        services = []
+        for service_info in pm2_data.get("services", []):
             services.append(
                 ServiceStatus(
-                    service=service_name,
-                    status=status,
-                    pid=pid,
-                    uptime_seconds=None,
-                    memory_mb=None,
+                    service=service_info.get("name", "unknown"),
+                    status=service_info.get("status", "unknown"),
+                    pid=service_info.get("pid"),
+                    uptime_seconds=service_info.get("uptime"),
+                    memory_mb=service_info.get("memory_mb"),
                 )
             )
 
-    return services
+        logger.info("SERVICE_STATUS_RETRIEVED", count=len(services))
+        return services
+    except Exception as e:
+        logger.error(f"SERVICE_STATUS_FAILED: {str(e)}")
+        return []
 
 
 @router.get("/system")
-async def system_info():
+async def system_info() -> dict[str, Any]:
     """
     Get system information.
+
+    Delegates to DiagnosticsService for system info gathering.
 
     Returns:
         Dict with system specs, disk usage, etc.
     """
-    import platform
-    import shutil
-
-    info = {
-        "os": platform.system(),
-        "os_version": platform.version(),
-        "python_version": sys.version.split()[0],
-        "cpu_count": os.cpu_count(),
-        "hostname": platform.node(),
-    }
-
-    # Disk usage
     try:
-        usage = shutil.disk_usage("/")
-        info["disk"] = {
-            "total_gb": round(usage.total / 1024**3, 2),
-            "used_gb": round(usage.used / 1024**3, 2),
-            "free_gb": round(usage.free / 1024**3, 2),
-            "percent_used": round((usage.used / usage.total) * 100, 2),
-        }
+        container = get_container()
+        diag_service = container.get_diagnostics_service()
+        system_data = diag_service.get_system_info()
+
+        logger.info("SYSTEM_INFO_RETRIEVED", os=system_data.get("os"))
+        return system_data
     except Exception as e:
-        info["disk"] = {"error": str(e)}
-
-    # Memory (if psutil available)
-    try:
-        import psutil
-
-        mem = psutil.virtual_memory()
-        info["memory"] = {
-            "total_gb": round(mem.total / 1024**3, 2),
-            "available_gb": round(mem.available / 1024**3, 2),
-            "percent_used": mem.percent,
-        }
-    except ImportError:
-        info["memory"] = {"error": "psutil not installed"}
-    except Exception as e:
-        info["memory"] = {"error": str(e)}
-
-    return info
+        logger.error(f"SYSTEM_INFO_FAILED: {str(e)}")
+        return {"error": str(e)}
 
 
 @router.get("/readiness")
-async def readiness_check():
+async def readiness_check() -> dict[str, Any]:
     """
     Readiness probe for Kubernetes/PM2.
 
+    Delegates to DiagnosticsService for readiness verification.
+
     Returns:
-        200 if service is ready, 503 if not
+        200 if service is ready, with ready status
     """
-    # Check if critical paths exist
-    corpus_path = Path("storage/corpus.h5")
+    try:
+        container = get_container()
+        diag_service = container.get_diagnostics_service()
+        is_ready = diag_service.check_readiness()
 
-    if not corpus_path.parent.exists():
-        return {"ready": False, "reason": "Storage directory not found"}
-
-    return {"ready": True, "timestamp": datetime.now(timezone.utc).isoformat() + "Z"}
+        logger.info("READINESS_CHECK_COMPLETED", ready=is_ready)
+        return {
+            "ready": is_ready,
+            "timestamp": datetime.now(UTC).isoformat() + "Z",
+        }
+    except Exception as e:
+        logger.error(f"READINESS_CHECK_FAILED: {str(e)}")
+        return {"ready": False, "error": str(e)}
 
 
 @router.get("/liveness")
-async def liveness_check():
+async def liveness_check() -> dict[str, Any]:
     """
     Liveness probe for Kubernetes/PM2.
 
+    Delegates to DiagnosticsService for liveness verification.
     Always returns 200 if process is running.
+
+    Returns:
+        Liveness status with timestamp and PID
     """
-    return {
-        "alive": True,
-        "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
-        "pid": os.getpid(),
-    }
+    try:
+        container = get_container()
+        diag_service = container.get_diagnostics_service()
+        is_alive = diag_service.check_liveness()
+
+        logger.info("LIVENESS_CHECK_COMPLETED", alive=is_alive)
+        return {
+            "alive": is_alive,
+            "timestamp": datetime.now(UTC).isoformat() + "Z",
+            "pid": os.getpid(),
+        }
+    except Exception as e:
+        logger.error(f"LIVENESS_CHECK_FAILED: {str(e)}")
+        return {"alive": False, "error": str(e)}
