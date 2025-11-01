@@ -24,6 +24,7 @@ from backend.services import (
     AuditService,
     CorpusService,
     DiarizationService,
+    ExportService,
     SessionService,
 )
 
@@ -58,6 +59,7 @@ class DIContainer:
         self._session_service: Optional[SessionService] = None
         self._audit_service: Optional[AuditService] = None
         self._diarization_service: Optional[DiarizationService] = None
+        self._export_service: Optional[ExportService] = None
 
         logger.info("DIContainer initialized", h5_file_path=str(self.h5_file_path))
 
@@ -208,6 +210,25 @@ class DIContainer:
 
         return self._diarization_service
 
+    def get_export_service(self) -> ExportService:
+        """Get or create ExportService singleton.
+
+        Returns:
+            ExportService instance
+
+        Raises:
+            IOError: If service initialization fails
+        """
+        if self._export_service is None:
+            try:
+                self._export_service = ExportService()
+                logger.info("ExportService initialized")
+            except OSError as e:
+                logger.error("EXPORT_SERVICE_INIT_FAILED", error=str(e))
+                raise IOError(f"Failed to initialize ExportService: {e}") from e
+
+        return self._export_service
+
     def reset(self) -> None:
         """Reset all singletons (useful for testing).
 
@@ -223,6 +244,7 @@ class DIContainer:
         self._session_service = None
         self._audit_service = None
         self._diarization_service = None
+        self._export_service = None
 
 
 # Global container instance (created on module import)

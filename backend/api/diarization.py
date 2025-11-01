@@ -60,7 +60,7 @@ from backend.diarization_worker_lowprio import (
 )
 from backend.diarization_worker_lowprio import get_job_status as get_lowprio_status
 from backend.logger import get_logger
-from backend.schemas import success_response, error_response, StatusCode
+from backend.schemas import StatusCode, error_response, success_response
 
 logger = get_logger(__name__)
 
@@ -310,7 +310,7 @@ async def upload_audio_for_diarization(
                 "language": language,
                 "session_id": x_session_id,
                 "persist": persist,
-            }
+            },
         )
 
         logger.info(
@@ -328,7 +328,9 @@ async def upload_audio_for_diarization(
             saved = save_audio_file(
                 session_id=x_session_id,
                 audio_content=audio_content,
-                file_extension=audio.filename.rsplit(".", 1)[-1].lower() if audio.filename else "mp3",
+                file_extension=audio.filename.rsplit(".", 1)[-1].lower()
+                if audio.filename
+                else "mp3",
                 metadata={"original_filename": audio.filename, "purpose": "diarization"},
             )
         except Exception as e:
@@ -339,12 +341,10 @@ async def upload_audio_for_diarization(
                 user_id="system",
                 resource=f"job:{job_id}",
                 result="failure",
-                details={"error": str(e)}
+                details={"error": str(e)},
             )
             return error_response(
-                "Failed to save audio file",
-                code=500,
-                status=StatusCode.INTERNAL_ERROR
+                "Failed to save audio file", code=500, status=StatusCode.INTERNAL_ERROR
             )
 
         # Path hardening: resolve absolute path
@@ -366,7 +366,7 @@ async def upload_audio_for_diarization(
             return error_response(
                 f"Audio file not found after save: {relative_path}",
                 code=500,
-                status=StatusCode.INTERNAL_ERROR
+                status=StatusCode.INTERNAL_ERROR,
             )
 
         logger.info(
@@ -390,14 +390,22 @@ async def upload_audio_for_diarization(
         if vad_filter is not None:
             config_overrides["vad_filter"] = vad_filter  # type: ignore
 
-        logger.info("CONFIG_OVERRIDES_RECEIVED", session_id=x_session_id, job_id=job_id, overrides=config_overrides)
+        logger.info(
+            "CONFIG_OVERRIDES_RECEIVED",
+            session_id=x_session_id,
+            job_id=job_id,
+            overrides=config_overrides,
+        )
 
         # Route to low-priority worker or legacy pipelines
         if USE_LOWPRIO_WORKER:
             # Use low-priority worker with CPU scheduler + HDF5
             job_id = create_lowprio_job(x_session_id, abs_path)
             logger.info(
-                "LOWPRIO_JOB_CREATED", job_id=job_id, session_id=x_session_id, config=config_overrides
+                "LOWPRIO_JOB_CREATED",
+                job_id=job_id,
+                session_id=x_session_id,
+                config=config_overrides,
             )
         else:
             # Legacy: create in-memory job and use background task
@@ -414,7 +422,12 @@ async def upload_audio_for_diarization(
                 )
             else:
                 background_tasks.add_task(
-                    _process_diarization_background, job_id, abs_path, x_session_id, language, persist
+                    _process_diarization_background,
+                    job_id,
+                    abs_path,
+                    x_session_id,
+                    language,
+                    persist,
                 )
 
         # Return standardized success response
@@ -425,7 +438,7 @@ async def upload_audio_for_diarization(
                 "status": "pending",
             },
             message=f"Diarization job created. Poll /api/diarization/jobs/{job_id} for status.",
-            code=202
+            code=202,
         )
 
     except ValueError as e:
@@ -434,30 +447,24 @@ async def upload_audio_for_diarization(
         audit_service.log_action(
             action="diarization_upload_validation_failed",
             user_id="system",
-            resource=f"upload",
+            resource="upload",
             result="failure",
-            details={"error": str(e), "session_id": x_session_id}
+            details={"error": str(e), "session_id": x_session_id},
         )
-        return error_response(
-            str(e),
-            code=400,
-            status=StatusCode.VALIDATION_ERROR
-        )
+        return error_response(str(e), code=400, status=StatusCode.VALIDATION_ERROR)
 
-    except IOError as e:
+    except OSError as e:
         # Storage error
         logger.error("DIARIZATION_STORAGE_FAILED", error=str(e), session_id=x_session_id)
         audit_service.log_action(
             action="diarization_upload_storage_failed",
             user_id="system",
-            resource=f"upload",
+            resource="upload",
             result="failure",
-            details={"error": str(e), "session_id": x_session_id}
+            details={"error": str(e), "session_id": x_session_id},
         )
         return error_response(
-            "Failed to store audio file",
-            code=500,
-            status=StatusCode.INTERNAL_ERROR
+            "Failed to store audio file", code=500, status=StatusCode.INTERNAL_ERROR
         )
 
     except Exception as e:
@@ -466,15 +473,11 @@ async def upload_audio_for_diarization(
         audit_service.log_action(
             action="diarization_upload_failed",
             user_id="system",
-            resource=f"upload",
+            resource="upload",
             result="failure",
-            details={"error": str(e), "session_id": x_session_id}
+            details={"error": str(e), "session_id": x_session_id},
         )
-        return error_response(
-            "Internal server error",
-            code=500,
-            status=StatusCode.INTERNAL_ERROR
-        )
+        return error_response("Internal server error", code=500, status=StatusCode.INTERNAL_ERROR)
 
 
 @router.get("/jobs/{job_id}", response_model=JobStatusResponse)

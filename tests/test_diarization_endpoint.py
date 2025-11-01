@@ -6,12 +6,13 @@ Shows how to test FastAPI endpoints that use service layer with DI.
 
 from __future__ import annotations
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.diarization import router
-from fastapi import FastAPI
 
 
 @pytest.fixture
@@ -171,7 +172,7 @@ class TestDiarizationEndpointUpload:
         mock_get_container.return_value = mock_container
 
         # Make service raise storage error
-        mock_diarization_service.create_diarization_job.side_effect = IOError(
+        mock_diarization_service.create_diarization_job.side_effect = OSError(
             "Failed to save audio file"
         )
 
