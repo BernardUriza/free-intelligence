@@ -6,15 +6,20 @@ Free Intelligence - Audit Logs API
 Card: FI-UI-FEAT-206
 
 Provides read-only access to audit logs with filtering and pagination.
+
+Updated to use clean code architecture with AuditService.
 """
 
+import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from backend.audit_logs import get_audit_logs, get_audit_stats
-from backend.config_loader import load_config
+from backend.container import get_container
+from backend.schemas import success_response, error_response, StatusCode
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/audit")
 

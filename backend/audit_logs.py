@@ -21,39 +21,39 @@ import h5py  # type: ignore
 # Audit log schema
 AUDIT_LOG_SCHEMA = {
     "audit_id": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=36)  # type: ignore[attr-defined],
+        "dtype": h5py.string_dtype(encoding="utf-8", length=36),  # type: ignore[attr-defined]
         "description": "UUID v4 for audit entry",
     },
     "timestamp": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=50)  # type: ignore[attr-defined],
+        "dtype": h5py.string_dtype(encoding="utf-8", length=50),  # type: ignore[attr-defined]
         "description": "ISO 8601 timestamp with timezone",
     },
     "operation": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=100)  # type: ignore[attr-defined],
+        "dtype": h5py.string_dtype(encoding="utf-8", length=100),  # type: ignore[attr-defined]
         "description": "Operation name (e.g., INTERACTION_APPENDED)",
     },
     "user_id": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=100)  # type: ignore[attr-defined],
+        "dtype": h5py.string_dtype(encoding="utf-8", length=100),  # type: ignore[attr-defined]
         "description": "User identifier (owner_hash prefix or session_id)",
     },
     "endpoint": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=200)  # type: ignore[attr-defined],
+        "dtype": h5py.string_dtype(encoding="utf-8", length=200),  # type: ignore[attr-defined]
         "description": "API endpoint or function name",
     },
     "payload_hash": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=64)  # type: ignore[attr-defined],
+        "dtype": h5py.string_dtype(encoding="utf-8", length=64),  # type: ignore[attr-defined]
         "description": "SHA256 hash of input payload",
     },
     "result_hash": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=64)  # type: ignore[attr-defined],
+        "dtype": h5py.string_dtype(encoding="utf-8", length=64),  # type: ignore[attr-defined]
         "description": "SHA256 hash of operation result",
     },
     "status": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=20)  # type: ignore[attr-defined],
+        "dtype": h5py.string_dtype(encoding="utf-8", length=20),  # type: ignore[attr-defined]
         "description": "SUCCESS, FAILED, BLOCKED",
     },
     "metadata": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=500)  # type: ignore[attr-defined],
+        "dtype": h5py.string_dtype(encoding="utf-8", length=500),  # type: ignore[attr-defined]
         "description": "JSON metadata (optional)",
     },
 }
@@ -92,7 +92,7 @@ def init_audit_logs_group(corpus_path: str) -> bool:
                     dataset_name,
                     shape=(0,),
                     maxshape=(None,),
-                    dtype=spec["dtype"]  # type: ignore[index],
+                    dtype=spec["dtype"],  # type: ignore[index]
                     chunks=True,
                     compression="gzip",
                     compression_opts=4,
@@ -201,23 +201,23 @@ def append_audit_log(
             audit_logs = f["audit_logs"]  # type: ignore[index]
 
             # Current size
-            current_size = audit_logs["audit_id"]  # type: ignore[index].shape[0]  # type: ignore[attr-defined]
+            current_size = audit_logs["audit_id"].shape[0]  # type: ignore[index,attr-defined]
             new_size = current_size + 1
 
             # Resize all datasets
             for dataset_name in AUDIT_LOG_SCHEMA.keys():
-                audit_logs[dataset_name].resize((new_size,)  # type: ignore[attr-defined])
+                audit_logs[dataset_name].resize((new_size,))  # type: ignore[index,attr-defined]
 
             # Append data
-            audit_logs["audit_id"]  # type: ignore[index][current_size] = audit_id
-            audit_logs["timestamp"]  # type: ignore[index][current_size] = timestamp
-            audit_logs["operation"]  # type: ignore[index][current_size] = operation
-            audit_logs["user_id"]  # type: ignore[index][current_size] = user_id
-            audit_logs["endpoint"]  # type: ignore[index][current_size] = endpoint
-            audit_logs["payload_hash"]  # type: ignore[index][current_size] = payload_hash
-            audit_logs["result_hash"]  # type: ignore[index][current_size] = result_hash
-            audit_logs["status"]  # type: ignore[index][current_size] = status
-            audit_logs["metadata"]  # type: ignore[index][current_size] = metadata_str
+            audit_logs["audit_id"][current_size] = audit_id  # type: ignore[index]
+            audit_logs["timestamp"][current_size] = timestamp  # type: ignore[index]
+            audit_logs["operation"][current_size] = operation  # type: ignore[index]
+            audit_logs["user_id"][current_size] = user_id  # type: ignore[index]
+            audit_logs["endpoint"][current_size] = endpoint  # type: ignore[index]
+            audit_logs["payload_hash"][current_size] = payload_hash  # type: ignore[index]
+            audit_logs["result_hash"][current_size] = result_hash  # type: ignore[index]
+            audit_logs["status"][current_size] = status  # type: ignore[index]
+            audit_logs["metadata"][current_size] = metadata_str  # type: ignore[index]
 
         logger.info(
             "AUDIT_LOG_APPENDED",
@@ -263,7 +263,7 @@ def get_audit_logs(
                 return []
 
             audit_logs_group = f["audit_logs"]  # type: ignore[index]
-            total = audit_logs_group["audit_id"]  # type: ignore[index].shape[0]  # type: ignore[attr-defined]
+            total = audit_logs_group["audit_id"].shape[0]  # type: ignore[index,attr-defined]
 
             if total == 0:
                 return []
@@ -275,8 +275,8 @@ def get_audit_logs(
             results = []
             for i in range(end - 1, start - 1, -1):  # Reverse order
                 # Apply filters
-                operation = audit_logs_group["operation"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined]
-                user_id = audit_logs_group["user_id"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined]
+                operation = audit_logs_group["operation"][i].decode("utf-8")  # type: ignore[index,attr-defined]
+                user_id = audit_logs_group["user_id"][i].decode("utf-8")  # type: ignore[index,attr-defined]
 
                 if operation_filter and operation != operation_filter:
                     continue
@@ -285,15 +285,15 @@ def get_audit_logs(
                     continue
 
                 log_entry = {
-                    "audit_id": audit_logs_group["audit_id"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined],
-                    "timestamp": audit_logs_group["timestamp"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined],
+                    "audit_id": audit_logs_group["audit_id"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
+                    "timestamp": audit_logs_group["timestamp"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
                     "operation": operation,
                     "user_id": user_id,
-                    "endpoint": audit_logs_group["endpoint"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined],
-                    "payload_hash": audit_logs_group["payload_hash"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined],
-                    "result_hash": audit_logs_group["result_hash"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined],
-                    "status": audit_logs_group["status"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined],
-                    "metadata": audit_logs_group["metadata"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined],
+                    "endpoint": audit_logs_group["endpoint"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
+                    "payload_hash": audit_logs_group["payload_hash"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
+                    "result_hash": audit_logs_group["result_hash"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
+                    "status": audit_logs_group["status"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
+                    "metadata": audit_logs_group["metadata"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
                 }
                 results.append(log_entry)
 
@@ -319,7 +319,7 @@ def get_audit_stats(corpus_path: str) -> dict:
 
     Examples:
         >>> stats = get_audit_stats("storage/corpus.h5")
-        >>> print(stats["total_logs"]  # type: ignore[index])
+        >>> print(stats["total_logs"])
     """
     try:
         with h5py.File(corpus_path, "r") as f:
@@ -327,15 +327,15 @@ def get_audit_stats(corpus_path: str) -> dict:
                 return {"total_logs": 0, "exists": False}
 
             audit_logs = f["audit_logs"]  # type: ignore[index]
-            total = audit_logs["audit_id"]  # type: ignore[index].shape[0]  # type: ignore[attr-defined]
+            total = audit_logs["audit_id"].shape[0]  # type: ignore[index,attr-defined]
 
             # Count by status
             status_counts = {}
             operation_counts = {}
 
             for i in range(total):
-                status = audit_logs["status"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined]
-                operation = audit_logs["operation"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined]
+                status = audit_logs["status"][i].decode("utf-8")  # type: ignore[index,attr-defined]
+                operation = audit_logs["operation"][i].decode("utf-8")  # type: ignore[index,attr-defined]
 
                 status_counts[status] = status_counts.get(status, 0) + 1
                 operation_counts[operation] = operation_counts.get(operation, 0) + 1
@@ -378,7 +378,7 @@ def get_audit_logs_older_than(corpus_path: str, days: int = 90) -> list[int]:
                 return []
 
             audit_logs = f["audit_logs"]  # type: ignore[index]
-            total = audit_logs["timestamp"]  # type: ignore[index].shape[0]  # type: ignore[attr-defined]
+            total = audit_logs["timestamp"].shape[0]  # type: ignore[index,attr-defined]
 
             if total == 0:
                 return []
@@ -389,7 +389,7 @@ def get_audit_logs_older_than(corpus_path: str, days: int = 90) -> list[int]:
             # Find old logs
             old_indices = []
             for i in range(total):
-                timestamp_str = audit_logs["timestamp"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined]
+                timestamp_str = audit_logs["timestamp"][i].decode("utf-8")  # type: ignore[index,attr-defined]
                 log_date = datetime.fromisoformat(timestamp_str)
 
                 if log_date < cutoff_date:
@@ -439,7 +439,7 @@ def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = Tru
     Examples:
         >>> # Check what would be deleted
         >>> result = cleanup_old_audit_logs("storage/corpus.h5", days=90, dry_run=True)
-        >>> print(f"Would delete {result['would_delete']  # type: ignore[index]} logs")
+        >>> print(f"Would delete {result['would_delete']} logs")
         >>>
         >>> # Actually delete (CAREFUL!)
         >>> result = cleanup_old_audit_logs("storage/corpus.h5", days=90, dry_run=False)
@@ -478,7 +478,7 @@ def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = Tru
         # We need to create new datasets without old rows
         with h5py.File(corpus_path, "a") as f:
             audit_logs = f["audit_logs"]  # type: ignore[index]
-            total = audit_logs["timestamp"]  # type: ignore[index].shape[0]  # type: ignore[attr-defined]
+            total = audit_logs["timestamp"].shape[0]  # type: ignore[index,attr-defined]
 
             # Indices to keep
             keep_indices = [i for i in range(total) if i not in old_indices]
@@ -499,7 +499,7 @@ def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = Tru
                     dataset_name,
                     shape=(len(kept_data),),
                     maxshape=(None,),
-                    dtype=spec["dtype"]  # type: ignore[index],
+                    dtype=spec["dtype"],  # type: ignore[index]
                     chunks=True,
                     compression="gzip",
                     compression_opts=4,
@@ -542,9 +542,9 @@ def get_retention_stats(corpus_path: str, retention_days: int = 90) -> dict:
 
     Examples:
         >>> stats = get_retention_stats("storage/corpus.h5", retention_days=90)
-        >>> print(f"Total logs: {stats['total_logs']  # type: ignore[index]}")
-        >>> print(f"Within retention: {stats['within_retention']  # type: ignore[index]}")
-        >>> print(f"Beyond retention: {stats['beyond_retention']  # type: ignore[index]}")
+        >>> print(f"Total logs: {stats['total_logs']}")
+        >>> print(f"Within retention: {stats['within_retention']}")
+        >>> print(f"Beyond retention: {stats['beyond_retention']}")
     """
     from datetime import datetime, timedelta
 
@@ -561,7 +561,7 @@ def get_retention_stats(corpus_path: str, retention_days: int = 90) -> dict:
                     "retention_days": retention_days,
                 }
 
-            total = f["audit_logs"]  # type: ignore[index]["timestamp"].shape[0]  # type: ignore[attr-defined]
+            total = f["audit_logs"]["timestamp"].shape[0]  # type: ignore[index,attr-defined]
             beyond_retention = len(old_indices)
             within_retention = total - beyond_retention
 
@@ -574,8 +574,8 @@ def get_retention_stats(corpus_path: str, retention_days: int = 90) -> dict:
             newest_log = None
 
             if total > 0:
-                oldest_log = f["audit_logs"]  # type: ignore[index]["timestamp"][0].decode("utf-8")  # type: ignore[attr-defined]
-                newest_log = f["audit_logs"]  # type: ignore[index]["timestamp"][total - 1].decode("utf-8")  # type: ignore[attr-defined]
+                oldest_log = f["audit_logs"]["timestamp"][0].decode("utf-8")  # type: ignore[index,attr-defined]
+                newest_log = f["audit_logs"]["timestamp"][total - 1].decode("utf-8")  # type: ignore[index,attr-defined]
 
             return {
                 "exists": True,
@@ -602,7 +602,7 @@ if __name__ == "__main__":
     from config_loader import load_config
 
     config = load_config()
-    corpus_path = config["storage"]  # type: ignore[index]["corpus_path"]
+    corpus_path = config["storage"]["corpus_path"]  # type: ignore[index]
 
     print("🔒 Audit Logs Demo - Free Intelligence\n")
 
@@ -626,16 +626,21 @@ if __name__ == "__main__":
 
     # Get stats
     print("\n📊 Audit Log Statistics:")
-    stats = get_audit_stats(corpus_path)
-    print(f"  Total logs: {stats['total_logs']  # type: ignore[index]}")
+    stats = get_audit_stats(corpus_path)  # type: ignore[index]
+    print(f"  Total logs: {stats['total_logs']}")
     print(f"  Status breakdown: {stats.get('status_breakdown', {})}")
 
     # Get recent logs
     print("\n📖 Recent Audit Logs:")
     logs = get_audit_logs(corpus_path, limit=5)
     for i, log in enumerate(logs, 1):
-        print(f"\n  [{i}] {log['timestamp']  # type: ignore[index]}")
-        print(f"      Operation: {log['operation']  # type: ignore[index]}")
-        print(f"      User: {log['user_id']  # type: ignore[index]}")
-        print(f"      Status: {log['status']  # type: ignore[index]}")
-        print(f"      Payload hash: {log['payload_hash']  # type: ignore[index][:16]}...")
+        timestamp = log['timestamp']  # type: ignore[index]
+        operation = log['operation']  # type: ignore[index]
+        user_id = log['user_id']  # type: ignore[index]
+        status = log['status']  # type: ignore[index]
+        payload_hash = log['payload_hash']  # type: ignore[index]
+        print(f"\n  [{i}] {timestamp}")
+        print(f"      Operation: {operation}")
+        print(f"      User: {user_id}")
+        print(f"      Status: {status}")
+        print(f"      Payload hash: {payload_hash[:16]}...")

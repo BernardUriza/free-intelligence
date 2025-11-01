@@ -68,7 +68,7 @@ def semantic_search(
         ...     top_k=5
         ... )
         >>> for result in results:
-        ...     print(f"{result['score']  # type: ignore[index]:.3f}: {result['prompt']  # type: ignore[index][:60]}")
+        ...     print(f"{result['score']:.3f}: {result['prompt'][:60]}")
     """
     logger.info("SEMANTIC_SEARCH_STARTED", query=query[:100], top_k=top_k)
 
@@ -79,14 +79,15 @@ def semantic_search(
         # Pad to 768 dimensions if needed (shared utility)
         query_embedding = pad_embedding_to_768(query_embedding)
 
-        logger.info("QUERY_EMBEDDING_GENERATED", embedding_dim=query_embedding.shape[0]  # type: ignore[attr-defined])
+        embedding_dim = query_embedding.shape[0]  # type: ignore[attr-defined]
+        logger.info("QUERY_EMBEDDING_GENERATED", embedding_dim=embedding_dim)
 
         # Read corpus embeddings and interactions
         with h5py.File(corpus_path, "r") as f:
             embeddings_group = f["embeddings"]  # type: ignore[index]
             interactions_group = f["interactions"]  # type: ignore[index]
 
-            total_embeddings = embeddings_group["interaction_id"]  # type: ignore[index].shape[0]  # type: ignore[attr-defined]
+            total_embeddings = embeddings_group["interaction_id"].shape[0]  # type: ignore[index,attr-defined]
 
             if total_embeddings == 0:
                 logger.warning("CORPUS_EMPTY", message="No embeddings in corpus")
@@ -97,16 +98,16 @@ def semantic_search(
             # Build interaction dictionary once (O(n) instead of O(n²))
             # This eliminates the N+1 query problem
             interaction_map = {}
-            total_interactions = interactions_group["interaction_id"]  # type: ignore[index].shape[0]  # type: ignore[attr-defined]
+            total_interactions = interactions_group["interaction_id"].shape[0]  # type: ignore[index,attr-defined]
             for j in range(total_interactions):
-                iid = interactions_group["interaction_id"]  # type: ignore[index][j].decode("utf-8")  # type: ignore[attr-defined]
+                iid = interactions_group["interaction_id"][j].decode("utf-8")  # type: ignore[index,attr-defined]
                 interaction_map[iid] = {
-                    "session_id": interactions_group["session_id"]  # type: ignore[index][j].decode("utf-8")  # type: ignore[attr-defined],
-                    "timestamp": interactions_group["timestamp"]  # type: ignore[index][j].decode("utf-8")  # type: ignore[attr-defined],
-                    "prompt": interactions_group["prompt"]  # type: ignore[index][j].decode("utf-8")  # type: ignore[attr-defined],
-                    "response": interactions_group["response"]  # type: ignore[index][j].decode("utf-8")  # type: ignore[attr-defined],
-                    "model": interactions_group["model"]  # type: ignore[index][j].decode("utf-8")  # type: ignore[attr-defined],
-                    "tokens": int(interactions_group["tokens"]  # type: ignore[index][j]),
+                    "session_id": interactions_group["session_id"][j].decode("utf-8"),  # type: ignore[index,attr-defined]
+                    "timestamp": interactions_group["timestamp"][j].decode("utf-8"),  # type: ignore[index,attr-defined]
+                    "prompt": interactions_group["prompt"][j].decode("utf-8"),  # type: ignore[index,attr-defined]
+                    "response": interactions_group["response"][j].decode("utf-8"),  # type: ignore[index,attr-defined]
+                    "model": interactions_group["model"][j].decode("utf-8"),  # type: ignore[index,attr-defined]
+                    "tokens": int(interactions_group["tokens"][j]),  # type: ignore[index]
                 }
 
             logger.info("INTERACTION_MAP_BUILT", total_interactions=total_interactions)
@@ -125,7 +126,7 @@ def semantic_search(
                     continue
 
                 # Get interaction data via O(1) dictionary lookup
-                interaction_id = embeddings_group["interaction_id"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined]
+                interaction_id = embeddings_group["interaction_id"][i].decode("utf-8")  # type: ignore[index,attr-defined]
 
                 if interaction_id in interaction_map:
                     interaction_data = interaction_map[interaction_id]
@@ -144,7 +145,7 @@ def semantic_search(
                     )
 
             # Sort by similarity (descending) and take top_k
-            results.sort(key=lambda x: x["score"]  # type: ignore[index], reverse=True)
+            results.sort(key=lambda x: x["score"], reverse=True)  # type: ignore[index]
             results = results[:top_k]
 
             logger.info(
@@ -182,22 +183,21 @@ def search_by_session(corpus_path: str, session_id: str) -> list[dict]:
     try:
         with h5py.File(corpus_path, "r") as f:
             interactions_group = f["interactions"]  # type: ignore[index]
-            total = interactions_group["session_id"]  # type: ignore[index].shape[0]  # type: ignore[attr-defined]
+            total = interactions_group["session_id"].shape[0]  # type: ignore[index,attr-defined]
 
             results = []
             for i in range(total):
-                if interactions_group["session_id"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined] == session_id:
+                curr_session_id = interactions_group["session_id"][i].decode("utf-8")  # type: ignore[index,attr-defined]
+                if curr_session_id == session_id:
                     results.append(
                         {
-                            "interaction_id": interactions_group["interaction_id"]  # type: ignore[index][i].decode(
-                                "utf-8"
-                            )  # type: ignore[attr-defined],
+                            "interaction_id": interactions_group["interaction_id"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
                             "session_id": session_id,
-                            "timestamp": interactions_group["timestamp"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined],
-                            "prompt": interactions_group["prompt"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined],
-                            "response": interactions_group["response"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined],
-                            "model": interactions_group["model"]  # type: ignore[index][i].decode("utf-8")  # type: ignore[attr-defined],
-                            "tokens": int(interactions_group["tokens"]  # type: ignore[index][i]),
+                            "timestamp": interactions_group["timestamp"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
+                            "prompt": interactions_group["prompt"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
+                            "response": interactions_group["response"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
+                            "model": interactions_group["model"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
+                            "tokens": int(interactions_group["tokens"][i]),  # type: ignore[index]
                         }
                     )
 
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     from backend.config_loader import load_config
 
     config = load_config()
-    corpus_path = config["storage"]  # type: ignore[index]["corpus_path"]
+    corpus_path = config["storage"]["corpus_path"]  # type: ignore[index]
 
     print("🔍 Free Intelligence - Semantic Search Demo")
     print("=" * 60)
@@ -230,7 +230,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     with h5py.File(corpus_path, "r") as f:
-        embeddings_count = f["embeddings"]  # type: ignore[index]["interaction_id"].shape[0]  # type: ignore[attr-defined]
+        embeddings_count = f["embeddings"]["interaction_id"].shape[0]  # type: ignore[index,attr-defined]
 
     if embeddings_count == 0:
         print("\n⚠️  Corpus is empty. Add some interactions first using 'fi chat'")
@@ -252,10 +252,15 @@ if __name__ == "__main__":
             continue
 
         for i, result in enumerate(results, 1):
-            print(f"\n   [{i}] Score: {result['score']  # type: ignore[index]:.3f}")
-            print(f"       Prompt: {result['prompt']  # type: ignore[index][:70]}...")
-            print(f"       Response: {result['response']  # type: ignore[index][:70]}...")
-            print(f"       Model: {result['model']  # type: ignore[index]}, Tokens: {result['tokens']  # type: ignore[index]}")
+            score = result['score']  # type: ignore[index]
+            prompt = result['prompt']  # type: ignore[index]
+            response = result['response']  # type: ignore[index]
+            model = result['model']  # type: ignore[index]
+            tokens = result['tokens']  # type: ignore[index]
+            print(f"\n   [{i}] Score: {score:.3f}")
+            print(f"       Prompt: {prompt[:70]}...")
+            print(f"       Response: {response[:70]}...")
+            print(f"       Model: {model}, Tokens: {tokens}")
 
     print("\n" + "=" * 60)
     print("Demo complete!")

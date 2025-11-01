@@ -17,13 +17,17 @@ Endpoints:
 - PATCH /api/sessions/{id} -> update session
 """
 
-from datetime import timezone, datetime
+import logging
+from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from backend.sessions_store import SessionsStore
+from backend.container import get_container
+from backend.schemas import success_response, error_response, StatusCode
+
+logger = logging.getLogger(__name__)
 
 # ============================================================================
 # PYDANTIC MODELS (API contracts)
@@ -89,9 +93,6 @@ class UpdateSessionRequest(BaseModel):
 # ============================================================================
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
-
-# Initialize store
-store = SessionsStore()
 
 
 @router.get("", response_model=SessionsListResponse)

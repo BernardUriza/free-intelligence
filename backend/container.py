@@ -20,7 +20,12 @@ from backend.repositories import (
     CorpusRepository,
     SessionRepository,
 )
-from backend.services import AuditService, CorpusService, SessionService
+from backend.services import (
+    AuditService,
+    CorpusService,
+    DiarizationService,
+    SessionService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +57,7 @@ class DIContainer:
         self._corpus_service: Optional[CorpusService] = None
         self._session_service: Optional[SessionService] = None
         self._audit_service: Optional[AuditService] = None
+        self._diarization_service: Optional[DiarizationService] = None
 
         logger.info("DIContainer initialized", h5_file_path=str(self.h5_file_path))
 
@@ -176,6 +182,32 @@ class DIContainer:
 
         return self._audit_service
 
+    def get_diarization_service(self) -> DiarizationService:
+        """Get or create DiarizationService singleton.
+
+        Returns:
+            DiarizationService instance (with session and corpus services injected)
+
+        Raises:
+            IOError: If service initialization fails
+        """
+        if self._diarization_service is None:
+            try:
+                # Inject other services
+                corpus_service = self.get_corpus_service()
+                session_service = self.get_session_service()
+
+                self._diarization_service = DiarizationService(
+                    corpus_service=corpus_service,
+                    session_service=session_service,
+                )
+                logger.info("DiarizationService initialized")
+            except OSError as e:
+                logger.error("DIARIZATION_SERVICE_INIT_FAILED", error=str(e))
+                raise IOError(f"Failed to initialize DiarizationService: {e}") from e
+
+        return self._diarization_service
+
     def reset(self) -> None:
         """Reset all singletons (useful for testing).
 
@@ -190,6 +222,7 @@ class DIContainer:
         self._corpus_service = None
         self._session_service = None
         self._audit_service = None
+        self._diarization_service = None
 
 
 # Global container instance (created on module import)
