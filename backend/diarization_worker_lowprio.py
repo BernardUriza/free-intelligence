@@ -21,7 +21,7 @@ import os
 import threading
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from queue import Empty, Queue
 from typing import Any, Optional
@@ -340,7 +340,7 @@ class DiarizationWorker:
                     confidence=None,
                     temperature=avg_temp,
                     rtf=rtf,
-                    timestamp=datetime.now(UTC).isoformat() + "Z",
+                    timestamp=datetime.now(timezone.utc).isoformat() + "Z",
                 )
 
                 # Save chunk to HDF5
@@ -521,7 +521,7 @@ class DiarizationWorker:
                 if job_group_path not in h5:
                     # Create minimal group for failed jobs
                     job_group = h5.create_group(job_group_path)
-                    job_group.attrs["created_at"] = datetime.now(UTC).isoformat() + "Z"
+                    job_group.attrs["created_at"] = datetime.now(timezone.utc).isoformat() + "Z"
                     # Create empty chunks dataset
                     dt = h5py.special_dtype(vlen=str)
                     h5.create_dataset(
@@ -543,7 +543,7 @@ class DiarizationWorker:
                 job_group = h5[job_group_path]
                 job_group.attrs["status"] = status  # type: ignore[attr-defined]
                 job_group.attrs["progress_pct"] = progress_pct  # type: ignore[attr-defined]
-                job_group.attrs["updated_at"] = datetime.now(UTC).isoformat() + "Z"  # type: ignore[attr-defined]
+                job_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat() + "Z"  # type: ignore[attr-defined]
 
                 # CRITICAL FIX: Persist total_chunks when calculated
                 # This prevents stuck jobs with total_chunks=0
@@ -718,7 +718,7 @@ def create_diarization_job(session_id: str, audio_path: Path) -> str:
             sha256.update(chunk)
     audio_hash = f"sha256:{sha256.hexdigest()}"
 
-    now = datetime.now(UTC).isoformat() + "Z"
+    now = datetime.now(timezone.utc).isoformat() + "Z"
 
     job = DiarizationJob(
         job_id=job_id,

@@ -469,7 +469,7 @@ def get_provider(provider_name: str, config: Optional[dict[str, Any]] = None) ->
     provider_class = provider_map.get(provider_name.lower())
     if not provider_class:
         raise ValueError(
-            f"Unknown provider: {provider_name}. " f"Supported: {list(provider_map.keys())}"
+            f"Unknown provider: {provider_name}. " + f"Supported: {list(provider_map.keys())}"
         )
 
     return provider_class(config)

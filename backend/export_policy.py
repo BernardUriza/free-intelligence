@@ -272,7 +272,7 @@ def validate_export(manifest: ExportManifest, export_filepath: Path) -> bool:
     # 4. Verify hash matches manifest
     if actual_hash != manifest.data_hash:
         raise ExportPolicyViolation(
-            f"Data hash mismatch! " f"Manifest: {manifest.data_hash}, " f"Actual: {actual_hash}"
+            f"Data hash mismatch! " + f"Manifest: {manifest.data_hash}, " + f"Actual: {actual_hash}"
         )
 
     logger.info(

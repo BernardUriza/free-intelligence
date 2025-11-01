@@ -73,7 +73,7 @@ class PolicyEnforcer:
                     }
 
         logger.info(
-            f"PolicyEnforcer loaded: {self.policy.get('version', 'unknown')} "
+            f"PolicyEnforcer loaded: {self.policy.get('version', 'unknown')} " +
             f"({len(self._compiled_patterns)} redaction patterns)"
         )
 
