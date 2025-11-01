@@ -191,7 +191,9 @@ def search_by_session(corpus_path: str, session_id: str) -> list[dict]:
                 if curr_session_id == session_id:
                     results.append(
                         {
-                            "interaction_id": interactions_group["interaction_id"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
+                            "interaction_id": interactions_group["interaction_id"][i].decode(
+                                "utf-8"
+                            ),  # type: ignore[index,attr-defined]
                             "session_id": session_id,
                             "timestamp": interactions_group["timestamp"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
                             "prompt": interactions_group["prompt"][i].decode("utf-8"),  # type: ignore[index,attr-defined]
@@ -252,11 +254,11 @@ if __name__ == "__main__":
             continue
 
         for i, result in enumerate(results, 1):
-            score = result['score']
-            prompt = result['prompt']
-            response = result['response']
-            model = result['model']
-            tokens = result['tokens']
+            score = result["score"]
+            prompt = result["prompt"]
+            response = result["response"]
+            model = result["model"]
+            tokens = result["tokens"]
             print(f"\n   [{i}] Score: {score:.3f}")
             print(f"       Prompt: {prompt[:70]}...")
             print(f"       Response: {response[:70]}...")

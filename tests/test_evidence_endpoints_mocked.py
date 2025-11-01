@@ -101,9 +101,7 @@ class TestCreateEvidencePackMocked:
         mock_get_container.return_value = mock_container
 
         # Mock service error
-        mock_evidence_service.create_evidence_pack.side_effect = Exception(
-            "Storage error"
-        )
+        mock_evidence_service.create_evidence_pack.side_effect = Exception("Storage error")
 
         payload = {
             "sources": [

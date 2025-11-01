@@ -230,12 +230,14 @@ class TriageService:
                     try:
                         with open(manifest_path) as f:
                             manifest = json.load(f)
-                        buffers.append({
-                            "buffer_id": manifest.get("bufferId"),
-                            "received_at": manifest.get("receivedAt"),
-                            "payload_hash": manifest.get("payloadHash"),
-                            "metadata": manifest.get("metadata", {}),
-                        })
+                        buffers.append(
+                            {
+                                "buffer_id": manifest.get("bufferId"),
+                                "received_at": manifest.get("receivedAt"),
+                                "payload_hash": manifest.get("payloadHash"),
+                                "metadata": manifest.get("metadata", {}),
+                            }
+                        )
                     except Exception as e:
                         logger.warning(
                             f"TRIAGE_BUFFER_LIST_ERROR: buffer_id={buffer_dir.name}, error={str(e)}"

@@ -36,9 +36,9 @@ class CorpusSchema:
 
     # Dataset specifications for embeddings
     EMBEDDING_DATASETS = {
-        "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
+        "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
         "vector": {"dtype": "float32"},  # Will be 2D array
-        "model": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
+        "model": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
     }
 
     @classmethod

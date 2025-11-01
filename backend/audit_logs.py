@@ -634,11 +634,11 @@ if __name__ == "__main__":
     print("\n📖 Recent Audit Logs:")
     logs = get_audit_logs(corpus_path, limit=5)
     for i, log in enumerate(logs, 1):
-        timestamp = log['timestamp']
-        operation = log['operation']
-        user_id = log['user_id']
-        status = log['status']
-        payload_hash = log['payload_hash']
+        timestamp = log["timestamp"]
+        operation = log["operation"]
+        user_id = log["user_id"]
+        status = log["status"]
+        payload_hash = log["payload_hash"]
         print(f"\n  [{i}] {timestamp}")
         print(f"      Operation: {operation}")
         print(f"      User: {user_id}")

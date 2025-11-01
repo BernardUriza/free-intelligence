@@ -67,13 +67,9 @@ class TestTriageIntake:
         assert "receivedAt" in data
         assert "manifestUrl" in data
 
-    def test_intake_with_transcription(
-        self, test_client, sample_intake_with_transcription
-    ):
+    def test_intake_with_transcription(self, test_client, sample_intake_with_transcription):
         """Test triage intake with audio transcription."""
-        response = test_client.post(
-            "/api/triage/intake", json=sample_intake_with_transcription
-        )
+        response = test_client.post("/api/triage/intake", json=sample_intake_with_transcription)
 
         assert response.status_code == 200
         data = response.json()
@@ -321,9 +317,7 @@ class TestTriageErrorHandling:
 
     def test_invalid_json_payload(self, test_client):
         """Test handling of invalid JSON."""
-        response = test_client.post(
-            "/api/triage/intake", json={"invalid": "payload"}
-        )
+        response = test_client.post("/api/triage/intake", json={"invalid": "payload"})
 
         assert response.status_code == 422
 
