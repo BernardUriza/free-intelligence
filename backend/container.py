@@ -15,17 +15,14 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from backend.repositories import (
-    AuditRepository,
-    CorpusRepository,
-    SessionRepository,
-)
+from backend.repositories import AuditRepository, CorpusRepository, SessionRepository
 from backend.services import (
     AuditService,
     CorpusService,
     DiarizationService,
     ExportService,
     SessionService,
+    TranscriptionService,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,11 +52,12 @@ class DIContainer:
         self._session_repository: Optional[SessionRepository] = None
         self._audit_repository: Optional[AuditRepository] = None
 
-        self._corpus_service: Optional[CorpusService] = None
-        self._session_service: Optional[SessionService] = None
         self._audit_service: Optional[AuditService] = None
+        self._corpus_service: Optional[CorpusService] = None
         self._diarization_service: Optional[DiarizationService] = None
         self._export_service: Optional[ExportService] = None
+        self._session_service: Optional[SessionService] = None
+        self._transcription_service: Optional[TranscriptionService] = None
 
         logger.info("DIContainer initialized", h5_file_path=str(self.h5_file_path))
 
@@ -80,7 +78,7 @@ class DIContainer:
                 logger.info("CorpusRepository initialized")
             except OSError as e:
                 logger.error("CORPUS_REPOSITORY_INIT_FAILED", error=str(e))
-                raise IOError(f"Failed to initialize CorpusRepository: {e}") from e
+                raise OSError(f"Failed to initialize CorpusRepository: {e}") from e
 
         return self._corpus_repository
 
@@ -99,7 +97,7 @@ class DIContainer:
                 logger.info("SessionRepository initialized")
             except OSError as e:
                 logger.error("SESSION_REPOSITORY_INIT_FAILED", error=str(e))
-                raise IOError(f"Failed to initialize SessionRepository: {e}") from e
+                raise OSError(f"Failed to initialize SessionRepository: {e}") from e
 
         return self._session_repository
 
@@ -118,7 +116,7 @@ class DIContainer:
                 logger.info("AuditRepository initialized")
             except OSError as e:
                 logger.error("AUDIT_REPOSITORY_INIT_FAILED", error=str(e))
-                raise IOError(f"Failed to initialize AuditRepository: {e}") from e
+                raise OSError(f"Failed to initialize AuditRepository: {e}") from e
 
         return self._audit_repository
 
@@ -140,7 +138,7 @@ class DIContainer:
                 logger.info("CorpusService initialized")
             except OSError as e:
                 logger.error("CORPUS_SERVICE_INIT_FAILED", error=str(e))
-                raise IOError(f"Failed to initialize CorpusService: {e}") from e
+                raise OSError(f"Failed to initialize CorpusService: {e}") from e
 
         return self._corpus_service
 
@@ -160,7 +158,7 @@ class DIContainer:
                 logger.info("SessionService initialized")
             except OSError as e:
                 logger.error("SESSION_SERVICE_INIT_FAILED", error=str(e))
-                raise IOError(f"Failed to initialize SessionService: {e}") from e
+                raise OSError(f"Failed to initialize SessionService: {e}") from e
 
         return self._session_service
 
@@ -180,7 +178,7 @@ class DIContainer:
                 logger.info("AuditService initialized")
             except OSError as e:
                 logger.error("AUDIT_SERVICE_INIT_FAILED", error=str(e))
-                raise IOError(f"Failed to initialize AuditService: {e}") from e
+                raise OSError(f"Failed to initialize AuditService: {e}") from e
 
         return self._audit_service
 
@@ -206,7 +204,7 @@ class DIContainer:
                 logger.info("DiarizationService initialized")
             except OSError as e:
                 logger.error("DIARIZATION_SERVICE_INIT_FAILED", error=str(e))
-                raise IOError(f"Failed to initialize DiarizationService: {e}") from e
+                raise OSError(f"Failed to initialize DiarizationService: {e}") from e
 
         return self._diarization_service
 
@@ -225,9 +223,28 @@ class DIContainer:
                 logger.info("ExportService initialized")
             except OSError as e:
                 logger.error("EXPORT_SERVICE_INIT_FAILED", error=str(e))
-                raise IOError(f"Failed to initialize ExportService: {e}") from e
+                raise OSError(f"Failed to initialize ExportService: {e}") from e
 
         return self._export_service
+
+    def get_transcription_service(self) -> TranscriptionService:
+        """Get or create TranscriptionService singleton.
+
+        Returns:
+            TranscriptionService instance
+
+        Raises:
+            IOError: If service initialization fails
+        """
+        if self._transcription_service is None:
+            try:
+                self._transcription_service = TranscriptionService()
+                logger.info("TranscriptionService initialized")
+            except OSError as e:
+                logger.error("TRANSCRIPTION_SERVICE_INIT_FAILED", error=str(e))
+                raise OSError(f"Failed to initialize TranscriptionService: {e}") from e
+
+        return self._transcription_service
 
     def reset(self) -> None:
         """Reset all singletons (useful for testing).
@@ -236,15 +253,16 @@ class DIContainer:
         """
         logger.info("Resetting DIContainer")
 
+        self._audit_repository = None
         self._corpus_repository = None
         self._session_repository = None
-        self._audit_repository = None
 
-        self._corpus_service = None
-        self._session_service = None
         self._audit_service = None
+        self._corpus_service = None
         self._diarization_service = None
         self._export_service = None
+        self._session_service = None
+        self._transcription_service = None
 
 
 # Global container instance (created on module import)

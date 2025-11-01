@@ -9,16 +9,18 @@ Clean Code Principles:
 - Dependency Injection: Services receive dependencies, don't create them
 """
 
-from .corpus_service import CorpusService
-from .session_service import SessionService
 from .audit_service import AuditService
+from .corpus_service import CorpusService
 from .diarization_service import DiarizationService
 from .export_service import ExportService
+from .session_service import SessionService
+from .transcription_service import TranscriptionService
 
 __all__ = [
-    "CorpusService",
-    "SessionService",
     "AuditService",
+    "CorpusService",
     "DiarizationService",
     "ExportService",
+    "SessionService",
+    "TranscriptionService",
 ]
