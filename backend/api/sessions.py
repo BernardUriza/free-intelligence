@@ -18,15 +18,14 @@ Endpoints:
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
-
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +144,7 @@ async def list_sessions(
         )
 
     except Exception as e:
-        logger.error("LIST_SESSIONS_FAILED", error=str(e))
+        logger.error("LIST_SESSIONS_FAILED", error=str(e))  # type: ignore[call-arg]
         raise HTTPException(status_code=500, detail=f"Failed to list sessions: {str(e)}")
 
 
@@ -176,7 +175,7 @@ async def get_session(session_id: str):
         session = session_service.get_session(session_id)
 
         if not session:
-            logger.warning("SESSION_NOT_FOUND", session_id=session_id)
+            logger.warning("SESSION_NOT_FOUND", session_id=session_id)  # type: ignore[call-arg]
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
         # Log audit trail
@@ -192,7 +191,7 @@ async def get_session(session_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("GET_SESSION_FAILED", session_id=session_id, error=str(e))
+        logger.error("GET_SESSION_FAILED", session_id=session_id, error=str(e))  # type: ignore[call-arg]
         raise HTTPException(status_code=500, detail=f"Failed to retrieve session: {str(e)}")
 
 
@@ -238,10 +237,12 @@ async def create_session(request: CreateSessionRequest):
             },
         )
 
-        logger.info("SESSION_CREATED", session_id=session["session_id"], owner_hash=request.owner_hash)
+        logger.info(
+            "SESSION_CREATED", session_id=session["session_id"], owner_hash=request.owner_hash
+        )  # type: ignore[call-arg]
 
         # Map service response to API response schema
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         return SessionResponse(
             id=session["session_id"],
             created_at=now,
@@ -255,7 +256,7 @@ async def create_session(request: CreateSessionRequest):
         )
 
     except ValueError as e:
-        logger.warning("SESSION_CREATION_VALIDATION_FAILED", error=str(e))
+        logger.warning("SESSION_CREATION_VALIDATION_FAILED", error=str(e))  # type: ignore[call-arg]
         audit_service.log_action(
             action="session_creation_failed",
             user_id="system",
@@ -265,7 +266,7 @@ async def create_session(request: CreateSessionRequest):
         )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("SESSION_CREATION_FAILED", error=str(e))
+        logger.error("SESSION_CREATION_FAILED", error=str(e))  # type: ignore[call-arg]
         raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
 
 
@@ -303,7 +304,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
         if last_active is None and (
             request.status is not None or request.interaction_count is not None
         ):
-            last_active = datetime.now(timezone.utc).isoformat() + "Z"
+            last_active = datetime.now(UTC).isoformat() + "Z"
 
         # Delegate to service for update (handles validation)
         success = session_service.update_session(  # type: ignore[attr-defined]
@@ -313,7 +314,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
         )
 
         if not success:
-            logger.warning("SESSION_NOT_FOUND_FOR_UPDATE", session_id=session_id)
+            logger.warning("SESSION_NOT_FOUND_FOR_UPDATE", session_id=session_id)  # type: ignore[call-arg]
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
         # Retrieve updated session
@@ -331,17 +332,17 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
             },
         )
 
-        logger.info("SESSION_UPDATED", session_id=session_id)
+        logger.info("SESSION_UPDATED", session_id=session_id)  # type: ignore[call-arg]
 
         return SessionResponse(**session)
 
     except HTTPException:
         raise
     except ValueError as e:
-        logger.warning("SESSION_UPDATE_VALIDATION_FAILED", session_id=session_id, error=str(e))
+        logger.warning("SESSION_UPDATE_VALIDATION_FAILED", session_id=session_id, error=str(e))  # type: ignore[call-arg]
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("SESSION_UPDATE_FAILED", session_id=session_id, error=str(e))
+        logger.error("SESSION_UPDATE_FAILED", session_id=session_id, error=str(e))  # type: ignore[call-arg]
         raise HTTPException(status_code=500, detail=f"Failed to update session: {str(e)}")
 
 

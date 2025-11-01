@@ -389,7 +389,7 @@ async def upload_audio_for_diarization(
         # Route to low-priority worker or legacy pipelines
         if USE_LOWPRIO_WORKER:
             # Use low-priority worker with CPU scheduler + HDF5
-            job_id = create_lowprio_job(x_session_id, abs_path)
+            job_id = create_lowprio_job(x_session_id, abs_path)  # type: ignore[call-arg]
             logger.info(
                 "LOWPRIO_JOB_CREATED",
                 job_id=job_id,
@@ -398,7 +398,7 @@ async def upload_audio_for_diarization(
             )
         else:
             # Legacy: create in-memory job and use background task
-            job_id = create_job(x_session_id, str(abs_path), len(audio_content))
+            job_id = create_job(x_session_id, str(abs_path), len(audio_content))  # type: ignore[call-arg]
 
             if USE_V2_PIPELINE:
                 background_tasks.add_task(

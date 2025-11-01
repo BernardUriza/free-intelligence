@@ -10,8 +10,7 @@ coordination, repositories handle storage, endpoints handle HTTP.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -34,7 +33,9 @@ class DiarizationService:
     ALLOWED_EXTENSIONS = {"webm", "wav", "mp3", "m4a", "ogg", "flac"}
     DEFAULT_LANGUAGE = "es"
 
-    def __init__(self, corpus_service: Optional[Any] = None, session_service: Optional[Any] = None) -> None:
+    def __init__(
+        self, corpus_service: Optional[Any] = None, session_service: Optional[Any] = None
+    ) -> None:
         """Initialize diarization service with dependencies.
 
         Args:
@@ -107,7 +108,7 @@ class DiarizationService:
 
                 return True, None
             except Exception as e:
-                logger.error("SESSION_VALIDATION_FAILED", error=str(e))
+                logger.error("SESSION_VALIDATION_FAILED", error=str(e))  # type: ignore[call-arg]
                 return False, "Failed to validate session"
 
         return True, None
@@ -166,11 +167,11 @@ class DiarizationService:
                         "original_filename": audio_filename,
                         "job_id": job_id,
                         "session_id": session_id,
-                    }
+                    },
                 )
-            except IOError as e:
-                logger.error("AUDIO_SAVE_FAILED", job_id=job_id, error=str(e))
-                raise IOError(f"Failed to save audio file: {e}") from e
+            except OSError as e:
+                logger.error("AUDIO_SAVE_FAILED", job_id=job_id, error=str(e))  # type: ignore[call-arg]
+                raise OSError(f"Failed to save audio file: {e}") from e
         else:
             # Fallback if corpus_service not injected
             doc_id = f"audio_{job_id}"
@@ -185,8 +186,8 @@ class DiarizationService:
             "language": language,
             "persist": persist,
             "whisper_model": whisper_model,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
             "progress_pct": 0,
             "chunks_processed": 0,
             "total_chunks": 0,
@@ -215,7 +216,7 @@ class DiarizationService:
             Job metadata or None if not found
         """
         if job_id not in self.active_jobs:
-            logger.warning("JOB_NOT_FOUND", job_id=job_id)
+            logger.warning("JOB_NOT_FOUND", job_id=job_id)  # type: ignore[call-arg]
             return None
 
         return self.active_jobs[job_id]
@@ -241,14 +242,14 @@ class DiarizationService:
             True if update successful
         """
         if job_id not in self.active_jobs:
-            logger.error("JOB_NOT_FOUND_FOR_UPDATE", job_id=job_id)
+            logger.error("JOB_NOT_FOUND_FOR_UPDATE", job_id=job_id)  # type: ignore[call-arg]
             return False
 
         job = self.active_jobs[job_id]
         job["progress_pct"] = max(0, min(100, progress_pct))
         job["chunks_processed"] = chunks_processed
         job["total_chunks"] = total_chunks
-        job["updated_at"] = datetime.now(timezone.utc).isoformat()
+        job["updated_at"] = datetime.now(UTC).isoformat()
 
         if status:
             job["status"] = status
@@ -277,18 +278,18 @@ class DiarizationService:
             True if update successful
         """
         if job_id not in self.active_jobs:
-            logger.error("JOB_NOT_FOUND_FOR_COMPLETION", job_id=job_id)
+            logger.error("JOB_NOT_FOUND_FOR_COMPLETION", job_id=job_id)  # type: ignore[call-arg]
             return False
 
         job = self.active_jobs[job_id]
         job["status"] = "completed"
         job["progress_pct"] = 100
-        job["completed_at"] = datetime.now(timezone.utc).isoformat()
+        job["completed_at"] = datetime.now(UTC).isoformat()
 
         if result:
             job["result"] = result
 
-        logger.info("DIARIZATION_JOB_COMPLETED", job_id=job_id)
+        logger.info("DIARIZATION_JOB_COMPLETED", job_id=job_id)  # type: ignore[call-arg]
         return True
 
     def fail_job(
@@ -306,15 +307,15 @@ class DiarizationService:
             True if update successful
         """
         if job_id not in self.active_jobs:
-            logger.error("JOB_NOT_FOUND_FOR_FAILURE", job_id=job_id)
+            logger.error("JOB_NOT_FOUND_FOR_FAILURE", job_id=job_id)  # type: ignore[call-arg]
             return False
 
         job = self.active_jobs[job_id]
         job["status"] = "failed"
         job["error"] = error
-        job["failed_at"] = datetime.now(timezone.utc).isoformat()
+        job["failed_at"] = datetime.now(UTC).isoformat()
 
-        logger.error("DIARIZATION_JOB_FAILED", job_id=job_id, error=error)
+        logger.error("DIARIZATION_JOB_FAILED", job_id=job_id, error=error)  # type: ignore[call-arg]
         return True
 
     def list_jobs(
@@ -366,7 +367,6 @@ class DiarizationService:
         # Check Whisper availability
         try:
             import torch
-
 
             health_details["components"]["whisper"] = {
                 "available": True,
