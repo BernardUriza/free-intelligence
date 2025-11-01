@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Verify API - Integrity Validation Endpoints
 
@@ -21,7 +23,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-import h5py
+import h5py  # type: ignore
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field

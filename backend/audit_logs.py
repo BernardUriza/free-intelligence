@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Free Intelligence - Audit Logs
 
@@ -14,7 +16,7 @@ from datetime import datetime
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
-import h5py
+import h5py  # type: ignore
 
 # Audit log schema
 AUDIT_LOG_SCHEMA = {

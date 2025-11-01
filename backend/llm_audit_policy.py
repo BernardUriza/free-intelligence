@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 LLM Audit Policy - Free Intelligence
 

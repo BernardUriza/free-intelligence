@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Diarization Worker - Dedicated process for CPU-intensive transcription
 Card: FI-RELIABILITY-IMPL-003

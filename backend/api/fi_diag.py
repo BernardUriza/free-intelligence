@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 FI Diagnostics API Router
 Card: FI-INFRA-STR-014
@@ -7,7 +9,7 @@ Endpoints para health checks y diagnósticos del sistema.
 import os
 import subprocess
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -130,7 +132,7 @@ async def health_check():
 
     return HealthStatus(
         status=overall_status,
-        timestamp=datetime.utcnow().isoformat() + "Z",
+        timestamp=datetime.now(UTC).isoformat() + "Z",
         checks=checks,
         version="0.1.0",
     )
@@ -264,7 +266,7 @@ async def readiness_check():
     if not corpus_path.parent.exists():
         return {"ready": False, "reason": "Storage directory not found"}
 
-    return {"ready": True, "timestamp": datetime.utcnow().isoformat() + "Z"}
+    return {"ready": True, "timestamp": datetime.now(UTC).isoformat() + "Z"}
 
 
 @router.get("/liveness")
@@ -276,6 +278,6 @@ async def liveness_check():
     """
     return {
         "alive": True,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(UTC).isoformat() + "Z",
         "pid": os.getpid(),
     }

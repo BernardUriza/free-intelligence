@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Free Intelligence - Decision Middleware
 
@@ -93,15 +95,15 @@ class ConditionEvaluator:
         elif operator == "lte":
             return value is not None and value <= expected
         elif operator == "contains":
-            return value is not None and expected in str(value)
+            return value is not None and expected is not None and expected in str(value)
         elif operator == "not_contains":
-            return value is not None and expected not in str(value)
+            return value is not None and expected is not None and expected not in str(value)
         elif operator == "array_contains":
             return isinstance(value, list) and expected in value
         elif operator == "array_not_empty":
             return isinstance(value, list) and len(value) > 0
         elif operator == "array_length_gte":
-            return isinstance(value, list) and len(value) >= expected
+            return isinstance(value, list) and expected is not None and len(value) >= expected
         elif operator == "is_null":
             return value is None
         elif operator == "is_not_null":
@@ -329,7 +331,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Command")
 
     # List command
-    list_parser = subparsers.add_parser("list", help="List available presets")
+    _list_parser = subparsers.add_parser("list", help="List available presets")
 
     # Show command
     show_parser = subparsers.add_parser("show", help="Show rules for preset")

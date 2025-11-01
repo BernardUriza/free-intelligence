@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Policy Enforcer — Runtime Policy Guards
 Card: FI-POLICY-STR-001

@@ -77,6 +77,12 @@ pnpm dev                       # Terminal 2: Frontend (puerto 9000)
 make test                      # pytest backend/tests
 pnpm test                      # tests frontend
 
+# 🔍 TYPE CHECKING (Pylance/Pyright CLI)
+make type-check                # Quick check (2 sec) - Pyright solo
+make type-check-all            # Completo (15 sec) - Pyright + Mypy + Ruff
+make type-check-batch          # Export JSON + batch report
+make type-check-export         # Export para Claude Code batch fixing
+
 # 🏗️ BUILD & DEPLOY
 pnpm build                     # Build producción (Turborepo)
 pm2 start ecosystem.config.js  # Deploy NAS (PM2)
@@ -91,6 +97,14 @@ docker compose -f docker-compose.asr.yml up -d     # ASR worker only
 BOARD_ID=68fbfeeb7f8614df2eb61e42
 trello board-overview $BOARD_ID
 
+🔬 Type Checking Automation (Pylance/Pyright)
+	•	CLI Tool: python3 tools/detect_type_errors.py backend/ (auto-detección)
+	•	Baseline: 798 errors (mostly h5py stubs missing) + 57 warnings, 44 files
+	•	Strategy: Pyright (2 sec) → Export JSON → Batch fix con Claude Code
+	•	Config: pyrightconfig.json (standard mode, strict type checking)
+	•	Docs: docs/TYPE_CHECKING_QUICKSTART.md (profesional workflow)
+	•	Next: Remediate critical errors (reportArgumentType, reportAssignmentType) → CI/CD enforcement
+
 🔗 Referencias Rápidas
 	•	Backend: backend/*
 	•	Corpus HDF5: storage/corpus.h5
@@ -98,6 +112,7 @@ trello board-overview $BOARD_ID
 	•	Observability: observability/*
 	•	Evaluation: eval/ (prompts.csv, run_eval.py, Makefile)
 	•	Archive: docs/archive/ (MDs > 150 líneas)
+	•	Type Checking: tools/detect_type_errors.py, docs/TYPE_CHECKING_QUICKSTART.md
 
 ⸻
 
@@ -114,5 +129,6 @@ trello board-overview $BOARD_ID
 	•	KPIs API ✅: agregador in‑memory, p95 2ms, chips/timeseries.
 	•	NAS Deploy (Turborepo + PM2): scripts/productión sin cloud.
 	•	NAS DS923+ Deployment Stack ✅: Ollama (11434) + ASR worker (faster-whisper INT8), scripts automatizados, validation 7/7.
+	•	Type Checking Automation ✅: pyright CLI integration, tools/detect_type_errors.py, make type-check* commands, JSON export para batch fixing con Claude Code (798 errors baseline → remediation plan).
 
 Nota: Este kernel es guía operativa mínima; las bitácoras y reportes viven en la conversación salvo docs permanentes.

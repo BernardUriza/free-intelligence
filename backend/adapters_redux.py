@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Free Intelligence - Redux to Events Adapter
 
@@ -20,7 +22,7 @@ Usage:
   event_store.append_event(consultation_id, event)
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -346,7 +348,7 @@ class ReduxAdapter:
         event = ConsultationEvent(
             event_id=str(uuid4()),
             consultation_id=consultation_id,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             event_type=event_type,
             payload=event_payload,
             metadata=EventMetadata(
@@ -483,16 +485,11 @@ def validate_redux_action(redux_action: dict[str, Any]) -> bool:
     Returns:
         True if valid, False otherwise
     """
-    if not isinstance(redux_action, dict):
-        return False
-
-    if "type" not in redux_action:
-        return False
-
-    if not isinstance(redux_action["type"], str):
-        return False
-
-    return True
+    return (
+        isinstance(redux_action, dict)
+        and "type" in redux_action
+        and isinstance(redux_action["type"], str)
+    )
 
 
 # ============================================================================

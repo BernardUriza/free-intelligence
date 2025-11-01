@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 System Health API - Unified health checks for all services
 
@@ -10,7 +12,7 @@ Endpoints:
 """
 
 import subprocess
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter
@@ -158,5 +160,5 @@ async def get_system_health() -> SystemHealthResponse:
         ok=critical_ok,
         services=services,
         version="v0.3.0",
-        time=datetime.utcnow().isoformat() + "Z",
+        time=datetime.now(UTC).isoformat() + "Z",
     )

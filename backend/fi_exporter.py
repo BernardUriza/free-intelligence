@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Free Intelligence - Corpus Exporter
 
@@ -13,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import h5py
+import h5py  # type: ignore
 
 from backend.export_policy import ExportManifest, create_export_manifest
 from backend.logger import get_logger

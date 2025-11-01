@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Free Intelligence - Corpus API Service (FastAPI)
 
@@ -19,11 +21,11 @@ Usage:
 
 import os
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import h5py
+import h5py  # type: ignore
 from fastapi import FastAPI, HTTPException
 from fastapi import Path as PathParam
 from fastapi import Query, status
@@ -140,7 +142,7 @@ async def health_check():
         status="healthy",
         corpus_path=str(corpus_path),
         corpus_exists=verify_corpus_exists(),
-        timestamp=datetime.utcnow().isoformat() + "Z",
+        timestamp=datetime.now(UTC).isoformat() + "Z",
     )
 
 

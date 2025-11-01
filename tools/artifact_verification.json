@@ -21,7 +21,7 @@
       "status": "VALID",
       "card_id": "FI-EVAL-003",
       "artifact": "eval/run_eval.py",
-      "size_kb": 21.19,
+      "size_kb": 21.11,
       "message": "\u2705 Artifact valid and executable"
     },
     {
@@ -70,14 +70,14 @@
       "status": "VALID",
       "card_id": "FI-POLICY-004",
       "artifact": "tests/test_redaction.py",
-      "size_kb": 5.29,
+      "size_kb": 5.37,
       "message": "\u2705 Artifact valid and executable"
     },
     {
       "status": "VALID",
       "card_id": "FI-POLICY-005",
       "artifact": "tests/test_decision_rules.py",
-      "size_kb": 6.63,
+      "size_kb": 6.71,
       "message": "\u2705 Artifact valid and executable"
     },
     {
