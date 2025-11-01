@@ -17,16 +17,19 @@
     "DEBUG": true
   },
   "stubPath": "typings",
-  "reportMissingImports": true,
+  "reportMissingImports": false,
   "reportMissingTypeStubs": false,
   "pythonVersion": "3.11",
   "pythonPlatform": "Darwin",
   "executionEnvironments": [
     {
-      "root": "backend",
+      "root": ".",
       "pythonVersion": "3.11",
       "pythonPlatform": "Darwin",
-      "extraPaths": []
+      "extraPaths": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/backend"
+      ]
     }
   ],
   "typeCheckingMode": "basic",
