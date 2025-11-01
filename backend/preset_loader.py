@@ -304,7 +304,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Command")
 
     # List command
-    list_parser = subparsers.add_parser("list", help="List available presets")
+    _list_parser = subparsers.add_parser("list", help="List available presets")
 
     # Load command
     load_parser = subparsers.add_parser("load", help="Load and display preset")

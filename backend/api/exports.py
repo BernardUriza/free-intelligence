@@ -37,7 +37,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
-from backend.sessions_store import SessionsStore
+
 
 logger = logging.getLogger(__name__)
 

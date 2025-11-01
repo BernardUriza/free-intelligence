@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
+
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -366,7 +366,7 @@ class DiarizationService:
         # Check Whisper availability
         try:
             import torch
-            from faster_whisper import WhisperModel
+
 
             health_details["components"]["whisper"] = {
                 "available": True,

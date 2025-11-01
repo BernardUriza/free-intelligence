@@ -344,7 +344,7 @@ async def websocket_event_stream(websocket: WebSocket, consultation_id: str):
         # Keep connection alive and wait for new events
         while True:
             # Wait for client messages (ping/pong)
-            data = await websocket.receive_text()
+            _data = await websocket.receive_text()
 
             # Echo back (ping/pong)
             await websocket.send_json({"type": "PONG", "timestamp": datetime.now(timezone.utc).isoformat()})

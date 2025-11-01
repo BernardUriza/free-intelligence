@@ -11,13 +11,13 @@ Updated to use clean code architecture with AuditService.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
-from backend.schemas import success_response, error_response, StatusCode
+
 
 logger = logging.getLogger(__name__)
 

@@ -474,7 +474,7 @@ def main():
     score_parser.add_argument("--provider", default="ollama", help="Provider name")
 
     # Test command
-    test_parser = subparsers.add_parser("test", help="Test with sample responses")
+    _test_parser = subparsers.add_parser("test", help="Test with sample responses")
 
     args = parser.parse_args()
 

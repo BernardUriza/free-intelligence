@@ -456,7 +456,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Command")
 
     # List command
-    list_parser = subparsers.add_parser("list", help="List consultations")
+    _list_parser = subparsers.add_parser("list", help="List consultations")
 
     # Load command
     load_parser = subparsers.add_parser("load", help="Load event stream")
@@ -464,7 +464,7 @@ def main():
     load_parser.add_argument("--verify", action="store_true", help="Verify SHA256 hashes")
 
     # Stats command
-    stats_parser = subparsers.add_parser("stats", help="Show statistics")
+    _stats_parser = subparsers.add_parser("stats", help="Show statistics")
 
     args = parser.parse_args()
 

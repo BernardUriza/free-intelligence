@@ -21,11 +21,11 @@ Updated: 2025-10-31
 """
 from __future__ import annotations
 
-import asyncio
+import json
 import os
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 from fastapi import (
     APIRouter,
@@ -42,23 +42,12 @@ from pydantic import BaseModel, Field
 
 from backend.audio_storage import save_audio_file
 from backend.container import get_container
-from backend.diarization_jobs import (
-    JobStatus,
-    create_job,
-    get_job,
-    list_jobs,
-    update_job_status,
-)
-from backend.diarization_service import (
-    DiarizationResult,
-    diarize_audio,
-    export_diarization,
-)
+from backend.diarization_jobs import JobStatus, create_job, update_job_status
+from backend.diarization_service import diarize_audio
 from backend.diarization_service_v2 import diarize_audio_parallel
 from backend.diarization_worker_lowprio import (
     create_diarization_job as create_lowprio_job,
 )
-from backend.diarization_worker_lowprio import get_job_status as get_lowprio_status
 from backend.logger import get_logger
 from backend.schemas import StatusCode, error_response, success_response
 
@@ -485,64 +474,68 @@ async def get_job_status(job_id: str):
     """
     Get status of diarization job with chunks[] array.
 
-    Low-priority mode:
-    - Reads from HDF5 (storage/diarization.h5)
-    - Returns incremental chunks as they complete
-    - Frontend can poll at 1.5s intervals
-
-    Legacy mode:
-    - Reads from in-memory job store
-    - No chunks[] array (empty)
+    **Clean Code Architecture:**
+    - DiarizationJobService handles status retrieval from both HDF5 and in-memory
+    - AuditService logs retrieval
+    - Uses DI container for dependency injection
     """
-    # Try low-priority worker first
-    if USE_LOWPRIO_WORKER:
-        lowprio_status = get_lowprio_status(job_id)
-        if lowprio_status:
-            # Convert HDF5 chunks to API format
-            chunks = [
-                ChunkInfo(
-                    chunk_idx=c["chunk_idx"],
-                    start_time=c["start_time"],
-                    end_time=c["end_time"],
-                    text=c["text"],
-                    speaker=c["speaker"],
-                    temperature=c["temperature"],
-                    rtf=c["rtf"],
-                    timestamp=c["timestamp"],
-                )
-                for c in lowprio_status["chunks"]
-            ]
+    try:
+        # Get services from DI container
+        job_service = get_container().get_diarization_job_service()
+        audit_service = get_container().get_audit_service()
 
-            return JobStatusResponse(
-                job_id=lowprio_status["job_id"],
-                session_id=lowprio_status["session_id"],
-                status=lowprio_status["status"],
-                progress_pct=lowprio_status["progress_pct"],
-                total_chunks=lowprio_status["total_chunks"],
-                processed_chunks=lowprio_status["processed_chunks"],
-                chunks=chunks,
-                created_at=lowprio_status["created_at"],
-                updated_at=lowprio_status["updated_at"],
-                error=lowprio_status.get("error"),
+        # Delegate to service layer
+        status_dict = job_service.get_job_status(job_id)
+
+        if not status_dict:
+            logger.warning(f"JOB_NOT_FOUND: job_id={job_id}")
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+        # Log audit trail
+        audit_service.log_action(
+            action="job_status_retrieved",
+            user_id="system",
+            resource=f"diarization_job:{job_id}",
+            result="success",
+            details={"status": status_dict.get("status")},
+        )
+
+        logger.info(f"JOB_STATUS_RETRIEVED: job_id={job_id}, status={status_dict['status']}")
+
+        # Convert chunks to response model
+        chunks = [
+            ChunkInfo(
+                chunk_idx=c["chunk_idx"],
+                start_time=c["start_time"],
+                end_time=c["end_time"],
+                text=c["text"],
+                speaker=c["speaker"],
+                temperature=c.get("temperature", 0.0),
+                rtf=c.get("rtf", 0.0),
+                timestamp=c.get("timestamp", ""),
             )
+            for c in status_dict.get("chunks", [])
+        ]
 
-    # Fallback to legacy in-memory job store
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found")
+        return JobStatusResponse(
+            job_id=status_dict["job_id"],
+            session_id=status_dict["session_id"],
+            status=status_dict["status"],
+            progress_pct=status_dict.get("progress_pct", 0),
+            total_chunks=status_dict.get("total_chunks", 0),
+            processed_chunks=status_dict.get("processed_chunks", 0),
+            chunks=chunks,
+            created_at=status_dict["created_at"],
+            updated_at=status_dict["updated_at"],
+            error=status_dict.get("error"),
+        )
 
-    return JobStatusResponse(
-        job_id=job.job_id,
-        session_id=job.session_id,
-        status=job.status.value,
-        progress_pct=job.progress_percent,
-        total_chunks=job.total,
-        processed_chunks=job.processed,
-        chunks=[],  # Legacy mode: no incremental chunks
-        created_at=job.created_at,
-        updated_at=job.updated_at,
-        error=job.error_message,
-    )
+    except ValueError as e:
+        logger.warning(f"JOB_STATUS_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"JOB_STATUS_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve job status") from e
 
 
 @router.get("/result/{job_id}", response_model=DiarizationResultResponse)
@@ -550,239 +543,130 @@ async def get_diarization_result(job_id: str):
     """
     Get diarization result for completed job.
 
-    Supports both legacy (in-memory) and low-priority (HDF5) workers.
-    V2 improvement: Results are cached in job.result_data (no re-processing).
+    **Clean Code Architecture:**
+    - DiarizationJobService handles result reconstruction and caching
+    - Supports both HDF5 (low-prio) and in-memory (legacy) job stores
+    - AuditService logs retrieval
     """
-    # Try low-priority worker first (HDF5)
-    if USE_LOWPRIO_WORKER:
-        lowprio_status = get_lowprio_status(job_id)
-        if lowprio_status:
-            # Low-prio job found in HDF5
-            if lowprio_status["status"] != "completed":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Job not completed. Status: {lowprio_status['status']}",
-                )
+    try:
+        # Get services from DI container
+        job_service = get_container().get_diarization_job_service()
+        audit_service = get_container().get_audit_service()
 
-            # For low-prio jobs, reconstruct result from chunks
-            logger.info(
-                "RESULT_FROM_LOWPRIO_CHUNKS", job_id=job_id, chunks=len(lowprio_status["chunks"])
-            )
+        # Delegate to service layer
+        result_dict = job_service.get_diarization_result(job_id)
 
-            # Combine all chunks into segments
-            segments: list[DiarizationSegmentResponse] = []
-            for chunk in lowprio_status["chunks"]:
-                segments.append(
-                    DiarizationSegmentResponse(
-                        start_time=chunk["start_time"],
-                        end_time=chunk["end_time"],
-                        speaker=chunk["speaker"],
-                        text=chunk["text"],
-                    )
-                )
+        if not result_dict:
+            logger.warning(f"DIARIZATION_RESULT_NOT_FOUND: job_id={job_id}")
+            raise HTTPException(status_code=404, detail=f"Result not found for job {job_id}")
 
-            # Compute total duration from last chunk
-            total_duration: float = segments[-1].end_time if segments else 0.0
-
-            return DiarizationResultResponse(
-                session_id=lowprio_status["session_id"],
-                audio_file_hash="",  # Not available in HDF5 chunks
-                duration_sec=total_duration,
-                language="es",  # Default (not stored in chunks)
-                model_asr="faster-whisper",
-                model_llm="none",  # Low-prio doesn't use LLM
-                segments=segments,
-                processing_time_sec=0.0,  # Not tracked per-job
-                created_at=lowprio_status["created_at"],
-            )
-
-    # Fallback to legacy in-memory job store
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found")
-
-    if job.status != JobStatus.COMPLETED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Job not completed. Status: {job.status.value}",
+        # Log audit trail
+        audit_service.log_action(
+            action="diarization_result_retrieved",
+            user_id="system",
+            resource=f"diarization_job:{job_id}",
+            result="success",
+            details={"segments": len(result_dict.get("segments", []))},
         )
 
-    # Use cached result (V2) or re-process (V1 fallback)
-    try:
-        if job.result_data:
-            # V2: Result cached in job, return immediately
-            logger.info("RESULT_SERVED_FROM_CACHE", job_id=job_id)
-            result_data = job.result_data
+        logger.info(f"DIARIZATION_RESULT_RETRIEVED: job_id={job_id}")
 
-            return DiarizationResultResponse(
-                session_id=result_data["session_id"],
-                audio_file_hash=result_data["audio_file_hash"],
-                duration_sec=result_data["duration_sec"],
-                language=result_data["language"],
-                model_asr=result_data["model_asr"],
-                model_llm=result_data["model_llm"],
-                segments=[
-                    DiarizationSegmentResponse(
-                        start_time=seg["start_time"],
-                        end_time=seg["end_time"],
-                        speaker=seg["speaker"],
-                        text=seg["text"],
-                    )
-                    for seg in result_data["segments"]
-                ],
-                processing_time_sec=result_data["processing_time_sec"],
-                created_at=result_data["created_at"],
+        # Build response
+        segments = [
+            DiarizationSegmentResponse(
+                start_time=seg["start_time"],
+                end_time=seg["end_time"],
+                speaker=seg["speaker"],
+                text=seg["text"],
             )
-
-        # V1 fallback: Re-run diarization (expensive, but kept for compatibility)
-        logger.warning("RESULT_NOT_CACHED_REPROCESSING", job_id=job_id)
-        audio_path = Path(job.audio_file_path)
-        result = diarize_audio(audio_path, job.session_id, language="es", persist=False)
+            for seg in result_dict.get("segments", [])
+        ]
 
         return DiarizationResultResponse(
-            session_id=result.session_id,
-            audio_file_hash=result.audio_file_hash,
-            duration_sec=result.duration_sec,
-            language=result.language,
-            model_asr=result.model_asr,
-            model_llm=result.model_llm,
-            segments=[
-                DiarizationSegmentResponse(
-                    start_time=seg.start_time,
-                    end_time=seg.end_time,
-                    speaker=seg.speaker,
-                    text=seg.text,
-                )
-                for seg in result.segments
-            ],
-            processing_time_sec=result.processing_time_sec,
-            created_at=result.created_at,
+            session_id=result_dict["session_id"],
+            audio_file_hash=result_dict.get("audio_file_hash", ""),
+            duration_sec=result_dict["duration_sec"],
+            language=result_dict.get("language", "es"),
+            model_asr=result_dict.get("model_asr", "faster-whisper"),
+            model_llm=result_dict.get("model_llm", "none"),
+            segments=segments,
+            processing_time_sec=result_dict.get("processing_time_sec", 0.0),
+            created_at=result_dict["created_at"],
         )
 
+    except ValueError as e:
+        logger.warning(f"DIARIZATION_RESULT_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("RESULT_LOAD_FAILED", job_id=job_id, error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to load result: {str(e)}",
-        ) from e
+        logger.error(f"DIARIZATION_RESULT_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve result") from e
 
 
 @router.get("/export/{job_id}")
 async def export_diarization_result(
-    job_id: str, export_format: str = Query("json", regex="^(json|markdown)$", alias="format")
+    job_id: str,
+    export_format: str = Query("json", regex="^(json|markdown|vtt|srt|csv)$", alias="format"),
 ):
     """
     Export diarization result in specified format.
 
-    Supports both legacy (in-memory) and low-priority (HDF5) workers.
-    Uses cached results when available (no re-processing).
+    **Clean Code Architecture:**
+    - DiarizationJobService handles export formatting
+    - Supports: json, markdown, vtt, srt, csv
+    - AuditService logs export
     """
-    # Try low-priority worker first (HDF5)
-    if USE_LOWPRIO_WORKER:
-        lowprio_status = get_lowprio_status(job_id)
-        if lowprio_status:
-            # Low-prio job found in HDF5
-            if lowprio_status["status"] != "completed":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Job not completed. Status: {lowprio_status['status']}",
-                )
+    try:
+        # Get services from DI container
+        job_service = get_container().get_diarization_job_service()
+        audit_service = get_container().get_audit_service()
 
-            # Reconstruct result from chunks (no re-processing)
-            logger.info("EXPORT_FROM_LOWPRIO_CHUNKS", job_id=job_id, format=format)
+        # Validate format
+        valid_formats = {"json", "markdown", "vtt", "srt", "csv"}
+        if export_format not in valid_formats:
+            raise ValueError(f"Invalid format: {export_format}")
 
-            segments: list[dict] = []
-            for chunk in lowprio_status["chunks"]:
-                segments.append(
-                    {
-                        "start_time": chunk["start_time"],
-                        "end_time": chunk["end_time"],
-                        "speaker": chunk["speaker"],
-                        "text": chunk["text"],
-                    }
-                )
+        # Delegate to service layer
+        exported_content = job_service.export_result(job_id, export_format)
 
-            # Create simple export from chunks
-            if export_format == "json":
-                import json
+        if not exported_content:
+            raise HTTPException(status_code=404, detail=f"Result not found for job {job_id}")
 
-                export_data: dict[str, Any] = {
-                    "job_id": job_id,
-                    "session_id": lowprio_status["session_id"],
-                    "status": "completed",
-                    "created_at": lowprio_status["created_at"],
-                    "segments": segments,
-                }
-                content = json.dumps(export_data, indent=2)
-                media_type = "application/json"
-            else:  # markdown
-                content = f"# Diarization Result - {job_id}\n\n"
-                content += f"**Session:** {lowprio_status['session_id']}\n"
-                content += f"**Created:** {lowprio_status['created_at']}\n\n"
-                content += "## Segments\n\n"
-                for seg in segments:
-                    content += f"**[{seg['start_time']:.1f}s - {seg['end_time']:.1f}s] {seg['speaker']}:**\n"
-                    content += f"{seg['text']}\n\n"
-                media_type = "text/markdown"
-
-            return Response(
-                content=content,
-                media_type=media_type,
-                headers={
-                    "Content-Disposition": f"attachment; filename=diarization_{job_id}.{export_format}"
-                },
-            )
-
-    # Fallback to legacy in-memory job store
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found")
-
-    if job.status != JobStatus.COMPLETED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Job not completed. Status: {job.status.value}",
+        # Log audit trail
+        audit_service.log_action(
+            action="diarization_exported",
+            user_id="system",
+            resource=f"diarization_job:{job_id}",
+            result="success",
+            details={"format": export_format, "size": len(exported_content)},
         )
 
-    try:
-        # Use cached result if available (no re-processing)
-        result_data: Union[dict[str, Any], DiarizationResult]
-        if job.result_data:
-            logger.info("EXPORT_FROM_CACHE", job_id=job_id, format=export_format)
-            result_data = job.result_data
-        else:
-            # Fallback: Re-process audio (should be rare)
-            logger.warning("EXPORT_REPROCESSING_LEGACY", job_id=job_id)
-            audio_path = Path(job.audio_file_path)
-            result = diarize_audio(audio_path, job.session_id, language="es", persist=False)
-            result_data = asdict(result) if hasattr(result, "__dataclass_fields__") else result  # type: ignore
+        logger.info(f"DIARIZATION_EXPORTED: job_id={job_id}, format={export_format}")
 
-        # Convert dict to DiarizationResult if needed
-        if isinstance(result_data, DiarizationResult):
-            diarization_result: DiarizationResult = result_data
-        else:
-            diarization_result = DiarizationResult(**result_data)
+        # Return appropriate content type
+        content_types = {
+            "json": "application/json",
+            "markdown": "text/markdown",
+            "vtt": "text/vtt",
+            "srt": "text/plain",
+            "csv": "text/csv",
+        }
 
-        export_content: str = export_diarization(diarization_result, export_format)
+        filename = f"diarization_{job_id}.{export_format if export_format != 'markdown' else 'md'}"
 
-        if export_format == "json":
-            return Response(
-                content=export_content,
-                media_type="application/json",
-                headers={"Content-Disposition": f"attachment; filename=diarization_{job_id}.json"},
-            )
-        else:  # markdown
-            return Response(
-                content=export_content,
-                media_type="text/markdown",
-                headers={"Content-Disposition": f"attachment; filename=diarization_{job_id}.md"},
-            )
+        return Response(
+            content=exported_content,
+            media_type=content_types.get(export_format, "text/plain"),
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
 
+    except ValueError as e:
+        logger.warning(f"DIARIZATION_EXPORT_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("EXPORT_FAILED", job_id=job_id, error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Export failed: {str(e)}"
-        ) from e
+        logger.error(
+            f"DIARIZATION_EXPORT_FAILED: job_id={job_id}, format={export_format}, error={str(e)}"
+        )
+        raise HTTPException(status_code=500, detail="Failed to export result") from e
 
 
 @router.get("/jobs")
@@ -791,267 +675,199 @@ async def list_diarization_jobs(
     limit: int = Query(50, ge=1, le=100, description="Max results"),
 ):
     """
-    List diarization jobs from HDF5 storage (low-priority worker).
-    Optionally filtered by session ID.
+    List diarization jobs with optional filtering.
+
+    **Clean Code Architecture:**
+    - DiarizationJobService handles job listing and filtering
+    - AuditService logs list operation
     """
-    # Check if using low-priority worker
-    if USE_LOWPRIO_WORKER:
-        from backend.diarization_worker_lowprio import list_all_jobs as list_h5_jobs
+    try:
+        # Get services from DI container
+        job_service = get_container().get_diarization_job_service()
+        audit_service = get_container().get_audit_service()
 
-        jobs_h5 = list_h5_jobs(session_id, limit)
+        # Delegate to service layer
+        jobs = job_service.list_jobs(limit=limit, session_id=session_id)
 
-        return {"jobs": jobs_h5, "count": len(jobs_h5)}
+        # Log audit trail
+        audit_service.log_action(
+            action="diarization_jobs_listed",
+            user_id="system",
+            resource="diarization_jobs",
+            result="success",
+            details={"count": len(jobs), "limit": limit},
+        )
 
-    # Fallback to legacy in-memory jobs
-    jobs = list_jobs(session_id, limit)
+        logger.info(f"DIARIZATION_JOBS_LISTED: count={len(jobs)}, limit={limit}")
 
-    return {
-        "jobs": [
-            {
-                "job_id": j.job_id,
-                "session_id": j.session_id,
-                "status": j.status.value,
-                "progress_percent": j.progress_percent,
-                "created_at": j.created_at,
-                "completed_at": j.completed_at,
-            }
-            for j in jobs
-        ],
-        "count": len(jobs),
-    }
+        return success_response(
+            [
+                {
+                    "job_id": j["job_id"],
+                    "session_id": j["session_id"],
+                    "status": j.get("status"),
+                    "created_at": j.get("created_at"),
+                }
+                for j in jobs
+            ],
+            message=f"Found {len(jobs)} jobs",
+        )
+
+    except Exception as e:
+        logger.error(f"DIARIZATION_JOBS_LIST_FAILED: error={str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to list jobs") from e
 
 
 @router.get("/health")
 async def diarization_health():
     """
-    Health check for diarization service.
+    Check diarization service health.
 
-    Returns:
-        - status: operational | degraded | down
-        - whisper: bool (ASR availability) - ALSO returns as whisper_available for frontend compatibility
-        - llm: bool (Ollama availability) - ALSO returns as ollama_available for frontend compatibility
-        - enrichment_enabled: bool (FI_ENRICHMENT status)
-        - message: human-readable status
+    **Clean Code Architecture:**
+    - DiarizationService handles health check logic
+    - Reports on Whisper, FFmpeg, and active jobs
     """
-    from backend.diarization_service import (
-        ENABLE_LLM_CLASSIFICATION,
-        FI_ENRICHMENT,
-        check_ollama_available,
-    )
-    from backend.whisper_service import is_whisper_available
+    try:
+        # Get services from DI container
+        diarization_service = get_container().get_diarization_service()
 
-    whisper_ok = is_whisper_available()
-    enrichment_enabled = FI_ENRICHMENT and ENABLE_LLM_CLASSIFICATION
+        # Delegate to service layer
+        health_details = diarization_service.health_check()
 
-    # Check Ollama only if enrichment is enabled
-    llm_ok = False
-    if enrichment_enabled:
-        llm_ok = check_ollama_available()
+        logger.info(f"DIARIZATION_HEALTH_CHECKED: status={health_details['status']}")
 
-    # Determine overall status
-    if not whisper_ok:
-        status_text = "down"  # Critical: ASR unavailable
-    elif enrichment_enabled and not llm_ok:
-        status_text = "degraded"  # Whisper ok, but LLM enrichment unavailable
-    else:
-        status_text = "operational"  # All ok (or LLM intentionally disabled)
+        # Return appropriate status code
+        status_code = 200 if health_details["status"] == "healthy" else 503
 
-    return {
-        "status": status_text,
-        # Legacy field names (for backward compatibility)
-        "whisper": whisper_ok,
-        "llm": llm_ok,
-        # Frontend field names (FI-UI-FEAT-207)
-        "whisper_available": whisper_ok,
-        "ollama_available": llm_ok,
-        # Metadata
-        "enrichment_enabled": enrichment_enabled,
-        "message": f"Diarization service {status_text}",
-    }
+        return Response(
+            content=json.dumps(health_details),
+            media_type="application/json",
+            status_code=status_code,
+        )
+
+    except Exception as e:
+        logger.error(f"DIARIZATION_HEALTH_CHECK_FAILED: error={str(e)}")
+        return Response(
+            content=json.dumps({"status": "unhealthy", "error": str(e)}),
+            media_type="application/json",
+            status_code=503,
+        )
 
 
 @router.post("/jobs/{job_id}/restart")
 async def restart_job(job_id: str):
     """
-    Restart a stuck or failed diarization job.
+    Restart diarization job.
 
-    Creates a new job with the same audio file and session ID.
-    Returns new job_id.
+    **Clean Code Architecture:**
+    - DiarizationJobService handles job restart logic
+    - AuditService logs restart action
     """
-    if USE_LOWPRIO_WORKER:
-        # Get original job details from HDF5
-        from backend.diarization_worker_lowprio import (
-            create_diarization_job as create_lowprio_job,
+    try:
+        # Get services from DI container
+        job_service = get_container().get_diarization_job_service()
+        audit_service = get_container().get_audit_service()
+
+        # Delegate to service layer
+        updated_status = job_service.restart_job(job_id)
+
+        # Log audit trail
+        audit_service.log_action(
+            action="diarization_job_restarted",
+            user_id="system",
+            resource=f"diarization_job:{job_id}",
+            result="success",
+            details={"new_status": updated_status.get("status")},
         )
-        from backend.diarization_worker_lowprio import (
-            get_job_status as get_lowprio_status,
-        )
 
-        original_job = get_lowprio_status(job_id)
-        if not original_job:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Job {job_id} not found in HDF5. This may be an old job created before low-priority worker was enabled.",
-            )
+        logger.info(f"DIARIZATION_JOB_RESTARTED: job_id={job_id}")
 
-        # Get audio path from HDF5 metadata
-        import h5py  # type: ignore
+        return success_response(updated_status, message=f"Job {job_id} restarted", code=200)
 
-        h5_path = Path("storage/diarization.h5")
-
-        try:
-            with h5py.File(h5_path, "r") as f:
-                job_group = f[f"jobs/{job_id}"]
-                audio_path_str = job_group.attrs.get("audio_path", "")  # type: ignore
-
-                if not audio_path_str:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Audio path not found in job metadata",
-                    )
-
-                audio_path = Path(audio_path_str)
-
-                if not audio_path.is_file():
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Audio file no longer exists: {audio_path}",
-                    )
-
-                # Create new job
-                new_job_id = create_lowprio_job(original_job["session_id"], audio_path)
-
-                logger.info("JOB_RESTARTED", old_job_id=job_id, new_job_id=new_job_id)
-
-                return {
-                    "message": "Job restarted successfully",
-                    "old_job_id": job_id,
-                    "new_job_id": new_job_id,
-                    "status": "pending",
-                }
-
-        except Exception as e:
-            logger.error("JOB_RESTART_FAILED", job_id=job_id, error=str(e))
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to restart job: {str(e)}",
-            ) from e
-
-    # Legacy mode: restart from in-memory job
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found")
-
-    # Create new job with same audio
-    audio_path = Path(job.audio_file_path)
-    new_job_id = create_job(job.session_id, str(audio_path), audio_path.stat().st_size)
-
-    logger.info("JOB_RESTARTED_LEGACY", old_job_id=job_id, new_job_id=new_job_id)
-
-    return {
-        "message": "Job restarted successfully",
-        "old_job_id": job_id,
-        "new_job_id": new_job_id,
-        "status": "pending",
-    }
+    except ValueError as e:
+        logger.warning(f"JOB_RESTART_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"JOB_RESTART_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to restart job") from e
 
 
 @router.post("/jobs/{job_id}/cancel")
 async def cancel_job(job_id: str):
     """
-    Cancel a running diarization job.
+    Cancel diarization job.
 
-    Marks job as cancelled in HDF5 or in-memory store.
+    **Clean Code Architecture:**
+    - DiarizationJobService handles job cancellation
+    - AuditService logs cancel action
     """
-    if USE_LOWPRIO_WORKER:
-        # Cancel job in HDF5
-        import h5py  # type: ignore
+    try:
+        # Get services from DI container
+        job_service = get_container().get_diarization_job_service()
+        audit_service = get_container().get_audit_service()
 
-        h5_path = Path("storage/diarization.h5")
+        # Delegate to service layer
+        updated_status = job_service.cancel_job(job_id)
 
-        try:
-            with h5py.File(h5_path, "a") as f:
-                if f"jobs/{job_id}" not in f:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found"
-                    )
+        # Log audit trail
+        audit_service.log_action(
+            action="diarization_job_cancelled",
+            user_id="system",
+            resource=f"diarization_job:{job_id}",
+            result="success",
+            details={"new_status": updated_status.get("status")},
+        )
 
-                job_group = f[f"jobs/{job_id}"]
-                job_group.attrs["status"] = "cancelled"  # type: ignore
-                job_group.attrs["updated_at"] = str(asyncio.get_event_loop().time())  # type: ignore
+        logger.info(f"DIARIZATION_JOB_CANCELLED: job_id={job_id}")
 
-                logger.info("JOB_CANCELLED", job_id=job_id)
+        return success_response(updated_status, message=f"Job {job_id} cancelled", code=200)
 
-                return {
-                    "message": "Job cancelled successfully",
-                    "job_id": job_id,
-                    "status": "cancelled",
-                }
-
-        except Exception as e:
-            logger.error("JOB_CANCEL_FAILED", job_id=job_id, error=str(e))
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to cancel job: {str(e)}",
-            ) from e
-
-    # Legacy mode: cancel in-memory job
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found")
-
-    update_job_status(job_id, JobStatus.FAILED, error="Cancelled by user")
-
-    logger.info("JOB_CANCELLED_LEGACY", job_id=job_id)
-
-    return {"message": "Job cancelled successfully", "job_id": job_id, "status": "cancelled"}
+    except ValueError as e:
+        logger.warning(f"JOB_CANCEL_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"JOB_CANCEL_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to cancel job") from e
 
 
 @router.get("/jobs/{job_id}/logs")
 async def get_job_logs(job_id: str):
     """
-    Get logs for a specific diarization job.
+    Get processing logs for a diarization job.
 
-    Returns job metadata + chunk processing history from HDF5.
+    **Clean Code Architecture:**
+    - DiarizationJobService handles log retrieval
+    - AuditService logs access
     """
-    if USE_LOWPRIO_WORKER:
-        from backend.diarization_worker_lowprio import (
-            get_job_status as get_lowprio_status,
+    try:
+        # Get services from DI container
+        job_service = get_container().get_diarization_job_service()
+        audit_service = get_container().get_audit_service()
+
+        # Delegate to service layer
+        logs = job_service.get_job_logs(job_id)
+
+        if logs is None:
+            logger.warning(f"JOB_LOGS_NOT_FOUND: job_id={job_id}")
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+        # Log audit trail
+        audit_service.log_action(
+            action="diarization_logs_retrieved",
+            user_id="system",
+            resource=f"diarization_job:{job_id}",
+            result="success",
+            details={"log_entries": len(logs) if logs else 0},
         )
 
-        job_status = get_lowprio_status(job_id)
-        if not job_status:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found"
-            )
+        logger.info(
+            f"DIARIZATION_LOGS_RETRIEVED: job_id={job_id}, count={len(logs) if logs else 0}"
+        )
 
-        # Return full job state as "logs"
-        return {
-            "job_id": job_id,
-            "session_id": job_status["session_id"],
-            "status": job_status["status"],
-            "progress_pct": job_status["progress_pct"],
-            "processed_chunks": job_status["processed_chunks"],
-            "total_chunks": job_status["total_chunks"],
-            "created_at": job_status["created_at"],
-            "updated_at": job_status["updated_at"],
-            "error": job_status.get("error"),
-            "chunks": job_status["chunks"],
-            "message": f"Retrieved {len(job_status['chunks'])} chunks from HDF5",
-        }
+        return success_response(
+            logs or [], message=f"Retrieved {len(logs) if logs else 0} log entries", code=200
+        )
 
-    # Legacy mode: return in-memory job state
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found")
-
-    return {
-        "job_id": job.job_id,
-        "session_id": job.session_id,
-        "status": job.status.value,
-        "progress_percent": job.progress_percent,
-        "created_at": job.created_at,
-        "updated_at": job.updated_at,
-        "error": job.error_message,
-        "message": "Legacy in-memory job (no chunk logs available)",
-    }
+    except Exception as e:
+        logger.error(f"DIARIZATION_LOGS_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve logs") from e
