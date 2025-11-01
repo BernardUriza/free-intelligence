@@ -3,13 +3,11 @@
 Free Intelligence — Outreach Email Tool (Mail-Merge)
 Card: FI-GTM-STR-027
 """
+import argparse
 import csv
 import sys
-import argparse
-from pathlib import Path
-from typing import List, Dict
 from datetime import datetime
-
+from pathlib import Path
 
 # Email Templates
 EMAIL_TEMPLATES = {
@@ -107,10 +105,10 @@ Free Intelligence
 }
 
 
-def load_leads(csv_path: Path) -> List[Dict]:
+def load_leads(csv_path: Path) -> list[dict]:
     """Load leads from CSV file."""
     leads = []
-    with open(csv_path, "r", encoding="utf-8") as f:
+    with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             leads.append(row)
@@ -118,8 +116,8 @@ def load_leads(csv_path: Path) -> List[Dict]:
 
 
 def generate_email(
-    template_name: str, lead: Dict, sender_config: Dict, extra_vars: Dict = None
-) -> Dict:
+    template_name: str, lead: dict, sender_config: dict, extra_vars: dict = None
+) -> dict:
     """Generate personalized email from template."""
     if template_name not in EMAIL_TEMPLATES:
         raise ValueError(f"Unknown template: {template_name}")
@@ -151,7 +149,7 @@ def generate_email(
     }
 
 
-def filter_leads(leads: List[Dict], status: str = None, limit: int = None) -> List[Dict]:
+def filter_leads(leads: list[dict], status: str = None, limit: int = None) -> list[dict]:
     """Filter leads by status and limit."""
     filtered = leads
 
@@ -164,7 +162,7 @@ def filter_leads(leads: List[Dict], status: str = None, limit: int = None) -> Li
     return filtered
 
 
-def save_emails(emails: List[Dict], output_path: Path):
+def save_emails(emails: list[dict], output_path: Path):
     """Save generated emails to file."""
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(f"# Generated Emails - {datetime.now().isoformat()}\n")
@@ -183,7 +181,7 @@ def save_emails(emails: List[Dict], output_path: Path):
             f.write("\n\n")
 
 
-def print_summary(emails: List[Dict]):
+def print_summary(emails: list[dict]):
     """Print summary of generated emails."""
     print("=" * 80)
     print("Free Intelligence — Outreach Email Summary")

@@ -8,13 +8,15 @@ Direct mutation, modification, or deletion of existing data is forbidden.
 FI-DATA-FEAT-005
 """
 
-import h5py
-from typing import Optional, Dict, Any
 from pathlib import Path
+from typing import Any, Optional
+
+import h5py
 
 
 class AppendOnlyViolation(Exception):
     """Raised when an operation violates append-only policy."""
+
     pass
 
 
@@ -42,16 +44,16 @@ class AppendOnlyPolicy:
             corpus_path: Path to HDF5 corpus file
         """
         self.corpus_path = corpus_path
-        self.original_sizes: Dict[str, int] = {}
+        self.original_sizes: dict[str, int] = {}
 
     def __enter__(self):
         """Context manager entry - record original dataset sizes."""
         if not Path(self.corpus_path).exists():
             raise FileNotFoundError(f"Corpus not found: {self.corpus_path}")
 
-        with h5py.File(self.corpus_path, 'r') as f:
+        with h5py.File(self.corpus_path, "r") as f:
             # Record original sizes for all datasets
-            for group_name in ['interactions', 'embeddings']:
+            for group_name in ["interactions", "embeddings"]:
                 if group_name in f:
                     group = f[group_name]
                     for dataset_name in group.keys():
@@ -67,8 +69,8 @@ class AppendOnlyPolicy:
             return False
 
         # Verify all dataset sizes increased or stayed same
-        with h5py.File(self.corpus_path, 'r') as f:
-            for group_name in ['interactions', 'embeddings']:
+        with h5py.File(self.corpus_path, "r") as f:
+            for group_name in ["interactions", "embeddings"]:
                 if group_name in f:
                     group = f[group_name]
                     for dataset_name in group.keys():
@@ -140,11 +142,8 @@ class AppendOnlyPolicy:
 
 
 def verify_append_only_operation(
-    corpus_path: str,
-    operation_name: str,
-    group_name: str,
-    dataset_name: Optional[str] = None
-) -> Dict[str, Any]:
+    corpus_path: str, operation_name: str, group_name: str, dataset_name: Optional[str] = None
+) -> dict[str, Any]:
     """
     Verify an operation is append-only compliant.
 
@@ -171,21 +170,21 @@ def verify_append_only_operation(
     logger = get_logger()
 
     # All read operations are allowed
-    if operation_name.startswith('read') or operation_name.startswith('get'):
+    if operation_name.startswith("read") or operation_name.startswith("get"):
         logger.info(
             "APPEND_ONLY_CHECKS_COMPLETED",
             operation=operation_name,
-            reason="read_operation_always_allowed"
+            reason="read_operation_always_allowed",
         )
         return {"allowed": True, "reason": "read operation"}
 
     # Append operations are allowed
-    if operation_name.startswith('append'):
+    if operation_name.startswith("append"):
         logger.info(
             "APPEND_ONLY_CHECKS_COMPLETED",
             operation=operation_name,
             group=group_name,
-            dataset=dataset_name
+            dataset=dataset_name,
         )
         return {"allowed": True, "reason": "append operation"}
 
@@ -195,14 +194,14 @@ def verify_append_only_operation(
         operation=operation_name,
         group=group_name,
         dataset=dataset_name,
-        reason="operation_not_allowed"
+        reason="operation_not_allowed",
     )
 
     return {
         "allowed": False,
         "reason": f"Operation '{operation_name}' violates append-only policy",
         "group": group_name,
-        "dataset": dataset_name
+        "dataset": dataset_name,
     }
 
 
@@ -218,7 +217,7 @@ def get_dataset_size(corpus_path: str, group_name: str, dataset_name: str) -> in
     Returns:
         Current dataset size
     """
-    with h5py.File(corpus_path, 'r') as f:
+    with h5py.File(corpus_path, "r") as f:
         return f[group_name][dataset_name].shape[0]
 
 
@@ -233,21 +232,14 @@ if __name__ == "__main__":
 
     # Test 1: Read operations (always allowed)
     print("Test 1: Verifying read operation...")
-    result = verify_append_only_operation(
-        corpus_path,
-        "read_interactions",
-        "interactions"
-    )
+    result = verify_append_only_operation(corpus_path, "read_interactions", "interactions")
     print(f"  Result: {'✅ ALLOWED' if result['allowed'] else '❌ BLOCKED'}")
     print(f"  Reason: {result['reason']}\n")
 
     # Test 2: Append operations (allowed)
     print("Test 2: Verifying append operation...")
     result = verify_append_only_operation(
-        corpus_path,
-        "append_interaction",
-        "interactions",
-        "session_id"
+        corpus_path, "append_interaction", "interactions", "session_id"
     )
     print(f"  Result: {'✅ ALLOWED' if result['allowed'] else '❌ BLOCKED'}")
     print(f"  Reason: {result['reason']}\n")
@@ -255,10 +247,7 @@ if __name__ == "__main__":
     # Test 3: Mutation operations (forbidden)
     print("Test 3: Verifying mutation operation...")
     result = verify_append_only_operation(
-        corpus_path,
-        "update_interaction",
-        "interactions",
-        "prompt"
+        corpus_path, "update_interaction", "interactions", "prompt"
     )
     print(f"  Result: {'✅ ALLOWED' if result['allowed'] else '❌ BLOCKED'}")
     print(f"  Reason: {result['reason']}\n")

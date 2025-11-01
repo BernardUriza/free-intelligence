@@ -12,8 +12,14 @@ import time
 from collections.abc import Iterator
 from typing import Optional
 
-from backend.llm_adapter import (BudgetExceededError, LLMAdapter, LLMBudget,
-                                 LLMProviderError, LLMRequest, LLMResponse)
+from backend.llm_adapter import (
+    BudgetExceededError,
+    LLMAdapter,
+    LLMBudget,
+    LLMProviderError,
+    LLMRequest,
+    LLMResponse,
+)
 from backend.logger import get_logger
 from backend.policy_enforcer import PolicyViolation, get_policy_enforcer
 from backend.utils.token_counter import TokenCounter

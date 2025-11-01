@@ -32,23 +32,27 @@ Task: FI-CORE-FEAT-004
 
 import ast
 import functools
-from pathlib import Path
-from typing import Callable, List, Dict
+from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 # Optional logger import (for runtime logging)
 try:
     from logger import get_logger
+
     logger = get_logger(__name__)
 except ImportError:
     # Fallback to print for CLI usage
     class SimpleLogger:
         def info(self, event, **kwargs):
             print(f"INFO: {event} - {kwargs}")
+
         def warning(self, event, **kwargs):
             print(f"WARNING: {event} - {kwargs}")
+
         def error(self, event, **kwargs):
             print(f"ERROR: {event} - {kwargs}")
+
     logger = SimpleLogger()
 
 
@@ -56,14 +60,17 @@ except ImportError:
 # EXCEPTIONS
 # ============================================================================
 
+
 class LLMAuditViolation(Exception):
     """Raised when LLM function is called without audit logging."""
+
     pass
 
 
 # ============================================================================
 # DECORATOR: @require_audit_log
 # ============================================================================
+
 
 def require_audit_log(func: Callable) -> Callable:
     """
@@ -83,15 +90,12 @@ def require_audit_log(func: Callable) -> Callable:
         - Fase 2: Runtime validation (verificar que se llamó append_audit_log)
         - Por ahora solo sirve para detección estática
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Marker para detección estática
         # TODO(FI-CORE-FEAT-004-P2): Runtime validation de append_audit_log
-        logger.info(
-            "LLM_FUNCTION_CALLED",
-            function=func.__name__,
-            module=func.__module__
-        )
+        logger.info("LLM_FUNCTION_CALLED", function=func.__name__, module=func.__module__)
         return func(*args, **kwargs)
 
     # Marcar wrapper para detección
@@ -105,9 +109,11 @@ def require_audit_log(func: Callable) -> Callable:
 # STATIC VALIDATOR (AST-based)
 # ============================================================================
 
+
 @dataclass
 class LLMFunctionInfo:
     """Información de función LLM detectada."""
+
     name: str
     lineno: int
     has_decorator: bool
@@ -135,8 +141,13 @@ def is_llm_function_name(name: str) -> bool:
 
     # Excluir funciones del validador mismo
     validator_prefixes = [
-        'scan_', 'is_llm_', 'validate_', 'has_',
-        'calls_', 'print_', 'get_canonical'
+        "scan_",
+        "is_llm_",
+        "validate_",
+        "has_",
+        "calls_",
+        "print_",
+        "get_canonical",
     ]
     for prefix in validator_prefixes:
         if name_lower.startswith(prefix):
@@ -144,18 +155,17 @@ def is_llm_function_name(name: str) -> bool:
 
     # Excluir funciones internas comunes (no-LLM)
     internal_patterns = [
-        'generate_corpus_id', 'generate_owner_hash',
-        'generate_event_name', 'generate_test_'
+        "generate_corpus_id",
+        "generate_owner_hash",
+        "generate_event_name",
+        "generate_test_",
     ]
     for pattern in internal_patterns:
         if pattern in name_lower:
             return False
 
     # Substrings que DEFINITIVAMENTE indican LLM provider/type
-    llm_keywords = [
-        'claude', 'anthropic', 'openai', 'gpt',
-        'llm', '_ai_', '_ml_'
-    ]
+    llm_keywords = ["claude", "anthropic", "openai", "gpt", "llm", "_ai_", "_ml_"]
 
     # Check keywords primero (alta confianza)
     for keyword in llm_keywords:
@@ -164,10 +174,18 @@ def is_llm_function_name(name: str) -> bool:
 
     # Prefixes de alta confianza (solo si NO tienen exclusiones)
     high_confidence_prefixes = [
-        'call_claude', 'call_openai', 'call_anthropic',
-        'invoke_llm', 'invoke_model', 'invoke_ai',
-        'query_llm', 'query_model', 'query_ai',
-        'request_llm', 'request_model', 'request_ai'
+        "call_claude",
+        "call_openai",
+        "call_anthropic",
+        "invoke_llm",
+        "invoke_model",
+        "invoke_ai",
+        "query_llm",
+        "query_model",
+        "query_ai",
+        "request_llm",
+        "request_model",
+        "request_ai",
     ]
 
     for prefix in high_confidence_prefixes:
@@ -176,8 +194,14 @@ def is_llm_function_name(name: str) -> bool:
 
     # Prefixes de mediana confianza (solo con keywords)
     medium_confidence_prefixes = [
-        'call_', 'invoke_', 'query_', 'request_',
-        'infer_', 'predict_', 'complete_', 'generate_'
+        "call_",
+        "invoke_",
+        "query_",
+        "request_",
+        "infer_",
+        "predict_",
+        "complete_",
+        "generate_",
     ]
 
     for prefix in medium_confidence_prefixes:
@@ -200,12 +224,12 @@ def has_require_audit_decorator(node: ast.FunctionDef) -> bool:
     for decorator in node.decorator_list:
         # Decorator simple: @require_audit_log
         if isinstance(decorator, ast.Name):
-            if decorator.id == 'require_audit_log':
+            if decorator.id == "require_audit_log":
                 return True
 
         # Decorator con módulo: @llm_audit_policy.require_audit_log
         if isinstance(decorator, ast.Attribute):
-            if decorator.attr == 'require_audit_log':
+            if decorator.attr == "require_audit_log":
                 return True
 
     return False
@@ -219,18 +243,18 @@ def calls_append_audit_log(node: ast.FunctionDef) -> bool:
         if isinstance(child, ast.Call):
             # append_audit_log(...)
             if isinstance(child.func, ast.Name):
-                if child.func.id == 'append_audit_log':
+                if child.func.id == "append_audit_log":
                     return True
 
             # audit_logs.append_audit_log(...)
             if isinstance(child.func, ast.Attribute):
-                if child.func.attr == 'append_audit_log':
+                if child.func.attr == "append_audit_log":
                     return True
 
     return False
 
 
-def scan_file_for_llm_functions(filepath: Path) -> List[LLMFunctionInfo]:
+def scan_file_for_llm_functions(filepath: Path) -> list[LLMFunctionInfo]:
     """
     Escanea un archivo Python en busca de funciones LLM sin audit.
 
@@ -238,14 +262,10 @@ def scan_file_for_llm_functions(filepath: Path) -> List[LLMFunctionInfo]:
         Lista de LLMFunctionInfo con información de compliance
     """
     try:
-        content = filepath.read_text(encoding='utf-8')
+        content = filepath.read_text(encoding="utf-8")
         tree = ast.parse(content, filename=str(filepath))
     except SyntaxError as e:
-        logger.warning(
-            "FILE_PARSE_FAILED",
-            filepath=str(filepath),
-            error=str(e)
-        )
+        logger.warning("FILE_PARSE_FAILED", filepath=str(filepath), error=str(e))
         return []
 
     llm_functions = []
@@ -257,18 +277,20 @@ def scan_file_for_llm_functions(filepath: Path) -> List[LLMFunctionInfo]:
                 has_decorator = has_require_audit_decorator(node)
                 calls_audit = calls_append_audit_log(node)
 
-                llm_functions.append(LLMFunctionInfo(
-                    name=node.name,
-                    lineno=node.lineno,
-                    has_decorator=has_decorator,
-                    calls_audit_log=calls_audit,
-                    filepath=str(filepath)
-                ))
+                llm_functions.append(
+                    LLMFunctionInfo(
+                        name=node.name,
+                        lineno=node.lineno,
+                        has_decorator=has_decorator,
+                        calls_audit_log=calls_audit,
+                        filepath=str(filepath),
+                    )
+                )
 
     return llm_functions
 
 
-def scan_directory(directory: Path) -> Dict[str, List[LLMFunctionInfo]]:
+def scan_directory(directory: Path) -> dict[str, list[LLMFunctionInfo]]:
     """
     Escanea un directorio recursivamente en busca de LLM functions.
 
@@ -277,9 +299,9 @@ def scan_directory(directory: Path) -> Dict[str, List[LLMFunctionInfo]]:
     """
     results = {}
 
-    for pyfile in directory.rglob('*.py'):
+    for pyfile in directory.rglob("*.py"):
         # Skip test files y __pycache__
-        if 'test_' in pyfile.name or '__pycache__' in str(pyfile):
+        if "test_" in pyfile.name or "__pycache__" in str(pyfile):
             continue
 
         llm_functions = scan_file_for_llm_functions(pyfile)
@@ -304,7 +326,7 @@ def validate_codebase(root_dir: Path) -> bool:
             "LLM_AUDIT_SCAN_COMPLETED",
             directory=str(root_dir),
             violations_found=0,
-            message="No LLM functions detected"
+            message="No LLM functions detected",
         )
         return True
 
@@ -321,7 +343,7 @@ def validate_codebase(root_dir: Path) -> bool:
             directory=str(root_dir),
             total_llm_functions=sum(len(funcs) for funcs in results.values()),
             violations_found=0,
-            message="All LLM functions are compliant"
+            message="All LLM functions are compliant",
         )
         return True
 
@@ -330,13 +352,13 @@ def validate_codebase(root_dir: Path) -> bool:
         "LLM_AUDIT_VIOLATIONS_DETECTED",
         directory=str(root_dir),
         total_violations=sum(len(funcs) for funcs in violations.values()),
-        files_with_violations=len(violations)
+        files_with_violations=len(violations),
     )
 
     return False
 
 
-def print_violations_report(results: Dict[str, List[LLMFunctionInfo]]):
+def print_violations_report(results: dict[str, list[LLMFunctionInfo]]):
     """
     Imprime reporte formateado de violaciones.
     """
@@ -349,13 +371,13 @@ def print_violations_report(results: Dict[str, List[LLMFunctionInfo]]):
 
     if not violations:
         print("\n✅ LLM AUDIT SCAN COMPLETED (0 violations found via AST scan)")
-        print(f"   All LLM functions comply with audit policy")
+        print("   All LLM functions comply with audit policy")
 
         # Mostrar stats de funciones compliant
         total_functions = sum(len(funcs) for funcs in results.values())
         if total_functions > 0:
             print(f"   Total LLM functions: {total_functions}")
-            print(f"   All have @require_audit_log and call append_audit_log()")
+            print("   All have @require_audit_log and call append_audit_log()")
 
         return
 

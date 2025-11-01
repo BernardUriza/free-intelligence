@@ -30,12 +30,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
 
 from backend.corpus_ops import append_interaction
+from backend.kpis_aggregator import get_kpis_aggregator
 from backend.llm_adapter import LLMRequest
 from backend.llm_cache import get_cache
 from backend.llm_metrics import get_metrics
-from backend.kpis_aggregator import get_kpis_aggregator
 from backend.logger import get_logger
-from backend.policy_enforcer import get_policy_enforcer, PolicyViolation, redact
+from backend.policy_enforcer import PolicyViolation, get_policy_enforcer, redact
 from backend.providers.claude import ClaudeAdapter
 from backend.providers.ollama import OllamaAdapter
 
@@ -387,7 +387,9 @@ async def generate_llm(request: GenerateRequest) -> GenerateResponse:
                 "LLM_RESPONSE_REDACTED",
                 provider=request.provider,
                 prompt_hash=prompt_hash[:16],
-                redactions=len([c for c in redacted_text if c == '[' and 'REDACTED' in redacted_text]),
+                redactions=len(
+                    [c for c in redacted_text if c == "[" and "REDACTED" in redacted_text]
+                ),
             )
 
         # Warn if latency > 2s

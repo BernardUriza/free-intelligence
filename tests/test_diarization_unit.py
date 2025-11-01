@@ -3,8 +3,7 @@ Unit tests for diarization service
 Card: FI-BACKEND-FEAT-004
 """
 
-import pytest
-from backend.diarization_service import merge_consecutive_segments, DiarizationSegment
+from backend.diarization_service import DiarizationSegment, merge_consecutive_segments
 
 
 def test_merge_consecutive_same_speaker():
@@ -64,11 +63,7 @@ def test_merge_large_gap_no_merge():
 def test_segment_dataclass():
     """Test DiarizationSegment dataclass."""
     seg = DiarizationSegment(
-        start_time=0.0,
-        end_time=5.5,
-        speaker="MEDICO",
-        text="Test text",
-        confidence=0.95
+        start_time=0.0, end_time=5.5, speaker="MEDICO", text="Test text", confidence=0.95
     )
 
     assert seg.start_time == 0.0

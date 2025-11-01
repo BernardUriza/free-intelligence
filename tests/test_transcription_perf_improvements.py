@@ -20,6 +20,7 @@ Usage:
 import os
 import sys
 
+
 def test_environment_variables():
     """Verify all environment variable configurations."""
 
@@ -32,44 +33,44 @@ def test_environment_variables():
     beam_size = int(os.getenv("WHISPER_BEAM_SIZE", "5"))
     print("1️⃣  WHISPER_BEAM_SIZE Configuration")
     print(f"   Current: {beam_size}")
-    print(f"   Impact: beam_size=1 (fastest) vs beam_size=10+ (most accurate)")
+    print("   Impact: beam_size=1 (fastest) vs beam_size=10+ (most accurate)")
     print()
 
     # 2. ENABLE_LLM_CLASSIFICATION (True → False by default)
     enable_llm = os.getenv("ENABLE_LLM_CLASSIFICATION", "false").lower() == "true"
     print("2️⃣  ENABLE_LLM_CLASSIFICATION (Kill Switch)")
     print(f"   Current: {enable_llm}")
-    print(f"   Default: false (3-4x faster)")
-    print(f"   Impact: Disables speaker classification via LLM")
+    print("   Default: false (3-4x faster)")
+    print("   Impact: Disables speaker classification via LLM")
     print()
 
     # 3. DIARIZATION_CHUNK_SEC (30s → 60s by default)
     chunk_sec = int(os.getenv("DIARIZATION_CHUNK_SEC", "60"))
     print("3️⃣  DIARIZATION_CHUNK_SEC Configuration")
     print(f"   Current: {chunk_sec}s")
-    print(f"   Options: 20 (granular), 30 (balanced), 60 (default/fast), 120 (fastest)")
-    print(f"   Impact: Larger chunks = fewer Whisper invocations = 25% speedup")
+    print("   Options: 20 (granular), 30 (balanced), 60 (default/fast), 120 (fastest)")
+    print("   Impact: Larger chunks = fewer Whisper invocations = 25% speedup")
     print()
 
     # 4. WHISPER_MODEL_SIZE (small → base by default)
     model_size = os.getenv("WHISPER_MODEL_SIZE", "base")
     print("4️⃣  WHISPER_MODEL_SIZE Configuration")
     print(f"   Current: {model_size}")
-    print(f"   Options: tiny (fastest), base (2-3x speedup), small, medium, large-v3 (slowest)")
+    print("   Options: tiny (fastest), base (2-3x speedup), small, medium, large-v3 (slowest)")
     print()
 
     # 5. WHISPER_VAD_FILTER (True by default)
     vad_filter = os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true"
     print("5️⃣  WHISPER_VAD_FILTER (Voice Activity Detection)")
     print(f"   Current: {vad_filter}")
-    print(f"   Impact: Reduces noise, filters silence")
+    print("   Impact: Reduces noise, filters silence")
     print()
 
     # 6. WHISPER_DEVICE (cpu by default)
     device = os.getenv("WHISPER_DEVICE", "cpu")
     print("6️⃣  WHISPER_DEVICE Configuration")
     print(f"   Current: {device}")
-    print(f"   Options: cpu (default), cuda (GPU if available)")
+    print("   Options: cpu (default), cuda (GPU if available)")
     print()
 
     # Summary
@@ -153,7 +154,10 @@ def test_environment_variables():
         ("ENABLE_LLM_CLASSIFICATION has value", enable_llm is not None),
         ("DIARIZATION_CHUNK_SEC configurable", chunk_sec > 0),
         ("WHISPER_VAD_FILTER set", vad_filter is not None),
-        ("WHISPER_MODEL_SIZE has value", model_size in ["tiny", "base", "small", "medium", "large-v3"]),
+        (
+            "WHISPER_MODEL_SIZE has value",
+            model_size in ["tiny", "base", "small", "medium", "large-v3"],
+        ),
     ]
 
     all_passed = True
@@ -171,6 +175,7 @@ def test_environment_variables():
     else:
         print("⚠️  Some checks failed")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(test_environment_variables())

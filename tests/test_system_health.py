@@ -7,6 +7,7 @@ Tests for unified system health endpoint GET /api/system/health
 
 import pytest
 from fastapi.testclient import TestClient
+
 from backend.fi_consult_service import app
 
 client = TestClient(app)
@@ -100,7 +101,8 @@ def test_timestamp_field():
 
     # Verify it's a valid ISO format timestamp
     from datetime import datetime
+
     try:
-        datetime.fromisoformat(data["time"].replace('Z', '+00:00'))
+        datetime.fromisoformat(data["time"].replace("Z", "+00:00"))
     except ValueError:
         pytest.fail("Timestamp is not valid ISO format")

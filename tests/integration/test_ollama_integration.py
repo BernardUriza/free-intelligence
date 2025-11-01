@@ -14,8 +14,9 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.llm_router import llm_generate, llm_embed
+from backend.llm_router import llm_embed, llm_generate
 from backend.policy_loader import get_policy_loader
+
 
 def main():
     print("=" * 70)
@@ -26,7 +27,7 @@ def main():
     policy_loader = get_policy_loader()
     llm_config = policy_loader.get_llm_config()
 
-    print(f"\n📋 Configuration:")
+    print("\n📋 Configuration:")
     print(f"  Primary Provider: {llm_config.get('primary_provider')}")
     print(f"  Fallback Provider: {llm_config.get('fallback_provider')}")
     print(f"  Offline Mode: {llm_config.get('enable_offline')}")
@@ -42,12 +43,9 @@ def main():
     print(f"\n💬 Prompt: {prompt}")
     print("\n🤖 Generating response with Ollama...")
 
-    response = llm_generate(
-        prompt=prompt,
-        provider="ollama"
-    )
+    response = llm_generate(prompt=prompt, provider="ollama")
 
-    print(f"\n✅ Response received!")
+    print("\n✅ Response received!")
     print(f"  Content: {response.content}")
     print(f"  Model: {response.model}")
     print(f"  Provider: {response.provider}")
@@ -64,12 +62,9 @@ def main():
     print(f"\n📝 Text: {text}")
     print("\n🔢 Generating embedding with Ollama...")
 
-    embedding = llm_embed(
-        text=text,
-        provider="ollama"
-    )
+    embedding = llm_embed(text=text, provider="ollama")
 
-    print(f"\n✅ Embedding generated!")
+    print("\n✅ Embedding generated!")
     print(f"  Dimensions: {embedding.shape[0]}")
     print(f"  Type: {embedding.dtype}")
     print(f"  First 5 values: {embedding[:5]}")
@@ -88,6 +83,7 @@ def main():
     print("\n" + "=" * 70)
     print("🎉 Ollama Integration Test: PASSED")
     print("=" * 70)
+
 
 if __name__ == "__main__":
     main()

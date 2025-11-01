@@ -8,10 +8,11 @@ Structure: /interactions/, /embeddings/, /metadata/
 FI-DATA-FEAT-001
 """
 
-import h5py
-from pathlib import Path
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Optional
+
+import h5py
 
 
 class CorpusSchema:
@@ -22,24 +23,24 @@ class CorpusSchema:
 
     # Dataset specifications for interactions
     INTERACTION_DATASETS = {
-        "session_id": {"dtype": h5py.string_dtype(encoding='utf-8')},
-        "interaction_id": {"dtype": h5py.string_dtype(encoding='utf-8')},
-        "timestamp": {"dtype": h5py.string_dtype(encoding='utf-8')},
-        "prompt": {"dtype": h5py.string_dtype(encoding='utf-8')},
-        "response": {"dtype": h5py.string_dtype(encoding='utf-8')},
-        "model": {"dtype": h5py.string_dtype(encoding='utf-8')},
-        "tokens": {"dtype": "int32"}
+        "session_id": {"dtype": h5py.string_dtype(encoding="utf-8")},
+        "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")},
+        "timestamp": {"dtype": h5py.string_dtype(encoding="utf-8")},
+        "prompt": {"dtype": h5py.string_dtype(encoding="utf-8")},
+        "response": {"dtype": h5py.string_dtype(encoding="utf-8")},
+        "model": {"dtype": h5py.string_dtype(encoding="utf-8")},
+        "tokens": {"dtype": "int32"},
     }
 
     # Dataset specifications for embeddings
     EMBEDDING_DATASETS = {
-        "interaction_id": {"dtype": h5py.string_dtype(encoding='utf-8')},
+        "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")},
         "vector": {"dtype": "float32"},  # Will be 2D array
-        "model": {"dtype": h5py.string_dtype(encoding='utf-8')}
+        "model": {"dtype": h5py.string_dtype(encoding="utf-8")},
     }
 
     @classmethod
-    def validate(cls, corpus_path: str) -> List[str]:
+    def validate(cls, corpus_path: str) -> list[str]:
         """
         Validate HDF5 corpus schema.
 
@@ -62,7 +63,7 @@ class CorpusSchema:
             return errors
 
         try:
-            with h5py.File(corpus_path, 'r') as f:
+            with h5py.File(corpus_path, "r") as f:
                 # Check required groups
                 for group in cls.REQUIRED_GROUPS:
                     if group not in f:
@@ -89,10 +90,7 @@ class CorpusSchema:
 
 
 def init_corpus(
-    corpus_path: str,
-    owner_identifier: str,
-    force: bool = False,
-    salt: Optional[str] = None
+    corpus_path: str, owner_identifier: str, force: bool = False, salt: Optional[str] = None
 ) -> bool:
     """
     Initialize HDF5 corpus with hierarchical schema and identity.
@@ -121,8 +119,8 @@ def init_corpus(
         >>> init_corpus("storage/corpus.h5", "bernard@example.com", force=True)
         True  # Overwrites existing file
     """
-    from backend.logger import get_logger
     from backend.corpus_identity import generate_corpus_id, generate_owner_hash
+    from backend.logger import get_logger
 
     logger = get_logger()
     path = Path(corpus_path)
@@ -136,7 +134,7 @@ def init_corpus(
     path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        with h5py.File(corpus_path, 'w') as f:
+        with h5py.File(corpus_path, "w") as f:
             # Create /interactions/ group with datasets
             interactions = f.create_group("interactions")
             for dataset_name, spec in CorpusSchema.INTERACTION_DATASETS.items():
@@ -147,7 +145,7 @@ def init_corpus(
                     dtype=spec["dtype"],
                     chunks=True,  # Auto-chunking for optimal access
                     compression="gzip",  # Portable compression
-                    compression_opts=4  # Balanced compression level (1-9)
+                    compression_opts=4,  # Balanced compression level (1-9)
                 )
 
             # Create /embeddings/ group with datasets
@@ -159,7 +157,7 @@ def init_corpus(
                 dtype=CorpusSchema.EMBEDDING_DATASETS["interaction_id"]["dtype"],
                 chunks=True,
                 compression="gzip",
-                compression_opts=4
+                compression_opts=4,
             )
             embeddings.create_dataset(
                 "vector",
@@ -168,7 +166,7 @@ def init_corpus(
                 dtype=CorpusSchema.EMBEDDING_DATASETS["vector"]["dtype"],
                 chunks=True,
                 compression="gzip",
-                compression_opts=4  # Vectors compress well
+                compression_opts=4,  # Vectors compress well
             )
             embeddings.create_dataset(
                 "model",
@@ -177,7 +175,7 @@ def init_corpus(
                 dtype=CorpusSchema.EMBEDDING_DATASETS["model"]["dtype"],
                 chunks=True,
                 compression="gzip",
-                compression_opts=4
+                compression_opts=4,
             )
 
             # Create /metadata/ group with system info and identity
@@ -191,7 +189,7 @@ def init_corpus(
             metadata.attrs["owner_hash"] = generate_owner_hash(owner_identifier, salt=salt)
 
         # Log initialization with identity info (partial hash for security)
-        with h5py.File(corpus_path, 'r') as f:
+        with h5py.File(corpus_path, "r") as f:
             corpus_id = f["metadata"].attrs["corpus_id"]
             owner_hash = f["metadata"].attrs["owner_hash"]
 
@@ -200,7 +198,7 @@ def init_corpus(
             path=str(path),
             groups=CorpusSchema.REQUIRED_GROUPS,
             corpus_id=corpus_id,
-            owner_hash=owner_hash[:16] + "..."  # Log only prefix
+            owner_hash=owner_hash[:16] + "...",  # Log only prefix
         )
         return True
 
@@ -213,7 +211,7 @@ def init_corpus_from_config(
     owner_identifier: str,
     config_path: Optional[str] = None,
     force: bool = False,
-    salt: Optional[str] = None
+    salt: Optional[str] = None,
 ) -> bool:
     """
     Initialize corpus using path from config.yml.
@@ -239,7 +237,7 @@ def init_corpus_from_config(
     return init_corpus(corpus_path, owner_identifier, force=force, salt=salt)
 
 
-def validate_corpus(corpus_path: Optional[str] = None) -> Dict[str, Any]:
+def validate_corpus(corpus_path: Optional[str] = None) -> dict[str, Any]:
     """
     Validate corpus schema and return status.
 
@@ -263,21 +261,23 @@ def validate_corpus(corpus_path: Optional[str] = None) -> Dict[str, Any]:
 
     if corpus_path is None:
         from config_loader import load_config
+
         config = load_config()
         corpus_path = config["storage"]["corpus_path"]
 
     errors = CorpusSchema.validate(corpus_path)
 
-    result = {
-        "valid": len(errors) == 0,
-        "errors": errors,
-        "path": corpus_path
-    }
+    result = {"valid": len(errors) == 0, "errors": errors, "path": corpus_path}
 
     if result["valid"]:
         logger.info("CORPUS_SCHEMA_CHECKS_COMPLETED", path=corpus_path, issues_found=0)
     else:
-        logger.warning("CORPUS_SCHEMA_CHECKS_COMPLETED", path=corpus_path, issues_found=len(errors), errors=errors)
+        logger.warning(
+            "CORPUS_SCHEMA_CHECKS_COMPLETED",
+            path=corpus_path,
+            issues_found=len(errors),
+            errors=errors,
+        )
 
     return result
 
@@ -305,7 +305,8 @@ if __name__ == "__main__":
 
             # Show identity
             from backend.corpus_identity import get_corpus_identity
-            identity = get_corpus_identity(result['path'])
+
+            identity = get_corpus_identity(result["path"])
             if identity:
                 print(f"   Corpus ID: {identity['corpus_id']}")
                 print(f"   Owner Hash: {identity['owner_hash'][:16]}...")

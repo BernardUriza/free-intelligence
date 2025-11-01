@@ -14,11 +14,9 @@ Exit codes:
     1 - Validation failed / Move failed
 """
 
-import sys
 import subprocess
+import sys
 from pathlib import Path
-from typing import Tuple, List
-
 
 # Trello List IDs (Free Intelligence board)
 LISTS = {
@@ -26,13 +24,13 @@ LISTS = {
     "sprint": "68fc011510584fb24b9ef5a6",
     "in_progress": "68fc0116e8a27f8caaec894d",
     "testing": "68fc0116783741e5e925a633",
-    "done": "68fc0116622f29eecd78b7d4"
+    "done": "68fc0116622f29eecd78b7d4",
 }
 
 TRELLO_CLI = str(Path.home() / "Documents/trello-cli-python/trello")
 
 
-def run_trello_command(args: List[str]) -> Tuple[int, str]:
+def run_trello_command(args: list[str]) -> tuple[int, str]:
     """Run trello CLI command."""
     cmd = [TRELLO_CLI] + args
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -46,11 +44,15 @@ def count_cards(list_id: str) -> int:
         return 0
 
     # Count lines that start with 24-char hex (card IDs)
-    count = sum(1 for line in output.split('\n') if len(line) >= 24 and all(c in '0123456789abcdef' for c in line[:24]))
+    count = sum(
+        1
+        for line in output.split("\n")
+        if len(line) >= 24 and all(c in "0123456789abcdef" for c in line[:24])
+    )
     return count
 
 
-def validate_workflow(card_id: str, target_list: str) -> Tuple[bool, str]:
+def validate_workflow(card_id: str, target_list: str) -> tuple[bool, str]:
     """
     Validate workflow before moving card.
 
@@ -92,14 +94,20 @@ def validate_workflow(card_id: str, target_list: str) -> Tuple[bool, str]:
             if to_prioritize_count == 0:
                 return False, "❌ VIOLATION: No cards available to move to In Progress!"
 
-            return False, "⚠️  WARNING: Sprint empty but To Prioritize has cards. Move manually first!"
+            return (
+                False,
+                "⚠️  WARNING: Sprint empty but To Prioritize has cards. Move manually first!",
+            )
 
-        return False, f"⚠️  REMINDER: Move next card from Sprint to In Progress first! ({sprint_count} available)"
+        return (
+            False,
+            f"⚠️  REMINDER: Move next card from Sprint to In Progress first! ({sprint_count} available)",
+        )
 
     return True, "✅ Workflow validation passed"
 
 
-def move_card_safe(card_id: str, target_list: str) -> Tuple[bool, str]:
+def move_card_safe(card_id: str, target_list: str) -> tuple[bool, str]:
     """
     Move card with workflow validation.
 
@@ -136,7 +144,7 @@ def move_card_safe(card_id: str, target_list: str) -> Tuple[bool, str]:
         return False, f"❌ Move failed:\n{output}"
 
 
-def move_next_to_progress() -> Tuple[bool, str]:
+def move_next_to_progress() -> tuple[bool, str]:
     """Move next card from Sprint to In Progress."""
     # Get first card from Sprint
     returncode, output = run_trello_command(["cards", LISTS["sprint"]])
@@ -145,25 +153,29 @@ def move_next_to_progress() -> Tuple[bool, str]:
         return False, "❌ Failed to get Sprint cards"
 
     # Find first card ID
-    for line in output.split('\n'):
-        if len(line) >= 24 and all(c in '0123456789abcdef' for c in line[:24]):
+    for line in output.split("\n"):
+        if len(line) >= 24 and all(c in "0123456789abcdef" for c in line[:24]):
             card_id = line[:24]
             card_name = line[26:].strip()
 
-            print(f"📋 Moving card to In Progress:")
+            print("📋 Moving card to In Progress:")
             print(f"   {card_name}")
             print()
 
             # Move to In Progress
-            returncode, move_output = run_trello_command(["move-card", card_id, LISTS["in_progress"]])
+            returncode, move_output = run_trello_command(
+                ["move-card", card_id, LISTS["in_progress"]]
+            )
 
             if returncode == 0:
                 # Add start comment
-                run_trello_command([
-                    "add-comment",
-                    card_id,
-                    f"🚀 Started {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M')}"
-                ])
+                run_trello_command(
+                    [
+                        "add-comment",
+                        card_id,
+                        f"🚀 Started {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                    ]
+                )
                 return True, f"✅ Moved to In Progress:\n{move_output}"
             else:
                 return False, f"❌ Move failed:\n{move_output}"
@@ -193,9 +205,9 @@ def show_status():
         print("❌ VIOLATION: In Progress is empty!")
         sprint_count = count_cards(LISTS["sprint"])
         if sprint_count > 0:
-            print(f"   → Run: python3 scripts/trello_workflow.py move-next-to-progress")
+            print("   → Run: python3 scripts/trello_workflow.py move-next-to-progress")
         else:
-            print(f"   → Add cards to Sprint first")
+            print("   → Add cards to Sprint first")
     else:
         print("✅ Workflow is healthy")
 

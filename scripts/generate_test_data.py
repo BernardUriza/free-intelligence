@@ -10,18 +10,23 @@ Usage:
 """
 
 import sys
-from pathlib import Path
-import numpy as np
 from datetime import datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
+
+import numpy as np
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
 from config_loader import load_config
+from corpus_ops import (
+    append_embedding,
+    append_interaction,
+    get_corpus_stats,
+    read_interactions,
+)
 from logger import init_logger_from_config
-from corpus_ops import append_interaction, append_embedding, get_corpus_stats, read_interactions
-
 
 # Test data: realistic conversations about Free Intelligence
 TEST_CONVERSATIONS = [
@@ -32,21 +37,21 @@ TEST_CONVERSATIONS = [
                 "prompt": "¿Qué es Free Intelligence?",
                 "response": "Free Intelligence es un sistema de memoria local persistente para IA. Su propósito es registrar, archivar e integrar conversaciones con modelos externos (Claude, GPT, Gemini) en un corpus HDF5 residente en tu LAN. No es una herramienta, es una posición ontológica: la afirmación de que la conciencia digital debe ser residente, persistente y simbiótica, no tercerizada ni desechable.",
                 "model": "claude-3-5-sonnet-20241022",
-                "tokens": 125
+                "tokens": 125,
             },
             {
                 "prompt": "¿Cuáles son los 5 principios fundamentales?",
                 "response": "Los 5 principios de Free Intelligence son:\n1. 🏠 Residencia - La IA vive contigo, no en la nube\n2. 📜 Memoria Longitudinal - Una conversación infinita, nunca fragmentada\n3. 🔄 Simetría Contextual - La IA recuerda lo que tú ya no puedes\n4. ⚡ Autonomía Arquitectónica - No dependes de SaaS para pensar\n5. 🤝 Finalidad Simbiótica - Te devuelve quién has sido",
                 "model": "claude-3-5-sonnet-20241022",
-                "tokens": 180
+                "tokens": 180,
             },
             {
                 "prompt": "¿Cómo se estructura el corpus HDF5?",
                 "response": "El corpus HDF5 tiene una estructura jerárquica con 3 grupos principales:\n- /interactions/: Almacena session_id, interaction_id, timestamp, prompt, response, model y tokens\n- /embeddings/: Guarda interaction_id, vector (768-dim) y model para búsqueda semántica\n- /metadata/: Contiene created_at, version y schema_version como atributos\n\nTodos los datasets son resizables (maxshape=None) para operaciones append-only y usan compresión gzip nivel 4.",
                 "model": "claude-3-5-sonnet-20241022",
-                "tokens": 195
-            }
-        ]
+                "tokens": 195,
+            },
+        ],
     },
     {
         "session_id": "session_20251024_demo_002",
@@ -55,15 +60,15 @@ TEST_CONVERSATIONS = [
                 "prompt": "¿Por qué usar HDF5 en lugar de SQLite o JSON?",
                 "response": "HDF5 es superior para este caso de uso porque:\n1. Diseñado para datasets científicos grandes (hasta TB)\n2. Acceso eficiente a subconjuntos sin cargar todo en memoria\n3. Compresión nativa (gzip) reduce ~70-80% el tamaño\n4. Almacenamiento de arrays multidimensionales (embeddings 768-dim)\n5. Schema jerárquico más expresivo que tablas planas\n6. Portable y ampliamente soportado\n\nSQLite sería ineficiente para embeddings grandes, y JSON no escala bien.",
                 "model": "claude-3-5-sonnet-20241022",
-                "tokens": 210
+                "tokens": 210,
             },
             {
                 "prompt": "Explica el flujo de una interacción desde prompt hasta archivo",
                 "response": "El flujo completo es:\n1. Usuario envía prompt → sistema genera interaction_id (UUID)\n2. config_loader carga timezone y rutas\n3. logger trackea operación con timestamp timezone-aware (America/Mexico_City)\n4. Modelo externo (Claude API) genera response\n5. append_interaction() escribe a /interactions/ en corpus.h5 con compresión gzip\n6. Embedding local (all-MiniLM-L6-v2) genera vector 768-dim\n7. append_embedding() escribe vector a /embeddings/\n8. logger confirma éxito con structured JSON output\n\nTodo append-only, nunca sobrescribe. El archivo .h5 es la única fuente de verdad.",
                 "model": "claude-3-5-sonnet-20241022",
-                "tokens": 245
-            }
-        ]
+                "tokens": 245,
+            },
+        ],
     },
     {
         "session_id": "session_20251024_demo_003",
@@ -72,16 +77,16 @@ TEST_CONVERSATIONS = [
                 "prompt": "¿Qué significa 'append-only' y por qué es importante?",
                 "response": "Append-only significa que nunca modificamos ni eliminamos datos existentes, solo agregamos nuevos. Es crítico porque:\n1. Preserva historial completo sin pérdida de información\n2. Permite auditoría completa de cambios (event sourcing)\n3. Simplifica concurrencia (no hay conflictos de escritura)\n4. Facilita backups incrementales\n5. Alineado con la filosofía de memoria longitudinal de FI\n\nEn HDF5, usamos datasets con maxshape=(None,) y resize() para append dinámico. La compresión gzip aplica automáticamente a nuevos datos.",
                 "model": "claude-3-5-sonnet-20241022",
-                "tokens": 198
+                "tokens": 198,
             },
             {
                 "prompt": "Muestra un ejemplo de structured log",
                 "response": '{"event": "interaction_appended", "interaction_id": "a1b2c3d4-5678-90ab-cdef-123456789abc", "session_id": "session_20251024_demo_003", "tokens": 198, "model": "claude-3-5-sonnet-20241022", "level": "info", "timestamp": "2025-10-24T23:55:30.123456-06:00"}\n\nEste formato JSON permite:\n- Parsing automático por herramientas (ELK, Datadog)\n- Búsqueda eficiente por campos\n- Agregación y análisis\n- Timezone explícito (America/Mexico_City -06:00)',
                 "model": "claude-3-5-sonnet-20241022",
-                "tokens": 165
-            }
-        ]
-    }
+                "tokens": 165,
+            },
+        ],
+    },
 ]
 
 
@@ -127,7 +132,7 @@ def generate_test_data():
                 response=interaction["response"],
                 model=interaction["model"],
                 tokens=interaction["tokens"],
-                timestamp=timestamp
+                timestamp=timestamp,
             )
 
             total_interactions += 1
@@ -140,7 +145,7 @@ def generate_test_data():
                 corpus_path=corpus_path,
                 interaction_id=interaction_id,
                 vector=vector,
-                model="all-MiniLM-L6-v2"
+                model="all-MiniLM-L6-v2",
             )
 
             if success:
@@ -154,9 +159,15 @@ def generate_test_data():
 
     # Calculate delta
     print("\n📈 Changes:")
-    print(f"   Interactions added: {final_stats['interactions_count'] - initial_stats['interactions_count']}")
-    print(f"   Embeddings added: {final_stats['embeddings_count'] - initial_stats['embeddings_count']}")
-    print(f"   File size change: {final_stats['file_size_mb'] - initial_stats['file_size_mb']:.2f} MB")
+    print(
+        f"   Interactions added: {final_stats['interactions_count'] - initial_stats['interactions_count']}"
+    )
+    print(
+        f"   Embeddings added: {final_stats['embeddings_count'] - initial_stats['embeddings_count']}"
+    )
+    print(
+        f"   File size change: {final_stats['file_size_mb'] - initial_stats['file_size_mb']:.2f} MB"
+    )
 
     # Show recent interactions
     print("\n📖 Recent Interactions (last 3):")
@@ -173,7 +184,7 @@ def generate_test_data():
         "test_data_generation_completed",
         total_interactions=total_interactions,
         total_embeddings=total_embeddings,
-        file_size_mb=final_stats['file_size_mb']
+        file_size_mb=final_stats["file_size_mb"],
     )
 
     print("\n✅ Test data generation completed!")

@@ -15,10 +15,8 @@ Created: 2025-10-28
 
 import hashlib
 import time
-from typing import Dict, Any, Optional, Tuple
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from functools import lru_cache
+from typing import Any, Optional
 
 from backend.logger import get_logger
 
@@ -28,6 +26,7 @@ logger = get_logger(__name__)
 @dataclass
 class CacheEntry:
     """Single cache entry with TTL"""
+
     key: str
     value: Any
     created_at: float  # Unix timestamp
@@ -63,7 +62,7 @@ class LLMCache:
         Args:
             default_ttl: Default TTL in seconds (1 hour)
         """
-        self._cache: Dict[str, CacheEntry] = {}
+        self._cache: dict[str, CacheEntry] = {}
         self.default_ttl = default_ttl
         self.total_hits = 0
         self.total_misses = 0
@@ -71,11 +70,7 @@ class LLMCache:
         logger.info("LLM_CACHE_INITIALIZED", default_ttl=default_ttl)
 
     def compute_key(
-        self,
-        prompt: str,
-        temperature: float,
-        model: str,
-        schema: Optional[str] = None
+        self, prompt: str, temperature: float, model: str, schema: Optional[str] = None
     ) -> str:
         """
         Compute cache key from prompt + parameters.
@@ -97,20 +92,17 @@ class LLMCache:
             >>> key3 = cache.compute_key("different", 0.7, "claude-3-5-sonnet-20241022")
             >>> assert key1 != key3
         """
-        components = [
-            prompt,
-            str(temperature),
-            model,
-            schema or ""
-        ]
+        components = [prompt, str(temperature), model, schema or ""]
         combined = "|".join(components)
-        key_hash = hashlib.sha256(combined.encode('utf-8')).hexdigest()
+        key_hash = hashlib.sha256(combined.encode("utf-8")).hexdigest()
 
-        logger.debug("CACHE_KEY_COMPUTED",
-                    prompt_len=len(prompt),
-                    temperature=temperature,
-                    model=model,
-                    key=key_hash[:16])  # Log prefix only
+        logger.debug(
+            "CACHE_KEY_COMPUTED",
+            prompt_len=len(prompt),
+            temperature=temperature,
+            model=model,
+            key=key_hash[:16],
+        )  # Log prefix only
 
         return key_hash
 
@@ -136,28 +128,19 @@ class LLMCache:
             del self._cache[key]
             self.total_evictions += 1
             self.total_misses += 1
-            logger.debug("CACHE_EXPIRED",
-                        key=key[:16],
-                        age=entry.get_age_seconds(),
-                        ttl=entry.ttl_seconds)
+            logger.debug(
+                "CACHE_EXPIRED", key=key[:16], age=entry.get_age_seconds(), ttl=entry.ttl_seconds
+            )
             return None
 
         # Hit!
         entry.hits += 1
         self.total_hits += 1
-        logger.debug("CACHE_HIT",
-                    key=key[:16],
-                    age=entry.get_age_seconds(),
-                    hits=entry.hits)
+        logger.debug("CACHE_HIT", key=key[:16], age=entry.get_age_seconds(), hits=entry.hits)
 
         return entry.value
 
-    def set(
-        self,
-        key: str,
-        value: Any,
-        ttl_seconds: Optional[int] = None
-    ) -> None:
+    def set(self, key: str, value: Any, ttl_seconds: Optional[int] = None) -> None:
         """
         Store value in cache.
 
@@ -168,19 +151,11 @@ class LLMCache:
         """
         ttl = ttl_seconds or self.default_ttl
 
-        entry = CacheEntry(
-            key=key,
-            value=value,
-            created_at=time.time(),
-            ttl_seconds=ttl
-        )
+        entry = CacheEntry(key=key, value=value, created_at=time.time(), ttl_seconds=ttl)
 
         self._cache[key] = entry
 
-        logger.debug("CACHE_SET",
-                    key=key[:16],
-                    ttl=ttl,
-                    cache_size=len(self._cache))
+        logger.debug("CACHE_SET", key=key[:16], ttl=ttl, cache_size=len(self._cache))
 
     def clear_expired(self) -> int:
         """
@@ -189,10 +164,7 @@ class LLMCache:
         Returns:
             Number of entries evicted
         """
-        expired_keys = [
-            key for key, entry in self._cache.items()
-            if entry.is_expired()
-        ]
+        expired_keys = [key for key, entry in self._cache.items() if entry.is_expired()]
 
         for key in expired_keys:
             del self._cache[key]
@@ -200,9 +172,7 @@ class LLMCache:
         self.total_evictions += len(expired_keys)
 
         if expired_keys:
-            logger.info("CACHE_CLEANUP",
-                       evicted=len(expired_keys),
-                       remaining=len(self._cache))
+            logger.info("CACHE_CLEANUP", evicted=len(expired_keys), remaining=len(self._cache))
 
         return len(expired_keys)
 
@@ -230,7 +200,7 @@ class LLMCache:
             return 0.0
         return self.total_hits / total
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get cache statistics.
 
@@ -243,7 +213,7 @@ class LLMCache:
             "misses": self.total_misses,
             "evictions": self.total_evictions,
             "hit_rate": self.get_hit_rate(),
-            "oldest_age_seconds": self._get_oldest_age()
+            "oldest_age_seconds": self._get_oldest_age(),
         }
 
     def _get_oldest_age(self) -> Optional[float]:
@@ -251,10 +221,7 @@ class LLMCache:
         if not self._cache:
             return None
 
-        oldest = min(
-            entry.created_at
-            for entry in self._cache.values()
-        )
+        oldest = min(entry.created_at for entry in self._cache.values())
 
         return time.time() - oldest
 
@@ -287,16 +254,18 @@ class LLMCache:
             "# HELP llm_cache_hit_rate Cache hit rate (0.0 to 1.0)",
             "# TYPE llm_cache_hit_rate gauge",
             f"llm_cache_hit_rate {stats['hit_rate']:.4f}",
-            ""
+            "",
         ]
 
-        if stats['oldest_age_seconds'] is not None:
-            lines.extend([
-                "# HELP llm_cache_oldest_age_seconds Age of oldest entry",
-                "# TYPE llm_cache_oldest_age_seconds gauge",
-                f"llm_cache_oldest_age_seconds {stats['oldest_age_seconds']:.2f}",
-                ""
-            ])
+        if stats["oldest_age_seconds"] is not None:
+            lines.extend(
+                [
+                    "# HELP llm_cache_oldest_age_seconds Age of oldest entry",
+                    "# TYPE llm_cache_oldest_age_seconds gauge",
+                    f"llm_cache_oldest_age_seconds {stats['oldest_age_seconds']:.2f}",
+                    "",
+                ]
+            )
 
         return "\n".join(lines)
 
@@ -335,7 +304,7 @@ def clear_cache() -> int:
     return cache.clear_all()
 
 
-def get_cache_stats() -> Dict[str, Any]:
+def get_cache_stats() -> dict[str, Any]:
     """
     Get global cache statistics.
 
@@ -362,7 +331,7 @@ if __name__ == "__main__":
 
         # Test 2: Cache set
         cache.set(key1, {"response": "test output", "tokens": 100})
-        print(f"Test 2 - Stored value")
+        print("Test 2 - Stored value")
 
         # Test 3: Cache hit
         result = cache.get(key1)
@@ -375,14 +344,14 @@ if __name__ == "__main__":
 
         # Test 5: Stats
         stats = cache.get_stats()
-        print(f"\n📊 Cache Stats:")
+        print("\n📊 Cache Stats:")
         print(f"  Size: {stats['size']}")
         print(f"  Hits: {stats['hits']}")
         print(f"  Misses: {stats['misses']}")
         print(f"  Hit Rate: {stats['hit_rate']:.1%}")
 
         # Test 6: Prometheus export
-        print(f"\n📈 Prometheus Export:")
+        print("\n📈 Prometheus Export:")
         print(cache.export_prometheus())
 
     else:

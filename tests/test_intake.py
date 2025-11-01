@@ -13,16 +13,17 @@ File: tests/test_intake.py
 Created: 2025-10-28
 """
 
-import sys
 import json
+import sys
 import unittest
 from pathlib import Path
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.preset_loader import get_preset_loader, PresetConfig
 import jsonschema
+
+from backend.preset_loader import get_preset_loader
 
 
 class TestPresetLoader(unittest.TestCase):
@@ -74,16 +75,16 @@ class TestPresetLoader(unittest.TestCase):
         schema = self.loader.load_schema("schemas/intake.schema.json")
 
         # Verify schema structure
-        self.assertEqual(schema['$schema'], "http://json-schema.org/draft-07/schema#")
-        self.assertEqual(schema['type'], 'object')
-        self.assertIn('demographics', schema['properties'])
-        self.assertIn('chief_complaint', schema['properties'])
-        self.assertIn('symptoms', schema['properties'])
-        self.assertIn('medical_history', schema['properties'])
-        self.assertIn('urgency', schema['properties'])
+        self.assertEqual(schema["$schema"], "http://json-schema.org/draft-07/schema#")
+        self.assertEqual(schema["type"], "object")
+        self.assertIn("demographics", schema["properties"])
+        self.assertIn("chief_complaint", schema["properties"])
+        self.assertIn("symptoms", schema["properties"])
+        self.assertIn("medical_history", schema["properties"])
+        self.assertIn("urgency", schema["properties"])
 
         # Verify urgency enum
-        urgency_enum = schema['properties']['urgency']['enum']
+        urgency_enum = schema["properties"]["urgency"]["enum"]
         self.assertEqual(urgency_enum, ["LOW", "MODERATE", "HIGH", "CRITICAL"])
 
     def test_cache_key_computation(self):
@@ -102,7 +103,7 @@ class TestPresetLoader(unittest.TestCase):
 
         # Keys are SHA256 hashes (64 hex chars)
         self.assertEqual(len(key1), 64)
-        self.assertTrue(all(c in '0123456789abcdef' for c in key1))
+        self.assertTrue(all(c in "0123456789abcdef" for c in key1))
 
 
 class TestIntakeSchemaValidation(unittest.TestCase):
@@ -119,17 +120,17 @@ class TestIntakeSchemaValidation(unittest.TestCase):
                 "name": "John Doe",
                 "age": 45,
                 "gender": "M",
-                "contact": "john@example.com"
+                "contact": "john@example.com",
             },
             "chief_complaint": "Chest pain",
             "symptoms": ["chest pain", "shortness of breath"],
             "medical_history": {
                 "allergies": ["penicillin"],
                 "medications": ["lisinopril"],
-                "conditions": ["hypertension"]
+                "conditions": ["hypertension"],
             },
             "urgency": "CRITICAL",
-            "notes": "Requires immediate evaluation"
+            "notes": "Requires immediate evaluation",
         }
 
         # Should not raise
@@ -138,21 +139,12 @@ class TestIntakeSchemaValidation(unittest.TestCase):
     def test_valid_minimal_intake(self):
         """Test validation with null/empty fields"""
         intake = {
-            "demographics": {
-                "name": None,
-                "age": None,
-                "gender": None,
-                "contact": None
-            },
+            "demographics": {"name": None, "age": None, "gender": None, "contact": None},
             "chief_complaint": None,
             "symptoms": [],
-            "medical_history": {
-                "allergies": [],
-                "medications": [],
-                "conditions": []
-            },
+            "medical_history": {"allergies": [], "medications": [], "conditions": []},
             "urgency": "LOW",
-            "notes": None
+            "notes": None,
         }
 
         # Should not raise
@@ -161,21 +153,12 @@ class TestIntakeSchemaValidation(unittest.TestCase):
     def test_invalid_urgency_value(self):
         """Test validation fails with invalid urgency"""
         intake = {
-            "demographics": {
-                "name": None,
-                "age": None,
-                "gender": None,
-                "contact": None
-            },
+            "demographics": {"name": None, "age": None, "gender": None, "contact": None},
             "chief_complaint": "Test",
             "symptoms": [],
-            "medical_history": {
-                "allergies": [],
-                "medications": [],
-                "conditions": []
-            },
+            "medical_history": {"allergies": [], "medications": [], "conditions": []},
             "urgency": "INVALID",  # Not in enum
-            "notes": None
+            "notes": None,
         }
 
         with self.assertRaises(jsonschema.ValidationError):
@@ -188,17 +171,13 @@ class TestIntakeSchemaValidation(unittest.TestCase):
                 "name": "Test",
                 "age": 30,
                 "gender": "X",  # Not in enum (should be M, F, O, or None)
-                "contact": None
+                "contact": None,
             },
             "chief_complaint": "Test",
             "symptoms": [],
-            "medical_history": {
-                "allergies": [],
-                "medications": [],
-                "conditions": []
-            },
+            "medical_history": {"allergies": [], "medications": [], "conditions": []},
             "urgency": "LOW",
-            "notes": None
+            "notes": None,
         }
 
         with self.assertRaises(jsonschema.ValidationError):
@@ -207,20 +186,11 @@ class TestIntakeSchemaValidation(unittest.TestCase):
     def test_missing_required_field(self):
         """Test validation fails with missing required field"""
         intake = {
-            "demographics": {
-                "name": "Test",
-                "age": 30,
-                "gender": "M",
-                "contact": None
-            },
+            "demographics": {"name": "Test", "age": 30, "gender": "M", "contact": None},
             # Missing chief_complaint
             "symptoms": [],
-            "medical_history": {
-                "allergies": [],
-                "medications": [],
-                "conditions": []
-            },
-            "urgency": "LOW"
+            "medical_history": {"allergies": [], "medications": [], "conditions": []},
+            "urgency": "LOW",
         }
 
         with self.assertRaises(jsonschema.ValidationError):
@@ -237,7 +207,7 @@ class TestIntakePrompts(unittest.TestCase):
 
         # Load test prompts
         test_prompts_path = Path(__file__).parent / "test_intake_prompts.json"
-        with open(test_prompts_path, 'r') as f:
+        with open(test_prompts_path) as f:
             self.test_prompts = json.load(f)
 
     def test_all_prompts_validation(self):
@@ -247,8 +217,8 @@ class TestIntakePrompts(unittest.TestCase):
         errors = []
 
         for test_case in self.test_prompts:
-            prompt = test_case['prompt']
-            expected_urgency = test_case['expected_urgency']
+            prompt = test_case["prompt"]
+            expected_urgency = test_case["expected_urgency"]
 
             print(f"\n{'='*70}")
             print(f"Test Case {test_case['id']}: {test_case['name']}")
@@ -257,13 +227,15 @@ class TestIntakePrompts(unittest.TestCase):
 
             try:
                 # Generate with LLM
-                full_prompt = f"{self.preset.system_prompt}\n\nPatient Input:\n{prompt}\n\nJSON Output:"
+                full_prompt = (
+                    f"{self.preset.system_prompt}\n\nPatient Input:\n{prompt}\n\nJSON Output:"
+                )
 
                 response = llm_generate(
                     prompt=full_prompt,
                     provider=self.preset.provider,
                     temperature=self.preset.temperature,
-                    max_tokens=self.preset.max_tokens
+                    max_tokens=self.preset.max_tokens,
                 )
 
                 print(f"\nLLM Response ({len(response.content)} chars):")
@@ -280,18 +252,18 @@ class TestIntakePrompts(unittest.TestCase):
                 # Validate against schema
                 try:
                     self.loader.validate_output(output, self.schema)
-                    print(f"✅ Schema Validation: PASSED")
+                    print("✅ Schema Validation: PASSED")
                 except jsonschema.ValidationError as e:
                     errors.append(f"Test {test_case['id']}: Schema validation error: {e.message}")
                     print(f"❌ Schema Validation: FAILED - {e.message}")
                     continue
 
                 # Check urgency level
-                actual_urgency = output.get('urgency')
+                actual_urgency = output.get("urgency")
                 print(f"🎯 Urgency: Expected={expected_urgency}, Actual={actual_urgency}")
 
                 if actual_urgency != expected_urgency:
-                    print(f"⚠️  Urgency mismatch (not an error, but noteworthy)")
+                    print("⚠️  Urgency mismatch (not an error, but noteworthy)")
 
                 print(f"✅ Test Case {test_case['id']}: PASSED")
 
@@ -320,5 +292,5 @@ def main():
     unittest.main(verbosity=2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

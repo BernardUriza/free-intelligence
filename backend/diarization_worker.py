@@ -20,15 +20,13 @@ Created: 2025-10-30
 """
 
 import os
-import sys
-import time
 import platform
-from pathlib import Path
-from rq import Worker, Queue, Connection
+import sys
+
 from redis import Redis
+from rq import Connection, Queue, Worker
 
 from backend.logger import get_logger
-from backend.diarization_service_v2 import diarize_audio_parallel
 
 logger = get_logger(__name__)
 
@@ -41,6 +39,7 @@ REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 WORKER_NAME = os.getenv("WORKER_NAME", f"diarization-worker-{platform.node()}")
 QUEUE_NAME = "diarization"
 
+
 def detect_device():
     """
     Auto-detect best compute device.
@@ -49,9 +48,10 @@ def detect_device():
         str: 'mps' (M1/M2), 'cuda' (NVIDIA), or 'cpu'
     """
     # Check for Apple Silicon GPU (M1/M2/M3)
-    if platform.processor() == 'arm' and platform.system() == 'Darwin':
+    if platform.processor() == "arm" and platform.system() == "Darwin":
         try:
             import torch
+
             if torch.backends.mps.is_available():
                 logger.info("GPU_DETECTED", device="mps", chip=platform.processor())
                 return "mps"
@@ -61,6 +61,7 @@ def detect_device():
     # Check for NVIDIA CUDA
     try:
         import torch
+
         if torch.cuda.is_available():
             gpu_name = torch.cuda.get_device_name(0)
             logger.info("GPU_DETECTED", device="cuda", gpu=gpu_name)
@@ -93,7 +94,7 @@ def main():
         queue=QUEUE_NAME,
         device=device,
         compute_type=os.environ["WHISPER_COMPUTE_TYPE"],
-        redis=f"{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+        redis=f"{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
     )
 
     # Connect to Redis
@@ -113,12 +114,7 @@ def main():
     with Connection(redis_conn):
         worker = Worker([queue], name=WORKER_NAME)
 
-        logger.info(
-            "WORKER_READY",
-            worker=WORKER_NAME,
-            queues=[QUEUE_NAME],
-            pid=os.getpid()
-        )
+        logger.info("WORKER_READY", worker=WORKER_NAME, queues=[QUEUE_NAME], pid=os.getpid())
 
         worker.work(with_scheduler=True)
 

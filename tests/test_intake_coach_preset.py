@@ -9,7 +9,6 @@ Validates:
 """
 
 import json
-import os
 import unittest
 from pathlib import Path
 
@@ -22,7 +21,7 @@ class TestIntakeCoachPreset(unittest.TestCase):
     def setUp(self):
         """Load preset file"""
         preset_path = Path(__file__).parent.parent / "backend" / "prompts" / "intake_coach.yaml"
-        with open(preset_path, "r") as f:
+        with open(preset_path) as f:
             self.preset = yaml.safe_load(f)
 
     def test_preset_has_required_fields(self):
@@ -105,7 +104,7 @@ class TestIntakeSchema(unittest.TestCase):
     def setUp(self):
         """Load schema file"""
         schema_path = Path(__file__).parent.parent / "backend" / "schemas" / "intake.schema.json"
-        with open(schema_path, "r") as f:
+        with open(schema_path) as f:
             self.schema = json.load(f)
 
     def test_schema_is_valid_json(self):
@@ -189,7 +188,7 @@ class TestSchemaValidation(unittest.TestCase):
     def setUp(self):
         """Load schema"""
         schema_path = Path(__file__).parent.parent / "backend" / "schemas" / "intake.schema.json"
-        with open(schema_path, "r") as f:
+        with open(schema_path) as f:
             self.schema = json.load(f)
 
     def test_valid_intake_data(self):
@@ -201,22 +200,13 @@ class TestSchemaValidation(unittest.TestCase):
             self.skipTest("jsonschema not installed")
 
         valid_data = {
-            "demographics": {
-                "name": "John Doe",
-                "age": 45
-            },
+            "demographics": {"name": "John Doe", "age": 45},
             "chief_complaint": "Chest pain for 2 hours",
-            "symptoms": [
-                {
-                    "description": "Chest pain",
-                    "onset": "2 hours ago",
-                    "severity": 8
-                }
-            ],
+            "symptoms": [{"description": "Chest pain", "onset": "2 hours ago", "severity": 8}],
             "urgency": {
                 "level": "CRITICAL",
-                "reasoning": "Chest pain requires immediate evaluation"
-            }
+                "reasoning": "Chest pain requires immediate evaluation",
+            },
         }
 
         # Should not raise exception
@@ -235,8 +225,8 @@ class TestSchemaValidation(unittest.TestCase):
             "symptoms": [{"description": "Headache", "onset": "1 day", "severity": 5}],
             "urgency": {
                 "level": "INVALID_LEVEL",  # Invalid!
-                "reasoning": "Test"
-            }
+                "reasoning": "Test",
+            },
         }
 
         with self.assertRaises(jsonschema.ValidationError):

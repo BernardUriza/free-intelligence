@@ -14,7 +14,7 @@ Philosophy:
 """
 
 import ipaddress
-from typing import List, Optional
+from typing import Optional
 
 
 class IPValidator:
@@ -37,7 +37,7 @@ class IPValidator:
         "192.168.0.0/16",  # Private C
     ]
 
-    def __init__(self, allowed_cidrs: Optional[List[str]] = None):
+    def __init__(self, allowed_cidrs: Optional[list[str]] = None):
         """
         Initialize IP validator with CIDR allowlist.
 
@@ -68,7 +68,7 @@ class IPValidator:
         self,
         remote_addr: str,
         x_forwarded_for: Optional[str] = None,
-        trusted_proxies: Optional[List[str]] = None,
+        trusted_proxies: Optional[list[str]] = None,
     ) -> str:
         """
         Extract real client IP from request.

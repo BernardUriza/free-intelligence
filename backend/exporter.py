@@ -7,14 +7,14 @@ FI-EXPORT-FEAT-001, FI-EXPORT-FEAT-002
 """
 
 import json
-from pathlib import Path
-from typing import List, Dict, Optional
 from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
-from backend.logger import get_logger
-from backend.export_policy import create_export_manifest, ExportManifest
-from backend.search import search_by_session
 from backend.corpus_ops import read_interactions
+from backend.export_policy import create_export_manifest
+from backend.logger import get_logger
+from backend.search import search_by_session
 
 logger = get_logger(__name__)
 
@@ -23,7 +23,7 @@ def export_to_markdown(
     corpus_path: str,
     output_path: str,
     session_id: Optional[str] = None,
-    limit: Optional[int] = None
+    limit: Optional[int] = None,
 ) -> str:
     """
     Export interactions to Markdown format with manifest.
@@ -44,10 +44,9 @@ def export_to_markdown(
         ...     session_id="session_20251028_010000"
         ... )
     """
-    logger.info("MARKDOWN_EXPORT_STARTED",
-                corpus_path=corpus_path,
-                session_id=session_id,
-                limit=limit)
+    logger.info(
+        "MARKDOWN_EXPORT_STARTED", corpus_path=corpus_path, session_id=session_id, limit=limit
+    )
 
     try:
         # Get interactions
@@ -69,7 +68,7 @@ def export_to_markdown(
         md_path = output_dir / filename
 
         # Write Markdown
-        with open(md_path, 'w', encoding='utf-8') as f:
+        with open(md_path, "w", encoding="utf-8") as f:
             # Header
             f.write("# Free Intelligence - Interaction Export\n\n")
             f.write(f"**Export Date**: {datetime.utcnow().isoformat()}Z\n\n")
@@ -86,9 +85,9 @@ def export_to_markdown(
                 f.write(f"**Timestamp**: {interaction['timestamp']}\n\n")
                 f.write(f"**Model**: {interaction['model']}\n\n")
                 f.write(f"**Tokens**: {interaction['tokens']}\n\n")
-                f.write(f"### Prompt\n\n")
+                f.write("### Prompt\n\n")
                 f.write(f"{interaction['prompt']}\n\n")
-                f.write(f"### Response\n\n")
+                f.write("### Response\n\n")
                 f.write(f"{interaction['response']}\n\n")
                 f.write("---\n\n")
 
@@ -101,19 +100,19 @@ def export_to_markdown(
             data_source="/interactions/" if not session_id else f"/interactions/{session_id}",
             format="markdown",
             purpose="backup",
-            includes_pii=True
+            includes_pii=True,
         )
 
         # Save manifest
         manifest_path = output_dir / f"{filename}.manifest.json"
-        with open(manifest_path, 'w', encoding='utf-8') as f:
+        with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(manifest.__dict__, f, indent=2)
 
         logger.info("EXPORT_MANIFEST_CREATED", manifest_path=str(manifest_path))
 
-        logger.info("MARKDOWN_EXPORT_COMPLETED",
-                   md_path=str(md_path),
-                   manifest_path=str(manifest_path))
+        logger.info(
+            "MARKDOWN_EXPORT_COMPLETED", md_path=str(md_path), manifest_path=str(manifest_path)
+        )
 
         return str(md_path)
 
@@ -126,7 +125,7 @@ def export_to_json(
     corpus_path: str,
     output_path: str,
     session_id: Optional[str] = None,
-    limit: Optional[int] = None
+    limit: Optional[int] = None,
 ) -> str:
     """
     Export interactions to JSON format with manifest.
@@ -147,10 +146,7 @@ def export_to_json(
         ...     session_id="session_20251028_010000"
         ... )
     """
-    logger.info("JSON_EXPORT_STARTED",
-                corpus_path=corpus_path,
-                session_id=session_id,
-                limit=limit)
+    logger.info("JSON_EXPORT_STARTED", corpus_path=corpus_path, session_id=session_id, limit=limit)
 
     try:
         # Get interactions
@@ -176,11 +172,11 @@ def export_to_json(
             "export_timestamp": datetime.utcnow().isoformat() + "Z",
             "session_id": session_id,
             "total_interactions": len(interactions),
-            "interactions": interactions
+            "interactions": interactions,
         }
 
         # Write JSON
-        with open(json_path, 'w', encoding='utf-8') as f:
+        with open(json_path, "w", encoding="utf-8") as f:
             json.dump(export_data, f, indent=2, ensure_ascii=False)
 
         logger.info("JSON_WRITTEN", path=str(json_path), interactions=len(interactions))
@@ -192,19 +188,19 @@ def export_to_json(
             data_source="/interactions/" if not session_id else f"/interactions/{session_id}",
             format="json",
             purpose="backup",
-            includes_pii=True
+            includes_pii=True,
         )
 
         # Save manifest
         manifest_path = output_dir / f"{filename}.manifest.json"
-        with open(manifest_path, 'w', encoding='utf-8') as f:
+        with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(manifest.__dict__, f, indent=2)
 
         logger.info("EXPORT_MANIFEST_CREATED", manifest_path=str(manifest_path))
 
-        logger.info("JSON_EXPORT_COMPLETED",
-                   json_path=str(json_path),
-                   manifest_path=str(manifest_path))
+        logger.info(
+            "JSON_EXPORT_COMPLETED", json_path=str(json_path), manifest_path=str(manifest_path)
+        )
 
         return str(json_path)
 
@@ -215,7 +211,6 @@ def export_to_json(
 
 if __name__ == "__main__":
     """Demo script"""
-    import sys
     from backend.config_loader import load_config
 
     config = load_config()

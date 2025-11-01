@@ -8,53 +8,52 @@ Logs user, operation, timestamp, payload hash, and result hash.
 FI-SEC-FEAT-003
 """
 
-import h5py
 import hashlib
 import json
-from pathlib import Path
-from typing import Dict, Optional, List, Any
 from datetime import datetime
+from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
+import h5py
 
 # Audit log schema
 AUDIT_LOG_SCHEMA = {
     "audit_id": {
-        "dtype": h5py.string_dtype(encoding='utf-8', length=36),
-        "description": "UUID v4 for audit entry"
+        "dtype": h5py.string_dtype(encoding="utf-8", length=36),
+        "description": "UUID v4 for audit entry",
     },
     "timestamp": {
-        "dtype": h5py.string_dtype(encoding='utf-8', length=50),
-        "description": "ISO 8601 timestamp with timezone"
+        "dtype": h5py.string_dtype(encoding="utf-8", length=50),
+        "description": "ISO 8601 timestamp with timezone",
     },
     "operation": {
-        "dtype": h5py.string_dtype(encoding='utf-8', length=100),
-        "description": "Operation name (e.g., INTERACTION_APPENDED)"
+        "dtype": h5py.string_dtype(encoding="utf-8", length=100),
+        "description": "Operation name (e.g., INTERACTION_APPENDED)",
     },
     "user_id": {
-        "dtype": h5py.string_dtype(encoding='utf-8', length=100),
-        "description": "User identifier (owner_hash prefix or session_id)"
+        "dtype": h5py.string_dtype(encoding="utf-8", length=100),
+        "description": "User identifier (owner_hash prefix or session_id)",
     },
     "endpoint": {
-        "dtype": h5py.string_dtype(encoding='utf-8', length=200),
-        "description": "API endpoint or function name"
+        "dtype": h5py.string_dtype(encoding="utf-8", length=200),
+        "description": "API endpoint or function name",
     },
     "payload_hash": {
-        "dtype": h5py.string_dtype(encoding='utf-8', length=64),
-        "description": "SHA256 hash of input payload"
+        "dtype": h5py.string_dtype(encoding="utf-8", length=64),
+        "description": "SHA256 hash of input payload",
     },
     "result_hash": {
-        "dtype": h5py.string_dtype(encoding='utf-8', length=64),
-        "description": "SHA256 hash of operation result"
+        "dtype": h5py.string_dtype(encoding="utf-8", length=64),
+        "description": "SHA256 hash of operation result",
     },
     "status": {
-        "dtype": h5py.string_dtype(encoding='utf-8', length=20),
-        "description": "SUCCESS, FAILED, BLOCKED"
+        "dtype": h5py.string_dtype(encoding="utf-8", length=20),
+        "description": "SUCCESS, FAILED, BLOCKED",
     },
     "metadata": {
-        "dtype": h5py.string_dtype(encoding='utf-8', length=500),
-        "description": "JSON metadata (optional)"
-    }
+        "dtype": h5py.string_dtype(encoding="utf-8", length=500),
+        "description": "JSON metadata (optional)",
+    },
 }
 
 
@@ -77,7 +76,7 @@ def init_audit_logs_group(corpus_path: str) -> bool:
     logger = get_logger()
 
     try:
-        with h5py.File(corpus_path, 'a') as f:
+        with h5py.File(corpus_path, "a") as f:
             # Create audit_logs group if not exists
             if "audit_logs" in f:
                 logger.info("AUDIT_LOGS_GROUP_EXISTS", path=corpus_path)
@@ -94,18 +93,18 @@ def init_audit_logs_group(corpus_path: str) -> bool:
                     dtype=spec["dtype"],
                     chunks=True,
                     compression="gzip",
-                    compression_opts=4
+                    compression_opts=4,
                 )
 
             logger.info(
                 "AUDIT_LOGS_GROUP_INITIALIZED",
                 path=corpus_path,
-                datasets=list(AUDIT_LOG_SCHEMA.keys())
+                datasets=list(AUDIT_LOG_SCHEMA.keys()),
             )
 
             return True
 
-    except (IOError, OSError, ValueError, RuntimeError) as e:
+    except (OSError, ValueError, RuntimeError) as e:
         logger.error("AUDIT_LOGS_INIT_FAILED", error=str(e), path=corpus_path)
         return False
 
@@ -130,7 +129,7 @@ def hash_payload(payload: Any) -> str:
     else:
         payload_str = str(payload)
 
-    return hashlib.sha256(payload_str.encode('utf-8')).hexdigest()
+    return hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
 
 
 def append_audit_log(
@@ -141,7 +140,7 @@ def append_audit_log(
     payload: Optional[any] = None,
     result: Optional[any] = None,
     status: str = "SUCCESS",
-    metadata: Optional[Dict] = None
+    metadata: Optional[dict] = None,
 ) -> str:
     """
     Append audit log entry.
@@ -169,9 +168,10 @@ def append_audit_log(
         ...     result={"interaction_id": "abc-123"}
         ... )
     """
-    from backend.logger import get_logger
-    from backend.append_only_policy import AppendOnlyPolicy
     import uuid
+
+    from backend.append_only_policy import AppendOnlyPolicy
+    from backend.logger import get_logger
 
     logger = get_logger()
     audit_id = str(uuid.uuid4())
@@ -188,13 +188,13 @@ def append_audit_log(
     metadata_str = json.dumps(metadata) if metadata else "{}"
 
     try:
-        with AppendOnlyPolicy(corpus_path), h5py.File(corpus_path, 'a') as f:
+        with AppendOnlyPolicy(corpus_path), h5py.File(corpus_path, "a") as f:
             # Ensure audit_logs group exists
             if "audit_logs" not in f:
                 init_audit_logs_group(corpus_path)
                 # Reopen file
                 f.close()
-                f = h5py.File(corpus_path, 'a')
+                f = h5py.File(corpus_path, "a")
 
             audit_logs = f["audit_logs"]
 
@@ -223,18 +223,13 @@ def append_audit_log(
             operation=operation,
             user_id=user_id,
             endpoint=endpoint,
-            status=status
+            status=status,
         )
 
         return audit_id
 
-    except (IOError, OSError, ValueError, TypeError, KeyError) as e:
-        logger.error(
-            "AUDIT_LOG_APPEND_FAILED",
-            error=str(e),
-            operation=operation,
-            user_id=user_id
-        )
+    except (OSError, ValueError, TypeError, KeyError) as e:
+        logger.error("AUDIT_LOG_APPEND_FAILED", error=str(e), operation=operation, user_id=user_id)
         raise
 
 
@@ -242,8 +237,8 @@ def get_audit_logs(
     corpus_path: str,
     limit: int = 100,
     operation_filter: Optional[str] = None,
-    user_filter: Optional[str] = None
-) -> List[Dict]:
+    user_filter: Optional[str] = None,
+) -> list[dict]:
     """
     Retrieve audit logs with optional filters.
 
@@ -261,7 +256,7 @@ def get_audit_logs(
         >>> logs = get_audit_logs("storage/corpus.h5", operation_filter="INTERACTION_APPENDED")
     """
     try:
-        with h5py.File(corpus_path, 'r') as f:
+        with h5py.File(corpus_path, "r") as f:
             if "audit_logs" not in f:
                 return []
 
@@ -278,8 +273,8 @@ def get_audit_logs(
             results = []
             for i in range(end - 1, start - 1, -1):  # Reverse order
                 # Apply filters
-                operation = audit_logs_group["operation"][i].decode('utf-8')
-                user_id = audit_logs_group["user_id"][i].decode('utf-8')
+                operation = audit_logs_group["operation"][i].decode("utf-8")
+                user_id = audit_logs_group["user_id"][i].decode("utf-8")
 
                 if operation_filter and operation != operation_filter:
                     continue
@@ -288,28 +283,29 @@ def get_audit_logs(
                     continue
 
                 log_entry = {
-                    "audit_id": audit_logs_group["audit_id"][i].decode('utf-8'),
-                    "timestamp": audit_logs_group["timestamp"][i].decode('utf-8'),
+                    "audit_id": audit_logs_group["audit_id"][i].decode("utf-8"),
+                    "timestamp": audit_logs_group["timestamp"][i].decode("utf-8"),
                     "operation": operation,
                     "user_id": user_id,
-                    "endpoint": audit_logs_group["endpoint"][i].decode('utf-8'),
-                    "payload_hash": audit_logs_group["payload_hash"][i].decode('utf-8'),
-                    "result_hash": audit_logs_group["result_hash"][i].decode('utf-8'),
-                    "status": audit_logs_group["status"][i].decode('utf-8'),
-                    "metadata": audit_logs_group["metadata"][i].decode('utf-8')
+                    "endpoint": audit_logs_group["endpoint"][i].decode("utf-8"),
+                    "payload_hash": audit_logs_group["payload_hash"][i].decode("utf-8"),
+                    "result_hash": audit_logs_group["result_hash"][i].decode("utf-8"),
+                    "status": audit_logs_group["status"][i].decode("utf-8"),
+                    "metadata": audit_logs_group["metadata"][i].decode("utf-8"),
                 }
                 results.append(log_entry)
 
             return results
 
-    except (IOError, OSError, KeyError) as e:
+    except (OSError, KeyError) as e:
         from backend.logger import get_logger
+
         logger = get_logger()
         logger.error("AUDIT_LOGS_READ_FAILED", error=str(e))
         return []
 
 
-def get_audit_stats(corpus_path: str) -> Dict:
+def get_audit_stats(corpus_path: str) -> dict:
     """
     Get audit log statistics.
 
@@ -324,7 +320,7 @@ def get_audit_stats(corpus_path: str) -> Dict:
         >>> print(stats["total_logs"])
     """
     try:
-        with h5py.File(corpus_path, 'r') as f:
+        with h5py.File(corpus_path, "r") as f:
             if "audit_logs" not in f:
                 return {"total_logs": 0, "exists": False}
 
@@ -336,8 +332,8 @@ def get_audit_stats(corpus_path: str) -> Dict:
             operation_counts = {}
 
             for i in range(total):
-                status = audit_logs["status"][i].decode('utf-8')
-                operation = audit_logs["operation"][i].decode('utf-8')
+                status = audit_logs["status"][i].decode("utf-8")
+                operation = audit_logs["operation"][i].decode("utf-8")
 
                 status_counts[status] = status_counts.get(status, 0) + 1
                 operation_counts[operation] = operation_counts.get(operation, 0) + 1
@@ -346,17 +342,18 @@ def get_audit_stats(corpus_path: str) -> Dict:
                 "total_logs": total,
                 "exists": True,
                 "status_breakdown": status_counts,
-                "operation_breakdown": operation_counts
+                "operation_breakdown": operation_counts,
             }
 
-    except (IOError, OSError, KeyError) as e:
+    except (OSError, KeyError) as e:
         from backend.logger import get_logger
+
         logger = get_logger()
         logger.error("AUDIT_STATS_FAILED", error=str(e))
         return {"total_logs": 0, "exists": False, "error": str(e)}
 
 
-def get_audit_logs_older_than(corpus_path: str, days: int = 90) -> List[int]:
+def get_audit_logs_older_than(corpus_path: str, days: int = 90) -> list[int]:
     """
     Get indices of audit logs older than specified days.
 
@@ -374,7 +371,7 @@ def get_audit_logs_older_than(corpus_path: str, days: int = 90) -> List[int]:
     from datetime import datetime, timedelta
 
     try:
-        with h5py.File(corpus_path, 'r') as f:
+        with h5py.File(corpus_path, "r") as f:
             if "audit_logs" not in f:
                 return []
 
@@ -390,7 +387,7 @@ def get_audit_logs_older_than(corpus_path: str, days: int = 90) -> List[int]:
             # Find old logs
             old_indices = []
             for i in range(total):
-                timestamp_str = audit_logs["timestamp"][i].decode('utf-8')
+                timestamp_str = audit_logs["timestamp"][i].decode("utf-8")
                 log_date = datetime.fromisoformat(timestamp_str)
 
                 if log_date < cutoff_date:
@@ -400,12 +397,13 @@ def get_audit_logs_older_than(corpus_path: str, days: int = 90) -> List[int]:
 
     except Exception as e:
         from backend.logger import get_logger
+
         logger = get_logger()
         logger.error("RETENTION_CHECK_FAILED", error=str(e))
         return []
 
 
-def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = True) -> Dict:
+def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = True) -> dict:
     """
     Remove audit logs older than specified days.
 
@@ -444,8 +442,9 @@ def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = Tru
         >>> # Actually delete (CAREFUL!)
         >>> result = cleanup_old_audit_logs("storage/corpus.h5", days=90, dry_run=False)
     """
-    from backend.logger import get_logger
     from datetime import datetime, timedelta
+
+    from backend.logger import get_logger
 
     logger = get_logger()
 
@@ -457,27 +456,25 @@ def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = Tru
                 "RETENTION_DRY_RUN",
                 would_delete=len(old_indices),
                 retention_days=days,
-                corpus_path=corpus_path
+                corpus_path=corpus_path,
             )
             return {
                 "dry_run": True,
                 "would_delete": len(old_indices),
                 "retention_days": days,
-                "cutoff_date": (datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=days)).isoformat()
+                "cutoff_date": (
+                    datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=days)
+                ).isoformat(),
             }
 
         # Actually delete old logs
         if len(old_indices) == 0:
             logger.info("RETENTION_CLEANUP_NOTHING_TO_DELETE", retention_days=days)
-            return {
-                "dry_run": False,
-                "deleted": 0,
-                "retention_days": days
-            }
+            return {"dry_run": False, "deleted": 0, "retention_days": days}
 
         # NOTE: HDF5 doesn't support in-place deletion of rows
         # We need to create new datasets without old rows
-        with h5py.File(corpus_path, 'a') as f:
+        with h5py.File(corpus_path, "a") as f:
             audit_logs = f["audit_logs"]
             total = audit_logs["timestamp"].shape[0]
 
@@ -503,7 +500,7 @@ def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = Tru
                     dtype=spec["dtype"],
                     chunks=True,
                     compression="gzip",
-                    compression_opts=4
+                    compression_opts=4,
                 )
 
                 # Write kept data
@@ -515,26 +512,22 @@ def cleanup_old_audit_logs(corpus_path: str, days: int = 90, dry_run: bool = Tru
             "RETENTION_CLEANUP_COMPLETED",
             deleted=len(old_indices),
             kept=len(keep_indices),
-            retention_days=days
+            retention_days=days,
         )
 
         return {
             "dry_run": False,
             "deleted": len(old_indices),
             "kept": len(keep_indices),
-            "retention_days": days
+            "retention_days": days,
         }
 
     except Exception as e:
         logger.error("RETENTION_CLEANUP_FAILED", error=str(e))
-        return {
-            "dry_run": dry_run,
-            "error": str(e),
-            "deleted": 0
-        }
+        return {"dry_run": dry_run, "error": str(e), "deleted": 0}
 
 
-def get_retention_stats(corpus_path: str, retention_days: int = 90) -> Dict:
+def get_retention_stats(corpus_path: str, retention_days: int = 90) -> dict:
     """
     Get statistics about audit log retention.
 
@@ -556,29 +549,31 @@ def get_retention_stats(corpus_path: str, retention_days: int = 90) -> Dict:
     try:
         old_indices = get_audit_logs_older_than(corpus_path, retention_days)
 
-        with h5py.File(corpus_path, 'r') as f:
+        with h5py.File(corpus_path, "r") as f:
             if "audit_logs" not in f:
                 return {
                     "exists": False,
                     "total_logs": 0,
                     "within_retention": 0,
                     "beyond_retention": 0,
-                    "retention_days": retention_days
+                    "retention_days": retention_days,
                 }
 
             total = f["audit_logs"]["timestamp"].shape[0]
             beyond_retention = len(old_indices)
             within_retention = total - beyond_retention
 
-            cutoff_date = datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(days=retention_days)
+            cutoff_date = datetime.now(ZoneInfo("America/Mexico_City")) - timedelta(
+                days=retention_days
+            )
 
             # Get oldest and newest log dates
             oldest_log = None
             newest_log = None
 
             if total > 0:
-                oldest_log = f["audit_logs"]["timestamp"][0].decode('utf-8')
-                newest_log = f["audit_logs"]["timestamp"][total - 1].decode('utf-8')
+                oldest_log = f["audit_logs"]["timestamp"][0].decode("utf-8")
+                newest_log = f["audit_logs"]["timestamp"][total - 1].decode("utf-8")
 
             return {
                 "exists": True,
@@ -589,18 +584,15 @@ def get_retention_stats(corpus_path: str, retention_days: int = 90) -> Dict:
                 "cutoff_date": cutoff_date.isoformat(),
                 "oldest_log": oldest_log,
                 "newest_log": newest_log,
-                "percentage_old": (beyond_retention / total * 100) if total > 0 else 0
+                "percentage_old": (beyond_retention / total * 100) if total > 0 else 0,
             }
 
     except Exception as e:
         from backend.logger import get_logger
+
         logger = get_logger()
         logger.error("RETENTION_STATS_FAILED", error=str(e))
-        return {
-            "exists": False,
-            "error": str(e),
-            "total_logs": 0
-        }
+        return {"exists": False, "error": str(e), "total_logs": 0}
 
 
 if __name__ == "__main__":
@@ -626,7 +618,7 @@ if __name__ == "__main__":
         payload={"action": "test", "data": "sample"},
         result={"success": True},
         status="SUCCESS",
-        metadata={"source": "demo"}
+        metadata={"source": "demo"},
     )
     print(f"  Audit ID: {audit_id}")
 

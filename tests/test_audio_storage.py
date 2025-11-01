@@ -11,7 +11,6 @@ from uuid import uuid4
 import pytest
 
 from backend.audio_storage import (
-    AUDIO_STORAGE_DIR,
     compute_sha256,
     get_audio_manifest,
     save_audio_file,

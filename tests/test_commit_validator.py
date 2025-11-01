@@ -12,14 +12,14 @@ Fecha: 2025-10-25
 Task: FI-CICD-FEAT-001
 """
 
-import unittest
 import sys
+import unittest
 from pathlib import Path
 
 # Add scripts to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
-from validate_commit_message import validate_commit_message, VALID_TYPES
+from validate_commit_message import VALID_TYPES, validate_commit_message
 
 
 class TestCommitMessageValidator(unittest.TestCase):
@@ -95,7 +95,7 @@ class TestCommitMessageValidator(unittest.TestCase):
             "feat: add HDF5 compression",
             "fix: resolve API connection issue",
             "docs: update LLM audit policy",
-            "feat: implement UUID generation"
+            "feat: implement UUID generation",
         ]
         for message in valid_messages:
             is_valid, error = validate_commit_message(message)
@@ -133,5 +133,5 @@ class TestCommitMessageValidator(unittest.TestCase):
         self.assertTrue(is_valid)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

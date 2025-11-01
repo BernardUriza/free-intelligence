@@ -12,17 +12,16 @@ Card: [P0][Área: UX/UI][Tipo: feature] Memoria legible — Timeline AURITY
 Sprint: SPR-2025W44
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
 from backend.timeline_models import (
-    TimelineEvent,
-    TimelineEventType,
-    TimelineEventCausality,
     CausalityType,
     RedactionPolicy,
-    TimelineMode,
     Timeline,
+    TimelineEventType,
+    TimelineMode,
+    create_causality,
     create_timeline_event,
-    create_causality
 )
 
 
@@ -35,10 +34,10 @@ def create_demo_timeline() -> Timeline:
     timeline = Timeline(
         session_id="session_demo_widow_maker",
         owner_hash="abc123def456",
-        generation_mode=TimelineMode.MANUAL
+        generation_mode=TimelineMode.MANUAL,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # ========================================================================
     # EVENTO 1: Usuario envía mensaje inicial (dolor de pecho)
@@ -53,7 +52,7 @@ def create_demo_timeline() -> Timeline:
         session_id="session_demo_widow_maker",
         tags=["symptoms", "chest_pain", "arm_radiation"],
         auto_generated=False,
-        generation_mode=TimelineMode.MANUAL
+        generation_mode=TimelineMode.MANUAL,
     )
     event1.timestamp = now
     timeline.add_event(event1)
@@ -71,14 +70,14 @@ def create_demo_timeline() -> Timeline:
                 related_event_id=event1.event_id,
                 causality_type=CausalityType.TRIGGERED,
                 explanation="Usuario envió mensaje con síntomas",
-                confidence=1.0
+                confidence=1.0,
             )
         ],  # ARISTA CAUSAL #1
         redaction_policy=RedactionPolicy.METADATA,
         session_id="session_demo_widow_maker",
         tags=["system", "extraction"],
         auto_generated=True,
-        generation_mode=TimelineMode.AUTO
+        generation_mode=TimelineMode.AUTO,
     )
     event2.timestamp = now + timedelta(seconds=2)
     timeline.add_event(event2)
@@ -95,7 +94,7 @@ def create_demo_timeline() -> Timeline:
         redaction_policy=RedactionPolicy.SUMMARY,
         session_id="session_demo_widow_maker",
         tags=["demographics", "risk_factors", "diabetes", "smoker"],
-        auto_generated=False
+        auto_generated=False,
     )
     event3.timestamp = now + timedelta(seconds=30)
     timeline.add_event(event3)
@@ -114,14 +113,14 @@ def create_demo_timeline() -> Timeline:
                 related_event_id=event3.event_id,
                 causality_type=CausalityType.UPDATED,
                 explanation="Datos demográficos agregados a SOAP",
-                confidence=1.0
+                confidence=1.0,
             )
         ],  # ARISTA CAUSAL #2
         redaction_policy=RedactionPolicy.SUMMARY,
         session_id="session_demo_widow_maker",
         tags=["soap", "subjective"],
         auto_generated=True,
-        generation_mode=TimelineMode.AUTO
+        generation_mode=TimelineMode.AUTO,
     )
     event4.timestamp = now + timedelta(seconds=35)
     timeline.add_event(event4)
@@ -138,7 +137,7 @@ def create_demo_timeline() -> Timeline:
         redaction_policy=RedactionPolicy.SUMMARY,
         session_id="session_demo_widow_maker",
         tags=["symptoms", "diaphoresis", "nausea"],
-        auto_generated=False
+        auto_generated=False,
     )
     event5.timestamp = now + timedelta(seconds=60)
     timeline.add_event(event5)
@@ -156,14 +155,14 @@ def create_demo_timeline() -> Timeline:
                 related_event_id=event2.event_id,
                 causality_type=CausalityType.CAUSED_BY,
                 explanation="Proceso de extracción completado",
-                confidence=1.0
+                confidence=1.0,
             )
         ],  # ARISTA CAUSAL #3
         redaction_policy=RedactionPolicy.METADATA,
         session_id="session_demo_widow_maker",
         tags=["system", "extraction", "completed"],
         auto_generated=True,
-        generation_mode=TimelineMode.AUTO
+        generation_mode=TimelineMode.AUTO,
     )
     event6.timestamp = now + timedelta(seconds=65)
     timeline.add_event(event6)
@@ -182,14 +181,14 @@ def create_demo_timeline() -> Timeline:
                 related_event_id=event6.event_id,
                 causality_type=CausalityType.CAUSED_BY,
                 explanation="Extracción identificó patrón de alto riesgo cardiovascular",
-                confidence=0.95
+                confidence=0.95,
             )
         ],  # ARISTA CAUSAL #4
         redaction_policy=RedactionPolicy.SUMMARY,
         session_id="session_demo_widow_maker",
         tags=["critical", "widow_maker", "acs", "mi"],
         auto_generated=True,
-        generation_mode=TimelineMode.AUTO
+        generation_mode=TimelineMode.AUTO,
     )
     event7.timestamp = now + timedelta(seconds=70)
     event7.confidence_score = 0.95  # Alta confianza en detección
@@ -208,14 +207,14 @@ def create_demo_timeline() -> Timeline:
                 related_event_id=event7.event_id,
                 causality_type=CausalityType.CONFIRMED,
                 explanation="Patrón crítico confirmado, escalamiento automático",
-                confidence=1.0
+                confidence=1.0,
             )
         ],  # ARISTA CAUSAL #5
         redaction_policy=RedactionPolicy.METADATA,
         session_id="session_demo_widow_maker",
         tags=["urgency", "critical", "escalated"],
         auto_generated=True,
-        generation_mode=TimelineMode.AUTO
+        generation_mode=TimelineMode.AUTO,
     )
     event8.timestamp = now + timedelta(seconds=72)
     timeline.add_event(event8)
@@ -234,20 +233,20 @@ def create_demo_timeline() -> Timeline:
                 related_event_id=event4.event_id,
                 causality_type=CausalityType.UPDATED,
                 explanation="SOAP Subjective expandido con datos completos",
-                confidence=1.0
+                confidence=1.0,
             ),
             create_causality(
                 related_event_id=event7.event_id,
                 causality_type=CausalityType.CONFIRMED,
                 explanation="Patrón crítico incluido en Assessment",
-                confidence=1.0
-            )
+                confidence=1.0,
+            ),
         ],  # ARISTAS CAUSALES #6 y #7
         redaction_policy=RedactionPolicy.SUMMARY,
         session_id="session_demo_widow_maker",
         tags=["soap", "completed"],
         auto_generated=True,
-        generation_mode=TimelineMode.AUTO
+        generation_mode=TimelineMode.AUTO,
     )
     event9.timestamp = now + timedelta(seconds=90)
     timeline.add_event(event9)
@@ -265,14 +264,14 @@ def create_demo_timeline() -> Timeline:
                 related_event_id=event9.event_id,
                 causality_type=CausalityType.TRIGGERED,
                 explanation="SOAP completo disparó generación de export",
-                confidence=1.0
+                confidence=1.0,
             )
         ],  # ARISTA CAUSAL #8
         redaction_policy=RedactionPolicy.METADATA,
         session_id="session_demo_widow_maker",
         tags=["export", "manifest"],
         auto_generated=True,
-        generation_mode=TimelineMode.AUTO
+        generation_mode=TimelineMode.AUTO,
     )
     event10.timestamp = now + timedelta(seconds=127)
     timeline.add_event(event10)
@@ -282,7 +281,7 @@ def create_demo_timeline() -> Timeline:
 
 def print_timeline_summary(timeline: Timeline):
     """Print timeline summary with causal chains."""
-    print(f"📋 TIMELINE SUMMARY")
+    print("📋 TIMELINE SUMMARY")
     print("=" * 80)
     print(f"Timeline ID: {timeline.timeline_id}")
     print(f"Session: {timeline.session_id}")
@@ -330,7 +329,9 @@ def print_timeline_summary(timeline: Timeline):
     print()
     print("CAUSAL CHAIN FOR CRITICAL EVENT (widow-maker detection):")
     print("=" * 80)
-    critical_events = [e for e in timeline.events if e.event_type == TimelineEventType.CRITICAL_PATTERN_DETECTED]
+    critical_events = [
+        e for e in timeline.events if e.event_type == TimelineEventType.CRITICAL_PATTERN_DETECTED
+    ]
     if critical_events:
         critical_event = critical_events[0]
         chain = timeline.get_causal_chain(critical_event.event_id)

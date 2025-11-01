@@ -12,7 +12,6 @@ Tests:
 - Security metrics
 """
 
-import pytest
 
 from backend.security.ip_validator import IPValidator
 

@@ -5,11 +5,11 @@ Tests for corpus_identity module.
 FI-DATA-FEAT-004
 """
 
-import unittest
-import tempfile
 import shutil
-from pathlib import Path
 import sys
+import tempfile
+import unittest
+from pathlib import Path
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
@@ -17,8 +17,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 from corpus_identity import (
     generate_corpus_id,
     generate_owner_hash,
+    get_corpus_identity,
     verify_corpus_ownership,
-    get_corpus_identity
 )
 from corpus_schema import init_corpus
 
@@ -32,7 +32,7 @@ class TestCorpusIdentityGenerators(unittest.TestCase):
 
         # UUID v4 is 36 characters with 4 dashes
         self.assertEqual(len(corpus_id), 36)
-        self.assertEqual(corpus_id.count('-'), 4)
+        self.assertEqual(corpus_id.count("-"), 4)
 
         # Should be unique
         corpus_id2 = generate_corpus_id()
@@ -44,7 +44,7 @@ class TestCorpusIdentityGenerators(unittest.TestCase):
 
         # SHA256 is 64 hex characters
         self.assertEqual(len(owner_hash), 64)
-        self.assertTrue(all(c in '0123456789abcdef' for c in owner_hash))
+        self.assertTrue(all(c in "0123456789abcdef" for c in owner_hash))
 
     def test_generate_owner_hash_deterministic(self):
         """Test owner_hash is deterministic (same input = same output)."""

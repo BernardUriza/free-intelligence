@@ -10,25 +10,24 @@ Card: [P0][Área: UX/UI][Tipo: feature] Memoria legible — Timeline AURITY
 Sprint: SPR-2025W44
 """
 
-import hashlib
-import yaml
-from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any, Optional
 
+import yaml
+
+from backend.llm_adapter import LLMAdapter, LLMRequest
 from backend.logger import get_logger
-from backend.llm_adapter import LLMAdapter, LLMRequest, LLMResponse
 from backend.timeline_models import (
-    TimelineEvent,
-    TimelineEventType,
-    TimelineEventCausality,
     CausalityType,
     RedactionPolicy,
-    TimelineMode,
     Timeline,
+    TimelineEvent,
+    TimelineEventType,
+    TimelineMode,
+    create_causality,
     create_timeline_event,
-    create_causality
 )
 
 logger = get_logger(__name__)
@@ -37,7 +36,8 @@ logger = get_logger(__name__)
 # CONFIGURATION
 # ============================================================================
 
-def load_timeline_config() -> Dict[str, Any]:
+
+def load_timeline_config() -> dict[str, Any]:
     """Load timeline configuration from fi.policy.yaml."""
     config_path = Path("config/fi.policy.yaml")
 
@@ -45,7 +45,7 @@ def load_timeline_config() -> Dict[str, Any]:
         logger.warning(
             "TIMELINE_CONFIG_NOT_FOUND",
             config_path=str(config_path),
-            details={"fallback": "default config"}
+            details={"fallback": "default config"},
         )
         return {
             "auto": {
@@ -60,29 +60,25 @@ def load_timeline_config() -> Dict[str, Any]:
                     "FIELD_UPDATED",
                     "LLM_SUMMARY",
                     "DECISION_APPLIED",
-                    "EXPORT_GENERATED"
+                    "EXPORT_GENERATED",
                 ],
-                "grouping": {
-                    "window_seconds": 90,
-                    "by_session": True,
-                    "by_manifest": True
-                },
+                "grouping": {"window_seconds": 90, "by_session": True, "by_manifest": True},
                 "causality": {
                     "same_artifact_weight": 1.0,
                     "temporal_adjacent_seconds": 30,
-                    "same_actor_weight": 0.7
+                    "same_actor_weight": 0.7,
                 },
                 "redaction": {
                     "max_summary_chars": 180,
                     "max_preview_chars": 60,
                     "hide_preview_if_sensitive": True,
                     "use_active_verbs": True,
-                    "strip_pii": True
-                }
+                    "strip_pii": True,
+                },
             }
         }
 
-    with open(config_path, 'r') as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     return config.get("timeline", {})
@@ -92,9 +88,11 @@ def load_timeline_config() -> Dict[str, Any]:
 # DATA MODELS
 # ============================================================================
 
+
 @dataclass
 class EventCandidate:
     """Candidate event for timeline inclusion."""
+
     event_type: str
     timestamp: datetime
     who: str  # Actor
@@ -103,12 +101,13 @@ class EventCandidate:
     manifest_ref: Optional[str] = None
     artifact_id: Optional[str] = None  # For causality (same artifact)
     sensitive: bool = False  # If true, no content preview
-    metadata: Dict[str, Any] = None
+    metadata: dict[str, Any] = None
 
 
 @dataclass
 class CausalityCandidate:
     """Candidate causal relationship between events."""
+
     source_event_id: str
     target_event_id: str
     causality_type: CausalityType
@@ -119,6 +118,7 @@ class CausalityCandidate:
 # ============================================================================
 # AUTO-TIMELINE GENERATOR
 # ============================================================================
+
 
 class AutoTimelineGenerator:
     """
@@ -133,9 +133,7 @@ class AutoTimelineGenerator:
     """
 
     def __init__(
-        self,
-        llm_adapter: Optional[LLMAdapter] = None,
-        config: Optional[Dict[str, Any]] = None
+        self, llm_adapter: Optional[LLMAdapter] = None, config: Optional[dict[str, Any]] = None
     ):
         """
         Initialize auto-timeline generator.
@@ -157,7 +155,7 @@ class AutoTimelineGenerator:
             enabled=self.enabled,
             provider=self.auto_config.get("provider"),
             model=self.auto_config.get("model"),
-            timeout=self.timeout_seconds
+            timeout=self.timeout_seconds,
         )
 
     def is_selected_event(self, event_type: str) -> bool:
@@ -166,9 +164,8 @@ class AutoTimelineGenerator:
         return event_type in selected
 
     def group_events_by_window(
-        self,
-        candidates: List[EventCandidate]
-    ) -> List[List[EventCandidate]]:
+        self, candidates: list[EventCandidate]
+    ) -> list[list[EventCandidate]]:
         """
         Group events by time window (90s), session_id, and manifest_ref.
 
@@ -231,15 +228,12 @@ class AutoTimelineGenerator:
             groups=len(groups),
             window_seconds=window_seconds,
             by_session=by_session,
-            by_manifest=by_manifest
+            by_manifest=by_manifest,
         )
 
         return groups
 
-    def detect_causality(
-        self,
-        events: List[TimelineEvent]
-    ) -> List[CausalityCandidate]:
+    def detect_causality(self, events: list[TimelineEvent]) -> list[CausalityCandidate]:
         """
         Detect causal relationships between events.
 
@@ -269,41 +263,42 @@ class AutoTimelineGenerator:
                 next_artifact = next_event.reference_id
 
                 if event_artifact and next_artifact and event_artifact == next_artifact:
-                    candidates.append(CausalityCandidate(
-                        source_event_id=event.event_id,
-                        target_event_id=next_event.event_id,
-                        causality_type=CausalityType.TRIGGERED,
-                        confidence=same_artifact_weight,
-                        explanation=f"Same artifact modified: {event_artifact[:8]}..."
-                    ))
+                    candidates.append(
+                        CausalityCandidate(
+                            source_event_id=event.event_id,
+                            target_event_id=next_event.event_id,
+                            causality_type=CausalityType.TRIGGERED,
+                            confidence=same_artifact_weight,
+                            explanation=f"Same artifact modified: {event_artifact[:8]}...",
+                        )
+                    )
                     continue
 
                 # Check temporal adjacency + same actor (soft edge)
                 time_delta = (next_event.timestamp - event.timestamp).total_seconds()
 
                 if time_delta <= temporal_adjacent_seconds and event.who == next_event.who:
-                    candidates.append(CausalityCandidate(
-                        source_event_id=event.event_id,
-                        target_event_id=next_event.event_id,
-                        causality_type=CausalityType.CAUSED_BY,
-                        confidence=same_actor_weight,
-                        explanation=f"Temporal adjacency ({time_delta:.1f}s) + same actor"
-                    ))
+                    candidates.append(
+                        CausalityCandidate(
+                            source_event_id=event.event_id,
+                            target_event_id=next_event.event_id,
+                            causality_type=CausalityType.CAUSED_BY,
+                            confidence=same_actor_weight,
+                            explanation=f"Temporal adjacency ({time_delta:.1f}s) + same actor",
+                        )
+                    )
 
         logger.info(
             "AUTO_TIMELINE_CAUSALITY_DETECTED",
             total_events=len(events),
-            causality_candidates=len(candidates)
+            causality_candidates=len(candidates),
         )
 
         return candidates
 
     def generate_summary_with_llm(
-        self,
-        raw_content: str,
-        event_type: str,
-        sensitive: bool = False
-    ) -> Tuple[str, bool]:
+        self, raw_content: str, event_type: str, sensitive: bool = False
+    ) -> tuple[str, bool]:
         """
         Generate summary with LLM (≤180 chars, no PII, active verbs).
 
@@ -319,7 +314,7 @@ class AutoTimelineGenerator:
             logger.warning(
                 "AUTO_TIMELINE_LLM_NOT_AVAILABLE",
                 event_type=event_type,
-                details={"fallback": "manual mode"}
+                details={"fallback": "manual mode"},
             )
             return f"Event: {event_type}", False
 
@@ -348,25 +343,25 @@ Summary:"""
                 prompt=prompt,
                 max_tokens=100,  # ~50 chars per token
                 temperature=0.5,
-                timeout_seconds=self.timeout_seconds
+                timeout_seconds=self.timeout_seconds,
             )
 
-            start_time = datetime.now(timezone.utc)
+            start_time = datetime.now(UTC)
             response = self.llm.generate(request)
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             summary = response.content.strip()
 
             # Truncate if needed
             if len(summary) > max_chars:
-                summary = summary[:max_chars-3] + "..."
+                summary = summary[: max_chars - 3] + "..."
 
             logger.info(
                 "AUTO_TIMELINE_SUMMARY_GENERATED",
                 event_type=event_type,
                 summary_length=len(summary),
                 latency_ms=int(latency_ms),
-                tokens=response.tokens_used
+                tokens=response.tokens_used,
             )
 
             return summary, True
@@ -376,15 +371,12 @@ Summary:"""
                 "AUTO_TIMELINE_SUMMARY_FAILED",
                 event_type=event_type,
                 error=str(e),
-                details={"fallback": "manual mode"}
+                details={"fallback": "manual mode"},
             )
             return f"Event: {event_type}", False
 
     def generate_timeline(
-        self,
-        session_id: str,
-        owner_hash: str,
-        event_candidates: List[EventCandidate]
+        self, session_id: str, owner_hash: str, event_candidates: list[EventCandidate]
     ) -> Timeline:
         """
         Generate timeline from event candidates.
@@ -401,30 +393,23 @@ Summary:"""
             logger.warning(
                 "AUTO_TIMELINE_DISABLED",
                 session_id=session_id,
-                details={"enable_in": "config/fi.policy.yaml → timeline.auto.enabled"}
+                details={"enable_in": "config/fi.policy.yaml → timeline.auto.enabled"},
             )
             return Timeline(
-                session_id=session_id,
-                owner_hash=owner_hash,
-                generation_mode=TimelineMode.MANUAL
+                session_id=session_id, owner_hash=owner_hash, generation_mode=TimelineMode.MANUAL
             )
 
         logger.info(
             "AUTO_TIMELINE_GENERATION_STARTED",
             session_id=session_id,
-            candidates=len(event_candidates)
+            candidates=len(event_candidates),
         )
 
         # 1. Filter selected events
-        selected = [
-            c for c in event_candidates
-            if self.is_selected_event(c.event_type)
-        ]
+        selected = [c for c in event_candidates if self.is_selected_event(c.event_type)]
 
         logger.info(
-            "AUTO_TIMELINE_EVENTS_SELECTED",
-            total=len(event_candidates),
-            selected=len(selected)
+            "AUTO_TIMELINE_EVENTS_SELECTED", total=len(event_candidates), selected=len(selected)
         )
 
         # 2. Group by windows
@@ -432,9 +417,7 @@ Summary:"""
 
         # 3. Generate timeline events
         timeline = Timeline(
-            session_id=session_id,
-            owner_hash=owner_hash,
-            generation_mode=TimelineMode.AUTO
+            session_id=session_id, owner_hash=owner_hash, generation_mode=TimelineMode.AUTO
         )
 
         timeline_events = []
@@ -444,7 +427,7 @@ Summary:"""
             summary, success = self.generate_summary_with_llm(
                 raw_content=candidate.raw_content,
                 event_type=candidate.event_type,
-                sensitive=candidate.sensitive
+                sensitive=candidate.sensitive,
             )
 
             # Map event type (string → TimelineEventType)
@@ -456,8 +439,7 @@ Summary:"""
 
             # Determine redaction policy
             redaction_policy = (
-                RedactionPolicy.FULL if candidate.sensitive
-                else RedactionPolicy.SUMMARY
+                RedactionPolicy.FULL if candidate.sensitive else RedactionPolicy.SUMMARY
             )
 
             # Create timeline event
@@ -471,7 +453,7 @@ Summary:"""
                 session_id=session_id,
                 tags=[],
                 auto_generated=True,
-                generation_mode=TimelineMode.AUTO
+                generation_mode=TimelineMode.AUTO,
             )
 
             # Store artifact_id in reference_id for causality
@@ -493,7 +475,7 @@ Summary:"""
                         related_event_id=causality.source_event_id,
                         causality_type=causality.causality_type,
                         explanation=causality.explanation,
-                        confidence=causality.confidence
+                        confidence=causality.confidence,
                     )
                 )
 
@@ -502,7 +484,7 @@ Summary:"""
             session_id=session_id,
             events=len(timeline.events),
             causality_edges=len(causality_candidates),
-            auto_events=timeline.auto_events_count
+            auto_events=timeline.auto_events_count,
         )
 
         return timeline
@@ -526,7 +508,7 @@ if __name__ == "__main__":
     generator = AutoTimelineGenerator(llm_adapter=None, config=config)
 
     # Create event candidates
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     candidates = [
         EventCandidate(
@@ -536,7 +518,7 @@ if __name__ == "__main__":
             raw_content="Audio file hash: abc123def456",
             session_id="session_001",
             manifest_ref="manifest_001",
-            artifact_id="audio_001"
+            artifact_id="audio_001",
         ),
         EventCandidate(
             event_type="POLICY_CHECK",
@@ -545,7 +527,7 @@ if __name__ == "__main__":
             raw_content="Policy check passed: append-only verified",
             session_id="session_001",
             manifest_ref="manifest_001",
-            artifact_id="corpus_001"
+            artifact_id="corpus_001",
         ),
         EventCandidate(
             event_type="LLM_SUMMARY",
@@ -555,7 +537,7 @@ if __name__ == "__main__":
             session_id="session_001",
             manifest_ref="manifest_001",
             artifact_id="soap_001",
-            sensitive=True
+            sensitive=True,
         ),
         EventCandidate(
             event_type="EXPORT_GENERATED",
@@ -563,15 +545,13 @@ if __name__ == "__main__":
             who="user_abc123",
             raw_content="Exported timeline to markdown",
             session_id="session_001",
-            manifest_ref="manifest_002"
-        )
+            manifest_ref="manifest_002",
+        ),
     ]
 
     # Generate timeline (without LLM, will use fallback)
     timeline = generator.generate_timeline(
-        session_id="session_demo",
-        owner_hash="abc123",
-        event_candidates=candidates
+        session_id="session_demo", owner_hash="abc123", event_candidates=candidates
     )
 
     print(f"Timeline generated: {timeline.timeline_id}")
@@ -587,9 +567,11 @@ if __name__ == "__main__":
         print(f"   Redaction: {event.redaction_policy.value}")
 
         if event.causality:
-            print(f"   Causality:")
+            print("   Causality:")
             for causality in event.causality:
-                print(f"      → {causality.causality_type.value}: {causality.explanation} (confidence: {causality.confidence})")
+                print(
+                    f"      → {causality.causality_type.value}: {causality.explanation} (confidence: {causality.confidence})"
+                )
 
     print()
     print("✅ Auto-timeline demo completed")

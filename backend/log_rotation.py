@@ -13,10 +13,11 @@ FI-CORE-FEAT-003
 import gzip
 import json
 import shutil
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-from logger_structured import ServiceChannel, LogLevel
+from typing import Any, Optional
+
+from logger_structured import ServiceChannel
 
 
 class LogRotation:
@@ -45,7 +46,7 @@ class LogRotation:
             ServiceChannel.SERVER: 30,
             ServiceChannel.LLM: 30,
             ServiceChannel.STORAGE: 30,
-            ServiceChannel.ACCESS: 180  # AUDIT logs - WORM lógico
+            ServiceChannel.ACCESS: 180,  # AUDIT logs - WORM lógico
         }
 
         # Crear estructura de carpetas
@@ -73,7 +74,7 @@ class LogRotation:
         Returns:
             Path to current log file
         """
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         return self.base_path / channel.value / f"{today}.ndjson"
 
     def get_compressed_log_path(self, channel: ServiceChannel, date: str) -> Path:
@@ -111,7 +112,7 @@ class LogRotation:
             return False
 
         # Check if file is from previous day
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         file_date = log_path.stem  # YYYY-MM-DD
 
         if file_date != today:
@@ -145,12 +146,12 @@ class LogRotation:
 
         # If already compressed, add timestamp suffix
         if compressed_path.exists():
-            timestamp = datetime.now(timezone.utc).strftime("%H%M%S")
+            timestamp = datetime.now(UTC).strftime("%H%M%S")
             compressed_path = self.base_path / channel.value / f"{file_date}-{timestamp}.ndjson.gz"
 
         # Compress log file
-        with open(log_path, 'rb') as f_in:
-            with gzip.open(compressed_path, 'wb') as f_out:
+        with open(log_path, "rb") as f_in:
+            with gzip.open(compressed_path, "wb") as f_out:
                 shutil.copyfileobj(f_in, f_out)
 
         # Remove original
@@ -158,7 +159,7 @@ class LogRotation:
 
         return compressed_path
 
-    def cleanup_old_logs(self, channel: ServiceChannel) -> List[Path]:
+    def cleanup_old_logs(self, channel: ServiceChannel) -> list[Path]:
         """
         Remove logs older than retention period.
 
@@ -169,7 +170,7 @@ class LogRotation:
             List of deleted file paths
         """
         retention_days = self.retention_days[channel]
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
 
         channel_path = self.base_path / channel.value
         deleted = []
@@ -177,13 +178,13 @@ class LogRotation:
         # Iterate over all .ndjson.gz files
         for log_file in channel_path.glob("*.ndjson.gz"):
             # Extract date from filename (YYYY-MM-DD.ndjson.gz)
-            file_date_str = log_file.stem.split('.')[0].split('-')[:3]  # Handle YYYY-MM-DD-HHMMSS
+            file_date_str = log_file.stem.split(".")[0].split("-")[:3]  # Handle YYYY-MM-DD-HHMMSS
             if len(file_date_str) != 3:
                 continue
 
             try:
-                file_date = datetime.strptime('-'.join(file_date_str), "%Y-%m-%d")
-                file_date = file_date.replace(tzinfo=timezone.utc)
+                file_date = datetime.strptime("-".join(file_date_str), "%Y-%m-%d")
+                file_date = file_date.replace(tzinfo=UTC)
 
                 if file_date < cutoff_date:
                     # WORM lógico para access: no eliminar, solo mover a archive
@@ -201,7 +202,7 @@ class LogRotation:
 
         return deleted
 
-    def get_log_stats(self, channel: ServiceChannel) -> Dict[str, Any]:
+    def get_log_stats(self, channel: ServiceChannel) -> dict[str, Any]:
         """
         Get statistics for channel logs.
 
@@ -215,21 +216,16 @@ class LogRotation:
         log_files = list(channel_path.glob("*.ndjson*"))
 
         if not log_files:
-            return {
-                "file_count": 0,
-                "total_size_mb": 0.0,
-                "oldest_date": None,
-                "newest_date": None
-            }
+            return {"file_count": 0, "total_size_mb": 0.0, "oldest_date": None, "newest_date": None}
 
         total_size = sum(f.stat().st_size for f in log_files)
         dates = []
 
         for log_file in log_files:
-            file_date_str = log_file.stem.split('.')[0].split('-')[:3]
+            file_date_str = log_file.stem.split(".")[0].split("-")[:3]
             if len(file_date_str) == 3:
                 try:
-                    file_date = datetime.strptime('-'.join(file_date_str), "%Y-%m-%d")
+                    file_date = datetime.strptime("-".join(file_date_str), "%Y-%m-%d")
                     dates.append(file_date)
                 except ValueError:
                     continue
@@ -238,10 +234,10 @@ class LogRotation:
             "file_count": len(log_files),
             "total_size_mb": round(total_size / (1024 * 1024), 2),
             "oldest_date": min(dates).strftime("%Y-%m-%d") if dates else None,
-            "newest_date": max(dates).strftime("%Y-%m-%d") if dates else None
+            "newest_date": max(dates).strftime("%Y-%m-%d") if dates else None,
         }
 
-    def read_log_file(self, file_path: Path) -> List[Dict[str, Any]]:
+    def read_log_file(self, file_path: Path) -> list[dict[str, Any]]:
         """
         Read log file (compressed or uncompressed).
 
@@ -253,15 +249,15 @@ class LogRotation:
         """
         events = []
 
-        if file_path.suffix == '.gz':
-            with gzip.open(file_path, 'rt', encoding='utf-8') as f:
+        if file_path.suffix == ".gz":
+            with gzip.open(file_path, "rt", encoding="utf-8") as f:
                 for line in f:
                     try:
                         events.append(json.loads(line))
                     except json.JSONDecodeError:
                         continue
         else:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 for line in f:
                     try:
                         events.append(json.loads(line))

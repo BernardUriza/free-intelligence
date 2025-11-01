@@ -11,25 +11,27 @@ Philosophy: Provider-agnostic design. No vendor lock-in.
 
 import os
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
-from enum import Enum
-import numpy as np
-import anthropic
 from datetime import datetime
+from enum import Enum
+from typing import Any, Optional
+
+import anthropic
+import numpy as np
 from dotenv import load_dotenv
 
 # Load environment variables from .env
 load_dotenv()
 
-from backend.logger import get_logger
-from backend.llm_audit_policy import require_audit_log
-from backend.audit_logs import append_audit_log
-from backend.policy_loader import get_policy_loader
-from backend.metrics import get_metrics_collector
+import hashlib
 import re
 from functools import lru_cache
-import hashlib
+
+from backend.audit_logs import append_audit_log
+from backend.llm_audit_policy import require_audit_log
+from backend.logger import get_logger
+from backend.metrics import get_metrics_collector
+from backend.policy_loader import get_policy_loader
 
 logger = get_logger(__name__)
 
@@ -54,19 +56,19 @@ def pad_embedding_to_768(embedding: np.ndarray) -> np.ndarray:
         return embedding
 
     if embedding.shape[0] > 768:
-        logger.warning("EMBEDDING_TRUNCATED",
-                      from_dim=embedding.shape[0],
-                      to_dim=768,
-                      message="Embedding larger than 768, truncating")
+        logger.warning(
+            "EMBEDDING_TRUNCATED",
+            from_dim=embedding.shape[0],
+            to_dim=768,
+            message="Embedding larger than 768, truncating",
+        )
         return embedding[:768]
 
     # Pad to 768 dimensions
     padded = np.zeros(768, dtype=np.float32)
-    padded[:embedding.shape[0]] = embedding
+    padded[: embedding.shape[0]] = embedding
 
-    logger.info("EMBEDDING_PADDED",
-                from_dim=embedding.shape[0],
-                to_dim=768)
+    logger.info("EMBEDDING_PADDED", from_dim=embedding.shape[0], to_dim=768)
 
     return padded
 
@@ -86,19 +88,27 @@ def sanitize_error_message(error_msg: str) -> str:
         'API key [REDACTED] is invalid'
     """
     # Pattern for Anthropic API keys: sk-ant-api03-XXXX
-    error_msg = re.sub(r'sk-ant-api\d+-[A-Za-z0-9_-]+', '[REDACTED_API_KEY]', error_msg)
+    error_msg = re.sub(r"sk-ant-api\d+-[A-Za-z0-9_-]+", "[REDACTED_API_KEY]", error_msg)
 
     # Pattern for generic API keys
-    error_msg = re.sub(r'api[_-]?key["\']?\s*[:=]\s*["\']?[A-Za-z0-9_-]{20,}', 'api_key=[REDACTED]', error_msg, flags=re.IGNORECASE)
+    error_msg = re.sub(
+        r'api[_-]?key["\']?\s*[:=]\s*["\']?[A-Za-z0-9_-]{20,}',
+        "api_key=[REDACTED]",
+        error_msg,
+        flags=re.IGNORECASE,
+    )
 
     # Pattern for bearer tokens
-    error_msg = re.sub(r'Bearer\s+[A-Za-z0-9_-]{20,}', 'Bearer [REDACTED_TOKEN]', error_msg, flags=re.IGNORECASE)
+    error_msg = re.sub(
+        r"Bearer\s+[A-Za-z0-9_-]{20,}", "Bearer [REDACTED_TOKEN]", error_msg, flags=re.IGNORECASE
+    )
 
     return error_msg
 
 
 class LLMProviderType(Enum):
     """Supported LLM providers"""
+
     CLAUDE = "claude"
     OLLAMA = "ollama"
     OPENAI = "openai"
@@ -107,19 +117,20 @@ class LLMProviderType(Enum):
 @dataclass
 class LLMResponse:
     """Unified response format from any LLM provider"""
+
     content: str
     model: str
     provider: str
     tokens_used: int
     cost_usd: Optional[float] = None
     latency_ms: Optional[float] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[dict[str, Any]] = None
 
 
 class LLMProvider(ABC):
     """Abstract base class for LLM providers"""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[dict[str, Any]] = None):
         self.config = config or {}
         self.logger = get_logger(self.__class__.__name__)
 
@@ -162,16 +173,16 @@ class ClaudeProvider(LLMProvider):
     # Pricing per 1M tokens (as of 2025-10)
     PRICING = {
         "claude-3-5-sonnet-20241022": {
-            "input": 3.00,   # $3 per 1M input tokens
-            "output": 15.00  # $15 per 1M output tokens
+            "input": 3.00,  # $3 per 1M input tokens
+            "output": 15.00,  # $15 per 1M output tokens
         },
         "claude-3-5-haiku-20241022": {
-            "input": 0.80,   # $0.80 per 1M input tokens
-            "output": 4.00   # $4 per 1M output tokens
-        }
+            "input": 0.80,  # $0.80 per 1M input tokens
+            "output": 4.00,  # $4 per 1M output tokens
+        },
     }
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[dict[str, Any]] = None):
         super().__init__(config)
         api_key = os.getenv("CLAUDE_API_KEY")
         if not api_key:
@@ -188,9 +199,7 @@ class ClaudeProvider(LLMProvider):
         max_tokens = kwargs.get("max_tokens", self.config.get("max_tokens", 4096))
         temperature = kwargs.get("temperature", self.config.get("temperature", 0.7))
 
-        self.logger.info("CLAUDE_GENERATE_STARTED",
-                        model=model,
-                        prompt_length=len(prompt))
+        self.logger.info("CLAUDE_GENERATE_STARTED", model=model, prompt_length=len(prompt))
 
         start_time = datetime.utcnow()
 
@@ -200,7 +209,7 @@ class ClaudeProvider(LLMProvider):
                 max_tokens=max_tokens,
                 temperature=temperature,
                 messages=[{"role": "user", "content": prompt}],
-                timeout=self.timeout
+                timeout=self.timeout,
             )
 
             latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
@@ -214,16 +223,17 @@ class ClaudeProvider(LLMProvider):
             total_tokens = input_tokens + output_tokens
 
             pricing = self.PRICING.get(model, self.PRICING["claude-3-5-sonnet-20241022"])
-            cost_usd = (
-                (input_tokens / 1_000_000) * pricing["input"] +
-                (output_tokens / 1_000_000) * pricing["output"]
-            )
+            cost_usd = (input_tokens / 1_000_000) * pricing["input"] + (
+                output_tokens / 1_000_000
+            ) * pricing["output"]
 
-            self.logger.info("CLAUDE_GENERATE_COMPLETED",
-                           model=model,
-                           tokens_used=total_tokens,
-                           cost_usd=round(cost_usd, 6),
-                           latency_ms=round(latency_ms, 2))
+            self.logger.info(
+                "CLAUDE_GENERATE_COMPLETED",
+                model=model,
+                tokens_used=total_tokens,
+                cost_usd=round(cost_usd, 6),
+                latency_ms=round(latency_ms, 2),
+            )
 
             return LLMResponse(
                 content=content,
@@ -235,8 +245,8 @@ class ClaudeProvider(LLMProvider):
                 metadata={
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
-                    "stop_reason": message.stop_reason
-                }
+                    "stop_reason": message.stop_reason,
+                },
             )
 
         except anthropic.APITimeoutError as e:
@@ -253,7 +263,11 @@ class ClaudeProvider(LLMProvider):
             raise
         except anthropic.APIError as e:
             sanitized_error = sanitize_error_message(str(e))
-            self.logger.error("CLAUDE_API_ERROR", error=sanitized_error, status_code=getattr(e, 'status_code', None))
+            self.logger.error(
+                "CLAUDE_API_ERROR",
+                error=sanitized_error,
+                status_code=getattr(e, "status_code", None),
+            )
             raise
 
     def embed(self, text: str) -> np.ndarray:
@@ -261,14 +275,16 @@ class ClaudeProvider(LLMProvider):
         Claude doesn't provide embeddings API.
         Fall back to sentence-transformers.
         """
-        self.logger.warning("CLAUDE_EMBED_NOT_SUPPORTED",
-                          message="Claude doesn't support embeddings, falling back to sentence-transformers")
+        self.logger.warning(
+            "CLAUDE_EMBED_NOT_SUPPORTED",
+            message="Claude doesn't support embeddings, falling back to sentence-transformers",
+        )
 
         # Import here to avoid loading model unless needed
         from sentence_transformers import SentenceTransformer
 
         # Use lightweight model
-        model = SentenceTransformer('all-MiniLM-L6-v2')
+        model = SentenceTransformer("all-MiniLM-L6-v2")
         embedding = model.encode(text, convert_to_numpy=True)
 
         return embedding
@@ -280,7 +296,7 @@ class ClaudeProvider(LLMProvider):
 class OllamaProvider(LLMProvider):
     """Ollama local inference provider for offline-first operation"""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[dict[str, Any]] = None):
         super().__init__(config)
         self.base_url = self.config.get("base_url", "http://localhost:11434")
         self.default_model = self.config.get("model", "qwen2.5:7b-instruct-q4_0")
@@ -290,17 +306,18 @@ class OllamaProvider(LLMProvider):
         # Import ollama library
         try:
             import ollama
+
             self.ollama = ollama
             self.client = ollama.Client(host=self.base_url)
         except ImportError:
-            raise ImportError(
-                "ollama library not installed. Install with: pip install ollama"
-            )
+            raise ImportError("ollama library not installed. Install with: pip install ollama")
 
-        self.logger.info("OLLAMA_PROVIDER_INITIALIZED",
-                        base_url=self.base_url,
-                        model=self.default_model,
-                        embed_model=self.embed_model)
+        self.logger.info(
+            "OLLAMA_PROVIDER_INITIALIZED",
+            base_url=self.base_url,
+            model=self.default_model,
+            embed_model=self.embed_model,
+        )
 
     def generate(self, prompt: str, **kwargs) -> LLMResponse:
         """
@@ -322,10 +339,12 @@ class OllamaProvider(LLMProvider):
         max_tokens = kwargs.get("max_tokens", self.config.get("max_tokens", 2048))
         temperature = kwargs.get("temperature", self.config.get("temperature", 0.7))
 
-        self.logger.info("OLLAMA_GENERATE_STARTED",
-                        model=model,
-                        prompt_length=len(prompt),
-                        base_url=self.base_url)
+        self.logger.info(
+            "OLLAMA_GENERATE_STARTED",
+            model=model,
+            prompt_length=len(prompt),
+            base_url=self.base_url,
+        )
 
         start_time = datetime.utcnow()
 
@@ -333,22 +352,17 @@ class OllamaProvider(LLMProvider):
             # Call Ollama API
             response = self.client.chat(
                 model=model,
-                messages=[
-                    {
-                        'role': 'user',
-                        'content': prompt
-                    }
-                ],
+                messages=[{"role": "user", "content": prompt}],
                 options={
-                    'temperature': temperature,
-                    'num_predict': max_tokens  # Ollama uses num_predict instead of max_tokens
-                }
+                    "temperature": temperature,
+                    "num_predict": max_tokens,  # Ollama uses num_predict instead of max_tokens
+                },
             )
 
             latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             # Extract response
-            content = response['message']['content']
+            content = response["message"]["content"]
 
             # Estimate tokens (Ollama doesn't always provide exact counts)
             # Use approximate: ~4 chars per token
@@ -357,15 +371,17 @@ class OllamaProvider(LLMProvider):
             total_tokens = prompt_tokens + completion_tokens
 
             # If response has actual token counts, use them
-            if 'eval_count' in response:
-                completion_tokens = response['eval_count']
-                total_tokens = response.get('prompt_eval_count', prompt_tokens) + completion_tokens
+            if "eval_count" in response:
+                completion_tokens = response["eval_count"]
+                total_tokens = response.get("prompt_eval_count", prompt_tokens) + completion_tokens
 
-            self.logger.info("OLLAMA_GENERATE_COMPLETED",
-                           model=model,
-                           tokens_used=total_tokens,
-                           cost_usd=0.0,  # Local inference = free!
-                           latency_ms=round(latency_ms, 2))
+            self.logger.info(
+                "OLLAMA_GENERATE_COMPLETED",
+                model=model,
+                tokens_used=total_tokens,
+                cost_usd=0.0,  # Local inference = free!
+                latency_ms=round(latency_ms, 2),
+            )
 
             return LLMResponse(
                 content=content,
@@ -378,17 +394,16 @@ class OllamaProvider(LLMProvider):
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
                     "base_url": self.base_url,
-                    "eval_count": response.get('eval_count'),
-                    "eval_duration": response.get('eval_duration')
-                }
+                    "eval_count": response.get("eval_count"),
+                    "eval_duration": response.get("eval_duration"),
+                },
             )
 
         except Exception as e:
             sanitized_error = sanitize_error_message(str(e))
-            self.logger.error("OLLAMA_GENERATE_FAILED",
-                            error=sanitized_error,
-                            model=model,
-                            base_url=self.base_url)
+            self.logger.error(
+                "OLLAMA_GENERATE_FAILED", error=sanitized_error, model=model, base_url=self.base_url
+            )
             raise
 
     def embed(self, text: str) -> np.ndarray:
@@ -406,37 +421,30 @@ class OllamaProvider(LLMProvider):
             - 100% local, no API calls
             - Suitable for RAG and semantic search
         """
-        self.logger.info("OLLAMA_EMBED_STARTED",
-                        text_length=len(text),
-                        model=self.embed_model)
+        self.logger.info("OLLAMA_EMBED_STARTED", text_length=len(text), model=self.embed_model)
 
         try:
-            response = self.client.embeddings(
-                model=self.embed_model,
-                prompt=text
-            )
+            response = self.client.embeddings(model=self.embed_model, prompt=text)
 
             # Extract embedding vector
-            embedding = np.array(response['embedding'], dtype=np.float32)
+            embedding = np.array(response["embedding"], dtype=np.float32)
 
-            self.logger.info("OLLAMA_EMBED_COMPLETED",
-                           embedding_dim=len(embedding),
-                           model=self.embed_model)
+            self.logger.info(
+                "OLLAMA_EMBED_COMPLETED", embedding_dim=len(embedding), model=self.embed_model
+            )
 
             return embedding
 
         except Exception as e:
             sanitized_error = sanitize_error_message(str(e))
-            self.logger.error("OLLAMA_EMBED_FAILED",
-                            error=sanitized_error,
-                            model=self.embed_model)
+            self.logger.error("OLLAMA_EMBED_FAILED", error=sanitized_error, model=self.embed_model)
             raise
 
     def get_provider_name(self) -> str:
         return "ollama"
 
 
-def get_provider(provider_name: str, config: Optional[Dict[str, Any]] = None) -> LLMProvider:
+def get_provider(provider_name: str, config: Optional[dict[str, Any]] = None) -> LLMProvider:
     """
     Factory function to get LLM provider instance.
 
@@ -459,8 +467,7 @@ def get_provider(provider_name: str, config: Optional[Dict[str, Any]] = None) ->
     provider_class = provider_map.get(provider_name.lower())
     if not provider_class:
         raise ValueError(
-            f"Unknown provider: {provider_name}. "
-            f"Supported: {list(provider_map.keys())}"
+            f"Unknown provider: {provider_name}. " f"Supported: {list(provider_map.keys())}"
         )
 
     return provider_class(config)
@@ -470,8 +477,8 @@ def get_provider(provider_name: str, config: Optional[Dict[str, Any]] = None) ->
 def llm_generate(
     prompt: str,
     provider: Optional[str] = None,
-    provider_config: Optional[Dict[str, Any]] = None,
-    **kwargs
+    provider_config: Optional[dict[str, Any]] = None,
+    **kwargs,
 ) -> LLMResponse:
     """
     Generate text completion using specified LLM provider.
@@ -511,7 +518,7 @@ def llm_generate(
     # Load provider config from policy if not specified
     if provider_config is None:
         provider_config = policy_loader.get_provider_config(provider)
-        logger.info("LLM_CONFIG_FROM_POLICY", provider=provider, model=provider_config.get('model'))
+        logger.info("LLM_CONFIG_FROM_POLICY", provider=provider, model=provider_config.get("model"))
 
     logger.info("LLM_GENERATE_STARTED", provider=provider, prompt_length=len(prompt))
 
@@ -524,8 +531,9 @@ def llm_generate(
 
         # Log to audit_logs
         from backend.config_loader import load_config
+
         config = load_config()
-        corpus_path = config['storage']['corpus_path']
+        corpus_path = config["storage"]["corpus_path"]
 
         append_audit_log(
             corpus_path=corpus_path,
@@ -540,8 +548,8 @@ def llm_generate(
                 "model": response.model,
                 "tokens_used": response.tokens_used,
                 "cost_usd": response.cost_usd,
-                "latency_ms": response.latency_ms
-            }
+                "latency_ms": response.latency_ms,
+            },
         )
 
         # Record metrics
@@ -552,13 +560,15 @@ def llm_generate(
             latency_ms=response.latency_ms,
             tokens=response.tokens_used,
             cost_usd=response.cost_usd,
-            status="success"
+            status="success",
         )
 
-        logger.info("LLM_GENERATE_COMPLETED",
-                   provider=provider,
-                   model=response.model,
-                   tokens=response.tokens_used)
+        logger.info(
+            "LLM_GENERATE_COMPLETED",
+            provider=provider,
+            model=response.model,
+            tokens=response.tokens_used,
+        )
 
         return response
 
@@ -569,18 +579,14 @@ def llm_generate(
         # Record error metrics
         metrics_collector = get_metrics_collector()
         metrics_collector.record_llm_request(
-            provider=provider,
-            model="unknown",
-            latency_ms=0,
-            tokens=0,
-            cost_usd=0.0,
-            status="error"
+            provider=provider, model="unknown", latency_ms=0, tokens=0, cost_usd=0.0, status="error"
         )
 
         # Log failure to audit_logs
         from backend.config_loader import load_config
+
         config = load_config()
-        corpus_path = config['storage']['corpus_path']
+        corpus_path = config["storage"]["corpus_path"]
 
         append_audit_log(
             corpus_path=corpus_path,
@@ -590,7 +596,7 @@ def llm_generate(
             payload={"prompt": prompt[:100], "provider": provider},
             result=None,
             status="FAILED",
-            metadata={"error": sanitized_error, "provider": provider}
+            metadata={"error": sanitized_error, "provider": provider},
         )
 
         raise
@@ -621,9 +627,7 @@ def _cached_embed(text_hash: str, text: str, provider: str) -> bytes:
 
 
 def llm_embed(
-    text: str,
-    provider: str = "claude",
-    provider_config: Optional[Dict[str, Any]] = None
+    text: str, provider: str = "claude", provider_config: Optional[dict[str, Any]] = None
 ) -> np.ndarray:
     """
     Generate embedding vector for text with LRU caching.
@@ -650,12 +654,11 @@ def llm_embed(
         >>> assert np.array_equal(emb1, emb2)
     """
     # Compute hash for cache key
-    text_hash = hashlib.sha256(text.encode('utf-8')).hexdigest()
+    text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
 
-    logger.info("LLM_EMBED_STARTED",
-                provider=provider,
-                text_length=len(text),
-                text_hash=text_hash[:16])
+    logger.info(
+        "LLM_EMBED_STARTED", provider=provider, text_length=len(text), text_hash=text_hash[:16]
+    )
 
     try:
         # Get cache info before call (to detect hit vs miss)
@@ -675,18 +678,22 @@ def llm_embed(
 
         # Record cache event
         from backend.metrics import get_metrics_collector
+
         metrics_collector = get_metrics_collector()
         metrics_collector.record_cache_event(
-            event_type="hit" if was_cache_hit else "miss",
-            provider=provider
+            event_type="hit" if was_cache_hit else "miss", provider=provider
         )
 
-        logger.info("LLM_EMBED_COMPLETED",
-                   provider=provider,
-                   embedding_dim=len(embedding),
-                   cache_hits=cache_info.hits,
-                   cache_misses=cache_info.misses,
-                   cache_hit_rate=f"{cache_info.hits/(cache_info.hits+cache_info.misses)*100:.1f}%" if (cache_info.hits + cache_info.misses) > 0 else "0%")
+        logger.info(
+            "LLM_EMBED_COMPLETED",
+            provider=provider,
+            embedding_dim=len(embedding),
+            cache_hits=cache_info.hits,
+            cache_misses=cache_info.misses,
+            cache_hit_rate=f"{cache_info.hits/(cache_info.hits+cache_info.misses)*100:.1f}%"
+            if (cache_info.hits + cache_info.misses) > 0
+            else "0%",
+        )
 
         return embedding
 
@@ -715,7 +722,7 @@ if __name__ == "__main__":
         try:
             response = llm_generate(
                 prompt="What is 2+2? Answer in one sentence.",
-                max_tokens=50  # Override only max_tokens, everything else from policy
+                max_tokens=50,  # Override only max_tokens, everything else from policy
             )
             print(f"   ✅ Response: {response.content}")
             print(f"   📋 Provider: {response.provider}")

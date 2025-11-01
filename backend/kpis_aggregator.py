@@ -17,8 +17,8 @@ import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Optional
 
 from backend.logger import get_logger
 
@@ -35,6 +35,7 @@ METRICS_DEFAULT_WINDOW = os.getenv("METRICS_DEFAULT_WINDOW", "5m")
 @dataclass
 class HTTPMetricEvent:
     """Single HTTP request metric event"""
+
     timestamp: float  # Unix timestamp
     route: str  # Route template (e.g., /api/sessions)
     status: int  # HTTP status code
@@ -45,6 +46,7 @@ class HTTPMetricEvent:
 @dataclass
 class LLMMetricEvent:
     """Single LLM request metric event"""
+
     timestamp: float  # Unix timestamp
     provider: str  # anthropic, openai, local
     tokens_in: Optional[int] = None
@@ -56,6 +58,7 @@ class LLMMetricEvent:
 @dataclass
 class MetricsBucket:
     """Aggregated metrics for a time bucket"""
+
     start_ts: float
     end_ts: float
 
@@ -64,18 +67,18 @@ class MetricsBucket:
     http_2xx: int = 0
     http_4xx: int = 0
     http_5xx: int = 0
-    http_latencies: List[int] = field(default_factory=list)
+    http_latencies: list[int] = field(default_factory=list)
 
     # LLM metrics
     llm_tokens_in: int = 0
     llm_tokens_out: int = 0
     llm_tokens_unknown: int = 0  # Count of requests with unknown tokens
-    llm_latencies: List[int] = field(default_factory=list)
+    llm_latencies: list[int] = field(default_factory=list)
     llm_cache_hits: int = 0
     llm_cache_misses: int = 0
 
     # Provider distribution
-    provider_counts: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    provider_counts: dict[str, int] = field(default_factory=lambda: defaultdict(int))
 
 
 class KPIsAggregator:
@@ -103,7 +106,7 @@ class KPIsAggregator:
         self.retention_sec = retention_min * 60
 
         # Buckets: {bucket_start_ts -> MetricsBucket}
-        self.buckets: Dict[float, MetricsBucket] = {}
+        self.buckets: dict[float, MetricsBucket] = {}
 
         # Last cleanup timestamp
         self.last_cleanup_ts = time.time()
@@ -222,7 +225,7 @@ class KPIsAggregator:
         window: str = "5m",
         route_filter: Optional[str] = None,
         provider_filter: Optional[str] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Get summary metrics for time window.
 
@@ -263,7 +266,9 @@ class KPIsAggregator:
         total_cache_hits = sum(b.llm_cache_hits for b in buckets)
         total_cache_misses = sum(b.llm_cache_misses for b in buckets)
         total_cache_requests = total_cache_hits + total_cache_misses
-        cache_hit_ratio = total_cache_hits / total_cache_requests if total_cache_requests > 0 else 0.0
+        cache_hit_ratio = (
+            total_cache_hits / total_cache_requests if total_cache_requests > 0 else 0.0
+        )
 
         # Aggregate provider distribution
         provider_totals = defaultdict(int)
@@ -308,7 +313,7 @@ class KPIsAggregator:
             "providers": providers,
         }
 
-    def get_chips(self, window: str = "5m") -> Dict:
+    def get_chips(self, window: str = "5m") -> dict:
         """
         Get metrics formatted as chips for UI-204/205.
 
@@ -355,10 +360,7 @@ class KPIsAggregator:
             {
                 "id": "provider_mix",
                 "label": "Providers",
-                "value": [
-                    {"id": p["id"], "pct": p["pct"]}
-                    for p in summary["providers"]
-                ],
+                "value": [{"id": p["id"], "pct": p["pct"]} for p in summary["providers"]],
             },
         ]
 
@@ -372,7 +374,7 @@ class KPIsAggregator:
         self,
         window: str = "15m",
         bucket_sec: Optional[int] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Get timeseries data for sparklines (UI-204/205).
 
@@ -449,17 +451,13 @@ class KPIsAggregator:
 
         return self.buckets[bucket_start]
 
-    def _get_buckets_in_window(self, window: str) -> List[MetricsBucket]:
+    def _get_buckets_in_window(self, window: str) -> list[MetricsBucket]:
         """Get all buckets within time window."""
         now = time.time()
         window_sec = self._parse_window(window)
         cutoff = now - window_sec
 
-        return [
-            bucket
-            for bucket in self.buckets.values()
-            if bucket.start_ts >= cutoff
-        ]
+        return [bucket for bucket in self.buckets.values() if bucket.start_ts >= cutoff]
 
     def _parse_window(self, window: str) -> int:
         """Parse window string to seconds."""
@@ -491,9 +489,7 @@ class KPIsAggregator:
         # Remove old buckets
         old_count = len(self.buckets)
         self.buckets = {
-            ts: bucket
-            for ts, bucket in self.buckets.items()
-            if bucket.start_ts >= cutoff
+            ts: bucket for ts, bucket in self.buckets.items() if bucket.start_ts >= cutoff
         }
         new_count = len(self.buckets)
 
@@ -505,7 +501,7 @@ class KPIsAggregator:
                 removed=old_count - new_count,
             )
 
-    def _calculate_percentiles(self, latencies: List[int]) -> Dict:
+    def _calculate_percentiles(self, latencies: list[int]) -> dict:
         """Calculate latency percentiles."""
         if not latencies:
             return {
@@ -522,7 +518,7 @@ class KPIsAggregator:
             "max_ms": sorted_latencies[-1] if sorted_latencies else 0,
         }
 
-    def _percentile(self, sorted_values: List[int], percentile: int) -> int:
+    def _percentile(self, sorted_values: list[int], percentile: int) -> int:
         """Calculate percentile from sorted values."""
         if not sorted_values:
             return 0
@@ -531,7 +527,7 @@ class KPIsAggregator:
         index = min(int(n * (percentile / 100.0)), n - 1)
         return sorted_values[index]
 
-    def _empty_summary(self, window: str) -> Dict:
+    def _empty_summary(self, window: str) -> dict:
         """Return empty summary for when no data available."""
         return {
             "window": window,

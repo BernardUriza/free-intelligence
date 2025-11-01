@@ -6,11 +6,12 @@ Loads and enforces policies from config/fi.policy.yaml
 Provides guard functions for sovereignty, privacy, cost, and feature flags
 """
 
-import re
 import hashlib
 import logging
+import re
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Optional
+
 import yaml
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 class PolicyViolation(Exception):
     """Raised when a policy rule is violated"""
-    def __init__(self, rule: str, message: str, metadata: Optional[Dict[str, Any]] = None):
+
+    def __init__(self, rule: str, message: str, metadata: Optional[dict[str, Any]] = None):
         self.rule = rule
         self.message = message
         self.metadata = metadata or {}
@@ -38,8 +40,11 @@ class PolicyEnforcer:
     - check_agents_enabled(): Returns true if agents.enabled
     """
 
-    def __init__(self, policy_path: str = "config/fi.policy.yaml",
-                 redaction_path: str = "config/redaction_style.yaml"):
+    def __init__(
+        self,
+        policy_path: str = "config/fi.policy.yaml",
+        redaction_path: str = "config/redaction_style.yaml",
+    ):
         self.policy_path = Path(policy_path)
         self.redaction_path = Path(redaction_path)
 
@@ -54,7 +59,7 @@ class PolicyEnforcer:
                 if pattern_config.get("enabled", True):
                     self._compiled_patterns[name] = {
                         "regex": re.compile(pattern_config["regex"]),
-                        "replacement": pattern_config["replacement"]
+                        "replacement": pattern_config["replacement"],
                     }
 
             # PHI patterns
@@ -62,20 +67,22 @@ class PolicyEnforcer:
                 if pattern_config.get("enabled", True):
                     self._compiled_patterns[f"phi_{name}"] = {
                         "regex": re.compile(pattern_config["regex"]),
-                        "replacement": pattern_config["replacement"]
+                        "replacement": pattern_config["replacement"],
                     }
 
-        logger.info(f"PolicyEnforcer loaded: {self.policy.get('version', 'unknown')} "
-                   f"({len(self._compiled_patterns)} redaction patterns)")
+        logger.info(
+            f"PolicyEnforcer loaded: {self.policy.get('version', 'unknown')} "
+            f"({len(self._compiled_patterns)} redaction patterns)"
+        )
 
-    def _load_yaml(self, path: Path) -> Dict[str, Any]:
+    def _load_yaml(self, path: Path) -> dict[str, Any]:
         """Load YAML file with error handling"""
         if not path.exists():
             logger.warning(f"Policy file not found: {path}")
             return {}
 
         try:
-            with open(path, 'r') as f:
+            with open(path) as f:
                 return yaml.safe_load(f) or {}
         except Exception as e:
             logger.error(f"Failed to load {path}: {e}")
@@ -88,7 +95,7 @@ class PolicyEnforcer:
         if not self.policy_path.exists():
             return "no-policy-file"
 
-        with open(self.policy_path, 'rb') as f:
+        with open(self.policy_path, "rb") as f:
             return hashlib.sha256(f.read()).hexdigest()
 
     # === Sovereignty Guards ===
@@ -125,11 +132,11 @@ class PolicyEnforcer:
             # Check if URL/host is in allowlist (strict matching)
             allowed = False
             for entry in allowlist:
-                entry_lower = entry.lower().lstrip('.')
+                entry_lower = entry.lower().lstrip(".")
 
                 # Wildcard match: .example.com matches *.example.com
-                if entry.startswith('.'):
-                    if domain == entry_lower or domain.endswith('.' + entry_lower):
+                if entry.startswith("."):
+                    if domain == entry_lower or domain.endswith("." + entry_lower):
                         allowed = True
                         logger.debug(f"Egress allowed by wildcard: {url} (matched: {entry})")
                         break
@@ -146,7 +153,7 @@ class PolicyEnforcer:
                 raise PolicyViolation(
                     rule="sovereignty.egress",
                     message=f"External egress denied by policy: {url}",
-                    metadata=metadata
+                    metadata=metadata,
                 )
         else:
             logger.debug(f"Egress allowed (default=allow): {url}")
@@ -198,10 +205,12 @@ class PolicyEnforcer:
         stop_terms = self.redaction_config.get("stop_terms", [])
         for term in stop_terms:
             # Case-insensitive whole-word replacement
-            redacted = re.sub(rf'\b{re.escape(term)}\b',
-                            self.redaction_config.get("replacement", "[REDACTED]"),
-                            redacted,
-                            flags=re.IGNORECASE)
+            redacted = re.sub(
+                rf"\b{re.escape(term)}\b",
+                self.redaction_config.get("replacement", "[REDACTED]"),
+                redacted,
+                flags=re.IGNORECASE,
+            )
 
         return redacted
 
@@ -227,7 +236,7 @@ class PolicyEnforcer:
             raise PolicyViolation(
                 rule="llm.budgets",
                 message=f"Cost {cents}¢ exceeds monthly budget {budget_cents}¢",
-                metadata=metadata
+                metadata=metadata,
             )
 
         logger.debug(f"Cost within budget: {cents}¢ <= {budget_cents}¢")
@@ -279,7 +288,7 @@ class PolicyEnforcer:
 
         return value if value is not None else default
 
-    def log_violation(self, rule: str, metadata: Optional[Dict[str, Any]] = None):
+    def log_violation(self, rule: str, metadata: Optional[dict[str, Any]] = None):
         """
         Log policy violation for audit trail
 
@@ -287,11 +296,7 @@ class PolicyEnforcer:
             rule: Policy rule violated (e.g., "sovereignty.egress")
             metadata: Additional metadata for logging
         """
-        log_data = {
-            "event": "policy_violation",
-            "rule": rule,
-            **(metadata or {})
-        }
+        log_data = {"event": "policy_violation", "rule": rule, **(metadata or {})}
         logger.warning(f"Policy violation logged: {log_data}")
 
 
@@ -315,6 +320,7 @@ def get_policy_enforcer() -> PolicyEnforcer:
 
 
 # Convenience functions for direct import
+
 
 def check_egress(url: str, run_id: Optional[str] = None):
     """Check if external egress is allowed (raises PolicyViolation if denied)"""

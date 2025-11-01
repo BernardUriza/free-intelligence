@@ -5,24 +5,25 @@ Tests for Append-Only Policy Enforcement
 FI-DATA-FEAT-005
 """
 
-import unittest
-import tempfile
 import os
 import sys
+import tempfile
+import unittest
+
 import h5py
 import numpy as np
 
 # Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
-from corpus_schema import init_corpus
-from corpus_ops import append_interaction, append_embedding
 from append_only_policy import (
     AppendOnlyPolicy,
     AppendOnlyViolation,
+    get_dataset_size,
     verify_append_only_operation,
-    get_dataset_size
 )
+from corpus_ops import append_embedding, append_interaction
+from corpus_schema import init_corpus
 
 
 class TestAppendOnlyPolicy(unittest.TestCase):
@@ -63,12 +64,7 @@ class TestAppendOnlyPolicy(unittest.TestCase):
         """Test that appending interaction is allowed."""
         # Should not raise AppendOnlyViolation
         interaction_id = append_interaction(
-            self.corpus_path,
-            "session_test",
-            "Test prompt",
-            "Test response",
-            "test-model",
-            100
+            self.corpus_path, "session_test", "Test prompt", "Test response", "test-model", 100
         )
         self.assertIsNotNone(interaction_id)
 
@@ -76,12 +72,7 @@ class TestAppendOnlyPolicy(unittest.TestCase):
         """Test that appending embedding is allowed."""
         # First add interaction
         interaction_id = append_interaction(
-            self.corpus_path,
-            "session_test",
-            "Test prompt",
-            "Test response",
-            "test-model",
-            100
+            self.corpus_path, "session_test", "Test prompt", "Test response", "test-model", 100
         )
 
         # Then add embedding
@@ -98,7 +89,7 @@ class TestAppendOnlyPolicy(unittest.TestCase):
             "Original prompt",
             "Original response",
             "test-model",
-            100
+            100,
         )
 
         # Try to mutate existing data directly
@@ -111,12 +102,7 @@ class TestAppendOnlyPolicy(unittest.TestCase):
         """Test validation of write to existing index."""
         # Add an interaction
         append_interaction(
-            self.corpus_path,
-            "session_test",
-            "Test prompt",
-            "Test response",
-            "test-model",
-            100
+            self.corpus_path, "session_test", "Test prompt", "Test response", "test-model", 100
         )
 
         with AppendOnlyPolicy(self.corpus_path) as policy:
@@ -130,12 +116,7 @@ class TestAppendOnlyPolicy(unittest.TestCase):
         """Test validation of write to new index."""
         # Add an interaction
         append_interaction(
-            self.corpus_path,
-            "session_test",
-            "Test prompt",
-            "Test response",
-            "test-model",
-            100
+            self.corpus_path, "session_test", "Test prompt", "Test response", "test-model", 100
         )
 
         with AppendOnlyPolicy(self.corpus_path) as policy:
@@ -159,12 +140,7 @@ class TestAppendOnlyPolicy(unittest.TestCase):
         """Test validation of dataset size decrease."""
         # Add an interaction
         append_interaction(
-            self.corpus_path,
-            "session_test",
-            "Test prompt",
-            "Test response",
-            "test-model",
-            100
+            self.corpus_path, "session_test", "Test prompt", "Test response", "test-model", 100
         )
 
         with AppendOnlyPolicy(self.corpus_path) as policy:
@@ -178,31 +154,20 @@ class TestAppendOnlyPolicy(unittest.TestCase):
 
     def test_verify_operation_read(self):
         """Test verification of read operations."""
-        result = verify_append_only_operation(
-            self.corpus_path,
-            "read_interactions",
-            "interactions"
-        )
+        result = verify_append_only_operation(self.corpus_path, "read_interactions", "interactions")
         self.assertTrue(result["allowed"])
         self.assertEqual(result["reason"], "read operation")
 
     def test_verify_operation_get(self):
         """Test verification of get operations."""
-        result = verify_append_only_operation(
-            self.corpus_path,
-            "get_corpus_stats",
-            "metadata"
-        )
+        result = verify_append_only_operation(self.corpus_path, "get_corpus_stats", "metadata")
         self.assertTrue(result["allowed"])
         self.assertEqual(result["reason"], "read operation")
 
     def test_verify_operation_append(self):
         """Test verification of append operations."""
         result = verify_append_only_operation(
-            self.corpus_path,
-            "append_interaction",
-            "interactions",
-            "session_id"
+            self.corpus_path, "append_interaction", "interactions", "session_id"
         )
         self.assertTrue(result["allowed"])
         self.assertEqual(result["reason"], "append operation")
@@ -210,10 +175,7 @@ class TestAppendOnlyPolicy(unittest.TestCase):
     def test_verify_operation_mutation(self):
         """Test verification rejects mutation operations."""
         result = verify_append_only_operation(
-            self.corpus_path,
-            "update_interaction",
-            "interactions",
-            "prompt"
+            self.corpus_path, "update_interaction", "interactions", "prompt"
         )
         self.assertFalse(result["allowed"])
         self.assertIn("violates append-only policy", result["reason"])
@@ -221,10 +183,7 @@ class TestAppendOnlyPolicy(unittest.TestCase):
     def test_verify_operation_delete(self):
         """Test verification rejects delete operations."""
         result = verify_append_only_operation(
-            self.corpus_path,
-            "delete_interaction",
-            "interactions",
-            "session_id"
+            self.corpus_path, "delete_interaction", "interactions", "session_id"
         )
         self.assertFalse(result["allowed"])
 
@@ -236,12 +195,7 @@ class TestAppendOnlyPolicy(unittest.TestCase):
 
         # Add interaction
         append_interaction(
-            self.corpus_path,
-            "session_test",
-            "Test prompt",
-            "Test response",
-            "test-model",
-            100
+            self.corpus_path, "session_test", "Test prompt", "Test response", "test-model", 100
         )
 
         # Size should be 1
@@ -258,7 +212,7 @@ class TestAppendOnlyPolicy(unittest.TestCase):
                 f"Test prompt {i}",
                 f"Test response {i}",
                 "test-model",
-                100 + i
+                100 + i,
             )
             self.assertIsNotNone(interaction_id)
 
@@ -270,7 +224,7 @@ class TestAppendOnlyPolicy(unittest.TestCase):
         """Test that policy verifies on exit."""
         # Normal append should exit cleanly
         with AppendOnlyPolicy(self.corpus_path):
-            with h5py.File(self.corpus_path, 'a') as f:
+            with h5py.File(self.corpus_path, "a") as f:
                 interactions = f["interactions"]
                 current_size = interactions["session_id"].shape[0]
                 new_size = current_size + 1
@@ -294,5 +248,5 @@ class TestAppendOnlyPolicy(unittest.TestCase):
                 self.assertIn("Append-only policy", error_msg)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -4,20 +4,20 @@ Load Demo Consultation Data
 Carga 3 consultas pre-generadas al sistema para la demo
 """
 import sys
-import yaml
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import yaml
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.sessions_store import SessionsStore
-from backend.corpus_ops import append_interaction
 
 
 def load_consulta(yaml_path: Path, store: SessionsStore):
     """Load a single consulta from YAML into the system."""
-    with open(yaml_path, "r", encoding="utf-8") as f:
+    with open(yaml_path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
     session_id = data["session_id"]
@@ -56,7 +56,7 @@ def load_consulta(yaml_path: Path, store: SessionsStore):
     }
 
     # Append to corpus (this would normally go through the full pipeline)
-    print(f"   📝 Adding transcription interaction...")
+    print("   📝 Adding transcription interaction...")
 
     # Add summary as separate interaction
     summary_interaction = {
@@ -72,7 +72,7 @@ def load_consulta(yaml_path: Path, store: SessionsStore):
         },
     }
 
-    print(f"   📊 Adding summary interaction...")
+    print("   📊 Adding summary interaction...")
 
     # Update session status
     session.status = "complete"
@@ -80,10 +80,14 @@ def load_consulta(yaml_path: Path, store: SessionsStore):
     store.update(session)
 
     print(f"   ✅ Session complete: {session.id}")
-    print(f"   📈 Metrics:")
-    print(f"      - Transcription confidence: {data['quality_metrics']['transcription_confidence']}")
+    print("   📈 Metrics:")
+    print(
+        f"      - Transcription confidence: {data['quality_metrics']['transcription_confidence']}"
+    )
     print(f"      - Audio quality: {data['quality_metrics']['audio_quality_score']}")
-    print(f"      - Structured data extracted: {data['quality_metrics']['structured_data_extracted']}")
+    print(
+        f"      - Structured data extracted: {data['quality_metrics']['structured_data_extracted']}"
+    )
 
     return session
 
@@ -96,7 +100,7 @@ def main():
 
     # Initialize store
     store = SessionsStore()
-    print(f"\n✅ Sessions store initialized")
+    print("\n✅ Sessions store initialized")
 
     # Find all consulta YAMLs
     consultas_dir = Path(__file__).parent.parent / "consultas"
@@ -112,6 +116,7 @@ def main():
         except Exception as e:
             print(f"\n❌ Error loading {yaml_path.name}: {e}")
             import traceback
+
             traceback.print_exc()
             continue
 
@@ -124,11 +129,11 @@ def main():
         for session in loaded_sessions:
             print(f"   • {session.id} - {session.metadata.get('consulta_type', 'Unknown')}")
 
-        print(f"\n📊 Next steps:")
-        print(f"   1. Start backend: pnpm backend:dev")
-        print(f"   2. Start frontend: pnpm frontend:dev")
-        print(f"   3. Open dashboard: http://localhost:9000/dashboard")
-        print(f"   4. Open sessions: http://localhost:9000/sessions")
+        print("\n📊 Next steps:")
+        print("   1. Start backend: pnpm backend:dev")
+        print("   2. Start frontend: pnpm frontend:dev")
+        print("   3. Open dashboard: http://localhost:9000/dashboard")
+        print("   4. Open sessions: http://localhost:9000/sessions")
 
     return 0 if len(loaded_sessions) == len(yaml_files) else 1
 

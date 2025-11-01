@@ -8,25 +8,22 @@ Supports export_session, export_range, export_user with manifest generation.
 FI-EXPORT-FEAT-001
 """
 
-import h5py
 import json
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from datetime import datetime
-import hashlib
+from pathlib import Path
+from typing import Optional
 
+import h5py
+
+from backend.export_policy import ExportManifest, create_export_manifest
 from backend.logger import get_logger
-from backend.export_policy import create_export_manifest, ExportManifest
 
 logger = get_logger(__name__)
 
 
 def export_session_to_markdown(
-    corpus_path: str,
-    session_id: str,
-    output_path: str,
-    include_metadata: bool = True
-) -> Tuple[str, ExportManifest]:
+    corpus_path: str, session_id: str, output_path: str, include_metadata: bool = True
+) -> tuple[str, ExportManifest]:
     """
     Export a single session to Markdown format.
 
@@ -54,11 +51,7 @@ def export_session_to_markdown(
         >>> print(f"Exported to {path}")
         Exported to exports/session.md
     """
-    logger.info(
-        "EXPORT_SESSION_MARKDOWN_STARTED",
-        session_id=session_id,
-        corpus_path=corpus_path
-    )
+    logger.info("EXPORT_SESSION_MARKDOWN_STARTED", session_id=session_id, corpus_path=corpus_path)
 
     corpus_path_obj = Path(corpus_path)
     if not corpus_path_obj.exists():
@@ -79,14 +72,16 @@ def export_session_to_markdown(
         for i in range(n_interactions):
             sess_id = group["session_id"][i].decode("utf-8")
             if sess_id == session_id:
-                interactions.append({
-                    "interaction_id": group["interaction_id"][i].decode("utf-8"),
-                    "timestamp": group["timestamp"][i].decode("utf-8"),
-                    "prompt": group["prompt"][i].decode("utf-8"),
-                    "response": group["response"][i].decode("utf-8"),
-                    "model": group["model"][i].decode("utf-8"),
-                    "tokens": int(group["tokens"][i])
-                })
+                interactions.append(
+                    {
+                        "interaction_id": group["interaction_id"][i].decode("utf-8"),
+                        "timestamp": group["timestamp"][i].decode("utf-8"),
+                        "prompt": group["prompt"][i].decode("utf-8"),
+                        "response": group["response"][i].decode("utf-8"),
+                        "model": group["model"][i].decode("utf-8"),
+                        "tokens": int(group["tokens"][i]),
+                    }
+                )
 
     if not interactions:
         raise ValueError(f"Session not found: {session_id}")
@@ -98,35 +93,39 @@ def export_session_to_markdown(
         # Frontmatter
         first_interaction = interactions[0]
         last_interaction = interactions[-1]
-        markdown_lines.extend([
-            "---",
-            f"session_id: {session_id}",
-            f"start_time: {first_interaction['timestamp']}",
-            f"end_time: {last_interaction['timestamp']}",
-            f"interactions: {len(interactions)}",
-            f"model: {first_interaction['model']}",
-            f"total_tokens: {sum(i['tokens'] for i in interactions)}",
-            f"exported_at: {datetime.now().isoformat()}",
-            "---",
-            ""
-        ])
+        markdown_lines.extend(
+            [
+                "---",
+                f"session_id: {session_id}",
+                f"start_time: {first_interaction['timestamp']}",
+                f"end_time: {last_interaction['timestamp']}",
+                f"interactions: {len(interactions)}",
+                f"model: {first_interaction['model']}",
+                f"total_tokens: {sum(i['tokens'] for i in interactions)}",
+                f"exported_at: {datetime.now().isoformat()}",
+                "---",
+                "",
+            ]
+        )
 
     # Session header
     markdown_lines.append(f"# Session: {session_id}\n")
 
     # Interactions
     for idx, interaction in enumerate(interactions, 1):
-        markdown_lines.extend([
-            f"## Interaction {idx}",
-            f"**Time**: {interaction['timestamp']}  ",
-            f"**ID**: `{interaction['interaction_id']}`\n",
-            "### User Prompt\n",
-            interaction['prompt'],
-            "\n### Assistant Response\n",
-            interaction['response'],
-            f"\n*Tokens: {interaction['tokens']}*\n",
-            "---\n"
-        ])
+        markdown_lines.extend(
+            [
+                f"## Interaction {idx}",
+                f"**Time**: {interaction['timestamp']}  ",
+                f"**ID**: `{interaction['interaction_id']}`\n",
+                "### User Prompt\n",
+                interaction["prompt"],
+                "\n### Assistant Response\n",
+                interaction["response"],
+                f"\n*Tokens: {interaction['tokens']}*\n",
+                "---\n",
+            ]
+        )
 
     # Write to file
     content = "\n".join(markdown_lines)
@@ -137,7 +136,7 @@ def export_session_to_markdown(
         session_id=session_id,
         output_path=str(output_path_obj),
         interactions_count=len(interactions),
-        file_size=len(content)
+        file_size=len(content),
     )
 
     # Create export manifest
@@ -151,8 +150,8 @@ def export_session_to_markdown(
         metadata={
             "session_id": session_id,
             "interactions_count": len(interactions),
-            "total_tokens": sum(i['tokens'] for i in interactions)
-        }
+            "total_tokens": sum(i["tokens"] for i in interactions),
+        },
     )
 
     return str(output_path_obj), manifest
@@ -163,8 +162,8 @@ def export_range_to_hdf5(
     output_path: str,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    session_ids: Optional[List[str]] = None
-) -> Tuple[str, ExportManifest]:
+    session_ids: Optional[list[str]] = None,
+) -> tuple[str, ExportManifest]:
     """
     Export a range of interactions to HDF5 subset.
 
@@ -198,7 +197,7 @@ def export_range_to_hdf5(
         corpus_path=corpus_path,
         start_date=start_date,
         end_date=end_date,
-        session_ids_count=len(session_ids) if session_ids else 0
+        session_ids_count=len(session_ids) if session_ids else 0,
     )
 
     corpus_path_obj = Path(corpus_path)
@@ -255,7 +254,7 @@ def export_range_to_hdf5(
                 maxshape=(None,) if maxshape[0] is None else (n_filtered,),
                 dtype=dtype,
                 compression="gzip",
-                compression_opts=4
+                compression_opts=4,
             )
 
             # Copy filtered data
@@ -276,7 +275,7 @@ def export_range_to_hdf5(
         "EXPORT_RANGE_HDF5_COMPLETED",
         output_path=str(output_path_obj),
         interactions_count=n_filtered,
-        file_size=output_path_obj.stat().st_size
+        file_size=output_path_obj.stat().st_size,
     )
 
     # Create export manifest
@@ -291,19 +290,16 @@ def export_range_to_hdf5(
             "interactions_count": n_filtered,
             "start_date": start_date,
             "end_date": end_date,
-            "session_ids": session_ids
-        }
+            "session_ids": session_ids,
+        },
     )
 
     return str(output_path_obj), manifest
 
 
 def export_user_to_markdown(
-    corpus_path: str,
-    user_identifier: str,
-    output_path: str,
-    grouped_by_session: bool = True
-) -> Tuple[str, ExportManifest]:
+    corpus_path: str, user_identifier: str, output_path: str, grouped_by_session: bool = True
+) -> tuple[str, ExportManifest]:
     """
     Export all interactions for a user to Markdown.
 
@@ -330,9 +326,7 @@ def export_user_to_markdown(
         ... )
     """
     logger.info(
-        "EXPORT_USER_MARKDOWN_STARTED",
-        corpus_path=corpus_path,
-        user_identifier=user_identifier
+        "EXPORT_USER_MARKDOWN_STARTED", corpus_path=corpus_path, user_identifier=user_identifier
     )
 
     corpus_path_obj = Path(corpus_path)
@@ -363,14 +357,16 @@ def export_user_to_markdown(
             if session_id not in sessions_dict:
                 sessions_dict[session_id] = []
 
-            sessions_dict[session_id].append({
-                "interaction_id": group["interaction_id"][i].decode("utf-8"),
-                "timestamp": group["timestamp"][i].decode("utf-8"),
-                "prompt": group["prompt"][i].decode("utf-8"),
-                "response": group["response"][i].decode("utf-8"),
-                "model": group["model"][i].decode("utf-8"),
-                "tokens": int(group["tokens"][i])
-            })
+            sessions_dict[session_id].append(
+                {
+                    "interaction_id": group["interaction_id"][i].decode("utf-8"),
+                    "timestamp": group["timestamp"][i].decode("utf-8"),
+                    "prompt": group["prompt"][i].decode("utf-8"),
+                    "response": group["response"][i].decode("utf-8"),
+                    "model": group["model"][i].decode("utf-8"),
+                    "tokens": int(group["tokens"][i]),
+                }
+            )
 
     if not sessions_dict:
         raise ValueError(f"No interactions found for user: {user_identifier}")
@@ -381,25 +377,26 @@ def export_user_to_markdown(
     # Frontmatter
     total_interactions = sum(len(interactions) for interactions in sessions_dict.values())
     total_tokens = sum(
-        sum(i['tokens'] for i in interactions)
-        for interactions in sessions_dict.values()
+        sum(i["tokens"] for i in interactions) for interactions in sessions_dict.values()
     )
 
-    markdown_lines.extend([
-        "---",
-        f"user: {user_identifier}",
-        f"sessions: {len(sessions_dict)}",
-        f"total_interactions: {total_interactions}",
-        f"total_tokens: {total_tokens}",
-        f"exported_at: {datetime.now().isoformat()}",
-        "---",
-        "",
-        f"# User Export: {user_identifier}\n",
-        f"**Sessions**: {len(sessions_dict)}  ",
-        f"**Total Interactions**: {total_interactions}  ",
-        f"**Total Tokens**: {total_tokens}\n",
-        "---\n"
-    ])
+    markdown_lines.extend(
+        [
+            "---",
+            f"user: {user_identifier}",
+            f"sessions: {len(sessions_dict)}",
+            f"total_interactions: {total_interactions}",
+            f"total_tokens: {total_tokens}",
+            f"exported_at: {datetime.now().isoformat()}",
+            "---",
+            "",
+            f"# User Export: {user_identifier}\n",
+            f"**Sessions**: {len(sessions_dict)}  ",
+            f"**Total Interactions**: {total_interactions}  ",
+            f"**Total Tokens**: {total_tokens}\n",
+            "---\n",
+        ]
+    )
 
     # Sessions
     for session_id, interactions in sorted(sessions_dict.items()):
@@ -409,23 +406,27 @@ def export_user_to_markdown(
 
         if grouped_by_session:
             for idx, interaction in enumerate(interactions, 1):
-                markdown_lines.extend([
-                    f"### {idx}. {interaction['timestamp']}\n",
-                    "**Prompt**:\n",
-                    interaction['prompt'],
-                    "\n**Response**:\n",
-                    interaction['response'],
-                    f"\n*Tokens: {interaction['tokens']}*\n"
-                ])
+                markdown_lines.extend(
+                    [
+                        f"### {idx}. {interaction['timestamp']}\n",
+                        "**Prompt**:\n",
+                        interaction["prompt"],
+                        "\n**Response**:\n",
+                        interaction["response"],
+                        f"\n*Tokens: {interaction['tokens']}*\n",
+                    ]
+                )
         else:
             # Flat list
             for interaction in interactions:
-                markdown_lines.extend([
-                    f"**{interaction['timestamp']}**\n",
-                    f"*Prompt*: {interaction['prompt']}\n",
-                    f"*Response*: {interaction['response']}\n",
-                    "---\n"
-                ])
+                markdown_lines.extend(
+                    [
+                        f"**{interaction['timestamp']}**\n",
+                        f"*Prompt*: {interaction['prompt']}\n",
+                        f"*Response*: {interaction['response']}\n",
+                        "---\n",
+                    ]
+                )
 
     # Write to file
     content = "\n".join(markdown_lines)
@@ -437,7 +438,7 @@ def export_user_to_markdown(
         output_path=str(output_path_obj),
         sessions_count=len(sessions_dict),
         interactions_count=total_interactions,
-        file_size=len(content)
+        file_size=len(content),
     )
 
     # Create export manifest
@@ -452,14 +453,14 @@ def export_user_to_markdown(
             "user_identifier": user_identifier,
             "sessions_count": len(sessions_dict),
             "interactions_count": total_interactions,
-            "total_tokens": total_tokens
-        }
+            "total_tokens": total_tokens,
+        },
     )
 
     return str(output_path_obj), manifest
 
 
-def get_export_stats(corpus_path: str) -> Dict:
+def get_export_stats(corpus_path: str) -> dict:
     """
     Get export statistics from corpus.
 
@@ -473,13 +474,7 @@ def get_export_stats(corpus_path: str) -> Dict:
         >>> stats = get_export_stats("storage/corpus.h5")
         >>> print(f"Sessions: {stats['sessions']}")
     """
-    stats = {
-        "sessions": 0,
-        "interactions": 0,
-        "total_tokens": 0,
-        "earliest": None,
-        "latest": None
-    }
+    stats = {"sessions": 0, "interactions": 0, "total_tokens": 0, "earliest": None, "latest": None}
 
     corpus_path_obj = Path(corpus_path)
     if not corpus_path_obj.exists():
@@ -544,9 +539,7 @@ if __name__ == "__main__":
         session_id = sys.argv[2]
         output_path = sys.argv[3]
         try:
-            path, manifest = export_session_to_markdown(
-                corpus_path, session_id, output_path
-            )
+            path, manifest = export_session_to_markdown(corpus_path, session_id, output_path)
             print(f"✅ Exported session to: {path}")
             print(f"   Manifest: {manifest.export_id}")
             manifest_path = output_path.replace(".md", ".manifest.json")
@@ -562,9 +555,7 @@ if __name__ == "__main__":
         end_date = sys.argv[3]
         output_path = sys.argv[4]
         try:
-            path, manifest = export_range_to_hdf5(
-                corpus_path, output_path, start_date, end_date
-            )
+            path, manifest = export_range_to_hdf5(corpus_path, output_path, start_date, end_date)
             print(f"✅ Exported range to: {path}")
             print(f"   Interactions: {manifest.metadata['interactions_count']}")
             manifest_path = output_path.replace(".h5", ".manifest.json")
@@ -579,9 +570,7 @@ if __name__ == "__main__":
         user_id = sys.argv[2]
         output_path = sys.argv[3]
         try:
-            path, manifest = export_user_to_markdown(
-                corpus_path, user_id, output_path
-            )
+            path, manifest = export_user_to_markdown(corpus_path, user_id, output_path)
             print(f"✅ Exported user to: {path}")
             print(f"   Sessions: {manifest.metadata['sessions_count']}")
             print(f"   Interactions: {manifest.metadata['interactions_count']}")

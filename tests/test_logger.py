@@ -11,11 +11,11 @@ Tests cover:
 FI-CORE-FEAT-002
 """
 
-import unittest
 import json
 import sys
-from pathlib import Path
+import unittest
 from io import StringIO
+from pathlib import Path
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
@@ -50,7 +50,7 @@ class TestLogger(unittest.TestCase):
             output = captured_output.getvalue()
 
             # Should be valid JSON
-            log_line = output.strip().split('\n')[0]
+            log_line = output.strip().split("\n")[0]
             log_data = json.loads(log_line)
 
             # Check required fields
@@ -75,14 +75,16 @@ class TestLogger(unittest.TestCase):
             logger.info("timezone_test")
 
             output = captured_output.getvalue()
-            log_line = output.strip().split('\n')[0]
+            log_line = output.strip().split("\n")[0]
             log_data = json.loads(log_line)
 
             timestamp = log_data["timestamp"]
 
             # Check ISO format with timezone
             self.assertIn("T", timestamp)  # ISO 8601 format
-            self.assertTrue(timestamp.endswith("-06:00") or timestamp.endswith("-05:00"))  # Mexico City offset
+            self.assertTrue(
+                timestamp.endswith("-06:00") or timestamp.endswith("-05:00")
+            )  # Mexico City offset
 
         finally:
             sys.stderr = original_stderr
@@ -109,7 +111,7 @@ class TestLogger(unittest.TestCase):
             output = captured_output.getvalue()
 
             # Should have 4 lines (one for each level)
-            lines = output.strip().split('\n')
+            lines = output.strip().split("\n")
             self.assertEqual(len(lines), 4)
 
             # Check each level

@@ -11,12 +11,12 @@ This test suite validates:
 7. Mobile responsiveness
 """
 
-import unittest
-import requests
-import json
-import time
-from datetime import datetime
 import logging
+import time
+import unittest
+from datetime import datetime
+
+import requests
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -101,8 +101,9 @@ class TestCorpusAnalyticsApi(unittest.TestCase):
         try:
             response = requests.get(f"{BACKEND_URL}/api/corpus/stats", timeout=TIMEOUT)
             # Either 200 or 404 is acceptable - just testing if endpoint is registered
-            self.assertIn(response.status_code, [200, 404, 500],
-                         f"Unexpected status {response.status_code}")
+            self.assertIn(
+                response.status_code, [200, 404, 500], f"Unexpected status {response.status_code}"
+            )
             if response.status_code == 200:
                 logger.info("✅ Corpus stats endpoint available")
             else:
@@ -114,8 +115,9 @@ class TestCorpusAnalyticsApi(unittest.TestCase):
         """Sessions endpoint should be available"""
         try:
             response = requests.get(f"{BACKEND_URL}/api/sessions", timeout=TIMEOUT)
-            self.assertIn(response.status_code, [200, 404, 500],
-                         f"Unexpected status {response.status_code}")
+            self.assertIn(
+                response.status_code, [200, 404, 500], f"Unexpected status {response.status_code}"
+            )
             if response.status_code == 200:
                 logger.info("✅ Sessions endpoint available")
             else:
@@ -131,15 +133,19 @@ class TestErrorHandling(unittest.TestCase):
         """Invalid routes should return 404"""
         response = requests.get(f"{FRONTEND_URL}/nonexistent-page-xyz", timeout=TIMEOUT)
         # Next.js returns 200 with 404 content or 404 status
-        self.assertIn(response.status_code, [200, 404],
-                     f"Unexpected status for invalid route: {response.status_code}")
+        self.assertIn(
+            response.status_code,
+            [200, 404],
+            f"Unexpected status for invalid route: {response.status_code}",
+        )
         logger.info("✅ Invalid routes handled properly")
 
     def test_backend_invalid_endpoint_404(self):
         """Invalid backend endpoints should return 404"""
         response = requests.get(f"{BACKEND_URL}/api/invalid-endpoint-xyz", timeout=TIMEOUT)
-        self.assertEqual(response.status_code, 404,
-                        f"Invalid endpoint returned {response.status_code}")
+        self.assertEqual(
+            response.status_code, 404, f"Invalid endpoint returned {response.status_code}"
+        )
         logger.info("✅ Backend invalid endpoints return 404")
 
     def test_timeout_handling(self):
@@ -147,7 +153,7 @@ class TestErrorHandling(unittest.TestCase):
         try:
             # Use very short timeout to trigger timeout
             response = requests.get(f"{FRONTEND_URL}{DASHBOARD_PATH}", timeout=0.001)
-            logger.info(f"⚠️ Request completed despite short timeout")
+            logger.info("⚠️ Request completed despite short timeout")
         except requests.exceptions.Timeout:
             logger.info("✅ Timeout handled gracefully")
         except requests.exceptions.ConnectionError:
@@ -185,8 +191,9 @@ class TestPerformance(unittest.TestCase):
                 response = requests.get(endpoint, timeout=TIMEOUT)
                 elapsed = time.time() - start
                 # SLA: < 800ms
-                self.assertLess(elapsed, 0.8,
-                               f"Endpoint {endpoint} took {elapsed:.3f}s (SLA: 800ms)")
+                self.assertLess(
+                    elapsed, 0.8, f"Endpoint {endpoint} took {elapsed:.3f}s (SLA: 800ms)"
+                )
                 logger.info(f"✅ {endpoint}: {elapsed:.3f}s")
             except Exception as e:
                 logger.warning(f"⚠️ Could not test {endpoint}: {e}")
@@ -209,8 +216,7 @@ class TestAcceptanceCriteria(unittest.TestCase):
         response = requests.get(f"{FRONTEND_URL}{DASHBOARD_PATH}", timeout=TIMEOUT)
         self.assertEqual(response.status_code, 200)
         # Dashboard should be functional
-        self.assertIn("dashboard", response.text.lower() or
-                     "session" in response.text.lower())
+        self.assertIn("dashboard", response.text.lower() or "session" in response.text.lower())
         logger.info("✅ AC2: Session cards structure in place")
 
     def test_ac_3_stats_overview_loaded(self):
@@ -258,14 +264,14 @@ def run_tests():
     result = runner.run(suite)
 
     # Print summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST SUMMARY - FI-UI-FEAT-001: Dashboard")
-    print("="*70)
+    print("=" * 70)
     print(f"Tests run: {result.testsRun}")
     print(f"Passed: {result.testsRun - len(result.failures) - len(result.errors)}")
     print(f"Failed: {len(result.failures)}")
     print(f"Errors: {len(result.errors)}")
-    print("="*70)
+    print("=" * 70)
 
     return result.wasSuccessful()
 

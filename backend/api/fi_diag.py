@@ -9,7 +9,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -26,7 +26,7 @@ class HealthStatus(BaseModel):
 
     status: str = Field(..., description="Overall status: healthy, degraded, unhealthy")
     timestamp: str = Field(..., description="Timestamp of health check")
-    checks: Dict[str, Dict] = Field(..., description="Individual health checks")
+    checks: dict[str, dict] = Field(..., description="Individual health checks")
     version: str = Field(..., description="System version")
 
 
@@ -109,9 +109,7 @@ async def health_check():
 
     # Check 6: PM2 (if installed)
     try:
-        pm2_result = subprocess.run(
-            ["pm2", "jlist"], capture_output=True, text=True, timeout=2
-        )
+        pm2_result = subprocess.run(["pm2", "jlist"], capture_output=True, text=True, timeout=2)
         checks["pm2"] = {
             "status": "healthy" if pm2_result.returncode == 0 else "warning",
             "installed": pm2_result.returncode == 0,
@@ -138,7 +136,7 @@ async def health_check():
     )
 
 
-@router.get("/services", response_model=List[ServiceStatus])
+@router.get("/services", response_model=list[ServiceStatus])
 async def service_status():
     """
     Get status of all PM2-managed services.
@@ -150,9 +148,7 @@ async def service_status():
 
     try:
         # Try to get PM2 process list
-        result = subprocess.run(
-            ["pm2", "jlist"], capture_output=True, text=True, timeout=5
-        )
+        result = subprocess.run(["pm2", "jlist"], capture_output=True, text=True, timeout=5)
 
         if result.returncode == 0:
             import json
@@ -188,9 +184,7 @@ async def service_status():
         }
 
         for service_name, port in port_services.items():
-            result = subprocess.run(
-                ["lsof", f"-ti:{port}"], capture_output=True
-            )
+            result = subprocess.run(["lsof", f"-ti:{port}"], capture_output=True)
             status = "online" if result.returncode == 0 else "stopped"
             pid = int(result.stdout.strip()) if result.returncode == 0 else None
 

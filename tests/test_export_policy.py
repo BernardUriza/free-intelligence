@@ -13,22 +13,22 @@ Fecha: 2025-10-25
 Task: FI-SEC-FEAT-004
 """
 
-import unittest
-import tempfile
 import json
-from pathlib import Path
-from datetime import datetime, timezone
+import tempfile
+import unittest
 import uuid
+from datetime import UTC, datetime
+from pathlib import Path
 
 from backend.export_policy import (
     ExportManifest,
-    validate_manifest_schema,
+    ExportPolicyViolation,
+    InvalidManifest,
     compute_file_hash,
-    validate_export,
     create_export_manifest,
     load_manifest,
-    InvalidManifest,
-    ExportPolicyViolation
+    validate_export,
+    validate_manifest_schema,
 )
 
 
@@ -39,12 +39,12 @@ class TestExportManifest(unittest.TestCase):
         """Debe crear manifest con campos requeridos."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             exported_by="user123",
             data_source="/interactions/",
             data_hash="a" * 64,  # SHA256 mock
             format="markdown",
-            purpose="personal_review"
+            purpose="personal_review",
         )
 
         self.assertIsNotNone(manifest.export_id)
@@ -55,29 +55,29 @@ class TestExportManifest(unittest.TestCase):
         """Debe convertir a dict correctamente."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             exported_by="user123",
             data_source="/interactions/",
             data_hash="a" * 64,
             format="json",
-            purpose="backup"
+            purpose="backup",
         )
 
         data = manifest.to_dict()
         self.assertIsInstance(data, dict)
-        self.assertEqual(data['format'], 'json')
-        self.assertEqual(data['purpose'], 'backup')
+        self.assertEqual(data["format"], "json")
+        self.assertEqual(data["purpose"], "backup")
 
     def test_to_json(self):
         """Debe serializar a JSON string."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             exported_by="user123",
             data_source="/interactions/",
             data_hash="a" * 64,
             format="markdown",
-            purpose="personal_review"
+            purpose="personal_review",
         )
 
         json_str = manifest.to_json()
@@ -85,21 +85,21 @@ class TestExportManifest(unittest.TestCase):
 
         # Debe ser JSON válido
         parsed = json.loads(json_str)
-        self.assertEqual(parsed['format'], 'markdown')
+        self.assertEqual(parsed["format"], "markdown")
 
     def test_save_manifest(self):
         """Debe guardar manifest a archivo."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             exported_by="user123",
             data_source="/interactions/",
             data_hash="a" * 64,
             format="markdown",
-            purpose="personal_review"
+            purpose="personal_review",
         )
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             filepath = Path(f.name)
 
         manifest.save(filepath)
@@ -109,7 +109,7 @@ class TestExportManifest(unittest.TestCase):
 
         # Verificar contenido
         saved_data = json.loads(filepath.read_text())
-        self.assertEqual(saved_data['format'], 'markdown')
+        self.assertEqual(saved_data["format"], "markdown")
 
         filepath.unlink()
 
@@ -121,12 +121,12 @@ class TestValidateManifestSchema(unittest.TestCase):
         """Debe pasar manifest válido."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             exported_by="user123",
             data_source="/interactions/",
             data_hash="a" * 64,
             format="markdown",
-            purpose="personal_review"
+            purpose="personal_review",
         )
 
         # No debe raise exception
@@ -137,12 +137,12 @@ class TestValidateManifestSchema(unittest.TestCase):
         """Debe fallar con export_id inválido."""
         manifest = ExportManifest(
             export_id="not-a-uuid",
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             exported_by="user123",
             data_source="/interactions/",
             data_hash="a" * 64,
             format="markdown",
-            purpose="personal_review"
+            purpose="personal_review",
         )
 
         with self.assertRaises(InvalidManifest) as cm:
@@ -159,7 +159,7 @@ class TestValidateManifestSchema(unittest.TestCase):
             data_source="/interactions/",
             data_hash="a" * 64,
             format="markdown",
-            purpose="personal_review"
+            purpose="personal_review",
         )
 
         with self.assertRaises(InvalidManifest) as cm:
@@ -171,12 +171,12 @@ class TestValidateManifestSchema(unittest.TestCase):
         """Debe fallar con format inválido."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             exported_by="user123",
             data_source="/interactions/",
             data_hash="a" * 64,
             format="invalid_format",
-            purpose="personal_review"
+            purpose="personal_review",
         )
 
         with self.assertRaises(InvalidManifest) as cm:
@@ -188,12 +188,12 @@ class TestValidateManifestSchema(unittest.TestCase):
         """Debe fallar con purpose inválido."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             exported_by="user123",
             data_source="/interactions/",
             data_hash="a" * 64,
             format="markdown",
-            purpose="invalid_purpose"
+            purpose="invalid_purpose",
         )
 
         with self.assertRaises(InvalidManifest) as cm:
@@ -205,12 +205,12 @@ class TestValidateManifestSchema(unittest.TestCase):
         """Debe fallar con data_hash inválido."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             exported_by="user123",
             data_source="/interactions/",
             data_hash="short_hash",
             format="markdown",
-            purpose="personal_review"
+            purpose="personal_review",
         )
 
         with self.assertRaises(InvalidManifest) as cm:
@@ -226,7 +226,7 @@ class TestComputeFileHash(unittest.TestCase):
         """Debe computar SHA256 de archivo."""
         content = "test content"
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write(content)
             f.flush()
             filepath = Path(f.name)
@@ -235,7 +235,7 @@ class TestComputeFileHash(unittest.TestCase):
 
         # Debe ser SHA256 (64 hex chars)
         self.assertEqual(len(file_hash), 64)
-        self.assertTrue(all(c in '0123456789abcdef' for c in file_hash))
+        self.assertTrue(all(c in "0123456789abcdef" for c in file_hash))
 
         filepath.unlink()
 
@@ -243,12 +243,12 @@ class TestComputeFileHash(unittest.TestCase):
         """Mismo contenido debe dar mismo hash."""
         content = "identical content"
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f1:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f1:
             f1.write(content)
             f1.flush()
             filepath1 = Path(f1.name)
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f2:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f2:
             f2.write(content)
             f2.flush()
             filepath2 = Path(f2.name)
@@ -263,12 +263,12 @@ class TestComputeFileHash(unittest.TestCase):
 
     def test_different_content_different_hash(self):
         """Contenido diferente debe dar hash diferente."""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f1:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f1:
             f1.write("content A")
             f1.flush()
             filepath1 = Path(f1.name)
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f2:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f2:
             f2.write("content B")
             f2.flush()
             filepath2 = Path(f2.name)
@@ -289,7 +289,7 @@ class TestValidateExport(unittest.TestCase):
         """Debe pasar export válido."""
         content = "export data"
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write(content)
             f.flush()
             filepath = Path(f.name)
@@ -299,12 +299,12 @@ class TestValidateExport(unittest.TestCase):
 
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             exported_by="user123",
             data_source="/interactions/",
             data_hash=data_hash,
             format="markdown",
-            purpose="personal_review"
+            purpose="personal_review",
         )
 
         # No debe raise exception
@@ -317,7 +317,7 @@ class TestValidateExport(unittest.TestCase):
         """Debe fallar con hash mismatch."""
         content = "export data"
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write(content)
             f.flush()
             filepath = Path(f.name)
@@ -327,12 +327,12 @@ class TestValidateExport(unittest.TestCase):
 
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             exported_by="user123",
             data_source="/interactions/",
             data_hash=wrong_hash,
             format="markdown",
-            purpose="personal_review"
+            purpose="personal_review",
         )
 
         with self.assertRaises(ExportPolicyViolation) as cm:
@@ -346,12 +346,12 @@ class TestValidateExport(unittest.TestCase):
         """Debe fallar si archivo no existe."""
         manifest = ExportManifest(
             export_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             exported_by="user123",
             data_source="/interactions/",
             data_hash="a" * 64,
             format="markdown",
-            purpose="personal_review"
+            purpose="personal_review",
         )
 
         non_existent = Path("/tmp/non_existent_file.txt")
@@ -369,7 +369,7 @@ class TestCreateExportManifest(unittest.TestCase):
         """Debe crear manifest con campos auto-generados."""
         content = "test data"
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write(content)
             f.flush()
             filepath = Path(f.name)
@@ -379,7 +379,7 @@ class TestCreateExportManifest(unittest.TestCase):
             data_source="/interactions/",
             export_filepath=filepath,
             format="markdown",
-            purpose="personal_review"
+            purpose="personal_review",
         )
 
         # Verificar campos auto-generados
@@ -398,7 +398,7 @@ class TestCreateExportManifest(unittest.TestCase):
         """Debe crear manifest con campos opcionales."""
         content = "test data"
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write(content)
             f.flush()
             filepath = Path(f.name)
@@ -411,12 +411,12 @@ class TestCreateExportManifest(unittest.TestCase):
             purpose="backup",
             retention_days=90,
             includes_pii=False,
-            metadata={"notes": "test export"}
+            metadata={"notes": "test export"},
         )
 
         self.assertEqual(manifest.retention_days, 90)
         self.assertFalse(manifest.includes_pii)
-        self.assertEqual(manifest.metadata['notes'], "test export")
+        self.assertEqual(manifest.metadata["notes"], "test export")
 
         filepath.unlink()
 
@@ -428,15 +428,15 @@ class TestLoadManifest(unittest.TestCase):
         """Debe cargar manifest válido."""
         manifest_data = {
             "export_id": str(uuid.uuid4()),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "exported_by": "user123",
             "data_source": "/interactions/",
             "data_hash": "a" * 64,
             "format": "markdown",
-            "purpose": "personal_review"
+            "purpose": "personal_review",
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(manifest_data, f)
             f.flush()
             filepath = Path(f.name)
@@ -459,15 +459,15 @@ class TestLoadManifest(unittest.TestCase):
         """Debe fallar con manifest inválido."""
         manifest_data = {
             "export_id": "not-a-uuid",  # Invalid
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "exported_by": "user123",
             "data_source": "/interactions/",
             "data_hash": "a" * 64,
             "format": "markdown",
-            "purpose": "personal_review"
+            "purpose": "personal_review",
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(manifest_data, f)
             f.flush()
             filepath = Path(f.name)
@@ -478,5 +478,5 @@ class TestLoadManifest(unittest.TestCase):
         filepath.unlink()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

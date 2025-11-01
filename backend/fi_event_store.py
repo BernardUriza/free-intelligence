@@ -33,11 +33,11 @@ import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import h5py
 
-from backend.fi_consult_models import ConsultationEvent, EventType
+from backend.fi_consult_models import ConsultationEvent
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
@@ -47,7 +47,8 @@ logger = get_logger(__name__)
 # SHA256 HASHING
 # ============================================================================
 
-def calculate_sha256(data: Dict[str, Any]) -> str:
+
+def calculate_sha256(data: dict[str, Any]) -> str:
     """
     Calculate SHA256 hash of data for audit trail.
 
@@ -61,7 +62,7 @@ def calculate_sha256(data: Dict[str, Any]) -> str:
     json_str = json.dumps(data, sort_keys=True, ensure_ascii=False)
 
     # Calculate SHA256
-    hash_obj = hashlib.sha256(json_str.encode('utf-8'))
+    hash_obj = hashlib.sha256(json_str.encode("utf-8"))
 
     return hash_obj.hexdigest()
 
@@ -77,11 +78,7 @@ def verify_event_hash(event: ConsultationEvent) -> bool:
         True if hash is valid, False otherwise
     """
     if event.audit_hash is None:
-        logger.warning(
-            "EVENT_HASH_MISSING",
-            event_id=event.event_id,
-            event_type=event.event_type
-        )
+        logger.warning("EVENT_HASH_MISSING", event_id=event.event_id, event_type=event.event_type)
         return False
 
     calculated_hash = calculate_sha256(event.payload)
@@ -93,7 +90,7 @@ def verify_event_hash(event: ConsultationEvent) -> bool:
             "EVENT_HASH_MISMATCH",
             event_id=event.event_id,
             expected=event.audit_hash,
-            calculated=calculated_hash
+            calculated=calculated_hash,
         )
 
     return is_valid
@@ -102,6 +99,7 @@ def verify_event_hash(event: ConsultationEvent) -> bool:
 # ============================================================================
 # EVENT STORE (HDF5)
 # ============================================================================
+
 
 class EventStore:
     """
@@ -121,20 +119,12 @@ class EventStore:
 
         if not self.corpus_path.exists():
             raise FileNotFoundError(
-                f"Corpus not found: {self.corpus_path}. "
-                "Initialize with corpus_schema.py first."
+                f"Corpus not found: {self.corpus_path}. " "Initialize with corpus_schema.py first."
             )
 
-        logger.info(
-            "EVENT_STORE_INITIALIZED",
-            corpus_path=str(self.corpus_path)
-        )
+        logger.info("EVENT_STORE_INITIALIZED", corpus_path=str(self.corpus_path))
 
-    def _ensure_consultation_group(
-        self,
-        h5file: h5py.File,
-        consultation_id: str
-    ) -> h5py.Group:
+    def _ensure_consultation_group(self, h5file: h5py.File, consultation_id: str) -> h5py.Group:
         """
         Ensure consultation group exists in HDF5.
 
@@ -145,34 +135,31 @@ class EventStore:
         Returns:
             Consultation group
         """
-        consultations_group = h5file.require_group('/consultations')
+        consultations_group = h5file.require_group("/consultations")
         consultation_group = consultations_group.require_group(consultation_id)
 
         # Ensure events dataset exists
-        if 'events' not in consultation_group:
+        if "events" not in consultation_group:
             # Create expandable dataset for events
             dt = h5py.special_dtype(vlen=str)
             consultation_group.create_dataset(
-                'events',
+                "events",
                 shape=(0,),
                 maxshape=(None,),
                 dtype=dt,
-                compression='gzip',
-                compression_opts=4
+                compression="gzip",
+                compression_opts=4,
             )
 
         # Ensure metadata attributes
-        if 'created_at' not in consultation_group.attrs:
-            consultation_group.attrs['created_at'] = datetime.utcnow().isoformat()
-            consultation_group.attrs['event_count'] = 0
+        if "created_at" not in consultation_group.attrs:
+            consultation_group.attrs["created_at"] = datetime.utcnow().isoformat()
+            consultation_group.attrs["event_count"] = 0
 
         return consultation_group
 
     def append_event(
-        self,
-        consultation_id: str,
-        event: ConsultationEvent,
-        calculate_hash: bool = True
+        self, consultation_id: str, event: ConsultationEvent, calculate_hash: bool = True
     ) -> None:
         """
         Append event to consultation event stream.
@@ -193,15 +180,12 @@ class EventStore:
         event_json = event.model_dump_json()
 
         # Append to HDF5
-        with h5py.File(self.corpus_path, 'a') as h5file:
+        with h5py.File(self.corpus_path, "a") as h5file:
             # Ensure consultation group
-            consultation_group = self._ensure_consultation_group(
-                h5file,
-                consultation_id
-            )
+            consultation_group = self._ensure_consultation_group(h5file, consultation_id)
 
             # Get events dataset
-            events_dataset = consultation_group['events']
+            events_dataset = consultation_group["events"]
 
             # Resize dataset (append-only)
             current_size = events_dataset.shape[0]
@@ -211,8 +195,8 @@ class EventStore:
             events_dataset[current_size] = event_json
 
             # Update metadata
-            consultation_group.attrs['event_count'] = current_size + 1
-            consultation_group.attrs['updated_at'] = datetime.utcnow().isoformat()
+            consultation_group.attrs["event_count"] = current_size + 1
+            consultation_group.attrs["updated_at"] = datetime.utcnow().isoformat()
 
         logger.info(
             "EVENT_APPENDED",
@@ -220,14 +204,12 @@ class EventStore:
             event_id=event.event_id,
             event_type=event.event_type.value,
             event_count=current_size + 1,
-            has_audit_hash=event.audit_hash is not None
+            has_audit_hash=event.audit_hash is not None,
         )
 
     def load_stream(
-        self,
-        consultation_id: str,
-        verify_hashes: bool = False
-    ) -> List[ConsultationEvent]:
+        self, consultation_id: str, verify_hashes: bool = False
+    ) -> list[ConsultationEvent]:
         """
         Load all events for consultation.
 
@@ -241,17 +223,15 @@ class EventStore:
         Raises:
             FileNotFoundError: If consultation not found
         """
-        with h5py.File(self.corpus_path, 'r') as h5file:
+        with h5py.File(self.corpus_path, "r") as h5file:
             # Check consultation exists
-            consultation_path = f'/consultations/{consultation_id}'
+            consultation_path = f"/consultations/{consultation_id}"
             if consultation_path not in h5file:
-                raise FileNotFoundError(
-                    f"Consultation {consultation_id} not found in event store"
-                )
+                raise FileNotFoundError(f"Consultation {consultation_id} not found in event store")
 
             # Get events dataset
             consultation_group = h5file[consultation_path]
-            events_dataset = consultation_group['events']
+            events_dataset = consultation_group["events"]
 
             # Load events
             events = []
@@ -262,10 +242,7 @@ class EventStore:
                 # Verify hash if requested
                 if verify_hashes and event.audit_hash:
                     if not verify_event_hash(event):
-                        logger.warning(
-                            "EVENT_HASH_VERIFICATION_FAILED",
-                            event_id=event.event_id
-                        )
+                        logger.warning("EVENT_HASH_VERIFICATION_FAILED", event_id=event.event_id)
 
                 events.append(event)
 
@@ -273,15 +250,12 @@ class EventStore:
             "STREAM_LOADED",
             consultation_id=consultation_id,
             event_count=len(events),
-            hashes_verified=verify_hashes
+            hashes_verified=verify_hashes,
         )
 
         return events
 
-    def get_consultation_metadata(
-        self,
-        consultation_id: str
-    ) -> Dict[str, Any]:
+    def get_consultation_metadata(self, consultation_id: str) -> dict[str, Any]:
         """
         Get consultation metadata.
 
@@ -294,20 +268,18 @@ class EventStore:
         Raises:
             FileNotFoundError: If consultation not found
         """
-        with h5py.File(self.corpus_path, 'r') as h5file:
-            consultation_path = f'/consultations/{consultation_id}'
+        with h5py.File(self.corpus_path, "r") as h5file:
+            consultation_path = f"/consultations/{consultation_id}"
             if consultation_path not in h5file:
-                raise FileNotFoundError(
-                    f"Consultation {consultation_id} not found"
-                )
+                raise FileNotFoundError(f"Consultation {consultation_id} not found")
 
             consultation_group = h5file[consultation_path]
 
             return {
-                'consultation_id': consultation_id,
-                'created_at': consultation_group.attrs.get('created_at'),
-                'updated_at': consultation_group.attrs.get('updated_at'),
-                'event_count': consultation_group.attrs.get('event_count', 0)
+                "consultation_id": consultation_id,
+                "created_at": consultation_group.attrs.get("created_at"),
+                "updated_at": consultation_group.attrs.get("updated_at"),
+                "event_count": consultation_group.attrs.get("event_count", 0),
             }
 
     def get_event_count(self, consultation_id: str) -> int:
@@ -324,7 +296,7 @@ class EventStore:
             FileNotFoundError: If consultation not found
         """
         metadata = self.get_consultation_metadata(consultation_id)
-        return metadata['event_count']
+        return metadata["event_count"]
 
     def consultation_exists(self, consultation_id: str) -> bool:
         """
@@ -336,11 +308,11 @@ class EventStore:
         Returns:
             True if exists, False otherwise
         """
-        with h5py.File(self.corpus_path, 'r') as h5file:
-            consultation_path = f'/consultations/{consultation_id}'
+        with h5py.File(self.corpus_path, "r") as h5file:
+            consultation_path = f"/consultations/{consultation_id}"
             return consultation_path in h5file
 
-    def list_consultations(self) -> List[Dict[str, Any]]:
+    def list_consultations(self) -> list[dict[str, Any]]:
         """
         List all consultations in store.
 
@@ -349,11 +321,11 @@ class EventStore:
         """
         consultations = []
 
-        with h5py.File(self.corpus_path, 'r') as h5file:
-            if '/consultations' not in h5file:
+        with h5py.File(self.corpus_path, "r") as h5file:
+            if "/consultations" not in h5file:
                 return []
 
-            consultations_group = h5file['/consultations']
+            consultations_group = h5file["/consultations"]
 
             for consultation_id in consultations_group.keys():
                 try:
@@ -361,18 +333,12 @@ class EventStore:
                     consultations.append(metadata)
                 except Exception as e:
                     logger.warning(
-                        "CONSULTATION_METADATA_ERROR",
-                        consultation_id=consultation_id,
-                        error=str(e)
+                        "CONSULTATION_METADATA_ERROR", consultation_id=consultation_id, error=str(e)
                     )
 
         return consultations
 
-    def create_snapshot(
-        self,
-        consultation_id: str,
-        state: Dict[str, Any]
-    ) -> None:
+    def create_snapshot(self, consultation_id: str, state: dict[str, Any]) -> None:
         """
         Create state snapshot for performance optimization.
 
@@ -382,17 +348,15 @@ class EventStore:
             consultation_id: Consultation UUID
             state: Current consultation state
         """
-        with h5py.File(self.corpus_path, 'a') as h5file:
-            consultation_path = f'/consultations/{consultation_id}'
+        with h5py.File(self.corpus_path, "a") as h5file:
+            consultation_path = f"/consultations/{consultation_id}"
             if consultation_path not in h5file:
-                raise FileNotFoundError(
-                    f"Consultation {consultation_id} not found"
-                )
+                raise FileNotFoundError(f"Consultation {consultation_id} not found")
 
             consultation_group = h5file[consultation_path]
 
             # Ensure snapshots group
-            snapshots_group = consultation_group.require_group('snapshots')
+            snapshots_group = consultation_group.require_group("snapshots")
 
             # Create snapshot dataset
             snapshot_name = datetime.utcnow().isoformat()
@@ -400,28 +364,21 @@ class EventStore:
 
             dt = h5py.special_dtype(vlen=str)
             snapshot_dataset = snapshots_group.create_dataset(
-                snapshot_name,
-                data=snapshot_json,
-                dtype=dt
+                snapshot_name, data=snapshot_json, dtype=dt
             )
 
             # Store metadata
-            snapshot_dataset.attrs['event_count'] = self.get_event_count(
-                consultation_id
-            )
-            snapshot_dataset.attrs['created_at'] = snapshot_name
+            snapshot_dataset.attrs["event_count"] = self.get_event_count(consultation_id)
+            snapshot_dataset.attrs["created_at"] = snapshot_name
 
         logger.info(
             "SNAPSHOT_CREATED",
             consultation_id=consultation_id,
             snapshot_name=snapshot_name,
-            event_count=snapshot_dataset.attrs['event_count']
+            event_count=snapshot_dataset.attrs["event_count"],
         )
 
-    def get_latest_snapshot(
-        self,
-        consultation_id: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_latest_snapshot(self, consultation_id: str) -> Optional[dict[str, Any]]:
         """
         Get latest snapshot for consultation.
 
@@ -431,8 +388,8 @@ class EventStore:
         Returns:
             Snapshot state dict or None if no snapshots
         """
-        with h5py.File(self.corpus_path, 'r') as h5file:
-            consultation_path = f'/consultations/{consultation_id}/snapshots'
+        with h5py.File(self.corpus_path, "r") as h5file:
+            consultation_path = f"/consultations/{consultation_id}/snapshots"
             if consultation_path not in h5file:
                 return None
 
@@ -450,39 +407,35 @@ class EventStore:
 
             return json.loads(snapshot_json)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get event store statistics.
 
         Returns:
             Dictionary with statistics
         """
-        with h5py.File(self.corpus_path, 'r') as h5file:
-            if '/consultations' not in h5file:
-                return {
-                    'total_consultations': 0,
-                    'total_events': 0,
-                    'file_size_mb': 0
-                }
+        with h5py.File(self.corpus_path, "r") as h5file:
+            if "/consultations" not in h5file:
+                return {"total_consultations": 0, "total_events": 0, "file_size_mb": 0}
 
-            consultations_group = h5file['/consultations']
+            consultations_group = h5file["/consultations"]
             consultation_count = len(consultations_group.keys())
 
             total_events = 0
             for consultation_id in consultations_group.keys():
                 try:
                     metadata = self.get_consultation_metadata(consultation_id)
-                    total_events += metadata['event_count']
+                    total_events += metadata["event_count"]
                 except Exception:
                     pass
 
             file_size_mb = self.corpus_path.stat().st_size / (1024 * 1024)
 
         return {
-            'total_consultations': consultation_count,
-            'total_events': total_events,
-            'file_size_mb': round(file_size_mb, 2),
-            'corpus_path': str(self.corpus_path)
+            "total_consultations": consultation_count,
+            "total_events": total_events,
+            "file_size_mb": round(file_size_mb, 2),
+            "corpus_path": str(self.corpus_path),
         }
 
 
@@ -490,35 +443,26 @@ class EventStore:
 # CLI INTERFACE
 # ============================================================================
 
+
 def main():
     """CLI interface for event store."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Free Intelligence Event Store CLI"
-    )
-    parser.add_argument(
-        '--corpus',
-        default='storage/corpus.h5',
-        help='Path to HDF5 corpus file'
-    )
+    parser = argparse.ArgumentParser(description="Free Intelligence Event Store CLI")
+    parser.add_argument("--corpus", default="storage/corpus.h5", help="Path to HDF5 corpus file")
 
-    subparsers = parser.add_subparsers(dest='command', help='Command')
+    subparsers = parser.add_subparsers(dest="command", help="Command")
 
     # List command
-    list_parser = subparsers.add_parser('list', help='List consultations')
+    list_parser = subparsers.add_parser("list", help="List consultations")
 
     # Load command
-    load_parser = subparsers.add_parser('load', help='Load event stream')
-    load_parser.add_argument('consultation_id', help='Consultation UUID')
-    load_parser.add_argument(
-        '--verify',
-        action='store_true',
-        help='Verify SHA256 hashes'
-    )
+    load_parser = subparsers.add_parser("load", help="Load event stream")
+    load_parser.add_argument("consultation_id", help="Consultation UUID")
+    load_parser.add_argument("--verify", action="store_true", help="Verify SHA256 hashes")
 
     # Stats command
-    stats_parser = subparsers.add_parser('stats', help='Show statistics')
+    stats_parser = subparsers.add_parser("stats", help="Show statistics")
 
     args = parser.parse_args()
 
@@ -526,7 +470,7 @@ def main():
     store = EventStore(args.corpus)
 
     # Execute command
-    if args.command == 'list':
+    if args.command == "list":
         consultations = store.list_consultations()
         print(f"\nTotal consultations: {len(consultations)}\n")
         for c in consultations:
@@ -536,20 +480,21 @@ def main():
             print(f"    Updated: {c.get('updated_at', 'N/A')}")
             print()
 
-    elif args.command == 'load':
-        events = store.load_stream(
-            args.consultation_id,
-            verify_hashes=args.verify
-        )
+    elif args.command == "load":
+        events = store.load_stream(args.consultation_id, verify_hashes=args.verify)
         print(f"\nLoaded {len(events)} events\n")
         for i, event in enumerate(events, 1):
             print(f"  [{i}] {event.event_type.value}")
             print(f"      ID: {event.event_id}")
             print(f"      Time: {event.timestamp}")
-            print(f"      Hash: {event.audit_hash[:16]}..." if event.audit_hash else "      Hash: None")
+            print(
+                f"      Hash: {event.audit_hash[:16]}..."
+                if event.audit_hash
+                else "      Hash: None"
+            )
             print()
 
-    elif args.command == 'stats':
+    elif args.command == "stats":
         stats = store.get_stats()
         print("\nEvent Store Statistics")
         print("=" * 50)
@@ -563,5 +508,5 @@ def main():
         parser.print_help()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

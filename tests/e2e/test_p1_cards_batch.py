@@ -9,12 +9,13 @@ Tests for:
 - FI-API-FEAT-003: Corpus Analytics API
 """
 
-import unittest
-import requests
 import json
-import time
 import logging
+import time
+import unittest
 from datetime import datetime
+
+import requests
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -104,6 +105,7 @@ class TestPydanticSOAPModels(unittest.TestCase):
         """SOAP models should be importable"""
         try:
             from backend.fi_consult_models import SOAPNote
+
             logger.info("✅ SOAPNote model importable")
         except ImportError:
             logger.warning("⚠️ SOAPNote model not found - may be in alternative location")
@@ -112,10 +114,11 @@ class TestPydanticSOAPModels(unittest.TestCase):
         """Consultation event models should be defined"""
         try:
             from backend.fi_consult_models import (
-                MessageReceived,
                 ExtractionCompleted,
+                MessageReceived,
                 UrgencyClassified,
             )
+
             logger.info("✅ Consultation event models importable")
         except ImportError:
             logger.warning("⚠️ Event models not yet defined")
@@ -129,11 +132,11 @@ class TestPydanticSOAPModels(unittest.TestCase):
             soap = SOAPNote(
                 chief_complaint="Test complaint",
                 patient_demographics={"age": 30, "gender": "M"},
-                urgency_level="MODERATE"
+                urgency_level="MODERATE",
             )
 
             # Should be JSON serializable
-            json_str = json.dumps(soap.dict() if hasattr(soap, 'dict') else soap)
+            json_str = json.dumps(soap.dict() if hasattr(soap, "dict") else soap)
             self.assertIsInstance(json_str, str)
             logger.info("✅ SOAP model serializes to JSON")
         except Exception as e:
@@ -147,6 +150,7 @@ class TestReduxDomainEventMapping(unittest.TestCase):
         """Redux adapter should be importable"""
         try:
             from backend.adapters_redux import ReduxAdapter
+
             logger.info("✅ ReduxAdapter importable")
         except ImportError:
             logger.warning("⚠️ ReduxAdapter not found")
@@ -161,7 +165,7 @@ class TestReduxDomainEventMapping(unittest.TestCase):
             # Test basic action mapping
             redux_action = {
                 "type": "EXTRACTION_STARTED",
-                "payload": {"consultation_id": "test-123"}
+                "payload": {"consultation_id": "test-123"},
             }
 
             # Should translate without error
@@ -179,7 +183,7 @@ class TestReduxDomainEventMapping(unittest.TestCase):
             adapter = ReduxAdapter()
             redux_payload = {
                 "symptoms": ["chest pain", "shortness of breath"],
-                "vital_signs": {"bp": "130/80", "heart_rate": 95}
+                "vital_signs": {"bp": "130/80", "heart_rate": 95},
             }
 
             # Should handle payload translation
@@ -197,6 +201,7 @@ class TestEventStoreLocalSHA256(unittest.TestCase):
         """Event store module should be importable"""
         try:
             from backend.fi_event_store import EventStore
+
             logger.info("✅ EventStore importable")
         except ImportError:
             logger.warning("⚠️ EventStore not found")
@@ -283,14 +288,14 @@ def run_tests():
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST SUMMARY - P1 Cards Batch Testing")
-    print("="*70)
+    print("=" * 70)
     print(f"Tests run: {result.testsRun}")
     print(f"Passed: {result.testsRun - len(result.failures) - len(result.errors)}")
     print(f"Failed: {len(result.failures)}")
     print(f"Errors: {len(result.errors)}")
-    print("="*70)
+    print("=" * 70)
 
     return result.wasSuccessful()
 

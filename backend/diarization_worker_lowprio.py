@@ -14,17 +14,18 @@ File: backend/diarization_worker_lowprio.py
 Created: 2025-10-31
 """
 
-import os
-import time
-import psutil
-import h5py
 import hashlib
+import os
 import threading
-from pathlib import Path
-from queue import Queue, Empty
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass, asdict
+import time
+from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from queue import Empty, Queue
+from typing import Any, Optional
+
+import h5py
+import psutil
 
 from backend.logger import get_logger
 from backend.whisper_service import get_whisper_model, is_whisper_available
@@ -37,7 +38,9 @@ CPU_IDLE_WINDOW_SEC = int(os.getenv("DIARIZATION_CPU_IDLE_WINDOW", "10"))  # 10s
 CHUNK_DURATION_SEC = int(os.getenv("DIARIZATION_CHUNK_SEC", "30"))  # 30-45s chunks
 CHUNK_OVERLAP_SEC = float(os.getenv("DIARIZATION_OVERLAP_SEC", "0.8"))  # 0.8s overlap
 H5_STORAGE_PATH = Path(os.getenv("DIARIZATION_H5_PATH", "storage/diarization.h5"))
-WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "small")  # Aligned with whisper_service.py default
+WHISPER_MODEL_SIZE = os.getenv(
+    "WHISPER_MODEL_SIZE", "small"
+)  # Aligned with whisper_service.py default
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")
 WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
 NUM_WORKERS = 1  # Single worker to avoid blocking
@@ -46,6 +49,7 @@ NUM_WORKERS = 1  # Single worker to avoid blocking
 @dataclass
 class ChunkResult:
     """Single chunk transcription result."""
+
     chunk_idx: int
     start_time: float
     end_time: float
@@ -60,6 +64,7 @@ class ChunkResult:
 @dataclass
 class DiarizationJob:
     """Low-priority diarization job."""
+
     job_id: str
     session_id: str
     audio_path: Path
@@ -110,7 +115,7 @@ class CPUScheduler:
             "CPU_IDLE_CHECK",
             avg_idle=f"{avg_idle:.1f}%",
             threshold=f"{self.threshold}%",
-            is_idle=is_idle
+            is_idle=is_idle,
         )
 
         return is_idle
@@ -203,8 +208,8 @@ class DiarizationWorker:
                             ("speaker", dt),
                             ("temperature", "f8"),
                             ("rtf", "f8"),
-                            ("timestamp", dt)
-                        ]
+                            ("timestamp", dt),
+                        ],
                     )
 
                     h5.flush()
@@ -217,7 +222,7 @@ class DiarizationWorker:
             "JOB_SUBMITTED",
             job_id=job.job_id,
             session_id=job.session_id,
-            total_chunks=job.total_chunks
+            total_chunks=job.total_chunks,
         )
 
     def _worker_loop(self):
@@ -273,11 +278,7 @@ class DiarizationWorker:
             # (so status endpoint knows total from the start)
             self._update_job_status(job.job_id, "in_progress", 0, total_chunks=job.total_chunks)
 
-            self.logger.info(
-                "JOB_CHUNKS_CREATED",
-                job_id=job.job_id,
-                total_chunks=len(chunks)
-            )
+            self.logger.info("JOB_CHUNKS_CREATED", job_id=job.job_id, total_chunks=len(chunks))
 
             # Process each chunk
             for idx, (start_sec, end_sec) in enumerate(chunks):
@@ -297,7 +298,7 @@ class DiarizationWorker:
                     str(chunk_path),
                     language=None,  # Auto-detect (en, es, etc.)
                     vad_filter=True,
-                    beam_size=5
+                    beam_size=5,
                 )
 
                 # Collect segments
@@ -311,7 +312,9 @@ class DiarizationWorker:
 
                 # Get temperature (avg from segments if available)
                 # Only segments with avg_logprob attribute count toward the average
-                temps_with_data = [seg.avg_logprob for seg in segments if hasattr(seg, 'avg_logprob')]
+                temps_with_data = [
+                    seg.avg_logprob for seg in segments if hasattr(seg, "avg_logprob")
+                ]
                 if temps_with_data:
                     avg_temp = sum(temps_with_data) / len(temps_with_data)
                 else:
@@ -322,7 +325,7 @@ class DiarizationWorker:
                             "TEMPERATURE_METADATA_MISSING",
                             job_id=job.job_id,
                             chunk_idx=idx,
-                            num_segments=len(segments)
+                            num_segments=len(segments),
                         )
 
                 # Create chunk result
@@ -335,7 +338,7 @@ class DiarizationWorker:
                     confidence=None,
                     temperature=avg_temp,
                     rtf=rtf,
-                    timestamp=datetime.utcnow().isoformat() + "Z"
+                    timestamp=datetime.utcnow().isoformat() + "Z",
                 )
 
                 # Save chunk to HDF5
@@ -354,7 +357,7 @@ class DiarizationWorker:
                     job_id=job.job_id,
                     chunk_idx=idx,
                     rtf=f"{rtf:.2f}",
-                    progress_pct=progress_pct
+                    progress_pct=progress_pct,
                 )
 
             # Mark job complete
@@ -365,7 +368,7 @@ class DiarizationWorker:
             self.logger.error("JOB_PROCESSING_FAILED", job_id=job.job_id, error=str(e))
             self._update_job_status(job.job_id, "failed", 0, error=str(e))
 
-    def _create_chunks(self, audio_path: Path, chunk_sec: int, overlap_sec: float) -> List[tuple]:
+    def _create_chunks(self, audio_path: Path, chunk_sec: int, overlap_sec: float) -> list[tuple]:
         """
         Create chunks with overlap for better continuity.
 
@@ -376,11 +379,19 @@ class DiarizationWorker:
 
         # Get duration
         result = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-             "-of", "default=noprint_wrappers=1:nokey=1", str(audio_path)],
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(audio_path),
+            ],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
         duration = float(result.stdout.strip())
 
@@ -403,10 +414,21 @@ class DiarizationWorker:
         duration = end_sec - start_sec
 
         subprocess.run(
-            ["ffmpeg", "-i", str(audio_path), "-ss", str(start_sec),
-             "-t", str(duration), "-y", str(chunk_path), "-loglevel", "error"],
+            [
+                "ffmpeg",
+                "-i",
+                str(audio_path),
+                "-ss",
+                str(start_sec),
+                "-t",
+                str(duration),
+                "-y",
+                str(chunk_path),
+                "-loglevel",
+                "error",
+            ],
             check=True,
-            timeout=30
+            timeout=30,
         )
 
         return chunk_path
@@ -447,8 +469,8 @@ class DiarizationWorker:
                             ("speaker", dt),
                             ("temperature", "f8"),
                             ("rtf", "f8"),
-                            ("timestamp", dt)
-                        ]
+                            ("timestamp", dt),
+                        ],
                     )
 
                 # Append chunk
@@ -464,13 +486,19 @@ class DiarizationWorker:
                     chunk.speaker,
                     chunk.temperature,
                     chunk.rtf,
-                    chunk.timestamp
+                    chunk.timestamp,
                 )
 
                 h5.flush()
 
-    def _update_job_status(self, job_id: str, status: str, progress_pct: int,
-                          error: Optional[str] = None, total_chunks: Optional[int] = None):
+    def _update_job_status(
+        self,
+        job_id: str,
+        status: str,
+        progress_pct: int,
+        error: Optional[str] = None,
+        total_chunks: Optional[int] = None,
+    ):
         """
         Update job status in HDF5.
 
@@ -506,8 +534,8 @@ class DiarizationWorker:
                             ("speaker", dt),
                             ("temperature", "f8"),
                             ("rtf", "f8"),
-                            ("timestamp", dt)
-                        ]
+                            ("timestamp", dt),
+                        ],
                     )
 
                 job_group = h5[job_group_path]
@@ -525,7 +553,7 @@ class DiarizationWorker:
 
                 h5.flush()
 
-    def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
+    def get_job_status(self, job_id: str) -> Optional[dict[str, Any]]:
         """
         Get job status from HDF5.
 
@@ -544,22 +572,24 @@ class DiarizationWorker:
 
                 # Helper to decode bytes from HDF5
                 def decode_if_bytes(val):
-                    return val.decode('utf-8') if isinstance(val, bytes) else val
+                    return val.decode("utf-8") if isinstance(val, bytes) else val
 
                 # Convert chunks to list of dicts
                 chunks = []
                 for i in range(len(chunks_ds)):
                     chunk_data = chunks_ds[i]
-                    chunks.append({
-                        "chunk_idx": int(chunk_data["chunk_idx"]),
-                        "start_time": float(chunk_data["start_time"]),
-                        "end_time": float(chunk_data["end_time"]),
-                        "text": decode_if_bytes(chunk_data["text"]),
-                        "speaker": decode_if_bytes(chunk_data["speaker"]),
-                        "temperature": float(chunk_data["temperature"]),
-                        "rtf": float(chunk_data["rtf"]),
-                        "timestamp": decode_if_bytes(chunk_data["timestamp"])
-                    })
+                    chunks.append(
+                        {
+                            "chunk_idx": int(chunk_data["chunk_idx"]),
+                            "start_time": float(chunk_data["start_time"]),
+                            "end_time": float(chunk_data["end_time"]),
+                            "text": decode_if_bytes(chunk_data["text"]),
+                            "speaker": decode_if_bytes(chunk_data["speaker"]),
+                            "temperature": float(chunk_data["temperature"]),
+                            "rtf": float(chunk_data["rtf"]),
+                            "timestamp": decode_if_bytes(chunk_data["timestamp"]),
+                        }
+                    )
 
                 return {
                     "job_id": job_id,
@@ -570,11 +600,15 @@ class DiarizationWorker:
                     "processed_chunks": len(chunks),
                     "chunks": chunks,
                     "created_at": decode_if_bytes(job_group.attrs.get("created_at", "")),
-                    "updated_at": decode_if_bytes(job_group.attrs.get("updated_at", job_group.attrs.get("created_at", ""))),
-                    "error": decode_if_bytes(job_group.attrs.get("error", None))
+                    "updated_at": decode_if_bytes(
+                        job_group.attrs.get("updated_at", job_group.attrs.get("created_at", ""))
+                    ),
+                    "error": decode_if_bytes(job_group.attrs.get("error", None)),
                 }
 
-    def list_all_jobs(self, session_id: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
+    def list_all_jobs(
+        self, session_id: Optional[str] = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """
         List all jobs from HDF5, optionally filtered by session_id.
 
@@ -597,9 +631,9 @@ class DiarizationWorker:
                 # Helper to decode bytes from HDF5 and convert numpy types to Python types
                 def decode_if_bytes(val):
                     if isinstance(val, bytes):
-                        return val.decode('utf-8')
+                        return val.decode("utf-8")
                     # Convert numpy types to Python native types
-                    if hasattr(val, 'item'):  # numpy scalar
+                    if hasattr(val, "item"):  # numpy scalar
                         return val.item()
                     return val
 
@@ -616,17 +650,27 @@ class DiarizationWorker:
                     chunks_ds = job_group["chunks"]
                     processed_chunks = len(chunks_ds)
 
-                    jobs.append({
-                        "job_id": job_id,
-                        "session_id": job_session_id,
-                        "status": decode_if_bytes(job_group.attrs.get("status", "unknown")),
-                        "progress_pct": int(decode_if_bytes(job_group.attrs.get("progress_pct", 0))),
-                        "total_chunks": int(decode_if_bytes(job_group.attrs.get("total_chunks", 0))),
-                        "processed_chunks": int(processed_chunks),
-                        "created_at": decode_if_bytes(job_group.attrs.get("created_at", "")),
-                        "updated_at": decode_if_bytes(job_group.attrs.get("updated_at", job_group.attrs.get("created_at", ""))),
-                        "error": decode_if_bytes(job_group.attrs.get("error", None))
-                    })
+                    jobs.append(
+                        {
+                            "job_id": job_id,
+                            "session_id": job_session_id,
+                            "status": decode_if_bytes(job_group.attrs.get("status", "unknown")),
+                            "progress_pct": int(
+                                decode_if_bytes(job_group.attrs.get("progress_pct", 0))
+                            ),
+                            "total_chunks": int(
+                                decode_if_bytes(job_group.attrs.get("total_chunks", 0))
+                            ),
+                            "processed_chunks": int(processed_chunks),
+                            "created_at": decode_if_bytes(job_group.attrs.get("created_at", "")),
+                            "updated_at": decode_if_bytes(
+                                job_group.attrs.get(
+                                    "updated_at", job_group.attrs.get("created_at", "")
+                                )
+                            ),
+                            "error": decode_if_bytes(job_group.attrs.get("error", None)),
+                        }
+                    )
 
                 # Sort by created_at descending (most recent first)
                 jobs.sort(key=lambda j: j.get("created_at", ""), reverse=True)
@@ -683,7 +727,7 @@ def create_diarization_job(session_id: str, audio_path: Path) -> str:
         processed_chunks=0,
         status="pending",
         created_at=now,
-        updated_at=now
+        updated_at=now,
     )
 
     # Initialize job in HDF5 immediately (before submitting to queue)
@@ -694,17 +738,19 @@ def create_diarization_job(session_id: str, audio_path: Path) -> str:
     # Submit job to processing queue
     worker.submit_job(job)
 
-    logger.info("JOB_CREATED_IN_H5", job_id=job_id, session_id=session_id, audio_path=str(audio_path))
+    logger.info(
+        "JOB_CREATED_IN_H5", job_id=job_id, session_id=session_id, audio_path=str(audio_path)
+    )
     return job_id
 
 
-def get_job_status(job_id: str) -> Optional[Dict[str, Any]]:
+def get_job_status(job_id: str) -> Optional[dict[str, Any]]:
     """Get job status and chunks from HDF5."""
     worker = get_worker()
     return worker.get_job_status(job_id)
 
 
-def list_all_jobs(session_id: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
+def list_all_jobs(session_id: Optional[str] = None, limit: int = 50) -> list[dict[str, Any]]:
     """List all diarization jobs from HDF5."""
     worker = get_worker()
     return worker.list_all_jobs(session_id, limit)

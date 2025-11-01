@@ -17,9 +17,7 @@ class TestPrerequisites:
 
     def test_node_version(self):
         """Test that Node.js 18+ is installed."""
-        result = subprocess.run(
-            ["node", "--version"], capture_output=True, text=True
-        )
+        result = subprocess.run(["node", "--version"], capture_output=True, text=True)
         assert result.returncode == 0, "Node.js not found"
 
         version = result.stdout.strip()
@@ -34,9 +32,7 @@ class TestPrerequisites:
 
     def test_pnpm_installed(self):
         """Test that pnpm is installed."""
-        result = subprocess.run(
-            ["pnpm", "--version"], capture_output=True, text=True
-        )
+        result = subprocess.run(["pnpm", "--version"], capture_output=True, text=True)
         assert result.returncode == 0, "pnpm not found"
 
     def test_python_packages(self):
@@ -166,9 +162,7 @@ class TestServiceHealth:
         assert health_found, "No /health endpoint found in backend code"
 
     @pytest.mark.skipif(
-        not subprocess.run(
-            ["lsof", "-ti:7001"], capture_output=True
-        ).returncode == 0,
+        subprocess.run(["lsof", "-ti:7001"], capture_output=True).returncode != 0,
         reason="Backend not running",
     )
     def test_backend_responds_to_health(self):
@@ -270,9 +264,7 @@ def test_smoke_summary():
     print("\nServices (if running):")
     ports = {"Backend": 7001, "Timeline": 9002, "Frontend": 9000}
     for service, port in ports.items():
-        result = subprocess.run(
-            ["lsof", f"-ti:{port}"], capture_output=True
-        )
+        result = subprocess.run(["lsof", f"-ti:{port}"], capture_output=True)
         status = "🟢 UP" if result.returncode == 0 else "⚪ DOWN"
         print(f"  {status} {service} (port {port})")
 

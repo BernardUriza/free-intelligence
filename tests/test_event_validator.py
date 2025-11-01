@@ -5,20 +5,20 @@ Tests for event name validator.
 FI-API-FEAT-001
 """
 
-import unittest
-import tempfile
 import sys
+import tempfile
+import unittest
 from pathlib import Path
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
 from event_validator import (
-    validate_event_name,
-    validate_events_in_code,
+    CANONICAL_EVENTS,
     get_canonical_events,
     suggest_event_name,
-    CANONICAL_EVENTS
+    validate_event_name,
+    validate_events_in_code,
 )
 
 
@@ -125,8 +125,9 @@ class TestEventValidator(unittest.TestCase):
     def test_validate_events_in_code(self):
         """Test scanning Python file for event names."""
         # Create temporary Python file with events
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write('''
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(
+                """
 import logging
 logger = logging.getLogger()
 
@@ -134,7 +135,8 @@ def test_func():
     logger.info("CORPUS_INITIALIZED", path="/test")
     logger.error("CORPUS_INIT_FAILED", error="test")
     logger.warning("invalid_event_name", msg="bad")
-''')
+"""
+            )
             temp_path = f.name
 
         try:
@@ -187,7 +189,7 @@ def test_func():
                 result = validate_event_name(event, strict=False)
                 self.assertTrue(
                     result["valid"],
-                    f"Canonical event '{event}' should be valid. Errors: {result['errors']}"
+                    f"Canonical event '{event}' should be valid. Errors: {result['errors']}",
                 )
 
 

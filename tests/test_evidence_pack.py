@@ -7,7 +7,6 @@ Card: FI-DATA-RES-021
 """
 
 import unittest
-from datetime import datetime
 
 from backend.evidence_pack import (
     ClinicalSource,

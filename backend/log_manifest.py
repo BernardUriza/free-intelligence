@@ -10,13 +10,13 @@ Manifest encadenado diario para audit logs:
 FI-CORE-FEAT-003
 """
 
-import json
 import hashlib
-from datetime import datetime, timezone, timedelta
-from pathlib import Path
-from typing import Dict, Any, List, Optional
-from logger_structured import ServiceChannel
+import json
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
+
 from log_rotation import LogRotation
+from logger_structured import ServiceChannel
 
 
 class LogManifest:
@@ -98,13 +98,13 @@ class LogManifest:
             prev_manifest_path = self.manifest_path / f"daily-{prev_date_str}.json"
 
             if prev_manifest_path.exists():
-                with open(prev_manifest_path, 'r') as f:
+                with open(prev_manifest_path) as f:
                     prev_manifest = json.load(f)
                     return prev_manifest.get("manifest_hash")
 
         return None
 
-    def create_daily_manifest(self, date: Optional[str] = None) -> Dict[str, Any]:
+    def create_daily_manifest(self, date: Optional[str] = None) -> dict[str, Any]:
         """
         Create daily manifest for date.
 
@@ -116,7 +116,7 @@ class LogManifest:
         """
         if date is None:
             # Default to yesterday (since we manifest after day ends)
-            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+            yesterday = datetime.now(UTC) - timedelta(days=1)
             date = yesterday.strftime("%Y-%m-%d")
 
         # Compute access log hash
@@ -131,7 +131,7 @@ class LogManifest:
             "access_log_hash": access_hash,
             "event_count": event_count,
             "previous_manifest_hash": prev_hash,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Compute manifest hash
@@ -140,12 +140,14 @@ class LogManifest:
 
         # Save manifest
         manifest_file = self.manifest_path / f"daily-{date}.json"
-        with open(manifest_file, 'w') as f:
+        with open(manifest_file, "w") as f:
             json.dump(manifest, f, indent=2, ensure_ascii=False)
 
         return manifest
 
-    def verify_manifest_chain(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, Any]:
+    def verify_manifest_chain(
+        self, start_date: Optional[str] = None, end_date: Optional[str] = None
+    ) -> dict[str, Any]:
         """
         Verify integrity of manifest chain.
 
@@ -160,15 +162,11 @@ class LogManifest:
         manifest_files = sorted(self.manifest_path.glob("daily-*.json"))
 
         if not manifest_files:
-            return {
-                "valid": True,
-                "manifests_checked": 0,
-                "errors": []
-            }
+            return {"valid": True, "manifests_checked": 0, "errors": []}
 
         manifests = []
         for manifest_file in manifest_files:
-            with open(manifest_file, 'r') as f:
+            with open(manifest_file) as f:
                 manifests.append(json.load(f))
 
         # Filter by date range
@@ -194,51 +192,55 @@ class LogManifest:
             ).hexdigest()
 
             if expected_hash != computed_hash:
-                errors.append({
-                    "date": date,
-                    "error": "manifest_hash_mismatch",
-                    "expected": expected_hash,
-                    "computed": computed_hash
-                })
+                errors.append(
+                    {
+                        "date": date,
+                        "error": "manifest_hash_mismatch",
+                        "expected": expected_hash,
+                        "computed": computed_hash,
+                    }
+                )
 
             # Check 2: Previous manifest hash matches chain
             if i > 0:
                 if manifest["previous_manifest_hash"] != prev_hash:
-                    errors.append({
-                        "date": date,
-                        "error": "chain_broken",
-                        "expected_prev_hash": prev_hash,
-                        "found_prev_hash": manifest["previous_manifest_hash"]
-                    })
+                    errors.append(
+                        {
+                            "date": date,
+                            "error": "chain_broken",
+                            "expected_prev_hash": prev_hash,
+                            "found_prev_hash": manifest["previous_manifest_hash"],
+                        }
+                    )
 
             # Check 3: Access log hash is valid (re-compute)
             recomputed_access_hash, recomputed_count = self.compute_access_log_hash(date)
 
             if recomputed_access_hash != manifest["access_log_hash"]:
-                errors.append({
-                    "date": date,
-                    "error": "access_log_hash_mismatch",
-                    "expected": manifest["access_log_hash"],
-                    "recomputed": recomputed_access_hash
-                })
+                errors.append(
+                    {
+                        "date": date,
+                        "error": "access_log_hash_mismatch",
+                        "expected": manifest["access_log_hash"],
+                        "recomputed": recomputed_access_hash,
+                    }
+                )
 
             if recomputed_count != manifest["event_count"]:
-                errors.append({
-                    "date": date,
-                    "error": "event_count_mismatch",
-                    "expected": manifest["event_count"],
-                    "recomputed": recomputed_count
-                })
+                errors.append(
+                    {
+                        "date": date,
+                        "error": "event_count_mismatch",
+                        "expected": manifest["event_count"],
+                        "recomputed": recomputed_count,
+                    }
+                )
 
             prev_hash = manifest["manifest_hash"]
 
-        return {
-            "valid": len(errors) == 0,
-            "manifests_checked": len(manifests),
-            "errors": errors
-        }
+        return {"valid": len(errors) == 0, "manifests_checked": len(manifests), "errors": errors}
 
-    def get_manifest_stats(self) -> Dict[str, Any]:
+    def get_manifest_stats(self) -> dict[str, Any]:
         """
         Get statistics about manifests.
 
@@ -252,12 +254,12 @@ class LogManifest:
                 "manifest_count": 0,
                 "oldest_date": None,
                 "newest_date": None,
-                "total_events": 0
+                "total_events": 0,
             }
 
         manifests = []
         for manifest_file in manifest_files:
-            with open(manifest_file, 'r') as f:
+            with open(manifest_file) as f:
                 manifests.append(json.load(f))
 
         dates = [m["date"] for m in manifests]
@@ -267,7 +269,7 @@ class LogManifest:
             "manifest_count": len(manifests),
             "oldest_date": min(dates),
             "newest_date": max(dates),
-            "total_events": total_events
+            "total_events": total_events,
         }
 
 
@@ -294,7 +296,9 @@ if __name__ == "__main__":
             print(f"✅ Created manifest for {manifest['date']}")
             print(f"   Access log hash: {manifest['access_log_hash'][:16]}...")
             print(f"   Event count: {manifest['event_count']}")
-            print(f"   Previous manifest: {manifest['previous_manifest_hash'][:16] if manifest['previous_manifest_hash'] else 'None'}...")
+            print(
+                f"   Previous manifest: {manifest['previous_manifest_hash'][:16] if manifest['previous_manifest_hash'] else 'None'}..."
+            )
             print(f"   Manifest hash: {manifest['manifest_hash'][:16]}...")
 
         elif command == "verify":
@@ -310,7 +314,7 @@ if __name__ == "__main__":
         elif command == "stats":
             # Show manifest stats
             stats = manifest_mgr.get_manifest_stats()
-            print(f"📊 Manifest Stats:")
+            print("📊 Manifest Stats:")
             print(f"   Total manifests: {stats['manifest_count']}")
             print(f"   Oldest: {stats['oldest_date']}")
             print(f"   Newest: {stats['newest_date']}")
@@ -325,7 +329,9 @@ if __name__ == "__main__":
 
     else:
         print("Usage:")
-        print("   python3 log_manifest.py create [YYYY-MM-DD]  # Create manifest (default: yesterday)")
+        print(
+            "   python3 log_manifest.py create [YYYY-MM-DD]  # Create manifest (default: yesterday)"
+        )
         print("   python3 log_manifest.py verify                # Verify manifest chain")
         print("   python3 log_manifest.py stats                 # Show manifest statistics")
         print()

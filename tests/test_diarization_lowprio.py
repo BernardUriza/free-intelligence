@@ -13,19 +13,17 @@ File: tests/test_diarization_lowprio.py
 Created: 2025-10-31
 """
 
-import os
-import time
-import pytest
-import h5py
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import h5py
+import pytest
+
 from backend.diarization_worker_lowprio import (
-    CPUScheduler,
-    DiarizationWorker,
-    DiarizationJob,
     ChunkResult,
+    CPUScheduler,
+    DiarizationJob,
     create_diarization_job,
-    get_job_status
 )
 
 
@@ -48,10 +46,12 @@ def worker_with_temp_h5(temp_h5_path, monkeypatch):
     """Worker instance with temporary HDF5 storage."""
     # Must set env BEFORE importing to ensure worker picks it up
     import importlib
+
     monkeypatch.setenv("DIARIZATION_H5_PATH", str(temp_h5_path))
 
     # Reload module to pick up new env var
     import backend.diarization_worker_lowprio as worker_module
+
     importlib.reload(worker_module)
 
     worker = worker_module.DiarizationWorker()
@@ -65,6 +65,7 @@ def worker_with_temp_h5(temp_h5_path, monkeypatch):
 # ============================================================================
 # CPU SCHEDULER TESTS
 # ============================================================================
+
 
 def test_cpu_scheduler_init():
     """Test CPUScheduler initialization."""
@@ -102,6 +103,7 @@ def test_cpu_scheduler_busy_detected(mock_cpu_percent):
 # HDF5 STORAGE TESTS
 # ============================================================================
 
+
 def test_h5_storage_initialization(worker_with_temp_h5, temp_h5_path):
     """Test HDF5 storage is initialized correctly."""
     assert temp_h5_path.exists()
@@ -121,7 +123,7 @@ def test_save_chunk_to_h5(worker_with_temp_h5, temp_h5_path):
         processed_chunks=0,
         status="in_progress",
         created_at="2025-10-31T12:00:00Z",
-        updated_at="2025-10-31T12:00:00Z"
+        updated_at="2025-10-31T12:00:00Z",
     )
 
     chunk = ChunkResult(
@@ -133,7 +135,7 @@ def test_save_chunk_to_h5(worker_with_temp_h5, temp_h5_path):
         confidence=None,
         temperature=-0.5,
         rtf=0.25,
-        timestamp="2025-10-31T12:00:30Z"
+        timestamp="2025-10-31T12:00:30Z",
     )
 
     worker_with_temp_h5._save_chunk_to_h5(job, chunk)
@@ -148,8 +150,10 @@ def test_save_chunk_to_h5(worker_with_temp_h5, temp_h5_path):
         # HDF5 returns bytes for vlen strings
         text = chunks_ds[0]["text"]
         speaker = chunks_ds[0]["speaker"]
-        assert (text.decode('utf-8') if isinstance(text, bytes) else text) == "Hola doctor, me duele la cabeza."
-        assert (speaker.decode('utf-8') if isinstance(speaker, bytes) else speaker) == "PACIENTE"
+        assert (
+            text.decode("utf-8") if isinstance(text, bytes) else text
+        ) == "Hola doctor, me duele la cabeza."
+        assert (speaker.decode("utf-8") if isinstance(speaker, bytes) else speaker) == "PACIENTE"
 
 
 def test_save_multiple_chunks_incremental(worker_with_temp_h5, temp_h5_path):
@@ -163,7 +167,7 @@ def test_save_multiple_chunks_incremental(worker_with_temp_h5, temp_h5_path):
         processed_chunks=0,
         status="in_progress",
         created_at="2025-10-31T12:00:00Z",
-        updated_at="2025-10-31T12:00:00Z"
+        updated_at="2025-10-31T12:00:00Z",
     )
 
     # Save 3 chunks incrementally
@@ -177,7 +181,7 @@ def test_save_multiple_chunks_incremental(worker_with_temp_h5, temp_h5_path):
             confidence=None,
             temperature=-0.3,
             rtf=0.2,
-            timestamp=f"2025-10-31T12:00:{i:02d}Z"
+            timestamp=f"2025-10-31T12:00:{i:02d}Z",
         )
         worker_with_temp_h5._save_chunk_to_h5(job, chunk)
 
@@ -187,12 +191,13 @@ def test_save_multiple_chunks_incremental(worker_with_temp_h5, temp_h5_path):
         assert len(chunks_ds) == 3
 
         text = chunks_ds[2]["text"]
-        assert (text.decode('utf-8') if isinstance(text, bytes) else text) == "Chunk 2 text"
+        assert (text.decode("utf-8") if isinstance(text, bytes) else text) == "Chunk 2 text"
 
 
 # ============================================================================
 # JOB STATUS TESTS
 # ============================================================================
+
 
 def test_get_job_status_from_h5(worker_with_temp_h5, temp_h5_path):
     """Test retrieving job status from HDF5."""
@@ -205,7 +210,7 @@ def test_get_job_status_from_h5(worker_with_temp_h5, temp_h5_path):
         processed_chunks=0,
         status="in_progress",
         created_at="2025-10-31T12:00:00Z",
-        updated_at="2025-10-31T12:00:00Z"
+        updated_at="2025-10-31T12:00:00Z",
     )
 
     # Save 2 chunks
@@ -219,7 +224,7 @@ def test_get_job_status_from_h5(worker_with_temp_h5, temp_h5_path):
             confidence=None,
             temperature=-0.4,
             rtf=0.3,
-            timestamp=f"2025-10-31T12:00:{i:02d}Z"
+            timestamp=f"2025-10-31T12:00:{i:02d}Z",
         )
         worker_with_temp_h5._save_chunk_to_h5(job, chunk)
 
@@ -247,6 +252,7 @@ def test_get_job_status_not_found(worker_with_temp_h5):
 # WORKER LIFECYCLE TESTS
 # ============================================================================
 
+
 def test_worker_start_stop(worker_with_temp_h5):
     """Test worker thread starts and stops cleanly."""
     # Worker fixture does NOT auto-start (fixture calls stop() in teardown)
@@ -263,7 +269,7 @@ def test_worker_start_stop(worker_with_temp_h5):
 
 def test_worker_singleton():
     """Test worker singleton pattern."""
-    from backend.diarization_worker_lowprio import get_worker, _worker_instance
+    from backend.diarization_worker_lowprio import get_worker
 
     worker1 = get_worker()
     worker2 = get_worker()
@@ -275,6 +281,7 @@ def test_worker_singleton():
 # ============================================================================
 # JOB CREATION TESTS
 # ============================================================================
+
 
 @patch("backend.diarization_worker_lowprio.get_worker")
 def test_create_diarization_job(mock_get_worker, mock_audio_file):
@@ -297,6 +304,7 @@ def test_create_diarization_job(mock_get_worker, mock_audio_file):
 # ERROR HANDLING TESTS
 # ============================================================================
 
+
 def test_process_job_whisper_unavailable(worker_with_temp_h5, mock_audio_file):
     """Test job fails gracefully when Whisper unavailable."""
     job = DiarizationJob(
@@ -308,7 +316,7 @@ def test_process_job_whisper_unavailable(worker_with_temp_h5, mock_audio_file):
         processed_chunks=0,
         status="pending",
         created_at="2025-10-31T12:00:00Z",
-        updated_at="2025-10-31T12:00:00Z"
+        updated_at="2025-10-31T12:00:00Z",
     )
 
     with patch("backend.diarization_worker_lowprio.is_whisper_available", return_value=False):
@@ -324,10 +332,13 @@ def test_process_job_whisper_unavailable(worker_with_temp_h5, mock_audio_file):
 # INTEGRATION TEST
 # ============================================================================
 
+
 @pytest.mark.slow
 @patch("backend.diarization_worker_lowprio.get_whisper_model")
 @patch("backend.diarization_worker_lowprio.is_whisper_available", return_value=True)
-def test_full_job_processing_mock(mock_whisper_avail, mock_get_model, worker_with_temp_h5, mock_audio_file, temp_h5_path):
+def test_full_job_processing_mock(
+    mock_whisper_avail, mock_get_model, worker_with_temp_h5, mock_audio_file, temp_h5_path
+):
     """Test full job processing with mocked Whisper."""
     # Mock Whisper model
     mock_model = MagicMock()
@@ -351,15 +362,21 @@ def test_full_job_processing_mock(mock_whisper_avail, mock_get_model, worker_wit
         processed_chunks=0,
         status="pending",
         created_at="2025-10-31T12:00:00Z",
-        updated_at="2025-10-31T12:00:00Z"
+        updated_at="2025-10-31T12:00:00Z",
     )
 
     # Mock CPU scheduler to return idle immediately
     with patch.object(worker_with_temp_h5.scheduler, "is_cpu_idle", return_value=True):
         # Mock chunk creation (avoid ffprobe dependency)
-        with patch("backend.diarization_worker_lowprio.DiarizationWorker._create_chunks", return_value=[(0.0, 30.0)]):
+        with patch(
+            "backend.diarization_worker_lowprio.DiarizationWorker._create_chunks",
+            return_value=[(0.0, 30.0)],
+        ):
             # Mock chunk extraction
-            with patch("backend.diarization_worker_lowprio.DiarizationWorker._extract_chunk", return_value=mock_audio_file):
+            with patch(
+                "backend.diarization_worker_lowprio.DiarizationWorker._extract_chunk",
+                return_value=mock_audio_file,
+            ):
                 worker_with_temp_h5._process_job(job)
 
     # Verify job completed

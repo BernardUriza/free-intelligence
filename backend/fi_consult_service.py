@@ -28,25 +28,32 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.api.audit import router as audit_router
+from backend.api.diarization import router as diarization_router
+from backend.api.evidence import router as evidence_router
+from backend.api.exports import router as exports_router
+from backend.api.fi_diag import router as diag_router
+from backend.api.kpis import router as kpis_router
+
 # Import event store (to be implemented)
 # from backend.fi_event_store import EventStore
 # Import API routers
 from backend.api.sessions import router as sessions_router
-from backend.api.exports import router as exports_router
-from backend.api.audit import router as audit_router
-from backend.api.evidence import router as evidence_router
-from backend.api.kpis import router as kpis_router
-from backend.api.triage import router as triage_router
-from backend.api.transcribe import router as transcribe_router
-from backend.api.diarization import router as diarization_router
-from backend.api.fi_diag import router as diag_router
 from backend.api.system import router as system_router
-from backend.fi_consult_models import (AppendEventRequest, AppendEventResponse,
-                                       Consultation, ConsultationEvent,
-                                       EventType, GetConsultationResponse,
-                                       GetSOAPResponse, SOAPNote,
-                                       StartConsultationRequest,
-                                       StartConsultationResponse)
+from backend.api.transcribe import router as transcribe_router
+from backend.api.triage import router as triage_router
+from backend.fi_consult_models import (
+    AppendEventRequest,
+    AppendEventResponse,
+    Consultation,
+    ConsultationEvent,
+    EventType,
+    GetConsultationResponse,
+    GetSOAPResponse,
+    SOAPNote,
+    StartConsultationRequest,
+    StartConsultationResponse,
+)
 
 # ============================================================================
 # FASTAPI APP INITIALIZATION
@@ -78,6 +85,7 @@ app.add_middleware(
 
 # KPIs middleware (FI-API-FEAT-011)
 from backend.kpis_middleware import KPIsMiddleware
+
 app.add_middleware(KPIsMiddleware)
 
 # Mount API routers

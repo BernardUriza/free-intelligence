@@ -12,7 +12,6 @@ import time
 import unittest
 
 from backend.llm_adapter import (
-    BudgetExceededError,
     LLMBudget,
     LLMRequest,
     NotImplementedProviderError,

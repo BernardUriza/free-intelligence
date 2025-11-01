@@ -15,12 +15,12 @@ Architecture:
 - No PHI in logs (redaction)
 """
 
-import json
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Optional
 
 from backend.logger import get_logger
 
@@ -37,12 +37,12 @@ class LLMRequest:
     """LLM request parameters"""
 
     prompt: str
-    schema: Optional[Dict[str, Any]] = None  # JSON Schema for structured output
+    schema: Optional[dict[str, Any]] = None  # JSON Schema for structured output
     max_tokens: int = 4096
     temperature: float = 0.7
     system_prompt: Optional[str] = None
     timeout_seconds: int = 30
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -55,7 +55,7 @@ class LLMResponse:
     tokens_used: int
     latency_ms: int
     finish_reason: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
 
 
@@ -200,21 +200,25 @@ class LLMAdapter(ABC):
 
 class LLMError(Exception):
     """Base exception for LLM errors"""
+
     pass
 
 
 class BudgetExceededError(LLMError):
     """Budget exceeded"""
+
     pass
 
 
 class LLMProviderError(LLMError):
     """Provider error"""
+
     pass
 
 
 class NotImplementedProviderError(LLMError):
     """Provider not implemented (stub)"""
+
     pass
 
 

@@ -10,11 +10,11 @@ Created: 2025-10-30
 """
 
 import time
-from typing import Dict, Optional, Any
-from dataclasses import dataclass, asdict
+import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import uuid
+from typing import Any, Optional
 
 from backend.logger import get_logger
 
@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 
 class JobStatus(str, Enum):
     """Job status enum."""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -32,6 +33,7 @@ class JobStatus(str, Enum):
 @dataclass
 class DiarizationJob:
     """Diarization job metadata."""
+
     job_id: str
     session_id: str
     audio_file_path: str
@@ -50,11 +52,11 @@ class DiarizationJob:
     last_event: str = ""  # Last event description
     updated_at: str = ""  # Last update timestamp
     # Result cache (FI-RELIABILITY-IMPL-003)
-    result_data: Optional[Dict[str, Any]] = None  # Cached diarization result
+    result_data: Optional[dict[str, Any]] = None  # Cached diarization result
 
 
 # In-memory job store (replace with Redis/DB for production)
-_jobs: Dict[str, DiarizationJob] = {}
+_jobs: dict[str, DiarizationJob] = {}
 
 
 def create_job(session_id: str, audio_file_path: str, audio_file_size: int) -> str:
@@ -84,7 +86,7 @@ def create_job(session_id: str, audio_file_path: str, audio_file_size: int) -> s
         total=0,
         percent=0.0,
         last_event="JOB_CREATED",
-        updated_at=now
+        updated_at=now,
     )
 
     _jobs[job_id] = job
@@ -112,7 +114,7 @@ def update_job_status(
     processed: Optional[int] = None,
     total: Optional[int] = None,
     last_event: Optional[str] = None,
-    result_data: Optional[Dict[str, Any]] = None
+    result_data: Optional[dict[str, Any]] = None,
 ) -> bool:
     """
     Update job status and metadata.
@@ -168,7 +170,13 @@ def update_job_status(
     if result_data:
         job.result_data = result_data
 
-    logger.info("JOB_UPDATED", job_id=job_id, status=status.value, progress=job.progress_percent, last_event=last_event or "N/A")
+    logger.info(
+        "JOB_UPDATED",
+        job_id=job_id,
+        status=status.value,
+        progress=job.progress_percent,
+        last_event=last_event or "N/A",
+    )
     return True
 
 

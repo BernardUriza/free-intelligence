@@ -23,8 +23,13 @@ from urllib.parse import urlparse
 
 import requests
 
-from backend.llm_adapter import (LLMAdapter, LLMBudget, LLMProviderError,
-                                 LLMRequest, LLMResponse)
+from backend.llm_adapter import (
+    LLMAdapter,
+    LLMBudget,
+    LLMProviderError,
+    LLMRequest,
+    LLMResponse,
+)
 from backend.logger import get_logger
 from backend.policy_enforcer import PolicyViolation, get_policy_enforcer
 from backend.utils.token_counter import TokenCounter

@@ -14,31 +14,30 @@ Usage (called by pre-commit):
     python3 scripts/validate_commit_message.py <commit-msg-file>
 """
 
-import sys
 import re
+import sys
 from pathlib import Path
-
 
 # Conventional Commits types
 VALID_TYPES = {
-    'feat',      # New feature
-    'fix',       # Bug fix
-    'docs',      # Documentation
-    'refactor',  # Code refactoring
-    'test',      # Tests
-    'chore',     # Maintenance
-    'perf',      # Performance
-    'ci',        # CI/CD
-    'build',     # Build system
-    'revert',    # Revert commit
+    "feat",  # New feature
+    "fix",  # Bug fix
+    "docs",  # Documentation
+    "refactor",  # Code refactoring
+    "test",  # Tests
+    "chore",  # Maintenance
+    "perf",  # Performance
+    "ci",  # CI/CD
+    "build",  # Build system
+    "revert",  # Revert commit
 }
 
 # Pattern: type(scope): message
 COMMIT_PATTERN = re.compile(
-    r'^(?P<type>\w+)'                    # Type (required)
-    r'(?:\((?P<scope>[\w-]+)\))?'        # Scope (optional)
-    r': '                                 # Separator
-    r'(?P<message>.+)$'                  # Message (required)
+    r"^(?P<type>\w+)"  # Type (required)
+    r"(?:\((?P<scope>[\w-]+)\))?"  # Scope (optional)
+    r": "  # Separator
+    r"(?P<message>.+)$"  # Message (required)
 )
 
 
@@ -50,11 +49,11 @@ def validate_commit_message(message: str) -> tuple[bool, str]:
         (is_valid, error_message)
     """
     # Skip merge commits
-    if message.startswith('Merge'):
+    if message.startswith("Merge"):
         return True, ""
 
     # Skip revert commits (git revert)
-    if message.startswith('Revert'):
+    if message.startswith("Revert"):
         return True, ""
 
     # Match pattern
@@ -68,8 +67,8 @@ def validate_commit_message(message: str) -> tuple[bool, str]:
             f"Valid types: {', '.join(sorted(VALID_TYPES))}"
         )
 
-    commit_type = match.group('type')
-    commit_message = match.group('message')
+    commit_type = match.group("type")
+    commit_message = match.group("message")
 
     # Validate type
     if commit_type not in VALID_TYPES:
@@ -83,7 +82,9 @@ def validate_commit_message(message: str) -> tuple[bool, str]:
         return False, "Commit message cannot be empty"
 
     # Validate message doesn't start with uppercase (except proper nouns)
-    if commit_message[0].isupper() and not commit_message.startswith(('API', 'HDF5', 'LLM', 'UUID')):
+    if commit_message[0].isupper() and not commit_message.startswith(
+        ("API", "HDF5", "LLM", "UUID")
+    ):
         return False, (
             "Commit message should start with lowercase\n"
             f"Got: '{commit_message}'\n"
@@ -106,7 +107,7 @@ def main():
         sys.exit(1)
 
     # Read commit message (first line only)
-    message = commit_msg_file.read_text().strip().split('\n')[0]
+    message = commit_msg_file.read_text().strip().split("\n")[0]
 
     # Validate
     is_valid, error = validate_commit_message(message)
