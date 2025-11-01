@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Free Intelligence - Exporters
 
@@ -7,7 +9,7 @@ FI-EXPORT-FEAT-001, FI-EXPORT-FEAT-002
 """
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -63,7 +65,7 @@ def export_to_markdown(
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate filename
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         filename = f"export_{timestamp}.md"
         md_path = output_dir / filename
 
@@ -71,7 +73,7 @@ def export_to_markdown(
         with open(md_path, "w", encoding="utf-8") as f:
             # Header
             f.write("# Free Intelligence - Interaction Export\n\n")
-            f.write(f"**Export Date**: {datetime.utcnow().isoformat()}Z\n\n")
+            f.write(f"**Export Date**: {datetime.now(UTC).isoformat()}Z\n\n")
             if session_id:
                 f.write(f"**Session**: {session_id}\n\n")
             f.write(f"**Total Interactions**: {len(interactions)}\n\n")
@@ -163,13 +165,13 @@ def export_to_json(
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate filename
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         filename = f"export_{timestamp}.json"
         json_path = output_dir / filename
 
         # Prepare data
         export_data = {
-            "export_timestamp": datetime.utcnow().isoformat() + "Z",
+            "export_timestamp": datetime.now(UTC).isoformat() + "Z",
             "session_id": session_id,
             "total_interactions": len(interactions),
             "interactions": interactions,

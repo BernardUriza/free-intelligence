@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Free Intelligence - Buffered HDF5 Writer
 
@@ -17,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-import h5py
+import h5py  # type: ignore
 
 from backend.append_only_policy import AppendOnlyPolicy
 from backend.logger import get_logger

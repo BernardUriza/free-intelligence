@@ -37,7 +37,7 @@ class TestRequireAuditLogDecorator(unittest.TestCase):
         """Decorator debe marcar función con __llm_audit_required__."""
 
         @require_audit_log
-        def test_function() -> None:
+        def test_function():
             return "result"
 
         self.assertTrue(hasattr(test_function, "__llm_audit_required__"))
@@ -121,6 +121,7 @@ def call_llm():
 """
         tree = ast.parse(code)
         func_node = tree.body[0]
+        assert isinstance(func_node, ast.FunctionDef)
         self.assertTrue(has_require_audit_decorator(func_node))
 
     def test_detects_module_decorator(self) -> None:
@@ -132,6 +133,7 @@ def invoke_model():
 """
         tree = ast.parse(code)
         func_node = tree.body[0]
+        assert isinstance(func_node, ast.FunctionDef)
         self.assertTrue(has_require_audit_decorator(func_node))
 
     def test_ignores_other_decorators(self) -> None:
@@ -143,6 +145,7 @@ def my_function():
 """
         tree = ast.parse(code)
         func_node = tree.body[0]
+        assert isinstance(func_node, ast.FunctionDef)
         self.assertFalse(has_require_audit_decorator(func_node))
 
     def test_no_decorator(self) -> None:
@@ -153,6 +156,7 @@ def plain_function():
 """
         tree = ast.parse(code)
         func_node = tree.body[0]
+        assert isinstance(func_node, ast.FunctionDef)
         self.assertFalse(has_require_audit_decorator(func_node))
 
 
@@ -169,6 +173,7 @@ def call_llm():
 """
         tree = ast.parse(code)
         func_node = tree.body[0]
+        assert isinstance(func_node, ast.FunctionDef)
         self.assertTrue(calls_append_audit_log(func_node))
 
     def test_detects_module_call(self) -> None:
@@ -181,6 +186,7 @@ def invoke_model():
 """
         tree = ast.parse(code)
         func_node = tree.body[0]
+        assert isinstance(func_node, ast.FunctionDef)
         self.assertTrue(calls_append_audit_log(func_node))
 
     def test_no_audit_call(self) -> None:
@@ -191,6 +197,7 @@ def query_llm():
 """
         tree = ast.parse(code)
         func_node = tree.body[0]
+        assert isinstance(func_node, ast.FunctionDef)
         self.assertFalse(calls_append_audit_log(func_node))
 
 

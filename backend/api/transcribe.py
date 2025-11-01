@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Transcription API Router
 Cards: FI-BACKEND-FEAT-003, FI-UI-FEAT-210

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Diarization Job Management
 Card: FI-BACKEND-FEAT-004
@@ -12,7 +14,7 @@ Created: 2025-10-30
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -72,7 +74,7 @@ def create_job(session_id: str, audio_file_path: str, audio_file_size: int) -> s
         job_id (UUID)
     """
     job_id = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat() + "Z"
+    now = datetime.now(UTC).isoformat() + "Z"
 
     job = DiarizationJob(
         job_id=job_id,
@@ -138,7 +140,7 @@ def update_job_status(
         return False
 
     job.status = status
-    job.updated_at = datetime.utcnow().isoformat() + "Z"
+    job.updated_at = datetime.now(UTC).isoformat() + "Z"
 
     if progress is not None:
         job.progress_percent = min(100, max(0, progress))
@@ -154,10 +156,10 @@ def update_job_status(
         job.last_event = last_event
 
     if status == JobStatus.IN_PROGRESS and not job.started_at:
-        job.started_at = datetime.utcnow().isoformat() + "Z"
+        job.started_at = datetime.now(UTC).isoformat() + "Z"
 
     if status in (JobStatus.COMPLETED, JobStatus.FAILED):
-        job.completed_at = datetime.utcnow().isoformat() + "Z"
+        job.completed_at = datetime.now(UTC).isoformat() + "Z"
         job.progress_percent = 100 if status == JobStatus.COMPLETED else job.progress_percent
         job.percent = float(job.progress_percent)
 

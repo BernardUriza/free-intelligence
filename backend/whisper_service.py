@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Whisper Transcription Service
 Card: FI-BACKEND-FEAT-003

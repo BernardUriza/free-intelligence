@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Boot Map - Sistema de Seguimiento de Arranque Cognitivo
 
@@ -54,7 +56,7 @@ def init_boot_map_group(h5file: h5py.File) -> None:
         "boot_sequence",
         shape=(0,),
         maxshape=(None,),
-        dtype=h5py.string_dtype(encoding="utf-8", length=200),
+        dtype=h5py.string_dtype(encoding="utf-8", length=200),  # type: ignore
         chunks=True,
         compression="gzip",
         compression_opts=4,
@@ -64,12 +66,12 @@ def init_boot_map_group(h5file: h5py.File) -> None:
     # Lista de funciones críticas del sistema
     dt_functions = np.dtype(
         [
-            ("function_name", h5py.string_dtype(encoding="utf-8", length=100)),
-            ("module_path", h5py.string_dtype(encoding="utf-8", length=200)),
-            ("category", h5py.string_dtype(encoding="utf-8", length=50)),
+            ("function_name", h5py.string_dtype(encoding="utf-8", length=100)),  # type: ignore
+            ("module_path", h5py.string_dtype(encoding="utf-8", length=200)),  # type: ignore
+            ("category", h5py.string_dtype(encoding="utf-8", length=50)),  # type: ignore
             ("priority", "i4"),
-            ("registered_at", h5py.string_dtype(encoding="utf-8", length=50)),
-            ("status", h5py.string_dtype(encoding="utf-8", length=20)),
+            ("registered_at", h5py.string_dtype(encoding="utf-8", length=50)),  # type: ignore
+            ("status", h5py.string_dtype(encoding="utf-8", length=20)),  # type: ignore
         ]
     )
     boot_group.create_dataset(
@@ -86,10 +88,10 @@ def init_boot_map_group(h5file: h5py.File) -> None:
     # Estado de salud de cada componente
     dt_health = np.dtype(
         [
-            ("component", h5py.string_dtype(encoding="utf-8", length=100)),
-            ("status", h5py.string_dtype(encoding="utf-8", length=20)),
-            ("message", h5py.string_dtype(encoding="utf-8", length=200)),
-            ("checked_at", h5py.string_dtype(encoding="utf-8", length=50)),
+            ("component", h5py.string_dtype(encoding="utf-8", length=100)),  # type: ignore
+            ("status", h5py.string_dtype(encoding="utf-8", length=20)),  # type: ignore
+            ("message", h5py.string_dtype(encoding="utf-8", length=200)),  # type: ignore
+            ("checked_at", h5py.string_dtype(encoding="utf-8", length=50)),  # type: ignore
             ("duration_ms", "f4"),
         ]
     )
@@ -130,13 +132,13 @@ def append_boot_event(h5file: h5py.File, event: str) -> None:
         raise KeyError("Boot map group not initialized")
 
     dataset = h5file["/system/boot_map/boot_sequence"]
-    current_size = dataset.shape[0]
-    dataset.resize((current_size + 1,))
+    current_size = dataset.shape[0]  # type: ignore
+    dataset.resize((current_size + 1,))  # type: ignore
 
     # Format: timestamp|event
     timestamp = datetime.now(UTC).isoformat()
     entry = f"{timestamp}|{event}"
-    dataset[current_size] = entry
+    dataset[current_size] = entry  # type: ignore
 
     logger.info("BOOT_EVENT_APPENDED", boot_event=event, sequence_index=current_size)
 
@@ -167,12 +169,12 @@ def register_core_function(
         raise KeyError("Boot map group not initialized")
 
     dataset = h5file["/system/boot_map/core_functions"]
-    current_size = dataset.shape[0]
-    dataset.resize((current_size + 1,))
+    current_size = dataset.shape[0]  # type: ignore
+    dataset.resize((current_size + 1,))  # type: ignore
 
     timestamp = datetime.now(UTC).isoformat()
 
-    dataset[current_size] = (function_name, module_path, category, priority, timestamp, status)
+    dataset[current_size] = (function_name, module_path, category, priority, timestamp, status)  # type: ignore
 
     logger.info(
         "CORE_FUNCTION_REGISTERED",
@@ -203,12 +205,12 @@ def append_health_check(
         raise KeyError("Boot map group not initialized")
 
     dataset = h5file["/system/boot_map/health_checks"]
-    current_size = dataset.shape[0]
-    dataset.resize((current_size + 1,))
+    current_size = dataset.shape[0]  # type: ignore
+    dataset.resize((current_size + 1,))  # type: ignore
 
     timestamp = datetime.now(UTC).isoformat()
 
-    dataset[current_size] = (component, status, message, timestamp, duration_ms)
+    dataset[current_size] = (component, status, message, timestamp, duration_ms)  # type: ignore
 
     logger.info(
         "HEALTH_CHECK_RECORDED", component=component, status=status, duration_ms=duration_ms
@@ -231,7 +233,7 @@ def get_boot_sequence(h5file: h5py.File) -> list[tuple[str, str]]:
     dataset = h5file["/system/boot_map/boot_sequence"]
     sequence = []
 
-    for entry in dataset:
+    for entry in dataset:  # type: ignore
         entry_str = entry.decode("utf-8") if isinstance(entry, bytes) else entry
         parts = entry_str.split("|", 1)
         if len(parts) == 2:
@@ -262,7 +264,7 @@ def get_core_functions(h5file: h5py.File, category: Optional[str] = None) -> lis
     dataset = h5file["/system/boot_map/core_functions"]
     functions = []
 
-    for entry in dataset:
+    for entry in dataset:  # type: ignore
         entry_category = (
             entry["category"].decode("utf-8")
             if isinstance(entry["category"], bytes)
@@ -310,7 +312,7 @@ def get_health_status(h5file: h5py.File) -> dict[str, list[dict]]:
     dataset = h5file["/system/boot_map/health_checks"]
     health = {"OK": [], "WARNING": [], "ERROR": [], "CRITICAL": []}
 
-    for entry in dataset:
+    for entry in dataset:  # type: ignore
         entry_status = (
             entry["status"].decode("utf-8")
             if isinstance(entry["status"], bytes)
@@ -361,12 +363,12 @@ def get_boot_map_stats(h5file: h5py.File) -> dict:
     boot_group = h5file["/system/boot_map"]
 
     stats = {
-        "created_at": boot_group.attrs.get("created_at", "unknown"),
-        "schema_version": boot_group.attrs.get("schema_version", "unknown"),
-        "boot_map_version": boot_group.attrs.get("boot_map_version", "unknown"),
-        "total_boot_events": boot_group["boot_sequence"].shape[0],
-        "total_core_functions": boot_group["core_functions"].shape[0],
-        "total_health_checks": boot_group["health_checks"].shape[0],
+        "created_at": boot_group.attrs.get("created_at", "unknown"),  # type: ignore
+        "schema_version": boot_group.attrs.get("schema_version", "unknown"),  # type: ignore
+        "boot_map_version": boot_group.attrs.get("boot_map_version", "unknown"),  # type: ignore
+        "total_boot_events": boot_group["boot_sequence"].shape[0],  # type: ignore
+        "total_core_functions": boot_group["core_functions"].shape[0],  # type: ignore
+        "total_health_checks": boot_group["health_checks"].shape[0],  # type: ignore
     }
 
     logger.info("BOOT_MAP_STATS_RETRIEVED", **stats)

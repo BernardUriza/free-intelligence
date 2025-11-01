@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Free Intelligence - Export API
 
@@ -26,7 +28,7 @@ import json
 import os
 import random
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -142,7 +144,7 @@ def generate_deterministic_content(
 
 Session ID: {session_id}
 Status: DEMO (session not found in store)
-Generated: {datetime.utcnow().isoformat()}Z
+Generated: {datetime.now(UTC).isoformat()}Z
 
 ## Transcript
 
@@ -186,7 +188,7 @@ Assistant: Of course! This export demonstrates deterministic content generation.
                     "status": "demo",
                     "transcript": demo_transcript if include.transcript else None,
                     "events": demo_events if include.events else None,
-                    "generated_at": datetime.utcnow().isoformat() + "Z",
+                    "generated_at": datetime.now(UTC).isoformat() + "Z",
                     "deterministic": True,
                     "seed": seed,
                 },
@@ -226,7 +228,7 @@ Interactions: {session_dict['interaction_count']}
                     "metadata": session_dict,
                     "transcript": "(Real transcript)" if include.transcript else None,
                     "events": "(Real events)" if include.events else None,
-                    "generated_at": datetime.utcnow().isoformat() + "Z",
+                    "generated_at": datetime.now(UTC).isoformat() + "Z",
                     "deterministic": True,
                 },
                 indent=2,
@@ -255,7 +257,7 @@ def create_manifest(
         "version": "1.0",
         "exportId": export_id,
         "sessionId": session_id,
-        "createdAt": datetime.utcnow().isoformat() + "Z",
+        "createdAt": datetime.now(UTC).isoformat() + "Z",
         "algorithm": "sha256",
         "files": files,
         "meta": {"generator": "FI", "commit": GIT_COMMIT, "deterministic": True},
@@ -320,9 +322,7 @@ async def create_export(request: ExportRequest):
 
         # Add to artifacts
         url = f"{BASE_DOWNLOAD_URL}/{export_id}/{filename}"
-        artifacts.append(
-            ExportArtifact(format=fmt, url=url, sha256=sha256, bytes=file_bytes)
-        )
+        artifacts.append(ExportArtifact(format=fmt, url=url, sha256=sha256, bytes=file_bytes))
 
         # Add to manifest files list
         manifest_files.append({"name": filename, "sha256": sha256, "bytes": file_bytes})
@@ -555,6 +555,4 @@ async def download_file(export_id: str, filename: str):
     if not filepath.exists():
         raise HTTPException(status_code=404, detail=f"File {filename} not found")
 
-    return FileResponse(
-        filepath, media_type="application/octet-stream", filename=filename
-    )
+    return FileResponse(filepath, media_type="application/octet-stream", filename=filename)

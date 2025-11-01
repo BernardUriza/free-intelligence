@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Free Intelligence - HDF5 Corpus Schema
 
@@ -12,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-import h5py
+import h5py  # type: ignore
 
 
 class CorpusSchema:

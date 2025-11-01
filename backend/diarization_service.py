@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Diarization Service - Whisper ASR + Qwen Speaker Classification
 Card: FI-BACKEND-FEAT-004
@@ -18,7 +20,7 @@ import json
 import os
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -495,7 +497,7 @@ def diarize_audio(
             model_llm=OLLAMA_MODEL,
             segments=segments,
             processing_time_sec=time.time() - start_time,
-            created_at=datetime.utcnow().isoformat() + "Z",
+            created_at=datetime.now(UTC).isoformat() + "Z",
         )
 
         logger.info(

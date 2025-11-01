@@ -1,0 +1,207 @@
+================================================================================
+CRITICAL ISSUES - FIX IMMEDIATELY
+================================================================================
+
+These 4 issues MUST be fixed before the next code push:
+
+================================================================================
+1. HIGH: Line 349 - datetime.utcnow() DEPRECATED
+================================================================================
+
+File: backend/adapters_redux.py
+Line: 349
+Severity: CRITICAL for Python 3.12+ compatibility
+
+CURRENT:
+    timestamp=datetime.utcnow(),
+
+FIXED:
+    from datetime import timezone  # Add to imports (line 23)
+    timestamp=datetime.now(timezone.utc),
+
+WHY: datetime.utcnow() is deprecated and will be removed in Python 3.12+
+Will break production systems upgrading to Python 3.12+
+
+TEST:
+    python -c "
+    from backend.adapters_redux import ReduxAdapter
+    from datetime import timezone
+    adapter = ReduxAdapter()
+    event = adapter.translate_action({'type': 'medicalChat/addMessage', 'payload': {'content': 'test'}}, 'c1', 'u1')
+    assert event.timestamp.tzinfo == timezone.utc
+    print('✅ OK')
+    "
+
+EFFORT: 5 minutes
+
+================================================================================
+2. HIGH: Line 312 - Unbound Variable 'ext' (NameError)
+================================================================================
+
+File: backend/api/diarization.py
+Lines: 280-312
+Severity: CRITICAL - Crashes when audio.filename is None/empty
+
+CURRENT:
+    if audio.filename:
+        ext = audio.filename.rsplit(".", 1)[-1].lower()
+        ...
+    # Later:
+    saved = save_audio_file(..., file_extension=ext)  # NameError!
+
+FIXED:
+    # Check filename exists BEFORE using
+    if not audio.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename is required",
+        )
+    # Now ext is guaranteed to exist
+    ext = audio.filename.rsplit(".", 1)[-1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(...)
+
+WHY: If audio.filename is None/empty, ext is never assigned, causing NameError later
+Occurs on every request without filename
+
+TEST:
+    pytest tests/test_diarization_api_integration.py -k "upload_without_filename" -v
+
+EFFORT: 10 minutes
+
+================================================================================
+3. HIGH: Lines 82-88 - Missing DTO Mapping (API Validation Fails)
+================================================================================
+
+File: backend/api/audit.py
+Lines: 82-88
+Severity: HIGH - API response validation fails
+
+CURRENT:
+    logs = get_audit_logs(...)  # Returns list[dict]
+    return AuditLogsResponse(
+        total=len(logs),
+        limit=limit,
+        logs=logs,  # ❌ Type mismatch: dict != AuditLogEntry
+        ...
+    )
+
+FIXED:
+    logs = get_audit_logs(...)
+    return AuditLogsResponse(
+        total=len(logs),
+        limit=limit,
+        logs=[AuditLogEntry(**log) for log in logs],  # ✅ Convert dicts to models
+        ...
+    )
+
+WHY: Pydantic can't auto-convert dicts to typed models
+API response validation fails or returns wrong types
+
+TEST:
+    curl http://localhost:7001/api/audit/logs | python -m json.tool
+    # Should not throw validation error
+
+EFFORT: 10 minutes
+
+================================================================================
+4. HIGH: Lines 49-50 - Missing Type Arguments (Type Safety)
+================================================================================
+
+File: backend/api/audit.py (+ backend/audit_logs.py)
+Lines: 49-50, 241, 308
+Severity: HIGH - Type checker can't validate
+
+CURRENT (audit.py):
+    class AuditStatsResponse(BaseModel):
+        status_breakdown: dict = Field(default_factory=dict)  # Bare dict
+        operation_breakdown: dict = Field(default_factory=dict)  # Bare dict
+
+CURRENT (audit_logs.py):
+    def get_audit_logs(...) -> list[dict]:  # Vague
+    def get_audit_stats(...) -> dict:  # Vague
+
+FIXED (First create backend/types.py with):
+    class AuditLogDict(TypedDict):
+        audit_id: str
+        timestamp: str
+        operation: str
+        ...
+
+    class AuditStatsDict(TypedDict, total=False):
+        total_logs: int
+        exists: bool
+        status_breakdown: dict[str, int]
+        operation_breakdown: dict[str, int]
+
+THEN update (audit.py):
+    status_breakdown: dict[str, int] = Field(default_factory=dict)
+    operation_breakdown: dict[str, int] = Field(default_factory=dict)
+
+AND update (audit_logs.py):
+    def get_audit_logs(...) -> list[AuditLogDict]:
+    def get_audit_stats(...) -> AuditStatsDict:
+
+WHY: Type checker (mypy) sees "Unknown" types and can't validate
+Prevents early detection of bugs
+
+TEST:
+    mypy backend/api/audit.py --strict
+    # Should have no errors
+
+EFFORT: 20 minutes (including creating types.py)
+
+================================================================================
+IMPLEMENTATION CHECKLIST (Do These Today)
+================================================================================
+
+□ CREATE: backend/types.py with AuditLogDict, AuditStatsDict
+  (See EXACT_FIXES.md for full code)
+
+□ FIX adapters_redux.py line 23: Add timezone to imports
+  from datetime import datetime, timezone
+
+□ FIX adapters_redux.py line 349: Replace utcnow()
+  timestamp=datetime.now(timezone.utc)
+
+□ FIX diarization.py lines 280-312: Check filename before using ext
+  if not audio.filename: raise HTTPException(...)
+
+□ FIX audit.py lines 49-50: Add type arguments
+  dict → dict[str, int]
+
+□ FIX audit.py lines 82-88: Add DTO mapping
+  [AuditLogEntry(**log) for log in logs]
+
+□ UPDATE audit_logs.py lines 241, 308: Return types
+  -> list[AuditLogDict] and -> AuditStatsDict
+
+□ RUN TESTS:
+  python -m pytest tests/ -v
+
+□ VERIFY:
+  mypy --strict backend/
+
+================================================================================
+EVERYTHING ELSE
+================================================================================
+
+The following issues are MEDIUM/LOW priority and can be done later:
+
+MEDIUM Priority (This Sprint):
+  - Line 301, 426: Missing super().__init__() - Low actual risk
+  - Lines 311, 435: Optional[] → | None syntax - Style issue
+  - Line 673: Type union dict | DiarizationResult - Refactor
+
+LOW Priority (Next Sprint):
+  - Line 486: Unnecessary isinstance check - Redundant code
+  - Lines 492-495: Needless bool return - Code smell
+  - Lines 350-360: DRY violation - Refactor for clarity
+
+See TYPE_QUALITY_ANALYSIS.md for complete details on all 66+ issues.
+
+================================================================================
+TOTAL EFFORT FOR CRITICAL FIXES: ~45 minutes
+BLOCKING PRODUCTION: YES
+TARGET COMPLETION: TODAY
+================================================================================

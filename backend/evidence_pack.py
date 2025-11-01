@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Free Intelligence - Evidence Pack Builder
 
@@ -19,7 +21,7 @@ import hashlib
 import json
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -80,7 +82,7 @@ class EvidencePackBuilder:
         with open(path) as f:
             return yaml.safe_load(f)
 
-    def add_source(self, source: ClinicalSource) -> "EvidencePackBuilder":
+    def add_source(self, source: ClinicalSource) -> EvidencePackBuilder:
         """
         Add clinical source to pack.
 
@@ -136,7 +138,7 @@ class EvidencePackBuilder:
         # Create pack
         pack = EvidencePack(
             pack_id=pack_id,
-            created_at=datetime.utcnow().isoformat() + "Z",
+            created_at=datetime.now(UTC).isoformat() + "Z",
             session_id=session_id,
             sources=self.sources,
             source_hashes=source_hashes,

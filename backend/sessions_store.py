@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Free Intelligence - Sessions Store
 
@@ -34,7 +36,7 @@ import random
 # ULID generation (simple implementation)
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -70,7 +72,7 @@ class Session:
         return asdict(self)
 
     @staticmethod
-    def from_dict(data: dict) -> "Session":
+    def from_dict(data: dict) -> Session:
         """Create from dictionary"""
         return Session(**data)
 
@@ -142,7 +144,7 @@ class SessionsStore:
         Returns:
             Created Session instance
         """
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(UTC).isoformat() + "Z"
         session = Session(
             id=generate_ulid(),
             created_at=now,
@@ -274,7 +276,7 @@ class SessionsStore:
             return None
 
         # Create updated session
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(UTC).isoformat() + "Z"
         updated = Session(
             id=current.id,
             created_at=current.created_at,

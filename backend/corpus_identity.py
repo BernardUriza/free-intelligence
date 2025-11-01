@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Free Intelligence - Corpus Identity Management
 
@@ -13,7 +15,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-import h5py
+import h5py  # type: ignore
 
 
 def generate_corpus_id() -> str:

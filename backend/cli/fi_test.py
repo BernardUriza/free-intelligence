@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Free Intelligence - Manual Inference CLI
 
@@ -25,7 +27,7 @@ import argparse
 import json
 import sys
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -60,7 +62,7 @@ def cmd_prompt(args: argparse.Namespace) -> dict[str, Any]:
     3. Optionally save to corpus (if not --dry-run)
     4. Return JSON output
     """
-    session_id = f"cli_test_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+    session_id = f"cli_test_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
     interaction_id = str(uuid.uuid4())
 
     if args.verbose:
@@ -126,7 +128,7 @@ def cmd_prompt(args: argparse.Namespace) -> dict[str, Any]:
                 response=response.content,
                 model=response.model,
                 tokens=response.tokens_used,
-                timestamp=datetime.utcnow().isoformat() + "Z",
+                timestamp=datetime.now(UTC).isoformat() + "Z",
             )
             if args.verbose:
                 logger.info(f"Saved to corpus: {saved_id}")

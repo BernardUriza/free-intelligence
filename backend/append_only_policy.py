@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Free Intelligence - Append-Only Policy Enforcement
 
@@ -9,15 +11,21 @@ FI-DATA-FEAT-005
 """
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-import h5py
+import h5py  # type: ignore
+
+if TYPE_CHECKING:
+    pass  # type: ignore[attr-defined]
 
 
 class AppendOnlyViolation(Exception):
     """Raised when an operation violates append-only policy."""
 
-    pass
+    def __init__(self, message: str) -> None:
+        """Initialize exception with message."""
+        super().__init__(message)
+        self.message = message
 
 
 class AppendOnlyPolicy:
@@ -51,14 +59,14 @@ class AppendOnlyPolicy:
         if not Path(self.corpus_path).exists():
             raise FileNotFoundError(f"Corpus not found: {self.corpus_path}")
 
-        with h5py.File(self.corpus_path, "r") as f:
+        with h5py.File(self.corpus_path, "r") as f:  # type: ignore
             # Record original sizes for all datasets
             for group_name in ["interactions", "embeddings"]:
                 if group_name in f:
-                    group = f[group_name]
-                    for dataset_name in group.keys():
+                    group = f[group_name]  # type: ignore
+                    for dataset_name in group.keys():  # type: ignore
                         key = f"{group_name}/{dataset_name}"
-                        self.original_sizes[key] = group[dataset_name].shape[0]
+                        self.original_sizes[key] = group[dataset_name].shape[0]  # type: ignore
 
         return self
 
@@ -69,20 +77,19 @@ class AppendOnlyPolicy:
             return False
 
         # Verify all dataset sizes increased or stayed same
-        with h5py.File(self.corpus_path, "r") as f:
+        with h5py.File(self.corpus_path, "r") as f:  # type: ignore
             for group_name in ["interactions", "embeddings"]:
                 if group_name in f:
-                    group = f[group_name]
-                    for dataset_name in group.keys():
+                    group = f[group_name]  # type: ignore
+                    for dataset_name in group.keys():  # type: ignore
                         key = f"{group_name}/{dataset_name}"
                         original_size = self.original_sizes.get(key, 0)
-                        current_size = group[dataset_name].shape[0]
+                        current_size = group[dataset_name].shape[0]  # type: ignore
 
                         if current_size < original_size:
                             raise AppendOnlyViolation(
-                                f"Dataset {key} was truncated: "
-                                f"{original_size} → {current_size}. "
-                                f"Append-only policy forbids data deletion."
+                                f"Dataset {key} was truncated: {original_size} → {current_size}. "
+                                + "Append-only policy forbids data deletion."
                             )
 
         return False
@@ -108,8 +115,7 @@ class AppendOnlyPolicy:
         if index < original_size:
             raise AppendOnlyViolation(
                 f"Cannot modify existing data at {key}[{index}]. "
-                f"Original size: {original_size}. "
-                f"Append-only policy allows writes only to new indices (>= {original_size})."
+                + f"Original size: {original_size}. Append-only policy allows writes only to new indices (>= {original_size})."
             )
 
         return True
@@ -135,7 +141,7 @@ class AppendOnlyPolicy:
         if new_size < original_size:
             raise AppendOnlyViolation(
                 f"Cannot shrink dataset {key} from {original_size} to {new_size}. "
-                f"Append-only policy forbids data deletion."
+                + "Append-only policy forbids data deletion."
             )
 
         return True
@@ -217,8 +223,8 @@ def get_dataset_size(corpus_path: str, group_name: str, dataset_name: str) -> in
     Returns:
         Current dataset size
     """
-    with h5py.File(corpus_path, "r") as f:
-        return f[group_name][dataset_name].shape[0]
+    with h5py.File(corpus_path, "r") as f:  # type: ignore
+        return f[group_name][dataset_name].shape[0]  # type: ignore
 
 
 if __name__ == "__main__":

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Diarization Service V2 - Optimized for Offline Performance
 Card: FI-RELIABILITY-IMPL-003

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Free Intelligence - Token Counter Utility
 

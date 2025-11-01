@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Triage API - Intake endpoint for conversation capture
 Card: FI-API-FEAT-014
@@ -9,7 +11,7 @@ Endpoints:
 import hashlib
 import json
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, Optional, Union
 from uuid import uuid4
@@ -107,7 +109,7 @@ async def triage_intake(payload: IntakePayload, request: Request) -> IntakeAck:
         # Prepare intake data
         intake_data = {
             "bufferId": buffer_id,
-            "receivedAt": datetime.utcnow().isoformat() + "Z",
+            "receivedAt": datetime.now(UTC).isoformat() + "Z",
             "payload": payload.model_dump(),
             "client": {
                 "ip": request.client.host if request.client else "unknown",

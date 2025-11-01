@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Audio Storage Module
 Card: FI-BACKEND-FEAT-003
@@ -21,7 +23,7 @@ Created: 2025-10-30
 import hashlib
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 from uuid import UUID
@@ -121,7 +123,7 @@ def save_audio_file(
     session_dir.mkdir(parents=True, exist_ok=True)
 
     # Generate timestamp-based filename
-    timestamp_ms = int(datetime.utcnow().timestamp() * 1000)
+    timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
     filename = f"{timestamp_ms}.{file_extension}"
     file_path = session_dir / filename
 
@@ -139,14 +141,14 @@ def save_audio_file(
     file_size = len(audio_content)
 
     # Calculate TTL expiration
-    ttl_expires_at = datetime.utcnow() + timedelta(days=AUDIO_TTL_DAYS)
+    ttl_expires_at = datetime.now(UTC) + timedelta(days=AUDIO_TTL_DAYS)
 
     # Create manifest
     manifest_data = {
         "version": "1.0.0",
         "sessionId": session_id,
         "timestampMs": timestamp_ms,
-        "receivedAt": datetime.utcnow().isoformat() + "Z",
+        "receivedAt": datetime.now(UTC).isoformat() + "Z",
         "filePath": str(file_path.relative_to(AUDIO_STORAGE_DIR.parent)),
         "fileSize": file_size,
         "fileHash": file_hash,

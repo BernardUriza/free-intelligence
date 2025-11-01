@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Free Intelligence - Audit Logs API
 Card: FI-UI-FEAT-206
@@ -6,7 +8,7 @@ Card: FI-UI-FEAT-206
 Provides read-only access to audit logs with filtering and pagination.
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -46,8 +48,8 @@ class AuditStatsResponse(BaseModel):
 
     total_logs: int
     exists: bool
-    status_breakdown: dict = Field(default_factory=dict)
-    operation_breakdown: dict = Field(default_factory=dict)
+    status_breakdown: dict[str, int] = Field(default_factory=dict)
+    operation_breakdown: dict[str, int] = Field(default_factory=dict)
 
 
 @router.get("/logs", response_model=AuditLogsResponse)
@@ -79,9 +81,12 @@ async def get_logs(
         config = load_config()
         corpus_path = config["storage"]["corpus_path"]
 
-        logs = get_audit_logs(
+        logs_data: list[dict[str, Any]] = get_audit_logs(
             corpus_path, limit=limit, operation_filter=operation, user_filter=user
         )
+
+        # Convert dicts to AuditLogEntry objects
+        logs: list[AuditLogEntry] = [AuditLogEntry(**log) for log in logs_data]
 
         return AuditLogsResponse(
             total=len(logs), limit=limit, logs=logs, operation_filter=operation, user_filter=user
@@ -107,9 +112,9 @@ async def get_stats():
         config = load_config()
         corpus_path = config["storage"]["corpus_path"]
 
-        stats = get_audit_stats(corpus_path)
+        stats_data: dict[str, Any] = get_audit_stats(corpus_path)
 
-        return AuditStatsResponse(**stats)
+        return AuditStatsResponse(**stats_data)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve audit stats: {str(e)}")

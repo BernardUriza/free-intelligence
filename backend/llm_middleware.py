@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Free Intelligence - LLM Middleware (FastAPI)
 
@@ -21,7 +23,7 @@ import hashlib
 import json
 import time
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -29,6 +31,7 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
 
+from backend.config_loader import load_config
 from backend.corpus_ops import append_interaction
 from backend.kpis_aggregator import get_kpis_aggregator
 from backend.llm_adapter import LLMRequest
@@ -243,7 +246,7 @@ async def generate_llm(request: GenerateRequest) -> GenerateResponse:
         provider=request.provider,
         model=request.model,
         prompt=request.prompt,
-        system=request.system,
+        system=request.system or "",
         params=params,
     )
 
@@ -329,17 +332,17 @@ async def generate_llm(request: GenerateRequest) -> GenerateResponse:
             model=request.model,
             prompt=request.prompt,
             response=response_data,
-            system=request.system,
+            system=request.system or "",
             params=params,
         )
 
         # Log to NDJSON (without prompt text)
         log_dir = Path("logs/llm")
         log_dir.mkdir(parents=True, exist_ok=True)
-        log_file = log_dir / f"llm_{datetime.utcnow().strftime('%Y%m%d')}.ndjson"
+        log_file = log_dir / f"llm_{datetime.now(UTC).strftime('%Y%m%d')}.ndjson"
 
         log_entry = {
-            "ts": datetime.utcnow().isoformat() + "Z",
+            "ts": datetime.now(UTC).isoformat() + "Z",
             "provider": request.provider,
             "model": request.model,
             "ok": True,
@@ -462,7 +465,8 @@ async def prompt_llm(request: PromptRequest) -> PromptResponse:
     """
     start_time = time.time()
     interaction_id = str(uuid.uuid4())
-    timestamp = datetime.utcnow().isoformat() + "Z"
+    timestamp = datetime.now(UTC).isoformat() + "Z"
+    config = load_config()
 
     logger.info(
         f"[{interaction_id}] Received prompt",
@@ -496,14 +500,14 @@ async def prompt_llm(request: PromptRequest) -> PromptResponse:
         latency_ms = int((time.time() - start_time) * 1000)
 
         # Calculate content hash
-        content = request.prompt + llm_response.text
+        content = request.prompt + llm_response.content
         content_hash = hashlib.sha256(content.encode()).hexdigest()
 
         logger.info(
             f"[{interaction_id}] LLM response received",
             extra={
                 "latency_ms": latency_ms,
-                "response_length": len(llm_response.text),
+                "response_length": len(llm_response.content),
                 "content_hash": content_hash[:16],
             },
         )
@@ -511,22 +515,13 @@ async def prompt_llm(request: PromptRequest) -> PromptResponse:
         # Save to corpus (append-only)
         try:
             append_interaction(
+                corpus_path=config["storage"]["corpus_path"],
                 session_id=request.session_id,
-                interaction_id=interaction_id,
-                user_prompt=request.prompt,
-                llm_response=llm_response.text,
-                metadata={
-                    "model_id": request.model,
-                    "latency_ms": latency_ms,
-                    "timestamp": timestamp,
-                    "content_hash": content_hash,
-                    "input_tokens": (
-                        llm_response.usage.get("input_tokens", 0) if llm_response.usage else 0
-                    ),
-                    "output_tokens": (
-                        llm_response.usage.get("output_tokens", 0) if llm_response.usage else 0
-                    ),
-                },
+                prompt=request.prompt,
+                response=llm_response.content,
+                model=request.model,
+                tokens=llm_response.tokens_used,
+                timestamp=timestamp,
             )
             logger.info(f"[{interaction_id}] Saved to corpus: {request.session_id}")
         except Exception as corpus_error:
@@ -539,7 +534,7 @@ async def prompt_llm(request: PromptRequest) -> PromptResponse:
         # Return response
         return PromptResponse(
             interaction_id=interaction_id,
-            response=llm_response.text,
+            response=llm_response.content,
             model=request.model,
             latency_ms=latency_ms,
             timestamp=timestamp,
@@ -570,7 +565,7 @@ async def health_check() -> HealthResponse:
     """
     return HealthResponse(
         status="ok",
-        timestamp=datetime.utcnow().isoformat() + "Z",
+        timestamp=datetime.now(UTC).isoformat() + "Z",
         llm_adapters={
             "claude": "available" if claude_adapter else "unavailable",
             "ollama": "available" if ollama_adapter else "unavailable",

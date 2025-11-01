@@ -103,7 +103,7 @@ def test_generate_report() -> None:
     assert report["overall_status"] in ["OK", "WARNING", "CRITICAL"]
 
 
-def test_report_json_serialization(tmp_path) -> None:
+def test_report_json_serialization(tmp_path: Path) -> None:
     """Test that report can be serialized to JSON"""
     runner = DiagnosticRunner(dry_run=True)
     runner.run_all_checks()
@@ -111,7 +111,7 @@ def test_report_json_serialization(tmp_path) -> None:
     report = runner.generate_report()
 
     # Write to temp file
-    output_file = tmp_path / "test_report.json"
+    output_file: Path = tmp_path / "test_report.json"
     with open(output_file, "w") as f:
         json.dump(report, f, indent=2)
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Free Intelligence - Semantic Search
 
@@ -8,7 +10,7 @@ FI-SEARCH-FEAT-001
 
 from pathlib import Path
 
-import h5py
+import h5py  # type: ignore
 import numpy as np
 
 from backend.llm_router import llm_embed, pad_embedding_to_768

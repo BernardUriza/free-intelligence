@@ -19,12 +19,13 @@ File: backend/api/diarization.py
 Created: 2025-10-30
 Updated: 2025-10-31
 """
+from __future__ import annotations
 
 import asyncio
 import os
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional, Union
 
 from fastapi import (
     APIRouter,
@@ -53,8 +54,6 @@ from backend.diarization_service import (
     export_diarization,
 )
 from backend.diarization_service_v2 import diarize_audio_parallel
-
-# Low-priority worker imports
 from backend.diarization_worker_lowprio import (
     create_diarization_job as create_lowprio_job,
 )
@@ -251,13 +250,15 @@ async def upload_audio_for_diarization(
     x_session_id: Optional[str] = Header(None, alias="X-Session-ID"),
     language: str = Query("es", description="Language code"),
     persist: bool = Query(False, description="Save results to disk"),
-    whisper_model: str = Query(
+    whisper_model: Optional[str] = Query(
         None, description="Whisper model: tiny, base, small, medium, large-v3"
     ),
-    enable_llm_classification: bool = Query(None, description="Enable LLM speaker classification"),
-    chunk_size_sec: int = Query(None, description="Audio chunk size in seconds"),
-    beam_size: int = Query(None, description="Whisper beam size"),
-    vad_filter: bool = Query(None, description="Enable Voice Activity Detection"),
+    enable_llm_classification: Optional[bool] = Query(
+        None, description="Enable LLM speaker classification"
+    ),
+    chunk_size_sec: Optional[int] = Query(None, description="Audio chunk size in seconds"),
+    beam_size: Optional[int] = Query(None, description="Whisper beam size"),
+    vad_filter: Optional[bool] = Query(None, description="Enable Voice Activity Detection"),
 ):
     """
     Upload audio file and start diarization job.
@@ -277,6 +278,7 @@ async def upload_audio_for_diarization(
         )
 
     # Validate file extension
+    ext: str = ""
     if audio.filename:
         ext = audio.filename.rsplit(".", 1)[-1].lower()
         if ext not in ALLOWED_EXTENSIONS:
@@ -317,7 +319,7 @@ async def upload_audio_for_diarization(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save audio: {str(e)}",
-        )
+        ) from e
 
     # Path hardening: resolve absolute path
     from backend.audio_storage import AUDIO_STORAGE_DIR
@@ -346,24 +348,24 @@ async def upload_audio_for_diarization(
     )
 
     # Build configuration dict from optional parameters
-    config_overrides = {}
+    config_overrides: dict[str, Any] = {}
     if whisper_model is not None:
-        config_overrides["whisper_model"] = whisper_model
+        config_overrides["whisper_model"] = whisper_model  # type: ignore
     if enable_llm_classification is not None:
-        config_overrides["enable_llm_classification"] = enable_llm_classification
+        config_overrides["enable_llm_classification"] = enable_llm_classification  # type: ignore
     if chunk_size_sec is not None:
-        config_overrides["chunk_size_sec"] = chunk_size_sec
+        config_overrides["chunk_size_sec"] = chunk_size_sec  # type: ignore
     if beam_size is not None:
-        config_overrides["beam_size"] = beam_size
+        config_overrides["beam_size"] = beam_size  # type: ignore
     if vad_filter is not None:
-        config_overrides["vad_filter"] = vad_filter
+        config_overrides["vad_filter"] = vad_filter  # type: ignore
 
     logger.info("CONFIG_OVERRIDES_RECEIVED", session_id=x_session_id, overrides=config_overrides)
 
     # Route to low-priority worker or legacy pipelines
     if USE_LOWPRIO_WORKER:
         # Use low-priority worker with CPU scheduler + HDF5
-        job_id = create_lowprio_job(x_session_id, abs_path, config_overrides)
+        job_id = create_lowprio_job(x_session_id, abs_path)
         logger.info(
             "LOWPRIO_JOB_CREATED", job_id=job_id, session_id=x_session_id, config=config_overrides
         )
@@ -483,7 +485,7 @@ async def get_diarization_result(job_id: str):
             )
 
             # Combine all chunks into segments
-            segments = []
+            segments: list[DiarizationSegmentResponse] = []
             for chunk in lowprio_status["chunks"]:
                 segments.append(
                     DiarizationSegmentResponse(
@@ -495,7 +497,7 @@ async def get_diarization_result(job_id: str):
                 )
 
             # Compute total duration from last chunk
-            total_duration = segments[-1].end_time if segments else 0.0
+            total_duration: float = segments[-1].end_time if segments else 0.0
 
             return DiarizationResultResponse(
                 session_id=lowprio_status["session_id"],
@@ -577,12 +579,12 @@ async def get_diarization_result(job_id: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load result: {str(e)}",
-        )
+        ) from e
 
 
 @router.get("/export/{job_id}")
 async def export_diarization_result(
-    job_id: str, format: str = Query("json", regex="^(json|markdown)$")
+    job_id: str, export_format: str = Query("json", regex="^(json|markdown)$", alias="format")
 ):
     """
     Export diarization result in specified format.
@@ -604,7 +606,7 @@ async def export_diarization_result(
             # Reconstruct result from chunks (no re-processing)
             logger.info("EXPORT_FROM_LOWPRIO_CHUNKS", job_id=job_id, format=format)
 
-            segments = []
+            segments: list[dict] = []
             for chunk in lowprio_status["chunks"]:
                 segments.append(
                     {
@@ -616,10 +618,10 @@ async def export_diarization_result(
                 )
 
             # Create simple export from chunks
-            if format == "json":
+            if export_format == "json":
                 import json
 
-                export_data = {
+                export_data: dict[str, Any] = {
                     "job_id": job_id,
                     "session_id": lowprio_status["session_id"],
                     "status": "completed",
@@ -642,7 +644,7 @@ async def export_diarization_result(
                 content=content,
                 media_type=media_type,
                 headers={
-                    "Content-Disposition": f"attachment; filename=diarization_{job_id}.{format}"
+                    "Content-Disposition": f"attachment; filename=diarization_{job_id}.{export_format}"
                 },
             )
 
@@ -659,30 +661,34 @@ async def export_diarization_result(
 
     try:
         # Use cached result if available (no re-processing)
+        result_data: Union[dict[str, Any], DiarizationResult]
         if job.result_data:
-            logger.info("EXPORT_FROM_CACHE", job_id=job_id, format=format)
+            logger.info("EXPORT_FROM_CACHE", job_id=job_id, format=export_format)
             result_data = job.result_data
         else:
             # Fallback: Re-process audio (should be rare)
             logger.warning("EXPORT_REPROCESSING_LEGACY", job_id=job_id)
             audio_path = Path(job.audio_file_path)
             result = diarize_audio(audio_path, job.session_id, language="es", persist=False)
-            result_data = asdict(result) if hasattr(result, "__dataclass_fields__") else result
+            result_data = asdict(result) if hasattr(result, "__dataclass_fields__") else result  # type: ignore
 
-        content = export_diarization(
-            result_data if isinstance(result_data, dict) else DiarizationResult(**result_data),
-            format,
-        )
+        # Convert dict to DiarizationResult if needed
+        if isinstance(result_data, DiarizationResult):
+            diarization_result: DiarizationResult = result_data
+        else:
+            diarization_result = DiarizationResult(**result_data)
 
-        if format == "json":
+        export_content: str = export_diarization(diarization_result, export_format)
+
+        if export_format == "json":
             return Response(
-                content=content,
+                content=export_content,
                 media_type="application/json",
                 headers={"Content-Disposition": f"attachment; filename=diarization_{job_id}.json"},
             )
         else:  # markdown
             return Response(
-                content=content,
+                content=export_content,
                 media_type="text/markdown",
                 headers={"Content-Disposition": f"attachment; filename=diarization_{job_id}.md"},
             )
@@ -691,7 +697,7 @@ async def export_diarization_result(
         logger.error("EXPORT_FAILED", job_id=job_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Export failed: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/jobs")
@@ -804,14 +810,14 @@ async def restart_job(job_id: str):
             )
 
         # Get audio path from HDF5 metadata
-        import h5py
+        import h5py  # type: ignore
 
         h5_path = Path("storage/diarization.h5")
 
         try:
             with h5py.File(h5_path, "r") as f:
                 job_group = f[f"jobs/{job_id}"]
-                audio_path_str = job_group.attrs.get("audio_path", "")
+                audio_path_str = job_group.attrs.get("audio_path", "")  # type: ignore
 
                 if not audio_path_str:
                     raise HTTPException(
@@ -844,7 +850,7 @@ async def restart_job(job_id: str):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to restart job: {str(e)}",
-            )
+            ) from e
 
     # Legacy mode: restart from in-memory job
     job = get_job(job_id)
@@ -874,7 +880,7 @@ async def cancel_job(job_id: str):
     """
     if USE_LOWPRIO_WORKER:
         # Cancel job in HDF5
-        import h5py
+        import h5py  # type: ignore
 
         h5_path = Path("storage/diarization.h5")
 
@@ -886,8 +892,8 @@ async def cancel_job(job_id: str):
                     )
 
                 job_group = f[f"jobs/{job_id}"]
-                job_group.attrs["status"] = "cancelled"
-                job_group.attrs["updated_at"] = str(asyncio.get_event_loop().time())
+                job_group.attrs["status"] = "cancelled"  # type: ignore
+                job_group.attrs["updated_at"] = str(asyncio.get_event_loop().time())  # type: ignore
 
                 logger.info("JOB_CANCELLED", job_id=job_id)
 
@@ -902,7 +908,7 @@ async def cancel_job(job_id: str):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to cancel job: {str(e)}",
-            )
+            ) from e
 
     # Legacy mode: cancel in-memory job
     job = get_job(job_id)
