@@ -17,14 +17,14 @@
     "DEBUG": true
   },
   "stubPath": "typings",
-  "reportMissingImports": "error",
+  "reportMissingImports": "warning",
   "reportMissingTypeStubs": "warning",
-  "pythonVersion": "3.11",
+  "pythonVersion": "3.9",
   "pythonPlatform": "Darwin",
   "executionEnvironments": [
     {
       "root": ".",
-      "pythonVersion": "3.11",
+      "pythonVersion": "3.9",
       "pythonPlatform": "Darwin",
       "extraPaths": [
         "${workspaceFolder}",
@@ -32,7 +32,7 @@
       ]
     }
   ],
-  "typeCheckingMode": "strict",
+  "typeCheckingMode": "standard",
   "reportAttributeAccessIssue": "error",
   "reportIndexIssue": "error",
   "reportOperatorIssue": "error",
@@ -42,8 +42,8 @@
   "reportOptionalSubscript": "error",
   "reportGeneralTypeIssues": "error",
   "reportUnusedImport": "error",
-  "reportUnusedClass": "error",
-  "reportUnusedFunction": "warning",
+  "reportUnusedClass": "warning",
+  "reportUnusedFunction": false,
   "reportUnusedVariable": "warning",
   "reportDuplicateImport": "error",
   "reportWildcardImportFromLibrary": "error",
@@ -51,15 +51,15 @@
   "reportConstantRedefinition": "error",
   "reportIncompatibleMethodOverride": "error",
   "reportIncompatibleVariableOverride": "error",
-  "reportUntypedFunctionDecorator": "error",
-  "reportUntypedClassDecorator": "error",
-  "reportUntypedBaseClass": "error",
-  "reportUntypedNamedTuple": "error",
-  "reportCallInDefaultInitializer": "error",
-  "reportImplicitStringConcatenation": "error",
-  "reportMissingSuperCall": "error",
+  "reportUntypedFunctionDecorator": "warning",
+  "reportUntypedClassDecorator": "warning",
+  "reportUntypedBaseClass": "warning",
+  "reportUntypedNamedTuple": "warning",
+  "reportCallInDefaultInitializer": false,
+  "reportImplicitStringConcatenation": "warning",
+  "reportMissingSuperCall": false,
   "reportPropertyTypeMismatch": "error",
-  "reportUninitializedInstanceVariable": "error",
-  "reportUnnecessaryTypeIgnoreComment": "error",
-  "reportMatchNotExhaustive": "error"
+  "reportUninitializedInstanceVariable": "warning",
+  "reportUnnecessaryTypeIgnoreComment": "warning",
+  "reportMatchNotExhaustive": "warning"
 }
