@@ -37,7 +37,7 @@ CPU_IDLE_WINDOW_SEC = int(os.getenv("DIARIZATION_CPU_IDLE_WINDOW", "10"))  # 10s
 CHUNK_DURATION_SEC = int(os.getenv("DIARIZATION_CHUNK_SEC", "30"))  # 30-45s chunks
 CHUNK_OVERLAP_SEC = float(os.getenv("DIARIZATION_OVERLAP_SEC", "0.8"))  # 0.8s overlap
 H5_STORAGE_PATH = Path(os.getenv("DIARIZATION_H5_PATH", "storage/diarization.h5"))
-WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "base")  # base for low priority
+WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "small")  # Aligned with whisper_service.py default
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")
 WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
 NUM_WORKERS = 1  # Single worker to avoid blocking
@@ -306,10 +306,20 @@ class DiarizationWorker:
                 rtf = processing_time / audio_duration if audio_duration > 0 else 0
 
                 # Get temperature (avg from segments if available)
-                avg_temp = (
-                    sum(seg.avg_logprob for seg in segments if hasattr(seg, 'avg_logprob')) / len(segments)
-                    if segments else 0.0
-                )
+                # Only segments with avg_logprob attribute count toward the average
+                temps_with_data = [seg.avg_logprob for seg in segments if hasattr(seg, 'avg_logprob')]
+                if temps_with_data:
+                    avg_temp = sum(temps_with_data) / len(temps_with_data)
+                else:
+                    # No temperature data available, log and use default
+                    avg_temp = 0.0
+                    if segments:
+                        self.logger.warning(
+                            "TEMPERATURE_METADATA_MISSING",
+                            job_id=job.job_id,
+                            chunk_idx=idx,
+                            num_segments=len(segments)
+                        )
 
                 # Create chunk result
                 chunk_result = ChunkResult(

@@ -403,8 +403,51 @@ async def get_diarization_result(job_id: str):
     """
     Get diarization result for completed job.
 
+    Supports both legacy (in-memory) and low-priority (HDF5) workers.
     V2 improvement: Results are cached in job.result_data (no re-processing).
     """
+    # Try low-priority worker first (HDF5)
+    if USE_LOWPRIO_WORKER:
+        lowprio_status = get_lowprio_status(job_id)
+        if lowprio_status:
+            # Low-prio job found in HDF5
+            if lowprio_status["status"] != "completed":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Job not completed. Status: {lowprio_status['status']}"
+                )
+
+            # For low-prio jobs, reconstruct result from chunks
+            logger.info("RESULT_FROM_LOWPRIO_CHUNKS", job_id=job_id, chunks=len(lowprio_status["chunks"]))
+
+            # Combine all chunks into segments
+            segments = []
+            for chunk in lowprio_status["chunks"]:
+                segments.append(
+                    DiarizationSegmentResponse(
+                        start_time=chunk["start_time"],
+                        end_time=chunk["end_time"],
+                        speaker=chunk["speaker"],
+                        text=chunk["text"]
+                    )
+                )
+
+            # Compute total duration from last chunk
+            total_duration = segments[-1].end_time if segments else 0.0
+
+            return DiarizationResultResponse(
+                session_id=lowprio_status["session_id"],
+                audio_file_hash="",  # Not available in HDF5 chunks
+                duration_sec=total_duration,
+                language="es",  # Default (not stored in chunks)
+                model_asr="faster-whisper",
+                model_llm="none",  # Low-prio doesn't use LLM
+                segments=segments,
+                processing_time_sec=0.0,  # Not tracked per-job
+                created_at=lowprio_status["created_at"]
+            )
+
+    # Fallback to legacy in-memory job store
     job = get_job(job_id)
     if not job:
         raise HTTPException(
@@ -483,7 +526,64 @@ async def export_diarization_result(
 ):
     """
     Export diarization result in specified format.
+
+    Supports both legacy (in-memory) and low-priority (HDF5) workers.
+    Uses cached results when available (no re-processing).
     """
+    # Try low-priority worker first (HDF5)
+    if USE_LOWPRIO_WORKER:
+        lowprio_status = get_lowprio_status(job_id)
+        if lowprio_status:
+            # Low-prio job found in HDF5
+            if lowprio_status["status"] != "completed":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Job not completed. Status: {lowprio_status['status']}"
+                )
+
+            # Reconstruct result from chunks (no re-processing)
+            logger.info("EXPORT_FROM_LOWPRIO_CHUNKS", job_id=job_id, format=format)
+
+            segments = []
+            for chunk in lowprio_status["chunks"]:
+                segments.append({
+                    "start_time": chunk["start_time"],
+                    "end_time": chunk["end_time"],
+                    "speaker": chunk["speaker"],
+                    "text": chunk["text"]
+                })
+
+            # Create simple export from chunks
+            if format == "json":
+                import json
+                export_data = {
+                    "job_id": job_id,
+                    "session_id": lowprio_status["session_id"],
+                    "status": "completed",
+                    "created_at": lowprio_status["created_at"],
+                    "segments": segments
+                }
+                content = json.dumps(export_data, indent=2)
+                media_type = "application/json"
+            else:  # markdown
+                content = f"# Diarization Result - {job_id}\n\n"
+                content += f"**Session:** {lowprio_status['session_id']}\n"
+                content += f"**Created:** {lowprio_status['created_at']}\n\n"
+                content += "## Segments\n\n"
+                for seg in segments:
+                    content += f"**[{seg['start_time']:.1f}s - {seg['end_time']:.1f}s] {seg['speaker']}:**\n"
+                    content += f"{seg['text']}\n\n"
+                media_type = "text/markdown"
+
+            return Response(
+                content=content,
+                media_type=media_type,
+                headers={
+                    "Content-Disposition": f"attachment; filename=diarization_{job_id}.{format}"
+                }
+            )
+
+    # Fallback to legacy in-memory job store
     job = get_job(job_id)
     if not job:
         raise HTTPException(
@@ -498,10 +598,19 @@ async def export_diarization_result(
         )
 
     try:
-        audio_path = Path(job.audio_file_path)
-        result = diarize_audio(audio_path, job.session_id, language="es", persist=False)
+        # Use cached result if available (no re-processing)
+        if job.result_data:
+            logger.info("EXPORT_FROM_CACHE", job_id=job_id, format=format)
+            result_data = job.result_data
+        else:
+            # Fallback: Re-process audio (should be rare)
+            logger.warning("EXPORT_REPROCESSING_LEGACY", job_id=job_id)
+            audio_path = Path(job.audio_file_path)
+            result = diarize_audio(audio_path, job.session_id, language="es", persist=False)
+            result_data = asdict(result) if hasattr(result, '__dataclass_fields__') else result
 
-        content = export_diarization(result, format)
+        content = export_diarization(result_data if isinstance(result_data, dict) else
+                                    DiarizationResult(**result_data), format)
 
         if format == "json":
             return Response(
@@ -572,10 +681,11 @@ async def diarization_health():
     Health check for diarization service.
 
     Returns:
-        - status: operational (all ok) | degraded (whisper ok, llm off/unavailable) | down (whisper unavailable)
-        - whisper: bool (ASR availability)
-        - llm: bool (Ollama availability)
+        - status: operational | degraded | down
+        - whisper: bool (ASR availability) - ALSO returns as whisper_available for frontend compatibility
+        - llm: bool (Ollama availability) - ALSO returns as ollama_available for frontend compatibility
         - enrichment_enabled: bool (FI_ENRICHMENT status)
+        - message: human-readable status
     """
     from backend.whisper_service import is_whisper_available
     from backend.diarization_service import check_ollama_available, FI_ENRICHMENT, ENABLE_LLM_CLASSIFICATION
@@ -598,8 +708,13 @@ async def diarization_health():
 
     return {
         "status": status_text,
+        # Legacy field names (for backward compatibility)
         "whisper": whisper_ok,
         "llm": llm_ok,
+        # Frontend field names (FI-UI-FEAT-207)
+        "whisper_available": whisper_ok,
+        "ollama_available": llm_ok,
+        # Metadata
         "enrichment_enabled": enrichment_enabled,
         "message": f"Diarization service {status_text}"
     }
