@@ -118,15 +118,15 @@ def add_corpus_identity(
             metadata = f["metadata"]
 
             # Check if identity already exists
-            if "corpus_id" in metadata.attrs:
-                existing_id = metadata.attrs["corpus_id"]
+            if "corpus_id" in metadata.attrs:  # type: ignore[attr-defined]
+                existing_id = metadata.attrs["corpus_id"]  # type: ignore[attr-defined]
                 raise ValueError(
                     f"Corpus already has identity (corpus_id: {existing_id}). " + "Cannot overwrite."
                 )
 
             # Add identity attributes
-            metadata.attrs["corpus_id"] = corpus_id
-            metadata.attrs["owner_hash"] = owner_hash
+            metadata.attrs["corpus_id"] = corpus_id  # type: ignore[attr-defined]
+            metadata.attrs["owner_hash"] = owner_hash  # type: ignore[attr-defined]
 
         logger.info(
             "CORPUS_IDENTITY_ADDED",
@@ -176,13 +176,13 @@ def verify_corpus_ownership(
         with h5py.File(corpus_path, "r") as f:
             metadata = f["metadata"]
 
-            if "owner_hash" not in metadata.attrs:
+            if "owner_hash" not in metadata.attrs:  # type: ignore[attr-defined]
                 logger.warning(
                     "CORPUS_VERIFICATION_FAILED", reason="No owner_hash attribute", path=corpus_path
                 )
                 return False
 
-            stored_hash = metadata.attrs["owner_hash"]
+            stored_hash = metadata.attrs["owner_hash"]  # type: ignore[attr-defined]
 
         # Generate hash from provided identifier
         computed_hash = generate_owner_hash(owner_identifier, salt=salt)
@@ -226,16 +226,16 @@ def get_corpus_identity(corpus_path: str) -> Optional[dict]:
         with h5py.File(corpus_path, "r") as f:
             metadata = f["metadata"]
 
-            if "corpus_id" not in metadata.attrs or "owner_hash" not in metadata.attrs:
+            if "corpus_id" not in metadata.attrs or "owner_hash" not in metadata.attrs:  # type: ignore[attr-defined]
                 logger.info("CORPUS_IDENTITY_NOT_SET", path=corpus_path)
                 return None
 
             identity = {
-                "corpus_id": metadata.attrs["corpus_id"],
-                "owner_hash": metadata.attrs["owner_hash"],
-                "created_at": metadata.attrs.get("created_at"),
-                "version": metadata.attrs.get("version"),
-                "schema_version": metadata.attrs.get("schema_version"),
+                "corpus_id": metadata.attrs["corpus_id"],  # type: ignore[attr-defined]
+                "owner_hash": metadata.attrs["owner_hash"],  # type: ignore[attr-defined]
+                "created_at": metadata.attrs.get("created_at"),  # type: ignore[attr-defined]
+                "version": metadata.attrs.get("version"),  # type: ignore[attr-defined]
+                "schema_version": metadata.attrs.get("schema_version"),  # type: ignore[attr-defined]
             }
 
             logger.info("IDENTITY_METADATA_READ", corpus_id=identity["corpus_id"], path=corpus_path)

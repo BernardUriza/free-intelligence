@@ -43,8 +43,8 @@ class SessionRepository(BaseRepository):
         """Ensure required HDF5 structure exists."""
         try:
             with self._open_file("a") as f:
-                f.require_group(self.SESSIONS_GROUP)
-                f.require_group(self.METADATA_GROUP)
+                f.require_group(self.SESSIONS_GROUP)  # type: ignore[attr-defined]
+                f.require_group(self.METADATA_GROUP)  # type: ignore[attr-defined]
             logger.info("SESSION_STRUCTURE_READY", path=str(self.h5_file_path))
         except OSError as e:
             logger.error("SESSION_STRUCTURE_INIT_FAILED", error=str(e))
@@ -77,11 +77,11 @@ class SessionRepository(BaseRepository):
             with self._open_file("r+") as f:
                 sessions_group = f[self.SESSIONS_GROUP]
 
-                if session_id in sessions_group:
+                if session_id in sessions_group:  # type: ignore[operator]
                     raise ValueError(f"Session {session_id} already exists")
 
                 # Create session group
-                session_group = sessions_group.create_group(session_id)
+                session_group = sessions_group.create_group(session_id)  # type: ignore[attr-defined]
 
                 # Store basic session info
                 session_group.attrs["created_at"] = datetime.now(timezone.utc).isoformat()
@@ -115,7 +115,7 @@ class SessionRepository(BaseRepository):
         """
         try:
             with self._open_file("r") as f:
-                if session_id not in f[self.SESSIONS_GROUP]:
+                if session_id not in f[self.SESSIONS_GROUP]:  # type: ignore[operator]
                     return None
 
                 session_group = f[self.SESSIONS_GROUP][session_id]  # type: ignore[index]
@@ -149,7 +149,7 @@ class SessionRepository(BaseRepository):
         """
         try:
             with self._open_file("r+") as f:
-                if session_id not in f[self.SESSIONS_GROUP]:
+                if session_id not in f[self.SESSIONS_GROUP]:  # type: ignore[operator]
                     return False
 
                 session_group = f[self.SESSIONS_GROUP][session_id]  # type: ignore[index]
@@ -184,7 +184,7 @@ class SessionRepository(BaseRepository):
         """
         try:
             with self._open_file("r+") as f:
-                if session_id not in f[self.SESSIONS_GROUP]:
+                if session_id not in f[self.SESSIONS_GROUP]:  # type: ignore[operator]
                     return False
 
                 session_group = f[self.SESSIONS_GROUP][session_id]  # type: ignore[index]

@@ -52,9 +52,9 @@ class CorpusRepository(BaseRepository):
         """Ensure required HDF5 group structure exists."""
         try:
             with self._open_file("a") as f:
-                f.require_group(self.DOCUMENTS_GROUP)
-                f.require_group(self.CHUNKS_GROUP)
-                f.require_group(self.METADATA_GROUP)
+                f.require_group(self.DOCUMENTS_GROUP)  # type: ignore[attr-defined]
+                f.require_group(self.CHUNKS_GROUP)  # type: ignore[attr-defined]
+                f.require_group(self.METADATA_GROUP)  # type: ignore[attr-defined]
             logger.info("CORPUS_STRUCTURE_READY", path=str(self.h5_file_path))
         except OSError as e:
             logger.error("CORPUS_STRUCTURE_INIT_FAILED", error=str(e))
@@ -88,14 +88,14 @@ class CorpusRepository(BaseRepository):
                 doc_group = f[self.DOCUMENTS_GROUP]
 
                 # Append-only: check if document already exists
-                if document_id in doc_group:
+                if document_id in doc_group:  # type: ignore[operator]
                     raise ValueError(f"Document {document_id} already exists")
 
                 # Create document dataset
-                dataset = doc_group.create_dataset(
+                dataset = doc_group.create_dataset(  # type: ignore[attr-defined]
                     document_id,
                     data=content.encode("utf-8"),
-                    dtype=h5py.string_dtype(encoding="utf-8"),
+                    dtype=h5py.string_dtype(encoding="utf-8"),  # type: ignore[attr-defined]
                 )
 
                 # Store metadata
@@ -127,7 +127,7 @@ class CorpusRepository(BaseRepository):
         """
         try:
             with self._open_file("r") as f:
-                if document_id not in f[self.DOCUMENTS_GROUP]:
+                if document_id not in f[self.DOCUMENTS_GROUP]:  # type: ignore[operator]
                     return None
 
                 dataset = f[self.DOCUMENTS_GROUP][document_id]  # type: ignore[index]
@@ -164,7 +164,7 @@ class CorpusRepository(BaseRepository):
         """
         try:
             with self._open_file("r+") as f:
-                if document_id not in f[self.DOCUMENTS_GROUP]:
+                if document_id not in f[self.DOCUMENTS_GROUP]:  # type: ignore[operator]
                     return False
 
                 dataset = f[self.DOCUMENTS_GROUP][document_id]  # type: ignore[index]
@@ -199,7 +199,7 @@ class CorpusRepository(BaseRepository):
         """
         try:
             with self._open_file("r+") as f:
-                if document_id not in f[self.DOCUMENTS_GROUP]:
+                if document_id not in f[self.DOCUMENTS_GROUP]:  # type: ignore[operator]
                     return False
 
                 dataset = f[self.DOCUMENTS_GROUP][document_id]  # type: ignore[index]
@@ -257,7 +257,7 @@ class CorpusRepository(BaseRepository):
 
             with self._open_file("r+") as f:
                 chunks_group = f[self.CHUNKS_GROUP]
-                chunk_group = chunks_group.create_group(chunk_id)
+                chunk_group = chunks_group.create_group(chunk_id)  # type: ignore[attr-defined]
 
                 # Store chunk data
                 for key, value in chunk.items():

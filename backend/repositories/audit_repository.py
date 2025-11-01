@@ -45,7 +45,7 @@ class AuditRepository(BaseRepository):
         """Ensure required HDF5 structure exists."""
         try:
             with self._open_file("a") as f:
-                f.require_group(self.AUDIT_LOGS_GROUP)
+                f.require_group(self.AUDIT_LOGS_GROUP)  # type: ignore[attr-defined]
             logger.info("AUDIT_STRUCTURE_READY", path=str(self.h5_file_path))
         except OSError as e:
             logger.error("AUDIT_STRUCTURE_INIT_FAILED", error=str(e))
@@ -76,7 +76,7 @@ class AuditRepository(BaseRepository):
 
             with self._open_file("r+") as f:
                 logs_group = f[self.AUDIT_LOGS_GROUP]
-                log_group = logs_group.create_group(log_id)
+                log_group = logs_group.create_group(log_id)  # type: ignore[attr-defined]
 
                 # Store log data
                 log_group.attrs["timestamp"] = audit_log.get(
@@ -109,7 +109,7 @@ class AuditRepository(BaseRepository):
         """
         try:
             with self._open_file("r") as f:
-                if log_id not in f[self.AUDIT_LOGS_GROUP]:
+                if log_id not in f[self.AUDIT_LOGS_GROUP]:  # type: ignore[operator]
                     return None
 
                 log_group = f[self.AUDIT_LOGS_GROUP][log_id]  # type: ignore[index]

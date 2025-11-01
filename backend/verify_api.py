@@ -136,7 +136,7 @@ def compute_session_hash(session_id: str) -> str:
                 interaction_group = session_group[int_id]  # type: ignore[index]
 
                 # Read content_hash from metadata (attribute or dataset)
-                if "metadata" in interaction_group:
+                if "metadata" in interaction_group:  # type: ignore[operator]
                     metadata_ds = interaction_group["metadata"]  # type: ignore[index]
                     content_hash = (
                         metadata_ds.attrs.get("content_hash", b"").decode()  # type: ignore[attr-defined]
@@ -215,7 +215,7 @@ def verify_session_integrity(session_id: str) -> dict[str, Any]:
                 session_group = corpus[session_path]
 
                 # Check if metadata dataset exists with timestamps
-                if "metadata" in session_group:
+                if "metadata" in session_group:  # type: ignore[operator]
                     metadata_ds = session_group["metadata"]  # type: ignore[index]
 
                     # Check for created_at and updated_at attributes
@@ -344,7 +344,7 @@ async def verify_interaction_endpoint(request: InteractionVerifyRequest):
 
             # Read content_hash from metadata
             content_hash = ""
-            if "metadata" in interaction_group:
+            if "metadata" in interaction_group:  # type: ignore[operator]
                 metadata_ds = interaction_group["metadata"]  # type: ignore[index]
                 content_hash = (
                     metadata_ds.attrs.get("content_hash", b"").decode()  # type: ignore[attr-defined]

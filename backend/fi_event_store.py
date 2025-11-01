@@ -33,7 +33,7 @@ Usage:
 
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime  # type: ignore[attr-defined]
 from pathlib import Path
 from typing import Any, Optional
 
@@ -137,13 +137,13 @@ class EventStore:
         Returns:
             Consultation group
         """
-        consultations_group = h5file.require_group("/consultations")
+        consultations_group = h5file.require_group("/consultations")  # type: ignore[attr-defined]
         consultation_group = consultations_group.require_group(consultation_id)
 
         # Ensure events dataset exists
         if "events" not in consultation_group:
             # Create expandable dataset for events
-            dt = h5py.special_dtype(vlen=str)
+            dt = h5py.special_dtype(vlen=str)  # type: ignore[attr-defined]
             consultation_group.create_dataset(
                 "events",
                 shape=(0,),
@@ -358,13 +358,13 @@ class EventStore:
             consultation_group = h5file[consultation_path]
 
             # Ensure snapshots group
-            snapshots_group = consultation_group.require_group("snapshots")
+            snapshots_group = consultation_group.require_group("snapshots")  # type: ignore[attr-defined]
 
             # Create snapshot dataset
             snapshot_name = datetime.now(UTC).isoformat()
             snapshot_json = json.dumps(state)
 
-            dt = h5py.special_dtype(vlen=str)
+            dt = h5py.special_dtype(vlen=str)  # type: ignore[attr-defined]
             snapshot_dataset = snapshots_group.create_dataset(
                 snapshot_name, data=snapshot_json, dtype=dt
             )

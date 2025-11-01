@@ -202,7 +202,7 @@ class AutoTimelineGenerator:
             if not current_group:
                 start_new_group = True
             else:
-                time_delta = (candidate.timestamp - current_window_start).total_seconds()
+                time_delta = (candidate.timestamp - current_window_start).total_seconds()  # type: ignore[operator]
                 if time_delta > window_seconds:
                     start_new_group = True
                 elif by_session and candidate.session_id != current_session:

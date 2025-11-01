@@ -75,14 +75,14 @@ class CorpusSchema:
                 if "interactions" in f:
                     interactions = f["interactions"]
                     for dataset_name in cls.INTERACTION_DATASETS:
-                        if dataset_name not in interactions:
+                        if dataset_name not in interactions:  # type: ignore[operator]
                             errors.append(f"Missing dataset: /interactions/{dataset_name}")
 
                 # Validate embeddings group structure
                 if "embeddings" in f:
                     embeddings = f["embeddings"]
                     for dataset_name in cls.EMBEDDING_DATASETS:
-                        if dataset_name not in embeddings:
+                        if dataset_name not in embeddings:  # type: ignore[operator]
                             errors.append(f"Missing dataset: /embeddings/{dataset_name}")
 
         except Exception as e:
@@ -192,8 +192,8 @@ def init_corpus(
 
         # Log initialization with identity info (partial hash for security)
         with h5py.File(corpus_path, "r") as f:
-            corpus_id = f["metadata"].attrs["corpus_id"]
-            owner_hash = f["metadata"].attrs["owner_hash"]
+            corpus_id = f["metadata"].attrs["corpus_id"]  # type: ignore[attr-defined]
+            owner_hash = f["metadata"].attrs["owner_hash"]  # type: ignore[attr-defined]
 
         logger.info(
             "CORPUS_INITIALIZED",

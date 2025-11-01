@@ -254,10 +254,10 @@ def export_range_to_hdf5(
 
         # Copy filtered data
         n_filtered = len(filtered_indices)
-        for dataset_name in src_group.keys():
+        for dataset_name in src_group.keys():  # type: ignore[attr-defined]
             src_dataset = src_group[dataset_name]
-            dtype = src_dataset.dtype
-            maxshape = src_dataset.maxshape
+            dtype = src_dataset.dtype  # type: ignore[attr-defined]
+            maxshape = src_dataset.maxshape  # type: ignore[attr-defined]
 
             # Create new dataset with filtered size
             dst_dataset = dst_group.create_dataset(
@@ -277,7 +277,7 @@ def export_range_to_hdf5(
         if "/metadata" in f_src:
             src_meta = f_src["/metadata"]
             dst_meta = f_dst.create_group("/metadata")
-            for attr_name, attr_value in src_meta.attrs.items():
+            for attr_name, attr_value in src_meta.attrs.items():  # type: ignore[attr-defined]
                 dst_meta.attrs[attr_name] = attr_value
             dst_meta.attrs["exported_at"] = datetime.now().isoformat()
             dst_meta.attrs["original_corpus"] = str(corpus_path)

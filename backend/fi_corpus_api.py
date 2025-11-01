@@ -21,7 +21,7 @@ Usage:
 
 import os
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime  # type: ignore[attr-defined]
 from pathlib import Path
 from typing import Any
 
@@ -183,7 +183,7 @@ async def get_corpus_stats():
 
             # Get total tokens
             tokens = interactions["tokens"][:]  # type: ignore[index]
-            total_tokens = int(tokens.sum())
+            total_tokens = int(tokens.sum())  # type: ignore[attr-defined]
 
             # Get date range
             timestamps_raw = interactions["timestamp"][:]  # type: ignore[index]
