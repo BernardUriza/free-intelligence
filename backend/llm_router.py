@@ -14,7 +14,7 @@ Philosophy: Provider-agnostic design. No vendor lock-in.
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -203,7 +203,7 @@ class ClaudeProvider(LLMProvider):
 
         self.logger.info("CLAUDE_GENERATE_STARTED", model=model, prompt_length=len(prompt))
 
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         try:
             message = self.client.messages.create(
@@ -214,7 +214,7 @@ class ClaudeProvider(LLMProvider):
                 timeout=self.timeout,
             )
 
-            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             # Extract response content
             content = message.content[0].text if message.content else ""
@@ -348,7 +348,7 @@ class OllamaProvider(LLMProvider):
             base_url=self.base_url,
         )
 
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         try:
             # Call Ollama API
@@ -361,7 +361,7 @@ class OllamaProvider(LLMProvider):
                 },
             )
 
-            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             # Extract response
             content = response["message"]["content"]

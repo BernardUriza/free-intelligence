@@ -17,7 +17,7 @@ Endpoints:
 - PATCH /api/sessions/{id} -> update session
 """
 
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -193,7 +193,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
     if last_active is None and (
         request.status is not None or request.interaction_count is not None
     ):
-        last_active = datetime.now(UTC).isoformat() + "Z"
+        last_active = datetime.now(timezone.utc).isoformat() + "Z"
 
     session = store.update(
         session_id=session_id,

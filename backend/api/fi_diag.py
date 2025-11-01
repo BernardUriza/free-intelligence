@@ -9,7 +9,7 @@ Endpoints para health checks y diagnósticos del sistema.
 import os
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -132,7 +132,7 @@ async def health_check():
 
     return HealthStatus(
         status=overall_status,
-        timestamp=datetime.now(UTC).isoformat() + "Z",
+        timestamp=datetime.now(timezone.utc).isoformat() + "Z",
         checks=checks,
         version="0.1.0",
     )
@@ -266,7 +266,7 @@ async def readiness_check():
     if not corpus_path.parent.exists():
         return {"ready": False, "reason": "Storage directory not found"}
 
-    return {"ready": True, "timestamp": datetime.now(UTC).isoformat() + "Z"}
+    return {"ready": True, "timestamp": datetime.now(timezone.utc).isoformat() + "Z"}
 
 
 @router.get("/liveness")
@@ -278,6 +278,6 @@ async def liveness_check():
     """
     return {
         "alive": True,
-        "timestamp": datetime.now(UTC).isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         "pid": os.getpid(),
     }

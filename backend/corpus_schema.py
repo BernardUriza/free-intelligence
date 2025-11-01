@@ -25,20 +25,20 @@ class CorpusSchema:
 
     # Dataset specifications for interactions
     INTERACTION_DATASETS = {
-        "session_id": {"dtype": h5py.string_dtype(encoding="utf-8")},
-        "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")},
-        "timestamp": {"dtype": h5py.string_dtype(encoding="utf-8")},
-        "prompt": {"dtype": h5py.string_dtype(encoding="utf-8")},
-        "response": {"dtype": h5py.string_dtype(encoding="utf-8")},
-        "model": {"dtype": h5py.string_dtype(encoding="utf-8")},
+        "session_id": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
+        "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
+        "timestamp": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
+        "prompt": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
+        "response": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
+        "model": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
         "tokens": {"dtype": "int32"},
     }
 
     # Dataset specifications for embeddings
     EMBEDDING_DATASETS = {
-        "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")},
+        "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
         "vector": {"dtype": "float32"},  # Will be 2D array
-        "model": {"dtype": h5py.string_dtype(encoding="utf-8")},
+        "model": {"dtype": h5py.string_dtype(encoding="utf-8")  # type: ignore[attr-defined]},
     }
 
     @classmethod

@@ -278,14 +278,18 @@ async def upload_audio_for_diarization(
         )
 
     # Validate file extension
-    ext: str = ""
-    if audio.filename:
-        ext = audio.filename.rsplit(".", 1)[-1].lower()
-        if ext not in ALLOWED_EXTENSIONS:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported format. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
-            )
+    if not audio.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must have a filename with extension (e.g., audio.mp3)",
+        )
+
+    ext: str = audio.filename.rsplit(".", 1)[-1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported format. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
+        )
 
     # Read file
     audio_content = await audio.read()

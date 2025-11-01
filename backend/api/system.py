@@ -12,7 +12,7 @@ Endpoints:
 """
 
 import subprocess
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any
 
 from fastapi import APIRouter
@@ -160,5 +160,5 @@ async def get_system_health() -> SystemHealthResponse:
         ok=critical_ok,
         services=services,
         version="v0.3.0",
-        time=datetime.now(UTC).isoformat() + "Z",
+        time=datetime.now(timezone.utc).isoformat() + "Z",
     )

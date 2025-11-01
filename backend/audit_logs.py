@@ -21,39 +21,39 @@ import h5py  # type: ignore
 # Audit log schema
 AUDIT_LOG_SCHEMA = {
     "audit_id": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=36),
+        "dtype": h5py.string_dtype(encoding="utf-8", length=36)  # type: ignore[attr-defined],
         "description": "UUID v4 for audit entry",
     },
     "timestamp": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=50),
+        "dtype": h5py.string_dtype(encoding="utf-8", length=50)  # type: ignore[attr-defined],
         "description": "ISO 8601 timestamp with timezone",
     },
     "operation": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=100),
+        "dtype": h5py.string_dtype(encoding="utf-8", length=100)  # type: ignore[attr-defined],
         "description": "Operation name (e.g., INTERACTION_APPENDED)",
     },
     "user_id": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=100),
+        "dtype": h5py.string_dtype(encoding="utf-8", length=100)  # type: ignore[attr-defined],
         "description": "User identifier (owner_hash prefix or session_id)",
     },
     "endpoint": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=200),
+        "dtype": h5py.string_dtype(encoding="utf-8", length=200)  # type: ignore[attr-defined],
         "description": "API endpoint or function name",
     },
     "payload_hash": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=64),
+        "dtype": h5py.string_dtype(encoding="utf-8", length=64)  # type: ignore[attr-defined],
         "description": "SHA256 hash of input payload",
     },
     "result_hash": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=64),
+        "dtype": h5py.string_dtype(encoding="utf-8", length=64)  # type: ignore[attr-defined],
         "description": "SHA256 hash of operation result",
     },
     "status": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=20),
+        "dtype": h5py.string_dtype(encoding="utf-8", length=20)  # type: ignore[attr-defined],
         "description": "SUCCESS, FAILED, BLOCKED",
     },
     "metadata": {
-        "dtype": h5py.string_dtype(encoding="utf-8", length=500),
+        "dtype": h5py.string_dtype(encoding="utf-8", length=500)  # type: ignore[attr-defined],
         "description": "JSON metadata (optional)",
     },
 }
