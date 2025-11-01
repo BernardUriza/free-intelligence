@@ -118,8 +118,8 @@ class SessionRepository(BaseRepository):
                 if session_id not in f[self.SESSIONS_GROUP]:
                     return None
 
-                session_group = f[self.SESSIONS_GROUP][session_id]
-                metadata = dict(session_group.attrs)
+                session_group = f[self.SESSIONS_GROUP][session_id]  # type: ignore[index]
+                metadata = dict(session_group.attrs)  # type: ignore[attr-defined]
 
                 return {
                     "session_id": session_id,
@@ -152,19 +152,19 @@ class SessionRepository(BaseRepository):
                 if session_id not in f[self.SESSIONS_GROUP]:
                     return False
 
-                session_group = f[self.SESSIONS_GROUP][session_id]
+                session_group = f[self.SESSIONS_GROUP][session_id]  # type: ignore[index]
 
                 if status:
-                    session_group.attrs["status"] = status
+                    session_group.attrs["status"] = status  # type: ignore[attr-defined]
 
                 if metadata:
                     for key, value in metadata.items():
                         if isinstance(value, (str, int, float, bool)):
-                            session_group.attrs[key] = value
+                            session_group.attrs[key] = value  # type: ignore[attr-defined]
                         elif isinstance(value, (list, dict)):
-                            session_group.attrs[key] = json.dumps(value)
+                            session_group.attrs[key] = json.dumps(value)  # type: ignore[attr-defined]
 
-                session_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()
+                session_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()  # type: ignore[attr-defined]
 
             self._log_operation("update", session_id)
             return True
@@ -187,9 +187,9 @@ class SessionRepository(BaseRepository):
                 if session_id not in f[self.SESSIONS_GROUP]:
                     return False
 
-                session_group = f[self.SESSIONS_GROUP][session_id]
-                session_group.attrs["status"] = "deleted"
-                session_group.attrs["deleted_at"] = datetime.now(timezone.utc).isoformat()
+                session_group = f[self.SESSIONS_GROUP][session_id]  # type: ignore[index]
+                session_group.attrs["status"] = "deleted"  # type: ignore[attr-defined]
+                session_group.attrs["deleted_at"] = datetime.now(timezone.utc).isoformat()  # type: ignore[attr-defined]
 
             self._log_operation("delete", session_id)
             return True
@@ -211,7 +211,7 @@ class SessionRepository(BaseRepository):
         try:
             with self._open_file("r") as f:
                 sessions_group = f[self.SESSIONS_GROUP]
-                session_ids = list(sessions_group.keys())
+                session_ids = list(sessions_group.keys())  # type: ignore[attr-defined]
 
                 if limit:
                     session_ids = session_ids[:limit]

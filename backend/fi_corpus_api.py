@@ -171,10 +171,10 @@ async def get_corpus_stats():
             interactions = f["interactions"]
 
             # Get total interactions
-            total_interactions = interactions["session_id"].shape[0]
+            total_interactions = interactions["session_id"].shape[0]  # type: ignore[index]
 
             # Get unique sessions
-            session_ids_raw = interactions["session_id"][:]
+            session_ids_raw = interactions["session_id"][:]  # type: ignore[index]
             session_ids = [
                 s.decode("utf-8") if isinstance(s, bytes) else str(s) for s in session_ids_raw
             ]
@@ -182,11 +182,11 @@ async def get_corpus_stats():
             total_sessions = len(unique_sessions)
 
             # Get total tokens
-            tokens = interactions["tokens"][:]
+            tokens = interactions["tokens"][:]  # type: ignore[index]
             total_tokens = int(tokens.sum())
 
             # Get date range
-            timestamps_raw = interactions["timestamp"][:]
+            timestamps_raw = interactions["timestamp"][:]  # type: ignore[index]
             timestamps = [
                 t.decode("utf-8") if isinstance(t, bytes) else str(t) for t in timestamps_raw
             ]
@@ -194,7 +194,7 @@ async def get_corpus_stats():
             latest = max(timestamps) if len(timestamps) > 0 else ""
 
             # Get models used
-            models_raw = interactions["model"][:]
+            models_raw = interactions["model"][:]  # type: ignore[index]
             models = [m.decode("utf-8") if isinstance(m, bytes) else str(m) for m in models_raw]
             models_count: dict[str, int] = defaultdict(int)
             for model in models:
@@ -248,10 +248,10 @@ async def get_sessions_summary(
             interactions = f["interactions"]
 
             # Read all data
-            session_ids_raw = interactions["session_id"][:]
-            timestamps_raw = interactions["timestamp"][:]
-            prompts_raw = interactions["prompt"][:]
-            tokens = interactions["tokens"][:]
+            session_ids_raw = interactions["session_id"][:]  # type: ignore[index]
+            timestamps_raw = interactions["timestamp"][:]  # type: ignore[index]
+            prompts_raw = interactions["prompt"][:]  # type: ignore[index]
+            tokens = interactions["tokens"][:]  # type: ignore[index]
 
             # Decode bytes to strings
             session_ids = [
@@ -279,7 +279,7 @@ async def get_sessions_summary(
                 session_data = sessions_data[session_id]
 
                 session_data["interaction_count"] += 1
-                session_data["total_tokens"] += int(tokens[i])
+                session_data["total_tokens"] += int(tokens[i])  # type: ignore[index]
                 session_data["timestamps"].append(timestamps[i])
 
                 # Store first prompt as preview
@@ -338,13 +338,13 @@ async def get_session_detail(
             interactions = f["interactions"]
 
             # Read all data
-            session_ids_raw = interactions["session_id"][:]
-            interaction_ids_raw = interactions["interaction_id"][:]
-            timestamps_raw = interactions["timestamp"][:]
-            prompts_raw = interactions["prompt"][:]
-            responses_raw = interactions["response"][:]
-            models_raw = interactions["model"][:]
-            tokens = interactions["tokens"][:]
+            session_ids_raw = interactions["session_id"][:]  # type: ignore[index]
+            interaction_ids_raw = interactions["interaction_id"][:]  # type: ignore[index]
+            timestamps_raw = interactions["timestamp"][:]  # type: ignore[index]
+            prompts_raw = interactions["prompt"][:]  # type: ignore[index]
+            responses_raw = interactions["response"][:]  # type: ignore[index]
+            models_raw = interactions["model"][:]  # type: ignore[index]
+            tokens = interactions["tokens"][:]  # type: ignore[index]
 
             # Decode bytes to strings
             session_ids = [
@@ -376,11 +376,11 @@ async def get_session_detail(
                             "prompt": prompts[i],
                             "response": responses[i],
                             "model": models[i],
-                            "tokens": int(tokens[i]),
+                            "tokens": int(tokens[i]),  # type: ignore[index]
                         }
                     )
                     session_timestamps.append(timestamps[i])
-                    total_tokens += int(tokens[i])
+                    total_tokens += int(tokens[i])  # type: ignore[index]
 
             if not session_interactions:
                 raise HTTPException(

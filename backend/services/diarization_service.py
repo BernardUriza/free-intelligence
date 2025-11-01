@@ -350,3 +350,68 @@ class DiarizationService:
             jobs = jobs[:limit]
 
         return jobs
+
+    def health_check(self) -> dict[str, Any]:
+        """Check diarization service health.
+
+        Returns:
+            Health status dict with status and details
+        """
+        health_details = {
+            "service": "diarization",
+            "status": "healthy",
+            "components": {},
+        }
+
+        # Check Whisper availability
+        try:
+            import torch
+            from faster_whisper import WhisperModel
+
+            health_details["components"]["whisper"] = {
+                "available": True,
+                "model": "faster-whisper",
+                "pytorch_available": torch.cuda.is_available(),
+            }
+        except ImportError:
+            health_details["components"]["whisper"] = {
+                "available": False,
+                "reason": "faster-whisper not installed",
+            }
+            health_details["status"] = "degraded"
+        except Exception as e:
+            health_details["components"]["whisper"] = {
+                "available": False,
+                "reason": str(e),
+            }
+            health_details["status"] = "degraded"
+
+        # Check FFmpeg availability
+        try:
+            import subprocess
+
+            result = subprocess.run(["ffmpeg", "-version"], capture_output=True, timeout=2)
+            if result.returncode == 0:
+                health_details["components"]["ffmpeg"] = {
+                    "available": True,
+                    "version": "installed",
+                }
+            else:
+                health_details["components"]["ffmpeg"] = {
+                    "available": False,
+                    "reason": "ffmpeg command failed",
+                }
+                health_details["status"] = "degraded"
+        except Exception as e:
+            health_details["components"]["ffmpeg"] = {
+                "available": False,
+                "reason": str(e),
+            }
+            health_details["status"] = "degraded"
+
+        # Check active jobs
+        active_job_count = len(self.active_jobs)
+        health_details["active_jobs"] = active_job_count
+
+        logger.info(f"DIARIZATION_HEALTH_CHECK: status={health_details['status']}")
+        return health_details

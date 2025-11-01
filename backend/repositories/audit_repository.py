@@ -112,20 +112,20 @@ class AuditRepository(BaseRepository):
                 if log_id not in f[self.AUDIT_LOGS_GROUP]:
                     return None
 
-                log_group = f[self.AUDIT_LOGS_GROUP][log_id]
+                log_group = f[self.AUDIT_LOGS_GROUP][log_id]  # type: ignore[index]
                 log_data: dict[str, Any] = {
                     "log_id": log_id,
-                    "timestamp": log_group.attrs.get("timestamp", ""),
-                    "action": log_group.attrs.get("action", ""),
-                    "user_id": log_group.attrs.get("user_id", ""),
-                    "resource": log_group.attrs.get("resource", ""),
-                    "result": log_group.attrs.get("result", ""),
+                    "timestamp": log_group.attrs.get("timestamp", ""),  # type: ignore[attr-defined]
+                    "action": log_group.attrs.get("action", ""),  # type: ignore[attr-defined]
+                    "user_id": log_group.attrs.get("user_id", ""),  # type: ignore[attr-defined]
+                    "resource": log_group.attrs.get("resource", ""),  # type: ignore[attr-defined]
+                    "result": log_group.attrs.get("result", ""),  # type: ignore[attr-defined]
                 }
 
                 # Parse details if present
-                if "details" in log_group.attrs:
+                if "details" in log_group.attrs:  # type: ignore[attr-defined]
                     try:
-                        log_data["details"] = json.loads(log_group.attrs["details"])
+                        log_data["details"] = json.loads(log_group.attrs["details"])  # type: ignore[attr-defined]
                     except json.JSONDecodeError:
                         log_data["details"] = {}
 
@@ -172,7 +172,7 @@ class AuditRepository(BaseRepository):
         try:
             with self._open_file("r") as f:
                 logs_group = f[self.AUDIT_LOGS_GROUP]
-                log_ids = sorted(logs_group.keys(), reverse=True)  # Most recent first
+                log_ids = sorted(logs_group.keys(), reverse=True)  # Most recent first  # type: ignore[attr-defined]
 
                 if limit:
                     log_ids = log_ids[:limit]
@@ -218,7 +218,7 @@ class AuditRepository(BaseRepository):
                 logs_group = f[self.AUDIT_LOGS_GROUP]
                 results = []
 
-                for log_id in logs_group.keys():
+                for log_id in logs_group.keys():  # type: ignore[attr-defined]
                     log_data = self.read(log_id)
                     if not log_data:
                         continue

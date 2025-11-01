@@ -127,21 +127,21 @@ def compute_session_hash(session_id: str) -> str:
 
             # Collect all interaction hashes in order
             interaction_ids = sorted(
-                [k for k in session_group.keys() if k.startswith("interaction_")]
+                [k for k in session_group.keys() if k.startswith("interaction_")]  # type: ignore[attr-defined]
             )
 
             hash_chain = hashlib.sha256()
 
             for int_id in interaction_ids:
-                interaction_group = session_group[int_id]
+                interaction_group = session_group[int_id]  # type: ignore[index]
 
                 # Read content_hash from metadata (attribute or dataset)
                 if "metadata" in interaction_group:
-                    metadata_ds = interaction_group["metadata"]
+                    metadata_ds = interaction_group["metadata"]  # type: ignore[index]
                     content_hash = (
-                        metadata_ds.attrs.get("content_hash", b"").decode()
-                        if isinstance(metadata_ds.attrs.get("content_hash"), bytes)
-                        else str(metadata_ds.attrs.get("content_hash", ""))
+                        metadata_ds.attrs.get("content_hash", b"").decode()  # type: ignore[attr-defined]
+                        if isinstance(metadata_ds.attrs.get("content_hash"), bytes)  # type: ignore[attr-defined]
+                        else str(metadata_ds.attrs.get("content_hash", ""))  # type: ignore[attr-defined]
                     )
 
                     if content_hash:
@@ -191,7 +191,7 @@ def verify_session_integrity(session_id: str) -> dict[str, Any]:
             if session_path in corpus:
                 # Basic check: verify session exists and has interactions
                 session_group = corpus[session_path]
-                has_interactions = any(k.startswith("interaction_") for k in session_group.keys())
+                has_interactions = any(k.startswith("interaction_") for k in session_group.keys())  # type: ignore[attr-defined]
 
                 if has_interactions:
                     results["policy_compliant"] = "OK"
@@ -216,11 +216,11 @@ def verify_session_integrity(session_id: str) -> dict[str, Any]:
 
                 # Check if metadata dataset exists with timestamps
                 if "metadata" in session_group:
-                    metadata_ds = session_group["metadata"]
+                    metadata_ds = session_group["metadata"]  # type: ignore[index]
 
                     # Check for created_at and updated_at attributes
-                    has_created = "created_at" in metadata_ds.attrs
-                    has_updated = "updated_at" in metadata_ds.attrs
+                    has_created = "created_at" in metadata_ds.attrs  # type: ignore[attr-defined]
+                    has_updated = "updated_at" in metadata_ds.attrs  # type: ignore[attr-defined]
 
                     if has_created and has_updated:
                         results["audit_logged"] = "OK"
@@ -345,11 +345,11 @@ async def verify_interaction_endpoint(request: InteractionVerifyRequest):
             # Read content_hash from metadata
             content_hash = ""
             if "metadata" in interaction_group:
-                metadata_ds = interaction_group["metadata"]
+                metadata_ds = interaction_group["metadata"]  # type: ignore[index]
                 content_hash = (
-                    metadata_ds.attrs.get("content_hash", b"").decode()
-                    if isinstance(metadata_ds.attrs.get("content_hash"), bytes)
-                    else str(metadata_ds.attrs.get("content_hash", ""))
+                    metadata_ds.attrs.get("content_hash", b"").decode()  # type: ignore[attr-defined]
+                    if isinstance(metadata_ds.attrs.get("content_hash"), bytes)  # type: ignore[attr-defined]
+                    else str(metadata_ds.attrs.get("content_hash", ""))  # type: ignore[attr-defined]
                 )
 
         if not content_hash:

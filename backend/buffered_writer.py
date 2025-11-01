@@ -202,23 +202,23 @@ class BufferedHDF5Writer:
                 interactions = f["interactions"]
 
                 # Current size
-                current_size = interactions["session_id"].shape[0]
+                current_size = interactions["session_id"].shape[0]  # type: ignore[index]
                 new_size = current_size + buffer_len
 
                 # Resize all datasets
-                for dataset_name in interactions.keys():
-                    interactions[dataset_name].resize((new_size,))
+                for dataset_name in interactions.keys():  # type: ignore[attr-defined]
+                    interactions[dataset_name].resize((new_size,))  # type: ignore[attr-defined]
 
                 # Write all buffered records
                 for i, record in enumerate(records_to_write):
                     idx = current_size + i
-                    interactions["session_id"][idx] = record["session_id"]
-                    interactions["interaction_id"][idx] = record["interaction_id"]
-                    interactions["timestamp"][idx] = record["timestamp"]
-                    interactions["prompt"][idx] = record["prompt"]
-                    interactions["response"][idx] = record["response"]
-                    interactions["model"][idx] = record["model"]
-                    interactions["tokens"][idx] = record["tokens"]
+                    interactions["session_id"][idx] = record["session_id"]  # type: ignore[index]
+                    interactions["interaction_id"][idx] = record["interaction_id"]  # type: ignore[index]
+                    interactions["timestamp"][idx] = record["timestamp"]  # type: ignore[index]
+                    interactions["prompt"][idx] = record["prompt"]  # type: ignore[index]
+                    interactions["response"][idx] = record["response"]  # type: ignore[index]
+                    interactions["model"][idx] = record["model"]  # type: ignore[index]
+                    interactions["tokens"][idx] = record["tokens"]  # type: ignore[index]
 
             # Success: clear buffer
             with self.lock:
@@ -330,7 +330,7 @@ class BufferedHDF5Writer:
                 interactions = f["interactions"]
 
                 # Check all datasets have same size
-                sizes = [interactions[key].shape[0] for key in interactions.keys()]
+                sizes = [interactions[key].shape[0] for key in interactions.keys()]  # type: ignore[index]
                 if len(set(sizes)) > 1:
                     logger.error(
                         "INTEGRITY_CHECK_FAILED", reason="inconsistent_dataset_sizes", sizes=sizes
