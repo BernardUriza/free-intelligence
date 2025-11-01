@@ -130,13 +130,13 @@ class CorpusRepository(BaseRepository):
                 if document_id not in f[self.DOCUMENTS_GROUP]:
                     return None
 
-                dataset = f[self.DOCUMENTS_GROUP][document_id]
+                dataset = f[self.DOCUMENTS_GROUP][document_id]  # type: ignore[index]
                 content = (
-                    dataset[()].decode("utf-8") if isinstance(dataset[()], bytes) else dataset[()]
+                    dataset[()].decode("utf-8") if isinstance(dataset[()], bytes) else dataset[()]  # type: ignore[index]
                 )
 
                 # Extract metadata
-                metadata = dict(dataset.attrs)
+                metadata = dict(dataset.attrs)  # type: ignore[attr-defined]
                 return {
                     "document_id": document_id,
                     "content": content,
@@ -167,19 +167,19 @@ class CorpusRepository(BaseRepository):
                 if document_id not in f[self.DOCUMENTS_GROUP]:
                     return False
 
-                dataset = f[self.DOCUMENTS_GROUP][document_id]
-                current_version = int(dataset.attrs.get("version", 1))
+                dataset = f[self.DOCUMENTS_GROUP][document_id]  # type: ignore[index]
+                current_version = int(dataset.attrs.get("version", 1))  # type: ignore[attr-defined]
                 new_version = current_version + 1
 
                 # Store new version info
-                dataset.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()
-                dataset.attrs["version"] = new_version
-                dataset.attrs[f"version_{new_version}_content"] = content.encode("utf-8")
+                dataset.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()  # type: ignore[attr-defined]
+                dataset.attrs["version"] = new_version  # type: ignore[attr-defined]
+                dataset.attrs[f"version_{new_version}_content"] = content.encode("utf-8")  # type: ignore[attr-defined]
 
                 if metadata:
                     for key, value in metadata.items():
                         if isinstance(value, (str, int, float, bool)):
-                            dataset.attrs[f"version_{new_version}_{key}"] = value
+                            dataset.attrs[f"version_{new_version}_{key}"] = value  # type: ignore[attr-defined]
 
             self._log_operation("update", document_id)
             return True
@@ -202,9 +202,9 @@ class CorpusRepository(BaseRepository):
                 if document_id not in f[self.DOCUMENTS_GROUP]:
                     return False
 
-                dataset = f[self.DOCUMENTS_GROUP][document_id]
-                dataset.attrs["deleted_at"] = datetime.now(timezone.utc).isoformat()
-                dataset.attrs["is_deleted"] = True
+                dataset = f[self.DOCUMENTS_GROUP][document_id]  # type: ignore[index]
+                dataset.attrs["deleted_at"] = datetime.now(timezone.utc).isoformat()  # type: ignore[attr-defined]
+                dataset.attrs["is_deleted"] = True  # type: ignore[attr-defined]
 
             self._log_operation("delete", document_id)
             return True
@@ -225,7 +225,7 @@ class CorpusRepository(BaseRepository):
         try:
             with self._open_file("r") as f:
                 docs_group = f[self.DOCUMENTS_GROUP]
-                doc_ids = list(docs_group.keys())
+                doc_ids = list(docs_group.keys())  # type: ignore[attr-defined]
 
                 if limit:
                     doc_ids = doc_ids[:limit]
@@ -287,11 +287,11 @@ class CorpusRepository(BaseRepository):
                 chunks_group = f[self.CHUNKS_GROUP]
                 chunks = []
 
-                for chunk_id in chunks_group.keys():
+                for chunk_id in chunks_group.keys():  # type: ignore[attr-defined]
                     if chunk_id.startswith(document_id):
-                        chunk_group = chunks_group[chunk_id]
+                        chunk_group = chunks_group[chunk_id]  # type: ignore[index]
                         chunk_data: DiarizationChunkDict = {}
-                        for key, value in chunk_group.attrs.items():
+                        for key, value in chunk_group.attrs.items():  # type: ignore[attr-defined]
                             chunk_data[key] = value
                         chunks.append(chunk_data)
 

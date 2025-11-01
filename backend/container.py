@@ -26,6 +26,7 @@ from backend.services import (
     TranscriptionService,
     TriageService,
 )
+from backend.services.diarization_job_service import DiarizationJobService
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class DIContainer:
         self._audit_service: Optional[AuditService] = None
         self._corpus_service: Optional[CorpusService] = None
         self._diarization_service: Optional[DiarizationService] = None
+        self._diarization_job_service: Optional[DiarizationJobService] = None
         self._evidence_service: Optional[EvidenceService] = None
         self._export_service: Optional[ExportService] = None
         self._session_service: Optional[SessionService] = None
@@ -212,6 +214,30 @@ class DIContainer:
 
         return self._diarization_service
 
+    def get_diarization_job_service(self) -> DiarizationJobService:
+        """Get or create DiarizationJobService singleton.
+
+        Returns:
+            DiarizationJobService instance
+
+        Raises:
+            IOError: If service initialization fails
+        """
+        if self._diarization_job_service is None:
+            try:
+                # Check if using low-priority worker
+                import os
+
+                use_lowprio = os.getenv("DIARIZATION_LOWPRIO", "true").lower() == "true"
+
+                self._diarization_job_service = DiarizationJobService(use_lowprio=use_lowprio)
+                logger.info(f"DiarizationJobService initialized with use_lowprio={use_lowprio}")
+            except OSError as e:
+                logger.error(f"DIARIZATION_JOB_SERVICE_INIT_FAILED: {str(e)}")
+                raise OSError(f"Failed to initialize DiarizationJobService: {e}") from e
+
+        return self._diarization_job_service
+
     def get_export_service(self) -> ExportService:
         """Get or create ExportService singleton.
 
@@ -302,6 +328,7 @@ class DIContainer:
         self._audit_service = None
         self._corpus_service = None
         self._diarization_service = None
+        self._diarization_job_service = None
         self._evidence_service = None
         self._export_service = None
         self._session_service = None

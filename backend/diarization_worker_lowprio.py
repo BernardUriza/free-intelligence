@@ -477,10 +477,10 @@ class DiarizationWorker:
 
                 # Append chunk
                 chunks_ds = h5[f"{job_group_path}/chunks"]
-                current_size = chunks_ds.shape[0]
-                chunks_ds.resize((current_size + 1,))
+                current_size = chunks_ds.shape[0]  # type: ignore[attr-defined]
+                chunks_ds.resize((current_size + 1,))  # type: ignore[attr-defined]
 
-                chunks_ds[current_size] = (
+                chunks_ds[current_size] = (  # type: ignore[index]
                     chunk.chunk_idx,
                     chunk.start_time,
                     chunk.end_time,
@@ -541,17 +541,17 @@ class DiarizationWorker:
                     )
 
                 job_group = h5[job_group_path]
-                job_group.attrs["status"] = status
-                job_group.attrs["progress_pct"] = progress_pct
-                job_group.attrs["updated_at"] = datetime.now(UTC).isoformat() + "Z"
+                job_group.attrs["status"] = status  # type: ignore[attr-defined]
+                job_group.attrs["progress_pct"] = progress_pct  # type: ignore[attr-defined]
+                job_group.attrs["updated_at"] = datetime.now(UTC).isoformat() + "Z"  # type: ignore[attr-defined]
 
                 # CRITICAL FIX: Persist total_chunks when calculated
                 # This prevents stuck jobs with total_chunks=0
                 if total_chunks is not None:
-                    job_group.attrs["total_chunks"] = total_chunks
+                    job_group.attrs["total_chunks"] = total_chunks  # type: ignore[attr-defined]
 
                 if error:
-                    job_group.attrs["error"] = error
+                    job_group.attrs["error"] = error  # type: ignore[attr-defined]
 
                 h5.flush()
 
@@ -570,7 +570,7 @@ class DiarizationWorker:
                     return None
 
                 job_group = h5[job_group_path]
-                chunks_ds = job_group["chunks"]
+                chunks_ds = job_group["chunks"]  # type: ignore[index]
 
                 # Helper to decode bytes from HDF5
                 def decode_if_bytes(val):
@@ -579,33 +579,33 @@ class DiarizationWorker:
                 # Convert chunks to list of dicts
                 chunks = []
                 for i in range(len(chunks_ds)):
-                    chunk_data = chunks_ds[i]
+                    chunk_data = chunks_ds[i]  # type: ignore[index]
                     chunks.append(
                         {
-                            "chunk_idx": int(chunk_data["chunk_idx"]),
-                            "start_time": float(chunk_data["start_time"]),
-                            "end_time": float(chunk_data["end_time"]),
-                            "text": decode_if_bytes(chunk_data["text"]),
-                            "speaker": decode_if_bytes(chunk_data["speaker"]),
-                            "temperature": float(chunk_data["temperature"]),
-                            "rtf": float(chunk_data["rtf"]),
-                            "timestamp": decode_if_bytes(chunk_data["timestamp"]),
+                            "chunk_idx": int(chunk_data["chunk_idx"]),  # type: ignore[index]
+                            "start_time": float(chunk_data["start_time"]),  # type: ignore[index]
+                            "end_time": float(chunk_data["end_time"]),  # type: ignore[index]
+                            "text": decode_if_bytes(chunk_data["text"]),  # type: ignore[index]
+                            "speaker": decode_if_bytes(chunk_data["speaker"]),  # type: ignore[index]
+                            "temperature": float(chunk_data["temperature"]),  # type: ignore[index]
+                            "rtf": float(chunk_data["rtf"]),  # type: ignore[index]
+                            "timestamp": decode_if_bytes(chunk_data["timestamp"]),  # type: ignore[index]
                         }
                     )
 
                 return {
                     "job_id": job_id,
-                    "session_id": decode_if_bytes(job_group.attrs.get("session_id", "unknown")),
-                    "status": decode_if_bytes(job_group.attrs.get("status", "unknown")),
-                    "progress_pct": job_group.attrs.get("progress_pct", 0),
-                    "total_chunks": job_group.attrs.get("total_chunks", 0),
+                    "session_id": decode_if_bytes(job_group.attrs.get("session_id", "unknown")),  # type: ignore[attr-defined]
+                    "status": decode_if_bytes(job_group.attrs.get("status", "unknown")),  # type: ignore[attr-defined]
+                    "progress_pct": job_group.attrs.get("progress_pct", 0),  # type: ignore[attr-defined]
+                    "total_chunks": job_group.attrs.get("total_chunks", 0),  # type: ignore[attr-defined]
                     "processed_chunks": len(chunks),
                     "chunks": chunks,
-                    "created_at": decode_if_bytes(job_group.attrs.get("created_at", "")),
+                    "created_at": decode_if_bytes(job_group.attrs.get("created_at", "")),  # type: ignore[attr-defined]
                     "updated_at": decode_if_bytes(
-                        job_group.attrs.get("updated_at", job_group.attrs.get("created_at", ""))
+                        job_group.attrs.get("updated_at", job_group.attrs.get("created_at", ""))  # type: ignore[attr-defined]
                     ),
-                    "error": decode_if_bytes(job_group.attrs.get("error", None)),
+                    "error": decode_if_bytes(job_group.attrs.get("error", None)),  # type: ignore[attr-defined]
                 }
 
     def list_all_jobs(
@@ -640,37 +640,37 @@ class DiarizationWorker:
                     return val
 
                 # Iterate through all job groups
-                for job_id in diarization_group.keys():
-                    job_group = diarization_group[job_id]
+                for job_id in diarization_group.keys():  # type: ignore[attr-defined]
+                    job_group = diarization_group[job_id]  # type: ignore[index]
 
                     # Filter by session_id if provided
-                    job_session_id = decode_if_bytes(job_group.attrs.get("session_id", ""))
+                    job_session_id = decode_if_bytes(job_group.attrs.get("session_id", ""))  # type: ignore[attr-defined]
                     if session_id and job_session_id != session_id:
                         continue
 
                     # Get chunk count
-                    chunks_ds = job_group["chunks"]
+                    chunks_ds = job_group["chunks"]  # type: ignore[index]
                     processed_chunks = len(chunks_ds)
 
                     jobs.append(
                         {
                             "job_id": job_id,
                             "session_id": job_session_id,
-                            "status": decode_if_bytes(job_group.attrs.get("status", "unknown")),
+                            "status": decode_if_bytes(job_group.attrs.get("status", "unknown")),  # type: ignore[attr-defined]
                             "progress_pct": int(
-                                decode_if_bytes(job_group.attrs.get("progress_pct", 0))
+                                decode_if_bytes(job_group.attrs.get("progress_pct", 0))  # type: ignore[attr-defined]
                             ),
                             "total_chunks": int(
-                                decode_if_bytes(job_group.attrs.get("total_chunks", 0))
+                                decode_if_bytes(job_group.attrs.get("total_chunks", 0))  # type: ignore[attr-defined]
                             ),
                             "processed_chunks": int(processed_chunks),
-                            "created_at": decode_if_bytes(job_group.attrs.get("created_at", "")),
+                            "created_at": decode_if_bytes(job_group.attrs.get("created_at", "")),  # type: ignore[attr-defined]
                             "updated_at": decode_if_bytes(
-                                job_group.attrs.get(
-                                    "updated_at", job_group.attrs.get("created_at", "")
+                                job_group.attrs.get(  # type: ignore[attr-defined]
+                                    "updated_at", job_group.attrs.get("created_at", "")  # type: ignore[attr-defined]
                                 )
                             ),
-                            "error": decode_if_bytes(job_group.attrs.get("error", None)),
+                            "error": decode_if_bytes(job_group.attrs.get("error", None)),  # type: ignore[attr-defined]
                         }
                     )
 

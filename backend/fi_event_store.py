@@ -190,11 +190,11 @@ class EventStore:
             events_dataset = consultation_group["events"]
 
             # Resize dataset (append-only)
-            current_size = events_dataset.shape[0]
-            events_dataset.resize((current_size + 1,))
+            current_size = events_dataset.shape[0]  # type: ignore[attr-defined]
+            events_dataset.resize((current_size + 1,))  # type: ignore[attr-defined]
 
             # Write event
-            events_dataset[current_size] = event_json
+            events_dataset[current_size] = event_json  # type: ignore[index]
 
             # Update metadata
             consultation_group.attrs["event_count"] = current_size + 1
@@ -233,7 +233,7 @@ class EventStore:
 
             # Get events dataset
             consultation_group = h5file[consultation_path]
-            events_dataset = consultation_group["events"]
+            events_dataset = consultation_group["events"]  # type: ignore[index]
 
             # Load events
             events = []
@@ -279,9 +279,9 @@ class EventStore:
 
             return {
                 "consultation_id": consultation_id,
-                "created_at": consultation_group.attrs.get("created_at"),
-                "updated_at": consultation_group.attrs.get("updated_at"),
-                "event_count": consultation_group.attrs.get("event_count", 0),
+                "created_at": consultation_group.attrs.get("created_at"),  # type: ignore[attr-defined]
+                "updated_at": consultation_group.attrs.get("updated_at"),  # type: ignore[attr-defined]
+                "event_count": consultation_group.attrs.get("event_count", 0),  # type: ignore[attr-defined]
             }
 
     def get_event_count(self, consultation_id: str) -> int:
@@ -329,7 +329,7 @@ class EventStore:
 
             consultations_group = h5file["/consultations"]
 
-            for consultation_id in consultations_group.keys():
+            for consultation_id in consultations_group.keys():  # type: ignore[attr-defined]
                 try:
                     metadata = self.get_consultation_metadata(consultation_id)
                     consultations.append(metadata)
@@ -397,15 +397,15 @@ class EventStore:
 
             snapshots_group = h5file[consultation_path]
 
-            if len(snapshots_group.keys()) == 0:
+            if len(snapshots_group.keys()) == 0:  # type: ignore[attr-defined]
                 return None
 
             # Get latest snapshot (sorted by name = ISO timestamp)
-            snapshot_names = sorted(snapshots_group.keys())
+            snapshot_names = sorted(snapshots_group.keys())  # type: ignore[attr-defined]
             latest_name = snapshot_names[-1]
 
-            snapshot_dataset = snapshots_group[latest_name]
-            snapshot_json = snapshot_dataset[()]
+            snapshot_dataset = snapshots_group[latest_name]  # type: ignore[index]
+            snapshot_json = snapshot_dataset[()]  # type: ignore[index]
 
             return json.loads(snapshot_json)
 
@@ -421,10 +421,10 @@ class EventStore:
                 return {"total_consultations": 0, "total_events": 0, "file_size_mb": 0}
 
             consultations_group = h5file["/consultations"]
-            consultation_count = len(consultations_group.keys())
+            consultation_count = len(consultations_group.keys())  # type: ignore[attr-defined]
 
             total_events = 0
-            for consultation_id in consultations_group.keys():
+            for consultation_id in consultations_group.keys():  # type: ignore[attr-defined]
                 try:
                     metadata = self.get_consultation_metadata(consultation_id)
                     total_events += metadata["event_count"]

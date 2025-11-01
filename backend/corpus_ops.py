@@ -73,21 +73,21 @@ def append_interaction(
             interactions = f["interactions"]
 
             # Current size
-            current_size = interactions["session_id"].shape[0]
+            current_size = interactions["session_id"].shape[0]  # type: ignore[index]
             new_size = current_size + 1
 
             # Resize all datasets
-            for dataset_name in interactions.keys():
-                interactions[dataset_name].resize((new_size,))
+            for dataset_name in interactions.keys():  # type: ignore[attr-defined]
+                interactions[dataset_name].resize((new_size,))  # type: ignore[attr-defined]
 
             # Append data
-            interactions["session_id"][current_size] = session_id
-            interactions["interaction_id"][current_size] = interaction_id
-            interactions["timestamp"][current_size] = timestamp
-            interactions["prompt"][current_size] = prompt
-            interactions["response"][current_size] = response
-            interactions["model"][current_size] = model
-            interactions["tokens"][current_size] = tokens
+            interactions["session_id"][current_size] = session_id  # type: ignore[index]
+            interactions["interaction_id"][current_size] = interaction_id  # type: ignore[index]
+            interactions["timestamp"][current_size] = timestamp  # type: ignore[index]
+            interactions["prompt"][current_size] = prompt  # type: ignore[index]
+            interactions["response"][current_size] = response  # type: ignore[index]
+            interactions["model"][current_size] = model  # type: ignore[index]
+            interactions["tokens"][current_size] = tokens  # type: ignore[index]
 
         logger.info(
             "INTERACTION_APPENDED",
@@ -140,18 +140,18 @@ def append_embedding(
             embeddings = f["embeddings"]
 
             # Current size
-            current_size = embeddings["interaction_id"].shape[0]
+            current_size = embeddings["interaction_id"].shape[0]  # type: ignore[attr-defined]
             new_size = current_size + 1
 
             # Resize datasets
-            embeddings["interaction_id"].resize((new_size,))
-            embeddings["vector"].resize((new_size, 768))
-            embeddings["model"].resize((new_size,))
+            embeddings["interaction_id"].resize((new_size,))  # type: ignore[index]
+            embeddings["vector"].resize((new_size, 768))  # type: ignore[index]
+            embeddings["model"].resize((new_size,))  # type: ignore[index]
 
             # Append data
-            embeddings["interaction_id"][current_size] = interaction_id
-            embeddings["vector"][current_size] = vector
-            embeddings["model"][current_size] = model
+            embeddings["interaction_id"][current_size] = interaction_id  # type: ignore[index]
+            embeddings["vector"][current_size] = vector  # type: ignore[index]
+            embeddings["model"][current_size] = model  # type: ignore[index]
 
         logger.info(
             "EMBEDDING_APPENDED",
@@ -284,14 +284,14 @@ def get_corpus_stats(corpus_path: str) -> dict:
 
     try:
         with h5py.File(corpus_path, "r") as f:
-            interactions_count = f["interactions"]["session_id"].shape[0]
-            embeddings_count = f["embeddings"]["interaction_id"].shape[0]
+            interactions_count = f["interactions"]["session_id"].shape[0]  # type: ignore[index]
+            embeddings_count = f["embeddings"]["interaction_id"].shape[0]  # type: ignore[index]
 
             # Get file size
             file_size = Path(corpus_path).stat().st_size
 
             # Get metadata
-            metadata = dict(f["metadata"].attrs)
+            metadata = dict(f["metadata"].attrs)  # type: ignore[attr-defined]
 
             stats = {
                 "interactions_count": interactions_count,
@@ -331,7 +331,7 @@ def read_interactions(corpus_path: str, limit: int = 10) -> list[dict]:
     try:
         with h5py.File(corpus_path, "r") as f:
             interactions_group = f["interactions"]
-            total = interactions_group["session_id"].shape[0]
+            total = interactions_group["session_id"].shape[0]  # type: ignore[index]
 
             if total == 0:
                 return []
@@ -343,13 +343,13 @@ def read_interactions(corpus_path: str, limit: int = 10) -> list[dict]:
             results = []
             for i in range(start, end):
                 interaction = {
-                    "session_id": interactions_group["session_id"][i].decode("utf-8"),
-                    "interaction_id": interactions_group["interaction_id"][i].decode("utf-8"),
-                    "timestamp": interactions_group["timestamp"][i].decode("utf-8"),
-                    "prompt": interactions_group["prompt"][i].decode("utf-8"),
-                    "response": interactions_group["response"][i].decode("utf-8"),
-                    "model": interactions_group["model"][i].decode("utf-8"),
-                    "tokens": int(interactions_group["tokens"][i]),
+                    "session_id": interactions_group["session_id"][i].decode("utf-8"),  # type: ignore[index]
+                    "interaction_id": interactions_group["interaction_id"][i].decode("utf-8"),  # type: ignore[attr-defined]
+                    "timestamp": interactions_group["timestamp"][i].decode("utf-8"),  # type: ignore[index]
+                    "prompt": interactions_group["prompt"][i].decode("utf-8"),  # type: ignore[index]
+                    "response": interactions_group["response"][i].decode("utf-8"),  # type: ignore[index]
+                    "model": interactions_group["model"][i].decode("utf-8"),  # type: ignore[attr-defined]
+                    "tokens": int(interactions_group["tokens"][i]),  # type: ignore[index]
                 }
                 results.append(interaction)
 

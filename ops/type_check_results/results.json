@@ -1,33 +1,31 @@
 {
   "tool": "pyright",
-  "timestamp": "2025-11-01T02:00:46.184405",
-  "total_errors": 669,
-  "total_warnings": 39,
+  "timestamp": "2025-11-01T02:15:04.128616",
+  "total_errors": 338,
+  "total_warnings": 40,
   "errors_by_file": {
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/audit.py": 8,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/diarization.py": 18,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/evidence.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/exports.py": 9,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py": 23,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py": 22,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/system.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/transcribe.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audio_storage.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/audit_logs.py": 8,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/aurity_gateway.py": 3,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py": 36,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/config_loader.py": 5,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_identity.py": 14,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py": 101,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py": 15,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py": 5,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_service.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_service_v2.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker.py": 2,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py": 62,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py": 11,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/event_validator.py": 2,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/export_policy.py": 1,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_consult_service.py": 3,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py": 87,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py": 37,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_consult_service.py": 4,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py": 28,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py": 13,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_exporter.py": 9,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/gatekeeper.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/llm_audit_policy.py": 2,
@@ -42,50 +40,49 @@
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/policy_loader.py": 2,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/preset_loader.py": 2,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/providers/claude.py": 1,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py": 26,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py": 14,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/base_repository.py": 6,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py": 52,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py": 31,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py": 1,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py": 27,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py": 19,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py": 8,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/audit_service.py": 16,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/corpus_service.py": 18,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_service.py": 18,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/export_service.py": 18,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py": 8,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_service.py": 20,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/export_service.py": 17,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/session_service.py": 14,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_api.py": 1,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_auto.py": 8,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/timeline_models.py": 2,
-    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py": 20,
+    "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py": 4,
     "/Users/bernardurizaorozco/Documents/free-intelligence/backend/whisper_service.py": 3
   },
   "errors_by_rule": {
-    "reportUnusedImport": 20,
-    "reportAttributeAccessIssue": 207,
-    "reportCallIssue": 133,
-    "reportArgumentType": 95,
-    "reportUnnecessaryTypeIgnoreComment": 10,
+    "reportUnusedImport": 16,
+    "reportAttributeAccessIssue": 75,
+    "reportCallIssue": 134,
+    "reportArgumentType": 28,
+    "reportUnnecessaryTypeIgnoreComment": 9,
     "reportPossiblyUnboundVariable": 6,
     "reportUnusedVariable": 14,
-    "reportImplicitStringConcatenation": 10,
-    "reportIndexIssue": 133,
+    "reportImplicitStringConcatenation": 11,
+    "reportIndexIssue": 9,
     "reportAssignmentType": 5,
     "reportOptionalMemberAccess": 2,
-    "unknown": 5,
-    "reportInvalidTypeForm": 2,
-    "reportGeneralTypeIssues": 28,
-    "reportUndefinedVariable": 4,
+    "reportOperatorIssue": 15,
     "reportMissingImports": 2,
     "reportPrivateUsage": 1,
+    "reportGeneralTypeIssues": 27,
+    "reportUndefinedVariable": 4,
     "reportIncompatibleMethodOverride": 10,
     "reportTypedDictNotRequiredAccess": 4,
-    "reportOperatorIssue": 13,
-    "reportReturnType": 1,
-    "reportMissingTypeStubs": 2,
+    "reportReturnType": 2,
+    "reportMissingTypeStubs": 3,
     "reportOptionalCall": 1
   },
   "errors_by_severity": {
-    "error": 669,
-    "warning": 39
+    "error": 338,
+    "warning": 40
   },
   "details": [
     {
@@ -323,15 +320,6 @@
       "tool": "pyright"
     },
     {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/evidence.py",
-      "line": 17,
-      "column": 20,
-      "severity": "error",
-      "message": "Import \"Any\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/exports.py",
       "line": 40,
       "column": 36,
@@ -414,7 +402,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 24,
+      "line": 25,
       "column": 54,
       "severity": "error",
       "message": "Import \"status\" is not accessed",
@@ -423,7 +411,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 28,
+      "line": 29,
       "column": 29,
       "severity": "error",
       "message": "Import \"success_response\" is not accessed",
@@ -432,7 +420,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 28,
+      "line": 29,
       "column": 47,
       "severity": "error",
       "message": "Import \"error_response\" is not accessed",
@@ -441,7 +429,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 28,
+      "line": 29,
       "column": 63,
       "severity": "error",
       "message": "Import \"StatusCode\" is not accessed",
@@ -450,7 +438,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 147,
+      "line": 148,
       "column": 46,
       "severity": "error",
       "message": "No parameter named \"error\"",
@@ -459,7 +447,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 178,
+      "line": 179,
       "column": 49,
       "severity": "error",
       "message": "No parameter named \"session_id\"",
@@ -468,7 +456,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 194,
+      "line": 195,
       "column": 44,
       "severity": "error",
       "message": "No parameter named \"session_id\"",
@@ -477,7 +465,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 194,
+      "line": 195,
       "column": 67,
       "severity": "error",
       "message": "No parameter named \"error\"",
@@ -486,16 +474,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 222,
-      "column": 19,
-      "severity": "error",
-      "message": "Argument missing for parameter \"session_id\"",
-      "rule": "reportCallIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 236,
+      "line": 241,
       "column": 40,
       "severity": "error",
       "message": "No parameter named \"session_id\"",
@@ -504,7 +483,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 236,
+      "line": 241,
       "column": 74,
       "severity": "error",
       "message": "No parameter named \"owner_hash\"",
@@ -513,7 +492,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 241,
+      "line": 258,
       "column": 62,
       "severity": "error",
       "message": "No parameter named \"error\"",
@@ -522,7 +501,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 242,
+      "line": 259,
       "column": 9,
       "severity": "error",
       "message": "\"audit_service\" is possibly unbound",
@@ -531,7 +510,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 251,
+      "line": 268,
       "column": 49,
       "severity": "error",
       "message": "No parameter named \"error\"",
@@ -540,7 +519,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 292,
+      "line": 309,
       "column": 35,
       "severity": "error",
       "message": "Cannot access attribute \"update_session\" for class \"SessionService\"\n\u00a0\u00a0Attribute \"update_session\" is unknown",
@@ -549,7 +528,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 299,
+      "line": 316,
       "column": 60,
       "severity": "error",
       "message": "No parameter named \"session_id\"",
@@ -558,7 +537,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 317,
+      "line": 334,
       "column": 40,
       "severity": "error",
       "message": "No parameter named \"session_id\"",
@@ -567,7 +546,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 319,
+      "line": 336,
       "column": 16,
       "severity": "error",
       "message": "Arguments missing for parameters \"id\", \"created_at\", \"updated_at\", \"last_active\", \"interaction_count\", \"status\", \"is_persisted\", \"owner_hash\"",
@@ -576,7 +555,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 319,
+      "line": 336,
       "column": 34,
       "severity": "error",
       "message": "Argument expression after ** must be a mapping with a \"str\" key type",
@@ -585,7 +564,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 324,
+      "line": 341,
       "column": 60,
       "severity": "error",
       "message": "No parameter named \"session_id\"",
@@ -594,7 +573,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 324,
+      "line": 341,
       "column": 83,
       "severity": "error",
       "message": "No parameter named \"error\"",
@@ -603,7 +582,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 327,
+      "line": 344,
       "column": 47,
       "severity": "error",
       "message": "No parameter named \"session_id\"",
@@ -612,7 +591,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/api/sessions.py",
-      "line": 327,
+      "line": 344,
       "column": 70,
       "severity": "error",
       "message": "No parameter named \"error\"",
@@ -752,321 +731,6 @@
       "severity": "error",
       "message": "\"reason\" is possibly unbound",
       "rule": "reportPossiblyUnboundVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 205,
-      "column": 32,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 205,
-      "column": 59,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Group\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 205,
-      "column": 59,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 209,
-      "column": 50,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 209,
-      "column": 50,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 210,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 210,
-      "column": 48,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Group\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 210,
-      "column": 48,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 215,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 215,
-      "column": 21,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 215,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 216,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 216,
-      "column": 21,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 216,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 217,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 217,
-      "column": 21,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 217,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 218,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 218,
-      "column": 21,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 218,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 219,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 219,
-      "column": 21,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 219,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 220,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 220,
-      "column": 21,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 220,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 221,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 221,
-      "column": 21,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 221,
-      "column": 21,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 271,
-      "column": 43,
-      "severity": "error",
-      "message": "\"init_corpus\" is unknown import symbol",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 333,
-      "column": 26,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 333,
-      "column": 44,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Group\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 333,
-      "column": 44,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 333,
-      "column": 77,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/buffered_writer.py",
-      "line": 333,
-      "column": 77,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {
@@ -1241,1047 +905,48 @@
       "tool": "pyright"
     },
     {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 76,
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
+      "line": 78,
       "column": 28,
       "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
+      "message": "Operator \"not in\" not supported for types \"str\" and \"Group | Dataset | Datatype\"\n\u00a0\u00a0Operator \"not in\" not supported for types \"str\" and \"Datatype\"",
+      "rule": "reportOperatorIssue",
       "tool": "pyright"
     },
     {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 76,
-      "column": 55,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Group\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 76,
-      "column": 55,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 80,
-      "column": 46,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 80,
-      "column": 46,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 81,
-      "column": 17,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 81,
-      "column": 44,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Group\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 81,
-      "column": 44,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 84,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 84,
-      "column": 13,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 84,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
       "line": 85,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 85,
-      "column": 13,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 85,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 86,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 86,
-      "column": 13,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 86,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 87,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 87,
-      "column": 13,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 87,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 88,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 88,
-      "column": 13,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 88,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 89,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 89,
-      "column": 13,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 89,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 90,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 90,
-      "column": 13,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 90,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 143,
       "column": 28,
       "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
+      "message": "Operator \"not in\" not supported for types \"str\" and \"Group | Dataset | Datatype\"\n\u00a0\u00a0Operator \"not in\" not supported for types \"str\" and \"Datatype\"",
+      "rule": "reportOperatorIssue",
       "tool": "pyright"
     },
     {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 143,
-      "column": 57,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Group\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 143,
-      "column": 57,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 147,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 147,
-      "column": 42,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Group\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 147,
-      "column": 42,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 148,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 148,
-      "column": 34,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Group\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 148,
-      "column": 34,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 149,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 149,
-      "column": 33,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Group\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 149,
-      "column": 33,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 152,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 152,
-      "column": 13,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 152,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 153,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 153,
-      "column": 13,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 153,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 154,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 154,
-      "column": 13,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int | Any\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int | Any\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 154,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 287,
-      "column": 34,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 287,
-      "column": 66,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Group\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 287,
-      "column": 66,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 288,
-      "column": 32,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 288,
-      "column": 66,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Group\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 288,
-      "column": 66,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 294,
-      "column": 43,
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
+      "line": 195,
+      "column": 39,
       "severity": "error",
       "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
       "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 334,
-      "column": 21,
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
+      "line": 196,
+      "column": 40,
       "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 334,
-      "column": 54,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Group\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
+      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
       "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 334,
-      "column": 54,
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
+      "line": 270,
+      "column": 36,
       "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 346,
-      "column": 35,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 346,
-      "column": 35,
-      "severity": "error",
-      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
+      "message": "Argument of type \"str | None\" cannot be assigned to parameter \"corpus_path\" of type \"str\" in function \"validate\"\n\u00a0\u00a0Type \"str | None\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"",
       "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 346,
-      "column": 35,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 346,
-      "column": 71,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Group\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 346,
-      "column": 71,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 346,
-      "column": 71,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 347,
-      "column": 39,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 347,
-      "column": 39,
-      "severity": "error",
-      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 347,
-      "column": 39,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 347,
-      "column": 79,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Group\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 347,
-      "column": 79,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 347,
-      "column": 79,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 348,
-      "column": 34,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 348,
-      "column": 34,
-      "severity": "error",
-      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 348,
-      "column": 34,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 348,
-      "column": 69,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Group\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 348,
-      "column": 69,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 348,
-      "column": 69,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 349,
-      "column": 31,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 349,
-      "column": 31,
-      "severity": "error",
-      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 349,
-      "column": 31,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 349,
-      "column": 63,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Group\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 349,
-      "column": 63,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 349,
-      "column": 63,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 350,
-      "column": 33,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 350,
-      "column": 33,
-      "severity": "error",
-      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 350,
-      "column": 33,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 350,
-      "column": 67,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Group\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 350,
-      "column": 67,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 350,
-      "column": 67,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 351,
-      "column": 30,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 351,
-      "column": 30,
-      "severity": "error",
-      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 351,
-      "column": 30,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 351,
-      "column": 61,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Group\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 351,
-      "column": 61,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 351,
-      "column": 61,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 352,
-      "column": 35,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 352,
-      "column": 35,
-      "severity": "error",
-      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 352,
-      "column": 35,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 352,
-      "column": 35,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToInt\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__int__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"\n  ...",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_ops.py",
-      "line": 352,
-      "column": 35,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToInt\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__int__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 13,
-      "column": 22,
-      "severity": "error",
-      "message": "Import \"datetime\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 14,
-      "column": 21,
-      "severity": "error",
-      "message": "Import \"Path\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 15,
-      "column": 20,
-      "severity": "error",
-      "message": "Import \"Any\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 15,
-      "column": 25,
-      "severity": "error",
-      "message": "Import \"Optional\" is not accessed",
-      "rule": "reportUnusedImport",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 27,
-      "column": 28,
-      "severity": "error",
-      "message": "\"{\" was not closed",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 34,
-      "column": 9,
-      "severity": "error",
-      "message": "Statements must be separated by newlines or semicolons",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 34,
-      "column": 19,
-      "severity": "error",
-      "message": "Type annotation not supported for this statement",
-      "rule": "reportInvalidTypeForm",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 34,
-      "column": 19,
-      "severity": "error",
-      "message": "Dictionary expression not allowed in type expression\n\u00a0\u00a0Use dict[T1, T2] to indicate a dictionary type",
-      "rule": "reportInvalidTypeForm",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 34,
-      "column": 19,
-      "severity": "error",
-      "message": "Expected class but received \"dict[str, Unknown]\"",
-      "rule": "reportGeneralTypeIssues",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 34,
-      "column": 30,
-      "severity": "error",
-      "message": "\"int32\" is not defined",
-      "rule": "reportUndefinedVariable",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 34,
-      "column": 37,
-      "severity": "error",
-      "message": "Statements must be separated by newlines or semicolons",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 34,
-      "column": 37,
-      "severity": "error",
-      "message": "Expected expression",
-      "rule": "unknown",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 39,
-      "column": 76,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 41,
-      "column": 67,
-      "severity": "warning",
-      "message": "Unnecessary \"# type: ignore\" comment",
-      "rule": "reportUnnecessaryTypeIgnoreComment",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/corpus_schema.py",
-      "line": 334,
-      "column": 1,
-      "severity": "error",
-      "message": "Statements must be separated by newlines or semicolons",
-      "rule": "unknown",
       "tool": "pyright"
     },
     {
@@ -2322,6 +987,15 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
+      "line": 24,
+      "column": 22,
+      "severity": "error",
+      "message": "\"UTC\" is unknown import symbol",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
       "line": 200,
       "column": 31,
       "severity": "error",
@@ -2358,60 +1032,6 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 480,
-      "column": 42,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Group\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 480,
-      "column": 42,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 481,
-      "column": 27,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Group\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 481,
-      "column": 27,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 483,
-      "column": 17,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 483,
-      "column": 17,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
       "line": 494,
       "column": 20,
       "severity": "error",
@@ -2430,65 +1050,11 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 544,
-      "column": 27,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 545,
-      "column": 27,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 546,
-      "column": 27,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 551,
-      "column": 31,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 554,
-      "column": 31,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
       "line": 556,
       "column": 20,
       "severity": "error",
       "message": "Cannot access attribute \"flush\" for class \"File\"\n\u00a0\u00a0Attribute \"flush\" is unknown",
       "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 573,
-      "column": 29,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
       "tool": "pyright"
     },
     {
@@ -2502,371 +1068,11 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 582,
-      "column": 34,
-      "severity": "error",
-      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 582,
-      "column": 34,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 585,
-      "column": 46,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 585,
-      "column": 46,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToInt\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__int__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"\n  ...",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 585,
-      "column": 46,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToInt\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__int__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 586,
-      "column": 49,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 586,
-      "column": 49,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToFloat\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__float__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"\n  ...",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 586,
-      "column": 49,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToFloat\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__float__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 587,
-      "column": 47,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 587,
-      "column": 47,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToFloat\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__float__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"\n  ...",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 587,
-      "column": 47,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToFloat\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__float__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 588,
-      "column": 53,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 589,
-      "column": 56,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 590,
-      "column": 50,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 590,
-      "column": 50,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToFloat\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__float__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"\n  ...",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 590,
-      "column": 50,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToFloat\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__float__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 591,
-      "column": 42,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 591,
-      "column": 42,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToFloat\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__float__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"\n  ...",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 591,
-      "column": 42,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToFloat\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsFloat\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__float__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 592,
-      "column": 58,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 598,
-      "column": 61,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 599,
-      "column": 57,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 600,
-      "column": 47,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 601,
-      "column": 47,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 604,
-      "column": 61,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 606,
-      "column": 35,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 606,
-      "column": 69,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 608,
-      "column": 56,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 643,
-      "column": 49,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 643,
-      "column": 49,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 644,
-      "column": 33,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 647,
-      "column": 64,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 652,
-      "column": 33,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
       "line": 653,
       "column": 44,
       "severity": "error",
       "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"obj\" of type \"Sized\" in function \"len\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"Sized\"\n\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Sized\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__len__\" is not present",
       "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 659,
-      "column": 65,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 661,
-      "column": 59,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 664,
-      "column": 59,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 667,
-      "column": 69,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 669,
-      "column": 43,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 670,
-      "column": 61,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/diarization_worker_lowprio.py",
-      "line": 673,
-      "column": 64,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {
@@ -2907,6 +1113,15 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_consult_service.py",
+      "line": 24,
+      "column": 22,
+      "severity": "error",
+      "message": "\"UTC\" is unknown import symbol",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_consult_service.py",
       "line": 229,
       "column": 31,
       "severity": "error",
@@ -2934,61 +1149,16 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 175,
-      "column": 34,
+      "line": 24,
+      "column": 22,
       "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 175,
-      "column": 61,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Group\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
+      "message": "\"UTC\" is unknown import symbol",
       "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 175,
-      "column": 61,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 178,
-      "column": 31,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 178,
-      "column": 31,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 178,
-      "column": 31,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 180,
+      "line": 179,
       "column": 80,
       "severity": "error",
       "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -2997,7 +1167,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 180,
+      "line": 179,
       "column": 80,
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3007,33 +1177,6 @@
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
       "line": 186,
-      "column": 22,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 186,
-      "column": 22,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 186,
-      "column": 22,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 187,
       "column": 39,
       "severity": "error",
       "message": "Cannot access attribute \"sum\" for class \"Group\"\n\u00a0\u00a0Attribute \"sum\" is unknown",
@@ -3042,7 +1185,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 187,
+      "line": 186,
       "column": 39,
       "severity": "error",
       "message": "Cannot access attribute \"sum\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"sum\" is unknown",
@@ -3051,7 +1194,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 187,
+      "line": 186,
       "column": 39,
       "severity": "error",
       "message": "Cannot access attribute \"sum\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"sum\" is unknown",
@@ -3060,34 +1203,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 190,
-      "column": 30,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 190,
-      "column": 30,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 190,
-      "column": 30,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 192,
+      "line": 191,
       "column": 80,
       "severity": "error",
       "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3096,7 +1212,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 192,
+      "line": 191,
       "column": 80,
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3106,42 +1222,15 @@
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
       "line": 198,
-      "column": 26,
+      "column": 86,
       "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
+      "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
+      "rule": "reportGeneralTypeIssues",
       "tool": "pyright"
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
       "line": 198,
-      "column": 26,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 198,
-      "column": 26,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 199,
-      "column": 86,
-      "severity": "error",
-      "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
-      "rule": "reportGeneralTypeIssues",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 199,
       "column": 86,
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3150,115 +1239,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 252,
-      "column": 31,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 252,
-      "column": 31,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 252,
-      "column": 31,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 253,
-      "column": 30,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 253,
-      "column": 30,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 253,
-      "column": 30,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 254,
-      "column": 27,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 254,
-      "column": 27,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 254,
-      "column": 27,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 255,
-      "column": 22,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 255,
-      "column": 22,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 255,
-      "column": 22,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 259,
+      "line": 258,
       "column": 80,
       "severity": "error",
       "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3267,7 +1248,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 259,
+      "line": 258,
       "column": 80,
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3276,7 +1257,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 262,
+      "line": 261,
       "column": 80,
       "severity": "error",
       "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3285,7 +1266,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 262,
+      "line": 261,
       "column": 80,
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3294,7 +1275,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 264,
+      "line": 263,
       "column": 87,
       "severity": "error",
       "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3303,7 +1284,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 264,
+      "line": 263,
       "column": 87,
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3312,232 +1293,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 283,
-      "column": 53,
-      "severity": "error",
-      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 283,
-      "column": 53,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 283,
-      "column": 53,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToInt\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__int__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"\n  ...",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 283,
-      "column": 53,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToInt\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__int__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 342,
-      "column": 31,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 342,
-      "column": 31,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 342,
-      "column": 31,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 343,
-      "column": 35,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 343,
-      "column": 35,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 343,
-      "column": 35,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 344,
-      "column": 30,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 344,
-      "column": 30,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 344,
-      "column": 30,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 345,
-      "column": 27,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 345,
-      "column": 27,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 345,
-      "column": 27,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 346,
-      "column": 29,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 346,
-      "column": 29,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 346,
-      "column": 29,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 347,
-      "column": 26,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 347,
-      "column": 26,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 347,
-      "column": 26,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 348,
-      "column": 22,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 348,
-      "column": 22,
-      "severity": "error",
-      "message": "Argument of type \"slice[None, None, None]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"slice[None, None, None]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 348,
-      "column": 22,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 352,
+      "line": 351,
       "column": 80,
       "severity": "error",
       "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3546,7 +1302,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 352,
+      "line": 351,
       "column": 80,
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3555,7 +1311,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 355,
+      "line": 354,
       "column": 80,
       "severity": "error",
       "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3564,7 +1320,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 355,
+      "line": 354,
       "column": 80,
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3573,7 +1329,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 358,
+      "line": 357,
       "column": 80,
       "severity": "error",
       "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3582,7 +1338,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 358,
+      "line": 357,
       "column": 80,
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3591,7 +1347,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 360,
+      "line": 359,
       "column": 87,
       "severity": "error",
       "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3600,7 +1356,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 360,
+      "line": 359,
       "column": 87,
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3609,7 +1365,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 362,
+      "line": 361,
       "column": 80,
       "severity": "error",
       "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3618,7 +1374,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 362,
+      "line": 361,
       "column": 80,
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3627,7 +1383,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 364,
+      "line": 363,
       "column": 86,
       "severity": "error",
       "message": "\"Group\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3636,7 +1392,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 364,
+      "line": 363,
       "column": 86,
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
@@ -3644,75 +1400,12 @@
       "tool": "pyright"
     },
     {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 380,
-      "column": 43,
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
+      "line": 36,
+      "column": 22,
       "severity": "error",
-      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 380,
-      "column": 43,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 380,
-      "column": 43,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToInt\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__int__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"\n  ...",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 380,
-      "column": 43,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToInt\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__int__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 384,
-      "column": 41,
-      "severity": "error",
-      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 384,
-      "column": 41,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 384,
-      "column": 41,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToInt\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__int__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"\n  ...",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_corpus_api.py",
-      "line": 384,
-      "column": 41,
-      "severity": "error",
-      "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"x\" of type \"ConvertibleToInt\" in function \"__new__\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"ConvertibleToInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"Buffer\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__buffer__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsInt\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__int__\" is not present\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is incompatible with protocol \"SupportsIndex\"",
-      "rule": "reportArgumentType",
+      "message": "\"UTC\" is unknown import symbol",
+      "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {
@@ -3744,69 +1437,6 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 193,
-      "column": 43,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Group\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 193,
-      "column": 43,
-      "severity": "error",
-      "message": "Cannot access attribute \"shape\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"shape\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 194,
-      "column": 28,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Group\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 194,
-      "column": 28,
-      "severity": "error",
-      "message": "Cannot access attribute \"resize\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"resize\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 197,
-      "column": 13,
-      "severity": "error",
-      "message": "Argument of type \"Unknown | int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__setitem__\"\n\u00a0\u00a0Type \"Unknown | int\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"int\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 197,
-      "column": 13,
-      "severity": "error",
-      "message": "\"__setitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 236,
-      "column": 30,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
       "line": 240,
       "column": 31,
       "severity": "error",
@@ -3821,51 +1451,6 @@
       "severity": "error",
       "message": "\"Datatype\" is not iterable\n\u00a0\u00a0\"__iter__\" method not defined",
       "rule": "reportGeneralTypeIssues",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 282,
-      "column": 50,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 283,
-      "column": 50,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 284,
-      "column": 51,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 332,
-      "column": 56,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 332,
-      "column": 56,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {
@@ -3906,128 +1491,11 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 400,
-      "column": 20,
-      "severity": "error",
-      "message": "Argument of type \"Iterator[str] | Unknown\" cannot be assigned to parameter \"obj\" of type \"Sized\" in function \"len\"\n\u00a0\u00a0Type \"Iterator[str] | Unknown\" is not assignable to type \"Sized\"\n\u00a0\u00a0\u00a0\u00a0\"Iterator[str]\" is incompatible with protocol \"Sized\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__len__\" is not present",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 400,
-      "column": 36,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 400,
-      "column": 36,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 404,
-      "column": 53,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 404,
-      "column": 53,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 407,
-      "column": 32,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 408,
-      "column": 29,
-      "severity": "error",
-      "message": "Argument of type \"tuple[()]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"tuple[()]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 408,
-      "column": 29,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
       "line": 410,
       "column": 31,
       "severity": "error",
       "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"Dataset\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"bytearray\"",
       "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 424,
-      "column": 38,
-      "severity": "error",
-      "message": "Argument of type \"Iterator[str] | Unknown\" cannot be assigned to parameter \"obj\" of type \"Sized\" in function \"len\"\n\u00a0\u00a0Type \"Iterator[str] | Unknown\" is not assignable to type \"Sized\"\n\u00a0\u00a0\u00a0\u00a0\"Iterator[str]\" is incompatible with protocol \"Sized\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"__len__\" is not present",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 424,
-      "column": 58,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 424,
-      "column": 58,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 427,
-      "column": 56,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/fi_event_store.py",
-      "line": 427,
-      "column": 56,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {
@@ -4446,78 +1914,6 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
-      "line": 115,
-      "column": 29,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
-      "line": 118,
-      "column": 44,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
-      "line": 119,
-      "column": 41,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
-      "line": 120,
-      "column": 42,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
-      "line": 121,
-      "column": 43,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
-      "line": 122,
-      "column": 41,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
-      "line": 126,
-      "column": 43,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
-      "line": 128,
-      "column": 68,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
       "line": 135,
       "column": 47,
       "severity": "error",
@@ -4536,47 +1932,11 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
-      "line": 175,
-      "column": 45,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
-      "line": 175,
-      "column": 45,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
       "line": 197,
       "column": 47,
       "severity": "error",
       "message": "No parameter named \"error\"",
       "rule": "reportCallIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
-      "line": 221,
-      "column": 42,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/audit_repository.py",
-      "line": 221,
-      "column": 42,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {
@@ -4590,7 +1950,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/base_repository.py",
-      "line": 77,
+      "line": 76,
       "column": 17,
       "severity": "error",
       "message": "No parameter named \"path\"",
@@ -4599,7 +1959,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/base_repository.py",
-      "line": 78,
+      "line": 77,
       "column": 17,
       "severity": "error",
       "message": "No parameter named \"mode\"",
@@ -4608,7 +1968,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/base_repository.py",
-      "line": 79,
+      "line": 78,
       "column": 17,
       "severity": "error",
       "message": "No parameter named \"error\"",
@@ -4617,7 +1977,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/base_repository.py",
-      "line": 182,
+      "line": 181,
       "column": 13,
       "severity": "error",
       "message": "No parameter named \"entity_id\"",
@@ -4626,7 +1986,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/base_repository.py",
-      "line": 183,
+      "line": 182,
       "column": 13,
       "severity": "error",
       "message": "No parameter named \"status\"",
@@ -4635,20 +1995,11 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/base_repository.py",
-      "line": 184,
+      "line": 183,
       "column": 13,
       "severity": "error",
       "message": "No parameter named \"error\"",
       "rule": "reportCallIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 54,
-      "column": 19,
-      "severity": "error",
-      "message": "Cannot access attribute \"require_group\" for class \"File\"\n\u00a0\u00a0Attribute \"require_group\" is unknown",
-      "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {
@@ -4672,6 +2023,15 @@
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
       "line": 57,
+      "column": 19,
+      "severity": "error",
+      "message": "Cannot access attribute \"require_group\" for class \"File\"\n\u00a0\u00a0Attribute \"require_group\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
+      "line": 58,
       "column": 51,
       "severity": "error",
       "message": "No parameter named \"path\"",
@@ -4680,7 +2040,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 59,
+      "line": 60,
       "column": 58,
       "severity": "error",
       "message": "No parameter named \"error\"",
@@ -4689,7 +2049,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 62,
+      "line": 63,
       "column": 9,
       "severity": "error",
       "message": "Method \"create\" overrides class \"BaseRepository\" in an incompatible manner\n\u00a0\u00a0Positional parameter count mismatch; base method has 3, but override has 4\n\u00a0\u00a0Parameter 2 name mismatch: base parameter is named \"entity\", override parameter is named \"document_id\"\n\u00a0\u00a0Parameter \"**kwargs\" has no corresponding parameter",
@@ -4698,7 +2058,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 90,
+      "line": 91,
       "column": 20,
       "severity": "error",
       "message": "Operator \"in\" not supported for types \"str\" and \"Group | Dataset | Datatype\"\n\u00a0\u00a0Operator \"in\" not supported for types \"str\" and \"Datatype\"",
@@ -4707,7 +2067,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 94,
+      "line": 95,
       "column": 37,
       "severity": "error",
       "message": "Cannot access attribute \"create_dataset\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"create_dataset\" is unknown",
@@ -4716,7 +2076,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 94,
+      "line": 95,
       "column": 37,
       "severity": "error",
       "message": "Cannot access attribute \"create_dataset\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"create_dataset\" is unknown",
@@ -4725,7 +2085,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 97,
+      "line": 98,
       "column": 32,
       "severity": "error",
       "message": "\"string_dtype\" is not a known attribute of module \"h5py\"",
@@ -4734,7 +2094,16 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 118,
+      "line": 109,
+      "column": 60,
+      "severity": "error",
+      "message": "\"timezone\" is not defined",
+      "rule": "reportUndefinedVariable",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
+      "line": 119,
       "column": 9,
       "severity": "error",
       "message": "Method \"read\" overrides class \"BaseRepository\" in an incompatible manner\n\u00a0\u00a0Parameter 2 name mismatch: base parameter is named \"entity_id\", override parameter is named \"document_id\"",
@@ -4743,7 +2112,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 129,
+      "line": 130,
       "column": 20,
       "severity": "error",
       "message": "Operator \"not in\" not supported for types \"str\" and \"Group | Dataset | Datatype\"\n\u00a0\u00a0Operator \"not in\" not supported for types \"str\" and \"Datatype\"",
@@ -4752,106 +2121,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 132,
-      "column": 27,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 133,
-      "column": 27,
-      "severity": "error",
-      "message": "Argument of type \"tuple[()]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"tuple[()]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 133,
-      "column": 27,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 133,
-      "column": 39,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Group\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 133,
-      "column": 39,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 133,
-      "column": 39,
-      "severity": "error",
-      "message": "Cannot access attribute \"decode\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 133,
-      "column": 69,
-      "severity": "error",
-      "message": "Argument of type \"tuple[()]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"tuple[()]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 133,
-      "column": 69,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 133,
-      "column": 94,
-      "severity": "error",
-      "message": "Argument of type \"tuple[()]\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"tuple[()]\" is not assignable to \"str\"",
-      "rule": "reportArgumentType",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 133,
-      "column": 94,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 136,
-      "column": 41,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 144,
+      "line": 147,
       "column": 48,
       "severity": "error",
       "message": "No parameter named \"document_id\"",
@@ -4860,7 +2130,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 144,
+      "line": 147,
       "column": 73,
       "severity": "error",
       "message": "No parameter named \"error\"",
@@ -4869,7 +2139,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 147,
+      "line": 150,
       "column": 9,
       "severity": "error",
       "message": "Method \"update\" overrides class \"BaseRepository\" in an incompatible manner\n\u00a0\u00a0Parameter 2 name mismatch: base parameter is named \"entity_id\", override parameter is named \"document_id\"\n\u00a0\u00a0Parameter 3 name mismatch: base parameter is named \"entity\", override parameter is named \"content\"",
@@ -4878,7 +2148,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 164,
+      "line": 167,
       "column": 20,
       "severity": "error",
       "message": "Operator \"not in\" not supported for types \"str\" and \"Group | Dataset | Datatype\"\n\u00a0\u00a0Operator \"not in\" not supported for types \"str\" and \"Datatype\"",
@@ -4887,61 +2157,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 167,
-      "column": 27,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 168,
-      "column": 47,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 172,
-      "column": 25,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 173,
-      "column": 25,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 174,
-      "column": 25,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 179,
-      "column": 37,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 188,
+      "line": 191,
       "column": 9,
       "severity": "error",
       "message": "Method \"delete\" overrides class \"BaseRepository\" in an incompatible manner\n\u00a0\u00a0Parameter 2 name mismatch: base parameter is named \"entity_id\", override parameter is named \"document_id\"",
@@ -4950,7 +2166,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 199,
+      "line": 202,
       "column": 20,
       "severity": "error",
       "message": "Operator \"not in\" not supported for types \"str\" and \"Group | Dataset | Datatype\"\n\u00a0\u00a0Operator \"not in\" not supported for types \"str\" and \"Datatype\"",
@@ -4959,52 +2175,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 202,
-      "column": 27,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 203,
-      "column": 25,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 204,
-      "column": 25,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 225,
-      "column": 43,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 225,
-      "column": 43,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 239,
+      "line": 242,
       "column": 48,
       "severity": "error",
       "message": "No parameter named \"error\"",
@@ -5013,7 +2184,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 255,
+      "line": 256,
       "column": 47,
       "severity": "error",
       "message": "Could not access item in TypedDict\n\u00a0\u00a0\"chunk_idx\" is not a required key in \"DiarizationChunkDict\", so access may result in runtime exception",
@@ -5022,7 +2193,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 259,
+      "line": 260,
       "column": 44,
       "severity": "error",
       "message": "Cannot access attribute \"create_group\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"create_group\" is unknown",
@@ -5031,7 +2202,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 259,
+      "line": 260,
       "column": 44,
       "severity": "error",
       "message": "Cannot access attribute \"create_group\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"create_group\" is unknown",
@@ -5040,7 +2211,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 272,
+      "line": 273,
       "column": 46,
       "severity": "error",
       "message": "No parameter named \"document_id\"",
@@ -5049,7 +2220,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 272,
+      "line": 273,
       "column": 71,
       "severity": "error",
       "message": "No parameter named \"error\"",
@@ -5058,43 +2229,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 289,
-      "column": 46,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 289,
-      "column": 46,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 291,
-      "column": 39,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 293,
-      "column": 55,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 300,
+      "line": 301,
       "column": 48,
       "severity": "error",
       "message": "No parameter named \"document_id\"",
@@ -5103,7 +2238,7 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/corpus_repository.py",
-      "line": 300,
+      "line": 301,
       "column": 73,
       "severity": "error",
       "message": "No parameter named \"error\"",
@@ -5220,24 +2355,6 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 121,
-      "column": 33,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 122,
-      "column": 47,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
       "line": 131,
       "column": 49,
       "severity": "error",
@@ -5274,51 +2391,6 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 155,
-      "column": 33,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 158,
-      "column": 35,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 163,
-      "column": 43,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 165,
-      "column": 43,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 167,
-      "column": 31,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
       "line": 176,
       "column": 9,
       "severity": "error",
@@ -5337,51 +2409,6 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 190,
-      "column": 33,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 191,
-      "column": 31,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 192,
-      "column": 31,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 214,
-      "column": 51,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
-      "line": 214,
-      "column": 51,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/repositories/session_repository.py",
       "line": 230,
       "column": 49,
       "severity": "error",
@@ -5396,6 +2423,69 @@
       "severity": "error",
       "message": "Argument of type \"Group | Dataset | Datatype | Any | Unknown\" cannot be assigned to parameter \"vec2\" of type \"ndarray[Unknown, Unknown]\" in function \"cosine_similarity\"\n\u00a0\u00a0Type \"Group | Dataset | Datatype | Any | Unknown\" is not assignable to type \"ndarray[Unknown, Unknown]\"\n\u00a0\u00a0\u00a0\u00a0\"Dataset\" is not assignable to \"ndarray[Unknown, Unknown]\"",
       "rule": "reportArgumentType",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 194,
+      "column": 47,
+      "severity": "error",
+      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
+      "rule": "reportIndexIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 194,
+      "column": 47,
+      "severity": "error",
+      "message": "Argument of type \"int\" cannot be assigned to parameter \"name\" of type \"str\" in function \"__getitem__\"\n\u00a0\u00a0\"int\" is not assignable to \"str\"",
+      "rule": "reportArgumentType",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 194,
+      "column": 47,
+      "severity": "error",
+      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
+      "rule": "reportIndexIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 194,
+      "column": 87,
+      "severity": "error",
+      "message": "Cannot access attribute \"decode\" for class \"Group\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 194,
+      "column": 87,
+      "severity": "error",
+      "message": "Cannot access attribute \"decode\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 194,
+      "column": 87,
+      "severity": "error",
+      "message": "Cannot access attribute \"decode\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"decode\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/search.py",
+      "line": 196,
+      "column": 35,
+      "severity": "warning",
+      "message": "Unnecessary \"# type: ignore\" comment",
+      "rule": "reportUnnecessaryTypeIgnoreComment",
       "tool": "pyright"
     },
     {
@@ -5705,6 +2795,78 @@
       "tool": "pyright"
     },
     {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
+      "line": 20,
+      "column": 5,
+      "severity": "error",
+      "message": "\"cancel_job\" is unknown import symbol",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
+      "line": 26,
+      "column": 5,
+      "severity": "error",
+      "message": "\"restart_job\" is unknown import symbol",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
+      "line": 142,
+      "column": 25,
+      "severity": "warning",
+      "message": "Implicit string concatenation not allowed",
+      "rule": "reportImplicitStringConcatenation",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
+      "line": 257,
+      "column": 47,
+      "severity": "error",
+      "message": "Import \"AUDIO_STORAGE_DIR\" is not accessed",
+      "rule": "reportUnusedImport",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
+      "line": 268,
+      "column": 17,
+      "severity": "error",
+      "message": "No parameter named \"audio_path\"",
+      "rule": "reportCallIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
+      "line": 269,
+      "column": 17,
+      "severity": "error",
+      "message": "No parameter named \"job_id\"",
+      "rule": "reportCallIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
+      "line": 388,
+      "column": 64,
+      "severity": "error",
+      "message": "\"list_jobs\" is unknown import symbol",
+      "rule": "reportAttributeAccessIssue",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_job_service.py",
+      "line": 399,
+      "column": 20,
+      "severity": "error",
+      "message": "Type \"list[DiarizationJob]\" is not assignable to return type \"list[dict[str, Any]]\"\n\u00a0\u00a0\"list[DiarizationJob]\" is not assignable to \"list[dict[str, Any]]\"\n\u00a0\u00a0\u00a0\u00a0Type parameter \"_T@list\" is invariant, but \"DiarizationJob\" is not the same as \"dict[str, Any]\"\n\u00a0\u00a0\u00a0\u00a0Consider switching from \"list\" to \"Sequence\" which is covariant",
+      "rule": "reportReturnType",
+      "tool": "pyright"
+    },
+    {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_service.py",
       "line": 14,
       "column": 21,
@@ -5867,11 +3029,20 @@
       "tool": "pyright"
     },
     {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/export_service.py",
-      "line": 17,
-      "column": 32,
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_service.py",
+      "line": 369,
+      "column": 18,
+      "severity": "warning",
+      "message": "Stub file not found for \"faster_whisper\"",
+      "rule": "reportMissingTypeStubs",
+      "tool": "pyright"
+    },
+    {
+      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/services/diarization_service.py",
+      "line": 369,
+      "column": 40,
       "severity": "error",
-      "message": "Import \"timezone\" is not accessed",
+      "message": "Import \"WhisperModel\" is not accessed",
       "rule": "reportUnusedImport",
       "tool": "pyright"
     },
@@ -6255,92 +3426,11 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 130,
-      "column": 43,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 130,
-      "column": 43,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 136,
-      "column": 37,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
       "line": 139,
       "column": 20,
       "severity": "error",
       "message": "Operator \"in\" not supported for types \"Literal['metadata']\" and \"Group | Dataset | Datatype | Any | Unknown\"\n\u00a0\u00a0Operator \"in\" not supported for types \"Literal['metadata']\" and \"Datatype\"",
       "rule": "reportOperatorIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 140,
-      "column": 35,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 142,
-      "column": 37,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 143,
-      "column": 51,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 144,
-      "column": 46,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 194,
-      "column": 92,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Dataset\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 194,
-      "column": 92,
-      "severity": "error",
-      "message": "Cannot access attribute \"keys\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"keys\" is unknown",
-      "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {
@@ -6354,74 +3444,11 @@
     },
     {
       "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 219,
-      "column": 35,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 222,
-      "column": 63,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 223,
-      "column": 63,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
       "line": 347,
       "column": 16,
       "severity": "error",
       "message": "Operator \"in\" not supported for types \"Literal['metadata']\" and \"Group | Dataset | Datatype\"\n\u00a0\u00a0Operator \"in\" not supported for types \"Literal['metadata']\" and \"Datatype\"",
       "rule": "reportOperatorIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 348,
-      "column": 31,
-      "severity": "error",
-      "message": "\"__getitem__\" method not defined on type \"Datatype\"",
-      "rule": "reportIndexIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 350,
-      "column": 33,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 351,
-      "column": 47,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
-      "tool": "pyright"
-    },
-    {
-      "file": "/Users/bernardurizaorozco/Documents/free-intelligence/backend/verify_api.py",
-      "line": 352,
-      "column": 42,
-      "severity": "error",
-      "message": "Cannot access attribute \"attrs\" for class \"Datatype\"\n\u00a0\u00a0Attribute \"attrs\" is unknown",
-      "rule": "reportAttributeAccessIssue",
       "tool": "pyright"
     },
     {

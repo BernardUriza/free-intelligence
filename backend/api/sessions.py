@@ -20,6 +20,7 @@ Endpoints:
 import logging
 from datetime import datetime, timezone
 from typing import Optional
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -218,8 +219,12 @@ async def create_session(request: CreateSessionRequest):
         session_service = get_container().get_session_service()
         audit_service = get_container().get_audit_service()
 
-        # Delegate to service for creation (handles validation)
-        session = session_service.create_session(user_id=request.owner_hash)
+        # Generate unique session ID and delegate to service for creation
+        session_id = f"session_{uuid4().hex[:12]}"
+        session = session_service.create_session(
+            session_id=session_id,
+            user_id=request.owner_hash,
+        )
 
         # Log audit trail
         audit_service.log_action(
@@ -235,7 +240,19 @@ async def create_session(request: CreateSessionRequest):
 
         logger.info("SESSION_CREATED", session_id=session["session_id"], owner_hash=request.owner_hash)
 
-        return SessionResponse(**session)
+        # Map service response to API response schema
+        now = datetime.now(timezone.utc).isoformat()
+        return SessionResponse(
+            id=session["session_id"],
+            created_at=now,
+            updated_at=now,
+            last_active=now,
+            interaction_count=0,
+            status=session.get("status", "active"),
+            is_persisted=True,
+            owner_hash=request.owner_hash,
+            thread_id=request.thread_id,
+        )
 
     except ValueError as e:
         logger.warning("SESSION_CREATION_VALIDATION_FAILED", error=str(e))
