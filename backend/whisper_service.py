@@ -26,6 +26,8 @@ WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "small")  # small (default 
 WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")  # int8 fastest on CPU (50-70% faster than float16)
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")  # cpu or cuda
 WHISPER_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "es")  # Force Spanish
+WHISPER_BEAM_SIZE = int(os.getenv("WHISPER_BEAM_SIZE", "5"))  # 1=fastest, 5=balanced (default), 10+=most accurate
+WHISPER_VAD_FILTER = os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true"  # Voice Activity Detection
 # CPU optimization (DS923+: Ryzen R1600, 4 threads → use 3, leave 1 free)
 CPU_THREADS = int(os.getenv("ASR_CPU_THREADS", "3"))
 NUM_WORKERS = int(os.getenv("ASR_NUM_WORKERS", "1"))
@@ -185,7 +187,7 @@ def transcribe_audio(
             str(audio_path),
             language=language,
             vad_filter=vad_filter,
-            beam_size=5,  # Balance between speed and accuracy
+            beam_size=WHISPER_BEAM_SIZE,  # Configurable: 1=fastest, 5=default, 10+=accurate
         )
 
         # Collect segments
