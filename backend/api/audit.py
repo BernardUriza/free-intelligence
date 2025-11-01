@@ -66,6 +66,10 @@ async def get_logs(
     """
     Get audit logs with optional filtering.
 
+    **Clean Code Architecture:**
+    - AuditService handles log retrieval with filtering
+    - Uses DI container for dependency injection
+
     Returns logs in reverse chronological order (newest first).
 
     **Operation Types:**
@@ -76,28 +80,40 @@ async def get_logs(
     - DELETE: Deletion of session (requires approval)
     - INTERACTION_APPENDED: New interaction added
     - SESSION_CREATED: New session created
+    - audio_uploaded_for_diarization: Audio file uploaded
+    - session_created: New session created
+    - session_retrieved: Session accessed
+    - session_updated: Session updated
 
     **Example:**
     ```
-    GET /api/audit/logs?limit=50&operation=EXPORT
+    GET /api/audit/logs?limit=50&operation=session_created
     ```
     """
     try:
-        config = load_config()
-        corpus_path = config["storage"]["corpus_path"]
+        # Get audit service from DI container
+        audit_service = get_container().get_audit_service()
 
-        logs_data: list[dict[str, Any]] = get_audit_logs(
-            corpus_path, limit=limit, operation_filter=operation, user_filter=user
+        # Delegate to service for log retrieval with filtering
+        logs_data = audit_service.list_audit_logs(
+            limit=limit,
+            action=operation,
+            user_id=user,
         )
 
         # Convert dicts to AuditLogEntry objects
-        logs: list[AuditLogEntry] = [AuditLogEntry(**log) for log in logs_data]
+        logs: list[AuditLogEntry] = [AuditLogEntry(**log) for log in logs_data if log]
 
         return AuditLogsResponse(
-            total=len(logs), limit=limit, logs=logs, operation_filter=operation, user_filter=user
+            total=len(logs),
+            limit=limit,
+            logs=logs,
+            operation_filter=operation,
+            user_filter=user,
         )
 
     except Exception as e:
+        logger.error("GET_AUDIT_LOGS_FAILED", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to retrieve audit logs: {str(e)}")
 
 
@@ -105,6 +121,10 @@ async def get_logs(
 async def get_stats():
     """
     Get audit log statistics.
+
+    **Clean Code Architecture:**
+    - AuditService handles statistics aggregation
+    - Uses DI container for dependency injection
 
     Returns total count and breakdown by status and operation type.
 
@@ -114,14 +134,16 @@ async def get_stats():
     ```
     """
     try:
-        config = load_config()
-        corpus_path = config["storage"]["corpus_path"]
+        # Get audit service from DI container
+        audit_service = get_container().get_audit_service()
 
-        stats_data: dict[str, Any] = get_audit_stats(corpus_path)
+        # Delegate to service for statistics
+        stats_data = audit_service.get_statistics()
 
         return AuditStatsResponse(**stats_data)
 
     except Exception as e:
+        logger.error("GET_AUDIT_STATS_FAILED", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to retrieve audit stats: {str(e)}")
 
 
