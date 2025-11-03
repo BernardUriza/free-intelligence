@@ -17,7 +17,7 @@ from typing import Any, Optional
 
 import h5py
 
-from backend.types import DiarizationChunkDict
+from backend.type_defs import DiarizationChunkDict
 
 from .base_repository import BaseRepository
 
