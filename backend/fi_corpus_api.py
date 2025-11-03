@@ -21,7 +21,7 @@ Usage:
 
 import os
 from collections import defaultdict
-from datetime import UTC, datetime  # type: ignore[attr-defined]
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 

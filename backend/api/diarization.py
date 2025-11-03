@@ -432,7 +432,7 @@ async def upload_audio_for_diarization(
 
     except ValueError as e:
         # Validation error (bad input)
-        logger.warning("DIARIZATION_VALIDATION_FAILED", error=str(e)
+        logger.warning("DIARIZATION_VALIDATION_FAILED")
         audit_service.log_action(
             action="diarization_upload_validation_failed",
             user_id="system",
@@ -444,7 +444,7 @@ async def upload_audio_for_diarization(
 
     except OSError as e:
         # Storage error
-        logger.error("DIARIZATION_STORAGE_FAILED", error=str(e)
+        logger.error("DIARIZATION_STORAGE_FAILED")
         audit_service.log_action(
             action="diarization_upload_storage_failed",
             user_id="system",
@@ -458,7 +458,7 @@ async def upload_audio_for_diarization(
 
     except Exception as e:
         # Unexpected error
-        logger.error("DIARIZATION_UPLOAD_FAILED", error=str(e)
+        logger.error("DIARIZATION_UPLOAD_FAILED")
         audit_service.log_action(
             action="diarization_upload_failed",
             user_id="system",

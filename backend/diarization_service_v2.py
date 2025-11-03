@@ -109,7 +109,7 @@ def _process_single_chunk(
                 try:
                     speaker = classify_speaker_with_llm(text, "", "")
                 except Exception as e:
-                    logger.warning("SPEAKER_CLASSIFICATION_FAILED", error=str(e)
+                    logger.warning("SPEAKER_CLASSIFICATION_FAILED")
 
             segments.append(
                 DiarizationSegment(
