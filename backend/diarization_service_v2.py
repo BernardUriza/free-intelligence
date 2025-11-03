@@ -108,7 +108,7 @@ def _process_single_chunk(
             if FI_ENRICHMENT and ENABLE_LLM_CLASSIFICATION:
                 try:
                     speaker = classify_speaker_with_llm(text, "", "")
-                except Exception as e:
+                except Exception:
                     logger.warning("SPEAKER_CLASSIFICATION_FAILED")
 
             segments.append(
@@ -200,9 +200,9 @@ async def diarize_audio_parallel(
             if extract_chunk(audio_path, start_sec, end_sec, chunk_path):
                 chunk_tasks.append((i, start_sec, end_sec, chunk_path))
             else:
-                logger.warning("CHUNK_EXTRACTION_FAILED", chunk_index=i)
+                logger.warning("CHUNK_EXTRACTION_FAILED")
 
-        logger.info("CHUNKS_EXTRACTED", extracted=len(chunk_tasks)
+        logger.info("CHUNKS_EXTRACTED")
 
         # Step 3: Process chunks in parallel (CPU/GPU-bound)
         if progress_callback:
