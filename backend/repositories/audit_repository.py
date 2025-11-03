@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
@@ -77,7 +77,7 @@ class AuditRepository(BaseRepository):
 
                 # Store log data
                 log_group.attrs["timestamp"] = audit_log.get(
-                    "timestamp", datetime.now(UTC).isoformat()
+                    "timestamp", datetime.now(timezone.utc).isoformat()
                 )
                 log_group.attrs["action"] = audit_log.get("action", "")
                 log_group.attrs["user_id"] = audit_log.get("user_id", "")

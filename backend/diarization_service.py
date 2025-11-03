@@ -20,7 +20,7 @@ import json
 import os
 import time
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -497,7 +497,7 @@ def diarize_audio(
             model_llm=OLLAMA_MODEL,
             segments=segments,
             processing_time_sec=time.time() - start_time,
-            created_at=datetime.now(UTC).isoformat() + "Z",
+            created_at=datetime.now(timezone.utc).isoformat() + "Z",
         )
 
         logger.info(

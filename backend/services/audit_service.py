@@ -10,7 +10,7 @@ audit policies across the entire application.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from backend.repositories import AuditRepository
@@ -75,7 +75,7 @@ class AuditService:
 
         try:
             audit_log: AuditLogDict = {
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "action": action,
                 "user_id": user_id,
                 "resource": resource,
