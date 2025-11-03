@@ -14,7 +14,7 @@ import logging
 from typing import Any, Optional
 
 from backend.repositories import CorpusRepository
-from backend.types import DiarizationChunkDict
+from backend.type_defs import DiarizationChunkDict
 
 logger = logging.getLogger(__name__)
 

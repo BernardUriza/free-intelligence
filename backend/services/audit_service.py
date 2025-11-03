@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from typing import Any, Optional
 
 from backend.repositories import AuditRepository
-from backend.types import AuditLogDict
+from backend.type_defs import AuditLogDict
 
 logger = logging.getLogger(__name__)
 

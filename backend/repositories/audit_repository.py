@@ -11,15 +11,14 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
 
-import h5py
+from backend.type_defs import AuditLogDict
 
 from .base_repository import BaseRepository
-from backend.types import AuditLogDict
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +66,7 @@ class AuditRepository(BaseRepository):
         # Validate required fields
         required_fields = {"action", "user_id", "resource", "result"}
         if not all(key in audit_log for key in required_fields):
-            raise ValueError(
-                f"Audit log missing required fields: {required_fields}"
-            )
+            raise ValueError(f"Audit log missing required fields: {required_fields}")
 
         try:
             log_id = str(uuid4())
@@ -80,7 +77,7 @@ class AuditRepository(BaseRepository):
 
                 # Store log data
                 log_group.attrs["timestamp"] = audit_log.get(
-                    "timestamp", datetime.now(timezone.utc).isoformat()
+                    "timestamp", datetime.now(UTC).isoformat()
                 )
                 log_group.attrs["action"] = audit_log.get("action", "")
                 log_group.attrs["user_id"] = audit_log.get("user_id", "")
@@ -172,7 +169,9 @@ class AuditRepository(BaseRepository):
         try:
             with self._open_file("r") as f:
                 logs_group = f[self.AUDIT_LOGS_GROUP]
-                log_ids = sorted(logs_group.keys(), reverse=True)  # Most recent first  # type: ignore[attr-defined]
+                log_ids = sorted(
+                    logs_group.keys(), reverse=True
+                )  # Most recent first  # type: ignore[attr-defined]
 
                 if limit:
                     log_ids = log_ids[:limit]
