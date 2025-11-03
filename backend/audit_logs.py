@@ -107,7 +107,7 @@ def init_audit_logs_group(corpus_path: str) -> bool:
             return True
 
     except (OSError, ValueError, RuntimeError) as e:
-        logger.error("AUDIT_LOGS_INIT_FAILED", error=str(e)
+        logger.error("AUDIT_LOGS_INIT_FAILED")
         return False
 
 
@@ -231,7 +231,7 @@ def append_audit_log(
         return audit_id
 
     except (OSError, ValueError, TypeError, KeyError) as e:
-        logger.error("AUDIT_LOG_APPEND_FAILED", error=str(e)
+        logger.error("AUDIT_LOG_APPEND_FAILED")
         raise
 
 
