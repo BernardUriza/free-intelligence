@@ -291,7 +291,7 @@ def get_core_functions(h5file: h5py.File, category: Optional[str] = None) -> lis
         if category is None or entry_category == category:
             functions.append(func_dict)
 
-    logger.info("CORE_FUNCTIONS_READ", total_functions=len(functions), category=category or "all")
+    logger.info("CORE_FUNCTIONS_READ", total_functions=len(functions)
 
     return functions
 

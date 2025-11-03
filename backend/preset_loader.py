@@ -271,7 +271,7 @@ class PresetLoader:
 
         presets = [p.stem for p in self.presets_dir.glob("*.yaml")]
 
-        self.logger.info("PRESETS_LISTED", count=len(presets), presets=presets)
+        self.logger.info("PRESETS_LISTED", count=len(presets)
 
         return presets
 

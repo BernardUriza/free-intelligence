@@ -154,7 +154,7 @@ def chunk_audio_fixed(
         )
         duration = float(result.stdout.strip())
     except Exception as e:
-        logger.warning("FFPROBE_FAILED", error=str(e), fallback="30s duration")
+        logger.warning("FFPROBE_FAILED", error=str(e)
         duration = 30.0  # fallback
 
     # Create chunks
@@ -299,7 +299,7 @@ Clasificación:"""
         logger.warning("LLM_TIMEOUT", timeout=LLM_TIMEOUT_SEC, text_preview=text[:30])
         return "DESCONOCIDO"
     except Exception as e:
-        logger.error("LLM_REQUEST_ERROR", error=str(e), text_preview=text[:30])
+        logger.error("LLM_REQUEST_ERROR", error=str(e)
         return "DESCONOCIDO"
 
 
@@ -334,7 +334,7 @@ def merge_consecutive_segments(segments: list[DiarizationSegment]) -> list[Diari
         else:
             merged.append(seg)
 
-    logger.info("SEGMENTS_MERGED", original=len(segments), merged=len(merged))
+    logger.info("SEGMENTS_MERGED", original=len(segments))
     return merged
 
 

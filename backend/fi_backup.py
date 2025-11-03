@@ -77,7 +77,7 @@ def encrypt_file(input_path: Path, output_path: Path, key: bytes) -> str:
         >>> key, salt = generate_key_from_password("password")
         >>> hash_val = encrypt_file(Path("corpus.h5"), Path("corpus.h5.enc"), key)
     """
-    logger.info("FILE_ENCRYPTION_STARTED", input_path=str(input_path), output_path=str(output_path))
+    logger.info("FILE_ENCRYPTION_STARTED", input_path=str(input_path))
 
     fernet = Fernet(key)
 
@@ -125,7 +125,7 @@ def decrypt_file(input_path: Path, output_path: Path, key: bytes) -> str:
         >>> key, salt = generate_key_from_password("password")
         >>> hash_val = decrypt_file(Path("corpus.h5.enc"), Path("corpus_restored.h5"), key)
     """
-    logger.info("FILE_DECRYPTION_STARTED", input_path=str(input_path), output_path=str(output_path))
+    logger.info("FILE_DECRYPTION_STARTED", input_path=str(input_path))
 
     fernet = Fernet(key)
 

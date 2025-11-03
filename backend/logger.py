@@ -127,7 +127,7 @@ def init_logger_from_config(config_path: Optional[str] = None) -> structlog.Boun
     except Exception as e:
         # Fallback to defaults if config loading fails
         fallback_logger = get_logger(log_level="INFO")
-        fallback_logger.warning("config_load_failed", error=str(e), using_defaults=True)
+        fallback_logger.warning("config_load_failed", error=str(e)
         return fallback_logger
 
 

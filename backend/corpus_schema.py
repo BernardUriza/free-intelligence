@@ -205,7 +205,7 @@ def init_corpus(
         return True
 
     except Exception as e:
-        logger.error("CORPUS_INIT_FAILED", error=str(e), path=str(path))
+        logger.error("CORPUS_INIT_FAILED", error=str(e))
         return False
 
 

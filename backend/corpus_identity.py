@@ -138,7 +138,7 @@ def add_corpus_identity(
         return corpus_id, owner_hash
 
     except Exception as e:
-        logger.error("CORPUS_IDENTITY_ADD_FAILED", error=str(e), path=str(path))
+        logger.error("CORPUS_IDENTITY_ADD_FAILED", error=str(e))
         raise
 
 
@@ -198,7 +198,7 @@ def verify_corpus_ownership(
         return is_match
 
     except Exception as e:
-        logger.error("CORPUS_VERIFICATION_ERROR", error=str(e), path=corpus_path)
+        logger.error("CORPUS_VERIFICATION_ERROR", error=str(e)
         return False
 
 
@@ -243,7 +243,7 @@ def get_corpus_identity(corpus_path: str) -> Optional[dict]:
             return identity
 
     except Exception as e:
-        logger.error("CORPUS_IDENTITY_RETRIEVAL_FAILED", error=str(e), path=corpus_path)
+        logger.error("CORPUS_IDENTITY_RETRIEVAL_FAILED", error=str(e)
         return None
 
 

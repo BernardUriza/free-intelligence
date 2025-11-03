@@ -224,6 +224,6 @@ def cleanup_old_jobs(max_age_hours: int = 24) -> int:
         del _jobs[job_id]
 
     if to_remove:
-        logger.info("JOBS_CLEANED", removed_count=len(to_remove), max_age_hours=max_age_hours)
+        logger.info("JOBS_CLEANED", removed_count=len(to_remove)
 
     return len(to_remove)

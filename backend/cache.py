@@ -138,7 +138,7 @@ class LLMCache:
         # Hit!
         entry.hits += 1
         self.total_hits += 1
-        logger.debug("CACHE_HIT", key=key[:16], age=entry.get_age_seconds(), hits=entry.hits)
+        logger.debug("CACHE_HIT", key=key[:16], age=entry.get_age_seconds()
 
         return entry.value
 
@@ -174,7 +174,7 @@ class LLMCache:
         self.total_evictions += len(expired_keys)
 
         if expired_keys:
-            logger.info("CACHE_CLEANUP", evicted=len(expired_keys), remaining=len(self._cache))
+            logger.info("CACHE_CLEANUP", evicted=len(expired_keys))
 
         return len(expired_keys)
 
