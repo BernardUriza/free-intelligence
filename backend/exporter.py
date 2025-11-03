@@ -93,7 +93,7 @@ def export_to_markdown(
                 f.write(f"{interaction['response']}\n\n")
                 f.write("---\n\n")
 
-        logger.info("MARKDOWN_WRITTEN", path=str(md_path), interactions=len(interactions))
+        logger.info("MARKDOWN_WRITTEN", path=str(md_path))
 
         # Create manifest
         manifest = create_export_manifest(
@@ -181,7 +181,7 @@ def export_to_json(
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(export_data, f, indent=2, ensure_ascii=False)
 
-        logger.info("JSON_WRITTEN", path=str(json_path), interactions=len(interactions))
+        logger.info("JSON_WRITTEN", path=str(json_path))
 
         # Create manifest
         manifest = create_export_manifest(

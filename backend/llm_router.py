@@ -423,7 +423,7 @@ class OllamaProvider(LLMProvider):
             - 100% local, no API calls
             - Suitable for RAG and semantic search
         """
-        self.logger.info("OLLAMA_EMBED_STARTED", text_length=len(text), model=self.embed_model)
+        self.logger.info("OLLAMA_EMBED_STARTED", text_length=len(text)
 
         try:
             response = self.client.embeddings(model=self.embed_model, prompt=text)

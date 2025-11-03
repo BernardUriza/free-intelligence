@@ -41,7 +41,7 @@ AUDIO_TTL_DAYS = int(os.getenv("AUDIO_TTL_DAYS", "7"))
 
 # Ensure storage directory exists
 AUDIO_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-logger.info("AUDIO_STORAGE_INITIALIZED", path=str(AUDIO_STORAGE_DIR), ttl_days=AUDIO_TTL_DAYS)
+logger.info("AUDIO_STORAGE_INITIALIZED", path=str(AUDIO_STORAGE_DIR)
 
 
 def validate_session_id(session_id: str) -> bool:

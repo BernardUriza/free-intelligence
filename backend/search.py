@@ -157,7 +157,7 @@ def semantic_search(
             return results
 
     except Exception as e:
-        logger.error("SEMANTIC_SEARCH_FAILED", error=str(e), query=query[:100])
+        logger.error("SEMANTIC_SEARCH_FAILED", error=str(e)
         raise
 
 
@@ -210,7 +210,7 @@ def search_by_session(corpus_path: str, session_id: str) -> list[dict]:
             return results
 
     except Exception as e:
-        logger.error("SESSION_SEARCH_FAILED", error=str(e), session_id=session_id)
+        logger.error("SESSION_SEARCH_FAILED", error=str(e)
         raise
 
 

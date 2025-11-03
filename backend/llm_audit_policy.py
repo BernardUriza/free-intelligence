@@ -267,7 +267,7 @@ def scan_file_for_llm_functions(filepath: Path) -> list[LLMFunctionInfo]:
         content = filepath.read_text(encoding="utf-8")
         tree = ast.parse(content, filename=str(filepath))
     except SyntaxError as e:
-        logger.warning("FILE_PARSE_FAILED", filepath=str(filepath), error=str(e))
+        logger.warning("FILE_PARSE_FAILED", filepath=str(filepath))
         return []
 
     llm_functions = []

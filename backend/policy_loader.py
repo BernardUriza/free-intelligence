@@ -83,7 +83,7 @@ class PolicyLoader:
             return policy
 
         except yaml.YAMLError as e:
-            self.logger.error("POLICY_YAML_PARSE_ERROR", error=str(e), path=str(self.policy_path))
+            self.logger.error("POLICY_YAML_PARSE_ERROR", error=str(e))
             raise
         except PolicyValidationError as e:
             self.logger.error("POLICY_VALIDATION_FAILED", error=str(e))

@@ -144,7 +144,7 @@ async def list_sessions(
         )
 
     except Exception as e:
-        logger.error("LIST_SESSIONS_FAILED", error=str(e))  # type: ignore[call-arg]
+        logger.error("LIST_SESSIONS_FAILED")  # type: ignore[call-arg]
         raise HTTPException(status_code=500, detail=f"Failed to list sessions: {str(e)}")
 
 

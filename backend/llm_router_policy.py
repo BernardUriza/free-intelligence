@@ -225,7 +225,7 @@ def scan_file_for_router_violations(filepath: Path) -> list[RouterViolation]:
         content = filepath.read_text(encoding="utf-8")
         tree = ast.parse(content, filename=str(filepath))
     except SyntaxError as e:
-        logger.warning("FILE_PARSE_FAILED", filepath=str(filepath), error=str(e))
+        logger.warning("FILE_PARSE_FAILED", filepath=str(filepath))
         return []
 
     violations = []

@@ -100,7 +100,7 @@ def append_interaction(
         return interaction_id
 
     except Exception as e:
-        logger.error("INTERACTION_APPEND_FAILED", error=str(e), session_id=session_id)
+        logger.error("INTERACTION_APPEND_FAILED", error=str(e)
         raise
 
 
@@ -163,7 +163,7 @@ def append_embedding(
         return True
 
     except Exception as e:
-        logger.error("EMBEDDING_APPEND_FAILED", error=str(e), interaction_id=interaction_id)
+        logger.error("EMBEDDING_APPEND_FAILED", error=str(e)
         return False
 
 
