@@ -20,7 +20,7 @@ import json
 import os
 import time
 from dataclasses import asdict, dataclass
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -153,8 +153,8 @@ def chunk_audio_fixed(
             timeout=10,
         )
         duration = float(result.stdout.strip())
-    except Exception as e:
-        logger.warning("FFPROBE_FAILED", error=str(e)
+    except Exception:
+        logger.warning("FFPROBE_FAILED")
         duration = 30.0  # fallback
 
     # Create chunks
@@ -298,8 +298,8 @@ Clasificación:"""
     except requests.exceptions.Timeout:
         logger.warning("LLM_TIMEOUT", timeout=LLM_TIMEOUT_SEC, text_preview=text[:30])
         return "DESCONOCIDO"
-    except Exception as e:
-        logger.error("LLM_REQUEST_ERROR", error=str(e)
+    except Exception:
+        logger.error("LLM_REQUEST_ERROR")
         return "DESCONOCIDO"
 
 
@@ -497,7 +497,7 @@ def diarize_audio(
             model_llm=OLLAMA_MODEL,
             segments=segments,
             processing_time_sec=time.time() - start_time,
-            created_at=datetime.now(timezone.utc).isoformat() + "Z",
+            created_at=datetime.now(UTC).isoformat() + "Z",
         )
 
         logger.info(

@@ -124,10 +124,10 @@ def init_logger_from_config(config_path: Optional[str] = None) -> structlog.Boun
         return get_logger(
             name="free-intelligence", log_level=log_level, timezone=timezone, log_file=log_file
         )
-    except Exception as e:
+    except Exception:
         # Fallback to defaults if config loading fails
         fallback_logger = get_logger(log_level="INFO")
-        fallback_logger.warning("config_load_failed", error=str(e)
+        fallback_logger.warning("config_load_failed")
         return fallback_logger
 
 
