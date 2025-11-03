@@ -17,9 +17,14 @@
     "frontend:dev": "cd apps/aurity && PORT=9000 pnpm dev",
     "install:all": "pnpm install --frozen-lockfile",
     "prune": "pnpm prune && turbo prune",
-    "check-deps": "pnpm audit --audit-level=moderate"
+    "check-deps": "pnpm audit --audit-level=moderate",
+    "pw:install": "npx playwright install",
+    "qa:routes": "BASE_URL=http://localhost:9000 node scripts/discover_routes.mjs",
+    "qa:console:fe": "BASE_URL=http://localhost:9000 node scripts/console_harvest_frontend.mjs",
+    "qa:be": "node scripts/py_compile_all.py && node scripts/console_harvest.mjs"
   },
   "devDependencies": {
+    "playwright": "^1.56.1",
     "turbo": "^1.11.2"
   },
   "packageManager": "pnpm@8.15.0",
@@ -28,6 +33,7 @@
     "pnpm": ">=8.0.0"
   },
   "dependencies": {
+    "@playwright/test": "^1.56.1",
     "@tanstack/react-virtual": "3.13.12",
     "zustand": "5.0.8"
   }
