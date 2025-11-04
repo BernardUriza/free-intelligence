@@ -197,7 +197,7 @@ class TranscriptionService:
             )
             return result
         except Exception as e:
-            logger.error(f"TRANSCRIPTION_FAILED: path={audio_path}, error={str(e)}")
+            logger.error(f"TRANSCRIPTION_FAILED: file_path={audio_path}, error={str(e)}")
             raise ValueError(f"Transcription failed: {str(e)}") from e
 
     def process_transcription(
