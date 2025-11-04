@@ -267,10 +267,16 @@ async def upload_audio_for_diarization(
 
     Returns job_id for tracking progress.
     """
+    # Get services from DI container (clean code pattern) - must be outside try/except
+    diarization_service = get_container().get_diarization_service()
+    audit_service = get_container().get_audit_service()
+
     try:
-        # Get services from DI container (clean code pattern)
-        diarization_service = get_container().get_diarization_service()
-        audit_service = get_container().get_audit_service()
+        # Validate required headers and filename
+        if not x_session_id:
+            raise ValueError("X-Session-ID header is required")
+        if not audio.filename:
+            raise ValueError("Audio filename is required")
 
         # Read audio file
         audio_content = await audio.read()
@@ -369,15 +375,15 @@ async def upload_audio_for_diarization(
         # Build configuration dict from optional parameters
         config_overrides: dict[str, Any] = {}
         if whisper_model is not None:
-            config_overrides["whisper_model"] = whisper_model  # type: ignore
+            config_overrides["whisper_model"] = whisper_model
         if enable_llm_classification is not None:
-            config_overrides["enable_llm_classification"] = enable_llm_classification  # type: ignore
+            config_overrides["enable_llm_classification"] = enable_llm_classification
         if chunk_size_sec is not None:
-            config_overrides["chunk_size_sec"] = chunk_size_sec  # type: ignore
+            config_overrides["chunk_size_sec"] = chunk_size_sec
         if beam_size is not None:
-            config_overrides["beam_size"] = beam_size  # type: ignore
+            config_overrides["beam_size"] = beam_size
         if vad_filter is not None:
-            config_overrides["vad_filter"] = vad_filter  # type: ignore
+            config_overrides["vad_filter"] = vad_filter
 
         logger.info(
             "CONFIG_OVERRIDES_RECEIVED",
