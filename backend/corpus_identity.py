@@ -238,7 +238,7 @@ def get_corpus_identity(corpus_path: str) -> Optional[dict]:
                 "schema_version": metadata.attrs.get("schema_version"),  # type: ignore[attr-defined]
             }
 
-            logger.info("IDENTITY_METADATA_READ", corpus_id=identity["corpus_id"], path=corpus_path)
+            logger.info("IDENTITY_METADATA_READ", corpus_id=identity["corpus_id"], file_path=corpus_path)
 
             return identity
 

@@ -129,7 +129,7 @@ def init_corpus(
 
     # Check if file exists
     if path.exists() and not force:
-        logger.error("CORPUS_INIT_FAILED", reason="File already exists", path=str(path))
+        logger.error("CORPUS_INIT_FAILED", reason="File already exists", file_path=str(path))
         raise FileExistsError(f"Corpus already exists: {corpus_path}. Use force=True to overwrite.")
 
     # Create parent directory
