@@ -17,7 +17,6 @@ Endpoints:
 - PATCH /api/sessions/{id} -> update session
 """
 
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
@@ -26,8 +25,9 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
+from backend.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ============================================================================
 # PYDANTIC MODELS (API contracts)

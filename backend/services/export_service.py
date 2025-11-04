@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
 import os
 import random
 import time
@@ -18,7 +17,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class ExportService:

@@ -10,17 +10,17 @@ not business logic or policy enforcement.
 from __future__ import annotations
 
 import json
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
 
+from backend.logger import get_logger
 from backend.type_defs import AuditLogDict
 
 from .base_repository import BaseRepository
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AuditRepository(BaseRepository):

@@ -15,7 +15,6 @@ Endpoints:
 """
 
 import hashlib
-import logging
 import time
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -26,8 +25,9 @@ from pydantic import BaseModel, Field
 
 from backend.audit_logs import append_audit_log
 from backend.config_loader import load_config
+from backend.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Initialize router
 router = APIRouter()

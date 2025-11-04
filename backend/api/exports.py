@@ -26,7 +26,6 @@ Endpoints:
 """
 
 import json
-import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,9 +36,10 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
+from backend.logger import get_logger
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ============================================================================
 # CONFIGURATION

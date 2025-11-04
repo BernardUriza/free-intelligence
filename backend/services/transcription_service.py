@@ -8,18 +8,18 @@ Clean Code: This service layer makes endpoints simple and focused.
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Any, Optional
 
 from backend.audio_storage import save_audio_file, validate_session_id
+from backend.logger import get_logger
 from backend.whisper_service import (
     convert_audio_to_wav,
     is_whisper_available,
     transcribe_audio,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TranscriptionService:

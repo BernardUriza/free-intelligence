@@ -78,17 +78,17 @@ def get_logger(
         event_dict["timestamp"] = datetime.now(tz).isoformat()
         return event_dict
 
-    # Configure structlog
+    # Configure structlog with KeyValueRenderer for compatibility with keyword arguments
     structlog.configure(
         processors=[
             structlog.stdlib.add_log_level,
             add_timestamp,
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer(),
+            structlog.processors.KeyValueRenderer(),
         ],
         context_class=dict,
-        logger_factory=structlog.stdlib.LoggerFactory(),
+        logger_factory=structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=True,
     )
 

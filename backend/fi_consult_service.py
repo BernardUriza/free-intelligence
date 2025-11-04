@@ -70,7 +70,12 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS middleware (LAN-only in production)
+# KPIs middleware (FI-API-FEAT-011) - Add first (executes last)
+from backend.kpis_middleware import KPIsMiddleware
+
+app.add_middleware(KPIsMiddleware)
+
+# CORS middleware (LAN-only in production) - Add last (executes first)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -85,11 +90,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# KPIs middleware (FI-API-FEAT-011)
-from backend.kpis_middleware import KPIsMiddleware
-
-app.add_middleware(KPIsMiddleware)
 
 # Mount API routers
 # Sessions API (FI-API-FEAT-009)

@@ -8,12 +8,12 @@ not scattered across multiple endpoint handlers.
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Optional
 
+from backend.logger import get_logger
 from backend.repositories import SessionRepository
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class SessionService:

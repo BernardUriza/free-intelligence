@@ -740,13 +740,25 @@ async def diarization_health():
         # Delegate to service layer
         health_details = diarization_service.health_check()
 
-        logger.info(f"DIARIZATION_HEALTH_CHECKED: status={health_details['status']}")
+        logger.info("DIARIZATION_HEALTH_CHECKED", status=health_details["status"])
+
+        # Transform response for frontend compatibility
+        # Frontend expects top-level whisper_available and ollama_available fields
+        whisper_available = health_details.get("components", {}).get("whisper", {}).get("available", False)
+
+        frontend_response = {
+            "status": health_details["status"],
+            "whisper_available": whisper_available,
+            "ollama_available": False,  # Will be checked by other endpoints
+            "components": health_details.get("components", {}),
+            "active_jobs": health_details.get("active_jobs", 0),
+        }
 
         # Return appropriate status code
         status_code = 200 if health_details["status"] == "healthy" else 503
 
         return Response(
-            content=json.dumps(health_details),
+            content=json.dumps(frontend_response),
             media_type="application/json",
             status_code=status_code,
         )

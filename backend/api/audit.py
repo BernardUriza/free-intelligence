@@ -10,16 +10,16 @@ Provides read-only access to audit logs with filtering and pagination.
 Updated to use clean code architecture with AuditService.
 """
 
-import logging
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
+from backend.logger import get_logger
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/audit")
 

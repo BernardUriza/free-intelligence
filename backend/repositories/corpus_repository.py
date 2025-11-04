@@ -10,18 +10,18 @@ not business logic or API concerns.
 from __future__ import annotations
 
 import json
-import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 import h5py
 
+from backend.logger import get_logger
 from backend.type_defs import DiarizationChunkDict
 
 from .base_repository import BaseRepository
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class CorpusRepository(BaseRepository):
