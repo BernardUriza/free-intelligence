@@ -744,7 +744,9 @@ async def diarization_health():
 
         # Transform response for frontend compatibility
         # Frontend expects top-level whisper_available and ollama_available fields
-        whisper_available = health_details.get("components", {}).get("whisper", {}).get("available", False)
+        whisper_available = (
+            health_details.get("components", {}).get("whisper", {}).get("available", False)
+        )
 
         frontend_response = {
             "status": health_details["status"],

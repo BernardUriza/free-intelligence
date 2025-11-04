@@ -10,6 +10,8 @@ coordination, repositories handle storage, endpoints handle HTTP.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+
+UTC = timezone.utc
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -187,8 +189,8 @@ class DiarizationService:
             "language": language,
             "persist": persist,
             "whisper_model": whisper_model,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
             "progress_pct": 0,
             "chunks_processed": 0,
             "total_chunks": 0,
@@ -250,7 +252,7 @@ class DiarizationService:
         job["progress_pct"] = max(0, min(100, progress_pct))
         job["chunks_processed"] = chunks_processed
         job["total_chunks"] = total_chunks
-        job["updated_at"] = datetime.now(timezone.utc).isoformat()
+        job["updated_at"] = datetime.now(UTC).isoformat()
 
         if status:
             job["status"] = status
@@ -285,7 +287,7 @@ class DiarizationService:
         job = self.active_jobs[job_id]
         job["status"] = "completed"
         job["progress_pct"] = 100
-        job["completed_at"] = datetime.now(timezone.utc).isoformat()
+        job["completed_at"] = datetime.now(UTC).isoformat()
 
         if result:
             job["result"] = result
@@ -314,7 +316,7 @@ class DiarizationService:
         job = self.active_jobs[job_id]
         job["status"] = "failed"
         job["error"] = error
-        job["failed_at"] = datetime.now(timezone.utc).isoformat()
+        job["failed_at"] = datetime.now(UTC).isoformat()
 
         logger.error("DIARIZATION_JOB_FAILED", job_id=job_id, error=error)  # type: ignore[call-arg]
         return True

@@ -74,8 +74,8 @@ class PolicyEnforcer:
                     }
 
         logger.info(
-            f"PolicyEnforcer loaded: {self.policy.get('version', 'unknown')} " +
-            f"({len(self._compiled_patterns)} redaction patterns)"
+            f"PolicyEnforcer loaded: {self.policy.get('version', 'unknown')} "
+            + f"({len(self._compiled_patterns)} redaction patterns)"
         )
 
     def _load_yaml(self, path: Path) -> dict[str, Any]:

@@ -77,7 +77,7 @@ class SessionService:
         except ValueError as e:
             logger.warning("SESSION_CREATION_VALIDATION_FAILED", error=str(e))
             raise
-        except IOError as e:
+        except OSError as e:
             logger.error("SESSION_CREATION_FAILED", error=str(e))
             raise
 
@@ -92,7 +92,7 @@ class SessionService:
         """
         try:
             return self.repository.read(session_id)
-        except IOError as e:
+        except OSError as e:
             logger.error("SESSION_RETRIEVAL_FAILED", session_id=session_id, error=str(e))
             raise
 
@@ -137,7 +137,7 @@ class SessionService:
         except ValueError as e:
             logger.warning("SESSION_UPDATE_VALIDATION_FAILED", error=str(e))
             raise
-        except IOError as e:
+        except OSError as e:
             logger.error("SESSION_UPDATE_FAILED", session_id=session_id, error=str(e))
             raise
 
@@ -201,11 +201,7 @@ class SessionService:
         sessions = self.repository.list_all(limit=limit, status=status)
 
         if user_id:
-            sessions = [
-                s
-                for s in sessions
-                if s.get("metadata", {}).get("user_id") == user_id
-            ]
+            sessions = [s for s in sessions if s.get("metadata", {}).get("user_id") == user_id]
 
         return sessions
 
@@ -223,6 +219,6 @@ class SessionService:
             if success:
                 logger.info("SESSION_ENDED", session_id=session_id)
             return success
-        except IOError as e:
+        except OSError as e:
             logger.error("SESSION_DELETION_FAILED", session_id=session_id, error=str(e))
             raise

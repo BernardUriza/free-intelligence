@@ -28,6 +28,8 @@ Endpoints:
 import json
 import os
 from datetime import datetime, timezone
+
+UTC = timezone.utc
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -37,7 +39,6 @@ from pydantic import BaseModel, Field
 
 from backend.container import get_container
 from backend.logger import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -114,8 +115,6 @@ class VerifyResponse(BaseModel):
     results: list[VerifyResult]
 
 
-
-
 # ============================================================================
 # FASTAPI ROUTER
 # ============================================================================
@@ -159,7 +158,7 @@ async def create_export(request: ExportRequest):
                     "session_id": request.sessionId,
                     "format": fmt,
                     "include": request.include.dict(),
-                    "generated_at": datetime.now(timezone.utc).isoformat() + "Z",
+                    "generated_at": datetime.now(UTC).isoformat() + "Z",
                 },
                 indent=2,
             )
@@ -174,7 +173,11 @@ async def create_export(request: ExportRequest):
         # Build artifacts with download URLs
         artifacts = []
         for artifact in result["artifacts"]:
-            filename = f"session.{artifact['format']}" if artifact["format"] != "manifest" else "manifest.json"
+            filename = (
+                f"session.{artifact['format']}"
+                if artifact["format"] != "manifest"
+                else "manifest.json"
+            )
             url = f"{BASE_DOWNLOAD_URL}/{result['export_id']}/{filename}"
             artifacts.append(
                 ExportArtifact(
@@ -248,7 +251,11 @@ async def get_export(export_id: str):
         # Build artifacts with download URLs
         artifacts = []
         for artifact in metadata["artifacts"]:
-            filename = f"session.{artifact['format']}" if artifact["format"] != "manifest" else "manifest.json"
+            filename = (
+                f"session.{artifact['format']}"
+                if artifact["format"] != "manifest"
+                else "manifest.json"
+            )
             url = f"{BASE_DOWNLOAD_URL}/{export_id}/{filename}"
             artifacts.append(
                 ExportArtifact(
@@ -340,15 +347,13 @@ async def verify_export(export_id: str, request: VerifyRequest):
             details={"targets": request.targets, "all_ok": verify_result["ok"]},
         )
 
-        logger.info(
-            f"EXPORT_VERIFIED: export_id={export_id}, all_ok={verify_result['ok']}"
-        )
+        logger.info(f"EXPORT_VERIFIED: export_id={export_id}, all_ok={verify_result['ok']}")
 
         return VerifyResponse(ok=verify_result["ok"], results=results)
 
     except HTTPException:
         raise
-    except IOError as e:
+    except OSError as e:
         logger.warning(f"EXPORT_VERIFICATION_FAILED: export_id={export_id}, error={str(e)}")
         raise HTTPException(status_code=404, detail=f"Export not found: {str(e)}")
     except Exception as e:
