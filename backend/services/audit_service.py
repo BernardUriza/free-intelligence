@@ -9,14 +9,14 @@ audit policies across the entire application.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from backend.logger import get_logger
 from backend.repositories import AuditRepository
 from backend.type_defs import AuditLogDict
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AuditService:

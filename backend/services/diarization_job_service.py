@@ -9,7 +9,6 @@ making endpoints thin controllers focused only on HTTP concerns.
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Any, Optional
 
@@ -17,8 +16,9 @@ from backend.diarization_jobs import get_job
 from backend.diarization_service import diarize_audio
 from backend.diarization_service import export_diarization as export_to_format
 from backend.diarization_worker_lowprio import get_job_status as get_lowprio_status
+from backend.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DiarizationJobService:

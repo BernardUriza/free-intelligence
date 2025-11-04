@@ -13,15 +13,15 @@ Card: FI-DATA-RES-021
 Created: 2025-10-30
 """
 
-import logging
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from backend.container import get_container
+from backend.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ClinicalSourceRequest(BaseModel):

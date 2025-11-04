@@ -9,12 +9,13 @@ coordination, repositories handle storage, endpoints handle HTTP.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
 
-logger = logging.getLogger(__name__)
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class DiarizationService:
@@ -413,5 +414,5 @@ class DiarizationService:
         active_job_count = len(self.active_jobs)
         health_details["active_jobs"] = active_job_count
 
-        logger.info(f"DIARIZATION_HEALTH_CHECK: status={health_details['status']}")
+        logger.info("DIARIZATION_HEALTH_CHECK", status=health_details["status"])
         return health_details

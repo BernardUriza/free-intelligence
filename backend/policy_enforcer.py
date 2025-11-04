@@ -9,14 +9,15 @@ Provides guard functions for sovereignty, privacy, cost, and feature flags
 """
 
 import hashlib
-import logging
 import re
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
 
-logger = logging.getLogger(__name__)
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class PolicyViolation(Exception):

@@ -11,7 +11,6 @@ Endpoints:
 Updated to use clean code architecture with TriageService.
 """
 
-import logging
 from datetime import datetime
 from typing import Any, Literal, Optional, Union
 
@@ -19,8 +18,9 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, constr, field_validator
 
 from backend.container import get_container
+from backend.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/triage", tags=["triage"])
 

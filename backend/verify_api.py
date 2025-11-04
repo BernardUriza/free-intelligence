@@ -18,7 +18,6 @@ Endpoints:
 """
 
 import hashlib
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -30,10 +29,10 @@ from pydantic import BaseModel, Field
 
 from backend.config_loader import load_config
 from backend.export_policy import validate_export
+from backend.logger import get_logger
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Initialize FastAPI
 app = FastAPI(

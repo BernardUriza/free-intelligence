@@ -8,12 +8,12 @@ Clean Code: This service layer makes endpoints simple and focused.
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Optional
 
 from backend.evidence_pack import EvidencePackBuilder, create_evidence_pack_from_sources
+from backend.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class EvidenceService:

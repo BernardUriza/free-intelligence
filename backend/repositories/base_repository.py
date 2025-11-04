@@ -11,7 +11,6 @@ Clean Code Principles:
 
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -20,7 +19,9 @@ from typing import Any, Generic, Optional, TypeVar
 
 import h5py
 
-logger = logging.getLogger(__name__)
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Generic type for any entity stored in HDF5
 T = TypeVar("T")

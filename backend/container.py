@@ -11,10 +11,10 @@ Clean Code Principles:
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Optional
 
+from backend.logger import get_logger
 from backend.repositories import AuditRepository, CorpusRepository, SessionRepository
 from backend.services import (
     AuditService,
@@ -30,7 +30,7 @@ from backend.services import (
 )
 from backend.services.diarization_job_service import DiarizationJobService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DIContainer:
