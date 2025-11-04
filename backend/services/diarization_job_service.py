@@ -13,7 +13,11 @@ from pathlib import Path
 from typing import Any, Optional
 
 from backend.diarization_jobs import get_job
-from backend.diarization_service import diarize_audio
+from backend.diarization_service import (
+    DiarizationResult,
+    DiarizationSegment,
+    diarize_audio,
+)
 from backend.diarization_service import export_diarization as export_to_format
 from backend.diarization_worker_lowprio import get_job_status as get_lowprio_status
 from backend.logger import get_logger
@@ -236,28 +240,43 @@ class DiarizationJobService:
             )
 
         try:
-            # Get result first
-            result = self.get_diarization_result(job_id)
-            if not result:
+            # Get result first (returns dict)
+            result_dict = self.get_diarization_result(job_id)
+            if not result_dict:
                 raise ValueError(f"Result not found for job {job_id}")
 
             logger.info(f"EXPORTING_DIARIZATION: job_id={job_id}, format={format}")
 
-            # Use existing export function (backend/diarization_service.py)
-            # This function handles format conversion
-            from pathlib import Path
+            # Convert dict segments to DiarizationSegment objects
+            segments = [
+                DiarizationSegment(
+                    start_time=seg.get("start_time", 0.0),
+                    end_time=seg.get("end_time", 0.0),
+                    speaker=seg.get("speaker", "DESCONOCIDO"),
+                    text=seg.get("text", ""),
+                    confidence=seg.get("confidence"),
+                )
+                for seg in result_dict.get("segments", [])
+            ]
 
-            # Try to find audio file
-            job = get_job(job_id)
-            audio_path = None
-            if job:
-                audio_path = Path(job.audio_file_path)
+            # Create DiarizationResult dataclass instance
+            result = DiarizationResult(
+                session_id=result_dict.get("session_id", ""),
+                audio_file_path=result_dict.get("audio_file_path", ""),
+                audio_file_hash=result_dict.get("audio_file_hash", ""),
+                duration_sec=result_dict.get("duration_sec", 0.0),
+                language=result_dict.get("language", "es"),
+                model_asr=result_dict.get("model_asr", "unknown"),
+                model_llm=result_dict.get("model_llm", "none"),
+                segments=segments,
+                processing_time_sec=result_dict.get("processing_time_sec", 0.0),
+                created_at=result_dict.get("created_at", ""),
+            )
 
+            # Export result in requested format
             exported = export_to_format(
                 result=result,
                 format=format,
-                audio_path=audio_path,
-                job_id=job_id,
             )
 
             logger.info(
