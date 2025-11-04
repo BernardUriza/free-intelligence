@@ -168,7 +168,7 @@ async def create_export(request: ExportRequest):
         result = export_service.create_export(
             session_id=request.sessionId,
             content_dict=content_dict,
-            formats=request.formats,
+            formats=request.formats,  # type: ignore[arg-type]
         )
 
         # Build artifacts with download URLs
@@ -197,10 +197,7 @@ async def create_export(request: ExportRequest):
         )
 
         logger.info(
-            "EXPORT_CREATED",
-            export_id=result["export_id"],
-            session_id=request.sessionId,
-            formats=request.formats,
+            f"EXPORT_CREATED: export_id={result['export_id']}, session_id={request.sessionId}, formats={request.formats}"
         )
 
         return ExportResponse(
@@ -272,7 +269,7 @@ async def get_export(export_id: str):
             result="success",
         )
 
-        logger.info("EXPORT_RETRIEVED", export_id=export_id)
+        logger.info(f"EXPORT_RETRIEVED: export_id={export_id}")
 
         return ExportResponse(
             exportId=export_id,
@@ -320,7 +317,7 @@ async def verify_export(export_id: str, request: VerifyRequest):
         # Delegate to service for verification
         verify_result = export_service.verify_export(
             export_id=export_id,
-            targets=request.targets,
+            targets=request.targets,  # type: ignore[arg-type]
         )
 
         # Convert results to response format
@@ -344,9 +341,7 @@ async def verify_export(export_id: str, request: VerifyRequest):
         )
 
         logger.info(
-            "EXPORT_VERIFIED",
-            export_id=export_id,
-            all_ok=verify_result["ok"],
+            f"EXPORT_VERIFIED: export_id={export_id}, all_ok={verify_result['ok']}"
         )
 
         return VerifyResponse(ok=verify_result["ok"], results=results)
