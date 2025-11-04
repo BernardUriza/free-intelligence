@@ -21,7 +21,7 @@ Usage:
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path as FilePath
 from typing import Optional
 
@@ -42,6 +42,7 @@ from backend.api.kpis import router as kpis_router
 # Import API routers
 from backend.api.sessions import router as sessions_router
 from backend.api.system import router as system_router
+from backend.api.timeline_verify import router as timeline_verify_router
 from backend.api.transcribe import router as transcribe_router
 from backend.api.triage import router as triage_router
 from backend.fi_consult_models import (
@@ -99,6 +100,9 @@ app.include_router(exports_router, tags=["exports"])
 
 # KPIs API (FI-API-FEAT-011)
 app.include_router(kpis_router, tags=["kpis"])
+
+# Timeline Verify API (FI-API-FEAT-003)
+app.include_router(timeline_verify_router, tags=["timeline-verify"])
 
 # Evidence API (FI-DATA-RES-021)
 app.include_router(evidence_router, tags=["evidence"])
@@ -183,8 +187,8 @@ def reconstruct_consultation_state(
     consultation = Consultation(
         consultation_id=consultation_id,
         session_id=str(uuid4()),  # Will be overridden by first event
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
         messages=[],
         event_count=0,
     )
@@ -263,7 +267,7 @@ async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "consultations_count": len(temp_store.consultations),
         "service": "fi_consultation_service",
     }
@@ -293,7 +297,7 @@ async def start_consultation(request: StartConsultationRequest):
 
     consultation_id = str(uuid4())
     session_id = str(uuid4())
-    created_at = datetime.now(timezone.utc)
+    created_at = datetime.now(UTC)
 
     # Create initial event (consultation started)
     initial_event = ConsultationEvent(
@@ -358,7 +362,7 @@ async def append_event(
     # Create event
     event = ConsultationEvent(
         consultation_id=consultation_id,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         event_type=request.event_type,
         payload=request.payload,
         metadata=EventMetadata(user_id=request.user_id, session_id=session_id),
@@ -522,7 +526,7 @@ async def http_exception_handler(request, exc: HTTPException):
             "error": True,
             "status_code": exc.status_code,
             "message": exc.detail,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
     )
 
@@ -537,7 +541,7 @@ async def general_exception_handler(request, exc: Exception):
             "status_code": 500,
             "message": "Internal server error",
             "detail": str(exc),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
     )
 
