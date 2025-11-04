@@ -153,7 +153,7 @@ class DiarizationWorker:
         with h5py.File(self.h5_path, "a") as h5:
             if "diarization" not in h5:
                 h5.create_group("diarization")
-                self.logger.info("H5_STORAGE_INITIALIZED", path=str(self.h5_path))
+                self.logger.info("H5_STORAGE_INITIALIZED", h5_path=str(self.h5_path))
 
     def start(self):
         """Start worker thread."""
