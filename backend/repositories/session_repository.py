@@ -45,7 +45,7 @@ class SessionRepository(BaseRepository):
             with self._open_file("a") as f:
                 f.require_group(self.SESSIONS_GROUP)  # type: ignore[attr-defined]
                 f.require_group(self.METADATA_GROUP)  # type: ignore[attr-defined]
-            logger.info("SESSION_STRUCTURE_READY", path=str(self.h5_file_path))
+            logger.info("SESSION_STRUCTURE_READY", file_path=str(self.h5_file_path))
         except OSError as e:
             logger.error("SESSION_STRUCTURE_INIT_FAILED", error=str(e))
             raise

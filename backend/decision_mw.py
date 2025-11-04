@@ -182,10 +182,10 @@ class DecisionMiddleware:
             ValueError: If YAML is invalid
         """
         if not self.rules_path.exists():
-            self.logger.error("RULES_FILE_NOT_FOUND", path=str(self.rules_path))
+            self.logger.error("RULES_FILE_NOT_FOUND", file_path=str(self.rules_path))
             raise FileNotFoundError(f"Rules file not found: {self.rules_path}")
 
-        self.logger.info("RULES_LOADING_STARTED", path=str(self.rules_path))
+        self.logger.info("RULES_LOADING_STARTED", file_path=str(self.rules_path))
 
         try:
             with open(self.rules_path, encoding="utf-8") as f:

@@ -58,10 +58,10 @@ class PolicyLoader:
             PolicyValidationError: If policy validation fails
         """
         if not self.policy_path.exists():
-            self.logger.error("POLICY_FILE_NOT_FOUND", path=str(self.policy_path))
+            self.logger.error("POLICY_FILE_NOT_FOUND", file_path=str(self.policy_path))
             raise FileNotFoundError(f"Policy file not found: {self.policy_path}")
 
-        self.logger.info("POLICY_LOADING_STARTED", path=str(self.policy_path))
+        self.logger.info("POLICY_LOADING_STARTED", file_path=str(self.policy_path))
 
         try:
             with open(self.policy_path, encoding="utf-8") as f:
@@ -74,9 +74,7 @@ class PolicyLoader:
             self._validate_policy(policy)
 
             self.policy = policy
-            self.logger.info(
-                "POLICY_LOADED_SUCCESSFULLY",
-                path=str(self.policy_path),
+            self.logger.info("POLICY_LOADED_SUCCESSFULLY", file_path=str(self.policy_path),
                 primary_provider=policy.get("llm", {}).get("primary_provider"),
             )
 

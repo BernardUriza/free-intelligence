@@ -191,9 +191,9 @@ def verify_corpus_ownership(
         is_match = stored_hash == computed_hash
 
         if is_match:
-            logger.info("OWNERSHIP_HASH_MATCHED", path=corpus_path)
+            logger.info("OWNERSHIP_HASH_MATCHED", file_path=corpus_path)
         else:
-            logger.warning("OWNERSHIP_HASH_MISMATCH", path=corpus_path)
+            logger.warning("OWNERSHIP_HASH_MISMATCH", file_path=corpus_path)
 
         return is_match
 
@@ -227,7 +227,7 @@ def get_corpus_identity(corpus_path: str) -> Optional[dict]:
             metadata = f["metadata"]
 
             if "corpus_id" not in metadata.attrs or "owner_hash" not in metadata.attrs:  # type: ignore[attr-defined]
-                logger.info("CORPUS_IDENTITY_NOT_SET", path=corpus_path)
+                logger.info("CORPUS_IDENTITY_NOT_SET", file_path=corpus_path)
                 return None
 
             identity = {
