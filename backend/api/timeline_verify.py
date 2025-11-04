@@ -17,6 +17,8 @@ Endpoints:
 import hashlib
 import time
 from datetime import datetime, timezone
+
+UTC = timezone.utc
 from typing import Any, Optional
 
 import h5py
@@ -48,7 +50,10 @@ class VerifyHashItem(BaseModel):
 
     target_id: str = Field(..., description="Session ID or event ID to verify")
     expected_hash: str = Field(
-        ..., min_length=64, max_length=64, description="Expected SHA256 hash (64 hex chars)"  # type: ignore[call-overload]
+        ...,
+        min_length=64,
+        max_length=64,
+        description="Expected SHA256 hash (64 hex chars)",  # type: ignore[call-overload]
     )
 
 
@@ -56,7 +61,10 @@ class VerifyHashRequest(BaseModel):
     """Batch hash verification request"""
 
     items: list[VerifyHashItem] = Field(
-        ..., min_length=1, max_length=100, description="Hashes to verify"  # type: ignore[call-overload]
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Hashes to verify",  # type: ignore[call-overload]
     )
     verbose: bool = Field(default=False, description="Include detailed verification info")
 
@@ -214,7 +222,7 @@ async def verify_hash(request: VerifyHashRequest) -> VerifyHashResponse:
     ```
     """
     start_time = time.time()
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
 
     results: list[VerifyHashDetail] = []
     valid_count = 0

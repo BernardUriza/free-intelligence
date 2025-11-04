@@ -18,7 +18,6 @@ from pydantic import BaseModel, Field
 from backend.container import get_container
 from backend.logger import get_logger
 
-
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/audit")

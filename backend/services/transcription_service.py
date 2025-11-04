@@ -132,7 +132,7 @@ class TranscriptionService:
                 f"AUDIO_FILE_SAVED: session_id={session_id}, file_path={result['file_path']}, size={len(audio_content)}"
             )
             return result
-        except IOError as e:
+        except OSError as e:
             logger.error(f"AUDIO_FILE_SAVE_FAILED: session_id={session_id}, error={str(e)}")
             raise
 
