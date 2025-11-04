@@ -145,7 +145,7 @@ async def transcribe_audio_endpoint(
             action="transcription_failed",
             user_id="system",
             resource=f"session:{x_session_id}",
-            result="failure",
+            result="failed",
             details={"error": str(e)},
         )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
