@@ -335,7 +335,7 @@ async def upload_audio_for_diarization(
                 action="audio_upload_failed",
                 user_id="system",
                 resource=f"job:{job_id}",
-                result="failure",
+                result="failed",
                 details={"error": str(e)},
             )
             return error_response(
@@ -443,7 +443,7 @@ async def upload_audio_for_diarization(
             action="diarization_upload_validation_failed",
             user_id="system",
             resource="upload",
-            result="failure",
+            result="failed",
             details={"error": str(e), "session_id": x_session_id},
         )
         return error_response(str(e), code=400, status=StatusCode.VALIDATION_ERROR)
@@ -455,7 +455,7 @@ async def upload_audio_for_diarization(
             action="diarization_upload_storage_failed",
             user_id="system",
             resource="upload",
-            result="failure",
+            result="failed",
             details={"error": str(e), "session_id": x_session_id},
         )
         return error_response(
@@ -469,7 +469,7 @@ async def upload_audio_for_diarization(
             action="diarization_upload_failed",
             user_id="system",
             resource="upload",
-            result="failure",
+            result="failed",
             details={"error": str(e), "session_id": x_session_id},
         )
         return error_response("Internal server error", code=500, status=StatusCode.INTERNAL_ERROR)

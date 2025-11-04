@@ -263,7 +263,7 @@ async def create_session(request: CreateSessionRequest):
             action="session_creation_failed",
             user_id="system",
             resource="session",
-            result="failure",
+            result="failed",
             details={"error": str(e)},
         )
         raise HTTPException(status_code=400, detail=str(e))
