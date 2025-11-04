@@ -17,7 +17,7 @@ Endpoints:
 import hashlib
 import logging
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import h5py
@@ -214,7 +214,7 @@ async def verify_hash(request: VerifyHashRequest) -> VerifyHashResponse:
     ```
     """
     start_time = time.time()
-    timestamp = datetime.now(UTC).isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
 
     results: list[VerifyHashDetail] = []
     valid_count = 0
