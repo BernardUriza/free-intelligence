@@ -125,14 +125,12 @@ class DiarizationJobService:
                 lowprio_status = get_lowprio_status(job_id)
                 if lowprio_status:
                     if lowprio_status["status"] != "completed":
-                        raise ValueError(
-                            f"Job not completed. Status: {lowprio_status['status']}"
-                        )
+                        raise ValueError(f"Job not completed. Status: {lowprio_status['status']}")
 
                     # Reconstruct result from chunks
                     logger.info(
-                        f"RESULT_FROM_LOWPRIO_CHUNKS: job_id={job_id}, " +
-                        f"chunks={len(lowprio_status['chunks'])}"
+                        f"RESULT_FROM_LOWPRIO_CHUNKS: job_id={job_id}, "
+                        + f"chunks={len(lowprio_status['chunks'])}"
                     )
 
                     segments = [
@@ -233,7 +231,9 @@ class DiarizationJobService:
             raise ValueError("job_id cannot be empty")
 
         if format not in ["json", "markdown", "vtt", "srt", "csv"]:
-            raise ValueError(f"Invalid format: {format}. Must be one of: json, markdown, vtt, srt, csv")
+            raise ValueError(
+                f"Invalid format: {format}. Must be one of: json, markdown, vtt, srt, csv"
+            )
 
         try:
             # Get result first
@@ -246,7 +246,6 @@ class DiarizationJobService:
             # Use existing export function (backend/diarization_service.py)
             # This function handles format conversion
             from pathlib import Path
-
 
             # Try to find audio file
             job = get_job(job_id)
@@ -261,11 +260,15 @@ class DiarizationJobService:
                 job_id=job_id,
             )
 
-            logger.info(f"DIARIZATION_EXPORTED: job_id={job_id}, format={format}, size={len(exported)}")
+            logger.info(
+                f"DIARIZATION_EXPORTED: job_id={job_id}, format={format}, size={len(exported)}"
+            )
             return exported
 
         except Exception as e:
-            logger.error(f"DIARIZATION_EXPORT_FAILED: job_id={job_id}, format={format}, error={str(e)}")
+            logger.error(
+                f"DIARIZATION_EXPORT_FAILED: job_id={job_id}, format={format}, error={str(e)}"
+            )
             raise
 
     def restart_job(self, job_id: str) -> dict[str, Any]:
@@ -391,7 +394,9 @@ class DiarizationJobService:
         """
         try:
             if self.use_lowprio:
-                from backend.diarization_worker_lowprio import list_jobs as list_lowprio_jobs
+                from backend.diarization_worker_lowprio import (
+                    list_all_jobs as list_lowprio_jobs,
+                )
 
                 jobs = list_lowprio_jobs(limit=limit, session_id=session_id)
                 logger.info(f"JOBS_LISTED_FROM_LOWPRIO: count={len(jobs)}, limit={limit}")
