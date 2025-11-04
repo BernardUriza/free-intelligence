@@ -113,7 +113,7 @@ async def get_logs(
         )
 
     except Exception as e:
-        logger.error("GET_AUDIT_LOGS_FAILED", error=str(e))
+        logger.error(f"GET_AUDIT_LOGS_FAILED: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve audit logs: {str(e)}")
 
 
@@ -143,7 +143,7 @@ async def get_stats():
         return AuditStatsResponse(**stats_data)
 
     except Exception as e:
-        logger.error("GET_AUDIT_STATS_FAILED", error=str(e))
+        logger.error(f"GET_AUDIT_STATS_FAILED: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve audit stats: {str(e)}")
 
 
