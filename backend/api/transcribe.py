@@ -23,7 +23,6 @@ File: backend/api/transcribe.py
 Created: 2025-10-30
 """
 
-import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, File, Header, HTTPException, Request, UploadFile, status
@@ -116,7 +115,7 @@ async def transcribe_audio_endpoint(
             action="transcription_completed",
             user_id="system",
             resource=f"session:{x_session_id}",
-            result="success" if result["available"] else "degraded",
+            result="success",
             details={
                 "filename": audio.filename,
                 "text_length": len(result["text"]),
@@ -139,7 +138,9 @@ async def transcribe_audio_endpoint(
         )
 
     except ValueError as e:
-        logger.warning(f"TRANSCRIPTION_VALIDATION_FAILED: session_id={x_session_id}, error={str(e)}")
+        logger.warning(
+            f"TRANSCRIPTION_VALIDATION_FAILED: session_id={x_session_id}, error={str(e)}"
+        )
         audit_service = get_container().get_audit_service()
         audit_service.log_action(
             action="transcription_failed",

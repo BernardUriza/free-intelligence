@@ -7,8 +7,10 @@ manifest creation, and file integrity verification.
 from __future__ import annotations
 
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
+
+UTC = timezone.utc
 
 import pytest
 
