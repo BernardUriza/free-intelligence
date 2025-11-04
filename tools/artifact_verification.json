@@ -21,7 +21,7 @@
       "status": "VALID",
       "card_id": "FI-EVAL-003",
       "artifact": "eval/run_eval.py",
-      "size_kb": 21.11,
+      "size_kb": 21.13,
       "message": "\u2705 Artifact valid and executable"
     },
     {
