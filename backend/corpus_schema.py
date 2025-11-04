@@ -195,9 +195,7 @@ def init_corpus(
             corpus_id = f["metadata"].attrs["corpus_id"]  # type: ignore[attr-defined]
             owner_hash = f["metadata"].attrs["owner_hash"]  # type: ignore[attr-defined]
 
-        logger.info(
-            "CORPUS_INITIALIZED",
-            path=str(path),
+        logger.info("CORPUS_INITIALIZED", file_path=str(path),
             groups=CorpusSchema.REQUIRED_GROUPS,
             corpus_id=corpus_id,
             owner_hash=owner_hash[:16] + "...",  # Log only prefix
@@ -272,11 +270,9 @@ def validate_corpus(corpus_path: Optional[str] = None) -> dict[str, Any]:
     result = {"valid": len(errors) == 0, "errors": errors, "path": corpus_path}
 
     if result["valid"]:
-        logger.info("CORPUS_SCHEMA_CHECKS_COMPLETED", path=corpus_path, issues_found=0)
+        logger.info("CORPUS_SCHEMA_CHECKS_COMPLETED", file_path=corpus_path, issues_found=0)
     else:
-        logger.warning(
-            "CORPUS_SCHEMA_CHECKS_COMPLETED",
-            path=corpus_path,
+        logger.warning("CORPUS_SCHEMA_CHECKS_COMPLETED", file_path=corpus_path,
             issues_found=len(errors),
             errors=errors,
         )

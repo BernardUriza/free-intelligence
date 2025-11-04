@@ -42,11 +42,11 @@ def init_boot_map_group(h5file: h5py.File) -> None:
     """
     if "/system" in h5file:
         if "/system/boot_map" in h5file:
-            logger.warning("BOOT_MAP_GROUP_EXISTS", path="/system/boot_map")
+            logger.warning("BOOT_MAP_GROUP_EXISTS", file_path="/system/boot_map")
             raise ValueError("Boot map group already exists")
     else:
         h5file.create_group("/system")
-        logger.info("SYSTEM_GROUP_CREATED", path="/system")
+        logger.info("SYSTEM_GROUP_CREATED", file_path="/system")
 
     boot_group = h5file.create_group("/system/boot_map")
 
@@ -110,9 +110,7 @@ def init_boot_map_group(h5file: h5py.File) -> None:
     boot_group.attrs["schema_version"] = "1.0"
     boot_group.attrs["boot_map_version"] = "0.2.0"
 
-    logger.info(
-        "BOOT_MAP_GROUP_INITIALIZED",
-        path="/system/boot_map",
+    logger.info("BOOT_MAP_GROUP_INITIALIZED", file_path="/system/boot_map",
         datasets=["boot_sequence", "core_functions", "health_checks"],
     )
 

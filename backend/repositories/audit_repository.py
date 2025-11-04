@@ -45,7 +45,7 @@ class AuditRepository(BaseRepository):
         try:
             with self._open_file("a") as f:
                 f.require_group(self.AUDIT_LOGS_GROUP)  # type: ignore[attr-defined]
-            logger.info("AUDIT_STRUCTURE_READY", path=str(self.h5_file_path))
+            logger.info("AUDIT_STRUCTURE_READY", file_path=str(self.h5_file_path))
         except OSError as e:
             logger.error("AUDIT_STRUCTURE_INIT_FAILED", error=str(e))
             raise

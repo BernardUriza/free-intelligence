@@ -81,7 +81,7 @@ def init_audit_logs_group(corpus_path: str) -> bool:
         with h5py.File(corpus_path, "a") as f:
             # Create audit_logs group if not exists
             if "audit_logs" in f:
-                logger.info("AUDIT_LOGS_GROUP_EXISTS", path=corpus_path)
+                logger.info("AUDIT_LOGS_GROUP_EXISTS", file_path=corpus_path)
                 return True
 
             audit_logs = f.create_group("audit_logs")
@@ -98,9 +98,7 @@ def init_audit_logs_group(corpus_path: str) -> bool:
                     compression_opts=4,
                 )
 
-            logger.info(
-                "AUDIT_LOGS_GROUP_INITIALIZED",
-                path=corpus_path,
+            logger.info("AUDIT_LOGS_GROUP_INITIALIZED", file_path=corpus_path,
                 datasets=list(AUDIT_LOG_SCHEMA.keys()),
             )
 

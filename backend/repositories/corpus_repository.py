@@ -55,7 +55,7 @@ class CorpusRepository(BaseRepository):
                 f.require_group(self.DOCUMENTS_GROUP)  # type: ignore[attr-defined]
                 f.require_group(self.CHUNKS_GROUP)  # type: ignore[attr-defined]
                 f.require_group(self.METADATA_GROUP)  # type: ignore[attr-defined]
-            logger.info("CORPUS_STRUCTURE_READY", path=str(self.h5_file_path))
+            logger.info("CORPUS_STRUCTURE_READY", file_path=str(self.h5_file_path))
         except OSError as e:
             logger.error("CORPUS_STRUCTURE_INIT_FAILED", error=str(e))
             raise

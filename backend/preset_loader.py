@@ -108,10 +108,10 @@ class PresetLoader:
         preset_path = self.presets_dir / f"{preset_id}.yaml"
 
         if not preset_path.exists():
-            self.logger.error("PRESET_NOT_FOUND", preset_id=preset_id, path=str(preset_path))
+            self.logger.error("PRESET_NOT_FOUND", preset_id=preset_id, file_path=str(preset_path))
             raise FileNotFoundError(f"Preset not found: {preset_path}")
 
-        self.logger.info("PRESET_LOADING_STARTED", preset_id=preset_id, path=str(preset_path))
+        self.logger.info("PRESET_LOADING_STARTED", preset_id=preset_id, file_path=str(preset_path))
 
         try:
             with open(preset_path, encoding="utf-8") as f:
