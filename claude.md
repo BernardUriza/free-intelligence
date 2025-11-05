@@ -26,18 +26,54 @@ TZ: America/Mexico_City
 	1.	Si queda vacío → mover de inmediato la siguiente card prioritaria (P0>P1>P2).
 	2.	Registrar movimiento en bitácora.
 
-🧱 Arquitectura (resumen)
+🧱 Arquitectura (App Mapping)
 
 free-intelligence/
-  backend/ (Python 3.11+, FastAPI)
-    config_loader.py  logger.py  corpus_schema.py  corpus_ops.py
-  storage/  corpus.h5  (HDF5, append-only)
-  config/   config.yml
-  tests/    (pytest)
-  scripts/  sprint-close.sh  generate_test_data.py
-  docs/
+  🔧 backend/ (Python 3.11+, FastAPI port 7001)
+    API Routes (backend/api/*):
+      ├─ diarization.py     [POST /upload, GET /jobs/{id}, /result, /export, /soap, /restart]
+      ├─ transcribe.py      [Transcription endpoints]
+      ├─ triage.py          [Triage intake flow]
+      ├─ audit.py           [Audit logs API]
+      ├─ sessions.py        [Session mgmt]
+      ├─ timeline_verify.py [Timeline verification]
+      └─ kpis.py            [KPIs aggregation]
+    Core Services:
+      ├─ diarization_service.py      [Main diarization logic]
+      ├─ diarization_jobs.py         [Job state management]
+      ├─ diarization_worker_lowprio.py [Background worker + CPU scheduler]
+      ├─ diarization_service_v2.py   [Parallel optimization]
+      ├─ whisper_service.py          [Whisper model wrapper]
+      ├─ fi_consult_service.py       [LLM consultation + routing]
+      ├─ services/soap_generation_service.py [SOAP extraction]
+      └─ services/diarization_job_service.py [Job control (restart/cancel)]
+    Infrastructure:
+      ├─ llm_middleware.py           [Main app + LLM routing]
+      ├─ main.py                     [Entry point (uses llm_middleware)]
+      ├─ corpus_ops.py               [HDF5 append operations]
+      ├─ corpus_schema.py            [Schema definitions]
+      ├─ policy_enforcer.py          [Security policies]
+      ├─ logger.py & logger_structured.py
+      └─ config_loader.py
 
-Stack: FastAPI · h5py · structlog · (Front: Next.js/React + Tailwind)
+  📁 storage/
+    ├─ corpus.h5              [Main corpus HDF5 (append-only)]
+    ├─ diarization.h5         [Diarization jobs + chunks]
+    └─ audio/                 [Session audio files]
+
+  🎨 apps/aurity/ (Next.js/React port 9000)
+    ├─ pages/dashboard        [Main UI]
+    ├─ pages/triage           [Intake flow]
+    └─ components/            [Reusable React components]
+
+  🧪 tests/ & backend/tests/  [pytest test suite]
+
+  📜 scripts/
+    ├─ restart_diarization_job.py      [Manual job restart]
+    ├─ process_remaining_chunks.py     [Chunk completion]
+    └─ sprint-close.sh                 [Sprint utilities]
+
+Stack: FastAPI · h5py · structlog · Next.js/React · Tailwind · Ollama/Claude
 
 ✅ Estado Snapshot
 	•	Config, Logger, Esquema HDF5, Corpus Ops, Identity, Append‑only, Mutation/LLM policies, Audit/Export operativos (tests OK).
@@ -120,6 +156,8 @@ trello board-overview $BOARD_ID
 ⸻
 
 📝 Bitácora (highlights, append‑only)
+	•	Tailwind/PostCSS Monorepo Fix (2025-11-04) ✅: Fixed "Unexpected character '@' en globals.css" error in apps/aurity (Next 14, Turborepo/pnpm). Created tailwind.config.ts (content paths, darkMode), updated globals.css to contain only @tailwind directives, removed duplicate tailwind.css import from layout.tsx, added postcss.config.js en root for workspace compatibility. Rule: Each app in monorepo must have local postcss.config.js + tailwind.config.ts; shared packages export pre-compiled CSS (no @tailwind directives).
+	•	Diarization Job Restoration (2025-11-05) ✅: Cancelled job f2667c96-105b-42c7-b385-2e20417a7fff restarted from chunk 24 (85%→100%), SOAP generated, both scripts created (restart_diarization_job.py, process_remaining_chunks.py). Fixed corpus_ops.py syntax errors (paréntesis faltantes), registered diarization router in llm_middleware.
 	•	DevOps Strategy Complete ✅: make dev-all (script unificado), PM2 NAS deployment, DEVOPS_STRATEGY.md creado.
 	•	Policy Integration + Dashboard KPIs ✅: enforcement end‑to‑end; KPIs UI y API listas.
 	•	LOCK‑DONE: cards requieren evidencia QA + verify_artifact; rollback automático si falta.
