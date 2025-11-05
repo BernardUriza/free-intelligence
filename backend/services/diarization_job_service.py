@@ -12,15 +12,23 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
 
-from backend.diarization_jobs import get_job
-from backend.diarization_service import (
+from backend.services.diarization_jobs import get_job
+from backend.services.diarization_service import (
     DiarizationResult,
     DiarizationSegment,
     diarize_audio,
 )
-from backend.diarization_service import export_diarization as export_to_format
-from backend.diarization_worker_lowprio import get_job_status as get_lowprio_status
+from backend.services.diarization_service import export_diarization as export_to_format
 from backend.logger import get_logger
+
+# Lazy import to avoid circular dependencies
+def _get_lowprio_status(job_id):
+    """Lazy loader for low-priority job status."""
+    try:
+        from backend.jobs.diarization_worker_lowprio import get_job_status
+        return get_job_status(job_id)
+    except (ImportError, AttributeError):
+        return None
 
 logger = get_logger(__name__)
 
@@ -63,7 +71,7 @@ class DiarizationJobService:
         try:
             # Try low-priority worker first (HDF5)
             if self.use_lowprio:
-                lowprio_status = get_lowprio_status(job_id)
+                lowprio_status = _get_lowprio_status(job_id)
                 if lowprio_status:
                     logger.info(f"JOB_STATUS_FROM_LOWPRIO: job_id={job_id}")
                     return {
@@ -126,7 +134,7 @@ class DiarizationJobService:
         try:
             # Try low-priority worker first (HDF5)
             if self.use_lowprio:
-                lowprio_status = get_lowprio_status(job_id)
+                lowprio_status = _get_lowprio_status(job_id)
                 if lowprio_status:
                     if lowprio_status["status"] != "completed":
                         raise ValueError(f"Job not completed. Status: {lowprio_status['status']}")
@@ -308,7 +316,7 @@ class DiarizationJobService:
         try:
             if self.use_lowprio:
                 # Get current job to retrieve audio path
-                lowprio_status = get_lowprio_status(job_id)
+                lowprio_status = _get_lowprio_status(job_id)
                 if not lowprio_status:
                     raise ValueError(f"Job {job_id} not found")
 
@@ -346,7 +354,7 @@ class DiarizationJobService:
         try:
             if self.use_lowprio:
                 # Get current job to verify it exists
-                lowprio_status = get_lowprio_status(job_id)
+                lowprio_status = _get_lowprio_status(job_id)
                 if not lowprio_status:
                     raise ValueError(f"Job {job_id} not found")
 
@@ -380,7 +388,7 @@ class DiarizationJobService:
 
         try:
             if self.use_lowprio:
-                lowprio_status = get_lowprio_status(job_id)
+                lowprio_status = _get_lowprio_status(job_id)
                 if lowprio_status:
                     # Extract logs if available
                     logs = lowprio_status.get("logs", [])

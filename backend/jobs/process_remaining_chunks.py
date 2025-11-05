@@ -5,7 +5,7 @@ Usage: python3 scripts/process_remaining_chunks.py <job_id> <from_chunk>
 """
 
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import h5py

@@ -33,7 +33,7 @@ Usage:
 
 import hashlib
 import json
-from datetime import UTC, datetime  # type: ignore[attr-defined]
+from datetime import datetime, timezone  # type: ignore[attr-defined]
 from pathlib import Path
 from typing import Any, Optional
 
