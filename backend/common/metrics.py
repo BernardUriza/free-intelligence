@@ -19,7 +19,7 @@ Created: 2025-10-28
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 from backend.logger import get_logger

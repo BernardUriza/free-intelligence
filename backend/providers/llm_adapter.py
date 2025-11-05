@@ -21,7 +21,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from backend.logger import get_logger

@@ -40,14 +40,31 @@ from fastapi import (
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from backend.audio_storage import save_audio_file
+from backend.storage.audio_storage import save_audio_file
 from backend.container import get_container
-from backend.diarization_jobs import JobStatus, create_job, update_job_status
-from backend.diarization_service import diarize_audio
-from backend.diarization_service_v2 import diarize_audio_parallel
-from backend.diarization_worker_lowprio import (
-    create_diarization_job as create_lowprio_job,
-)
+try:
+    from backend.services.diarization_jobs import JobStatus, create_job, update_job_status
+except ImportError:
+    # Fallback for compatibility
+    from backend.diarization_jobs import JobStatus, create_job, update_job_status
+try:
+    from backend.services.diarization_service import diarize_audio
+except ImportError:
+    from backend.diarization_service import diarize_audio
+try:
+    from backend.services.diarization_service_v2 import diarize_audio_parallel
+except ImportError:
+    from backend.diarization_service_v2 import diarize_audio_parallel
+# Lazy import for low-priority worker
+def create_lowprio_job(session_id, audio_path):
+    """Lazy wrapper for low-priority job creation."""
+    try:
+        from backend.jobs.diarization_worker_lowprio import (
+            create_diarization_job,
+        )
+        return create_diarization_job(session_id, audio_path)
+    except (ImportError, AttributeError):
+        raise RuntimeError("Low-priority worker not available")
 from backend.logger import get_logger
 from backend.schemas import StatusCode, error_response, success_response
 from backend.services.soap_generation_service import SOAPGenerationService
@@ -344,7 +361,7 @@ async def upload_audio_for_diarization(
             )
 
         # Path hardening: resolve absolute path
-        from backend.audio_storage import AUDIO_STORAGE_DIR
+        from backend.storage.audio_storage import AUDIO_STORAGE_DIR
 
         relative_path = saved["file_path"]
         abs_path = (AUDIO_STORAGE_DIR.parent / relative_path).resolve()

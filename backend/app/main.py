@@ -55,9 +55,12 @@ def create_app() -> FastAPI:
         app.include_router(timeline_verify.router, prefix="/api/timeline", tags=["timeline"])
         app.include_router(triage.router, prefix="/api/triage", tags=["triage"])
         app.include_router(transcribe.router, prefix="/api/transcribe", tags=["transcribe"])
-    except ImportError:
-        # If routers fail to load, app still works with health check only
-        pass
+    except (ImportError, AttributeError) as e:
+        # If routers fail to load, log and continue with health check only
+        import sys
+        print(f"WARNING: Failed to load routers: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
 
     @app.get("/health")
     async def health_check() -> dict:

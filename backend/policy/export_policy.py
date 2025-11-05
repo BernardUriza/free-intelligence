@@ -53,7 +53,7 @@ import hashlib
 import json
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 

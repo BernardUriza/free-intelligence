@@ -42,8 +42,13 @@ IN_DIR = Path(os.getenv("IN_DIR", "/data/ready"))
 OUT_DIR = Path(os.getenv("OUT_DIR", "/data/asr/json"))
 LOG_DIR = Path(os.getenv("LOG_DIR", "/data/asr/logs"))
 
-# Setup logging
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+# Setup logging - use fallback path if /data is read-only
+try:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+except (OSError, PermissionError):
+    # Fallback to local storage
+    LOG_DIR = Path("./storage/logs/asr")
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -69,8 +74,13 @@ logger.info("Loading Whisper model...")
 model = WhisperModel(MODEL_SIZE, device="cpu", compute_type=COMPUTE_TYPE, num_workers=MAX_WORKERS)
 logger.info("Model loaded successfully")
 
-# Create output directory
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+# Create output directory - use fallback if /data is read-only
+try:
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+except (OSError, PermissionError):
+    # Fallback to local storage
+    OUT_DIR = Path("./storage/asr/json")
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def transcribe_file(audio_path: Path) -> dict:
