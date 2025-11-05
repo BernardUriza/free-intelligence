@@ -31,12 +31,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
+from backend.container import get_container
+from backend.logger import get_logger
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-
-from backend.container import get_container
-from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -94,7 +93,7 @@ class VerifyRequest(BaseModel):
     """Verify request"""
 
     targets: list[Literal["md", "json", "manifest"]] = Field(
-        default_factory=lambda: ["md", "json", "manifest"]
+        default_factory=list
     )
 
 
@@ -156,7 +155,7 @@ async def create_export(request: ExportRequest):
                     "session_id": request.session_id,
                     "format": fmt,
                     "include": request.include.model_dump(),
-                    "generated_at": datetime.now(timezone.utc).isoformat() + "Z",
+                    "generated_at": datetime.now(datetime.UTC).isoformat() + "Z",
                 },
                 indent=2,
             )
@@ -216,7 +215,7 @@ async def create_export(request: ExportRequest):
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("EXPORT_CREATION_FAILED: %s", str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to create export: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to create export: {e!s}") from e
 
 
 @router.get("/{export_id}", response_model=ExportResponse)
@@ -294,7 +293,7 @@ async def get_export(export_id: str):
             export_id,
             str(e),
         )
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve export: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve export: {e!s}") from e
 
 
 @router.post("/{export_id}/verify", response_model=VerifyResponse)
@@ -360,10 +359,10 @@ async def verify_export(export_id: str, request: VerifyRequest):
         raise
     except OSError as e:
         logger.warning("EXPORT_VERIFICATION_FAILED: export_id=%s, error=%s", export_id, str(e))
-        raise HTTPException(status_code=404, detail=f"Export not found: {str(e)}") from e
+        raise HTTPException(status_code=404, detail=f"Export not found: {e!s}") from e
     except Exception as e:
         logger.error("EXPORT_VERIFICATION_FAILED: export_id=%s, error=%s", export_id, str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to verify export: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to verify export: {e!s}") from e
 
 
 # ============================================================================
