@@ -37,6 +37,9 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+# Use timezone.utc for UTC datetime (Python 3.9+ compatible)
+UTC = timezone.utc
+
 logger = get_logger(__name__)
 
 # ============================================================================
@@ -49,6 +52,12 @@ EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Base download URL (env var or default)
 BASE_DOWNLOAD_URL = os.getenv("BASE_DOWNLOAD_URL", "http://localhost:7001/downloads")
+
+
+def _default_verify_targets() -> list[Literal["md", "json", "manifest"]]:
+    """Default verification targets for VerifyRequest."""
+    return ["md", "json", "manifest"]
+
 
 # ============================================================================
 # PYDANTIC MODELS
@@ -93,7 +102,7 @@ class VerifyRequest(BaseModel):
     """Verify request"""
 
     targets: list[Literal["md", "json", "manifest"]] = Field(
-        default_factory=list
+        default_factory=_default_verify_targets
     )
 
 
@@ -155,7 +164,7 @@ async def create_export(request: ExportRequest):
                     "session_id": request.session_id,
                     "format": fmt,
                     "include": request.include.model_dump(),
-                    "generated_at": datetime.now(datetime.UTC).isoformat() + "Z",
+                    "generated_at": datetime.now(UTC).isoformat() + "Z",
                 },
                 indent=2,
             )
