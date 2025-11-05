@@ -264,10 +264,10 @@ class TranscriptionService:
             if self.convert_to_wav(audio_path, wav_path):
                 transcription_path = wav_path
 
-        # Transcribe
+        # Transcribe (auto-detect language)
         transcription_result = self.transcribe(
             audio_path=transcription_path,
-            language="es",  # Force Spanish
+            language=None,  # Auto-detect language (no forcing)
             vad_filter=True,
         )
 

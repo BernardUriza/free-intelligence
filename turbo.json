@@ -5,7 +5,7 @@
   "remoteCache": {
     "enabled": false
   },
-  "tasks": {
+  "pipeline": {
     "dev": {
       "cache": false,
       "persistent": true,
