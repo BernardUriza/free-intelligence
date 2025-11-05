@@ -138,7 +138,7 @@ class LLMCache:
         # Hit!
         entry.hits += 1
         self.total_hits += 1
-        logger.debug("CACHE_HIT", key=key[:16], age=entry.get_age_seconds()
+        logger.debug("CACHE_HIT", key=key[:16], age=entry.get_age_seconds())
 
         return entry.value
 

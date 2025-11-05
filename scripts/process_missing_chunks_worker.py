@@ -12,4 +12,3 @@ warnings.warn(
 
 # Re-export for compatibility
 from backend.jobs.process_missing_chunks import *  # noqa: F401, F403
-

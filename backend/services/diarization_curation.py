@@ -9,7 +9,7 @@ Strategy: Extract ONLY the 4-minute segment, transcribe it, merge with existing 
 """
 
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import h5py
@@ -188,7 +188,7 @@ def curate_missing_chunks():
                             b"DESCONOCIDO",
                             0.0,
                             0.0,
-                            datetime.now(UTC).isoformat(),
+                            datetime.now(timezone.utc).isoformat(),
                         )
                     ],
                     dtype=existing_chunks.dtype,
@@ -205,7 +205,7 @@ def curate_missing_chunks():
                 job_group.create_dataset("chunks", data=merged_chunks)
 
                 job_group.attrs["processed_chunks"] = len(merged_chunks)
-                job_group.attrs["updated_at"] = datetime.now(UTC).isoformat()
+                job_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()
                 job_group.attrs["curation_status"] = "recovered"
 
                 print(

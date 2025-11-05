@@ -18,7 +18,7 @@ from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.fi_consult_service import app
+from backend.app.llm_middleware import app
 
 
 @pytest.fixture  # type: ignore[misc]

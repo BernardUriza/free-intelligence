@@ -14,8 +14,6 @@ import os
 import random
 import time
 from datetime import datetime, timezone
-
-UTC = timezone.utc
 from pathlib import Path
 from typing import Any, Optional
 
@@ -114,7 +112,7 @@ class ExportService:
             "version": "1.0",
             "exportId": export_id,
             "sessionId": session_id,
-            "createdAt": datetime.now(UTC).isoformat() + "Z",
+            "createdAt": datetime.now(timezone.utc).isoformat() + "Z",
             "algorithm": "sha256",
             "files": files,
             "meta": {"generator": "FI", "commit": self.git_commit, "deterministic": True},
@@ -440,7 +438,7 @@ class ExportService:
         try:
             # Mark as deleted (keep for audit trail)
             delete_marker = export_path / ".deleted"
-            delete_marker.write_text(datetime.now(UTC).isoformat(), encoding="utf-8")
+            delete_marker.write_text(datetime.now(timezone.utc).isoformat(), encoding="utf-8")
 
             logger.info("EXPORT_DELETED", export_id=export_id)  # type: ignore[call-arg]
             return True
