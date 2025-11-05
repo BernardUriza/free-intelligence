@@ -13,7 +13,7 @@ Clean Code Architecture:
 """
 
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter
