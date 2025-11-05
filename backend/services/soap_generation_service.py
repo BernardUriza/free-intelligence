@@ -13,6 +13,7 @@ Created: 2025-11-05
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
 
 import h5py
@@ -112,7 +113,7 @@ class SOAPGenerationService:
                 if f"diarization/{job_id}/chunks" not in f:
                     raise ValueError(f"No chunks found for job {job_id}")
 
-                chunks_dataset = f[f"diarization/{job_id}/chunks"]  # type: ignore[index]
+                chunks_dataset = f[f"diarization/{job_id}/chunks"]  # type: ignore[arg-type,index]
                 texts = []
 
                 # Read all chunks in order
@@ -155,7 +156,7 @@ class SOAPGenerationService:
             Dictionary with SOAP sections in English field names
         """
         try:
-            import requests  # type: ignore[import]
+            import requests
 
             # Language-agnostic system prompt (accepts any input language)
             system_prompt = """You are a medical analyst. Analyze the medical consultation transcription provided.
@@ -425,13 +426,13 @@ Return JSON structure with these exact fields:
             )
 
             # Create metadata
-            # Note: SOAPMetadata fields are inferred from actual model definition
-            metadata = SOAPMetadata(  # type: ignore[call-arg]
-                source="diarization_to_soap",
-                model_used="ollama_mistral_mvp",
-                completeness_score=self._calculate_completeness(
-                    subjetivo, objetivo, analisis, plan
-                ),
+            # Note: SOAPMetadata requires medico, especialidad, fecha, duracion_consulta, consentimiento_informado
+            metadata = SOAPMetadata(
+                medico="Sistema Automatizado",
+                especialidad="General",
+                fecha=datetime.now(),
+                duracion_consulta=0,  # Will be populated from actual consultation
+                consentimiento_informado=True,
             )
 
             # Create final SOAP note
