@@ -12,8 +12,6 @@ import hashlib
 import json
 import os
 from datetime import datetime, timezone
-
-UTC = timezone.utc
 from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
@@ -100,7 +98,7 @@ class TriageService:
             buffer_dir.mkdir(parents=True, exist_ok=True)
 
             # Prepare intake data
-            received_at = datetime.now(UTC).isoformat() + "Z"
+            received_at = datetime.now(timezone.utc).isoformat() + "Z"
             intake_data = {
                 "bufferId": buffer_id,
                 "receivedAt": received_at,

@@ -1,14 +1,10 @@
-"""DEPRECATED: Use backend.app.llm_middleware instead."""
+"""FastAPI application with LLM middleware.
+
+Re-exports the main app from main.py.
+"""
 
 from __future__ import annotations
 
-import warnings
+from backend.app.main import app, create_app
 
-warnings.warn(
-    "backend.llm_middleware is deprecated. Use backend.app.llm_middleware instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
-# Re-export for backward compatibility
-from backend.app.llm_middleware import *  # noqa: F401, F403
+__all__ = ["app", "create_app"]

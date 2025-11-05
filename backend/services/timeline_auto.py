@@ -13,7 +13,7 @@ Sprint: SPR-2025W44
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -348,9 +348,9 @@ Summary:"""
                 timeout_seconds=self.timeout_seconds,
             )
 
-            start_time = datetime.now(UTC)
+            start_time = datetime.now(timezone.utc)
             response = self.llm.generate(request)
-            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             summary = response.content.strip()
 
@@ -510,7 +510,7 @@ if __name__ == "__main__":
     generator = AutoTimelineGenerator(llm_adapter=None, config=config)
 
     # Create event candidates
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     candidates = [
         EventCandidate(

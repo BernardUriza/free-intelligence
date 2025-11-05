@@ -12,4 +12,3 @@ warnings.warn(
 
 # Re-export for compatibility
 from backend.services.diarization_curation import *  # noqa: F401, F403
-

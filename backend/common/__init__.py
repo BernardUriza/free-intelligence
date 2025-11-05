@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 # Re-export commonly used utilities
-from backend.common.logger import setup_logger
+from backend.common.logger import get_logger, init_logger_from_config
 from backend.common.config_loader import load_config
-from backend.common.cache import InMemoryCache
+from backend.common.cache import LLMCache
 from backend.common.metrics import MetricsCollector
-from backend.common.container import Container
-from backend.common.dependencies import get_dependencies
+from backend.common.container import get_container
 from backend.common.type_defs import (
     SessionID,
     InteractionID,
@@ -17,12 +16,12 @@ from backend.common.type_defs import (
 )
 
 __all__ = [
-    "setup_logger",
+    "get_logger",
+    "init_logger_from_config",
     "load_config",
-    "InMemoryCache",
+    "LLMCache",
     "MetricsCollector",
-    "Container",
-    "get_dependencies",
+    "get_container",
     "SessionID",
     "InteractionID",
     "JobID",

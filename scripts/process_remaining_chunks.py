@@ -5,13 +5,11 @@ Usage: python3 scripts/process_remaining_chunks.py <job_id> <from_chunk>
 """
 
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, timezone
-import numpy as np
-import h5py
-from scipy.io import wavfile
 
-from backend.whisper_service import get_whisper_model
+import h5py
+
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
@@ -70,19 +68,23 @@ def process_remaining_chunks(job_id: str, from_chunk: int = 24):
             # Estimate times for remaining chunks
             estimated_chunks = []
             for chunk_idx in range(from_chunk, total_chunks):
-                start_time = last_end_time + (chunk_idx - from_chunk) * (CHUNK_DURATION_SEC - CHUNK_OVERLAP_SEC)
+                start_time = last_end_time + (chunk_idx - from_chunk) * (
+                    CHUNK_DURATION_SEC - CHUNK_OVERLAP_SEC
+                )
                 end_time = start_time + CHUNK_DURATION_SEC
 
-                estimated_chunks.append({
-                    "chunk_idx": chunk_idx,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "text": "[Processing...]",
-                    "speaker": "DESCONOCIDO",
-                    "temperature": -0.3,
-                    "rtf": 0.2,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                })
+                estimated_chunks.append(
+                    {
+                        "chunk_idx": chunk_idx,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "text": "[Processing...]",
+                        "speaker": "DESCONOCIDO",
+                        "temperature": -0.3,
+                        "rtf": 0.2,
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                )
 
                 print(f"[Chunk {chunk_idx}] {start_time:.1f}s - {end_time:.1f}s")
 
@@ -91,7 +93,7 @@ def process_remaining_chunks(job_id: str, from_chunk: int = 24):
             job_group.attrs["status"] = "done"
             job_group.attrs["progress_pct"] = 100
             job_group.attrs["processed_chunks"] = total_chunks
-            job_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()
+            job_group.attrs["updated_at"] = datetime.now(UTC).isoformat()
 
             print()
             print("✓ Job marked as done")
@@ -102,6 +104,7 @@ def process_remaining_chunks(job_id: str, from_chunk: int = 24):
     except Exception as e:
         print(f"✗ Error: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 
