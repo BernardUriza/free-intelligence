@@ -39,6 +39,11 @@ check_prereqs() {
         exit 1
     fi
     NODE_VERSION=$(node -v)
+    NODE_MAJOR=$(echo $NODE_VERSION | cut -d'v' -f2 | cut -d'.' -f1)
+    if [ "$NODE_MAJOR" -lt 18 ]; then
+        echo -e "${RED}❌ Node.js 18+ required (found $NODE_VERSION)${NC}"
+        exit 1
+    fi
     echo -e "   ${GREEN}✓${NC} Node.js $NODE_VERSION"
 
     # Check Python
@@ -54,7 +59,7 @@ check_prereqs() {
     if ! command -v pnpm &> /dev/null; then
         echo -e "${YELLOW}⚠️  pnpm not found${NC}"
         echo "   Installing pnpm globally..."
-        npm install -g pnpm@8.15.0
+        npm install -g pnpm@latest
     fi
     PNPM_VERSION=$(pnpm -v)
     echo -e "   ${GREEN}✓${NC} pnpm $PNPM_VERSION"
@@ -186,9 +191,9 @@ start_services() {
     FRONTEND_PID=$!
     cd ../..
 
-    # Wait for frontend to be ready
+    # Wait for frontend to be ready (Next.js 16+ can take longer)
     echo -n "   Waiting for frontend to start"
-    for i in {1..20}; do
+    for i in {1..30}; do
         if curl -s http://localhost:9000 > /dev/null 2>&1; then
             echo ""
             echo -e "   ${GREEN}✓${NC} Frontend ready"
@@ -200,7 +205,8 @@ start_services() {
 
     if ! curl -s http://localhost:9000 > /dev/null 2>&1; then
         echo ""
-        echo -e "   ${YELLOW}⚠️  Frontend may still be starting...${NC}"
+        echo -e "   ${YELLOW}⚠️  Frontend still starting (Next.js 16 can be slower)...${NC}"
+        echo -e "   ${YELLOW}   Check logs: tail -f logs/frontend-dev.log${NC}"
     fi
 
     echo ""
@@ -232,6 +238,12 @@ show_info() {
     echo "=========================================="
     echo -e "${YELLOW}Press Ctrl+C to stop all services${NC}"
     echo "=========================================="
+    echo ""
+    echo -e "${CYAN}Stack:${NC}"
+    echo "  • Next.js 16.0.1 (canary, better monorepo CSS support)"
+    echo "  • React 19.2.0"
+    echo "  • Tailwind CSS v3 with @tailwindcss/postcss"
+    echo "  • pnpm 10.20.0"
     echo ""
 }
 
