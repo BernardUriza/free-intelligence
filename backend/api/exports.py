@@ -28,8 +28,6 @@ Endpoints:
 import json
 import os
 from datetime import datetime, timezone
-
-UTC = timezone.utc
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -119,7 +117,7 @@ class VerifyResponse(BaseModel):
 # FASTAPI ROUTER
 # ============================================================================
 
-router = APIRouter(prefix="/api/exports", tags=["exports"])
+router = APIRouter()
 
 
 @router.post("", response_model=ExportResponse, status_code=200)

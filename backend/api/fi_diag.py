@@ -13,7 +13,7 @@ Clean Code Architecture:
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter
@@ -24,7 +24,7 @@ from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/diag")
+router = APIRouter()
 
 
 class HealthStatus(BaseModel):
@@ -65,7 +65,7 @@ async def health_check() -> HealthStatus:
 
         return HealthStatus(
             status=diag_data["status"],
-            timestamp=datetime.now(timezone.utc).isoformat() + "Z",
+            timestamp=datetime.now(UTC).isoformat() + "Z",
             checks=diag_data["checks"],
             version="0.1.0",
         )
@@ -74,7 +74,7 @@ async def health_check() -> HealthStatus:
         # Return degraded response on error with empty checks
         return HealthStatus(
             status="degraded",
-            timestamp=datetime.now(timezone.utc).isoformat() + "Z",
+            timestamp=datetime.now(UTC).isoformat() + "Z",
             checks={},
             version="0.1.0",
         )
@@ -154,7 +154,7 @@ async def readiness_check() -> dict[str, Any]:
         logger.info("READINESS_CHECK_COMPLETED", ready=is_ready)
         return {
             "ready": is_ready,
-            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat() + "Z",
         }
     except Exception as e:
         logger.error(f"READINESS_CHECK_FAILED: {str(e)}")
@@ -180,7 +180,7 @@ async def liveness_check() -> dict[str, Any]:
         logger.info("LIVENESS_CHECK_COMPLETED", alive=is_alive)
         return {
             "alive": is_alive,
-            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat() + "Z",
             "pid": os.getpid(),
         }
     except Exception as e:

@@ -55,7 +55,7 @@ class EvidencePackResponse(BaseModel):
     metadata: dict
 
 
-router = APIRouter(prefix="/api/evidence", tags=["evidence"])
+router = APIRouter()
 
 
 @router.post("/packs", response_model=EvidencePackResponse, status_code=201)

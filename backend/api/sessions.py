@@ -18,8 +18,6 @@ Endpoints:
 """
 
 from datetime import datetime, timezone
-
-UTC = timezone.utc
 from typing import Optional
 from uuid import uuid4
 
@@ -94,7 +92,7 @@ class UpdateSessionRequest(BaseModel):
 # FASTAPI ROUTER
 # ============================================================================
 
-router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+router = APIRouter()
 
 
 @router.get("", response_model=SessionsListResponse)

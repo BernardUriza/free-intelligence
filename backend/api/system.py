@@ -27,7 +27,7 @@ from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/system")
+router = APIRouter()
 
 
 class SystemHealthResponse(BaseModel):

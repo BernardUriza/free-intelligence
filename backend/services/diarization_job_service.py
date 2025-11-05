@@ -12,6 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
 
+from backend.logger import get_logger
 from backend.services.diarization_jobs import get_job
 from backend.services.diarization_service import (
     DiarizationResult,
@@ -19,16 +20,18 @@ from backend.services.diarization_service import (
     diarize_audio,
 )
 from backend.services.diarization_service import export_diarization as export_to_format
-from backend.logger import get_logger
+
 
 # Lazy import to avoid circular dependencies
 def _get_lowprio_status(job_id):
     """Lazy loader for low-priority job status."""
     try:
         from backend.jobs.diarization_worker_lowprio import get_job_status
+
         return get_job_status(job_id)
     except (ImportError, AttributeError):
         return None
+
 
 logger = get_logger(__name__)
 

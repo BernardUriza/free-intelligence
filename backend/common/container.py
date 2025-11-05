@@ -32,9 +32,11 @@ from backend.services import (
 )
 from backend.services.diarization_job_service import DiarizationJobService
 
+
 def _get_logger():
     """Lazy logger initialization to avoid circular imports."""
     from backend.logger import get_logger
+
     return get_logger(__name__)
 
 
@@ -240,7 +242,9 @@ class DIContainer:
                 use_lowprio = os.getenv("DIARIZATION_LOWPRIO", "true").lower() == "true"
 
                 self._diarization_job_service = DiarizationJobService(use_lowprio=use_lowprio)
-                _get_logger().info(f"DiarizationJobService initialized with use_lowprio={use_lowprio}")
+                _get_logger().info(
+                    f"DiarizationJobService initialized with use_lowprio={use_lowprio}"
+                )
             except OSError as e:
                 _get_logger().error(f"DIARIZATION_JOB_SERVICE_INIT_FAILED: {str(e)}")
                 raise OSError(f"Failed to initialize DiarizationJobService: {e}") from e
