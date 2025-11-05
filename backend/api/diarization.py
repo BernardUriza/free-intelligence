@@ -17,15 +17,18 @@ Low-Priority Worker:
 
 File: backend/api/diarization.py
 Created: 2025-10-30
-Updated: 2025-10-31
+Updated: 2025-11-05
 """
+
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import traceback
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import (
     APIRouter,
@@ -41,41 +44,13 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
-from backend.storage.audio_storage import save_audio_file
-
-try:
-    from backend.services.diarization_jobs import (
-        JobStatus,
-        create_job,
-        update_job_status,
-    )
-except ImportError:
-    # Fallback for compatibility
-    from backend.diarization_jobs import JobStatus, create_job, update_job_status
-try:
-    from backend.services.diarization_service import diarize_audio
-except ImportError:
-    from backend.diarization_service import diarize_audio
-try:
-    from backend.services.diarization_service_v2 import diarize_audio_parallel
-except ImportError:
-    from backend.diarization_service_v2 import diarize_audio_parallel
-
-
-# Lazy import for low-priority worker
-def create_lowprio_job(session_id, audio_path):
-    """Lazy wrapper for low-priority job creation."""
-    try:
-        from backend.jobs.diarization_worker_lowprio import create_diarization_job
-
-        return create_diarization_job(session_id, audio_path)
-    except (ImportError, AttributeError):
-        raise RuntimeError("Low-priority worker not available")
-
-
 from backend.logger import get_logger
 from backend.schemas import StatusCode, error_response, success_response
-from backend.services.soap_generation_service import SOAPGenerationService
+from backend.services.diarization_jobs import JobStatus, create_job, update_job_status
+from backend.services.diarization_service import diarize_audio
+from backend.services.diarization_service_v2 import diarize_audio_parallel
+from backend.services.soap_generation.service import SOAPGenerationService
+from backend.storage.audio_storage import AUDIO_STORAGE_DIR, save_audio_file
 
 logger = get_logger(__name__)
 
@@ -90,6 +65,32 @@ USE_V2_PIPELINE = (
 USE_LOWPRIO_WORKER = (
     os.getenv("DIARIZATION_LOWPRIO", "true").lower() == "true"
 )  # Use low-priority worker
+
+
+def _create_lowprio_job(session_id: str, audio_path: Path) -> str:
+    """
+    Lazy wrapper for low-priority job creation.
+
+    Attempts to import and use the low-priority worker module.
+    Falls back gracefully if the module is not available.
+
+    NOTE: The low-priority worker module is deprecated.
+    Currently raises RuntimeError as the implementation is not available.
+
+    Args:
+        session_id: Session identifier
+        audio_path: Path to audio file
+
+    Returns:
+        Job ID created by the low-priority worker
+
+    Raises:
+        RuntimeError: Low-priority worker is not currently available
+    """
+    raise RuntimeError(
+        "Low-priority worker not available. "
+        "Use standard V2 pipeline (DIARIZATION_USE_V2=true) instead."
+    )
 
 
 class UploadResponse(BaseModel):
@@ -126,7 +127,7 @@ class JobStatusResponse(BaseModel):
     chunks: list[ChunkInfo] = Field(default_factory=list)
     created_at: str
     updated_at: str
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class DiarizationSegmentResponse(BaseModel):
@@ -154,26 +155,37 @@ class DiarizationResultResponse(BaseModel):
 
 def _process_diarization_background_v2(
     job_id: str, audio_path: Path, session_id: str, language: str, persist: bool
-):
+) -> None:
     """
     Background task wrapper for V2 optimized pipeline.
 
     This is a SYNC function that runs the async pipeline using asyncio.run().
-    Required because FastAPI BackgroundTasks.add_task() doesn't support async functions directly.
-    """
-    import asyncio
+    Required because FastAPI BackgroundTasks.add_task() doesn't support async
+    functions directly.
 
-    async def _async_pipeline():
+    Args:
+        job_id: Diarization job identifier
+        audio_path: Path to audio file
+        session_id: Session identifier
+        language: Language code (e.g., "es", "en")
+        persist: Whether to persist results to disk
+    """
+
+    async def _async_pipeline() -> None:
+        """Run the async diarization pipeline."""
         try:
             # Update status to in_progress
             update_job_status(
-                job_id, JobStatus.IN_PROGRESS, progress=10, last_event="DIARIZATION_STARTED_V2"
+                job_id,
+                JobStatus.IN_PROGRESS,
+                progress=10,
+                last_event="DIARIZATION_STARTED_V2",
             )
 
             # Create progress callback
             def progress_callback(
                 progress_pct: int, processed: int = 0, total: int = 0, event: str = ""
-            ):
+            ) -> None:
                 update_job_status(
                     job_id,
                     JobStatus.IN_PROGRESS,
@@ -201,13 +213,18 @@ def _process_diarization_background_v2(
             )
 
             logger.info(
-                "DIARIZATION_JOB_COMPLETED_V2", job_id=job_id, segments=len(result.segments)
+                "DIARIZATION_JOB_COMPLETED_V2",
+                job_id=job_id,
+                segments=len(result.segments),
             )
 
-        except Exception as e:
-            logger.error("DIARIZATION_JOB_FAILED_V2", job_id=job_id, error=str(e))
+        except Exception as err:
+            logger.error("DIARIZATION_JOB_FAILED_V2", job_id=job_id, error=str(err))
             update_job_status(
-                job_id, JobStatus.FAILED, error=str(e), last_event="DIARIZATION_FAILED_V2"
+                job_id,
+                JobStatus.FAILED,
+                error=str(err),
+                last_event="DIARIZATION_FAILED_V2",
             )
 
     # Run async pipeline in sync context
@@ -216,19 +233,30 @@ def _process_diarization_background_v2(
 
 def _process_diarization_background(
     job_id: str, audio_path: Path, session_id: str, language: str, persist: bool
-):
+) -> None:
     """
     Background task wrapper for V1 (legacy) pipeline.
-    Kept for backward compatibility.
+
+    Kept for backward compatibility with older diarization implementations.
+
+    Args:
+        job_id: Diarization job identifier
+        audio_path: Path to audio file
+        session_id: Session identifier
+        language: Language code (e.g., "es", "en")
+        persist: Whether to persist results to disk
     """
     try:
         update_job_status(
-            job_id, JobStatus.IN_PROGRESS, progress=10, last_event="DIARIZATION_STARTED"
+            job_id,
+            JobStatus.IN_PROGRESS,
+            progress=10,
+            last_event="DIARIZATION_STARTED",
         )
 
         def progress_callback(
             progress_pct: int, processed: int = 0, total: int = 0, event: str = ""
-        ):
+        ) -> None:
             update_job_status(
                 job_id,
                 JobStatus.IN_PROGRESS,
@@ -239,7 +267,11 @@ def _process_diarization_background(
             )
 
         result = diarize_audio(
-            audio_path, session_id, language, persist, progress_callback=progress_callback
+            audio_path,
+            session_id,
+            language,
+            persist,
+            progress_callback=progress_callback,
         )
 
         update_job_status(
@@ -255,28 +287,33 @@ def _process_diarization_background(
 
         logger.info("DIARIZATION_JOB_COMPLETED", job_id=job_id, segments=len(result.segments))
 
-    except Exception as e:
-        logger.error("DIARIZATION_JOB_FAILED", job_id=job_id, error=str(e))
-        update_job_status(job_id, JobStatus.FAILED, error=str(e), last_event="DIARIZATION_FAILED")
+    except Exception as err:
+        logger.error("DIARIZATION_JOB_FAILED", job_id=job_id, error=str(err))
+        update_job_status(
+            job_id,
+            JobStatus.FAILED,
+            error=str(err),
+            last_event="DIARIZATION_FAILED",
+        )
 
 
 @router.post("/upload", status_code=status.HTTP_202_ACCEPTED)
 async def upload_audio_for_diarization(
     background_tasks: BackgroundTasks,
     audio: UploadFile = File(..., description="Audio file to diarize"),
-    x_session_id: Optional[str] = Header(None, alias="X-Session-ID"),
+    x_session_id: str | None = Header(None, alias="X-Session-ID"),
     language: str = Query("es", description="Language code"),
     persist: bool = Query(False, description="Save results to disk"),
-    whisper_model: Optional[str] = Query(
+    whisper_model: str | None = Query(
         None, description="Whisper model: tiny, base, small, medium, large-v3"
     ),
-    enable_llm_classification: Optional[bool] = Query(
+    enable_llm_classification: bool | None = Query(
         None, description="Enable LLM speaker classification"
     ),
-    chunk_size_sec: Optional[int] = Query(None, description="Audio chunk size in seconds"),
-    beam_size: Optional[int] = Query(None, description="Whisper beam size"),
-    vad_filter: Optional[bool] = Query(None, description="Enable Voice Activity Detection"),
-):
+    chunk_size_sec: int | None = Query(None, description="Audio chunk size in seconds"),
+    beam_size: int | None = Query(None, description="Whisper beam size"),
+    vad_filter: bool | None = Query(None, description="Enable Voice Activity Detection"),
+) -> Any:
     """
     Upload audio file and start diarization job.
 
@@ -354,23 +391,21 @@ async def upload_audio_for_diarization(
                 else "mp3",
                 metadata={"original_filename": audio.filename, "purpose": "diarization"},
             )
-        except Exception as e:
-            logger.error("AUDIO_SAVE_FAILED", job_id=job_id, error=str(e))
-            diarization_service.fail_job(job_id, f"Failed to save audio: {str(e)}")
+        except Exception as err:
+            logger.error("AUDIO_SAVE_FAILED", job_id=job_id, error=str(err))
+            diarization_service.fail_job(job_id, f"Failed to save audio: {str(err)}")
             audit_service.log_action(
                 action="audio_upload_failed",
                 user_id="system",
                 resource=f"job:{job_id}",
                 result="failed",
-                details={"error": str(e)},
+                details={"error": str(err)},
             )
             return error_response(
                 "Failed to save audio file", code=500, status=StatusCode.INTERNAL_ERROR
             )
 
         # Path hardening: resolve absolute path
-        from backend.storage.audio_storage import AUDIO_STORAGE_DIR
-
         relative_path = saved["file_path"]
         abs_path = (AUDIO_STORAGE_DIR.parent / relative_path).resolve()
 
@@ -421,7 +456,7 @@ async def upload_audio_for_diarization(
         # Route to low-priority worker or legacy pipelines
         if USE_LOWPRIO_WORKER:
             # Use low-priority worker with CPU scheduler + HDF5
-            job_id = create_lowprio_job(x_session_id, abs_path)  # type: ignore[call-arg]
+            job_id = _create_lowprio_job(x_session_id, abs_path)
             logger.info(
                 "LOWPRIO_JOB_CREATED",
                 job_id=job_id,
@@ -430,7 +465,7 @@ async def upload_audio_for_diarization(
             )
         else:
             # Legacy: create in-memory job and use background task
-            job_id = create_job(x_session_id, str(abs_path), len(audio_content))  # type: ignore[call-arg]
+            job_id = create_job(x_session_id, str(abs_path), len(audio_content))
 
             if USE_V2_PIPELINE:
                 background_tasks.add_task(
@@ -462,50 +497,48 @@ async def upload_audio_for_diarization(
             code=202,
         )
 
-    except ValueError as e:
+    except ValueError as err:
         # Validation error (bad input)
-        logger.warning("DIARIZATION_VALIDATION_FAILED")
+        logger.warning("DIARIZATION_VALIDATION_FAILED", error=str(err))
         audit_service.log_action(
             action="diarization_upload_validation_failed",
             user_id="system",
             resource="upload",
             result="failed",
-            details={"error": str(e), "session_id": x_session_id},
+            details={"error": str(err), "session_id": x_session_id},
         )
-        return error_response(str(e), code=400, status=StatusCode.VALIDATION_ERROR)
+        return error_response(str(err), code=400, status=StatusCode.VALIDATION_ERROR)
 
-    except OSError as e:
+    except OSError as err:
         # Storage error
-        logger.error("DIARIZATION_STORAGE_FAILED")
+        logger.error("DIARIZATION_STORAGE_FAILED", error=str(err))
         audit_service.log_action(
             action="diarization_upload_storage_failed",
             user_id="system",
             resource="upload",
             result="failed",
-            details={"error": str(e), "session_id": x_session_id},
+            details={"error": str(err), "session_id": x_session_id},
         )
         return error_response(
             "Failed to store audio file", code=500, status=StatusCode.INTERNAL_ERROR
         )
 
-    except Exception as e:
+    except Exception as err:
         # Unexpected error
-        import traceback
-
         error_trace = traceback.format_exc()
-        logger.error("DIARIZATION_UPLOAD_FAILED", error=str(e), traceback=error_trace)
+        logger.error("DIARIZATION_UPLOAD_FAILED", error=str(err), traceback=error_trace)
         audit_service.log_action(
             action="diarization_upload_failed",
             user_id="system",
             resource="upload",
             result="failed",
-            details={"error": str(e), "session_id": x_session_id},
+            details={"error": str(err), "session_id": x_session_id},
         )
         return error_response("Internal server error", code=500, status=StatusCode.INTERNAL_ERROR)
 
 
 @router.get("/jobs/{job_id}", response_model=JobStatusResponse)
-async def get_job_status(job_id: str):
+async def get_job_status(job_id: str) -> JobStatusResponse:
     """
     Get status of diarization job with chunks[] array.
 
@@ -565,16 +598,16 @@ async def get_job_status(job_id: str):
             error=status_dict.get("error"),
         )
 
-    except ValueError as e:
-        logger.warning(f"JOB_STATUS_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"JOB_STATUS_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve job status") from e
+    except ValueError as err:
+        logger.warning(f"JOB_STATUS_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=400, detail=str(err)) from err
+    except Exception as err:
+        logger.error(f"JOB_STATUS_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve job status") from err
 
 
 @router.get("/result/{job_id}", response_model=DiarizationResultResponse)
-async def get_diarization_result(job_id: str):
+async def get_diarization_result(job_id: str) -> DiarizationResultResponse:
     """
     Get diarization result for completed job.
 
@@ -629,19 +662,19 @@ async def get_diarization_result(job_id: str):
             created_at=result_dict["created_at"],
         )
 
-    except ValueError as e:
-        logger.warning(f"DIARIZATION_RESULT_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"DIARIZATION_RESULT_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve result") from e
+    except ValueError as err:
+        logger.warning(f"DIARIZATION_RESULT_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=400, detail=str(err)) from err
+    except Exception as err:
+        logger.error(f"DIARIZATION_RESULT_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve result") from err
 
 
 @router.get("/export/{job_id}")
 async def export_diarization_result(
     job_id: str,
     export_format: str = Query("json", regex="^(json|markdown|vtt|srt|csv)$", alias="format"),
-):
+) -> Response:
     """
     Export diarization result in specified format.
 
@@ -694,21 +727,21 @@ async def export_diarization_result(
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
 
-    except ValueError as e:
-        logger.warning(f"DIARIZATION_EXPORT_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+    except ValueError as err:
+        logger.warning(f"DIARIZATION_EXPORT_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=400, detail=str(err)) from err
+    except Exception as err:
         logger.error(
-            f"DIARIZATION_EXPORT_FAILED: job_id={job_id}, format={export_format}, error={str(e)}"
+            f"DIARIZATION_EXPORT_FAILED: job_id={job_id}, format={export_format}, error={str(err)}"
         )
-        raise HTTPException(status_code=500, detail="Failed to export result") from e
+        raise HTTPException(status_code=500, detail="Failed to export result") from err
 
 
 @router.get("/jobs")
 async def list_diarization_jobs(
-    session_id: Optional[str] = Query(None, description="Filter by session ID"),
+    session_id: str | None = Query(None, description="Filter by session ID"),
     limit: int = Query(50, ge=1, le=100, description="Max results"),
-):
+) -> Any:
     """
     List diarization jobs with optional filtering.
 
@@ -748,14 +781,14 @@ async def list_diarization_jobs(
             message=f"Found {len(jobs)} jobs",
         )
 
-    except Exception as e:
-        logger.error(f"DIARIZATION_JOBS_LIST_FAILED: error={str(e)}")
+    except Exception as err:
+        logger.error(f"DIARIZATION_JOBS_LIST_FAILED: error={str(err)}")
         # Return empty list instead of error (graceful degradation)
         return success_response([], message="Jobs service unavailable")
 
 
 @router.post("/soap/{job_id}", response_model=dict, status_code=status.HTTP_200_OK)
-async def generate_soap_for_job(job_id: str):
+async def generate_soap_for_job(job_id: str) -> Any:
     """
     Generate SOAP note from diarization job transcription.
 
@@ -777,12 +810,9 @@ async def generate_soap_for_job(job_id: str):
         # Initialize SOAP generation service
         soap_service = SOAPGenerationService()
 
-        # Get transcription from HDF5 and extract SOAP with Ollama
-        transcription = soap_service._read_transcription_from_h5(job_id)
-        if not transcription:
-            raise HTTPException(status_code=404, detail=f"No transcription found for job {job_id}")
-
-        soap_data = soap_service._extract_soap_with_ollama(transcription)
+        # Generate SOAP note using public API
+        # This orchestrates: read transcription → extract SOAP → build models
+        soap_note = soap_service.generate_soap_for_job(job_id)
 
         # Log audit trail
         audit_service = get_container().get_audit_service()
@@ -793,34 +823,34 @@ async def generate_soap_for_job(job_id: str):
             result="success",
             details={
                 "model": "ollama_mistral_mvp",
-                "extraction_success": bool(soap_data.get("subjetivo")),
+                "completeness": soap_note.completeness,
             },
         )
 
         logger.info(
             "SOAP_GENERATION_SUCCESS",
             job_id=job_id,
-            soap_data_keys=list(soap_data.keys()),
+            completeness=soap_note.completeness,
         )
 
-        # Return extracted SOAP data
+        # Return extracted SOAP data as dict (Pydantic models serialize automatically)
         return {
             "job_id": job_id,
-            "soap_extraction": soap_data,
+            "soap_note": soap_note.model_dump(),
             "status": "success",
             "model": "ollama_mistral_mvp",
         }
 
-    except ValueError as e:
-        logger.warning(f"SOAP_GENERATION_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except Exception as e:
-        logger.error(f"SOAP_GENERATION_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to generate SOAP note") from e
+    except ValueError as err:
+        logger.warning(f"SOAP_GENERATION_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=404, detail=str(err)) from err
+    except Exception as err:
+        logger.error(f"SOAP_GENERATION_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=500, detail="Failed to generate SOAP note") from err
 
 
 @router.get("/health")
-async def diarization_health():
+async def diarization_health() -> Response:
     """
     Check diarization service health.
 
@@ -860,17 +890,17 @@ async def diarization_health():
             status_code=status_code,
         )
 
-    except Exception as e:
-        logger.error(f"DIARIZATION_HEALTH_CHECK_FAILED: error={str(e)}")
+    except Exception as err:
+        logger.error(f"DIARIZATION_HEALTH_CHECK_FAILED: error={str(err)}")
         return Response(
-            content=json.dumps({"status": "unhealthy", "error": str(e)}),
+            content=json.dumps({"status": "unhealthy", "error": str(err)}),
             media_type="application/json",
             status_code=503,
         )
 
 
 @router.post("/jobs/{job_id}/restart")
-async def restart_job(job_id: str):
+async def restart_job(job_id: str) -> Any:
     """
     Restart diarization job.
 
@@ -899,16 +929,16 @@ async def restart_job(job_id: str):
 
         return success_response(updated_status, message=f"Job {job_id} restarted", code=200)
 
-    except ValueError as e:
-        logger.warning(f"JOB_RESTART_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"JOB_RESTART_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to restart job") from e
+    except ValueError as err:
+        logger.warning(f"JOB_RESTART_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=400, detail=str(err)) from err
+    except Exception as err:
+        logger.error(f"JOB_RESTART_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=500, detail="Failed to restart job") from err
 
 
 @router.post("/jobs/{job_id}/cancel")
-async def cancel_job(job_id: str):
+async def cancel_job(job_id: str) -> Any:
     """
     Cancel diarization job.
 
@@ -937,16 +967,16 @@ async def cancel_job(job_id: str):
 
         return success_response(updated_status, message=f"Job {job_id} cancelled", code=200)
 
-    except ValueError as e:
-        logger.warning(f"JOB_CANCEL_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"JOB_CANCEL_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to cancel job") from e
+    except ValueError as err:
+        logger.warning(f"JOB_CANCEL_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=400, detail=str(err)) from err
+    except Exception as err:
+        logger.error(f"JOB_CANCEL_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=500, detail="Failed to cancel job") from err
 
 
 @router.get("/jobs/{job_id}/logs")
-async def get_job_logs(job_id: str):
+async def get_job_logs(job_id: str) -> Any:
     """
     Get processing logs for a diarization job.
 
@@ -980,12 +1010,14 @@ async def get_job_logs(job_id: str):
         )
 
         return success_response(
-            logs or [], message=f"Retrieved {len(logs) if logs else 0} log entries", code=200
+            logs or [],
+            message=f"Retrieved {len(logs) if logs else 0} log entries",
+            code=200,
         )
 
-    except ValueError as e:
-        logger.warning(f"DIARIZATION_LOGS_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"DIARIZATION_LOGS_FAILED: job_id={job_id}, error={str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve logs") from e
+    except ValueError as err:
+        logger.warning(f"DIARIZATION_LOGS_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=400, detail=str(err)) from err
+    except Exception as err:
+        logger.error(f"DIARIZATION_LOGS_FAILED: job_id={job_id}, error={str(err)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve logs") from err
