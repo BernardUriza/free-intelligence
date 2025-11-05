@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
 """
 Free Intelligence - Export API
 
@@ -25,11 +23,13 @@ Endpoints:
 - GET /downloads/exp_{id}/* -> static file serving (configured in main app)
 """
 
+from __future__ import annotations
+
 import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -67,7 +67,7 @@ class ExportInclude(BaseModel):
 class ExportRequest(BaseModel):
     """Create export request"""
 
-    sessionId: str
+    session_id: str
     formats: list[Literal["md", "json"]] = Field(..., min_length=1)
     include: ExportInclude = Field(default_factory=ExportInclude)
 
@@ -84,10 +84,10 @@ class ExportArtifact(BaseModel):
 class ExportResponse(BaseModel):
     """Export response"""
 
-    exportId: str
+    export_id: str
     status: Literal["ready", "processing"]
     artifacts: list[ExportArtifact]
-    manifestUrl: str
+    manifest_url: str
 
 
 class VerifyRequest(BaseModel):
@@ -103,7 +103,7 @@ class VerifyResult(BaseModel):
 
     target: str
     ok: bool
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class VerifyResponse(BaseModel):
@@ -153,19 +153,19 @@ async def create_export(request: ExportRequest):
             # For now, use placeholder
             content_dict[fmt] = json.dumps(
                 {
-                    "session_id": request.sessionId,
+                    "session_id": request.session_id,
                     "format": fmt,
-                    "include": request.include.dict(),
-                    "generated_at": datetime.now(UTC).isoformat() + "Z",
+                    "include": request.include.model_dump(),
+                    "generated_at": datetime.now(timezone.utc).isoformat() + "Z",
                 },
                 indent=2,
             )
 
         # Delegate to service for export creation
         result = export_service.create_export(
-            session_id=request.sessionId,
+            session_id=request.session_id,
             content_dict=content_dict,
-            formats=request.formats,  # type: ignore[arg-type]
+            formats=request.formats,
         )
 
         # Build artifacts with download URLs
@@ -194,26 +194,29 @@ async def create_export(request: ExportRequest):
             user_id="system",
             resource=f"export:{result['export_id']}",
             result="success",
-            details={"session_id": request.sessionId, "formats": request.formats},
+            details={"session_id": request.session_id, "formats": request.formats},
         )
 
         logger.info(
-            f"EXPORT_CREATED: export_id={result['export_id']}, session_id={request.sessionId}, formats={request.formats}"
+            "EXPORT_CREATED: export_id=%s, session_id=%s, formats=%s",
+            result["export_id"],
+            request.session_id,
+            request.formats,
         )
 
         return ExportResponse(
-            exportId=result["export_id"],
+            export_id=result["export_id"],
             status="ready",
             artifacts=artifacts,
-            manifestUrl=manifest_url,
+            manifest_url=manifest_url,
         )
 
     except ValueError as e:
-        logger.warning(f"EXPORT_CREATION_VALIDATION_FAILED: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.warning("EXPORT_CREATION_VALIDATION_FAILED: %s", str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"EXPORT_CREATION_FAILED: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to create export: {str(e)}")
+        logger.error("EXPORT_CREATION_FAILED: %s", str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to create export: {str(e)}") from e
 
 
 @router.get("/{export_id}", response_model=ExportResponse)
@@ -274,20 +277,24 @@ async def get_export(export_id: str):
             result="success",
         )
 
-        logger.info(f"EXPORT_RETRIEVED: export_id={export_id}")
+        logger.info("EXPORT_RETRIEVED: export_id=%s", export_id)
 
         return ExportResponse(
-            exportId=export_id,
+            export_id=export_id,
             status="ready",
             artifacts=artifacts,
-            manifestUrl=manifest_url,
+            manifest_url=manifest_url,
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"EXPORT_RETRIEVAL_FAILED: export_id={export_id}, error={str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve export: {str(e)}")
+        logger.error(
+            "EXPORT_RETRIEVAL_FAILED: export_id=%s, error=%s",
+            export_id,
+            str(e),
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve export: {str(e)}") from e
 
 
 @router.post("/{export_id}/verify", response_model=VerifyResponse)
@@ -322,7 +329,7 @@ async def verify_export(export_id: str, request: VerifyRequest):
         # Delegate to service for verification
         verify_result = export_service.verify_export(
             export_id=export_id,
-            targets=request.targets,  # type: ignore[arg-type]
+            targets=request.targets,
         )
 
         # Convert results to response format
@@ -345,18 +352,18 @@ async def verify_export(export_id: str, request: VerifyRequest):
             details={"targets": request.targets, "all_ok": verify_result["ok"]},
         )
 
-        logger.info(f"EXPORT_VERIFIED: export_id={export_id}, all_ok={verify_result['ok']}")
+        logger.info("EXPORT_VERIFIED: export_id=%s, all_ok=%s", export_id, verify_result["ok"])
 
         return VerifyResponse(ok=verify_result["ok"], results=results)
 
     except HTTPException:
         raise
     except OSError as e:
-        logger.warning(f"EXPORT_VERIFICATION_FAILED: export_id={export_id}, error={str(e)}")
-        raise HTTPException(status_code=404, detail=f"Export not found: {str(e)}")
+        logger.warning("EXPORT_VERIFICATION_FAILED: export_id=%s, error=%s", export_id, str(e))
+        raise HTTPException(status_code=404, detail=f"Export not found: {str(e)}") from e
     except Exception as e:
-        logger.error(f"EXPORT_VERIFICATION_FAILED: export_id={export_id}, error={str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to verify export: {str(e)}")
+        logger.error("EXPORT_VERIFICATION_FAILED: export_id=%s, error=%s", export_id, str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to verify export: {str(e)}") from e
 
 
 # ============================================================================
