@@ -12,7 +12,7 @@ Card: [P0][Área: UX/UI][Tipo: feature] Memoria legible — Timeline AURITY
 Sprint: SPR-2025W44
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from backend.timeline_models import (
     CausalityType,
@@ -37,7 +37,7 @@ def create_demo_timeline() -> Timeline:
         generation_mode=TimelineMode.MANUAL,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # ========================================================================
     # EVENTO 1: Usuario envía mensaje inicial (dolor de pecho)
