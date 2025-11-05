@@ -108,7 +108,7 @@ class SOAPGenerationService:
             Concatenated transcription text
         """
         try:
-            with h5py.File(self.h5_path, "r") as f:  # type: ignore[attr-defined]
+            with h5py.File(self.h5_path, "r") as f:
                 if f"diarization/{job_id}/chunks" not in f:
                     raise ValueError(f"No chunks found for job {job_id}")
 
@@ -155,7 +155,7 @@ class SOAPGenerationService:
             Dictionary with SOAP sections in English field names
         """
         try:
-            import requests  # type: ignore[import]
+            import requests
 
             # Language-agnostic system prompt (accepts any input language)
             system_prompt = """You are a medical analyst. Analyze the medical consultation transcription provided.
@@ -289,13 +289,30 @@ Return JSON structure with these exact fields:
             else:
                 signos_vitales_data = signos_vitales_raw or {}
 
+            # Convert numeric strings to proper types
+            def to_int(val: Any) -> int | None:
+                if val is None or val == "":
+                    return None
+                try:
+                    return int(val) if isinstance(val, str) else val
+                except (ValueError, TypeError):
+                    return None
+
+            def to_float(val: Any) -> float | None:
+                if val is None or val == "":
+                    return None
+                try:
+                    return float(val) if isinstance(val, str) else val
+                except (ValueError, TypeError):
+                    return None
+
             signos_vitales = SignosVitales(
                 presion_arterial=signos_vitales_data.get("presion_arterial"),
-                frecuencia_cardiaca=signos_vitales_data.get("frecuencia_cardiaca"),
-                frecuencia_respiratoria=signos_vitales_data.get("frecuencia_respiratoria"),
-                temperatura=signos_vitales_data.get("temperatura"),
-                saturacion_oxigeno=signos_vitales_data.get("saturacion_oxigeno"),
-                peso=signos_vitales_data.get("peso"),
+                frecuencia_cardiaca=to_int(signos_vitales_data.get("frecuencia_cardiaca")),
+                frecuencia_respiratoria=to_int(signos_vitales_data.get("frecuencia_respiratoria")),
+                temperatura=to_float(signos_vitales_data.get("temperatura")),
+                saturacion_oxigeno=to_float(signos_vitales_data.get("saturacion_oxigeno")),
+                peso=to_float(signos_vitales_data.get("peso")),
             )
 
             # Parse exploracion fisica properly
@@ -408,7 +425,8 @@ Return JSON structure with these exact fields:
             )
 
             # Create metadata
-            metadata = SOAPMetadata(
+            # Note: SOAPMetadata fields are inferred from actual model definition
+            metadata = SOAPMetadata(  # type: ignore[call-arg]
                 source="diarization_to_soap",
                 model_used="ollama_mistral_mvp",
                 completeness_score=self._calculate_completeness(
