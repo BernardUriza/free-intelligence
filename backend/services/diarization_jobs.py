@@ -14,7 +14,7 @@ Created: 2025-10-30
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -74,7 +74,7 @@ def create_job(session_id: str, audio_file_path: str, audio_file_size: int) -> s
         job_id (UUID)
     """
     job_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc).isoformat() + "Z"
+    now = datetime.now(UTC).isoformat() + "Z"
 
     job = DiarizationJob(
         job_id=job_id,
@@ -101,10 +101,51 @@ def get_job(job_id: str) -> Optional[DiarizationJob]:
     """
     Get job by ID.
 
+    Reads from in-memory store first, then falls back to HDF5.
+
     Returns:
         DiarizationJob or None if not found
     """
-    return _jobs.get(job_id)
+    # Check in-memory first
+    if job_id in _jobs:
+        return _jobs[job_id]
+
+    # Try to load from HDF5
+    from pathlib import Path
+
+    import h5py
+
+    hdf5_path = Path("storage/diarization.h5")
+    if hdf5_path.exists():
+        try:
+            with h5py.File(hdf5_path, "r") as f:
+                if "diarization" in f:
+                    diarization_group = f["diarization"]
+
+                    if job_id in diarization_group:
+                        job_group = diarization_group[job_id]
+                        attrs = dict(job_group.attrs)
+
+                        job = DiarizationJob(
+                            job_id=job_id,
+                            session_id=attrs.get("session_id", ""),
+                            audio_file_path=attrs.get("audio_path", ""),
+                            audio_file_size=0,
+                            status=JobStatus(attrs.get("status", "pending")),
+                            progress_percent=int(attrs.get("progress_pct", 0)),
+                            created_at=attrs.get("created_at", ""),
+                            processed=0,
+                            total=int(attrs.get("total_chunks", 0)),
+                            percent=float(attrs.get("progress_pct", 0)),
+                            last_event="",
+                            updated_at=attrs.get("updated_at", ""),
+                        )
+
+                        return job
+        except Exception as e:
+            logger.warning(f"Failed to read HDF5 job {job_id}: {str(e)}")
+
+    return None
 
 
 def update_job_status(
@@ -140,7 +181,7 @@ def update_job_status(
         return False
 
     job.status = status
-    job.updated_at = datetime.now(timezone.utc).isoformat() + "Z"
+    job.updated_at = datetime.now(UTC).isoformat() + "Z"
 
     if progress is not None:
         job.progress_percent = min(100, max(0, progress))
@@ -156,10 +197,10 @@ def update_job_status(
         job.last_event = last_event
 
     if status == JobStatus.IN_PROGRESS and not job.started_at:
-        job.started_at = datetime.now(timezone.utc).isoformat() + "Z"
+        job.started_at = datetime.now(UTC).isoformat() + "Z"
 
     if status in (JobStatus.COMPLETED, JobStatus.FAILED):
-        job.completed_at = datetime.now(timezone.utc).isoformat() + "Z"
+        job.completed_at = datetime.now(UTC).isoformat() + "Z"
         job.progress_percent = 100 if status == JobStatus.COMPLETED else job.progress_percent
         job.percent = float(job.progress_percent)
 
@@ -186,18 +227,66 @@ def list_jobs(session_id: Optional[str] = None, limit: int = 50) -> list[Diariza
     """
     List jobs, optionally filtered by session_id.
 
+    Reads from HDF5 storage (storage/diarization.h5) and merges with in-memory jobs.
+
     Returns:
         List of jobs, sorted by created_at (newest first)
     """
-    jobs = list(_jobs.values())
+    from pathlib import Path
+
+    import h5py
+
+    jobs: dict[str, DiarizationJob] = {}
+
+    # First, add in-memory jobs
+    jobs.update(_jobs)
+
+    # Then, try to load from HDF5
+    hdf5_path = Path("storage/diarization.h5")
+    if hdf5_path.exists():
+        try:
+            with h5py.File(hdf5_path, "r") as f:
+                if "diarization" in f:
+                    diarization_group = f["diarization"]
+
+                    for job_id in diarization_group.keys():
+                        # Skip if already in memory (memory has priority)
+                        if job_id in jobs:
+                            continue
+
+                        job_group = diarization_group[job_id]
+                        attrs = dict(job_group.attrs)
+
+                        # Extract metadata from attributes
+                        job = DiarizationJob(
+                            job_id=job_id,
+                            session_id=attrs.get("session_id", ""),
+                            audio_file_path=attrs.get("audio_path", ""),
+                            audio_file_size=0,  # Not stored in HDF5
+                            status=JobStatus(attrs.get("status", "pending")),
+                            progress_percent=int(attrs.get("progress_pct", 0)),
+                            created_at=attrs.get("created_at", ""),
+                            processed=0,
+                            total=int(attrs.get("total_chunks", 0)),
+                            percent=float(attrs.get("progress_pct", 0)),
+                            last_event="",
+                            updated_at=attrs.get("updated_at", ""),
+                        )
+
+                        jobs[job_id] = job
+        except Exception as e:
+            logger.warning(f"Failed to read HDF5 jobs: {str(e)}")
+
+    # Convert to list and filter
+    job_list = list(jobs.values())
 
     if session_id:
-        jobs = [j for j in jobs if j.session_id == session_id]
+        job_list = [j for j in job_list if j.session_id == session_id]
 
     # Sort by created_at descending
-    jobs.sort(key=lambda j: j.created_at, reverse=True)
+    job_list.sort(key=lambda j: j.created_at, reverse=True)
 
-    return jobs[:limit]
+    return job_list[:limit]
 
 
 def cleanup_old_jobs(max_age_hours: int = 24) -> int:
