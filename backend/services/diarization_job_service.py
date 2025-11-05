@@ -423,21 +423,32 @@ class DiarizationJobService:
             List of job status dicts
         """
         try:
-            if self.use_lowprio:
-                from backend.diarization_worker_lowprio import (
-                    list_all_jobs as list_lowprio_jobs,
-                )
-
-                jobs = list_lowprio_jobs(limit=limit, session_id=session_id)
-                logger.info(f"JOBS_LISTED_FROM_LOWPRIO: count={len(jobs)}, limit={limit}")
-                return jobs
-
-            # Legacy mode: list in-memory jobs
+            # Always use legacy mode - convert to dict format
             from backend.diarization_jobs import list_jobs as list_legacy_jobs
 
             jobs = list_legacy_jobs(limit=limit, session_id=session_id)
-            logger.info(f"JOBS_LISTED_FROM_LEGACY: count={len(jobs)}, limit={limit}")
-            return jobs
+
+            # Convert DiarizationJob objects to dicts
+            result = []
+            for job in jobs:
+                if isinstance(job, dict):
+                    result.append(job)
+                else:
+                    # Convert object to dict
+                    result.append({
+                        "job_id": job.job_id,
+                        "session_id": job.session_id,
+                        "status": job.status,
+                        "progress_pct": job.progress_pct,
+                        "processed_chunks": job.processed_chunks,
+                        "total_chunks": job.total_chunks,
+                        "created_at": job.created_at.isoformat() if hasattr(job.created_at, 'isoformat') else str(job.created_at),
+                        "updated_at": job.updated_at.isoformat() if hasattr(job.updated_at, 'isoformat') else str(job.updated_at),
+                        "error": job.error,
+                    })
+
+            logger.info(f"JOBS_LISTED: count={len(result)}, limit={limit}")
+            return result
 
         except Exception as e:
             logger.error(f"JOBS_LIST_FAILED: error={str(e)}")
