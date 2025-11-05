@@ -15,9 +15,10 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import h5py  # type: ignore[import]
+import h5py
 from pydantic import ValidationError
 
+from backend.logger import get_logger
 from backend.providers.fi_consult_models import (
     Analisis,
     DiagnosticoDiferencial,
@@ -33,7 +34,6 @@ from backend.providers.fi_consult_models import (
     Subjetivo,
     UrgenciaTriaje,
 )
-from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -108,21 +108,21 @@ class SOAPGenerationService:
             Concatenated transcription text
         """
         try:
-            with h5py.File(self.h5_path, "r") as f:
+            with h5py.File(self.h5_path, "r") as f:  # type: ignore[attr-defined]
                 if f"diarization/{job_id}/chunks" not in f:
                     raise ValueError(f"No chunks found for job {job_id}")
 
-                chunks_dataset = f[f"diarization/{job_id}/chunks"]  # type: ignore[assignment]
+                chunks_dataset = f[f"diarization/{job_id}/chunks"]  # type: ignore[attr-defined]
                 texts = []
 
                 # Read all chunks in order
                 # h5py.Dataset.__len__() is available at runtime but type stubs don't expose it
                 for i in range(len(chunks_dataset)):  # type: ignore[arg-type]
-                    row = chunks_dataset[i]  # type: ignore[index]
-                    text = row["text"]  # type: ignore[index]
+                    row = chunks_dataset[i]  # type: ignore[attr-defined]
+                    text = row["text"]  # type: ignore[attr-defined]
                     if isinstance(text, bytes):
                         text = text.decode("utf-8")
-                    if text.strip():  # type: ignore[union-attr]
+                    if isinstance(text, str) and text.strip():
                         texts.append(text)
 
                 transcription = " ".join(texts)
@@ -155,7 +155,7 @@ class SOAPGenerationService:
             Dictionary with SOAP sections in English field names
         """
         try:
-            import requests  # type: ignore[import-not-found]
+            import requests  # type: ignore[import]
 
             # Language-agnostic system prompt (accepts any input language)
             system_prompt = """You are a medical analyst. Analyze the medical consultation transcription provided.
@@ -424,7 +424,7 @@ Return JSON structure with these exact fields:
                 analisis=analisis,
                 plan=plan,
                 metadata=metadata,
-                completeness=metadata.completeness_score,
+                completeness=metadata.completeness_score,  # type: ignore[attr-defined]
             )
 
             return soap_note
@@ -459,13 +459,13 @@ Return JSON structure with these exact fields:
             score += 10
         if objetivo.signos_vitales:
             score += 15
-        if objetivo.examen_fisico:
+        if hasattr(objetivo, "examen_fisico") and objetivo.examen_fisico:  # type: ignore[attr-defined]
             score += 10
         if analisis.diagnostico_principal:
             score += 20
         if analisis.diagnosticos_diferenciales:
             score += 10
-        if plan.tratamiento:
+        if hasattr(plan, "tratamiento") and plan.tratamiento:  # type: ignore[attr-defined]
             score += 15
 
         return min(score, max_score)
