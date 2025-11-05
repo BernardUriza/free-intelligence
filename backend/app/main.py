@@ -41,8 +41,8 @@ def create_app() -> FastAPI:
             sessions,
             system,
             timeline_verify,
-            triage,
             transcribe,
+            triage,
         )
 
         app.include_router(audit.router, prefix="/api/audit", tags=["audit"])
