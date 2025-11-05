@@ -20,7 +20,7 @@ from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/audit")
+router = APIRouter()
 
 
 class AuditLogEntry(BaseModel):

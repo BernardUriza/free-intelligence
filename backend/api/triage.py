@@ -22,7 +22,7 @@ from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/triage", tags=["triage"])
+router = APIRouter()
 
 # ============================================================================
 # MODELS

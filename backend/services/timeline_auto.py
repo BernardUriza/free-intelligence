@@ -13,7 +13,7 @@ Sprint: SPR-2025W44
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 

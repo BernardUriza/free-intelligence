@@ -14,7 +14,7 @@ FI-CORE-FEAT-003
 
 import hashlib
 import json
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from log_rotation import LogRotation

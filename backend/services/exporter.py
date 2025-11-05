@@ -9,7 +9,7 @@ FI-EXPORT-FEAT-001, FI-EXPORT-FEAT-002
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 

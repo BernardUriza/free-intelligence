@@ -58,8 +58,10 @@ def create_app() -> FastAPI:
     except (ImportError, AttributeError) as e:
         # If routers fail to load, log and continue with health check only
         import sys
+
         print(f"WARNING: Failed to load routers: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
 
     @app.get("/health")

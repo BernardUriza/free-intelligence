@@ -15,7 +15,7 @@ FI-CORE-FEAT-003
 import gzip
 import json
 import shutil
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 

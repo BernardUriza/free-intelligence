@@ -9,7 +9,7 @@ Strategy: Extract ONLY the 4-minute segment, transcribe it, merge with existing 
 """
 
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import h5py
