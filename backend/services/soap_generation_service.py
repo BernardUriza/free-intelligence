@@ -112,7 +112,7 @@ class SOAPGenerationService:
                 if f"diarization/{job_id}/chunks" not in f:
                     raise ValueError(f"No chunks found for job {job_id}")
 
-                chunks_dataset = f[f"diarization/{job_id}/chunks"]  # type: ignore[attr-defined]
+                chunks_dataset = f[f"diarization/{job_id}/chunks"]  # type: ignore[index]
                 texts = []
 
                 # Read all chunks in order
@@ -155,7 +155,7 @@ class SOAPGenerationService:
             Dictionary with SOAP sections in English field names
         """
         try:
-            import requests
+            import requests  # type: ignore[import]
 
             # Language-agnostic system prompt (accepts any input language)
             system_prompt = """You are a medical analyst. Analyze the medical consultation transcription provided.
@@ -442,7 +442,7 @@ Return JSON structure with these exact fields:
                 analisis=analisis,
                 plan=plan,
                 metadata=metadata,
-                completeness=metadata.completeness_score,  # type: ignore[attr-defined]
+                completeness=float(self._calculate_completeness(subjetivo, objetivo, analisis, plan)),
             )
 
             return soap_note
