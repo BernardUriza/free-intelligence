@@ -7,7 +7,7 @@ Demonstrates the clean code testing pattern.
 from __future__ import annotations
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from backend.services.diarization_service import DiarizationService
 
@@ -381,7 +381,7 @@ class TestDiarizationServiceJobListing:
     def test_list_jobs_with_limit(self, diarization_service):
         """Test listing jobs with limit."""
         # Create multiple jobs
-        for i in range(5):
+        for _ in range(5):
             diarization_service.create_diarization_job(
                 session_id="session_123",
                 audio_filename="test.mp3",
