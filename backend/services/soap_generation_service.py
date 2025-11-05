@@ -13,19 +13,17 @@ Created: 2025-11-05
 from __future__ import annotations
 
 import json
-from typing import Optional
+from typing import Any
 
-import h5py
+import h5py  # type: ignore[import]
 from pydantic import ValidationError
 
-from backend.fi_consult_models import (
+from backend.providers.fi_consult_models import (
     Analisis,
     DiagnosticoDiferencial,
     DiagnosticoPrincipal,
-    EstudioUrgencia,
     ExploracionFisica,
     Gravedad,
-    Interconsulta,
     Objetivo,
     Plan,
     Pronostico,
@@ -33,7 +31,6 @@ from backend.fi_consult_models import (
     SOAPMetadata,
     SOAPNote,
     Subjetivo,
-    TratamientoFarmacologico,
     UrgenciaTriaje,
 )
 from backend.logger import get_logger
@@ -98,7 +95,7 @@ class SOAPGenerationService:
         except Exception as e:
             logger.error(
                 "SOAP_GENERATION_FAILED", job_id=job_id, error=str(e)
-            )  # type: ignore[call-arg]
+            )
             raise
 
     def _read_transcription_from_h5(self, job_id: str) -> str:
@@ -115,23 +112,24 @@ class SOAPGenerationService:
                 if f"diarization/{job_id}/chunks" not in f:
                     raise ValueError(f"No chunks found for job {job_id}")
 
-                chunks_dataset = f[f"diarization/{job_id}/chunks"]
+                chunks_dataset = f[f"diarization/{job_id}/chunks"]  # type: ignore[assignment]
                 texts = []
 
                 # Read all chunks in order
-                for i in range(len(chunks_dataset)):
-                    row = chunks_dataset[i]
-                    text = row["text"]
+                # h5py.Dataset.__len__() is available at runtime but type stubs don't expose it
+                for i in range(len(chunks_dataset)):  # type: ignore[arg-type]
+                    row = chunks_dataset[i]  # type: ignore[index]
+                    text = row["text"]  # type: ignore[index]
                     if isinstance(text, bytes):
                         text = text.decode("utf-8")
-                    if text.strip():
+                    if text.strip():  # type: ignore[union-attr]
                         texts.append(text)
 
                 transcription = " ".join(texts)
                 logger.info(
                     "TRANSCRIPTION_READ",
                     job_id=job_id,
-                    chunks_count=len(chunks_dataset),
+                    chunks_count=len(chunks_dataset),  # type: ignore[arg-type]
                     transcription_length=len(transcription),
                 )
 
@@ -140,10 +138,10 @@ class SOAPGenerationService:
         except Exception as e:
             logger.error(
                 "TRANSCRIPTION_READ_FAILED", job_id=job_id, error=str(e)
-            )  # type: ignore[call-arg]
+            )
             raise
 
-    def _extract_soap_with_ollama(self, transcription: str) -> dict:
+    def _extract_soap_with_ollama(self, transcription: str) -> dict[str, Any]:
         """Extract SOAP sections using Ollama LLM (language-agnostic).
 
         Accepts medical consultation transcriptions in ANY language.
@@ -157,7 +155,7 @@ class SOAPGenerationService:
             Dictionary with SOAP sections in English field names
         """
         try:
-            import requests
+            import requests  # type: ignore[import-not-found]
 
             # Language-agnostic system prompt (accepts any input language)
             system_prompt = """You are a medical analyst. Analyze the medical consultation transcription provided.
@@ -224,7 +222,7 @@ Return JSON structure with these exact fields:
                 return self._default_soap_structure()
 
             json_str = response_text[json_start:json_end]
-            soap_data = json.loads(json_str)
+            soap_data: dict[str, Any] = json.loads(json_str)
 
             logger.info(
                 "SOAP_EXTRACTED_FROM_OLLAMA",
@@ -235,11 +233,11 @@ Return JSON structure with these exact fields:
             return soap_data
 
         except Exception as e:
-            logger.error("OLLAMA_EXTRACTION_FAILED", error=str(e))  # type: ignore[call-arg]
+            logger.error("OLLAMA_EXTRACTION_FAILED", error=str(e))
             # Return default structure on error
             return self._default_soap_structure()
 
-    def _create_soap_note(self, job_id: str, soap_data: dict) -> SOAPNote:
+    def _create_soap_note(self, job_id: str, soap_data: dict[str, Any]) -> SOAPNote:
         """Create SOAPNote model from extracted data.
 
         Args:
@@ -250,9 +248,8 @@ Return JSON structure with these exact fields:
             SOAPNote model instance
         """
         try:
-            from backend.fi_consult_models import (
+            from backend.providers.fi_consult_models import (
                 Antecedentes,
-                Habitos,
                 SignosVitales,
             )
 
@@ -435,7 +432,7 @@ Return JSON structure with these exact fields:
         except ValidationError as e:
             logger.error(
                 "SOAP_VALIDATION_FAILED", job_id=job_id, errors=str(e)
-            )  # type: ignore[call-arg]
+            )
             raise
 
     def _calculate_completeness(
@@ -473,7 +470,7 @@ Return JSON structure with these exact fields:
 
         return min(score, max_score)
 
-    def _default_soap_structure(self) -> dict:
+    def _default_soap_structure(self) -> dict[str, Any]:
         """Return default empty SOAP structure.
 
         Returns:
