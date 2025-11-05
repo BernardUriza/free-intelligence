@@ -34,8 +34,8 @@ logs/
 .env
 .env.local
 
-# HDF5 corpus (development)
-storage/*.h5
+# Storage (audio, HDF5, data)
+storage/
 !storage/.gitkeep
 
 # Exports
@@ -68,3 +68,8 @@ dmypy.json
 
 # Ruff
 .ruff_cache/
+
+# Playwright
+playwright-report/
+.playwright/
+test-results/

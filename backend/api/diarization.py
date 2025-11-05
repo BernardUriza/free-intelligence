@@ -50,6 +50,7 @@ from backend.diarization_worker_lowprio import (
 )
 from backend.logger import get_logger
 from backend.schemas import StatusCode, error_response, success_response
+from backend.services.soap_generation_service import SOAPGenerationService
 
 logger = get_logger(__name__)
 
@@ -464,7 +465,10 @@ async def upload_audio_for_diarization(
 
     except Exception as e:
         # Unexpected error
-        logger.error("DIARIZATION_UPLOAD_FAILED")
+        import traceback
+
+        error_trace = traceback.format_exc()
+        logger.error("DIARIZATION_UPLOAD_FAILED", error=str(e), traceback=error_trace)
         audit_service.log_action(
             action="diarization_upload_failed",
             user_id="system",
@@ -712,7 +716,12 @@ async def list_diarization_jobs(
                     "job_id": j["job_id"],
                     "session_id": j["session_id"],
                     "status": j.get("status"),
+                    "progress_pct": j.get("progress_pct", 0),
+                    "processed_chunks": j.get("processed_chunks", 0),
+                    "total_chunks": j.get("total_chunks", 0),
                     "created_at": j.get("created_at"),
+                    "updated_at": j.get("updated_at"),
+                    "error": j.get("error"),
                 }
                 for j in jobs
             ],
@@ -722,6 +731,71 @@ async def list_diarization_jobs(
     except Exception as e:
         logger.error(f"DIARIZATION_JOBS_LIST_FAILED: error={str(e)}")
         raise HTTPException(status_code=500, detail="Failed to list jobs") from e
+
+
+@router.post("/soap/{job_id}", response_model=dict, status_code=status.HTTP_200_OK)
+async def generate_soap_for_job(job_id: str):
+    """
+    Generate SOAP note from diarization job transcription.
+
+    **ConversationCapture MVP (Level 1):**
+    - Reads transcription chunks from HDF5 diarization storage
+    - Calls Ollama LLM to extract SOAP sections
+    - Returns structured SOAP note (Subjetivo-Objetivo-Análisis-Plan)
+
+    Args:
+        job_id: Diarization job ID
+
+    Returns:
+        SOAP extraction result with medical data
+
+    Raises:
+        HTTPException: 404 if job not found, 500 if generation fails
+    """
+    try:
+        # Initialize SOAP generation service
+        soap_service = SOAPGenerationService()
+
+        # Get transcription from HDF5 and extract SOAP with Ollama
+        transcription = soap_service._read_transcription_from_h5(job_id)
+        if not transcription:
+            raise HTTPException(status_code=404, detail=f"No transcription found for job {job_id}")
+
+        soap_data = soap_service._extract_soap_with_ollama(transcription)
+
+        # Log audit trail
+        audit_service = get_container().get_audit_service()
+        audit_service.log_action(
+            action="soap_generated",
+            user_id="system",
+            resource=f"diarization_job:{job_id}",
+            result="success",
+            details={
+                "model": "ollama_mistral_mvp",
+                "extraction_success": bool(soap_data.get("subjetivo")),
+            },
+        )
+
+        logger.info(
+            "SOAP_GENERATION_SUCCESS",
+            job_id=job_id,
+            soap_data_keys=list(soap_data.keys()),
+        )
+
+        # Return extracted SOAP data
+        return {
+            "job_id": job_id,
+            "soap_extraction": soap_data,
+            "status": "success",
+            "model": "ollama_mistral_mvp",
+        }
+
+    except ValueError as e:
+        logger.warning(f"SOAP_GENERATION_VALIDATION_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"SOAP_GENERATION_FAILED: job_id={job_id}, error={str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to generate SOAP note") from e
 
 
 @router.get("/health")
