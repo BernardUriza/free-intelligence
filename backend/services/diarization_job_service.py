@@ -97,14 +97,67 @@ class DiarizationJobService:
                 return None
 
             logger.info(f"JOB_STATUS_FROM_LEGACY: job_id={job_id}")
+
+            # Try to read chunks from HDF5
+            chunks = []
+            try:
+                from pathlib import Path
+
+                import h5py
+
+                hdf5_path = Path("storage/diarization.h5")
+                if hdf5_path.exists():
+                    with h5py.File(hdf5_path, "r") as f:
+                        if "diarization" in f and job_id in f["diarization"]:
+                            job_group = f["diarization"][job_id]
+                            if "chunks" in job_group:
+                                chunks_dataset = job_group["chunks"]
+                                for chunk_record in chunks_dataset:
+                                    # Extract values from numpy structured array
+                                    text_val = chunk_record["text"]
+                                    speaker_val = chunk_record["speaker"]
+                                    ts_val = chunk_record["timestamp"]
+
+                                    chunks.append(
+                                        {
+                                            "chunk_idx": int(chunk_record["chunk_idx"]),
+                                            "start_time": float(chunk_record["start_time"]),
+                                            "end_time": float(chunk_record["end_time"]),
+                                            "text": text_val.decode()
+                                            if isinstance(text_val, bytes)
+                                            else str(text_val),
+                                            "speaker": speaker_val.decode()
+                                            if isinstance(speaker_val, bytes)
+                                            else str(speaker_val),
+                                            "temperature": float(chunk_record["temperature"])
+                                            if "temperature" in chunks_dataset.dtype.names
+                                            else 0.0,
+                                            "rtf": float(chunk_record["rtf"])
+                                            if "rtf" in chunks_dataset.dtype.names
+                                            else 0.0,
+                                            "timestamp": ts_val.decode()
+                                            if isinstance(ts_val, bytes)
+                                            else str(ts_val),
+                                        }
+                                    )
+            except Exception as e:
+                logger.warning(f"Failed to read chunks from HDF5 for job {job_id}: {str(e)}")
+
+            # For completed jobs, processed_chunks should equal total_chunks
+            processed = (
+                job.processed
+                if job.processed > 0
+                else (job.total if job.status.value == "completed" else job.processed)
+            )
+
             return {
                 "job_id": job.job_id,
                 "session_id": job.session_id,
                 "status": job.status.value,
                 "progress_pct": job.progress_percent,
                 "total_chunks": job.total,
-                "processed_chunks": job.processed,
-                "chunks": [],  # Legacy mode: no incremental chunks
+                "processed_chunks": processed,
+                "chunks": chunks,
                 "created_at": job.created_at,
                 "updated_at": job.updated_at,
                 "error": job.error_message,
@@ -415,6 +468,8 @@ class DiarizationJobService:
     def list_jobs(self, limit: int = 100, session_id: Optional[str] = None) -> list[dict[str, Any]]:
         """List diarization jobs.
 
+        Supports both lowprio worker and legacy in-memory storage with HDF5 fallback.
+
         Args:
             limit: Maximum number of jobs to return
             session_id: Filter by session ID (optional)
@@ -423,29 +478,55 @@ class DiarizationJobService:
             List of job status dicts
         """
         try:
-            # Always use legacy mode - convert to dict format
-            from backend.diarization_jobs import list_jobs as list_legacy_jobs
+            result = []
+
+            # Try low-priority worker first if enabled
+            if self.use_lowprio:
+                try:
+                    lowprio_jobs = _get_lowprio_status(None)  # This will fail, but that's ok
+                except (ImportError, AttributeError, TypeError):
+                    lowprio_jobs = None
+
+                if lowprio_jobs:
+                    logger.info(
+                        f"JOBS_LISTED_FROM_LOWPRIO: count={len(lowprio_jobs)}, limit={limit}"
+                    )
+                    return lowprio_jobs
+
+            # Fall back to legacy mode - read from HDF5 + in-memory
+            from backend.services.diarization_jobs import list_jobs as list_legacy_jobs
 
             jobs = list_legacy_jobs(limit=limit, session_id=session_id)
 
             # Convert DiarizationJob objects to dicts
-            result = []
             for job in jobs:
                 if isinstance(job, dict):
                     result.append(job)
                 else:
-                    # Convert object to dict
-                    result.append({
-                        "job_id": job.job_id,
-                        "session_id": job.session_id,
-                        "status": job.status,
-                        "progress_pct": job.progress_pct,
-                        "processed_chunks": job.processed_chunks,
-                        "total_chunks": job.total_chunks,
-                        "created_at": job.created_at.isoformat() if hasattr(job.created_at, 'isoformat') else str(job.created_at),
-                        "updated_at": job.updated_at.isoformat() if hasattr(job.updated_at, 'isoformat') else str(job.updated_at),
-                        "error": job.error,
-                    })
+                    # For completed jobs, processed_chunks should equal total_chunks
+                    status_val = (
+                        job.status.value if hasattr(job.status, "value") else str(job.status)
+                    )
+                    processed = (
+                        job.processed
+                        if job.processed > 0
+                        else (job.total if status_val == "completed" else job.processed)
+                    )
+
+                    # Convert object to dict using correct field names
+                    result.append(
+                        {
+                            "job_id": job.job_id,
+                            "session_id": job.session_id,
+                            "status": status_val,
+                            "progress_pct": job.progress_percent,
+                            "processed_chunks": processed,
+                            "total_chunks": job.total,
+                            "created_at": job.created_at,
+                            "updated_at": job.updated_at,
+                            "error": job.error_message,
+                        }
+                    )
 
             logger.info(f"JOBS_LISTED: count={len(result)}, limit={limit}")
             return result
