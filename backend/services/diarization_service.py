@@ -22,10 +22,14 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from backend.logger import get_logger
 from backend.whisper_service import is_whisper_available, transcribe_audio
+
+if TYPE_CHECKING:
+    from backend.services.corpus_service import CorpusService
+    from backend.services.session_service import SessionService
 
 logger = get_logger(__name__)
 
@@ -81,6 +85,50 @@ class DiarizationResult:
     segments: list[DiarizationSegment]
     processing_time_sec: float
     created_at: str
+
+
+class DiarizationService:
+    """Service layer for diarization operations.
+
+    Encapsulates audio diarization pipeline with speaker classification.
+    Accepts corpus and session services for metadata management.
+    """
+
+    def __init__(
+        self,
+        corpus_service: CorpusService | None = None,
+        session_service: SessionService | None = None,
+    ) -> None:
+        """Initialize DiarizationService with optional dependencies.
+
+        Args:
+            corpus_service: Service for corpus operations (optional)
+            session_service: Service for session management (optional)
+        """
+        self.corpus_service = corpus_service
+        self.session_service = session_service
+        logger.info("DiarizationService initialized")
+
+    def health_check(self) -> dict:
+        """Check health of diarization components.
+
+        Returns:
+            Dict with status and component health info
+        """
+        return {
+            "status": "healthy" if is_whisper_available() else "degraded",
+            "components": {
+                "whisper": {
+                    "available": is_whisper_available(),
+                    "model_size": WHISPER_MODEL_SIZE,
+                },
+                "ollama": {
+                    "available": check_ollama_available(),
+                    "model": OLLAMA_MODEL,
+                },
+            },
+            "active_jobs": 0,
+        }
 
 
 def check_ollama_available() -> bool:

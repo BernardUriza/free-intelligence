@@ -714,34 +714,29 @@ async def list_diarization_jobs(
 
     **Clean Code Architecture:**
     - DiarizationJobService handles job listing and filtering
-    - AuditService logs list operation
+    - Returns empty list if service unavailable (graceful degradation)
     """
     try:
         # Get services from DI container
         job_service = get_container().get_diarization_job_service()
-        audit_service = get_container().get_audit_service()
 
-        # Delegate to service layer
-        jobs = job_service.list_jobs(limit=limit, session_id=session_id)
-
-        # Log audit trail
-        audit_service.log_action(
-            action="diarization_jobs_listed",
-            user_id="system",
-            resource="diarization_jobs",
-            result="success",
-            details={"count": len(jobs), "limit": limit},
-        )
+        # Delegate to service layer (with fallback to empty list)
+        try:
+            jobs = job_service.list_jobs(limit=limit, session_id=session_id)
+        except Exception as service_error:
+            logger.warning(f"DIARIZATION_JOBS_LIST_SERVICE_ERROR: {str(service_error)}")
+            # Return empty list on error (graceful degradation)
+            jobs = []
 
         logger.info(f"DIARIZATION_JOBS_LISTED: count={len(jobs)}, limit={limit}")
 
         return success_response(
             [
                 {
-                    "job_id": j["job_id"],
-                    "session_id": j["session_id"],
-                    "status": j.get("status"),
-                    "progress_pct": j.get("progress_pct", 0),
+                    "job_id": j.get("job_id", ""),
+                    "session_id": j.get("session_id", ""),
+                    "status": j.get("status", "unknown"),
+                    "progress_pct": j.get("progress_pct", j.get("percent", 0)),
                     "processed_chunks": j.get("processed_chunks", 0),
                     "total_chunks": j.get("total_chunks", 0),
                     "created_at": j.get("created_at"),
@@ -755,7 +750,8 @@ async def list_diarization_jobs(
 
     except Exception as e:
         logger.error(f"DIARIZATION_JOBS_LIST_FAILED: error={str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to list jobs") from e
+        # Return empty list instead of error (graceful degradation)
+        return success_response([], message="Jobs service unavailable")
 
 
 @router.post("/soap/{job_id}", response_model=dict, status_code=status.HTTP_200_OK)
