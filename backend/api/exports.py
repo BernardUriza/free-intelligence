@@ -27,10 +27,9 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Literal, cast
+from typing import Literal, cast
 
 from backend.container import get_container
 from backend.logger import get_logger
@@ -39,11 +38,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 # Use timezone.utc for UTC datetime (Python 3.9+ compatible)
-# In Python 3.11+, datetime.UTC is available, but we use timezone.utc for compatibility
-if sys.version_info >= (3, 11):  # pragma: no cover
-    from datetime import UTC  # type: ignore[attr-defined]
-else:
-    UTC = timezone.utc  # type: ignore[assignment]
+UTC = timezone.utc
 
 logger = get_logger(__name__)
 
