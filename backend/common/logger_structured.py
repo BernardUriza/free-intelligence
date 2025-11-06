@@ -74,16 +74,16 @@ class BaseLogEvent:
     """
 
     # Required fields
-    ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    ts: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     host: str = field(default_factory=lambda: socket.gethostname())
-    service: ServiceChannel = field(default=ServiceChannel.SERVER)  # type: ignore[assignment]
+    service: ServiceChannel = field(default=ServiceChannel.SERVER)
     version: str = "0.3.0"
-    level: LogLevel = field(default=LogLevel.INFO)  # type: ignore[assignment]
+    level: LogLevel = field(default=LogLevel.INFO)
     trace_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     span_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     session_id: str | None = None
     user: str = "system"
-    role: UserRole = field(default=UserRole.SYSTEM)  # type: ignore[assignment]
+    role: UserRole = field(default=UserRole.SYSTEM)
     action: str = "unknown"
     ok: bool = True
     latency_ms: float | None = None
@@ -152,7 +152,7 @@ def anonymize_ip(ip: str, subnet_mask: int = 24) -> str:
     return ip
 
 
-def truncate_preview(text: str, max_length: int = 120, sensitive: bool = False) -> Optional[str]:
+def truncate_preview(text: str, max_length: int = 120, sensitive: bool = False) -> str | None:
     """
     Truncar texto para preview sin exponer datos sensibles.
 
@@ -196,7 +196,7 @@ def log_server_request(
     Canal: server
     Contenido: método, ruta, status, bytes, client_ip (anonimizada), sin body
     """
-    return BaseLogEvent(  # type: ignore[call-arg]
+    return BaseLogEvent(
         service=ServiceChannel.SERVER,
         level=LogLevel.INFO if status < 400 else LogLevel.ERROR,
         trace_id=trace_id or str(uuid.uuid4()),
@@ -243,7 +243,7 @@ def log_llm_request(
     prompt_hash_val = hash_prompt(prompt)
     response_preview = truncate_preview(response, max_length=120, sensitive=sensitive)
 
-    return BaseLogEvent(  # type: ignore[call-arg]
+    return BaseLogEvent(
         service=ServiceChannel.LLM,
         level=LogLevel.WARN if timeout else LogLevel.INFO,
         trace_id=trace_id or str(uuid.uuid4()),
@@ -272,8 +272,8 @@ def log_storage_segment(
     sha256: str,
     segment_seconds: float,
     ready: bool,
-    trace_id: Optional[str] = None,
-    session_id: Optional[str] = None,
+    trace_id: str | None = None,
+    session_id: str | None = None,
     user: str = "system",
 ) -> BaseLogEvent:
     """
@@ -282,7 +282,7 @@ def log_storage_segment(
     Canal: storage
     Contenido: file, sha256, segment_seconds, ready=true/false
     """
-    return BaseLogEvent(  # type: ignore[call-arg]
+    return BaseLogEvent(
         service=ServiceChannel.STORAGE,
         level=LogLevel.INFO,
         trace_id=trace_id or str(uuid.uuid4()),
@@ -310,7 +310,7 @@ def log_access_event(
     new_role: UserRole | None = None,
     trace_id: str | None = None,
     session_id: str | None = None,
-    details: Optional[dict[str, Any | None]] = None,
+    details: dict[str, Any | None] | None = None,
 ) -> BaseLogEvent:
     """
     Log access event (AUDIT).
@@ -331,9 +331,9 @@ def log_access_event(
         event_details["new_role"] = new_role.value
 
     if details:
-        event_details.update(details)  # type: ignore[arg-type]
+        event_details.update(details)
 
-    return BaseLogEvent(  # type: ignore[call-arg]
+    return BaseLogEvent(
         service=ServiceChannel.ACCESS,
         level=LogLevel.AUDIT,
         trace_id=trace_id or str(uuid.uuid4()),
