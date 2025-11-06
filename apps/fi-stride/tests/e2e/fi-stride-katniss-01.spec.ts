@@ -16,6 +16,50 @@ const BACKEND_URL = 'http://localhost:7001'
 const ATHLETE_EMAIL = 'athlete@test.com'
 const ATHLETE_PASSWORD = 'demo123'
 
+// Helper function to login as athlete
+async function loginAsAthlete(page: any) {
+  await page.goto(BASE_URL, { waitUntil: 'networkidle' })
+  // Select Deportista role
+  await page.click('button:has-text("Deportista")')
+  // Fill form
+  await page.fill('input[type="email"]', ATHLETE_EMAIL)
+  await page.fill('input[type="password"]', ATHLETE_PASSWORD)
+  await page.click('button:has-text("Entrar")')
+  // Wait for AthleteFlow to appear
+  await page.waitForSelector('text=Privacidad y Consentimiento', { timeout: 5000 })
+}
+
+// Helper to complete privacy step
+async function completePrivacyStep(page: any) {
+  const checkboxes = page.locator('input[type="checkbox"]')
+  for (let i = 0; i < 3; i++) {
+    await checkboxes.nth(i).check()
+  }
+  await page.click('button:has-text("Siguiente")')
+}
+
+// Helper to complete permissions step
+async function completePermissionsStep(page: any) {
+  const checkboxes = page.locator('input[type="checkbox"]')
+  await checkboxes.first().check()
+  await page.click('button:has-text("Siguiente")')
+}
+
+// Helper to complete profile step
+async function completeProfileStep(page: any) {
+  await page.click('button:has-text("Siguiente")')
+}
+
+// Helper to reach SessionAnalysis from login
+async function navigateToSessionAnalysis(page: any) {
+  await loginAsAthlete(page)
+  await completePrivacyStep(page)
+  await completePermissionsStep(page)
+  await completeProfileStep(page)
+  await page.click('button:has-text("Comenzar Entrenamiento 💪")')
+  await page.waitForSelector('text=¿Cómo te fue en la sesión?', { timeout: 5000 })
+}
+
 test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to app
@@ -34,14 +78,20 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
   })
 
   test('✅ Login with valid credentials', async ({ page }) => {
+    // Role buttons should be visible on login page
+    await expect(page.locator('button:has-text("Deportista")')).toBeVisible()
+    await expect(page.locator('button:has-text("Entrenador")')).toBeVisible()
+
+    // Select Deportista role
+    await page.click('button:has-text("Deportista")')
+
     // Fill form
     await page.fill('input[type="email"]', ATHLETE_EMAIL)
     await page.fill('input[type="password"]', ATHLETE_PASSWORD)
     await page.click('button:has-text("Entrar")')
 
-    // Should show role selection
-    await expect(page.locator('button:has-text("Deportista")')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('button:has-text("Entrenador")')).toBeVisible()
+    // After login, should show AthleteFlow (step 1: privacy consent)
+    await expect(page.locator('text=Privacidad y Consentimiento')).toBeVisible({ timeout: 5000 })
   })
 
   // ==========================================
@@ -50,10 +100,7 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
 
   test('✅ STEP 1: Privacy consent with 3 checkboxes', async ({ page }) => {
     // Login first
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
+    await loginAsAthlete(page)
 
     // Verify step 1 appears
     await expect(page.locator('text=Privacidad y Consentimiento')).toBeVisible()
@@ -73,17 +120,8 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
 
   test('✅ STEP 2: Permission selection (camera/microphone)', async ({ page }) => {
     // Setup: complete step 1
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    // Complete privacy step
-    const checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
+    await loginAsAthlete(page)
+    await completePrivacyStep(page)
 
     // Verify step 2 appears
     await expect(page.locator('text=Permisos de Dispositivo')).toBeVisible()
@@ -96,27 +134,16 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
     expect(style).toContain('50%')
 
     // Check camera permission
+    const checkboxes = page.locator('input[type="checkbox"]')
     await checkboxes.first().check()
     await expect(checkboxes.first()).toBeChecked()
   })
 
   test('✅ STEP 3: Profile (read-only display)', async ({ page }) => {
     // Setup: complete steps 1-2
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    // Step 1
-    const checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
-
-    // Step 2
-    await checkboxes.first().check()
-    await page.click('button:has-text("Siguiente")')
+    await loginAsAthlete(page)
+    await completePrivacyStep(page)
+    await completePermissionsStep(page)
 
     // Verify step 3 appears
     await expect(page.locator('text=Tu Perfil')).toBeVisible()
@@ -134,25 +161,10 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
 
   test('✅ STEP 4: Ready confirmation', async ({ page }) => {
     // Setup: complete steps 1-3
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    // Step 1
-    let checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
-
-    // Step 2
-    checkboxes = page.locator('input[type="checkbox"]')
-    await checkboxes.first().check()
-    await page.click('button:has-text("Siguiente")')
-
-    // Step 3
-    await page.click('button:has-text("Siguiente")')
+    await loginAsAthlete(page)
+    await completePrivacyStep(page)
+    await completePermissionsStep(page)
+    await completeProfileStep(page)
 
     // Verify step 4 appears
     await expect(page.locator('text=¡Listo para entrenar! 🎉')).toBeVisible()
@@ -171,28 +183,11 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
   // ==========================================
 
   test('✅ SessionAnalysis form loads after AthleteFlow', async ({ page }) => {
-    // Complete AthleteFlow
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    let checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
-
-    checkboxes = page.locator('input[type="checkbox"]')
-    await checkboxes.first().check()
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Siguiente")')
-
-    // Click "Comenzar Entrenamiento"
-    await page.click('button:has-text("Comenzar Entrenamiento 💪")')
+    // Navigate to SessionAnalysis
+    await navigateToSessionAnalysis(page)
 
     // Verify SessionAnalysis appears
-    await expect(page.locator('text=¿Cómo te fue en la sesión?')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=¿Cómo te fue en la sesión?')).toBeVisible()
     await expect(page.locator('text=Duración (minutos)')).toBeVisible()
     await expect(page.locator('text=¿Cuánto esfuerzo hiciste? (1-10)')).toBeVisible()
     await expect(page.locator('text=¿Cómo te sientes ahora?')).toBeVisible()
@@ -200,22 +195,7 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
 
   test('✅ Duration slider works (5-120 min range)', async ({ page }) => {
     // Navigate to SessionAnalysis
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    let checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
-
-    checkboxes = page.locator('input[type="checkbox"]')
-    await checkboxes.first().check()
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Comenzar Entrenamiento 💪")')
+    await navigateToSessionAnalysis(page)
 
     // Test slider
     const slider = page.locator('input[type="range"]').first()
@@ -228,22 +208,7 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
 
   test('✅ RPE buttons (1-10) selection', async ({ page }) => {
     // Navigate to SessionAnalysis
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    let checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
-
-    checkboxes = page.locator('input[type="checkbox"]')
-    await checkboxes.first().check()
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Comenzar Entrenamiento 💪")')
+    await navigateToSessionAnalysis(page)
 
     // Click RPE button "7"
     const rpeButton = page.locator('button:has-text("7")')
@@ -256,22 +221,7 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
 
   test('✅ Emotional check-in (3 caritas) selection', async ({ page }) => {
     // Navigate to SessionAnalysis
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    let checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
-
-    checkboxes = page.locator('input[type="checkbox"]')
-    await checkboxes.first().check()
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Comenzar Entrenamiento 💪")')
+    await navigateToSessionAnalysis(page)
 
     // Click "Feliz" emotion
     const felizButton = page.locator('button:has-text("Feliz")')
@@ -298,22 +248,7 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
 
   test('✅ Submit session and receive KATNISS feedback', async ({ page }) => {
     // Navigate to SessionAnalysis
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    let checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
-
-    checkboxes = page.locator('input[type="checkbox"]')
-    await checkboxes.first().check()
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Comenzar Entrenamiento 💪")')
+    await navigateToSessionAnalysis(page)
 
     // Fill form
     await page.locator('input[type="range"]').first().fill('45')
@@ -339,22 +274,7 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
 
   test('✅ KATNISS result has all required fields', async ({ page }) => {
     // Navigate to SessionAnalysis
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    let checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
-
-    checkboxes = page.locator('input[type="checkbox"]')
-    await checkboxes.first().check()
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Comenzar Entrenamiento 💪")')
+    await navigateToSessionAnalysis(page)
 
     // Fill and submit
     await page.locator('input[type="range"]').first().fill('30')
@@ -390,9 +310,7 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
 
   test('✅ Auth data stored in localStorage', async ({ page }) => {
     // Login
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
+    await loginAsAthlete(page)
 
     // Check localStorage
     const userData = await page.evaluate(() => {
@@ -408,22 +326,7 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
 
   test('✅ Session analysis stored in IndexedDB', async ({ page }) => {
     // Complete full flow to KATNISS result
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    let checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
-
-    checkboxes = page.locator('input[type="checkbox"]')
-    await checkboxes.first().check()
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Comenzar Entrenamiento 💪")')
+    await navigateToSessionAnalysis(page)
 
     // Fill and submit
     await page.locator('input[type="range"]').first().fill('40')
@@ -458,22 +361,7 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
 
   test('✅ "Otra Sesión" button restarts flow', async ({ page }) => {
     // Complete full flow
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    let checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
-
-    checkboxes = page.locator('input[type="checkbox"]')
-    await checkboxes.first().check()
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Comenzar Entrenamiento 💪")')
+    await navigateToSessionAnalysis(page)
 
     // Fill and submit
     await page.locator('input[type="range"]').first().fill('30')
@@ -504,22 +392,7 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
     await page.setViewportSize({ width: 375, height: 667 })
 
     // Complete flow to SessionAnalysis
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    let checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
-
-    checkboxes = page.locator('input[type="checkbox"]')
-    await checkboxes.first().check()
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Comenzar Entrenamiento 💪")')
+    await navigateToSessionAnalysis(page)
 
     // Verify elements are visible on mobile
     await expect(page.locator('input[type="range"]').first()).toBeVisible()
@@ -536,22 +409,7 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
     // The fallback should still provide a valid response
 
     // Complete full flow
-    await page.fill('input[type="email"]', ATHLETE_EMAIL)
-    await page.fill('input[type="password"]', ATHLETE_PASSWORD)
-    await page.click('button:has-text("Entrar")')
-    await page.click('button:has-text("Deportista")')
-
-    let checkboxes = page.locator('input[type="checkbox"]')
-    for (let i = 0; i < 3; i++) {
-      await checkboxes.nth(i).check()
-    }
-    await page.click('button:has-text("Siguiente")')
-
-    checkboxes = page.locator('input[type="checkbox"]')
-    await checkboxes.first().check()
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Siguiente")')
-    await page.click('button:has-text("Comenzar Entrenamiento 💪")')
+    await navigateToSessionAnalysis(page)
 
     // Fill and submit
     await page.locator('input[type="range"]').first().fill('30')
@@ -572,34 +430,33 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
     page,
   }) => {
     // STEP 1: Login
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' })
+    await page.click('button:has-text("Deportista")')
     await page.fill('input[type="email"]', ATHLETE_EMAIL)
     await page.fill('input[type="password"]', ATHLETE_PASSWORD)
     await page.click('button:has-text("Entrar")')
 
-    // STEP 2: Select Deportista
-    await page.click('button:has-text("Deportista")')
-
-    // STEP 3: Complete AthleteFlow
+    // STEP 2: Complete AthleteFlow
     // Privacy
     const checkboxes = page.locator('input[type="checkbox"]')
     for (let i = 0; i < 3; i++) {
       await checkboxes.nth(i).check()
     }
-    await page.click('button:has-text("Siguiente →")')
+    await page.click('button:has-text("Siguiente")')
 
     // Permissions
     const permCheckboxes = page.locator('input[type="checkbox"]')
     await permCheckboxes.first().check()
-    await page.click('button:has-text("Siguiente →")')
+    await page.click('button:has-text("Siguiente")')
 
     // Profile
-    await page.click('button:has-text("Siguiente →")')
+    await page.click('button:has-text("Siguiente")')
 
     // Ready
     await expect(page.locator('text=¡Listo para entrenar! 🎉')).toBeVisible()
     await page.click('button:has-text("Comenzar Entrenamiento 💪")')
 
-    // STEP 4: SessionAnalysis
+    // STEP 3: SessionAnalysis
     await expect(page.locator('text=¿Cómo te fue en la sesión?')).toBeVisible()
 
     // Fill form with realistic data
@@ -608,10 +465,10 @@ test.describe('FI-STRIDE KATNISS MVP - Complete E2E Suite', () => {
     await page.click('button:has-text("Feliz")')
     await page.locator('textarea').fill('Sesión excelente, me siento muy motivado')
 
-    // STEP 5: Get KATNISS feedback
+    // STEP 4: Get KATNISS feedback
     await page.click('button:has-text("Obtener Feedback de KATNISS")')
 
-    // STEP 6: Verify feedback
+    // STEP 5: Verify feedback
     await expect(page.locator('text=✨ Feedback de KATNISS ✨')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('text=Motivación')).toBeVisible()
     await expect(page.locator('text=Próxima Sesión')).toBeVisible()
