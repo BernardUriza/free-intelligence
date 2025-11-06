@@ -2,7 +2,13 @@
 Tests para Boot Map - Sistema de Seguimiento de Arranque
 
 FI-DATA-FEAT-003: Mapa de boot cognitivo
+
+Note: This module uses h5py which has incomplete type stubs. Dynamic attribute
+access on h5py objects (Groups, Datasets) is legitimate runtime behavior that
+type checkers cannot fully validate. We suppress these errors at module level.
 """
+
+# pyright: ignore[reportAttributeAccessIssue, reportIndexIssue]
 
 import unittest
 from pathlib import Path
