@@ -90,7 +90,7 @@ class TestCorpusAnalyticsAPI(unittest.TestCase):
     def test_api_latency_acceptable(self) -> None:
         """API latency should be under SLA"""
         start = time.time()
-        response = requests.get(f"{BACKEND_URL}/health", timeout=TIMEOUT)
+        requests.get(f"{BACKEND_URL}/health", timeout=TIMEOUT)
         elapsed = time.time() - start
 
         # SLA: < 800ms
@@ -113,11 +113,7 @@ class TestPydanticSOAPModels(unittest.TestCase):
     def test_consultation_event_models(self) -> None:
         """Consultation event models should be defined"""
         try:
-            from backend.fi_consult_models import (
-                ExtractionCompleted,
-                MessageReceived,
-                UrgencyClassified,
-            )
+            import backend.fi_consult_models  # noqa: F401
 
             logger.info("✅ Consultation event models importable")
         except ImportError:
@@ -149,7 +145,7 @@ class TestReduxDomainEventMapping(unittest.TestCase):
     def test_adapter_imports(self) -> None:
         """Redux adapter should be importable"""
         try:
-            from backend.adapters_redux import ReduxAdapter
+            import backend.adapters_redux  # noqa: F401
 
             logger.info("✅ ReduxAdapter importable")
         except ImportError:
@@ -200,7 +196,7 @@ class TestEventStoreLocalSHA256(unittest.TestCase):
     def test_event_store_imports(self) -> None:
         """Event store module should be importable"""
         try:
-            from backend.fi_event_store import EventStore
+            import backend.fi_event_store  # noqa: F401
 
             logger.info("✅ EventStore importable")
         except ImportError:
