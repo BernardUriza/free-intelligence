@@ -46,12 +46,9 @@ def fix_utc_import(file_path: Path) -> bool:
             lines = content.split("\n")
             for i, line in enumerate(lines):
                 if re.match(r"^import datetime\s*$", line):
-                    lines.insert(i + 1, "from datetime import "), timezone
+                    lines.insert(i + 1, "from datetime import timezone")
                     content = "\n".join(lines)
-                    (
-                        print(f"  ✏️  {file_path.name}: Added new 'from datetime import ' line")
-                        timezone,
-                    )
+                    print(f"  ✏️  {file_path.name}: Added new 'from datetime import timezone' line")
                     file_path.write_text(content)
                     return True
 

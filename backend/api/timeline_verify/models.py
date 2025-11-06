@@ -5,7 +5,7 @@ Defines request/response models for hash verification functionality.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 

@@ -13,7 +13,7 @@ Author: Bernard Uriza Orozco
 License: MIT
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 import h5py
@@ -106,7 +106,7 @@ def init_boot_map_group(h5file: h5py.File) -> None:
     )
 
     # Metadata del boot map
-    boot_group.attrs["created_at"] = datetime.now(timezone.utc).isoformat()
+    boot_group.attrs["created_at"] = datetime.now(UTC).isoformat()
     boot_group.attrs["schema_version"] = "1.0"
     boot_group.attrs["boot_map_version"] = "0.2.0"
 
@@ -136,7 +136,7 @@ def append_boot_event(h5file: h5py.File, event: str) -> None:
     dataset.resize((current_size + 1,))  # type: ignore
 
     # Format: timestamp|event
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     entry = f"{timestamp}|{event}"
     dataset[current_size] = entry  # type: ignore
 
@@ -172,7 +172,7 @@ def register_core_function(
     current_size = dataset.shape[0]  # type: ignore
     dataset.resize((current_size + 1,))  # type: ignore
 
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
 
     dataset[current_size] = (function_name, module_path, category, priority, timestamp, status)  # type: ignore
 
@@ -208,7 +208,7 @@ def append_health_check(
     current_size = dataset.shape[0]  # type: ignore
     dataset.resize((current_size + 1,))  # type: ignore
 
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
 
     dataset[current_size] = (component, status, message, timestamp, duration_ms)  # type: ignore
 

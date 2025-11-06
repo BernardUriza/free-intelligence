@@ -7,7 +7,7 @@ import json
 import os
 import py_compile
 import sys
-from datetime import  datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(".")
@@ -29,7 +29,7 @@ for p in ROOT.rglob("*.py"):
         errors.append({"file": str(p), "error": f"{type(e).__name__}: {str(e)}"})
 
 report = {
-    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "timestamp": datetime.now(UTC).isoformat(),
     "total": len(files) + len(errors),
     "ok": len(files),
     "fail": len(errors),

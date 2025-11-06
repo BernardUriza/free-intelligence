@@ -22,7 +22,7 @@ Usage:
   event_store.append_event(consultation_id, event)
 """
 
-from datetime import  datetime
+from datetime import datetime
 from typing import Any, Optional
 from uuid import uuid4
 

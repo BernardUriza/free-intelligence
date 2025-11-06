@@ -9,9 +9,9 @@ Clean Code: Abstraction - hides HDF5 complexity behind simple interface.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
-UTC = timezone.utc
+UTC = UTC
 from pathlib import Path
 from typing import Any, Optional
 
@@ -198,7 +198,9 @@ class SessionRepository(BaseRepository):
             self._log_operation("delete", session_id, status="failed", error=str(e))
             return False
 
-    def list_all(self, limit: Optional[int] = None, status: Optional[str] = None) -> list[dict[str, Any]]:
+    def list_all(
+        self, limit: Optional[int] = None, status: Optional[str] = None
+    ) -> list[dict[str, Any]]:
         """List sessions with optional filtering.
 
         Args:

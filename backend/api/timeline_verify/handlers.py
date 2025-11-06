@@ -6,11 +6,11 @@ Implements the FastAPI endpoint functions for hash verification.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from backend.audit_logs import append_audit_log
 
-from .config import CORPUS_PATH, UTC, logger
+from .config import CORPUS_PATH, logger
 from .models import VerifyHashDetail, VerifyHashRequest, VerifyHashResponse
 from .utils import build_summary, compute_hash_for_target, get_hash_prefix
 
@@ -73,7 +73,7 @@ async def verify_hash(request: VerifyHashRequest) -> VerifyHashResponse:
         Verification response with results and summary
     """
     start_time = time.time()
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
 
     results: list[VerifyHashDetail] = []
     valid_count = 0

@@ -5,7 +5,7 @@ Defines request/response models for session export functionality.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 

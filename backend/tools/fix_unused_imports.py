@@ -32,7 +32,7 @@ def main():
     errors = get_unused_imports()
 
     print(f"\n{'='*60}")
-    print(f"🔍 Unused Import Errors")
+    print("🔍 Unused Import Errors")
     print(f"{'='*60}")
     print(f"Total: {len(errors)}\n")
 

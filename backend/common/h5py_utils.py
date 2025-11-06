@@ -11,7 +11,7 @@ Card: FI-TECH-DEBT-005
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 import h5py
 

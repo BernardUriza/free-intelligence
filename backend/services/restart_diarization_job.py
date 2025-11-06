@@ -10,7 +10,7 @@ Example:
 """
 
 import sys
-from datetime import  datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import h5py
@@ -60,7 +60,7 @@ def restart_diarization_job(job_id: str, from_chunk: int = 0):
 
             # Update status to "processing"
             job_group.attrs["status"] = "processing"
-            job_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()
+            job_group.attrs["updated_at"] = datetime.now(UTC).isoformat()
 
             print("✓ Job status updated to 'processing'")
             print(f"✓ Updated at: {job_group.attrs['updated_at']}")
