@@ -108,8 +108,8 @@ def _process_single_chunk(
             if FI_ENRICHMENT and ENABLE_LLM_CLASSIFICATION:
                 try:
                     speaker = classify_speaker_with_llm(text, "", "")
-                except Exception:
-                    logger.warning("SPEAKER_CLASSIFICATION_FAILED")
+                except (ValueError, TimeoutError, RuntimeError) as e:
+                    logger.warning("SPEAKER_CLASSIFICATION_FAILED", error=str(e))
 
             segments.append(
                 DiarizationSegment(

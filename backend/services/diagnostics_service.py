@@ -200,8 +200,8 @@ class DiagnosticsService:
                     )
                     if result.returncode == 0:
                         services.append({"name": service_name, "port": port, "listening": True})
-                except Exception:
-                    pass
+                except (subprocess.CalledProcessError, OSError, ValueError) as e:
+                    logger.debug("PORT_CHECK_FAILED", service=service_name, port=port, error=str(e))
 
             logger.info(f"LSOF_FALLBACK_CHECKED: services={len(services)}")
             return {

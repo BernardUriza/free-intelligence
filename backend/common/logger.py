@@ -53,7 +53,10 @@ def get_logger(
 
             config = load_config()
             log_level = config["system"]["log_level"]
-        except Exception:
+        except (FileNotFoundError, KeyError, ImportError) as e:
+            import sys
+
+            print(f"CONFIG_LOAD_FAILED: {str(e)}, using default log_level=INFO", file=sys.stderr)
             log_level = "INFO"  # Safe default
 
     # Convert string level to logging constant
@@ -124,10 +127,13 @@ def init_logger_from_config(config_path: Optional[str] = None) -> structlog.Boun
         return get_logger(
             name="free-intelligence", log_level=log_level, timezone=timezone, log_file=log_file
         )
-    except Exception:
+    except (FileNotFoundError, KeyError, ValueError, ImportError) as e:
         # Fallback to defaults if config loading fails
+        import sys
+
+        print(f"CONFIG_LOAD_FAILED_FALLBACK: {str(e)}", file=sys.stderr)
         fallback_logger = get_logger(log_level="INFO")
-        fallback_logger.warning("config_load_failed")
+        fallback_logger.warning("config_load_failed", error=str(e))
         return fallback_logger
 
 

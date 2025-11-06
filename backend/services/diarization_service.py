@@ -20,7 +20,7 @@ import json
 import os
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
@@ -201,8 +201,8 @@ def chunk_audio_fixed(
             timeout=10,
         )
         duration = float(result.stdout.strip())
-    except Exception:
-        logger.warning("FFPROBE_FAILED")
+    except (subprocess.CalledProcessError, ValueError, FileNotFoundError) as e:
+        logger.warning("FFPROBE_FAILED", error=str(e), audio_path=str(audio_path))
         duration = 30.0  # fallback
 
     # Create chunks

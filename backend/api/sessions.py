@@ -17,15 +17,16 @@ Endpoints:
 - PATCH /api/sessions/{id} -> update session
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
 from backend.logger import get_logger
+from backend.schemas.schemas import error_response
 
 logger = get_logger(__name__)
 
@@ -144,8 +145,8 @@ async def list_sessions(
         )
 
     except Exception as e:
-        logger.error("LIST_SESSIONS_FAILED")  # type: ignore[call-arg]
-        raise HTTPException(status_code=500, detail=f"Failed to list sessions: {str(e)}")
+        logger.error("LIST_SESSIONS_FAILED", error=str(e))
+        return error_response("Failed to list sessions", code=500)
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
@@ -175,8 +176,8 @@ async def get_session(session_id: str):
         session = session_service.get_session(session_id)
 
         if not session:
-            logger.warning("SESSION_NOT_FOUND", session_id=session_id)  # type: ignore[call-arg]
-            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+            logger.warning("SESSION_NOT_FOUND", session_id=session_id)
+            return error_response(f"Session {session_id} not found", code=404)
 
         # Log audit trail
         audit_service.log_action(
@@ -188,11 +189,9 @@ async def get_session(session_id: str):
 
         return SessionResponse(**session)
 
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error("GET_SESSION_FAILED", session_id=session_id, error=str(e))  # type: ignore[call-arg]
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve session: {str(e)}")
+        logger.error("GET_SESSION_FAILED", session_id=session_id, error=str(e))
+        return error_response("Failed to retrieve session", code=500)
 
 
 @router.post("", response_model=SessionResponse, status_code=201)
@@ -264,10 +263,10 @@ async def create_session(request: CreateSessionRequest):
             result="failed",
             details={"error": str(e)},
         )
-        raise HTTPException(status_code=400, detail=str(e))
+        return error_response(str(e), code=400)
     except Exception as e:
-        logger.error("SESSION_CREATION_FAILED", error=str(e))  # type: ignore[call-arg]
-        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
+        logger.error("SESSION_CREATION_FAILED", error=str(e))
+        return error_response("Failed to create session", code=500)
 
 
 @router.patch("/{session_id}", response_model=SessionResponse)
@@ -314,8 +313,8 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
         )
 
         if not success:
-            logger.warning("SESSION_NOT_FOUND_FOR_UPDATE", session_id=session_id)  # type: ignore[call-arg]
-            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+            logger.warning("SESSION_NOT_FOUND_FOR_UPDATE", session_id=session_id)
+            return error_response(f"Session {session_id} not found", code=404)
 
         # Retrieve updated session
         session = session_service.get_session(session_id)
@@ -336,14 +335,12 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
 
         return SessionResponse(**session)
 
-    except HTTPException:
-        raise
     except ValueError as e:
-        logger.warning("SESSION_UPDATE_VALIDATION_FAILED", session_id=session_id, error=str(e))  # type: ignore[call-arg]
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.warning("SESSION_UPDATE_VALIDATION_FAILED", session_id=session_id, error=str(e))
+        return error_response(str(e), code=400)
     except Exception as e:
-        logger.error("SESSION_UPDATE_FAILED", session_id=session_id, error=str(e))  # type: ignore[call-arg]
-        raise HTTPException(status_code=500, detail=f"Failed to update session: {str(e)}")
+        logger.error("SESSION_UPDATE_FAILED", session_id=session_id, error=str(e))
+        return error_response("Failed to update session", code=500)
 
 
 # ============================================================================

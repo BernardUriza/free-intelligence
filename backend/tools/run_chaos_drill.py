@@ -870,7 +870,8 @@ class DiskFullDrill(ChaosDrill):
         try:
             usage = shutil.disk_usage(self.path)
             fs_pct = (usage.used / usage.total) * 100
-        except Exception:
+        except (OSError, FileNotFoundError, PermissionError) as e:
+            logger.warning("DISK_USAGE_CHECK_FAILED", path=str(self.path), error=str(e))
             fs_pct = 0
 
         return {

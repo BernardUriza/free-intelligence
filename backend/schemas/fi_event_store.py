@@ -33,7 +33,7 @@ Usage:
 
 import hashlib
 import json
-from datetime import datetime  # type: ignore[attr-defined]
+from datetime import UTC, datetime  # type: ignore[attr-defined]
 from pathlib import Path
 from typing import Any, Optional
 
@@ -429,8 +429,12 @@ class EventStore:
                 try:
                     metadata = self.get_consultation_metadata(consultation_id)
                     total_events += metadata["event_count"]
-                except Exception:
-                    pass
+                except (KeyError, ValueError, AttributeError) as e:
+                    logger.debug(
+                        "CONSULTATION_METADATA_FAILED",
+                        consultation_id=consultation_id,
+                        error=str(e),
+                    )
 
             file_size_mb = self.corpus_path.stat().st_size / (1024 * 1024)
 
