@@ -29,9 +29,7 @@ class OllamaPromptBuilder:
                        Defaults to prompts/ subdirectory in current module.
         """
         self.prompt_dir = (
-            Path(__file__).parent / "prompts"
-            if prompt_dir is None
-            else Path(prompt_dir)
+            Path(__file__).parent / "prompts" if prompt_dir is None else Path(prompt_dir)
         )
         self._prompt_cache: dict[str, str] = {}
 

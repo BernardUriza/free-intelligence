@@ -6,14 +6,14 @@ Implements the FastAPI endpoint functions for export operations.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 
 from backend.container import get_container
 
-from .config import EXPORT_DIR, UTC, logger
+from .config import EXPORT_DIR, logger
 from .models import (
     ExportRequest,
     ExportResponse,
@@ -62,7 +62,7 @@ async def create_export(request: ExportRequest) -> ExportResponse:
                     "session_id": request.session_id,
                     "format": fmt,
                     "include": request.include.model_dump(),
-                    "generated_at": datetime.now(timezone.utc).isoformat() + "Z",
+                    "generated_at": datetime.now(UTC).isoformat() + "Z",
                 },
                 indent=2,
             )

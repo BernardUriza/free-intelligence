@@ -28,7 +28,7 @@ import os
 import traceback
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import (
     APIRouter,

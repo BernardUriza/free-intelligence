@@ -6,7 +6,7 @@ Provides helper functions for hash computation and verification.
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+from typing import Any, Optional
 
 import h5py
 
@@ -51,7 +51,8 @@ def compute_hash_for_target(target_id: str) -> tuple[str, Optional[str]]:
                         content_hash = (
                             metadata_ds.attrs.get("content_hash", b"").decode()  # type: ignore[attr-defined, union-attr]
                             if isinstance(
-                                metadata_ds.attrs.get("content_hash"), bytes  # type: ignore[attr-defined, union-attr]
+                                metadata_ds.attrs.get("content_hash"),
+                                bytes,  # type: ignore[attr-defined, union-attr]
                             )
                             else str(metadata_ds.attrs.get("content_hash", ""))  # type: ignore[attr-defined, union-attr]
                         )
@@ -71,7 +72,8 @@ def compute_hash_for_target(target_id: str) -> tuple[str, Optional[str]]:
                         content_hash = (
                             metadata_ds.attrs.get("content_hash", b"").decode()  # type: ignore[attr-defined, union-attr]
                             if isinstance(
-                                metadata_ds.attrs.get("content_hash"), bytes  # type: ignore[attr-defined, union-attr]
+                                metadata_ds.attrs.get("content_hash"),
+                                bytes,  # type: ignore[attr-defined, union-attr]
                             )
                             else str(metadata_ds.attrs.get("content_hash", ""))  # type: ignore[attr-defined, union-attr]
                         )

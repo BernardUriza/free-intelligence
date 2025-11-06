@@ -40,14 +40,14 @@ def analyze_tier1_errors():
 
     # Print summary
     print(f"\n{'='*60}")
-    print(f"🔍 Tier 1 Critical Errors Analysis")
+    print("🔍 Tier 1 Critical Errors Analysis")
     print(f"{'='*60}")
     print(f"Total Tier 1 Errors: {len(tier1_errors)}")
-    print(f"\nBy Rule:")
+    print("\nBy Rule:")
     for rule, errors in sorted(by_rule.items(), key=lambda x: len(x[1]), reverse=True):
         print(f"  - {rule}: {len(errors)}")
 
-    print(f"\nTop Files with Tier 1 Errors:")
+    print("\nTop Files with Tier 1 Errors:")
     for file_path, errors in sorted(by_file.items(), key=lambda x: len(x[1]), reverse=True)[:10]:
         short_path = file_path.replace(
             "/Users/bernardurizaorozco/Documents/free-intelligence/backend/", ""

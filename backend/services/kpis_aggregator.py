@@ -19,7 +19,7 @@ import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import  datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 from backend.logger import get_logger
@@ -294,7 +294,7 @@ class KPIsAggregator:
 
         return {
             "window": window,
-            "asOf": datetime.now(timezone.utc).isoformat() + "Z",
+            "asOf": datetime.now(UTC).isoformat() + "Z",
             "requests": {
                 "total": total_requests,
                 "2xx": total_2xx,
@@ -392,7 +392,7 @@ class KPIsAggregator:
         if not buckets:
             return {
                 "window": window,
-                "asOf": datetime.now(timezone.utc).isoformat() + "Z",
+                "asOf": datetime.now(UTC).isoformat() + "Z",
                 "bucketSec": bucket_sec or self.bucket_sec,
                 "series": {
                     "p95_ms": [],
@@ -427,7 +427,7 @@ class KPIsAggregator:
 
         return {
             "window": window,
-            "asOf": datetime.now(timezone.utc).isoformat() + "Z",
+            "asOf": datetime.now(UTC).isoformat() + "Z",
             "bucketSec": bucket_sec or self.bucket_sec,
             "series": {
                 "p95_ms": p95_series,
@@ -533,7 +533,7 @@ class KPIsAggregator:
         """Return empty summary for when no data available."""
         return {
             "window": window,
-            "asOf": datetime.now(timezone.utc).isoformat() + "Z",
+            "asOf": datetime.now(UTC).isoformat() + "Z",
             "requests": {"total": 0, "2xx": 0, "4xx": 0, "5xx": 0},
             "latency": {"p50_ms": 0, "p95_ms": 0, "max_ms": 0},
             "tokens": {"in": 0, "out": 0, "unknown": 0},
