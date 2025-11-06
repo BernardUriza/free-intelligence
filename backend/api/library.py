@@ -8,13 +8,13 @@ Handles:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from backend.schemas.fi_event_store import EventStore
 from backend.logger import get_logger
+from backend.schemas.fi_event_store import EventStore
 
 logger = get_logger(__name__)
 
