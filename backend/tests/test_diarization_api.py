@@ -35,17 +35,14 @@ import io
 import json
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch, AsyncMock
-from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from pydantic import BaseModel
 
 # Import services and models only (avoid full app initialization in tests)
 from backend.api import diarization
-from backend.schemas import error_response, success_response
 
 
 @pytest.fixture  # type: ignore[misc]
@@ -61,21 +58,54 @@ def client():  # type: ignore[unused-ignore]
 def valid_audio_content():
     """Generate valid minimal audio content (WAV header + silence)"""
     # WAV header for 1 second of silence at 16kHz, 16-bit mono
-    wav_header = bytes([
-        0x52, 0x49, 0x46, 0x46,  # "RIFF"
-        0x24, 0xF0, 0x00, 0x00,  # File size - 8
-        0x57, 0x41, 0x56, 0x45,  # "WAVE"
-        0x66, 0x6D, 0x74, 0x20,  # "fmt "
-        0x10, 0x00, 0x00, 0x00,  # Subchunk1Size (16)
-        0x01, 0x00,  # AudioFormat (1 = PCM)
-        0x01, 0x00,  # NumChannels (1 = mono)
-        0x80, 0x3E, 0x00, 0x00,  # SampleRate (16000 Hz)
-        0x00, 0x7D, 0x00, 0x00,  # ByteRate
-        0x02, 0x00,  # BlockAlign
-        0x10, 0x00,  # BitsPerSample (16)
-        0x64, 0x61, 0x74, 0x61,  # "data"
-        0x00, 0xF0, 0x00, 0x00,  # Subchunk2Size (61440 bytes = 1 sec)
-    ])
+    wav_header = bytes(
+        [
+            0x52,
+            0x49,
+            0x46,
+            0x46,  # "RIFF"
+            0x24,
+            0xF0,
+            0x00,
+            0x00,  # File size - 8
+            0x57,
+            0x41,
+            0x56,
+            0x45,  # "WAVE"
+            0x66,
+            0x6D,
+            0x74,
+            0x20,  # "fmt "
+            0x10,
+            0x00,
+            0x00,
+            0x00,  # Subchunk1Size (16)
+            0x01,
+            0x00,  # AudioFormat (1 = PCM)
+            0x01,
+            0x00,  # NumChannels (1 = mono)
+            0x80,
+            0x3E,
+            0x00,
+            0x00,  # SampleRate (16000 Hz)
+            0x00,
+            0x7D,
+            0x00,
+            0x00,  # ByteRate
+            0x02,
+            0x00,  # BlockAlign
+            0x10,
+            0x00,  # BitsPerSample (16)
+            0x64,
+            0x61,
+            0x74,
+            0x61,  # "data"
+            0x00,
+            0xF0,
+            0x00,
+            0x00,  # Subchunk2Size (61440 bytes = 1 sec)
+        ]
+    )
     # Add silence (zeros)
     silence = bytes(61440)
     return wav_header + silence
@@ -139,7 +169,9 @@ class TestDiarizationUpload:
         # Either accepted (if validation not strict) or rejected (if validation enforced)
         assert response.status_code in [202, 400]
 
-    def test_upload_creates_job_with_valid_session(self, client, valid_audio_content, valid_session_id):
+    def test_upload_creates_job_with_valid_session(
+        self, client, valid_audio_content, valid_session_id
+    ):
         """Verify upload with valid session returns accepted status"""
         # This is a simple integration test without mocking to verify endpoint is functional
         response = client.post(
