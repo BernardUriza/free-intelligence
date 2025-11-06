@@ -4,8 +4,6 @@ Tests cover prompt building, response parsing, and SOAP extraction.
 Includes mocking for HTTP requests and comprehensive error scenarios.
 """
 
-from __future__ import annotations
-
 import json
 from pathlib import Path
 from unittest.mock import Mock
