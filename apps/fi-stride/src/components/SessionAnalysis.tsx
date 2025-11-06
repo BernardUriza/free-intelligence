@@ -9,10 +9,15 @@ interface SessionAnalysisProps {
 
 export function SessionAnalysis({ athleteName = 'Deportista', onComplete }: SessionAnalysisProps) {
   const [step, setStep] = useState<'input' | 'loading' | 'result'>('input')
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    duration: number
+    rpe: number
+    emotionalCheckIn: 'happy' | 'neutral' | 'tired'
+    notes: string
+  }>({
     duration: 30,
     rpe: 5,
-    emotionalCheckIn: 'neutral' as const,
+    emotionalCheckIn: 'neutral',
     notes: ''
   })
   const [result, setResult] = useState<KATNISSResponse | null>(null)

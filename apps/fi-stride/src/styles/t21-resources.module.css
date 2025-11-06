@@ -1,0 +1,366 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 40px;
+  padding: 30px;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.header h1 {
+  margin: 0 0 10px 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.header p {
+  margin: 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.categories {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.categoryBtn {
+  padding: 10px 20px;
+  background-color: #f0f0f0;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.categoryBtn:hover {
+  background-color: #e0e0e0;
+  border-color: #f5576c;
+  transform: scale(1.05);
+}
+
+.categoryBtn.active {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border-color: #f5576c;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 25px;
+  margin-bottom: 40px;
+}
+
+.card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  box-shadow: 0 12px 24px rgba(245, 87, 108, 0.2);
+  transform: translateY(-8px);
+}
+
+.cardIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  padding: 30px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 120px;
+}
+
+.card h3 {
+  margin: 0;
+  padding: 15px 20px 0 20px;
+  font-size: 1.2rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.description {
+  padding: 10px 20px;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  flex: 1;
+  margin: 0;
+}
+
+.categoryTag {
+  display: inline-block;
+  margin: 10px 20px 0 20px;
+  padding: 4px 12px;
+  background-color: #f0f0f0;
+  color: #666;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 12px;
+  text-transform: capitalize;
+}
+
+.btn {
+  display: inline-block;
+  margin: 15px 20px 20px 20px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  text-align: center;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: #999;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.loading p {
+  margin: 0;
+  text-align: center;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  text-align: center;
+  color: #999;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.empty p {
+  margin: 0;
+}
+
+.support {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 40px;
+  border-radius: 12px;
+  margin-top: 40px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.support h2 {
+  margin-top: 0;
+  text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 30px;
+}
+
+.supportCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.supportCard {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.supportCard:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-4px);
+}
+
+.supportCard h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.supportCard p {
+  margin: 8px 0;
+  font-size: 0.95rem;
+  opacity: 0.95;
+}
+
+.small {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.chatBtn {
+  padding: 10px 20px;
+  background-color: white;
+  color: #f5576c;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+
+.chatBtn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+}
+
+.chatBtn:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  .header {
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .header h1 {
+    font-size: 1.8rem;
+  }
+
+  .header p {
+    font-size: 1rem;
+  }
+
+  .categories {
+    margin-bottom: 25px;
+  }
+
+  .categoryBtn {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+  }
+
+  .cardIcon {
+    font-size: 2.5rem;
+    padding: 20px;
+    min-height: 100px;
+  }
+
+  .support {
+    padding: 25px;
+    margin-top: 30px;
+  }
+
+  .support h2 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+  }
+
+  .supportCards {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 8px;
+  }
+
+  .header {
+    padding: 15px;
+  }
+
+  .header h1 {
+    font-size: 1.5rem;
+  }
+
+  .header p {
+    font-size: 0.95rem;
+  }
+
+  .categories {
+    gap: 8px;
+  }
+
+  .categoryBtn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .card {
+    margin-bottom: 10px;
+  }
+
+  .cardIcon {
+    font-size: 2rem;
+  }
+
+  .card h3 {
+    font-size: 1.1rem;
+  }
+
+  .description {
+    font-size: 0.85rem;
+  }
+
+  .support {
+    padding: 15px;
+  }
+
+  .supportCard {
+    padding: 15px;
+  }
+
+  .supportCard h3 {
+    font-size: 1rem;
+  }
+}

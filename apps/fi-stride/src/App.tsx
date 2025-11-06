@@ -1,21 +1,30 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { LoginPage } from './components/LoginPage'
 import { CoachDashboard } from './components/CoachDashboard'
 import { AthleteFlow } from './components/AthleteFlow'
+import { Library } from './pages/Library'
+import { Privacy } from './pages/Privacy'
+import { T21Resources } from './pages/T21Resources'
 import './App.css'
 
 /**
- * FI-Stride Main App Component (Multiplexor)
+ * FI-Stride Main App Component (Router + Multiplexor)
  *
- * Routing logic:
- * 1. If not authenticated -> LoginPage (role selector + auth)
- * 2. If authenticated && role === 'coach' -> CoachDashboard
- * 3. If authenticated && role === 'athlete' -> AthleteFlow
+ * Routing structure:
+ * - / -> Login (public)
+ * - /athlete/* -> AthleteFlow & related (authenticated, athlete role)
+ * - /coach/* -> CoachDashboard (authenticated, coach role)
+ * - /biblioteca -> Library (authenticated)
+ * - /privacidad -> Privacy (public)
+ * - /t21/* -> T21 Resources (public)
  */
-function App() {
+
+function AppContent() {
   const user = useAuthStore((state) => state.user)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const [isLoading, setIsLoading] = useState(true)
   const setUser = useAuthStore((state) => state.setUser)
 
   // Load user from localStorage on mount
@@ -29,23 +38,59 @@ function App() {
         console.error('Failed to restore user session:', err)
       }
     }
+    setIsLoading(false)
   }, [setUser])
+
+  if (isLoading) {
+    return <div>Cargando...</div>
+  }
 
   // Route based on authentication and role
   if (!isAuthenticated || !user) {
-    return <LoginPage />
+    return (
+      <Routes>
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/privacidad" element={<Privacy />} />
+        <Route path="/t21/*" element={<T21Resources />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    )
   }
 
   if (user.role === 'coach') {
-    return <CoachDashboard />
+    return (
+      <Routes>
+        <Route path="/coach" element={<CoachDashboard />} />
+        <Route path="/biblioteca" element={<Library />} />
+        <Route path="/privacidad" element={<Privacy />} />
+        <Route path="/t21/*" element={<T21Resources />} />
+        <Route path="*" element={<Navigate to="/coach" replace />} />
+      </Routes>
+    )
   }
 
   if (user.role === 'athlete') {
-    return <AthleteFlow />
+    return (
+      <Routes>
+        <Route path="/" element={<AthleteFlow />} />
+        <Route path="/biblioteca" element={<Library />} />
+        <Route path="/privacidad" element={<Privacy />} />
+        <Route path="/t21/*" element={<T21Resources />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    )
   }
 
-  // Fallback (should not reach here)
-  return <LoginPage />
+  // Fallback
+  return <Navigate to="/" replace />
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  )
 }
 
 export default App

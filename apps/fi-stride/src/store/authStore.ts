@@ -14,7 +14,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   isLoading: false,
   error: null,
 
-  login: async (email: string, password: string, role: 'coach' | 'athlete') => {
+  login: async (email: string, _password: string, role: 'coach' | 'athlete') => {
     set({ isLoading: true, error: null })
     try {
       // TODO: Integrate with FI Backend API

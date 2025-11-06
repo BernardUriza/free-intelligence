@@ -12,25 +12,58 @@ Clean Code Principles:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 # NOTE: Defer logger import to avoid circular dependency:
 # backend.logger -> backend.common.logger -> backend.common.__init__ -> backend.common.container
 # Logger is accessed via get_logger() function call below
 from backend.repositories import AuditRepository, CorpusRepository, SessionRepository
-from backend.services import (
-    AuditService,
-    CorpusService,
-    DiagnosticsService,
-    DiarizationService,
-    EvidenceService,
-    ExportService,
-    SessionService,
-    SystemHealthService,
-    TranscriptionService,
-    TriageService,
-)
-from backend.services.diarization_job_service import DiarizationJobService
+
+# Type checking imports - Pylance uses these for type information
+if TYPE_CHECKING:
+    from backend.services import (
+        AuditService,
+        CorpusService,
+        DiagnosticsService,
+        DiarizationService,
+        EvidenceService,
+        ExportService,
+        SessionService,
+        SystemHealthService,
+        TranscriptionService,
+        TriageService,
+    )
+    from backend.services.diarization_job_service import DiarizationJobService
+else:
+    # Runtime imports - accessed via __getattr__ on services module
+    def _import_service(name: str) -> Any:
+        """Helper to import services at runtime, accessing via module __getattr__.
+
+        Returns a stub if the service has unmet dependencies.
+        """
+        import backend.services as services
+
+        try:
+            return getattr(services, name)
+        except AttributeError:
+            # Service has unmet dependencies - return a stub class
+            # Type information still comes from TYPE_CHECKING imports above
+            return type(name, (), {})
+
+    AuditService = _import_service("AuditService")  # type: ignore[assignment]
+    CorpusService = _import_service("CorpusService")  # type: ignore[assignment]
+    DiagnosticsService = _import_service("DiagnosticsService")  # type: ignore[assignment]
+    DiarizationService = _import_service("DiarizationService")  # type: ignore[assignment]
+    EvidenceService = _import_service("EvidenceService")  # type: ignore[assignment]
+    ExportService = _import_service("ExportService")  # type: ignore[assignment]
+    SessionService = _import_service("SessionService")  # type: ignore[assignment]
+    SystemHealthService = _import_service("SystemHealthService")  # type: ignore[assignment]
+    TranscriptionService = _import_service("TranscriptionService")  # type: ignore[assignment]
+    TriageService = _import_service("TriageService")  # type: ignore[assignment]
+
+    from backend.services.diarization_job_service import (
+        DiarizationJobService,  # type: ignore[assignment]
+    )
 
 
 def _get_logger() -> Any:
