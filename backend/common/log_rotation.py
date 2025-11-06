@@ -15,7 +15,7 @@ FI-CORE-FEAT-003
 import gzip
 import json
 import shutil
-from datetime import datetime,timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -186,7 +186,7 @@ class LogRotation:
 
             try:
                 file_date = datetime.strptime("-".join(file_date_str), "%Y-%m-%d")
-                file_date = file_date.replace(tzinfo=UTC)
+                file_date = file_date.replace(tzinfo=timezone.utc)
 
                 if file_date < cutoff_date:
                     # WORM lógico para access: no eliminar, solo mover a archive

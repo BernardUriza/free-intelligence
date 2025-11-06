@@ -212,11 +212,11 @@ async def create_session(request: CreateSessionRequest):
     Returns:
     - Created session object
     """
-    try:
-        # Get services from DI container
-        session_service = get_container().get_session_service()
-        audit_service = get_container().get_audit_service()
+    # Get services from DI container (must be outside try block to ensure availability in except handlers)
+    session_service = get_container().get_session_service()
+    audit_service = get_container().get_audit_service()
 
+    try:
         # Generate unique session ID and delegate to service for creation
         session_id = f"session_{uuid4().hex[:12]}"
         session = session_service.create_session(
@@ -238,7 +238,7 @@ async def create_session(request: CreateSessionRequest):
 
         logger.info(
             "SESSION_CREATED", session_id=session["session_id"], owner_hash=request.owner_hash
-        )  # type: ignore[call-arg]
+        )
 
         # Map service response to API response schema
         now = datetime.now(timezone.utc).isoformat()
@@ -255,7 +255,7 @@ async def create_session(request: CreateSessionRequest):
         )
 
     except ValueError as e:
-        logger.warning("SESSION_CREATION_VALIDATION_FAILED", error=str(e))  # type: ignore[call-arg]
+        logger.warning("SESSION_CREATION_VALIDATION_FAILED", error=str(e))
         audit_service.log_action(
             action="session_creation_failed",
             user_id="system",
@@ -306,7 +306,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
             last_active = datetime.now(timezone.utc).isoformat() + "Z"
 
         # Delegate to service for update (handles validation)
-        success = session_service.update_session(  # type: ignore[attr-defined]
+        success = session_service.update_session(
             session_id=session_id,
             status=request.status,
             interaction_count=request.interaction_count,
@@ -331,7 +331,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
             },
         )
 
-        logger.info("SESSION_UPDATED", session_id=session_id)  # type: ignore[call-arg]
+        logger.info("SESSION_UPDATED", session_id=session_id)
 
         return SessionResponse(**session)
 
