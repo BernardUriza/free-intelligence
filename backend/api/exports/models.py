@@ -65,7 +65,7 @@ class VerifyResult(BaseModel):  # type: ignore[misc]
 
     target: str
     ok: bool
-    message: str | None = None
+    message: Optional[str] = None
 
 
 class VerifyResponse(BaseModel):  # type: ignore[misc]

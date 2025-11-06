@@ -105,7 +105,7 @@ class TranscriptionService:
         session_id: str,
         audio_content: bytes,
         file_extension: str,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Optional[Any]] = None,
     ) -> dict[str, Any]:
         """Save audio file to storage.
 
@@ -206,7 +206,7 @@ class TranscriptionService:
         audio_content: bytes,
         filename: str,
         content_type: str,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Optional[Any]] = None,
     ) -> dict[str, Any]:
         """Process audio file and generate transcription.
 

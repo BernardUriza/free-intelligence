@@ -304,7 +304,7 @@ class SOAPBuilder:
         )
 
     @staticmethod
-    def _to_int(val: Any) -> int | None:
+    def _to_int(val: Any) -> Optional[int]:
         """Convert value to int or None."""
         if val is None or val == "":
             return None
@@ -314,7 +314,7 @@ class SOAPBuilder:
             return None
 
     @staticmethod
-    def _to_float(val: Any) -> float | None:
+    def _to_float(val: Any) -> Optional[float]:
         """Convert value to float or None."""
         if val is None or val == "":
             return None

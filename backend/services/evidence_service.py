@@ -79,7 +79,7 @@ class EvidenceService:
             logger.error(f"EVIDENCE_PACK_CREATION_FAILED: error={str(e)}")
             raise ValueError(f"Failed to create evidence pack: {str(e)}") from e
 
-    def get_evidence_pack(self, pack_id: str) -> Optional[dict[str, Any]]:
+    def get_evidence_pack(self, pack_id: str) -> dict[str, Optional[Any]]:
         """Get evidence pack by ID.
 
         Args:

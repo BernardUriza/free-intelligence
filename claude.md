@@ -2,9 +2,29 @@ Free Intelligence · Kernel Context (Ultra‑Compact v0.5)
 
 AURITY = Advanced Universal Reliable Intelligence for Telemedicine Yield (computational contract, not branding)
 
+FI-STRIDE Hackathon 2025 (20-Card Sprint, Full Compliance):
+	• KATNISS (Oficial): Keeper Artificial Trainer Nurturing Intelligence Sportive Spark
+	  └─ Integrado en FI-STRIDE-SESION-05 (post-sesión: Ollama analysis + motivation)
+	• Arquitectura: Kernel Artificial Token Neural Intelligence System Serverless
+	  └─ PWA (9050) + Ollama local + IndexedDB + Offline-first
+	• 20 FI-STRIDE Cards (Sprint backlog):
+	  ├─ QA-01 (Philosophy): PWA + Dead-Drop Relay (TDD) ✅ [Moved to Philosophy]
+	  ├─ PWA-BASE-01 (Testing): Shell PWA, routing, a11y ✅ [IMPLEMENTADO]
+	  ├─ ONBOARDING-02 (Testing): Consentimiento accesible ✅ [IMPLEMENTADO: AthleteFlow]
+	  ├─ T21-PACK-03 (Testing): Plugin T21 - UI pack
+	  ├─ SESION-04/05 (Testing): Sesión viva + check-in emocional + KATNISS
+	  ├─ OFFLINE-06 (Sprint): Biblioteca ejercicios
+	  ├─ OFFLINE-07 (Sprint): Modo offline - cola/reintentos
+	  ├─ PRIVACIDAD-08 (Sprint): Panel privacidad
+	  ├─ DASHBOARD-09/14 (Sprint): Coach dashboard + KPIs
+	  ├─ CRYPTO-15/16 (Sprint): AES-GCM + Dead-Drop Relay
+	  ├─ RELAY-17 (Sprint): Relay NAS - WORM lógico
+	  ├─ INFRA-18 (Sprint): CI/CD + Netlify deploy
+	  └─ POLISH-19/20 (Sprint): i18n + Plan B
+
 Owner: Bernard Uriza Orozco
 Version: 0.1.0 (Fase 1)
-Updated: 2025‑10‑29
+Updated: 2025‑11‑06
 TZ: America/Mexico_City
 
 ⸻

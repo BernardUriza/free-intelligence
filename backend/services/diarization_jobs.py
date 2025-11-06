@@ -54,7 +54,7 @@ class DiarizationJob:
     last_event: str = ""  # Last event description
     updated_at: str = ""  # Last update timestamp
     # Result cache (FI-RELIABILITY-IMPL-003)
-    result_data: Optional[dict[str, Any]] = None  # Cached diarization result
+    result_data: dict[str, Optional[Any]] = None  # Cached diarization result
 
 
 # In-memory job store (replace with Redis/DB for production)
@@ -74,7 +74,7 @@ def create_job(session_id: str, audio_file_path: str, audio_file_size: int) -> s
         job_id (UUID)
     """
     job_id = str(uuid.uuid4())
-    now = datetime.now(UTC).isoformat() + "Z"
+    now = datetime.now(timezone.utc).isoformat() + "Z"
 
     job = DiarizationJob(
         job_id=job_id,
@@ -157,7 +157,7 @@ def update_job_status(
     processed: Optional[int] = None,
     total: Optional[int] = None,
     last_event: Optional[str] = None,
-    result_data: Optional[dict[str, Any]] = None,
+    result_data: dict[str, Optional[Any]] = None,
 ) -> bool:
     """
     Update job status and metadata.
@@ -181,7 +181,7 @@ def update_job_status(
         return False
 
     job.status = status
-    job.updated_at = datetime.now(UTC).isoformat() + "Z"
+    job.updated_at = datetime.now(timezone.utc).isoformat() + "Z"
 
     if progress is not None:
         job.progress_percent = min(100, max(0, progress))
@@ -197,10 +197,10 @@ def update_job_status(
         job.last_event = last_event
 
     if status == JobStatus.IN_PROGRESS and not job.started_at:
-        job.started_at = datetime.now(UTC).isoformat() + "Z"
+        job.started_at = datetime.now(timezone.utc).isoformat() + "Z"
 
     if status in (JobStatus.COMPLETED, JobStatus.FAILED):
-        job.completed_at = datetime.now(UTC).isoformat() + "Z"
+        job.completed_at = datetime.now(timezone.utc).isoformat() + "Z"
         job.progress_percent = 100 if status == JobStatus.COMPLETED else job.progress_percent
         job.percent = float(job.progress_percent)
 

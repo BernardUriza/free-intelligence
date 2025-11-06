@@ -15,7 +15,7 @@ import json
 import socket
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import  datetime
 from enum import Enum
 from typing import Any, Literal, Optional
 
@@ -74,7 +74,7 @@ class BaseLogEvent:
     """
 
     # Required fields
-    ts: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     host: str = field(default_factory=lambda: socket.gethostname())
     service: ServiceChannel = ServiceChannel.SERVER
     version: str = "0.3.0"
@@ -310,7 +310,7 @@ def log_access_event(
     new_role: Optional[UserRole] = None,
     trace_id: Optional[str] = None,
     session_id: Optional[str] = None,
-    details: Optional[dict[str, Any]] = None,
+    details: dict[str, Optional[Any]] = None,
 ) -> BaseLogEvent:
     """
     Log access event (AUDIT).

@@ -24,7 +24,7 @@ Usage:
 
 import time
 from collections import defaultdict
-from datetime import timezone, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 

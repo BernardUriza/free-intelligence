@@ -6,9 +6,7 @@ Implements the FastAPI endpoint functions for hash verification.
 from __future__ import annotations
 
 import time
-from datetime import datetime
-
-from fastapi import status
+from datetime import datetime, timezone
 
 from backend.audit_logs import append_audit_log
 
@@ -75,7 +73,7 @@ async def verify_hash(request: VerifyHashRequest) -> VerifyHashResponse:
         Verification response with results and summary
     """
     start_time = time.time()
-    timestamp = datetime.now(UTC).isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
 
     results: list[VerifyHashDetail] = []
     valid_count = 0
@@ -125,7 +123,10 @@ async def verify_hash(request: VerifyHashRequest) -> VerifyHashResponse:
                 operation="TIMELINE_HASH_VERIFIED",
                 user_id=item.target_id,
                 endpoint="/api/timeline/verify-hash",
-                payload={"target_id": item.target_id, "hash_prefix": get_hash_prefix(item.expected_hash)},
+                payload={
+                    "target_id": item.target_id,
+                    "hash_prefix": get_hash_prefix(item.expected_hash),
+                },
                 result={"match": match_result, "computed_prefix": log_hash_prefix},
                 status="SUCCESS" if match_result else "FAILED",
                 metadata={"verbose": request.verbose},

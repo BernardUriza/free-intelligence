@@ -13,7 +13,7 @@ import json
 import os
 import random
 import time
-from datetime import datetime
+from datetime import  datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -112,7 +112,7 @@ class ExportService:
             "version": "1.0",
             "exportId": export_id,
             "sessionId": session_id,
-            "createdAt": datetime.now(UTC).isoformat() + "Z",
+            "createdAt": datetime.now(timezone.utc).isoformat() + "Z",
             "algorithm": "sha256",
             "files": files,
             "meta": {"generator": "FI", "commit": self.git_commit, "deterministic": True},
@@ -235,7 +235,7 @@ class ExportService:
             logger.error("EXPORT_CREATION_FAILED", error=str(e))  # type: ignore[call-arg]
             raise
 
-    def get_export_metadata(self, export_id: str) -> Optional[dict[str, Any]]:
+    def get_export_metadata(self, export_id: str) -> dict[str, Optional[Any]]:
         """Get export metadata and artifacts.
 
         Args:
@@ -438,7 +438,7 @@ class ExportService:
         try:
             # Mark as deleted (keep for audit trail)
             delete_marker = export_path / ".deleted"
-            delete_marker.write_text(datetime.now(UTC).isoformat(), encoding="utf-8")
+            delete_marker.write_text(datetime.now(timezone.utc).isoformat(), encoding="utf-8")
 
             logger.info("EXPORT_DELETED", export_id=export_id)  # type: ignore[call-arg]
             return True

@@ -42,7 +42,7 @@ class VerifyHashDetail(BaseModel):
     computed_hash: str
     expected_hash: str
     match: bool
-    error: str | None = None
+    error: Optional[str] = None
 
 
 class VerifyHashResponse(BaseModel):

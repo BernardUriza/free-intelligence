@@ -14,7 +14,7 @@ Philosophy: Provider-agnostic design. No vendor lock-in.
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import timezone, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -126,13 +126,13 @@ class LLMResponse:
     tokens_used: int
     cost_usd: Optional[float] = None
     latency_ms: Optional[float] = None
-    metadata: Optional[dict[str, Any]] = None
+    metadata: dict[str, Optional[Any]] = None
 
 
 class LLMProvider(ABC):
     """Abstract base class for LLM providers"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Optional[Any]] = None):
         self.config = config or {}
         self.logger = get_logger(self.__class__.__name__)
 
@@ -184,7 +184,7 @@ class ClaudeProvider(LLMProvider):
         },
     }
 
-    def __init__(self, config: Optional[dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Optional[Any]] = None):
         super().__init__(config)
         api_key = os.getenv("CLAUDE_API_KEY")
         if not api_key:
@@ -298,7 +298,7 @@ class ClaudeProvider(LLMProvider):
 class OllamaProvider(LLMProvider):
     """Ollama local inference provider for offline-first operation"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Optional[Any]] = None):
         super().__init__(config)
         self.base_url = self.config.get("base_url", "http://localhost:11434")
         self.default_model = self.config.get("model", "qwen2.5:7b-instruct-q4_0")
@@ -423,7 +423,7 @@ class OllamaProvider(LLMProvider):
             - 100% local, no API calls
             - Suitable for RAG and semantic search
         """
-        self.logger.info("OLLAMA_EMBED_STARTED", text_length=len(text)
+        self.logger.info("OLLAMA_EMBED_STARTED", text_length=len(text))
 
         try:
             response = self.client.embeddings(model=self.embed_model, prompt=text)
@@ -446,7 +446,7 @@ class OllamaProvider(LLMProvider):
         return "ollama"
 
 
-def get_provider(provider_name: str, config: Optional[dict[str, Any]] = None) -> LLMProvider:
+def get_provider(provider_name: str, config: dict[str, Optional[Any]] = None) -> LLMProvider:
     """
     Factory function to get LLM provider instance.
 
@@ -479,7 +479,7 @@ def get_provider(provider_name: str, config: Optional[dict[str, Any]] = None) ->
 def llm_generate(
     prompt: str,
     provider: Optional[str] = None,
-    provider_config: Optional[dict[str, Any]] = None,
+    provider_config: dict[str, Optional[Any]] = None,
     **kwargs,
 ) -> LLMResponse:
     """
@@ -629,7 +629,7 @@ def _cached_embed(text_hash: str, text: str, provider: str) -> bytes:
 
 
 def llm_embed(
-    text: str, provider: str = "claude", provider_config: Optional[dict[str, Any]] = None
+    text: str, provider: str = "claude", provider_config: dict[str, Optional[Any]] = None
 ) -> np.ndarray:
     """
     Generate embedding vector for text with LRU caching.

@@ -174,7 +174,7 @@ def export_range_to_hdf5(
     output_path: str,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    session_ids: Optional[list[str]] = None,
+    session_ids: list[Optional[str]] = None,
 ) -> tuple[str, ExportManifest]:
     """
     Export a range of interactions to HDF5 subset.

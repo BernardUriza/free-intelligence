@@ -58,7 +58,7 @@ WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")  # Auto-detected by worker
 
 def _process_single_chunk(
     chunk_path: Path, start_offset: float, end_offset: float, language: str, chunk_index: int
-) -> Optional[list[DiarizationSegment]]:
+) -> list[Optional[DiarizationSegment]]:
     """
     Process a single chunk (CPU/GPU-bound operation).
 

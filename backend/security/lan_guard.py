@@ -37,7 +37,7 @@ class LANGuardMiddleware(BaseHTTPMiddleware):
     Blocks all requests from IPs outside configured CIDR ranges.
     """
 
-    def __init__(self, app, allowed_cidrs: Optional[list[str]] = None, sample_rate: float = 0.02):
+    def __init__(self, app, allowed_cidrs: list[Optional[str]] = None, sample_rate: float = 0.02):
         """
         Initialize LAN guard middleware.
 

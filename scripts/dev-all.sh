@@ -137,10 +137,14 @@ cleanup() {
     if [ -n "$FRONTEND_PID" ]; then
         kill $FRONTEND_PID 2>/dev/null || true
     fi
+    if [ -n "$STRIDE_PID" ]; then
+        kill $STRIDE_PID 2>/dev/null || true
+    fi
 
     # Kill any remaining uvicorn/node processes on our ports
     lsof -ti:7001 | xargs kill -9 2>/dev/null || true
     lsof -ti:9000 | xargs kill -9 2>/dev/null || true
+    lsof -ti:9050 | xargs kill -9 2>/dev/null || true
 
     echo -e "${GREEN}✓${NC} Services stopped"
     exit 0
@@ -184,10 +188,10 @@ start_services() {
 
     echo ""
 
-    # Start Frontend
-    echo -e "${CYAN}🚀 Starting Frontend (port 9000)...${NC}"
+    # Start Frontend (AURITY)
+    echo -e "${CYAN}🚀 Starting Frontend AURITY (port 9000)...${NC}"
     cd apps/aurity
-    PORT=9000 pnpm dev > ../../logs/frontend-dev.log 2>&1 &
+    PORT=9000 pnpm dev > ../../logs/frontend-aurity-dev.log 2>&1 &
     FRONTEND_PID=$!
     cd ../..
 
@@ -196,7 +200,7 @@ start_services() {
     for i in {1..30}; do
         if curl -s http://localhost:9000 > /dev/null 2>&1; then
             echo ""
-            echo -e "   ${GREEN}✓${NC} Frontend ready"
+            echo -e "   ${GREEN}✓${NC} Frontend AURITY ready"
             break
         fi
         echo -n "."
@@ -205,8 +209,35 @@ start_services() {
 
     if ! curl -s http://localhost:9000 > /dev/null 2>&1; then
         echo ""
-        echo -e "   ${YELLOW}⚠️  Frontend still starting (Next.js 16 can be slower)...${NC}"
-        echo -e "   ${YELLOW}   Check logs: tail -f logs/frontend-dev.log${NC}"
+        echo -e "   ${YELLOW}⚠️  Frontend AURITY still starting (Next.js 16 can be slower)...${NC}"
+        echo -e "   ${YELLOW}   Check logs: tail -f logs/frontend-aurity-dev.log${NC}"
+    fi
+
+    echo ""
+
+    # Start Frontend (FI-Stride)
+    echo -e "${CYAN}🚀 Starting Frontend FI-Stride (port 9050)...${NC}"
+    cd apps/fi-stride
+    PORT=9050 pnpm dev > ../../logs/frontend-stride-dev.log 2>&1 &
+    STRIDE_PID=$!
+    cd ../..
+
+    # Wait for FI-Stride to be ready (Vite is faster than Next.js)
+    echo -n "   Waiting for FI-Stride to start"
+    for i in {1..15}; do
+        if curl -s http://localhost:9050 > /dev/null 2>&1; then
+            echo ""
+            echo -e "   ${GREEN}✓${NC} Frontend FI-Stride ready"
+            break
+        fi
+        echo -n "."
+        sleep 1
+    done
+
+    if ! curl -s http://localhost:9050 > /dev/null 2>&1; then
+        echo ""
+        echo -e "   ${YELLOW}⚠️  Frontend FI-Stride still starting...${NC}"
+        echo -e "   ${YELLOW}   Check logs: tail -f logs/frontend-stride-dev.log${NC}"
     fi
 
     echo ""
@@ -223,34 +254,39 @@ show_info() {
     echo "    └─ Docs:      http://localhost:7001/docs"
     echo "    └─ Health:    http://localhost:7001/health"
     echo ""
-    echo "  • Frontend:     http://localhost:9000"
+    echo "  • AURITY Frontend: http://localhost:9000"
     echo "    └─ Dashboard: http://localhost:9000/dashboard"
     echo "    └─ Triage:    http://localhost:9000/triage"
     echo ""
+    echo "  • FI-Stride SPA: http://localhost:9050"
+    echo "    └─ Console Dashboard"
+    echo ""
     echo -e "${CYAN}Logs:${NC}"
-    echo "  • Backend:  tail -f logs/backend-dev.log"
-    echo "  • Frontend: tail -f logs/frontend-dev.log"
+    echo "  • Backend:        tail -f logs/backend-dev.log"
+    echo "  • AURITY:         tail -f logs/frontend-aurity-dev.log"
+    echo "  • FI-Stride:      tail -f logs/frontend-stride-dev.log"
     echo ""
     echo -e "${CYAN}Process IDs:${NC}"
-    echo "  • Backend PID:  $BACKEND_PID"
-    echo "  • Frontend PID: $FRONTEND_PID"
+    echo "  • Backend PID:    $BACKEND_PID"
+    echo "  • AURITY PID:     $FRONTEND_PID"
+    echo "  • FI-Stride PID:  $STRIDE_PID"
     echo ""
     echo "=========================================="
     echo -e "${YELLOW}Press Ctrl+C to stop all services${NC}"
     echo "=========================================="
     echo ""
     echo -e "${CYAN}Stack:${NC}"
-    echo "  • Next.js 16.0.1 (canary, better monorepo CSS support)"
-    echo "  • React 19.2.0"
-    echo "  • Tailwind CSS v3 with @tailwindcss/postcss"
+    echo "  • FastAPI (Backend, port 7001)"
+    echo "  • Next.js 16.0.1 (AURITY, port 9000)"
+    echo "  • Vite 5.0 + React 18.3 (FI-Stride, port 9050)"
     echo "  • pnpm 10.20.0"
     echo ""
 }
 
 # Monitor logs in real-time
 monitor_logs() {
-    # Use tail to follow both logs
-    tail -f logs/backend-dev.log logs/frontend-dev.log 2>/dev/null || {
+    # Use tail to follow all logs
+    tail -f logs/backend-dev.log logs/frontend-aurity-dev.log logs/frontend-stride-dev.log 2>/dev/null || {
         # Fallback: just wait for Ctrl+C
         while true; do
             sleep 1

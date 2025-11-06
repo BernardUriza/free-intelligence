@@ -13,7 +13,7 @@ import h5py
 from .config import CORPUS_PATH, logger
 
 
-def compute_hash_for_target(target_id: str) -> tuple[str, str | None]:
+def compute_hash_for_target(target_id: str) -> tuple[str, Optional[str]]:
     """Compute SHA256 hash for a session or event.
 
     Args:

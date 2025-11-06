@@ -5,7 +5,7 @@ Usage: python3 scripts/process_remaining_chunks.py <job_id> <from_chunk>
 """
 
 import sys
-from datetime import datetime
+from datetime import  datetime, timezone
 from pathlib import Path
 
 import h5py
@@ -82,7 +82,7 @@ def process_remaining_chunks(job_id: str, from_chunk: int = 24):
                         "speaker": "DESCONOCIDO",
                         "temperature": -0.3,
                         "rtf": 0.2,
-                        "timestamp": datetime.now(UTC).isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
                 )
 
@@ -93,7 +93,7 @@ def process_remaining_chunks(job_id: str, from_chunk: int = 24):
             job_group.attrs["status"] = "done"
             job_group.attrs["progress_pct"] = 100
             job_group.attrs["processed_chunks"] = total_chunks
-            job_group.attrs["updated_at"] = datetime.now(UTC).isoformat()
+            job_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()
 
             print()
             print("✓ Job marked as done")

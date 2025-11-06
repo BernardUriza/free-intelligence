@@ -89,7 +89,7 @@ def get_h5_string(group: h5py.Group | h5py.Dataset, field: str, index: int) -> s
 
 def get_h5_value(
     group: h5py.Group | h5py.Dataset,
-    field: str | None,
+    field: Optional[str],
     index: int,
     dtype: type,
 ) -> Any:
@@ -162,7 +162,7 @@ def check_h5_group_exists(group: h5py.Group, path: str) -> bool:
         return False
 
 
-def safe_h5_read(filepath: str, mode: str = "r") -> h5py.File | None:
+def safe_h5_read(filepath: str, mode: str = "r") -> h5py.Optional[File]:
     """
     Safely open HDF5 file with error handling.
 

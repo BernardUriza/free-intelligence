@@ -56,7 +56,7 @@ class DiarizationJobService:
         self.use_lowprio = use_lowprio
         logger.info(f"DiarizationJobService initialized with use_lowprio={use_lowprio}")
 
-    def get_job_status(self, job_id: str) -> Optional[dict[str, Any]]:
+    def get_job_status(self, job_id: str) -> dict[str, Optional[Any]]:
         """Get job status with chunks array.
 
         Args:
@@ -169,7 +169,7 @@ class DiarizationJobService:
 
     def get_diarization_result(
         self, job_id: str, reprocess_if_not_cached: bool = True
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Optional[Any]]:
         """Get diarization result for completed job.
 
         Reconstructs result from chunks or cached result.
@@ -430,7 +430,7 @@ class DiarizationJobService:
             logger.error(f"JOB_CANCEL_FAILED: job_id={job_id}, error={str(e)}")
             raise
 
-    def get_job_logs(self, job_id: str) -> Optional[list[dict[str, Any]]]:
+    def get_job_logs(self, job_id: str) -> list[dict[str, Optional[Any]]]:
         """Get job processing logs.
 
         Args:
