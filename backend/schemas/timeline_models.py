@@ -13,9 +13,9 @@ Sprint: SPR-2025W44
 
 import hashlib
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -93,7 +93,7 @@ class TimelineEventCausality(BaseModel):
 
     related_event_id: str = Field(..., description="UUID del evento relacionado")
     causality_type: CausalityType = Field(..., description="Tipo de relación causal")
-    explanation: Optional[str] = Field(None, description="Explicación de la causalidad")
+    explanation: str | None = Field(None, description="Explicación de la causalidad")
     confidence: float = Field(1.0, ge=0.0, le=1.0, description="Confianza en la relación (0-1)")
 
 
@@ -128,15 +128,15 @@ class TimelineEvent(BaseModel):
     )
 
     # Contenido (con redacción)
-    summary: Optional[str] = Field(None, description="Resumen del evento (redactado)")
+    summary: str | None = Field(None, description="Resumen del evento (redactado)")
     content_hash: str = Field(..., description="SHA256 del contenido crudo (sin exponer)")
     redaction_policy: RedactionPolicy = Field(
         default=RedactionPolicy.SUMMARY, description="Política de redacción aplicada"
     )
 
     # Metadata
-    session_id: Optional[str] = Field(None, description="ID de sesión/consulta")
-    reference_id: Optional[str] = Field(None, description="ID en event store (HDF5)")
+    session_id: str | None = Field(None, description="ID de sesión/consulta")
+    reference_id: str | None = Field(None, description="ID en event store (HDF5)")
     tags: list[str] = Field(default_factory=list, description="Tags para filtrado")
 
     # Auto-timeline metadata
