@@ -7,7 +7,7 @@ import json
 import os
 import py_compile
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(".")
@@ -26,10 +26,10 @@ for p in ROOT.rglob("*.py"):
     except py_compile.PyCompileError as e:
         errors.append({"file": str(p), "error": str(e)})
     except Exception as e:
-        errors.append({"file": str(p), "error": f"{type(e).__name__}: {str(e)}"})
+        errors.append({"file": str(p), "error": f"{type(e).__name__}: {e!s}"})
 
 report = {
-    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "timestamp": datetime.now(UTC).isoformat(),
     "total": len(files) + len(errors),
     "ok": len(files),
     "fail": len(errors),

@@ -97,5 +97,44 @@ markers = [
 python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_incomplete_stub = true
 disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
 ignore_missing_imports = true
+plugins = []
+
+[[tool.mypy.overrides]]
+module = [
+    "h5py.*",
+    "faster_whisper.*",
+    "ffmpeg.*",
+    "sentence_transformers.*",
+    "ollama.*",
+    "anthropic.*",
+]
+ignore_missing_imports = true
+
+[tool.pyright]
+include = ["backend", "tests"]
+exclude = ["**/__pycache__", ".venv", "node_modules"]
+typeCheckingMode = "standard"
+reportMissingTypeStubs = false
+reportMissingImports = false
+reportOptionalMemberAccess = false
+reportOptionalSubscript = false
+reportPrivateUsage = false
+pythonVersion = "3.12"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "ARG", "RUF"]
+ignore = ["E501", "UP006", "UP007"]  # UP006/007: allow PEP 604 unions (str | None)
+typing-modules = ["typing"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]
+section-order = ["future", "standard", "third-party", "first-party", "local-folder"]

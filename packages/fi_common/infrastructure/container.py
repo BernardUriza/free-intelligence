@@ -127,7 +127,7 @@ class DIContainer:
                 self._corpus_repository = CorpusRepository(self.h5_file_path)
                 _get_logger().info("CorpusRepository initialized")
             except OSError as e:
-                _get_logger().error(f"CORPUS_REPOSITORY_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"CORPUS_REPOSITORY_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize CorpusRepository: {e}") from e
 
         return self._corpus_repository
@@ -146,7 +146,7 @@ class DIContainer:
                 self._session_repository = SessionRepository(self.h5_file_path)
                 _get_logger().info("SessionRepository initialized")
             except OSError as e:
-                _get_logger().error(f"SESSION_REPOSITORY_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"SESSION_REPOSITORY_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize SessionRepository: {e}") from e
 
         return self._session_repository
@@ -165,7 +165,7 @@ class DIContainer:
                 self._audit_repository = AuditRepository(self.h5_file_path)
                 _get_logger().info("AuditRepository initialized")
             except OSError as e:
-                _get_logger().error(f"AUDIT_REPOSITORY_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"AUDIT_REPOSITORY_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize AuditRepository: {e}") from e
 
         return self._audit_repository
@@ -183,11 +183,11 @@ class DIContainer:
         """
         if self._corpus_service is None:
             try:
-                repository = self.get_corpus_repository()
-                self._corpus_service = CorpusService(repository)
+                corpus_repository: CorpusRepository = self.get_corpus_repository()
+                self._corpus_service = CorpusService(corpus_repository)
                 _get_logger().info("CorpusService initialized")
             except OSError as e:
-                _get_logger().error(f"CORPUS_SERVICE_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"CORPUS_SERVICE_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize CorpusService: {e}") from e
 
         return self._corpus_service
@@ -203,11 +203,11 @@ class DIContainer:
         """
         if self._session_service is None:
             try:
-                repository = self.get_session_repository()
-                self._session_service = SessionService(repository)
+                session_repository: SessionRepository = self.get_session_repository()
+                self._session_service = SessionService(session_repository)
                 _get_logger().info("SessionService initialized")
             except OSError as e:
-                _get_logger().error(f"SESSION_SERVICE_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"SESSION_SERVICE_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize SessionService: {e}") from e
 
         return self._session_service
@@ -223,11 +223,11 @@ class DIContainer:
         """
         if self._audit_service is None:
             try:
-                repository = self.get_audit_repository()
-                self._audit_service = AuditService(repository)
+                audit_repository: AuditRepository = self.get_audit_repository()
+                self._audit_service = AuditService(audit_repository)
                 _get_logger().info("AuditService initialized")
             except OSError as e:
-                _get_logger().error(f"AUDIT_SERVICE_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"AUDIT_SERVICE_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize AuditService: {e}") from e
 
         return self._audit_service
@@ -253,7 +253,7 @@ class DIContainer:
                 )
                 _get_logger().info("DiarizationService initialized")
             except OSError as e:
-                _get_logger().error(f"DIARIZATION_SERVICE_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"DIARIZATION_SERVICE_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize DiarizationService: {e}") from e
 
         return self._diarization_service
@@ -279,7 +279,7 @@ class DIContainer:
                     f"DiarizationJobService initialized with use_lowprio={use_lowprio}"
                 )
             except OSError as e:
-                _get_logger().error(f"DIARIZATION_JOB_SERVICE_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"DIARIZATION_JOB_SERVICE_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize DiarizationJobService: {e}") from e
 
         return self._diarization_job_service
@@ -303,7 +303,7 @@ class DIContainer:
                 )
                 _get_logger().info("ExportService initialized")
             except OSError as e:
-                _get_logger().error(f"EXPORT_SERVICE_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"EXPORT_SERVICE_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize ExportService: {e}") from e
 
         return self._export_service
@@ -322,7 +322,7 @@ class DIContainer:
                 self._transcription_service = TranscriptionService()
                 _get_logger().info("TranscriptionService initialized")
             except OSError as e:
-                _get_logger().error(f"TRANSCRIPTION_SERVICE_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"TRANSCRIPTION_SERVICE_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize TranscriptionService: {e}") from e
 
         return self._transcription_service
@@ -341,7 +341,7 @@ class DIContainer:
                 self._evidence_service = EvidenceService()
                 _get_logger().info("EvidenceService initialized")
             except OSError as e:
-                _get_logger().error(f"EVIDENCE_SERVICE_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"EVIDENCE_SERVICE_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize EvidenceService: {e}") from e
 
         return self._evidence_service
@@ -361,7 +361,7 @@ class DIContainer:
                 self._triage_service = TriageService(data_dir=None)
                 _get_logger().info("TriageService initialized")
             except OSError as e:
-                _get_logger().error(f"TRIAGE_SERVICE_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"TRIAGE_SERVICE_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize TriageService: {e}") from e
 
         return self._triage_service
@@ -380,7 +380,7 @@ class DIContainer:
                 self._system_health_service = SystemHealthService()
                 _get_logger().info("SystemHealthService initialized")
             except OSError as e:
-                _get_logger().error(f"SYSTEM_HEALTH_SERVICE_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"SYSTEM_HEALTH_SERVICE_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize SystemHealthService: {e}") from e
 
         return self._system_health_service
@@ -399,7 +399,7 @@ class DIContainer:
                 self._diagnostics_service = DiagnosticsService()
                 _get_logger().info("DiagnosticsService initialized")
             except OSError as e:
-                _get_logger().error(f"DIAGNOSTICS_SERVICE_INIT_FAILED: {str(e)}")
+                _get_logger().error(f"DIAGNOSTICS_SERVICE_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize DiagnosticsService: {e}") from e
 
         return self._diagnostics_service

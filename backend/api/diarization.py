@@ -367,7 +367,7 @@ async def upload_audio_for_diarization(
             )
         except Exception as err:
             logger.error("AUDIO_SAVE_FAILED", job_id=job_id, error=str(err))
-            diarization_service.fail_job(job_id, f"Failed to save audio: {str(err)}")
+            diarization_service.fail_job(job_id, f"Failed to save audio: {err!s}")
             audit_service.log_action(
                 action="audio_upload_failed",
                 user_id="system",
@@ -562,10 +562,10 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
         )
 
     except ValueError as err:
-        logger.warning(f"JOB_STATUS_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        logger.warning(f"JOB_STATUS_VALIDATION_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=400, detail=str(err)) from err
     except Exception as err:
-        logger.error(f"JOB_STATUS_FAILED: job_id={job_id}, error={str(err)}")
+        logger.error(f"JOB_STATUS_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=500, detail="Failed to retrieve job status") from err
 
 
@@ -626,10 +626,10 @@ async def get_diarization_result(job_id: str) -> DiarizationResultResponse:
         )
 
     except ValueError as err:
-        logger.warning(f"DIARIZATION_RESULT_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        logger.warning(f"DIARIZATION_RESULT_VALIDATION_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=400, detail=str(err)) from err
     except Exception as err:
-        logger.error(f"DIARIZATION_RESULT_FAILED: job_id={job_id}, error={str(err)}")
+        logger.error(f"DIARIZATION_RESULT_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=500, detail="Failed to retrieve result") from err
 
 
@@ -691,11 +691,11 @@ async def export_diarization_result(
         )
 
     except ValueError as err:
-        logger.warning(f"DIARIZATION_EXPORT_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        logger.warning(f"DIARIZATION_EXPORT_VALIDATION_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=400, detail=str(err)) from err
     except Exception as err:
         logger.error(
-            f"DIARIZATION_EXPORT_FAILED: job_id={job_id}, format={export_format}, error={str(err)}"
+            f"DIARIZATION_EXPORT_FAILED: job_id={job_id}, format={export_format}, error={err!s}"
         )
         raise HTTPException(status_code=500, detail="Failed to export result") from err
 
@@ -720,7 +720,7 @@ async def list_diarization_jobs(
         try:
             jobs = job_service.list_jobs(limit=limit, session_id=session_id)
         except Exception as service_error:
-            logger.warning(f"DIARIZATION_JOBS_LIST_SERVICE_ERROR: {str(service_error)}")
+            logger.warning(f"DIARIZATION_JOBS_LIST_SERVICE_ERROR: {service_error!s}")
             # Return empty list on error (graceful degradation)
             jobs = []
 
@@ -745,7 +745,7 @@ async def list_diarization_jobs(
         )
 
     except Exception as err:
-        logger.error(f"DIARIZATION_JOBS_LIST_FAILED: error={str(err)}")
+        logger.error(f"DIARIZATION_JOBS_LIST_FAILED: error={err!s}")
         # Return empty list instead of error (graceful degradation)
         return success_response([], message="Jobs service unavailable")
 
@@ -805,10 +805,10 @@ async def generate_soap_for_job(job_id: str) -> Any:
         }
 
     except ValueError as err:
-        logger.warning(f"SOAP_GENERATION_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        logger.warning(f"SOAP_GENERATION_VALIDATION_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=404, detail=str(err)) from err
     except Exception as err:
-        logger.error(f"SOAP_GENERATION_FAILED: job_id={job_id}, error={str(err)}")
+        logger.error(f"SOAP_GENERATION_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=500, detail="Failed to generate SOAP note") from err
 
 
@@ -854,7 +854,7 @@ async def diarization_health() -> Response:
         )
 
     except Exception as err:
-        logger.error(f"DIARIZATION_HEALTH_CHECK_FAILED: error={str(err)}")
+        logger.error(f"DIARIZATION_HEALTH_CHECK_FAILED: error={err!s}")
         return Response(
             content=json.dumps({"status": "unhealthy", "error": str(err)}),
             media_type="application/json",
@@ -893,10 +893,10 @@ async def restart_job(job_id: str) -> Any:
         return success_response(updated_status, message=f"Job {job_id} restarted", code=200)
 
     except ValueError as err:
-        logger.warning(f"JOB_RESTART_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        logger.warning(f"JOB_RESTART_VALIDATION_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=400, detail=str(err)) from err
     except Exception as err:
-        logger.error(f"JOB_RESTART_FAILED: job_id={job_id}, error={str(err)}")
+        logger.error(f"JOB_RESTART_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=500, detail="Failed to restart job") from err
 
 
@@ -931,10 +931,10 @@ async def cancel_job(job_id: str) -> Any:
         return success_response(updated_status, message=f"Job {job_id} cancelled", code=200)
 
     except ValueError as err:
-        logger.warning(f"JOB_CANCEL_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        logger.warning(f"JOB_CANCEL_VALIDATION_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=400, detail=str(err)) from err
     except Exception as err:
-        logger.error(f"JOB_CANCEL_FAILED: job_id={job_id}, error={str(err)}")
+        logger.error(f"JOB_CANCEL_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=500, detail="Failed to cancel job") from err
 
 
@@ -979,8 +979,8 @@ async def get_job_logs(job_id: str) -> Any:
         )
 
     except ValueError as err:
-        logger.warning(f"DIARIZATION_LOGS_VALIDATION_FAILED: job_id={job_id}, error={str(err)}")
+        logger.warning(f"DIARIZATION_LOGS_VALIDATION_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=400, detail=str(err)) from err
     except Exception as err:
-        logger.error(f"DIARIZATION_LOGS_FAILED: job_id={job_id}, error={str(err)}")
+        logger.error(f"DIARIZATION_LOGS_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=500, detail="Failed to retrieve logs") from err
