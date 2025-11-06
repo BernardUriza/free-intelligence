@@ -10,9 +10,9 @@ not business logic or policy enforcement.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from backend.logger import get_logger
@@ -77,7 +77,7 @@ class AuditRepository(BaseRepository):
 
                 # Store log data
                 log_group.attrs["timestamp"] = entity.get(
-                    "timestamp", datetime.now(UTC).isoformat()
+                    "timestamp", datetime.now(timezone.utc).isoformat()
                 )
                 log_group.attrs["action"] = entity.get("action", "")
                 log_group.attrs["user_id"] = entity.get("user_id", "")
@@ -96,7 +96,7 @@ class AuditRepository(BaseRepository):
             self._log_operation("create", status="failed", error=str(e))
             raise
 
-    def read(self, entity_id: str) -> Optional[dict[str, Any]]:  # type: ignore[override]
+    def read(self, entity_id: str) -> dict[str, Any] | None:  # type: ignore[override]
         """Read audit log entry.
 
         Args:
@@ -151,10 +151,10 @@ class AuditRepository(BaseRepository):
 
     def list_all(
         self,
-        limit: Optional[int] = None,
-        action: Optional[str] = None,
-        user_id: Optional[str] = None,
-        resource: Optional[str] = None,
+        limit: int | None = None,
+        action: str | None = None,
+        user_id: str | None = None,
+        resource: str | None = None,
     ) -> list[dict[str, Any]]:
         """List audit logs with optional filtering.
 
@@ -201,7 +201,7 @@ class AuditRepository(BaseRepository):
         self,
         start_date: datetime,
         end_date: datetime,
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """Get audit logs within date range.
 
