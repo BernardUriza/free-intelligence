@@ -26,7 +26,6 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional
 
 from backend.diarization_service import (
     CHUNK_DURATION_SEC,
@@ -58,7 +57,7 @@ WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")  # Auto-detected by worker
 
 def _process_single_chunk(
     chunk_path: Path, start_offset: float, end_offset: float, language: str, chunk_index: int
-) -> list[Optional[DiarizationSegment]]:
+) -> list[DiarizationSegment | None]:
     """
     Process a single chunk (CPU/GPU-bound operation).
 
@@ -133,7 +132,7 @@ async def diarize_audio_parallel(
     session_id: str,
     language: str = "es",
     persist: bool = False,
-    progress_callback: Optional[Callable] = None,
+    progress_callback: Callable | None = None,
 ) -> DiarizationResult:
     """
     Diarize audio with parallel chunk processing.
