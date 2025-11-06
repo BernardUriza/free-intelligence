@@ -17,7 +17,7 @@ Endpoints:
 - PATCH /api/sessions/{id} -> update session
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import uuid4
 
@@ -28,6 +28,7 @@ from backend.container import get_container
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
+UTC = UTC
 
 # ============================================================================
 # PYDANTIC MODELS (API contracts)
@@ -144,8 +145,8 @@ async def list_sessions(
         )
 
     except Exception as e:
-        logger.error("LIST_SESSIONS_FAILED")  # type: ignore[call-arg]
-        raise HTTPException(status_code=500, detail=f"Failed to list sessions: {str(e)}")
+        logger.error("LIST_SESSIONS_FAILED")
+        raise HTTPException(status_code=500, detail=f"Failed to list sessions: {e!s}")
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
@@ -175,7 +176,7 @@ async def get_session(session_id: str):
         session = session_service.get_session(session_id)
 
         if not session:
-            logger.warning("SESSION_NOT_FOUND", session_id=session_id)  # type: ignore[call-arg]
+            logger.warning("SESSION_NOT_FOUND", session_id=session_id)
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
         # Log audit trail
@@ -191,8 +192,8 @@ async def get_session(session_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("GET_SESSION_FAILED", session_id=session_id, error=str(e))  # type: ignore[call-arg]
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve session: {str(e)}")
+        logger.error("GET_SESSION_FAILED", session_id=session_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve session: {e!s}")
 
 
 @router.post("", response_model=SessionResponse, status_code=201)
@@ -213,11 +214,11 @@ async def create_session(request: CreateSessionRequest):
     Returns:
     - Created session object
     """
-    try:
-        # Get services from DI container
-        session_service = get_container().get_session_service()
-        audit_service = get_container().get_audit_service()
+    # Get services from DI container first (before any exception paths)
+    session_service = get_container().get_session_service()
+    audit_service = get_container().get_audit_service()
 
+    try:
         # Generate unique session ID and delegate to service for creation
         session_id = f"session_{uuid4().hex[:12]}"
         session = session_service.create_session(
@@ -239,7 +240,7 @@ async def create_session(request: CreateSessionRequest):
 
         logger.info(
             "SESSION_CREATED", session_id=session["session_id"], owner_hash=request.owner_hash
-        )  # type: ignore[call-arg]
+        )
 
         # Map service response to API response schema
         now = datetime.now(UTC).isoformat()
@@ -256,7 +257,7 @@ async def create_session(request: CreateSessionRequest):
         )
 
     except ValueError as e:
-        logger.warning("SESSION_CREATION_VALIDATION_FAILED", error=str(e))  # type: ignore[call-arg]
+        logger.warning("SESSION_CREATION_VALIDATION_FAILED", error=str(e))
         audit_service.log_action(
             action="session_creation_failed",
             user_id="system",
@@ -266,8 +267,8 @@ async def create_session(request: CreateSessionRequest):
         )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("SESSION_CREATION_FAILED", error=str(e))  # type: ignore[call-arg]
-        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
+        logger.error("SESSION_CREATION_FAILED", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {e!s}")
 
 
 @router.patch("/{session_id}", response_model=SessionResponse)
@@ -307,14 +308,14 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
             last_active = datetime.now(UTC).isoformat() + "Z"
 
         # Delegate to service for update (handles validation)
-        success = session_service.update_session(  # type: ignore[attr-defined]
+        success = session_service.update_session(
             session_id=session_id,
             status=request.status,
             interaction_count=request.interaction_count,
         )
 
         if not success:
-            logger.warning("SESSION_NOT_FOUND_FOR_UPDATE", session_id=session_id)  # type: ignore[call-arg]
+            logger.warning("SESSION_NOT_FOUND_FOR_UPDATE", session_id=session_id)
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
         # Retrieve updated session
@@ -332,18 +333,18 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
             },
         )
 
-        logger.info("SESSION_UPDATED", session_id=session_id)  # type: ignore[call-arg]
+        logger.info("SESSION_UPDATED", session_id=session_id)
 
         return SessionResponse(**session)
 
     except HTTPException:
         raise
     except ValueError as e:
-        logger.warning("SESSION_UPDATE_VALIDATION_FAILED", session_id=session_id, error=str(e))  # type: ignore[call-arg]
+        logger.warning("SESSION_UPDATE_VALIDATION_FAILED", session_id=session_id, error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("SESSION_UPDATE_FAILED", session_id=session_id, error=str(e))  # type: ignore[call-arg]
-        raise HTTPException(status_code=500, detail=f"Failed to update session: {str(e)}")
+        logger.error("SESSION_UPDATE_FAILED", session_id=session_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to update session: {e!s}")
 
 
 # ============================================================================

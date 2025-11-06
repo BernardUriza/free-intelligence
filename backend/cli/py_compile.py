@@ -7,8 +7,10 @@ import json
 import os
 import py_compile
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
+
+UTC = UTC
 
 ROOT = Path(".")
 SKIP = {".venv", "venv", "node_modules", "__pycache__", ".git", ".mypy_cache", ".pytest_cache"}
@@ -26,7 +28,7 @@ for p in ROOT.rglob("*.py"):
     except py_compile.PyCompileError as e:
         errors.append({"file": str(p), "error": str(e)})
     except Exception as e:
-        errors.append({"file": str(p), "error": f"{type(e).__name__}: {str(e)}"})
+        errors.append({"file": str(p), "error": f"{type(e).__name__}: {e!s}"})
 
 report = {
     "timestamp": datetime.now(UTC).isoformat(),
