@@ -10,7 +10,7 @@ making endpoints thin controllers focused only on HTTP concerns.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from backend.logger import get_logger
 from backend.services.diarization_jobs import get_job
@@ -56,7 +56,7 @@ class DiarizationJobService:
         self.use_lowprio = use_lowprio
         logger.info(f"DiarizationJobService initialized with use_lowprio={use_lowprio}")
 
-    def get_job_status(self, job_id: str) -> dict[str, Optional[Any]]:
+    def get_job_status(self, job_id: str) -> dict[str, Any | None]:
         """Get job status with chunks array.
 
         Args:
@@ -169,7 +169,7 @@ class DiarizationJobService:
 
     def get_diarization_result(
         self, job_id: str, reprocess_if_not_cached: bool = True
-    ) -> dict[str, Optional[Any]]:
+    ) -> dict[str, Any | None]:
         """Get diarization result for completed job.
 
         Reconstructs result from chunks or cached result.
@@ -282,7 +282,7 @@ class DiarizationJobService:
             logger.error(f"DIARIZATION_RESULT_FAILED: job_id={job_id}, error={str(e)}")
             raise
 
-    def export_result(self, job_id: str, format: str = "json") -> Optional[str]:
+    def export_result(self, job_id: str, format: str = "json") -> str | None:
         """Export diarization result in specified format.
 
         Args:
@@ -430,7 +430,7 @@ class DiarizationJobService:
             logger.error(f"JOB_CANCEL_FAILED: job_id={job_id}, error={str(e)}")
             raise
 
-    def get_job_logs(self, job_id: str) -> list[dict[str, Optional[Any]]]:
+    def get_job_logs(self, job_id: str) -> list[dict[str, Any | None]]:
         """Get job processing logs.
 
         Args:
@@ -465,7 +465,7 @@ class DiarizationJobService:
             logger.error(f"JOB_LOGS_RETRIEVAL_FAILED: job_id={job_id}, error={str(e)}")
             raise
 
-    def list_jobs(self, limit: int = 100, session_id: Optional[str] = None) -> list[dict[str, Any]]:
+    def list_jobs(self, limit: int = 100, session_id: str | None = None) -> list[dict[str, Any]]:
         """List diarization jobs.
 
         Supports both lowprio worker and legacy in-memory storage with HDF5 fallback.
