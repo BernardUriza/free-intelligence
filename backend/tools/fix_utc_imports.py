@@ -9,36 +9,35 @@ from pathlib import Path
 
 
 def fix_utc_import(file_path: Path) -> bool:
-    """Add UTC to datetime import or add new import if missing.
+    """Add timezone to datetime import or add new import if missing.
 
     Returns True if file was modified, False otherwise.
     """
     try:
         content = file_path.read_text()
-        original = content
 
-        # Check if UTC is already imported
-        if re.search(r"from datetime import.*\b, \b", content):
-            print(f"  ✓ {file_path.name} already has UTC import")
+        # Check if timezone is already imported
+        if re.search(r"from datetime import.*timezone", content):
+            print(f"  ✓ {file_path.name} already has timezone import")
             return False
 
-        # Pattern 1: from datetime import ... (without ), timezone
-        # Replace with: from datetime import ...,  timezone
-        pattern1 = r"(from datetime import [^(\n]+)", timezone
+        # Pattern 1: from datetime import ... (without timezone)
+        # Replace with: from datetime import ..., timezone
+        pattern1 = r"(from datetime import [^\n]+)"
         match1 = re.search(pattern1, content)
 
         if match1:
             old_import = match1.group(1)
-            # Check if it already has UTC
-            if "UTC" not in old_import:
-                new_import = old_import.rstrip() + ", UTC"
+            # Check if it already has timezone
+            if "timezone" not in old_import:
+                new_import = old_import.rstrip() + ", timezone"
                 content = content.replace(old_import, new_import)
-                print(f"  ✏️  {file_path.name}: Added UTC to existing import")
+                print(f"  ✏️  {file_path.name}: Added timezone to existing import")
                 file_path.write_text(content)
                 return True
 
         # Pattern 2: import datetime (but no from datetime import)
-        # Add:         pattern2 = r'^import datetime\s*$'
+        pattern2 = r"^import datetime\s*$"
         match2 = re.search(pattern2, content, re.MULTILINE)
 
         if match2 and not re.search(r"from datetime import", content):
@@ -67,22 +66,19 @@ def fix_utc_import(file_path: Path) -> bool:
                         insert_idx = i
                     break
 
-            # Insert UTC import
+            # Insert timezone import
             if insert_idx > 0:
                 # Skip blank lines after __future__
                 while insert_idx < len(lines) and lines[insert_idx].strip() == "":
                     insert_idx += 1
 
-                lines.insert(insert_idx, "from datetime import "), timezone
+                lines.insert(insert_idx, "from datetime import timezone")
                 content = "\n".join(lines)
-                (
-                    print(f"  ✏️  {file_path.name}: Added new 'from datetime import ' import")
-                    timezone,
-                )
+                print(f"  ✏️  {file_path.name}: Added new 'from datetime import timezone' import")
                 file_path.write_text(content)
                 return True
 
-        print(f"  ⚠️  {file_path.name}: Could not determine how to add UTC import")
+        print(f"  ⚠️  {file_path.name}: Could not determine how to add timezone import")
         return False
 
     except Exception as e:
