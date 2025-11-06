@@ -22,7 +22,7 @@ os.environ["DIARIZATION_USE_V2"] = "true"
 
 
 @pytest.fixture
-def test_audio_file() -> None:
+def test_audio_file() -> io.BytesIO:
     """Create a minimal valid MP3 file for testing."""
     # Minimal MP3 header (ID3v2.4)
     mp3_content = (
