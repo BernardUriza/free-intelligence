@@ -17,7 +17,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 
 class LogLevel(str, Enum):
@@ -76,18 +76,18 @@ class BaseLogEvent:
     # Required fields
     ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     host: str = field(default_factory=lambda: socket.gethostname())
-    service: ServiceChannel = ServiceChannel.SERVER
+    service: ServiceChannel = field(default=ServiceChannel.SERVER)
     version: str = "0.3.0"
-    level: LogLevel = LogLevel.INFO
+    level: LogLevel = field(default=LogLevel.INFO)
     trace_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     span_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    session_id: Optional[str] = None
+    session_id: str | None = None
     user: str = "system"
-    role: UserRole = UserRole.SYSTEM
+    role: UserRole = field(default=UserRole.SYSTEM)
     action: str = "unknown"
     ok: bool = True
-    latency_ms: Optional[float] = None
-    ref: Optional[str] = None
+    latency_ms: float | None = None
+    ref: str | None = None
     pii: bool = False  # Siempre false en MVP
     details: dict[str, Any] = field(default_factory=dict)
 
@@ -185,10 +185,10 @@ def log_server_request(
     bytes_sent: int,
     client_ip: str,
     latency_ms: float,
-    trace_id: Optional[str] = None,
-    session_id: Optional[str] = None,
+    trace_id: str | None = None,
+    session_id: str | None = None,
     user: str = "system",
-    role: UserRole = UserRole.SYSTEM,
+    role: UserRole | None = None,
 ) -> BaseLogEvent:
     """
     Log server API request.
@@ -202,7 +202,7 @@ def log_server_request(
         trace_id=trace_id or str(uuid.uuid4()),
         session_id=session_id,
         user=hash_user_id(user),
-        role=role,
+        role=role or UserRole.SYSTEM,
         action="api.request",
         ok=status < 400,
         latency_ms=latency_ms,
@@ -228,10 +228,10 @@ def log_llm_request(
     sensitive: bool = False,
     timeout: bool = False,
     retry_count: int = 0,
-    trace_id: Optional[str] = None,
-    session_id: Optional[str] = None,
+    trace_id: str | None = None,
+    session_id: str | None = None,
     user: str = "system",
-    role: UserRole = UserRole.SYSTEM,
+    role: UserRole | None = None,
 ) -> BaseLogEvent:
     """
     Log LLM API request.
@@ -249,7 +249,7 @@ def log_llm_request(
         trace_id=trace_id or str(uuid.uuid4()),
         session_id=session_id,
         user=hash_user_id(user),
-        role=role,
+        role=role or UserRole.SYSTEM,
         action="llm.request",
         ok=not timeout,
         latency_ms=latency_ms,
@@ -306,11 +306,11 @@ def log_access_event(
     client_ip: str,
     result: bool,
     user: str,
-    old_role: Optional[UserRole] = None,
-    new_role: Optional[UserRole] = None,
-    trace_id: Optional[str] = None,
-    session_id: Optional[str] = None,
-    details: dict[str, Optional[Any]] = None,
+    old_role: UserRole | None = None,
+    new_role: UserRole | None = None,
+    trace_id: str | None = None,
+    session_id: str | None = None,
+    details: dict[str, Any | None] | None = None,
 ) -> BaseLogEvent:
     """
     Log access event (AUDIT).
@@ -331,7 +331,7 @@ def log_access_event(
         event_details["new_role"] = new_role.value
 
     if details:
-        event_details.update(details)
+        event_details.update(details)  # type: ignore
 
     return BaseLogEvent(
         service=ServiceChannel.ACCESS,
@@ -339,10 +339,10 @@ def log_access_event(
         trace_id=trace_id or str(uuid.uuid4()),
         session_id=session_id,
         user=hash_user_id(user),
-        role=new_role if action == "role_change" else UserRole.GUEST,
+        role=new_role or UserRole.GUEST,
         action=action_name,
         ok=result,
-        details=event_details,
+        details=event_details,  # type: ignore
     )
 
 
