@@ -9,15 +9,17 @@ Strategy: Extract ONLY the 4-minute segment, transcribe it, merge with existing 
 """
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
 
-sys.path.insert(0, "/Users/bernardurizaorozco/Documents/free-intelligence")
+# Add project root to path for imports (noqa: E402 - utility script)
+sys.path.insert(0, "/Users/bernardurizaorozco/Documents/free-intelligence")  # noqa: E402
 
-from backend.logger import get_logger
+from backend.logger import get_logger  # noqa: E402
 
 logger = get_logger(__name__)
 
@@ -33,7 +35,7 @@ SEGMENT_START_SEC_CONST = 24 * 60  # 1440 seconds
 SEGMENT_END_SEC_CONST = 28 * 60  # 1680 seconds
 
 
-def extract_audio_segment():
+def extract_audio_segment() -> Path | None:
     """Extract audio segment 1440s-1680s (4 minutes) to temp file."""
     try:
         import subprocess
@@ -78,7 +80,7 @@ def extract_audio_segment():
         return None
 
 
-def transcribe_segment(segment_path: Path) -> dict | None:
+def transcribe_segment(segment_path: Path) -> dict[str, Any] | None:  # type: ignore[syntax]
     """Transcribe extracted audio segment."""
     try:
         from backend.whisper_service import transcribe_audio
@@ -89,7 +91,7 @@ def transcribe_segment(segment_path: Path) -> dict | None:
         if result.get("available"):
             segments = result.get("segments", [])
             print(f"   ✓ Got {len(segments)} segments")
-            return result
+            return result  # type: ignore[return-value]
         else:
             print("   ❌ Transcription failed")
             return None
@@ -99,7 +101,7 @@ def transcribe_segment(segment_path: Path) -> dict | None:
         return None
 
 
-def curate_missing_chunks():
+def curate_missing_chunks() -> bool:
     """Curate missing chunks 24-27 from audio segment."""
 
     print("🗂️  FI Data Curation - Smart Recovery")
@@ -148,9 +150,9 @@ def curate_missing_chunks():
 
     # 4. Read existing HDF5 data
     try:
-        with h5py.File(HDF5_PATH, "r+") as f:  # type: ignore[call-overload]
-            job_group = f["diarization"][JOB_ID]  # type: ignore[index]
-            existing_chunks = job_group["chunks"][()]  # type: ignore[index]
+        with h5py.File(HDF5_PATH, "r+") as f:  # type: ignore
+            job_group = f["diarization"][JOB_ID]  # type: ignore
+            existing_chunks = job_group["chunks"][()]  # type: ignore
 
             print(f"✓ Loaded {len(existing_chunks)} existing chunks from HDF5")
 
@@ -186,7 +188,7 @@ def curate_missing_chunks():
                             b"DESCONOCIDO",
                             0.0,
                             0.0,
-                            datetime.now(timezone.utc).isoformat(),
+                            datetime.now(UTC).isoformat(),
                         )
                     ],
                     dtype=existing_chunks.dtype,
@@ -197,14 +199,14 @@ def curate_missing_chunks():
 
             # 6. Merge and update HDF5
             if new_chunks:
-                merged_chunks = np.concatenate([existing_chunks, np.array(new_chunks)])  # type: ignore[arg-type]
+                merged_chunks = np.concatenate([existing_chunks, np.array(new_chunks)])  # type: ignore
 
-                del job_group["chunks"]  # type: ignore[index]
-                job_group.create_dataset("chunks", data=merged_chunks)  # type: ignore[union-attr]
+                del job_group["chunks"]  # type: ignore
+                job_group.create_dataset("chunks", data=merged_chunks)  # type: ignore
 
-                job_group.attrs["processed_chunks"] = len(merged_chunks)  # type: ignore[union-attr]
-                job_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()  # type: ignore[union-attr]
-                job_group.attrs["curation_status"] = "recovered"  # type: ignore[union-attr]
+                job_group.attrs["processed_chunks"] = len(merged_chunks)  # type: ignore
+                job_group.attrs["updated_at"] = datetime.now(UTC).isoformat()  # type: ignore
+                job_group.attrs["curation_status"] = "recovered"  # type: ignore
 
                 print(
                     f"\n✅ Curation complete! {len(existing_chunks)} → {len(merged_chunks)} chunks"
