@@ -10,7 +10,7 @@ Clean Code: This service layer makes endpoints simple and focused.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from backend.logger import get_logger
 from backend.repositories import CorpusRepository
@@ -41,8 +41,8 @@ class CorpusService:
         self,
         document_id: str,
         content: str,
-        source: Optional[str] = None,
-        tags: list[Optional[str]] = None,
+        source: str | None = None,
+        tags: list[str | None] | None = None,
     ) -> dict[str, Any]:
         """Create new corpus document with validation.
 
@@ -103,7 +103,7 @@ class CorpusService:
             logger.error("DOCUMENT_CREATION_FAILED", error=str(e))  # type: ignore[call-arg]
             raise
 
-    def get_document(self, document_id: str) -> dict[str, Optional[Any]]:
+    def get_document(self, document_id: str) -> dict[str, Any | None] | None:
         """Retrieve document with full content.
 
         Args:
@@ -121,7 +121,7 @@ class CorpusService:
             logger.error("DOCUMENT_RETRIEVAL_FAILED", document_id=document_id, error=str(e))  # type: ignore[call-arg]
             raise
 
-    def get_document_summary(self, document_id: str) -> dict[str, Optional[Any]]:
+    def get_document_summary(self, document_id: str) -> dict[str, Any | None] | None:
         """Retrieve document metadata without full content.
 
         Useful for listing documents without loading full content.
@@ -144,9 +144,9 @@ class CorpusService:
 
     def list_documents(
         self,
-        limit: Optional[int] = None,
-        source: Optional[str] = None,
-    ) -> list[dict[str, Any]]:
+        limit: int | None = None,
+        source: str | None = None,
+    ) -> list[dict[str, Any] | None]:
         """List documents with optional filtering.
 
         Args:
