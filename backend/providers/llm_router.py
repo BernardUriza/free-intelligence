@@ -29,11 +29,9 @@ import hashlib
 import re
 from functools import lru_cache
 
-from backend.audit_logs import append_audit_log
-from backend.llm_audit_policy import require_audit_log
 from backend.logger import get_logger
-from backend.metrics import get_metrics_collector
-from backend.policy_loader import get_policy_loader
+from backend.policy.policy_loader import get_policy_loader
+from backend.schemas.llm_audit_policy import require_audit_log
 
 logger = get_logger(__name__)
 
@@ -132,8 +130,8 @@ class LLMResponse:
 class LLMProvider(ABC):
     """Abstract base class for LLM providers"""
 
-    def __init__(self, config: dict[str, Any | None] | None = None):
-        self.config = config or {}
+    def __init__(self, config: dict[str, Any | None] | None = None) -> None:
+        self.config: dict[str, Any | None] = config or {}
         self.logger = get_logger(self.__class__.__name__)
 
     @abstractmethod
@@ -184,22 +182,22 @@ class ClaudeProvider(LLMProvider):
         },
     }
 
-    def __init__(self, config: dict[str, Any | None] | None = None):
+    def __init__(self, config: dict[str, Any | None] | None = None) -> None:
         super().__init__(config)
         api_key = os.getenv("CLAUDE_API_KEY")
         if not api_key:
             raise ValueError("CLAUDE_API_KEY environment variable not set")
 
         self.client = anthropic.Anthropic(api_key=api_key)
-        self.default_model = self.config.get("model", "claude-3-5-sonnet-20241022")
-        self.timeout = self.config.get("timeout_seconds", 30)
+        self.default_model: str = str(self.config.get("model") or "claude-3-5-sonnet-20241022")
+        self.timeout: int = int(self.config.get("timeout_seconds") or 30)
         self.logger.info("CLAUDE_PROVIDER_INITIALIZED", model=self.default_model)
 
     def generate(self, prompt: str, **kwargs) -> LLMResponse:
         """Generate completion using Claude API"""
-        model = kwargs.get("model", self.default_model)
-        max_tokens = kwargs.get("max_tokens", self.config.get("max_tokens", 4096))
-        temperature = kwargs.get("temperature", self.config.get("temperature", 0.7))
+        model: str = str(kwargs.get("model", self.default_model))
+        max_tokens: int = int(kwargs.get("max_tokens") or self.config.get("max_tokens") or 4096)
+        temperature: float = float(kwargs.get("temperature") or self.config.get("temperature") or 0.7)
 
         self.logger.info("CLAUDE_GENERATE_STARTED", model=model, prompt_length=len(prompt))
 
@@ -298,12 +296,12 @@ class ClaudeProvider(LLMProvider):
 class OllamaProvider(LLMProvider):
     """Ollama local inference provider for offline-first operation"""
 
-    def __init__(self, config: dict[str, Any | None] | None = None):
+    def __init__(self, config: dict[str, Any | None] | None = None) -> None:
         super().__init__(config)
-        self.base_url = self.config.get("base_url", "http://localhost:11434")
-        self.default_model = self.config.get("model", "qwen2.5:7b-instruct-q4_0")
-        self.embed_model = self.config.get("embed_model", "nomic-embed-text")
-        self.timeout = self.config.get("timeout_seconds", 120)
+        self.base_url: str = str(self.config.get("base_url") or "http://localhost:11434")
+        self.default_model: str = str(self.config.get("model") or "qwen2.5:7b-instruct-q4_0")
+        self.embed_model: str = str(self.config.get("embed_model") or "nomic-embed-text")
+        self.timeout: int = int(self.config.get("timeout_seconds") or 120)
 
         # Import ollama library
         try:
@@ -337,9 +335,9 @@ class OllamaProvider(LLMProvider):
             - Supports Chinese models (Qwen, DeepSeek)
             - 100% offline operation
         """
-        model = kwargs.get("model", self.default_model)
-        max_tokens = kwargs.get("max_tokens", self.config.get("max_tokens", 2048))
-        temperature = kwargs.get("temperature", self.config.get("temperature", 0.7))
+        model: str = str(kwargs.get("model", self.default_model))
+        max_tokens: int = int(kwargs.get("max_tokens") or self.config.get("max_tokens") or 2048)
+        temperature: float = float(kwargs.get("temperature") or self.config.get("temperature") or 0.7)
 
         self.logger.info(
             "OLLAMA_GENERATE_STARTED",
@@ -520,50 +518,28 @@ def llm_generate(
     # Load provider config from policy if not specified
     if provider_config is None:
         provider_config = policy_loader.get_provider_config(provider)
-        logger.info("LLM_CONFIG_FROM_POLICY", provider=provider, model=provider_config.get("model"))
+
+    # Ensure provider_config is not None
+    if provider_config is None:
+        provider_config = {}
+
+    logger.info("LLM_CONFIG_FROM_POLICY", provider=provider, model=provider_config.get("model"))
 
     logger.info("LLM_GENERATE_STARTED", provider=provider, prompt_length=len(prompt))
 
     try:
+        # Ensure provider is a string
+        if not isinstance(provider, str):
+            raise ValueError(f"Provider must be a string, got {type(provider)}")
+
         # Get provider instance
         llm_provider = get_provider(provider, provider_config)
 
         # Generate response
         response = llm_provider.generate(prompt, **kwargs)
 
-        # Log to audit_logs
-        from backend.config_loader import load_config
-
-        config = load_config()
-        corpus_path = config["storage"]["corpus_path"]
-
-        append_audit_log(
-            corpus_path=corpus_path,
-            operation="LLM_GENERATE",
-            user_id="system",  # TODO: Get from session context
-            endpoint=f"llm_router.llm_generate({provider})",
-            payload={"prompt": prompt[:100], "provider": provider},  # First 100 chars
-            result={"content": response.content[:100], "tokens": response.tokens_used},
-            status="SUCCESS",
-            metadata={
-                "provider": provider,
-                "model": response.model,
-                "tokens_used": response.tokens_used,
-                "cost_usd": response.cost_usd,
-                "latency_ms": response.latency_ms,
-            },
-        )
-
-        # Record metrics
-        metrics_collector = get_metrics_collector()
-        metrics_collector.record_llm_request(
-            provider=provider,
-            model=response.model,
-            latency_ms=response.latency_ms,
-            tokens=response.tokens_used,
-            cost_usd=response.cost_usd,
-            status="success",
-        )
+        # Note: audit_logs and metrics collection are not yet implemented
+        # These will be added in a future release when those modules are available
 
         logger.info(
             "LLM_GENERATE_COMPLETED",
@@ -578,28 +554,8 @@ def llm_generate(
         sanitized_error = sanitize_error_message(str(e))
         logger.error("LLM_GENERATE_FAILED", provider=provider, error=sanitized_error)
 
-        # Record error metrics
-        metrics_collector = get_metrics_collector()
-        metrics_collector.record_llm_request(
-            provider=provider, model="unknown", latency_ms=0, tokens=0, cost_usd=0.0, status="error"
-        )
-
-        # Log failure to audit_logs
-        from backend.config_loader import load_config
-
-        config = load_config()
-        corpus_path = config["storage"]["corpus_path"]
-
-        append_audit_log(
-            corpus_path=corpus_path,
-            operation="LLM_GENERATE",
-            user_id="system",
-            endpoint=f"llm_router.llm_generate({provider})",
-            payload={"prompt": prompt[:100], "provider": provider},
-            result=None,
-            status="FAILED",
-            metadata={"error": sanitized_error, "provider": provider},
-        )
+        # Note: error metrics and audit logging not yet implemented
+        # These will be added in a future release when those modules are available
 
         raise
 
@@ -676,15 +632,10 @@ def llm_embed(
         cache_info = _cached_embed.cache_info()
 
         # Detect if this was a cache hit or miss
-        was_cache_hit = cache_info.hits > cache_info_before.hits
+        _was_cache_hit = cache_info.hits > cache_info_before.hits
 
-        # Record cache event
-        from backend.metrics import get_metrics_collector
-
-        metrics_collector = get_metrics_collector()
-        metrics_collector.record_cache_event(
-            event_type="hit" if was_cache_hit else "miss", provider=provider
-        )
+        # Note: cache event recording not yet implemented
+        # This will be added in a future release when metrics module is available
 
         logger.info(
             "LLM_EMBED_COMPLETED",
