@@ -60,7 +60,7 @@ class CorpusRepository(BaseRepository):
             logger.error("CORPUS_STRUCTURE_INIT_FAILED", error=str(e))
             raise
 
-    def create(
+    def create(  # type: ignore[override]
         self,
         document_id: str,
         content: str,
@@ -116,7 +116,7 @@ class CorpusRepository(BaseRepository):
             self._log_operation("create", document_id, status="failed", error=str(e))
             raise
 
-    def read(self, document_id: str) -> dict[str, Any | None] | None:
+    def read(self, document_id: str) -> dict[str, Any | None] | None:  # type: ignore[override]
         """Read corpus document.
 
         Args:
@@ -147,7 +147,7 @@ class CorpusRepository(BaseRepository):
             logger.error("CORPUS_READ_FAILED", document_id=document_id, error=str(e))
             return None
 
-    def update(
+    def update(  # type: ignore[override]
         self, document_id: str, content: str, metadata: dict[str, Any | None] | None = None
     ) -> bool:
         """Update corpus document (enforces append-only by creating new version).
@@ -188,7 +188,7 @@ class CorpusRepository(BaseRepository):
             self._log_operation("update", document_id, status="failed", error=str(e))
             return False
 
-    def delete(self, document_id: str) -> bool:
+    def delete(self, document_id: str) -> bool:  # type: ignore[override]
         """Delete corpus document (marks as deleted in append-only mode).
 
         Args:
