@@ -119,7 +119,7 @@ IMPORTANTE:
   /**
    * Respuesta por defecto si Ollama no está disponible
    */
-  private getFallbackResponse(sessionData: SessionData): KATNISSResponse {
+  private getFallbackResponse(_sessionData: SessionData): KATNISSResponse {
     const motivations = [
       '¡Lo hiciste increíble!',
       '¡Sigue adelante!',

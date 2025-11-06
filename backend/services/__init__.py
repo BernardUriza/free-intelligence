@@ -11,88 +11,83 @@ Clean Code Principles:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
 
-# Lazy imports to prevent circular dependencies
-def __getattr__(name: str):
-    """Lazy load services to prevent circular imports."""
+if TYPE_CHECKING:
+    # Type stubs for Pylance - used only during static analysis
+    from backend.services.audit_service import AuditService
+    from backend.services.corpus_service import CorpusService
+    from backend.services.diagnostics_service import DiagnosticsService
+    from backend.services.diarization_service import DiarizationService
+    from backend.services.evidence_service import EvidenceService
+    from backend.services.export_service import ExportService
+    from backend.services.session_service import SessionService
+    from backend.services.system_health_service import SystemHealthService
+    from backend.services.transcription_service import TranscriptionService
+    from backend.services.triage_service import TriageService
+
+
+def __getattr__(name: str) -> Any:
+    """Lazy load services to prevent circular imports at runtime.
+
+    Pylance uses TYPE_CHECKING imports above for type information,
+    so type checking works even though this lazy loading is used at runtime.
+
+    Gracefully handles import errors by raising AttributeError for missing services.
+    """
     try:
         if name == "AuditService":
             from backend.services.audit_service import AuditService
 
             return AuditService
         elif name == "CorpusService":
-            try:
-                from backend.services.corpus_service import CorpusService
+            from backend.services.corpus_service import CorpusService
 
-                return CorpusService
-            except ImportError:
-                # Return a stub if not available
-                return type("CorpusService", (), {})
+            return CorpusService
         elif name == "DiagnosticsService":
-            try:
-                from backend.services.diagnostics_service import DiagnosticsService
+            from backend.services.diagnostics_service import DiagnosticsService
 
-                return DiagnosticsService
-            except ImportError:
-                return type("DiagnosticsService", (), {})
+            return DiagnosticsService
         elif name == "DiarizationService":
-            # DiarizationService is a custom class, try different modules
-            try:
-                from backend.services.diarization_service_v2 import DiarizationService
+            from backend.services.diarization_service import DiarizationService
 
-                return DiarizationService
-            except ImportError:
-                try:
-                    from backend.services.diarization_service import DiarizationService
-
-                    return DiarizationService
-                except (ImportError, AttributeError):
-                    # Return stub class
-                    return type("DiarizationService", (), {})
+            return DiarizationService
         elif name == "EvidenceService":
             try:
                 from backend.services.evidence_service import EvidenceService
 
                 return EvidenceService
-            except ImportError:
-                return type("EvidenceService", (), {})
+            except ModuleNotFoundError:
+                # EvidenceService has unmet dependencies, but type stubs still work
+                raise AttributeError(
+                    "EvidenceService unavailable: missing dependency (backend.evidence_pack)"
+                ) from None
         elif name == "ExportService":
-            try:
-                from backend.services.export_service import ExportService
+            from backend.services.export_service import ExportService
 
-                return ExportService
-            except ImportError:
-                return type("ExportService", (), {})
+            return ExportService
         elif name == "SessionService":
-            try:
-                from backend.services.session_service import SessionService
+            from backend.services.session_service import SessionService
 
-                return SessionService
-            except ImportError:
-                return type("SessionService", (), {})
+            return SessionService
         elif name == "SystemHealthService":
-            try:
-                from backend.services.system_health_service import SystemHealthService
+            from backend.services.system_health_service import SystemHealthService
 
-                return SystemHealthService
-            except ImportError:
-                return type("SystemHealthService", (), {})
+            return SystemHealthService
         elif name == "TranscriptionService":
-            try:
-                from backend.services.transcription_service import TranscriptionService
+            from backend.services.transcription_service import TranscriptionService
 
-                return TranscriptionService
-            except ImportError:
-                return type("TranscriptionService", (), {})
+            return TranscriptionService
         elif name == "TriageService":
-            try:
-                from backend.services.triage_service import TriageService
+            from backend.services.triage_service import TriageService
 
-                return TriageService
-            except ImportError:
-                return type("TriageService", (), {})
-    except Exception:
-        pass
+            return TriageService
+    except AttributeError:
+        raise
+    except Exception as e:
+        # Catch unexpected errors and convert to AttributeError
+        raise AttributeError(f"Error loading {name}: {e}") from e
+
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 

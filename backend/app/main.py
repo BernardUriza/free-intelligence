@@ -39,8 +39,10 @@ def create_app() -> FastAPI:
             fi_diag,
             katniss,
             kpis,
+            library,
             sessions,
             system,
+            t21_resources,
             timeline_verify,
             transcribe,
             triage,
@@ -52,8 +54,10 @@ def create_app() -> FastAPI:
         app.include_router(fi_diag.router, prefix="/api/fi-diag", tags=["fi-diag"])
         app.include_router(katniss.router)
         app.include_router(kpis.router, prefix="/api/kpis", tags=["kpis"])
+        app.include_router(library.router)
         app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
         app.include_router(system.router, prefix="/api/system", tags=["system"])
+        app.include_router(t21_resources.router)
         app.include_router(timeline_verify.router, prefix="/api/timeline", tags=["timeline"])
         app.include_router(triage.router, prefix="/api/triage", tags=["triage"])
         app.include_router(transcribe.router, prefix="/api/transcribe", tags=["transcribe"])
