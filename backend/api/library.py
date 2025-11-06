@@ -29,11 +29,13 @@ router = APIRouter(prefix="/api/consultations", tags=["library"])
 class ConsultationMetadata(BaseModel):
     """Consultation metadata for library listing."""
 
-    id: str
-    consultationId: str
-    eventCount: int
-    createdAt: str
-    updatedAt: Optional[str] = None
+    consultation_id: str
+    event_count: int
+    created_at: str
+    updated_at: Optional[str] = None
+
+    class Config:
+        populate_by_name = True  # Allow both snake_case and camelCase
 
 
 class ConsultationsResponse(BaseModel):
