@@ -242,7 +242,7 @@ def transcribe_audio(
             error=str(e),
         )
         return {
-            "text": f"[Transcription failed: {str(e)}]",
+            "text": f"[Transcription failed: {e!s}]",
             "segments": [],
             "language": language,
             "duration": 0.0,

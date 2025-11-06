@@ -1,7 +1,5 @@
-from __future__ import annotations
+"""Transcription API Router.
 
-"""
-Transcription API Router
 Cards: FI-BACKEND-FEAT-003, FI-UI-FEAT-210
 
 Endpoints:
@@ -9,21 +7,24 @@ Endpoints:
   GET /api/transcribe/health - Health check
 
 Features:
-- Audio upload with multipart/form-data
-- Max file size: 100 MB
-- Supported formats: webm, wav, mp3, m4a, ogg
-- Session-based storage with TTL (7 days)
-- SHA256 manifest for integrity
-- Whisper transcription (Spanish)
-- Graceful degradation if Whisper unavailable
+  - Audio upload with multipart/form-data
+  - Max file size: 100 MB
+  - Supported formats: webm, wav, mp3, m4a, ogg
+  - Session-based storage with TTL (7 days)
+  - SHA256 manifest for integrity
+  - Whisper transcription with auto-detection
+  - Graceful degradation if Whisper unavailable
 
-Updated to use clean code architecture with TranscriptionService.
+Uses unified TranscriptionService (chef with all equipment).
 
 File: backend/api/transcribe.py
 Created: 2025-10-30
+Updated: 2025-11-05 (import from unified service)
 """
 
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from fastapi import APIRouter, File, Header, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel, Field
@@ -51,7 +52,7 @@ class TranscriptionResponse(BaseModel):
 async def transcribe_audio_endpoint(
     request: Request,
     audio: UploadFile = File(..., description="Audio file to transcribe"),
-    x_session_id: Optional[str] = Header(None, alias="X-Session-ID"),
+    x_session_id: str | None = Header(None, alias="X-Session-ID"),
 ) -> TranscriptionResponse:
     """
     Upload audio file and get transcription.
@@ -138,9 +139,7 @@ async def transcribe_audio_endpoint(
         )
 
     except ValueError as e:
-        logger.warning(
-            f"TRANSCRIPTION_VALIDATION_FAILED: session_id={x_session_id}, error={str(e)}"
-        )
+        logger.warning(f"TRANSCRIPTION_VALIDATION_FAILED: session_id={x_session_id}, error={e!s}")
         audit_service = get_container().get_audit_service()
         audit_service.log_action(
             action="transcription_failed",
@@ -152,7 +151,7 @@ async def transcribe_audio_endpoint(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(
-            f"TRANSCRIPTION_FAILED: session_id={x_session_id}, filename={audio.filename}, error={str(e)}"
+            f"TRANSCRIPTION_FAILED: session_id={x_session_id}, filename={audio.filename}, error={e!s}"
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

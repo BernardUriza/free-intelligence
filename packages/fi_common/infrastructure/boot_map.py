@@ -264,7 +264,7 @@ def get_core_functions(h5file: h5py.File, category: Optional[str] = None) -> lis
     dataset = h5file["/system/boot_map/core_functions"]
     functions = []
 
-    for entry in dataset:  # type: ignore
+    for entry in dataset:  # type: ignore[misc]
         entry_category = (
             entry["category"].decode("utf-8")
             if isinstance(entry["category"], bytes)
@@ -363,12 +363,12 @@ def get_boot_map_stats(h5file: h5py.File) -> dict:
     boot_group = h5file["/system/boot_map"]
 
     stats = {
-        "created_at": boot_group.attrs.get("created_at", "unknown"),  # type: ignore
-        "schema_version": boot_group.attrs.get("schema_version", "unknown"),  # type: ignore
-        "boot_map_version": boot_group.attrs.get("boot_map_version", "unknown"),  # type: ignore
-        "total_boot_events": boot_group["boot_sequence"].shape[0],  # type: ignore
-        "total_core_functions": boot_group["core_functions"].shape[0],  # type: ignore
-        "total_health_checks": boot_group["health_checks"].shape[0],  # type: ignore
+        "created_at": boot_group.attrs.get("created_at", "unknown"),  # type: ignore[attr-defined]
+        "schema_version": boot_group.attrs.get("schema_version", "unknown"),  # type: ignore[attr-defined]
+        "boot_map_version": boot_group.attrs.get("boot_map_version", "unknown"),  # type: ignore[attr-defined]
+        "total_boot_events": boot_group["boot_sequence"].shape[0],  # type: ignore[index,attr-defined]
+        "total_core_functions": boot_group["core_functions"].shape[0],  # type: ignore[index,attr-defined]
+        "total_health_checks": boot_group["health_checks"].shape[0],  # type: ignore[index,attr-defined]
     }
 
     logger.info("BOOT_MAP_STATS_RETRIEVED", **stats)

@@ -164,17 +164,17 @@ def load_config(config_path: Optional[str] = None) -> dict[str, Any]:
         7000
     """
     if config_path is None:
-        config_path = Path(__file__).parent.parent / "config" / "config.yml"
+        config_file = Path(__file__).parent.parent / "config" / "config.yml"
     else:
-        config_path = Path(config_path)
+        config_file = Path(config_path)
 
     # Return defaults if file doesn't exist
-    if not config_path.exists():
+    if not config_file.exists():
         return get_default_config()
 
     # Load YAML
     try:
-        with open(config_path) as f:
+        with open(config_file) as f:
             config = yaml.safe_load(f)
     except yaml.YAMLError as e:
         raise ConfigValidationError(f"Invalid YAML syntax: {e}")
