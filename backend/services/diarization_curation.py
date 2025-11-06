@@ -78,7 +78,7 @@ def extract_audio_segment():
         return None
 
 
-def transcribe_segment(segment_path: Path) -> dict:
+def transcribe_segment(segment_path: Path) -> dict | None:
     """Transcribe extracted audio segment."""
     try:
         from backend.whisper_service import transcribe_audio
@@ -131,13 +131,11 @@ def curate_missing_chunks():
     # 2. Extract segment (try ffmpeg first for speed)
     segment_path = extract_audio_segment()
     segment_start_sec = SEGMENT_START_SEC_CONST
-    segment_end_sec = SEGMENT_END_SEC_CONST
 
     if segment_path is None:
         print("⚠️  Segment extraction failed, will transcribe full audio (slow)")
         segment_path = AUDIO_PATH
         segment_start_sec = 0
-        segment_end_sec = 9999
 
     # 3. Transcribe segment
     result = transcribe_segment(segment_path)
@@ -150,9 +148,9 @@ def curate_missing_chunks():
 
     # 4. Read existing HDF5 data
     try:
-        with h5py.File(HDF5_PATH, "r+") as f:
-            job_group = f["diarization"][JOB_ID]
-            existing_chunks = job_group["chunks"][()]
+        with h5py.File(HDF5_PATH, "r+") as f:  # type: ignore[call-overload]
+            job_group = f["diarization"][JOB_ID]  # type: ignore[index]
+            existing_chunks = job_group["chunks"][()]  # type: ignore[index]
 
             print(f"✓ Loaded {len(existing_chunks)} existing chunks from HDF5")
 
@@ -199,14 +197,14 @@ def curate_missing_chunks():
 
             # 6. Merge and update HDF5
             if new_chunks:
-                merged_chunks = np.concatenate([existing_chunks, np.array(new_chunks)])
+                merged_chunks = np.concatenate([existing_chunks, np.array(new_chunks)])  # type: ignore[arg-type]
 
-                del job_group["chunks"]
-                job_group.create_dataset("chunks", data=merged_chunks)
+                del job_group["chunks"]  # type: ignore[index]
+                job_group.create_dataset("chunks", data=merged_chunks)  # type: ignore[union-attr]
 
-                job_group.attrs["processed_chunks"] = len(merged_chunks)
-                job_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()
-                job_group.attrs["curation_status"] = "recovered"
+                job_group.attrs["processed_chunks"] = len(merged_chunks)  # type: ignore[union-attr]
+                job_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()  # type: ignore[union-attr]
+                job_group.attrs["curation_status"] = "recovered"  # type: ignore[union-attr]
 
                 print(
                     f"\n✅ Curation complete! {len(existing_chunks)} → {len(merged_chunks)} chunks"
