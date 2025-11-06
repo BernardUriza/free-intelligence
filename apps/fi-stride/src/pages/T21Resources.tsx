@@ -1,51 +1,33 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import styles from '../styles/t21-resources.module.css'
+import { useDataFetch } from '../hooks/useDataFetch'
+import { T21ResourcesResponse } from '../types/api'
 
-interface Resource {
-  id: string
-  title: string
-  description: string
-  category: 'guide' | 'video' | 'article' | 'tool'
-  url?: string
-  icon: string
-}
+// Categories constant - moved out of render to prevent recreation
+const CATEGORIES = [
+  { id: 'all', label: 'Todas', icon: '🌟' },
+  { id: 'guide', label: 'Guías', icon: '📖' },
+  { id: 'video', label: 'Vídeos', icon: '🎬' },
+  { id: 'article', label: 'Artículos', icon: '📄' },
+  { id: 'tool', label: 'Herramientas', icon: '🛠️' },
+]
 
 export function T21Resources() {
-  const [resources, setResources] = useState<Resource[]>([])
-  const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
-  useEffect(() => {
-    const fetchResources = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch('/api/t21/resources')
-        const data = await response.json()
-        setResources(data.resources || [])
-      } catch (err) {
-        console.error('Error loading resources:', err)
-        // Use default resources on error
-        setResources(defaultResources)
-      } finally {
-        setLoading(false)
-      }
-    }
+  const { data: response, loading } = useDataFetch<T21ResourcesResponse>({
+    url: '/api/t21/resources'
+  })
 
-    fetchResources()
-  }, [])
+  const resources = response?.resources || []
 
-  const filteredResources =
-    selectedCategory === 'all'
-      ? resources
-      : resources.filter((r) => r.category === selectedCategory)
-
-  const categories = [
-    { id: 'all', label: 'Todas', icon: '🌟' },
-    { id: 'guide', label: 'Guías', icon: '📖' },
-    { id: 'video', label: 'Vídeos', icon: '🎬' },
-    { id: 'article', label: 'Artículos', icon: '📄' },
-    { id: 'tool', label: 'Herramientas', icon: '🛠️' },
-  ]
+  const filteredResources = useMemo(
+    () =>
+      selectedCategory === 'all'
+        ? resources
+        : resources.filter((r) => r.category === selectedCategory),
+    [resources, selectedCategory]
+  )
 
   return (
     <div className={styles.container}>
@@ -56,7 +38,7 @@ export function T21Resources() {
 
       {/* Categories */}
       <div className={styles.categories}>
-        {categories.map((cat) => (
+        {CATEGORIES.map((cat) => (
           <button
             key={cat.id}
             className={`${styles.categoryBtn} ${
@@ -125,31 +107,3 @@ export function T21Resources() {
     </div>
   )
 }
-
-// Default resources (fallback)
-const defaultResources: Resource[] = [
-  {
-    id: '1',
-    title: 'Guía de Inclusión Deportiva',
-    description: 'Cómo incluir atletas con T21 en deportes',
-    category: 'guide',
-    icon: '📖',
-    url: '#',
-  },
-  {
-    id: '2',
-    title: 'Vídeo: Ejercicios Seguros',
-    description: 'Los 5 ejercicios más seguros para empezar',
-    category: 'video',
-    icon: '🎬',
-    url: '#',
-  },
-  {
-    id: '3',
-    title: 'Artículo: Nutrición y T21',
-    description: 'Información sobre necesidades nutricionales',
-    category: 'article',
-    icon: '📄',
-    url: '#',
-  },
-]

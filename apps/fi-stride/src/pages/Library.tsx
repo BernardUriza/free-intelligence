@@ -1,60 +1,38 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import styles from '../styles/library.module.css'
-
-interface Consultation {
-  id: string
-  consultationId: string
-  eventCount: number
-  createdAt: string
-  updatedAt: string
-}
+import { useDataFetch } from '../hooks/useDataFetch'
+import { ConsultationsResponse } from '../types/api'
 
 export function Library() {
-  const [consultations, setConsultations] = useState<Consultation[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'recent' | 'archived'>('all')
 
-  useEffect(() => {
-    const fetchConsultations = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch('/api/consultations', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('fi-stride-auth-token')}`,
-          },
-        })
-
-        if (!response.ok) throw new Error('Failed to fetch consultations')
-
-        const data = await response.json()
-        setConsultations(data.consultations || [])
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error loading library')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchConsultations()
-  }, [])
-
-  const filteredConsultations = consultations.filter((c) => {
-    const matchesSearch = c.consultationId.toLowerCase().includes(search.toLowerCase())
-    const now = new Date()
-    const consultDate = new Date(c.createdAt)
-    const daysOld = (now.getTime() - consultDate.getTime()) / (1000 * 60 * 60 * 24)
-
-    switch (filter) {
-      case 'recent':
-        return matchesSearch && daysOld <= 7
-      case 'archived':
-        return matchesSearch && daysOld > 30
-      default:
-        return matchesSearch
+  const { data: response, loading, error } = useDataFetch<ConsultationsResponse>({
+    url: '/api/consultations',
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('fi-stride-auth-token') || ''}`,
     }
   })
+
+  const consultations = response?.consultations || []
+
+  const filteredConsultations = useMemo(() => {
+    const now = new Date()
+    return consultations.filter((c) => {
+      const matchesSearch = c.consultationId.toLowerCase().includes(search.toLowerCase())
+      const consultDate = new Date(c.createdAt)
+      const daysOld = (now.getTime() - consultDate.getTime()) / (1000 * 60 * 60 * 24)
+
+      switch (filter) {
+        case 'recent':
+          return matchesSearch && daysOld <= 7
+        case 'archived':
+          return matchesSearch && daysOld > 30
+        default:
+          return matchesSearch
+      }
+    })
+  }, [consultations, search, filter])
 
   if (loading) {
     return (
