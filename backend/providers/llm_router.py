@@ -16,7 +16,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import anthropic
 import numpy as np
@@ -124,15 +124,15 @@ class LLMResponse:
     model: str
     provider: str
     tokens_used: int
-    cost_usd: Optional[float] = None
-    latency_ms: Optional[float] = None
-    metadata: dict[str, Optional[Any]] = None
+    cost_usd: float | None = None
+    latency_ms: float | None = None
+    metadata: dict[str, Any | None] | None = None
 
 
 class LLMProvider(ABC):
     """Abstract base class for LLM providers"""
 
-    def __init__(self, config: dict[str, Optional[Any]] = None):
+    def __init__(self, config: dict[str, Any | None] | None = None):
         self.config = config or {}
         self.logger = get_logger(self.__class__.__name__)
 
@@ -184,7 +184,7 @@ class ClaudeProvider(LLMProvider):
         },
     }
 
-    def __init__(self, config: dict[str, Optional[Any]] = None):
+    def __init__(self, config: dict[str, Any | None] | None = None):
         super().__init__(config)
         api_key = os.getenv("CLAUDE_API_KEY")
         if not api_key:
@@ -298,7 +298,7 @@ class ClaudeProvider(LLMProvider):
 class OllamaProvider(LLMProvider):
     """Ollama local inference provider for offline-first operation"""
 
-    def __init__(self, config: dict[str, Optional[Any]] = None):
+    def __init__(self, config: dict[str, Any | None] | None = None):
         super().__init__(config)
         self.base_url = self.config.get("base_url", "http://localhost:11434")
         self.default_model = self.config.get("model", "qwen2.5:7b-instruct-q4_0")
@@ -446,7 +446,7 @@ class OllamaProvider(LLMProvider):
         return "ollama"
 
 
-def get_provider(provider_name: str, config: dict[str, Optional[Any]] = None) -> LLMProvider:
+def get_provider(provider_name: str, config: dict[str, Any | None] | None = None) -> LLMProvider:
     """
     Factory function to get LLM provider instance.
 
@@ -478,8 +478,8 @@ def get_provider(provider_name: str, config: dict[str, Optional[Any]] = None) ->
 @require_audit_log
 def llm_generate(
     prompt: str,
-    provider: Optional[str] = None,
-    provider_config: dict[str, Optional[Any]] = None,
+    provider: str | None = None,
+    provider_config: dict[str, Any | None] | None = None,
     **kwargs,
 ) -> LLMResponse:
     """
@@ -629,7 +629,7 @@ def _cached_embed(text_hash: str, text: str, provider: str) -> bytes:
 
 
 def llm_embed(
-    text: str, provider: str = "claude", provider_config: dict[str, Optional[Any]] = None
+    text: str, provider: str = "claude", provider_config: dict[str, Any | None] | None = None
 ) -> np.ndarray:
     """
     Generate embedding vector for text with LRU caching.
