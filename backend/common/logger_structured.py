@@ -15,9 +15,9 @@ import json
 import socket
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 
 class LogLevel(str, Enum):
