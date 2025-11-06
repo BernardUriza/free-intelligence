@@ -22,12 +22,16 @@ Usage:
   event_store.append_event(consultation_id, event)
 """
 
-from datetime import datetime
-from typing import Any, Optional
+from datetime import datetime, timezone
+from typing import Any
 from uuid import uuid4
 
-from backend.fi_consult_models import ConsultationEvent, EventMetadata, EventType
 from backend.logger import get_logger
+from backend.providers.fi_consult_models import (
+    ConsultationEvent,
+    EventMetadata,
+    EventType,
+)
 
 logger = get_logger(__name__)
 
@@ -275,7 +279,7 @@ class PayloadTranslator:
     @staticmethod
     def translate_consultation_committed(redux_payload: dict[str, Any]) -> dict[str, Any]:
         """Translate soapAnalysisReal/completeAnalysis payload."""
-        from backend.fi_event_store import calculate_sha256
+        from backend.schemas.fi_event_store import calculate_sha256
 
         soap_data = redux_payload.get("finalAnalysis", {})
         commit_hash = calculate_sha256(soap_data)
@@ -310,7 +314,7 @@ class ReduxAdapter:
         redux_action: dict[str, Any],
         consultation_id: str,
         user_id: str,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> ConsultationEvent:
         """
         Translate Redux action to FI domain event.
@@ -434,7 +438,7 @@ class BatchReduxAdapter:
         redux_actions: list[dict[str, Any]],
         consultation_id: str,
         user_id: str,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> list[ConsultationEvent]:
         """
         Translate batch of Redux actions to events.
