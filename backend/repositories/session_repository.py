@@ -51,8 +51,8 @@ class SessionRepository(BaseRepository):
     def create(
         self,
         session_id: str,
-        user_id: Optional[str] = None,
-        metadata: dict[str, Optional[Any]] = None,
+        user_id: str | None = None,
+        metadata: dict[str, Any | None] | None = None,
     ) -> str:
         """Create new session.
 
@@ -102,25 +102,25 @@ class SessionRepository(BaseRepository):
             self._log_operation("create", session_id, status="failed", error=str(e))
             raise
 
-    def read(self, session_id: str) -> dict[str, Optional[Any]]:
+    def read(self, entity_id: str) -> dict[str, Any] | None:  # type: ignore[override]
         """Read session data.
 
         Args:
-            session_id: Session identifier
+            entity_id: Session identifier
 
         Returns:
             Session data with metadata, or None if not found
         """
         try:
             with self._open_file("r") as f:
-                if session_id not in f[self.SESSIONS_GROUP]:  # type: ignore[operator]
+                if entity_id not in f[self.SESSIONS_GROUP]:  # type: ignore[operator]
                     return None
 
-                session_group = f[self.SESSIONS_GROUP][session_id]  # type: ignore[index]
+                session_group = f[self.SESSIONS_GROUP][entity_id]  # type: ignore[index]
                 metadata = dict(session_group.attrs)  # type: ignore[attr-defined]
 
                 return {
-                    "session_id": session_id,
+                    "session_id": entity_id,
                     "metadata": metadata,
                     "status": metadata.get("status", "unknown"),
                 }
@@ -132,8 +132,8 @@ class SessionRepository(BaseRepository):
     def update(
         self,
         session_id: str,
-        status: Optional[str] = None,
-        metadata: dict[str, Optional[Any]] = None,
+        status: str | None = None,
+        metadata: dict[str, Any | None] | None = None,
     ) -> bool:
         """Update session status and metadata.
 
@@ -196,9 +196,7 @@ class SessionRepository(BaseRepository):
             self._log_operation("delete", session_id, status="failed", error=str(e))
             return False
 
-    def list_all(
-        self, limit: Optional[int] = None, status: Optional[str] = None
-    ) -> list[dict[str, Any]]:
+    def list_all(self, limit: int | None = None, status: str | None = None) -> list[dict[str, Any]]:
         """List sessions with optional filtering.
 
         Args:
