@@ -8,9 +8,9 @@ not scattered across multiple endpoint handlers.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
-from backend.logger import get_logger
+from backend.logger import get_logger  # type: ignore[attr-defined]
 from backend.repositories import SessionRepository
 
 logger = get_logger(__name__)
@@ -39,8 +39,8 @@ class SessionService:
     def create_session(
         self,
         session_id: str,
-        user_id: Optional[str] = None,
-        config: dict[str, Optional[Any]] = None,
+        user_id: str | None = None,
+        config: dict[str, Any | None] | None = None,
     ) -> dict[str, Any]:
         """Create new session with validation.
 
@@ -60,11 +60,12 @@ class SessionService:
             raise ValueError("session_id must be at least 3 characters")
 
         try:
-            session_id = self.repository.create(
-                session_id=session_id,
-                user_id=user_id,
-                metadata=config or {},
-            )
+            session_data: dict[str, Any | None] = {
+                "session_id": session_id,
+                "user_id": user_id,
+                "metadata": config or {},
+            }
+            session_id = self.repository.create(session_data)
 
             logger.info("SESSION_CREATED", session_id=session_id, user_id=user_id)
 
@@ -81,7 +82,7 @@ class SessionService:
             logger.error("SESSION_CREATION_FAILED", error=str(e))
             raise
 
-    def get_session(self, session_id: str) -> dict[str, Optional[Any]]:
+    def get_session(self, session_id: str) -> dict[str, Any] | None:
         """Retrieve session data.
 
         Args:
@@ -100,7 +101,7 @@ class SessionService:
         self,
         session_id: str,
         status: str,
-        details: dict[str, Optional[Any]] = None,
+        details: dict[str, Any | None] | None = None,
     ) -> bool:
         """Update session status with validation.
 
@@ -119,15 +120,11 @@ class SessionService:
             raise ValueError(f"Invalid status. Must be one of: {self.VALID_STATES}")
 
         try:
-            metadata = {"status": status}
-            if details:
-                metadata.update(details)
-
-            success = self.repository.update(
-                session_id=session_id,
-                status=status,
-                metadata=details,
-            )
+            entity: dict[str, Any | None] = {
+                "status": status,
+                "metadata": details or {},
+            }
+            success = self.repository.update(session_id, entity)
 
             if success:
                 logger.info("SESSION_STATUS_UPDATED", session_id=session_id, status=status)
@@ -144,7 +141,7 @@ class SessionService:
     def complete_session(
         self,
         session_id: str,
-        result: dict[str, Optional[Any]] = None,
+        result: dict[str, Any | None] | None = None,
     ) -> bool:
         """Mark session as completed successfully.
 
@@ -161,8 +158,8 @@ class SessionService:
     def fail_session(
         self,
         session_id: str,
-        error: Optional[str] = None,
-        error_code: Optional[str] = None,
+        error: str | None = None,
+        error_code: str | None = None,
     ) -> bool:
         """Mark session as failed.
 
@@ -184,9 +181,9 @@ class SessionService:
 
     def list_sessions(
         self,
-        limit: Optional[int] = None,
-        user_id: Optional[str] = None,
-        status: Optional[str] = None,
+        limit: int | None = None,
+        user_id: str | None = None,
+        status: str | None = None,
     ) -> list[dict[str, Any]]:
         """List sessions with optional filtering.
 

@@ -10,7 +10,7 @@ Created: 2025-10-31
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, TypedDict, Optional
+from typing import Any, Optional, TypedDict
 
 
 class KPIsSnapshot(TypedDict, total=False):
