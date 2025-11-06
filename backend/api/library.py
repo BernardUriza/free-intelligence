@@ -8,12 +8,12 @@ Handles:
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from backend.fi_event_store import EventStore
+from backend.schemas.fi_event_store import EventStore
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
@@ -85,11 +85,10 @@ async def list_consultations(
         # Convert to response model
         consultations = [
             ConsultationMetadata(
-                id=c.get("consultation_id", ""),
-                consultationId=c.get("consultation_id", ""),
-                eventCount=c.get("event_count", 0),
-                createdAt=c.get("created_at", ""),
-                updatedAt=c.get("updated_at"),
+                consultation_id=c.get("consultation_id", ""),
+                event_count=c.get("event_count", 0),
+                created_at=c.get("created_at", ""),
+                updated_at=c.get("updated_at"),
             )
             for c in paginated
         ]
@@ -197,11 +196,10 @@ async def search_consultations(
         # Convert to response
         consultations = [
             ConsultationMetadata(
-                id=c.get("consultation_id", ""),
-                consultationId=c.get("consultation_id", ""),
-                eventCount=c.get("event_count", 0),
-                createdAt=c.get("created_at", ""),
-                updatedAt=c.get("updated_at"),
+                consultation_id=c.get("consultation_id", ""),
+                event_count=c.get("event_count", 0),
+                created_at=c.get("created_at", ""),
+                updated_at=c.get("updated_at"),
             )
             for c in paginated
         ]
