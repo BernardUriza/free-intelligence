@@ -17,7 +17,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 
 class LogLevel(str, Enum):
@@ -76,14 +76,14 @@ class BaseLogEvent:
     # Required fields
     ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     host: str = field(default_factory=lambda: socket.gethostname())
-    service: ServiceChannel = field(default=ServiceChannel.SERVER)
+    service: ServiceChannel = field(default=ServiceChannel.SERVER)  # type: ignore[assignment]
     version: str = "0.3.0"
-    level: LogLevel = field(default=LogLevel.INFO)
+    level: LogLevel = field(default=LogLevel.INFO)  # type: ignore[assignment]
     trace_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     span_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     session_id: str | None = None
     user: str = "system"
-    role: UserRole = field(default=UserRole.SYSTEM)
+    role: UserRole = field(default=UserRole.SYSTEM)  # type: ignore[assignment]
     action: str = "unknown"
     ok: bool = True
     latency_ms: float | None = None
@@ -196,7 +196,7 @@ def log_server_request(
     Canal: server
     Contenido: método, ruta, status, bytes, client_ip (anonimizada), sin body
     """
-    return BaseLogEvent(
+    return BaseLogEvent(  # type: ignore[call-arg]
         service=ServiceChannel.SERVER,
         level=LogLevel.INFO if status < 400 else LogLevel.ERROR,
         trace_id=trace_id or str(uuid.uuid4()),
@@ -243,7 +243,7 @@ def log_llm_request(
     prompt_hash_val = hash_prompt(prompt)
     response_preview = truncate_preview(response, max_length=120, sensitive=sensitive)
 
-    return BaseLogEvent(
+    return BaseLogEvent(  # type: ignore[call-arg]
         service=ServiceChannel.LLM,
         level=LogLevel.WARN if timeout else LogLevel.INFO,
         trace_id=trace_id or str(uuid.uuid4()),
@@ -282,7 +282,7 @@ def log_storage_segment(
     Canal: storage
     Contenido: file, sha256, segment_seconds, ready=true/false
     """
-    return BaseLogEvent(
+    return BaseLogEvent(  # type: ignore[call-arg]
         service=ServiceChannel.STORAGE,
         level=LogLevel.INFO,
         trace_id=trace_id or str(uuid.uuid4()),
@@ -310,7 +310,7 @@ def log_access_event(
     new_role: UserRole | None = None,
     trace_id: str | None = None,
     session_id: str | None = None,
-    details: dict[str, Any | None] | None = None,
+    details: Optional[dict[str, Any | None]] = None,
 ) -> BaseLogEvent:
     """
     Log access event (AUDIT).
@@ -321,7 +321,7 @@ def log_access_event(
     """
     action_name = f"access.{action}"
 
-    event_details = {
+    event_details: dict[str, Any] = {
         "client_ip": anonymize_ip(client_ip),
         "result": "success" if result else "failed",
     }
@@ -331,9 +331,9 @@ def log_access_event(
         event_details["new_role"] = new_role.value
 
     if details:
-        event_details.update(details)  # type: ignore
+        event_details.update(details)  # type: ignore[arg-type]
 
-    return BaseLogEvent(
+    return BaseLogEvent(  # type: ignore[call-arg]
         service=ServiceChannel.ACCESS,
         level=LogLevel.AUDIT,
         trace_id=trace_id or str(uuid.uuid4()),
@@ -342,7 +342,7 @@ def log_access_event(
         role=new_role or UserRole.GUEST,
         action=action_name,
         ok=result,
-        details=event_details,  # type: ignore
+        details=event_details,
     )
 
 
