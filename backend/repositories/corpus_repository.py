@@ -213,7 +213,7 @@ class CorpusRepository(BaseRepository):
             self._log_operation("delete", document_id, status="failed", error=str(e))
             return False
 
-    def list_all(self, limit: Optional[int] = None) -> list[dict[str, Any]]:
+    def list_all(self, limit: int | None = None) -> list[dict[str, Any]]:
         """List all documents in corpus.
 
         Args:
@@ -255,7 +255,7 @@ class CorpusRepository(BaseRepository):
             True if chunk added successfully
         """
         try:
-            chunk_idx = chunk.get('chunk_idx', 0)
+            chunk_idx = chunk.get("chunk_idx", 0)
             chunk_id = f"{document_id}_chunk_{chunk_idx}"
 
             with self._open_file("r+") as f:
