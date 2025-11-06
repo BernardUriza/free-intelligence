@@ -24,7 +24,7 @@ Usage:
 
 import time
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -278,7 +278,7 @@ def compute_policy_badges(timeline: Timeline) -> PolicyBadges:
 def compute_session_timespan(timeline: Timeline) -> SessionTimespan:
     """Compute session timespan from events"""
     if not timeline.events:
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         return SessionTimespan(start=now, end=now, duration_ms=0, duration_human="0s")
 
     # Sort events by timestamp
@@ -516,7 +516,7 @@ async def health_check():
         status="healthy",
         storage_path=str(STORAGE_PATH),
         storage_exists=STORAGE_PATH.exists(),
-        timestamp=datetime.now(UTC).isoformat(),
+        timestamp=datetime.now(timezone.utc).isoformat(),
     )
 
 

@@ -6,7 +6,7 @@ Implements the FastAPI endpoint functions for hash verification.
 from __future__ import annotations
 
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from backend.audit_logs import append_audit_log
 
@@ -73,7 +73,7 @@ async def verify_hash(request: VerifyHashRequest) -> VerifyHashResponse:
         Verification response with results and summary
     """
     start_time = time.time()
-    timestamp = datetime.now(UTC).isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
 
     results: list[VerifyHashDetail] = []
     valid_count = 0
