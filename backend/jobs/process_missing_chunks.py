@@ -29,7 +29,7 @@ CHUNK_SIZE_SEC = 30
 CHUNK_OVERLAP_SEC = 0.8
 
 
-def extract_chunk(audio_path: Path, start_sec: float, end_sec: float, idx: int) -> Path:
+def extract_chunk(audio_path: Path, start_sec: float, end_sec: float, idx: int) -> Path | None:
     """Extract audio chunk using ffmpeg (worker method)."""
     chunk_path = Path(f"/tmp/diarization_chunk_{idx:04d}.wav")
     duration = end_sec - start_sec
