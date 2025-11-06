@@ -48,18 +48,11 @@ class SessionRepository(BaseRepository):
             logger.error("SESSION_STRUCTURE_INIT_FAILED", error=str(e))
             raise
 
-    def create(
-        self,
-        session_id: str,
-        user_id: str | None = None,
-        metadata: dict[str, Any | None] | None = None,
-    ) -> str:
+    def create(self, entity: dict[str, Any | None], **kwargs: Any) -> str:  # type: ignore[override]
         """Create new session.
 
         Args:
-            session_id: Unique session identifier
-            user_id: Optional user identifier
-            metadata: Session metadata (config, settings, etc.)
+            entity: Dict with 'session_id', 'user_id', 'metadata' keys
 
         Returns:
             Session ID
@@ -68,6 +61,10 @@ class SessionRepository(BaseRepository):
             ValueError: If session_id is empty or already exists
             IOError: If HDF5 operation fails
         """
+        session_id = entity.get("session_id", "")
+        user_id = entity.get("user_id")
+        metadata = entity.get("metadata")
+
         if not session_id:
             raise ValueError("session_id is required")
 
@@ -131,20 +128,21 @@ class SessionRepository(BaseRepository):
 
     def update(
         self,
-        session_id: str,
-        status: str | None = None,
-        metadata: dict[str, Any | None] | None = None,
-    ) -> bool:
+        entity_id: str,
+        entity: dict[str, Any | None],
+    ) -> bool:  # type: ignore[override]
         """Update session status and metadata.
 
         Args:
-            session_id: Session identifier
-            status: New status (active, completed, failed)
-            metadata: Updated metadata
+            entity_id: Session identifier
+            entity: Dict with 'status', 'metadata' keys
 
         Returns:
             True if update successful
         """
+        session_id = entity_id
+        status = entity.get("status")
+        metadata = entity.get("metadata")
         try:
             with self._open_file("r+") as f:
                 if session_id not in f[self.SESSIONS_GROUP]:  # type: ignore[operator]
@@ -171,15 +169,16 @@ class SessionRepository(BaseRepository):
             self._log_operation("update", session_id, status="failed", error=str(e))
             return False
 
-    def delete(self, session_id: str) -> bool:
+    def delete(self, entity_id: str) -> bool:  # type: ignore[override]
         """Delete session (marks as deleted).
 
         Args:
-            session_id: Session identifier
+            entity_id: Session identifier
 
         Returns:
             True if deletion successful
         """
+        session_id = entity_id
         try:
             with self._open_file("r+") as f:
                 if session_id not in f[self.SESSIONS_GROUP]:  # type: ignore[operator]
