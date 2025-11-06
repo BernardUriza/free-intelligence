@@ -12,7 +12,7 @@ Clean Code Principles:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 # NOTE: Defer logger import to avoid circular dependency:
 # backend.logger -> backend.common.logger -> backend.common.__init__ -> backend.common.container
@@ -33,7 +33,7 @@ from backend.services import (
 from backend.services.diarization_job_service import DiarizationJobService
 
 
-def _get_logger():
+def _get_logger() -> Any:
     """Lazy logger initialization to avoid circular imports."""
     from backend.logger import get_logger
 
@@ -255,14 +255,19 @@ class DIContainer:
         """Get or create ExportService singleton.
 
         Returns:
-            ExportService instance
+            ExportService instance with default configuration
 
         Raises:
             IOError: If service initialization fails
         """
         if self._export_service is None:
             try:
-                self._export_service = ExportService()
+                # ExportService takes optional parameters, using defaults (export_dir, signing_key, git_commit)
+                self._export_service = ExportService(
+                    export_dir=None,  # Will use $EXPORT_DIR env var or /tmp/fi_exports
+                    signing_key=None,  # No signing key in MVP
+                    git_commit="dev",  # Default commit hash
+                )
                 _get_logger().info("ExportService initialized")
             except OSError as e:
                 _get_logger().error(f"EXPORT_SERVICE_INIT_FAILED: {str(e)}")
@@ -312,14 +317,15 @@ class DIContainer:
         """Get or create TriageService singleton.
 
         Returns:
-            TriageService instance
+            TriageService instance with default data directory
 
         Raises:
             IOError: If service initialization fails
         """
         if self._triage_service is None:
             try:
-                self._triage_service = TriageService()
+                # TriageService takes optional data_dir parameter, using default from env or ./data/triage_buffers
+                self._triage_service = TriageService(data_dir=None)
                 _get_logger().info("TriageService initialized")
             except OSError as e:
                 _get_logger().error(f"TRIAGE_SERVICE_INIT_FAILED: {str(e)}")
