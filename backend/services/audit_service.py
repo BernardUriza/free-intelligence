@@ -42,7 +42,7 @@ class AuditService:
         user_id: str,
         resource: str,
         result: str,
-        details: Optional[dict[str, Any]] = None,
+        details: dict[str, Optional[Any]] = None,
     ) -> str:
         """Log an action to the audit trail.
 
@@ -105,7 +105,7 @@ class AuditService:
             logger.error("AUDIT_LOGGING_FAILED", error=str(e))  # type: ignore[call-arg]
             raise
 
-    def get_log(self, log_id: str) -> Optional[dict[str, Any]]:
+    def get_log(self, log_id: str) -> dict[str, Optional[Any]]:
         """Retrieve audit log entry.
 
         Args:
@@ -230,7 +230,7 @@ class AuditService:
         user_id: str,
         document_id: str,
         size_bytes: int,
-        details: Optional[dict[str, Any]] = None,
+        details: dict[str, Optional[Any]] = None,
     ) -> str:
         """Log document creation event.
 

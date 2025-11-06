@@ -18,7 +18,7 @@ FI-CORE-FEAT-003
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import  datetime, timedelta, timezone
 from typing import Any
 
 from log_rotation import LogRotation
@@ -60,7 +60,7 @@ class LogMetrics:
         Returns:
             List of log events
         """
-        cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
 
         # Get current log file
         log_path = self.rotation.get_current_log_path(channel)
@@ -210,7 +210,7 @@ class LogMetrics:
         Returns:
             Combined metrics dict
         """
-        metrics = {"timestamp": datetime.now(UTC).isoformat(), "hours": hours}
+        metrics = {"timestamp": datetime.now(timezone.utc).isoformat(), "hours": hours}
 
         metrics.update(self.get_llm_metrics(hours))
         metrics.update(self.get_api_metrics(hours))

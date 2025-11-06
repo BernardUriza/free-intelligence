@@ -62,9 +62,9 @@ class OllamaClient:
         base_url: str = OLLAMA_BASE_URL,
         model: str = OLLAMA_MODEL,
         timeout: int = OLLAMA_TIMEOUT,
-        http_client: HttpClient | None = None,
-        prompt_builder: OllamaPromptBuilder | None = None,
-        response_parser: OllamaResponseParser | None = None,
+        http_client: Optional[HttpClient] = None,
+        prompt_builder: Optional[OllamaPromptBuilder] = None,
+        response_parser: Optional[OllamaResponseParser] = None,
     ):
         """Initialize Ollama client.
 

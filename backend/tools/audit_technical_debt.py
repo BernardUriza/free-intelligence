@@ -21,7 +21,7 @@ class Issue:
     severity: str  # CRITICAL, HIGH, MEDIUM, LOW
     category: str
     file: str
-    line: int | None
+    line: Optional[int]
     message: str
     count: int = 1
 
@@ -83,7 +83,7 @@ class TechnicalDebtAuditor:
         return []
 
     def audit_optional_usage(self) -> list[Issue]:
-        """Find old-style `Optional[T]` (should be `T | None`)."""
+        """Find old-style `Optional[T]` (should be `Optional[T]`)."""
         issues = []
         pattern = r"Optional\["
 
@@ -99,7 +99,7 @@ class TechnicalDebtAuditor:
                                 category="optional_syntax",
                                 file=str(py_file),
                                 line=i,
-                                message="Use `T | None` instead of `Optional[T]` (PEP 604)",
+                                message="Use `Optional[T]` instead of `Optional[T]` (PEP 604)",
                             )
                         )
         return issues

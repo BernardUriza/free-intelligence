@@ -40,7 +40,7 @@ class SessionService:
         self,
         session_id: str,
         user_id: Optional[str] = None,
-        config: Optional[dict[str, Any]] = None,
+        config: dict[str, Optional[Any]] = None,
     ) -> dict[str, Any]:
         """Create new session with validation.
 
@@ -81,7 +81,7 @@ class SessionService:
             logger.error("SESSION_CREATION_FAILED", error=str(e))
             raise
 
-    def get_session(self, session_id: str) -> Optional[dict[str, Any]]:
+    def get_session(self, session_id: str) -> dict[str, Optional[Any]]:
         """Retrieve session data.
 
         Args:
@@ -100,7 +100,7 @@ class SessionService:
         self,
         session_id: str,
         status: str,
-        details: Optional[dict[str, Any]] = None,
+        details: dict[str, Optional[Any]] = None,
     ) -> bool:
         """Update session status with validation.
 
@@ -144,7 +144,7 @@ class SessionService:
     def complete_session(
         self,
         session_id: str,
-        result: Optional[dict[str, Any]] = None,
+        result: dict[str, Optional[Any]] = None,
     ) -> bool:
         """Mark session as completed successfully.
 

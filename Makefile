@@ -248,22 +248,47 @@ info: ## Show project information
 	@echo "Directory:   $(PWD)"
 	@echo "Corpus:      storage/corpus.h5 $(shell [ -f storage/corpus.h5 ] && echo '✅' || echo '❌')"
 	@echo "Services:"
-	@echo "  - FI Consult:     port 7001 (Python/FastAPI)"
+	@echo "  - Backend API:     port 7001 (Python/FastAPI)"
 	@echo "  - AURITY Gateway:  port 7002 (Python/FastAPI)"
-	@echo "  - AURITY Frontend: port 3000 (Next.js)"
+	@echo "  - AURITY Frontend: port 9000 (Next.js)"
+	@echo "  - FI-Stride:       port 9050 (Vite + React)"
 	@echo ""
 	@echo "Quick Start:"
 	@echo "  make setup      # Initialize monorepo"
-	@echo "  make dev-all    # Start all services (Turborepo)"
-	@echo "  make run        # Start FI Consult only"
+	@echo "  make dev-all    # Start all services (Backend + AURITY + FI-Stride)"
+	@echo "  make run        # Start Backend API only"
+	@echo "  make stride-dev # Start FI-Stride only"
 	@echo "  make test       # Run tests"
 
 # ============================================================================
 # Turborepo Commands
 # ============================================================================
 
-dev-all: ## Start all services (Backend + Frontend in single terminal)
+dev-all: ## Start all services (Backend + AURITY + FI-Stride in single terminal)
 	@./scripts/dev-all.sh
+
+stride-dev: ## Start FI-Stride dev server (port 9050)
+	@echo "🚀 Starting FI-Stride dev server on http://localhost:9050"
+	@echo "   Press Ctrl+C to stop"
+	@echo ""
+	@cd apps/fi-stride && PORT=9050 pnpm dev
+
+stride-build: ## Build FI-Stride for production
+	@echo "🏗️  Building FI-Stride..."
+	@cd apps/fi-stride && pnpm build
+	@echo "✅ Build complete: apps/fi-stride/dist/"
+
+stride-preview: ## Preview FI-Stride production build
+	@echo "👀 Previewing FI-Stride build..."
+	@cd apps/fi-stride && pnpm preview
+
+stride-lint: ## Lint FI-Stride code
+	@echo "🔍 Linting FI-Stride..."
+	@cd apps/fi-stride && pnpm lint
+
+stride-type-check: ## Type check FI-Stride
+	@echo "📋 Type checking FI-Stride..."
+	@cd apps/fi-stride && pnpm type-check
 
 turbo-build: ## Build all apps with Turborepo
 	@echo "🏗️  Building all apps..."

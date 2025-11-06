@@ -136,7 +136,7 @@ def scan_file_for_mutations(file_path: str) -> list[MutationViolation]:
 
 
 def scan_directory(
-    directory: str, exclude_dirs: Optional[list[str]] = None
+    directory: str, exclude_dirs: list[Optional[str]] = None
 ) -> dict[str, list[MutationViolation]]:
     """
     Scan directory recursively for mutation violations.

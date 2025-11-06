@@ -53,7 +53,7 @@ import hashlib
 import json
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import  datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -155,7 +155,7 @@ class ExportManifest:
     purpose: str
     retention_days: Optional[int] = None
     includes_pii: bool = True
-    metadata: Optional[dict[str, Any]] = None
+    metadata: dict[str, Optional[Any]] = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convierte a dict (para JSON serialization)."""
@@ -298,7 +298,7 @@ def create_export_manifest(
     purpose: str,
     retention_days: Optional[int] = None,
     includes_pii: bool = True,
-    metadata: Optional[dict[str, Any]] = None,
+    metadata: dict[str, Optional[Any]] = None,
 ) -> ExportManifest:
     """
     Crea manifest de export con metadata completa.
@@ -320,7 +320,7 @@ def create_export_manifest(
     export_id = str(uuid.uuid4())
 
     # Generate timestamp
-    timestamp = datetime.now(UTC).isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
 
     # Compute data hash
     data_hash = compute_file_hash(export_filepath)

@@ -101,7 +101,7 @@ class JobStatusResponse(BaseModel):
     chunks: list[ChunkInfo] = Field(default_factory=list)
     created_at: str
     updated_at: str
-    error: str | None = None
+    error: Optional[str] = None
 
 
 class DiarizationSegmentResponse(BaseModel):
@@ -275,18 +275,18 @@ def _process_diarization_background(
 async def upload_audio_for_diarization(
     background_tasks: BackgroundTasks,
     audio: UploadFile = File(..., description="Audio file to diarize"),
-    x_session_id: str | None = Header(None, alias="X-Session-ID"),
+    x_session_id: Optional[str] = Header(None, alias="X-Session-ID"),
     language: str = Query("es", description="Language code"),
     persist: bool = Query(False, description="Save results to disk"),
-    whisper_model: str | None = Query(
+    whisper_model: Optional[str] = Query(
         None, description="Whisper model: tiny, base, small, medium, large-v3"
     ),
-    enable_llm_classification: bool | None = Query(
+    enable_llm_classification: Optional[bool] = Query(
         None, description="Enable LLM speaker classification"
     ),
-    chunk_size_sec: int | None = Query(None, description="Audio chunk size in seconds"),
-    beam_size: int | None = Query(None, description="Whisper beam size"),
-    vad_filter: bool | None = Query(None, description="Enable Voice Activity Detection"),
+    chunk_size_sec: Optional[int] = Query(None, description="Audio chunk size in seconds"),
+    beam_size: Optional[int] = Query(None, description="Whisper beam size"),
+    vad_filter: Optional[bool] = Query(None, description="Enable Voice Activity Detection"),
 ) -> Any:
     """
     Upload audio file and start diarization job.
@@ -702,7 +702,7 @@ async def export_diarization_result(
 
 @router.get("/jobs")
 async def list_diarization_jobs(
-    session_id: str | None = Query(None, description="Filter by session ID"),
+    session_id: Optional[str] = Query(None, description="Filter by session ID"),
     limit: int = Query(50, ge=1, le=100, description="Max results"),
 ) -> Any:
     """

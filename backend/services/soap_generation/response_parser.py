@@ -116,7 +116,7 @@ class OllamaResponseParser:
             f"Could not extract valid JSON from response. Preview: {text[:200]}"
         )
 
-    def _try_simple_extraction(self, text: str) -> dict[str, Any] | None:
+    def _try_simple_extraction(self, text: str) -> Optional[dict[str, Any]]:
         """Try simple bracket matching extraction.
 
         Args:
@@ -134,7 +134,7 @@ class OllamaResponseParser:
         json_str = text[json_start:json_end]
         return self._parse_json_string(json_str)
 
-    def _try_regex_extraction(self, text: str) -> dict[str, Any] | None:
+    def _try_regex_extraction(self, text: str) -> Optional[dict[str, Any]]:
         """Try regex-based JSON extraction.
 
         Args:
@@ -151,7 +151,7 @@ class OllamaResponseParser:
 
         return None
 
-    def _try_markdown_extraction(self, text: str) -> dict[str, Any] | None:
+    def _try_markdown_extraction(self, text: str) -> Optional[dict[str, Any]]:
         """Try to extract JSON from markdown code blocks.
 
         Handles ```json ... ``` and similar markdown blocks.
@@ -173,7 +173,7 @@ class OllamaResponseParser:
 
         return None
 
-    def _parse_json_string(self, json_str: str) -> dict[str, Any] | None:
+    def _parse_json_string(self, json_str: str) -> Optional[dict[str, Any]]:
         """Attempt to parse a JSON string.
 
         Args:

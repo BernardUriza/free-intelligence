@@ -21,7 +21,7 @@ File: backend/aurity_gateway.py
 Created: 2025-10-28
 """
 
-from datetime import datetime
+from datetime import  datetime, timezone
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -156,7 +156,7 @@ async def health_check():
     """Health check endpoint"""
     return HealthResponse(
         status="healthy",
-        timestamp=datetime.now(UTC).isoformat(),
+        timestamp=datetime.now(timezone.utc).isoformat(),
         services={
             "event_store": True,  # TODO: Check HDF5 file exists
             "redux_adapter": True,
@@ -347,7 +347,9 @@ async def websocket_event_stream(websocket: WebSocket, consultation_id: str):
             _data = await websocket.receive_text()
 
             # Echo back (ping/pong)
-            await websocket.send_json({"type": "PONG", "timestamp": datetime.now(UTC).isoformat()})
+            await websocket.send_json(
+                {"type": "PONG", "timestamp": datetime.now(timezone.utc).isoformat()}
+            )
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, consultation_id)

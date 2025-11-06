@@ -21,7 +21,7 @@ class OllamaPromptBuilder:
     Loads system prompts from external template files and formats user prompts.
     """
 
-    def __init__(self, prompt_dir: Path | str | None = None):
+    def __init__(self, prompt_dir: Path | Optional[str] = None):
         """Initialize prompt builder.
 
         Args:

@@ -42,7 +42,7 @@ class PolicyLoader:
             policy_path = project_root / "config" / "fi.policy.yaml"
 
         self.policy_path = Path(policy_path)
-        self.policy: Optional[dict[str, Any]] = None
+        self.policy: dict[str, Optional[Any]] = None
         self.logger = get_logger(self.__class__.__name__)
 
     def load(self) -> dict[str, Any]:

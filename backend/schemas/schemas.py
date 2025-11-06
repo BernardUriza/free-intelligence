@@ -153,7 +153,7 @@ class AuditLogResponse(BaseModel):
     user_id: str = Field(description="User who performed action")
     resource: str = Field(description="Resource affected")
     result: str = Field(description="Result status")
-    details: Optional[dict[str, Any]] = Field(default=None, description="Additional context")
+    details: dict[str, Optional[Any]] = Field(default=None, description="Additional context")
 
 
 # Helper functions for building responses

@@ -168,7 +168,7 @@ def example_testing_with_mocks() -> None:
 
 def example_pipeline_integration(
     audio_file_path: str,
-) -> dict[str, str | None]:
+) -> dict[str, Optional[str]]:
     """Integration in a full processing pipeline."""
     from backend.logger import get_logger
     from backend.services.soap_generation.ollama_client import OllamaClient

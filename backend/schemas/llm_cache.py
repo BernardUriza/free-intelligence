@@ -62,7 +62,7 @@ class LLMCache:
         model: str,
         prompt: str,
         system: str = "",
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Optional[Any]] = None,
     ) -> str:
         """
         Compute SHA-256 hash key for cache entry.
@@ -87,8 +87,8 @@ class LLMCache:
         model: str,
         prompt: str,
         system: str = "",
-        params: Optional[dict[str, Any]] = None,
-    ) -> Optional[dict[str, Any]]:
+        params: dict[str, Optional[Any]] = None,
+    ) -> dict[str, Optional[Any]]:
         """
         Get cached response if available and not expired.
 
@@ -152,7 +152,7 @@ class LLMCache:
         prompt: str,
         response: dict[str, Any],
         system: str = "",
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Optional[Any]] = None,
     ) -> str:
         """
         Store response in cache.

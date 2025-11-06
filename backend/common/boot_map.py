@@ -110,7 +110,9 @@ def init_boot_map_group(h5file: h5py.File) -> None:
     boot_group.attrs["schema_version"] = "1.0"
     boot_group.attrs["boot_map_version"] = "0.2.0"
 
-    logger.info("BOOT_MAP_GROUP_INITIALIZED", file_path="/system/boot_map",
+    logger.info(
+        "BOOT_MAP_GROUP_INITIALIZED",
+        file_path="/system/boot_map",
         datasets=["boot_sequence", "core_functions", "health_checks"],
     )
 
@@ -289,7 +291,7 @@ def get_core_functions(h5file: h5py.File, category: Optional[str] = None) -> lis
         if category is None or entry_category == category:
             functions.append(func_dict)
 
-    logger.info("CORE_FUNCTIONS_READ", total_functions=len(functions)
+    logger.info("CORE_FUNCTIONS_READ", total_functions=len(functions))
 
     return functions
 

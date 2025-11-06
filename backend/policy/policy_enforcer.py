@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 class PolicyViolation(Exception):
     """Raised when a policy rule is violated"""
 
-    def __init__(self, rule: str, message: str, metadata: Optional[dict[str, Any]] = None):
+    def __init__(self, rule: str, message: str, metadata: dict[str, Optional[Any]] = None):
         self.rule = rule
         self.message = message
         self.metadata = metadata or {}
@@ -291,7 +291,7 @@ class PolicyEnforcer:
 
         return value if value is not None else default
 
-    def log_violation(self, rule: str, metadata: Optional[dict[str, Any]] = None):
+    def log_violation(self, rule: str, metadata: dict[str, Optional[Any]] = None):
         """
         Log policy violation for audit trail
 

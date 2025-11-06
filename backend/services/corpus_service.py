@@ -42,7 +42,7 @@ class CorpusService:
         document_id: str,
         content: str,
         source: Optional[str] = None,
-        tags: Optional[list[str]] = None,
+        tags: list[Optional[str]] = None,
     ) -> dict[str, Any]:
         """Create new corpus document with validation.
 
@@ -103,7 +103,7 @@ class CorpusService:
             logger.error("DOCUMENT_CREATION_FAILED", error=str(e))  # type: ignore[call-arg]
             raise
 
-    def get_document(self, document_id: str) -> Optional[dict[str, Any]]:
+    def get_document(self, document_id: str) -> dict[str, Optional[Any]]:
         """Retrieve document with full content.
 
         Args:
@@ -121,7 +121,7 @@ class CorpusService:
             logger.error("DOCUMENT_RETRIEVAL_FAILED", document_id=document_id, error=str(e))  # type: ignore[call-arg]
             raise
 
-    def get_document_summary(self, document_id: str) -> Optional[dict[str, Any]]:
+    def get_document_summary(self, document_id: str) -> dict[str, Optional[Any]]:
         """Retrieve document metadata without full content.
 
         Useful for listing documents without loading full content.

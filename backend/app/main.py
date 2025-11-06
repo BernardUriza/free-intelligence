@@ -37,6 +37,7 @@ def create_app() -> FastAPI:
             diarization,
             exports,
             fi_diag,
+            katniss,
             kpis,
             sessions,
             system,
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
         app.include_router(diarization.router, prefix="/api/diarization", tags=["diarization"])
         app.include_router(exports.router, prefix="/api/exports", tags=["exports"])
         app.include_router(fi_diag.router, prefix="/api/fi-diag", tags=["fi-diag"])
+        app.include_router(katniss.router)
         app.include_router(kpis.router, prefix="/api/kpis", tags=["kpis"])
         app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
         app.include_router(system.router, prefix="/api/system", tags=["system"])

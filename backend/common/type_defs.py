@@ -31,8 +31,8 @@ class JobStatusDict(TypedDict, total=False):
     session_id: str
     status: str
     progress_pct: int
-    error: str | None
-    result: dict[str, Any] | None
+    error: Optional[str]
+    result: Optional[dict[str, Any]]
     created_at: str
     updated_at: str
 

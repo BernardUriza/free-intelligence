@@ -13,7 +13,7 @@ Sprint: SPR-2025W44
 
 import hashlib
 import uuid
-from datetime import datetime
+from datetime import  datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -118,7 +118,7 @@ class TimelineEvent(BaseModel):
     # Core fields (obligatorios)
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     event_type: TimelineEventType
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Causalidad (quién→qué→cuándo→por qué)
     who: str = Field(..., description="Quién ejecutó (user_hash/assistant/system)")
@@ -168,8 +168,8 @@ class Timeline(BaseModel):
     events: list[TimelineEvent] = Field(default_factory=list)
 
     # Metadata
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Generation metadata
     generation_mode: TimelineMode = Field(
@@ -187,7 +187,7 @@ class Timeline(BaseModel):
     def add_event(self, event: TimelineEvent):
         """Add event to timeline and update metadata."""
         self.events.append(event)
-        self.updated_at = datetime.now(UTC)
+        self.updated_at = datetime.now(timezone.utc)
 
         # Update counters
         if event.auto_generated:
@@ -264,10 +264,10 @@ def create_timeline_event(
     what: str,
     raw_content: str,
     summary: Optional[str] = None,
-    causality: Optional[list[TimelineEventCausality]] = None,
+    causality: list[Optional[TimelineEventCausality]] = None,
     redaction_policy: RedactionPolicy = RedactionPolicy.SUMMARY,
     session_id: Optional[str] = None,
-    tags: Optional[list[str]] = None,
+    tags: list[Optional[str]] = None,
     auto_generated: bool = False,
     generation_mode: TimelineMode = TimelineMode.MANUAL,
 ) -> TimelineEvent:

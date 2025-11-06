@@ -79,7 +79,7 @@ class AuditRepository(BaseRepository):
 
                 # Store log data
                 log_group.attrs["timestamp"] = audit_log.get(
-                    "timestamp", datetime.now(UTC).isoformat()
+                    "timestamp", datetime.now(timezone.utc).isoformat()
                 )
                 log_group.attrs["action"] = audit_log.get("action", "")
                 log_group.attrs["user_id"] = audit_log.get("user_id", "")
@@ -97,7 +97,7 @@ class AuditRepository(BaseRepository):
             self._log_operation("create", status="failed", error=str(e))
             raise
 
-    def read(self, log_id: str) -> Optional[dict[str, Any]]:
+    def read(self, log_id: str) -> dict[str, Optional[Any]]:
         """Read audit log entry.
 
         Args:

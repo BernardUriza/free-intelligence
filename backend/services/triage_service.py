@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from datetime import datetime
+from datetime import  datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
@@ -98,7 +98,7 @@ class TriageService:
             buffer_dir.mkdir(parents=True, exist_ok=True)
 
             # Prepare intake data
-            received_at = datetime.now(UTC).isoformat() + "Z"
+            received_at = datetime.now(timezone.utc).isoformat() + "Z"
             intake_data = {
                 "bufferId": buffer_id,
                 "receivedAt": received_at,
@@ -160,7 +160,7 @@ class TriageService:
             logger.error(f"TRIAGE_BUFFER_CREATION_FAILED: buffer_id={buffer_id}, error={str(e)}")
             raise OSError(f"Failed to create triage buffer: {str(e)}") from e
 
-    def get_manifest(self, buffer_id: str) -> Optional[dict[str, Any]]:
+    def get_manifest(self, buffer_id: str) -> dict[str, Optional[Any]]:
         """Retrieve manifest for a triage buffer.
 
         Args:
@@ -187,7 +187,7 @@ class TriageService:
             logger.error(f"TRIAGE_MANIFEST_READ_FAILED: buffer_id={buffer_id}, error={str(e)}")
             raise OSError(f"Failed to read manifest: {str(e)}") from e
 
-    def get_intake(self, buffer_id: str) -> Optional[dict[str, Any]]:
+    def get_intake(self, buffer_id: str) -> dict[str, Optional[Any]]:
         """Retrieve intake data for a triage buffer.
 
         Args:
