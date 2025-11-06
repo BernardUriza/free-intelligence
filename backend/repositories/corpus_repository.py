@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import h5py
 
@@ -64,7 +64,7 @@ class CorpusRepository(BaseRepository):
         self,
         document_id: str,
         content: str,
-        metadata: dict[str, Optional[Any]] = None,
+        metadata: dict[str, Any | None] | None = None,
     ) -> str:
         """Create new corpus document.
 
@@ -116,7 +116,7 @@ class CorpusRepository(BaseRepository):
             self._log_operation("create", document_id, status="failed", error=str(e))
             raise
 
-    def read(self, document_id: str) -> dict[str, Optional[Any]]:
+    def read(self, document_id: str) -> dict[str, Any | None] | None:
         """Read corpus document.
 
         Args:
@@ -148,7 +148,7 @@ class CorpusRepository(BaseRepository):
             return None
 
     def update(
-        self, document_id: str, content: str, metadata: dict[str, Optional[Any]] = None
+        self, document_id: str, content: str, metadata: dict[str, Any | None] | None = None
     ) -> bool:
         """Update corpus document (enforces append-only by creating new version).
 
@@ -233,8 +233,10 @@ class CorpusRepository(BaseRepository):
                 results = []
                 for doc_id in doc_ids:
                     doc_data = self.read(doc_id)
-                    if doc_data and not doc_data["metadata"].get("is_deleted", False):
-                        results.append(doc_data)
+                    if doc_data:
+                        metadata = doc_data.get("metadata") or {}
+                        if not metadata.get("is_deleted", False):
+                            results.append(doc_data)
 
                 return results
 
@@ -253,7 +255,8 @@ class CorpusRepository(BaseRepository):
             True if chunk added successfully
         """
         try:
-            chunk_id = f"{document_id}_chunk_{chunk['chunk_idx']}"
+            chunk_idx = chunk.get('chunk_idx', 0)
+            chunk_id = f"{document_id}_chunk_{chunk_idx}"
 
             with self._open_file("r+") as f:
                 chunks_group = f[self.CHUNKS_GROUP]
