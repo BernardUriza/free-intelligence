@@ -1,7 +1,14 @@
 import { useState, useMemo } from 'react'
 import styles from '../styles/library.module.css'
 import { useDataFetch } from '../hooks/useDataFetch'
+import { FilterBar, FilterOption } from '../components/FilterBar'
 import { ConsultationsResponse } from '../types/api'
+
+const LIBRARY_FILTERS: FilterOption[] = [
+  { id: 'all', label: 'Todas' },
+  { id: 'recent', label: 'Recientes' },
+  { id: 'archived', label: 'Archivadas' }
+]
 
 export function Library() {
   const [search, setSearch] = useState('')
@@ -52,36 +59,14 @@ export function Library() {
       </div>
 
       {/* Search & Filter */}
-      <div className={styles.controls}>
-        <input
-          type="text"
-          placeholder="🔍 Buscar sesión..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className={styles.searchInput}
-        />
-
-        <div className={styles.filterButtons}>
-          <button
-            className={`${styles.filterBtn} ${filter === 'all' ? styles.active : ''}`}
-            onClick={() => setFilter('all')}
-          >
-            Todas
-          </button>
-          <button
-            className={`${styles.filterBtn} ${filter === 'recent' ? styles.active : ''}`}
-            onClick={() => setFilter('recent')}
-          >
-            Recientes
-          </button>
-          <button
-            className={`${styles.filterBtn} ${filter === 'archived' ? styles.active : ''}`}
-            onClick={() => setFilter('archived')}
-          >
-            Archivadas
-          </button>
-        </div>
-      </div>
+      <FilterBar
+        searchPlaceholder="🔍 Buscar sesión..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        filters={LIBRARY_FILTERS}
+        activeFilter={filter}
+        onFilterChange={(id) => setFilter(id as 'all' | 'recent' | 'archived')}
+      />
 
       {/* Error */}
       {error && <div className={styles.error}>{error}</div>}

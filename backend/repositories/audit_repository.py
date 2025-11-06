@@ -10,7 +10,7 @@ not business logic or policy enforcement.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
@@ -50,22 +50,22 @@ class AuditRepository(BaseRepository):
             logger.error("AUDIT_STRUCTURE_INIT_FAILED", error=str(e))
             raise
 
-    def create(self, audit_log: AuditLogDict) -> str:
+    def create(self, entity: AuditLogDict, **kwargs: Any) -> str:  # type: ignore[override]
         """Create audit log entry (append-only).
 
         Args:
-            audit_log: Audit event data with action, user, resource, result
+            entity: Audit event data with action, user, resource, result
 
         Returns:
             Audit log ID (UUID)
 
         Raises:
-            ValueError: If audit_log is invalid
+            ValueError: If entity is invalid
             IOError: If HDF5 operation fails
         """
         # Validate required fields
         required_fields = {"action", "user_id", "resource", "result"}
-        if not all(key in audit_log for key in required_fields):
+        if not all(key in entity for key in required_fields):
             raise ValueError(f"Audit log missing required fields: {required_fields}")
 
         try:
@@ -76,17 +76,18 @@ class AuditRepository(BaseRepository):
                 log_group = logs_group.create_group(log_id)  # type: ignore[attr-defined]
 
                 # Store log data
-                log_group.attrs["timestamp"] = audit_log.get(
-                    "timestamp", datetime.now(timezone.utc).isoformat()
+                log_group.attrs["timestamp"] = entity.get(
+                    "timestamp", datetime.now(UTC).isoformat()
                 )
-                log_group.attrs["action"] = audit_log.get("action", "")
-                log_group.attrs["user_id"] = audit_log.get("user_id", "")
-                log_group.attrs["resource"] = audit_log.get("resource", "")
-                log_group.attrs["result"] = audit_log.get("result", "")
+                log_group.attrs["action"] = entity.get("action", "")
+                log_group.attrs["user_id"] = entity.get("user_id", "")
+                log_group.attrs["resource"] = entity.get("resource", "")
+                log_group.attrs["result"] = entity.get("result", "")
 
                 # Store additional details as JSON
-                if audit_log.get("details"):
-                    log_group.attrs["details"] = json.dumps(audit_log["details"])
+                details = entity.get("details")
+                if details:
+                    log_group.attrs["details"] = json.dumps(details)
 
             self._log_operation("create", log_id)
             return log_id
@@ -95,23 +96,23 @@ class AuditRepository(BaseRepository):
             self._log_operation("create", status="failed", error=str(e))
             raise
 
-    def read(self, log_id: str) -> dict[str, Optional[Any]]:
+    def read(self, entity_id: str) -> Optional[dict[str, Any]]:  # type: ignore[override]
         """Read audit log entry.
 
         Args:
-            log_id: Audit log ID
+            entity_id: Audit log ID
 
         Returns:
             Audit log data, or None if not found
         """
         try:
             with self._open_file("r") as f:
-                if log_id not in f[self.AUDIT_LOGS_GROUP]:  # type: ignore[operator]
+                if entity_id not in f[self.AUDIT_LOGS_GROUP]:  # type: ignore[operator]
                     return None
 
-                log_group = f[self.AUDIT_LOGS_GROUP][log_id]  # type: ignore[index]
+                log_group = f[self.AUDIT_LOGS_GROUP][entity_id]  # type: ignore[index]
                 log_data: dict[str, Any] = {
-                    "log_id": log_id,
+                    "log_id": entity_id,
                     "timestamp": log_group.attrs.get("timestamp", ""),  # type: ignore[attr-defined]
                     "action": log_group.attrs.get("action", ""),  # type: ignore[attr-defined]
                     "user_id": log_group.attrs.get("user_id", ""),  # type: ignore[attr-defined]
@@ -129,7 +130,7 @@ class AuditRepository(BaseRepository):
                 return log_data
 
         except Exception as e:
-            logger.error("AUDIT_READ_FAILED", log_id=log_id, error=str(e))
+            logger.error("AUDIT_READ_FAILED", log_id=entity_id, error=str(e))
             return None
 
     def update(self, entity_id: str, entity: AuditLogDict) -> bool:
@@ -223,7 +224,10 @@ class AuditRepository(BaseRepository):
                         continue
 
                     try:
-                        log_timestamp = datetime.fromisoformat(log_data["timestamp"])
+                        timestamp_str = log_data.get("timestamp")
+                        if not timestamp_str or not isinstance(timestamp_str, str):
+                            continue
+                        log_timestamp = datetime.fromisoformat(timestamp_str)
                         if start_date <= log_timestamp <= end_date:
                             results.append(log_data)
                     except (ValueError, KeyError):

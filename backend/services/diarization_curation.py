@@ -8,10 +8,12 @@ Missing: chunks 24-27 (1440s-1680s audio window = 4 minutes)
 Strategy: Extract ONLY the 4-minute segment, transcribe it, merge with existing 24 chunks
 """
 
+from __future__ import annotations
+
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import h5py
 import numpy as np
@@ -35,7 +37,7 @@ SEGMENT_START_SEC_CONST = 24 * 60  # 1440 seconds
 SEGMENT_END_SEC_CONST = 28 * 60  # 1680 seconds
 
 
-def extract_audio_segment() -> Path | None:
+def extract_audio_segment() -> Optional[Path]:
     """Extract audio segment 1440s-1680s (4 minutes) to temp file."""
     try:
         import subprocess
@@ -80,7 +82,7 @@ def extract_audio_segment() -> Path | None:
         return None
 
 
-def transcribe_segment(segment_path: Path) -> dict[str, Any] | None:  # type: ignore[syntax]
+def transcribe_segment(segment_path: Path) -> Optional[dict[str, Any]]:
     """Transcribe extracted audio segment."""
     try:
         from backend.whisper_service import transcribe_audio
@@ -88,10 +90,10 @@ def transcribe_segment(segment_path: Path) -> dict[str, Any] | None:  # type: ig
         print("🎤 Transcribing segment...")
         result = transcribe_audio(segment_path, language="es", vad_filter=True)
 
-        if result.get("available"):
+        if result and result.get("available"):
             segments = result.get("segments", [])
             print(f"   ✓ Got {len(segments)} segments")
-            return result  # type: ignore[return-value]
+            return result
         else:
             print("   ❌ Transcription failed")
             return None
@@ -150,9 +152,9 @@ def curate_missing_chunks() -> bool:
 
     # 4. Read existing HDF5 data
     try:
-        with h5py.File(HDF5_PATH, "r+") as f:  # type: ignore
-            job_group = f["diarization"][JOB_ID]  # type: ignore
-            existing_chunks = job_group["chunks"][()]  # type: ignore
+        with h5py.File(HDF5_PATH, "r+") as f:  # type: ignore[misc]
+            job_group = f["diarization"][JOB_ID]  # type: ignore[index,misc]
+            existing_chunks = job_group["chunks"][()]  # type: ignore[index]
 
             print(f"✓ Loaded {len(existing_chunks)} existing chunks from HDF5")
 
@@ -199,14 +201,14 @@ def curate_missing_chunks() -> bool:
 
             # 6. Merge and update HDF5
             if new_chunks:
-                merged_chunks = np.concatenate([existing_chunks, np.array(new_chunks)])  # type: ignore
+                merged_chunks = np.concatenate([existing_chunks, np.array(new_chunks)])  # type: ignore[assignment,arg-type]
 
-                del job_group["chunks"]  # type: ignore
-                job_group.create_dataset("chunks", data=merged_chunks)  # type: ignore
+                del job_group["chunks"]  # type: ignore[index]
+                job_group.create_dataset("chunks", data=merged_chunks)  # type: ignore[attr-defined]
 
-                job_group.attrs["processed_chunks"] = len(merged_chunks)  # type: ignore
-                job_group.attrs["updated_at"] = datetime.now(UTC).isoformat()  # type: ignore
-                job_group.attrs["curation_status"] = "recovered"  # type: ignore
+                job_group.attrs["processed_chunks"] = len(merged_chunks)  # type: ignore[index]
+                job_group.attrs["updated_at"] = datetime.now(UTC).isoformat()  # type: ignore[index]
+                job_group.attrs["curation_status"] = "recovered"  # type: ignore[index]
 
                 print(
                     f"\n✅ Curation complete! {len(existing_chunks)} → {len(merged_chunks)} chunks"
