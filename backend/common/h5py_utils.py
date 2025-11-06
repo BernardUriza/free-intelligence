@@ -17,6 +17,9 @@ import h5py
 
 from backend.logger import get_logger
 
+# Type alias for h5py.File (h5py doesn't expose Optional in its type stubs)
+File = h5py.File
+
 logger = get_logger(__name__)
 
 
@@ -162,7 +165,7 @@ def check_h5_group_exists(group: h5py.Group, path: str) -> bool:
         return False
 
 
-def safe_h5_read(filepath: str, mode: str = "r") -> h5py.Optional[File]:
+def safe_h5_read(filepath: str, mode: str = "r") -> File | None:
     """
     Safely open HDF5 file with error handling.
 

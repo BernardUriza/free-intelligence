@@ -545,7 +545,7 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
                 rtf=c.get("rtf", 0.0),
                 timestamp=c.get("timestamp", ""),
             )
-            for c in status_dict.get("chunks", [])
+            for c in (status_dict.get("chunks") or [])
         ]
 
         return JobStatusResponse(
@@ -610,7 +610,7 @@ async def get_diarization_result(job_id: str) -> DiarizationResultResponse:
                 speaker=seg["speaker"],
                 text=seg["text"],
             )
-            for seg in result_dict.get("segments", [])
+            for seg in (result_dict.get("segments") or [])
         ]
 
         return DiarizationResultResponse(
