@@ -14,7 +14,7 @@ Created: 2025-10-30
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -306,8 +306,8 @@ def cleanup_old_jobs(max_age_hours: int = 24) -> int:
             created_ts = datetime.fromisoformat(job.created_at.replace("Z", "")).timestamp()
             if created_ts < cutoff:
                 to_remove.append(job_id)
-        except Exception:
-            pass
+        except (ValueError, AttributeError) as e:
+            logger.debug("JOB_TIMESTAMP_PARSE_FAILED", job_id=job_id, error=str(e))
 
     for job_id in to_remove:
         del _jobs[job_id]

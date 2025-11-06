@@ -12,7 +12,7 @@ Card: FI-API-FEAT-011
 
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from backend.kpis_aggregator import get_kpis_aggregator
 from backend.logger import get_logger
@@ -47,26 +47,42 @@ async def get_kpis(
         GET /api/kpis?window=15m&view=timeseries
         GET /api/kpis?window=5m&provider=anthropic
     """
-    aggregator = get_kpis_aggregator()
+    # Validate window parameter
+    valid_windows = {"1m", "5m", "15m", "1h", "24h"}
+    if window not in valid_windows:
+        logger.warning("KPIS_INVALID_WINDOW", window=window)
+        raise HTTPException(
+            status_code=400, detail=f"Invalid window. Must be one of: {', '.join(valid_windows)}"
+        )
 
-    logger.info(
-        "KPIS_API_REQUEST",
-        window=window,
-        view=view,
-        route_filter=route,
-        provider_filter=provider,
-    )
+    try:
+        aggregator = get_kpis_aggregator()
 
-    if view == "summary":
-        return aggregator.get_summary(
+        logger.info(
+            "KPIS_API_REQUEST",
             window=window,
+            view=view,
             route_filter=route,
             provider_filter=provider,
         )
-    elif view == "chips":
-        return aggregator.get_chips(window=window)
-    elif view == "timeseries":
-        return aggregator.get_timeseries(window=window)
-    else:
-        logger.warning("KPIS_INVALID_VIEW", view=view, fallback="summary")
-        return aggregator.get_summary(window=window)
+
+        if view == "summary":
+            return aggregator.get_summary(
+                window=window,
+                route_filter=route,
+                provider_filter=provider,
+            )
+        elif view == "chips":
+            return aggregator.get_chips(window=window)
+        elif view == "timeseries":
+            return aggregator.get_timeseries(window=window)
+        else:
+            logger.warning("KPIS_INVALID_VIEW", view=view, fallback="summary")
+            return aggregator.get_summary(window=window)
+
+    except ValueError as e:
+        logger.warning("KPIS_VALIDATION_FAILED", error=str(e), window=window, view=view)
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error("KPIS_AGGREGATION_FAILED", error=str(e), window=window, view=view)
+        raise HTTPException(status_code=500, detail="Failed to aggregate metrics") from e

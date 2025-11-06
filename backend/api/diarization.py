@@ -67,32 +67,6 @@ USE_LOWPRIO_WORKER = (
 )  # Use low-priority worker
 
 
-def _create_lowprio_job(session_id: str, audio_path: Path) -> str:
-    """
-    Lazy wrapper for low-priority job creation.
-
-    Attempts to import and use the low-priority worker module.
-    Falls back gracefully if the module is not available.
-
-    NOTE: The low-priority worker module is deprecated.
-    Currently raises RuntimeError as the implementation is not available.
-
-    Args:
-        session_id: Session identifier
-        audio_path: Path to audio file
-
-    Returns:
-        Job ID created by the low-priority worker
-
-    Raises:
-        RuntimeError: Low-priority worker is not currently available
-    """
-    raise RuntimeError(
-        "Low-priority worker not available. "
-        "Use standard V2 pipeline (DIARIZATION_USE_V2=true) instead."
-    )
-
-
 class UploadResponse(BaseModel):
     """Response for upload endpoint."""
 
@@ -453,38 +427,27 @@ async def upload_audio_for_diarization(
             overrides=config_overrides,
         )
 
-        # Route to low-priority worker or legacy pipelines
-        if USE_LOWPRIO_WORKER:
-            # Use low-priority worker with CPU scheduler + HDF5
-            job_id = _create_lowprio_job(x_session_id, abs_path)
-            logger.info(
-                "LOWPRIO_JOB_CREATED",
-                job_id=job_id,
-                session_id=x_session_id,
-                config=config_overrides,
+        # Route to V2 pipeline (low-priority worker deprecated)
+        job_id = create_job(x_session_id, str(abs_path), len(audio_content))
+
+        if USE_V2_PIPELINE:
+            background_tasks.add_task(
+                _process_diarization_background_v2,
+                job_id,
+                abs_path,
+                x_session_id,
+                language,
+                persist,
             )
         else:
-            # Legacy: create in-memory job and use background task
-            job_id = create_job(x_session_id, str(abs_path), len(audio_content))
-
-            if USE_V2_PIPELINE:
-                background_tasks.add_task(
-                    _process_diarization_background_v2,
-                    job_id,
-                    abs_path,
-                    x_session_id,
-                    language,
-                    persist,
-                )
-            else:
-                background_tasks.add_task(
-                    _process_diarization_background,
-                    job_id,
-                    abs_path,
-                    x_session_id,
-                    language,
-                    persist,
-                )
+            background_tasks.add_task(
+                _process_diarization_background,
+                job_id,
+                abs_path,
+                x_session_id,
+                language,
+                persist,
+            )
 
         # Return standardized success response
         return success_response(
