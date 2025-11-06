@@ -18,7 +18,7 @@ def _default_verify_targets() -> list[Literal["md", "json", "manifest"]]:
     return ["md", "json", "manifest"]
 
 
-class ExportInclude(BaseModel):  # type: ignore[misc]
+class ExportInclude(BaseModel):
     """What to include in export."""
 
     transcript: bool = True
@@ -26,7 +26,7 @@ class ExportInclude(BaseModel):  # type: ignore[misc]
     attachments: bool = False
 
 
-class ExportRequest(BaseModel):  # type: ignore[misc]
+class ExportRequest(BaseModel):
     """Create export request."""
 
     session_id: str
@@ -34,16 +34,16 @@ class ExportRequest(BaseModel):  # type: ignore[misc]
     include: ExportInclude = Field(default_factory=ExportInclude)
 
 
-class ExportArtifact(BaseModel):  # type: ignore[misc]
+class ExportArtifact(BaseModel):
     """Export artifact metadata."""
 
-    format: Literal["md", "json", "manifest"]  # noqa: A003
+    format: Literal["md", "json", "manifest"]
     url: str
     sha256: str
-    bytes: int  # noqa: A003
+    bytes: int
 
 
-class ExportResponse(BaseModel):  # type: ignore[misc]
+class ExportResponse(BaseModel):
     """Export response."""
 
     export_id: str
@@ -52,7 +52,7 @@ class ExportResponse(BaseModel):  # type: ignore[misc]
     manifest_url: str
 
 
-class VerifyRequest(BaseModel):  # type: ignore[misc]
+class VerifyRequest(BaseModel):
     """Verify request."""
 
     targets: list[Literal["md", "json", "manifest"]] = Field(
@@ -60,7 +60,7 @@ class VerifyRequest(BaseModel):  # type: ignore[misc]
     )
 
 
-class VerifyResult(BaseModel):  # type: ignore[misc]
+class VerifyResult(BaseModel):
     """Verify result for single target."""
 
     target: str
@@ -68,7 +68,7 @@ class VerifyResult(BaseModel):  # type: ignore[misc]
     message: str | None = None
 
 
-class VerifyResponse(BaseModel):  # type: ignore[misc]
+class VerifyResponse(BaseModel):
     """Verify response."""
 
     ok: bool

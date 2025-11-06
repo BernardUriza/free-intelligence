@@ -145,6 +145,7 @@ class BufferedHDF5Writer:
 
         # Auto-flush conditions
         should_flush = False
+        reason = ""
 
         # Condition 1: Buffer full
         if buffer_len >= self.buffer_size:

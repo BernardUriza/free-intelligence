@@ -13,7 +13,7 @@ Author: Bernard Uriza Orozco
 License: MIT
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 import h5py
@@ -106,11 +106,13 @@ def init_boot_map_group(h5file: h5py.File) -> None:
     )
 
     # Metadata del boot map
-    boot_group.attrs["created_at"] = datetime.now(timezone.utc).isoformat()
+    boot_group.attrs["created_at"] = datetime.now(UTC).isoformat()
     boot_group.attrs["schema_version"] = "1.0"
     boot_group.attrs["boot_map_version"] = "0.2.0"
 
-    logger.info("BOOT_MAP_GROUP_INITIALIZED", file_path="/system/boot_map",
+    logger.info(
+        "BOOT_MAP_GROUP_INITIALIZED",
+        file_path="/system/boot_map",
         datasets=["boot_sequence", "core_functions", "health_checks"],
     )
 
@@ -134,7 +136,7 @@ def append_boot_event(h5file: h5py.File, event: str) -> None:
     dataset.resize((current_size + 1,))  # type: ignore
 
     # Format: timestamp|event
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     entry = f"{timestamp}|{event}"
     dataset[current_size] = entry  # type: ignore
 
@@ -170,7 +172,7 @@ def register_core_function(
     current_size = dataset.shape[0]  # type: ignore
     dataset.resize((current_size + 1,))  # type: ignore
 
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
 
     dataset[current_size] = (function_name, module_path, category, priority, timestamp, status)  # type: ignore
 
@@ -206,7 +208,7 @@ def append_health_check(
     current_size = dataset.shape[0]  # type: ignore
     dataset.resize((current_size + 1,))  # type: ignore
 
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
 
     dataset[current_size] = (component, status, message, timestamp, duration_ms)  # type: ignore
 
@@ -262,7 +264,7 @@ def get_core_functions(h5file: h5py.File, category: Optional[str] = None) -> lis
     dataset = h5file["/system/boot_map/core_functions"]
     functions = []
 
-    for entry in dataset:  # type: ignore
+    for entry in dataset:  # type: ignore[misc]
         entry_category = (
             entry["category"].decode("utf-8")
             if isinstance(entry["category"], bytes)
@@ -289,7 +291,7 @@ def get_core_functions(h5file: h5py.File, category: Optional[str] = None) -> lis
         if category is None or entry_category == category:
             functions.append(func_dict)
 
-    logger.info("CORE_FUNCTIONS_READ", total_functions=len(functions)
+    logger.info("CORE_FUNCTIONS_READ", total_functions=len(functions))
 
     return functions
 
@@ -361,12 +363,12 @@ def get_boot_map_stats(h5file: h5py.File) -> dict:
     boot_group = h5file["/system/boot_map"]
 
     stats = {
-        "created_at": boot_group.attrs.get("created_at", "unknown"),  # type: ignore
-        "schema_version": boot_group.attrs.get("schema_version", "unknown"),  # type: ignore
-        "boot_map_version": boot_group.attrs.get("boot_map_version", "unknown"),  # type: ignore
-        "total_boot_events": boot_group["boot_sequence"].shape[0],  # type: ignore
-        "total_core_functions": boot_group["core_functions"].shape[0],  # type: ignore
-        "total_health_checks": boot_group["health_checks"].shape[0],  # type: ignore
+        "created_at": boot_group.attrs.get("created_at", "unknown"),  # type: ignore[attr-defined]
+        "schema_version": boot_group.attrs.get("schema_version", "unknown"),  # type: ignore[attr-defined]
+        "boot_map_version": boot_group.attrs.get("boot_map_version", "unknown"),  # type: ignore[attr-defined]
+        "total_boot_events": boot_group["boot_sequence"].shape[0],  # type: ignore[index,attr-defined]
+        "total_core_functions": boot_group["core_functions"].shape[0],  # type: ignore[index,attr-defined]
+        "total_health_checks": boot_group["health_checks"].shape[0],  # type: ignore[index,attr-defined]
     }
 
     logger.info("BOOT_MAP_STATS_RETRIEVED", **stats)

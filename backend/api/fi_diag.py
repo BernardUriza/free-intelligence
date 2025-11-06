@@ -13,8 +13,10 @@ Clean Code Architecture:
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
+
+UTC = UTC
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -70,7 +72,7 @@ async def health_check() -> HealthStatus:
             version="0.1.0",
         )
     except Exception as e:
-        logger.error(f"DIAGNOSTICS_HEALTH_FAILED: {str(e)}")
+        logger.error(f"DIAGNOSTICS_HEALTH_FAILED: {e!s}")
         # Return degraded response on error with empty checks
         return HealthStatus(
             status="degraded",
@@ -110,7 +112,7 @@ async def service_status() -> list[ServiceStatus]:
         logger.info("SERVICE_STATUS_RETRIEVED", count=len(services))
         return services
     except Exception as e:
-        logger.error(f"SERVICE_STATUS_FAILED: {str(e)}")
+        logger.error(f"SERVICE_STATUS_FAILED: {e!s}")
         return []
 
 
@@ -132,7 +134,7 @@ async def system_info() -> dict[str, Any]:
         logger.info("SYSTEM_INFO_RETRIEVED", os=system_data.get("os"))
         return system_data
     except Exception as e:
-        logger.error(f"SYSTEM_INFO_FAILED: {str(e)}")
+        logger.error(f"SYSTEM_INFO_FAILED: {e!s}")
         return {"error": str(e)}
 
 
@@ -157,7 +159,7 @@ async def readiness_check() -> dict[str, Any]:
             "timestamp": datetime.now(UTC).isoformat() + "Z",
         }
     except Exception as e:
-        logger.error(f"READINESS_CHECK_FAILED: {str(e)}")
+        logger.error(f"READINESS_CHECK_FAILED: {e!s}")
         return {"ready": False, "error": str(e)}
 
 
@@ -184,5 +186,5 @@ async def liveness_check() -> dict[str, Any]:
             "pid": os.getpid(),
         }
     except Exception as e:
-        logger.error(f"LIVENESS_CHECK_FAILED: {str(e)}")
+        logger.error(f"LIVENESS_CHECK_FAILED: {e!s}")
         return {"alive": False, "error": str(e)}
