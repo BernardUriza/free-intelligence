@@ -39,10 +39,10 @@ class PolicyLoader:
         if policy_path is None:
             # Default: config/fi.policy.yaml relative to project root
             project_root = Path(__file__).parent.parent
-            policy_path = project_root / "config" / "fi.policy.yaml"
+            policy_path = str(project_root / "config" / "fi.policy.yaml")
 
         self.policy_path = Path(policy_path)
-        self.policy: dict[str, Optional[Any]] = None
+        self.policy: Optional[dict[str, Any]] = None
         self.logger = get_logger(self.__class__.__name__)
 
     def load(self) -> dict[str, Any]:
@@ -193,7 +193,7 @@ class PolicyLoader:
         """
         if self.policy is None:
             raise RuntimeError("Policy not loaded. Call load() first.")
-        return self.policy["llm"]
+        return self.policy.get("llm", {})  # type: ignore[return-value]
 
     def get_primary_provider(self) -> str:
         """Get primary LLM provider name"""
@@ -236,13 +236,13 @@ class PolicyLoader:
         """Get export policy configuration"""
         if self.policy is None:
             raise RuntimeError("Policy not loaded. Call load() first.")
-        return self.policy["export"]
+        return self.policy.get("export", {})  # type: ignore[return-value]
 
     def get_audit_config(self) -> dict[str, Any]:
         """Get audit policy configuration"""
         if self.policy is None:
             raise RuntimeError("Policy not loaded. Call load() first.")
-        return self.policy["audit"]
+        return self.policy.get("audit", {})  # type: ignore[return-value]
 
     def is_offline_enabled(self) -> bool:
         """Check if offline-first mode is enabled"""
