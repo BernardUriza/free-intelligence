@@ -57,7 +57,7 @@ WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")  # Auto-detected by worker
 
 def _process_single_chunk(
     chunk_path: Path, start_offset: float, end_offset: float, language: str, chunk_index: int
-) -> list[DiarizationSegment | None]:
+) -> list[DiarizationSegment] | None:
     """
     Process a single chunk (CPU/GPU-bound operation).
 
@@ -212,17 +212,17 @@ async def diarize_audio_parallel(
 
         with ThreadPoolExecutor(max_workers=MAX_PARALLEL_CHUNKS) as executor:
             # Submit all chunk processing tasks
-            futures = {
-                loop.run_in_executor(
+            futures: dict[asyncio.Future, int] = {}
+            for idx, start, end, path in chunk_tasks:
+                future = loop.run_in_executor(
                     executor, _process_single_chunk, path, start, end, language, idx
-                ): idx
-                for idx, start, end, path in chunk_tasks
-            }
+                )
+                futures[future] = idx
 
             # Collect results as they complete
             completed = 0
             for future in asyncio.as_completed(futures.keys()):
-                chunk_idx = futures[await future]
+                chunk_idx = futures[future]
                 segments = await future
 
                 if segments:

@@ -26,9 +26,11 @@ from backend.services.diarization_service import export_diarization as export_to
 def _get_lowprio_status(job_id):
     """Lazy loader for low-priority job status."""
     try:
-        from backend.jobs.diarization_worker_lowprio import get_job_status
+        from backend.jobs.diarization_worker_lowprio import (
+            get_job_status as get_lowprio_job_status,  # type: ignore[attr-defined]
+        )
 
-        return get_job_status(job_id)
+        return get_lowprio_job_status(job_id)
     except (ImportError, AttributeError):
         return None
 
@@ -56,7 +58,7 @@ class DiarizationJobService:
         self.use_lowprio = use_lowprio
         logger.info(f"DiarizationJobService initialized with use_lowprio={use_lowprio}")
 
-    def get_job_status(self, job_id: str) -> dict[str, Any | None]:
+    def get_job_status(self, job_id: str) -> dict[str, Any | None] | None:
         """Get job status with chunks array.
 
         Args:
@@ -108,11 +110,11 @@ class DiarizationJobService:
                 hdf5_path = Path("storage/diarization.h5")
                 if hdf5_path.exists():
                     with h5py.File(hdf5_path, "r") as f:
-                        if "diarization" in f and job_id in f["diarization"]:
-                            job_group = f["diarization"][job_id]
-                            if "chunks" in job_group:
-                                chunks_dataset = job_group["chunks"]
-                                for chunk_record in chunks_dataset:
+                        if "diarization" in f and job_id in f["diarization"]:  # type: ignore[operator]
+                            job_group = f["diarization"][job_id]  # type: ignore[index]
+                            if "chunks" in job_group:  # type: ignore[operator]
+                                chunks_dataset = job_group["chunks"]  # type: ignore[index]
+                                for chunk_record in chunks_dataset:  # type: ignore[misc]
                                     # Extract values from numpy structured array
                                     text_val = chunk_record["text"]
                                     speaker_val = chunk_record["speaker"]
@@ -130,10 +132,10 @@ class DiarizationJobService:
                                             if isinstance(speaker_val, bytes)
                                             else str(speaker_val),
                                             "temperature": float(chunk_record["temperature"])
-                                            if "temperature" in chunks_dataset.dtype.names
+                                            if "temperature" in chunks_dataset.dtype.names  # type: ignore[attr-defined]
                                             else 0.0,
                                             "rtf": float(chunk_record["rtf"])
-                                            if "rtf" in chunks_dataset.dtype.names
+                                            if "rtf" in chunks_dataset.dtype.names  # type: ignore[attr-defined]
                                             else 0.0,
                                             "timestamp": ts_val.decode()
                                             if isinstance(ts_val, bytes)
@@ -312,6 +314,9 @@ class DiarizationJobService:
             logger.info(f"EXPORTING_DIARIZATION: job_id={job_id}, format={format}")
 
             # Convert dict segments to DiarizationSegment objects
+            segments_list = result_dict.get("segments", [])
+            if segments_list is None:
+                segments_list = []
             segments = [
                 DiarizationSegment(
                     start_time=seg.get("start_time", 0.0),
@@ -320,21 +325,42 @@ class DiarizationJobService:
                     text=seg.get("text", ""),
                     confidence=seg.get("confidence"),
                 )
-                for seg in result_dict.get("segments", [])
+                for seg in segments_list
             ]
 
             # Create DiarizationResult dataclass instance
+            session_id_val = result_dict.get("session_id", "")
+            assert isinstance(session_id_val, str), "session_id must be str"
+            audio_file_path_val = result_dict.get("audio_file_path", "")
+            assert isinstance(audio_file_path_val, str), "audio_file_path must be str"
+            audio_file_hash_val = result_dict.get("audio_file_hash", "")
+            assert isinstance(audio_file_hash_val, str), "audio_file_hash must be str"
+            duration_sec_val = result_dict.get("duration_sec", 0.0)
+            assert isinstance(duration_sec_val, (int, float)), "duration_sec must be float"
+            language_val = result_dict.get("language", "es")
+            assert isinstance(language_val, str), "language must be str"
+            model_asr_val = result_dict.get("model_asr", "unknown")
+            assert isinstance(model_asr_val, str), "model_asr must be str"
+            model_llm_val = result_dict.get("model_llm", "none")
+            assert isinstance(model_llm_val, str), "model_llm must be str"
+            processing_time_sec_val = result_dict.get("processing_time_sec", 0.0)
+            assert isinstance(
+                processing_time_sec_val, (int, float)
+            ), "processing_time_sec must be float"
+            created_at_val = result_dict.get("created_at", "")
+            assert isinstance(created_at_val, str), "created_at must be str"
+
             result = DiarizationResult(
-                session_id=result_dict.get("session_id", ""),
-                audio_file_path=result_dict.get("audio_file_path", ""),
-                audio_file_hash=result_dict.get("audio_file_hash", ""),
-                duration_sec=result_dict.get("duration_sec", 0.0),
-                language=result_dict.get("language", "es"),
-                model_asr=result_dict.get("model_asr", "unknown"),
-                model_llm=result_dict.get("model_llm", "none"),
+                session_id=session_id_val,
+                audio_file_path=audio_file_path_val,
+                audio_file_hash=audio_file_hash_val,
+                duration_sec=float(duration_sec_val),
+                language=language_val,
+                model_asr=model_asr_val,
+                model_llm=model_llm_val,
                 segments=segments,
-                processing_time_sec=result_dict.get("processing_time_sec", 0.0),
-                created_at=result_dict.get("created_at", ""),
+                processing_time_sec=float(processing_time_sec_val),
+                created_at=created_at_val,
             )
 
             # Export result in requested format
@@ -430,7 +456,7 @@ class DiarizationJobService:
             logger.error(f"JOB_CANCEL_FAILED: job_id={job_id}, error={str(e)}")
             raise
 
-    def get_job_logs(self, job_id: str) -> list[dict[str, Any | None]]:
+    def get_job_logs(self, job_id: str) -> list[dict[str, Any | None]] | None:
         """Get job processing logs.
 
         Args:
