@@ -21,7 +21,7 @@ import hashlib
 import json
 import time
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -138,7 +138,7 @@ class EvidencePackBuilder:
         # Create pack
         pack = EvidencePack(
             pack_id=pack_id,
-            created_at=datetime.now(UTC).isoformat() + "Z",
+            created_at=datetime.now(timezone.utc).isoformat() + "Z",
             session_id=session_id,
             sources=self.sources,
             source_hashes=source_hashes,

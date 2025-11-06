@@ -19,7 +19,7 @@ Created: 2025-10-28
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime,timedelta, timezone
 from typing import Any, Optional
 
 from backend.logger import get_logger
@@ -122,7 +122,7 @@ class MetricsCollector:
             cost_usd: Cost in USD
             status: Request status (success, error)
         """
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         labels = {"provider": provider, "model": model, "status": status}
 
         # Record latency
@@ -165,7 +165,7 @@ class MetricsCollector:
             event_type: "hit" or "miss"
             provider: Provider name
         """
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         self.cache_events.append(
             MetricPoint(
@@ -304,7 +304,7 @@ class MetricsCollector:
 
         # Filter by time window
         if window_hours:
-            cutoff = datetime.now(UTC) - timedelta(hours=window_hours)
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=window_hours)
             result = [m for m in result if m.timestamp >= cutoff]
 
         return result
@@ -328,7 +328,7 @@ class MetricsCollector:
 
     def _cleanup_old_metrics(self):
         """Remove metrics older than retention window"""
-        cutoff = datetime.now(UTC) - timedelta(hours=self.retention_hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=self.retention_hours)
 
         self.latencies = [m for m in self.latencies if m.timestamp >= cutoff]
         self.tokens = [m for m in self.tokens if m.timestamp >= cutoff]

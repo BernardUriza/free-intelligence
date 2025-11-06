@@ -9,9 +9,7 @@ Clean Code: Abstraction - hides HDF5 complexity behind simple interface.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timezone
-
-UTC = UTC
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
