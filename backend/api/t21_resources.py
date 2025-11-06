@@ -40,13 +40,16 @@ class ResourceCategory(str, Enum):
 class T21Resource(BaseModel):
     """T21 resource model."""
 
-    id: str
+    resource_id: str
     title: str
     description: str
     category: ResourceCategory
     icon: str
     url: Optional[str] = None
     tags: list[str] = []
+
+    class Config:
+        populate_by_name = True  # Allow both resource_id and id for compatibility
 
 
 class T21ResourcesResponse(BaseModel):
@@ -64,7 +67,7 @@ class T21ResourcesResponse(BaseModel):
 
 DEFAULT_RESOURCES: list[T21Resource] = [
     T21Resource(
-        id="t21-001",
+        resource_id="t21-001",
         title="Guía de Inclusión Deportiva",
         description="Cómo incluir atletas con Síndrome de Down en deportes regulares",
         category=ResourceCategory.GUIDE,
@@ -72,7 +75,7 @@ DEFAULT_RESOURCES: list[T21Resource] = [
         tags=["inclusión", "deporte", "guía"],
     ),
     T21Resource(
-        id="t21-002",
+        resource_id="t21-002",
         title="Vídeo: Ejercicios Seguros",
         description="Los 5 ejercicios más seguros para personas con T21",
         category=ResourceCategory.VIDEO,
@@ -80,7 +83,7 @@ DEFAULT_RESOURCES: list[T21Resource] = [
         tags=["ejercicios", "seguridad", "vídeo"],
     ),
     T21Resource(
-        id="t21-003",
+        resource_id="t21-003",
         title="Artículo: Nutrición y T21",
         description="Información sobre necesidades nutricionales especiales",
         category=ResourceCategory.ARTICLE,
@@ -88,7 +91,7 @@ DEFAULT_RESOURCES: list[T21Resource] = [
         tags=["nutrición", "salud", "artículo"],
     ),
     T21Resource(
-        id="t21-004",
+        resource_id="t21-004",
         title="Herramienta: Calculadora de Calorias",
         description="Calcula necesidades calóricas personalizadas",
         category=ResourceCategory.TOOL,
@@ -97,7 +100,7 @@ DEFAULT_RESOURCES: list[T21Resource] = [
         tags=["nutrición", "herramienta", "cálculos"],
     ),
     T21Resource(
-        id="t21-005",
+        resource_id="t21-005",
         title="Guía: Comunicación Efectiva",
         description="Tips para comunicarse mejor con personas con T21",
         category=ResourceCategory.GUIDE,
@@ -105,7 +108,7 @@ DEFAULT_RESOURCES: list[T21Resource] = [
         tags=["comunicación", "inclusión", "guía"],
     ),
     T21Resource(
-        id="t21-006",
+        resource_id="t21-006",
         title="Vídeo: Inclusión en Educación",
         description="Estrategias educativas inclusivas para el síndrome de Down",
         category=ResourceCategory.VIDEO,
@@ -168,7 +171,7 @@ async def get_resource(resource_id: str) -> T21Resource:
         Resource details
     """
     try:
-        resource = next((r for r in DEFAULT_RESOURCES if r.id == resource_id), None)
+        resource = next((r for r in DEFAULT_RESOURCES if r.resource_id == resource_id), None)
 
         if not resource:
             raise HTTPException(status_code=404, detail="Resource not found")

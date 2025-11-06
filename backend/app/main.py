@@ -71,7 +71,7 @@ def create_app() -> FastAPI:
         traceback.print_exc()
 
     @app.get("/health")
-    async def health_check() -> dict:
+    async def health_check() -> dict[str, str]:
         """Health check endpoint."""
         return {"status": "ok"}
 
