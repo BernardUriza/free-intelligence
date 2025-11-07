@@ -18,15 +18,20 @@ Endpoints:
 - GET /api/athlete-sessions/{session_id} -> Get session data
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Ollama configuration
+OLLAMA_BASE_URL = "http://localhost:11434"
+OLLAMA_MODEL = "qwen2:7b"
 
 # ============================================================================
 # PYDANTIC MODELS (API contracts)
@@ -131,7 +136,7 @@ router = APIRouter(prefix="/athlete-sessions", tags=["athlete-sessions"])
 @router.post("/start", response_model=StartSessionResponse)
 async def start_session(request: StartSessionRequest):
     """Start live athlete session (SESION-04)"""
-    session_id = f"session_{datetime.now(timezone.utc).isoformat().replace(':', '').replace('-', '')}"
+    session_id = f"session_{datetime.now(UTC).isoformat().replace(':', '').replace('-', '')}"
 
     session = SessionData(
         session_id=session_id,
@@ -140,7 +145,7 @@ async def start_session(request: StartSessionRequest):
         target_reps=request.target_reps,
         reps_completed=0,
         session_time=0,
-        started_at=datetime.now(timezone.utc).isoformat(),
+        started_at=datetime.now(UTC).isoformat(),
     )
 
     sessions_db[session_id] = session
@@ -217,7 +222,7 @@ async def end_session(session_id: str, request: EndSessionRequest):
     session.session_time = request.session_time
     session.emotional_checks.append(request.final_emotional_check)
     session.status = "completed"
-    session.ended_at = datetime.now(timezone.utc).isoformat()
+    session.ended_at = datetime.now(UTC).isoformat()
 
     if request.avg_heart_rate:
         session.heart_rates.append(request.avg_heart_rate)
@@ -294,7 +299,7 @@ feedbacks_db: dict[str, list[CoachFeedbackResponse]] = {}  # athlete_id -> [feed
 async def send_coach_feedback(request: CoachFeedbackRequest):
     """Coach sends feedback to athlete (one-tap emoji + optional text)"""
 
-    feedback_id = f"feedback_{datetime.now(timezone.utc).isoformat().replace(':', '').replace('-', '')}"
+    feedback_id = f"feedback_{datetime.now(UTC).isoformat().replace(':', '').replace('-', '')}"
 
     feedback = CoachFeedbackResponse(
         feedback_id=feedback_id,
@@ -303,7 +308,7 @@ async def send_coach_feedback(request: CoachFeedbackRequest):
         session_id=request.session_id,
         emoji=request.emoji_feedback,
         message=request.text_feedback,
-        sent_at=datetime.now(timezone.utc).isoformat(),
+        sent_at=datetime.now(UTC).isoformat(),
     )
 
     # Store feedback
@@ -337,9 +342,9 @@ async def get_athlete_feedbacks(athlete_id: str):
 def _generate_katniss_analysis(
     session: SessionData, request: EndSessionRequest
 ) -> KAtnissAnalysisResponse:
-    """Generate KATNISS motivation message"""
+    """Generate KATNISS motivation message via Ollama"""
 
-    # Mock achievement logic
+    # Achievement logic
     achievement = None
     if request.reps_completed >= 15:
         achievement = "🌟 ¡SESIÓN EXCELENTE! 🌟"
@@ -348,7 +353,7 @@ def _generate_katniss_analysis(
     if request.reps_completed > session.target_reps:
         achievement = "🏆 ¡NUEVO RÉCORD PERSONAL! 🏆"
 
-    # Mock recommendation
+    # Recommendation based on performance
     if request.reps_completed >= session.target_reps:
         next_recommendation = "Intentemos aumentar 2-3 repeticiones más. ¡Eres fuerte! 💪"
     elif request.reps_completed >= 15:
@@ -356,13 +361,8 @@ def _generate_katniss_analysis(
     else:
         next_recommendation = "Cada repetición te hace más fuerte. ¡Vuelve pronto!"
 
-    # Mock KATNISS response (TODO: replace with Ollama)
-    if request.reps_completed >= session.target_reps:
-        analysis_text = (
-            "¡Excelente trabajo! Tu esfuerzo y dedicación son increíbles. Eres más fuerte cada día."
-        )
-    else:
-        analysis_text = "¡Buen trabajo! Cada repetición te hace más fuerte. Sigue adelante."
+    # KATNISS analysis from Ollama
+    analysis_text = _query_ollama_katniss(session, request)
 
     return KAtnissAnalysisResponse(
         session_id=session.session_id,
@@ -373,3 +373,44 @@ def _generate_katniss_analysis(
         personal_record_beat=request.reps_completed > session.target_reps,
         goal_achieved=request.reps_completed >= session.target_reps,
     )
+
+
+def _query_ollama_katniss(session: SessionData, request: EndSessionRequest) -> str:
+    """Query Ollama for KATNISS motivation (with fallback)"""
+
+    prompt = f"""Eres KATNISS, un coach amigable de IA para atletas con síndrome de Down.
+Acaba de completar una sesión de entrenamiento:
+- Ejercicio: {session.exercise_name}
+- Reps completadas: {request.reps_completed} de {session.target_reps}
+- Tiempo: {request.session_time} segundos
+- Estado emocional final: {request.final_emotional_check}/5
+
+Responde SOLO con una línea de motivación amigable, sin explicaciones. Respuesta en español, máximo 2 oraciones."""
+
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.post(
+                f"{OLLAMA_BASE_URL}/api/generate",
+                json={
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
+                    "stream": False,
+                },
+            )
+            if response.status_code == 200:
+                data = response.json()
+                text = data.get("response", "").strip()
+                if text:
+                    return text
+    except Exception as e:
+        logger.warning(f"Ollama error: {e}, using fallback")
+
+    # Fallback if Ollama unavailable
+    if request.reps_completed >= session.target_reps:
+        return (
+            "¡Excelente trabajo! Tu esfuerzo y dedicación son increíbles. Eres más fuerte cada día."
+        )
+    elif request.reps_completed >= 15:
+        return "¡Casi lo lograste! Cada repetición te hace más fuerte. Vuelve pronto. 💪"
+    else:
+        return "¡Buen trabajo! Cada repetición te hace más fuerte. Sigue adelante."
