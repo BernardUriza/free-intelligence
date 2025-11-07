@@ -7,6 +7,7 @@ import { AthleteFlow } from './components/AthleteFlow'
 import { Library } from './pages/Library'
 import { Privacy } from './pages/Privacy'
 import { T21Resources } from './pages/T21Resources'
+import { Navbar } from './components/Navbar'
 import './App.css'
 
 /**
@@ -57,27 +58,34 @@ function AppContent() {
     )
   }
 
+  // Authenticated routes - with Navbar visible
   if (user.role === 'coach') {
     return (
-      <Routes>
-        <Route path="/coach" element={<CoachDashboard />} />
-        <Route path="/biblioteca" element={<Library />} />
-        <Route path="/privacidad" element={<Privacy />} />
-        <Route path="/t21/*" element={<T21Resources />} />
-        <Route path="*" element={<Navigate to="/coach" replace />} />
-      </Routes>
+      <>
+        <Navbar />
+        <Routes>
+          <Route path="/coach" element={<CoachDashboard />} />
+          <Route path="/biblioteca" element={<Library />} />
+          <Route path="/privacidad" element={<Privacy />} />
+          <Route path="/t21/*" element={<T21Resources />} />
+          <Route path="*" element={<Navigate to="/coach" replace />} />
+        </Routes>
+      </>
     )
   }
 
   if (user.role === 'athlete') {
     return (
-      <Routes>
-        <Route path="/" element={<AthleteFlow />} />
-        <Route path="/biblioteca" element={<Library />} />
-        <Route path="/privacidad" element={<Privacy />} />
-        <Route path="/t21/*" element={<T21Resources />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <>
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<AthleteFlow />} />
+          <Route path="/biblioteca" element={<Library />} />
+          <Route path="/privacidad" element={<Privacy />} />
+          <Route path="/t21/*" element={<T21Resources />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </>
     )
   }
 
