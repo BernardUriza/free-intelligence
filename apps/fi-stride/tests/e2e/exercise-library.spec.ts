@@ -9,9 +9,9 @@ const BASE_URL = 'http://localhost:9050'
 const LIBRARY_URL = `${BASE_URL}/biblioteca`
 
 test.describe('Exercise Library - Basic Functionality', () => {
-  test.beforeEach(async ({ page }) => {
-    // Set authenticated user in localStorage to bypass login
-    await page.evaluate(() => {
+  test.beforeEach(async ({ page, context }) => {
+    // Add script to set localStorage BEFORE any page navigation
+    await context.addInitScript(() => {
       const mockUser = {
         id: 'test-athlete-001',
         name: 'Test Athlete',
