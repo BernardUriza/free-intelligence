@@ -1,0 +1,160 @@
+/* Design Tokens - FI-STRIDE Design System */
+
+:root {
+  /* ===== COACH PALETTE (Professional/Corporate) ===== */
+  --coach-primary: #667eea;      /* Primary blue */
+  --coach-secondary: #764ba2;    /* Secondary purple */
+  --coach-accent: #f093fb;       /* Accent pink */
+  --coach-success: #48bb78;      /* Success green */
+  --coach-warning: #ed8936;      /* Warning orange */
+  --coach-danger: #f56565;       /* Danger red */
+  --coach-bg-light: #f7fafc;     /* Light background */
+  --coach-bg-dark: #2d3748;      /* Dark background */
+  --coach-text-primary: #1a202c; /* Primary text */
+  --coach-text-secondary: #4a5568; /* Secondary text */
+  --coach-border: #cbd5e0;       /* Border color */
+
+  /* ===== ATHLETE PALETTE (T21 Accessible - Warm & Friendly) ===== */
+  --athlete-primary: #ff8c42;    /* Warm orange */
+  --athlete-secondary: #2196f3;  /* Friendly blue */
+  --athlete-accent: #4caf50;     /* Success green */
+  --athlete-success: #4caf50;    /* Success green */
+  --athlete-warning: #ff9800;    /* Warning orange */
+  --athlete-danger: #f44336;     /* Danger red */
+  --athlete-bg-light: #fffbf5;   /* Warm light background */
+  --athlete-bg-dark: #1a1a1a;    /* Dark background */
+  --athlete-text-primary: #212121; /* Primary text */
+  --athlete-text-secondary: #616161; /* Secondary text */
+  --athlete-border: #e0e0e0;     /* Border color */
+
+  /* ===== TYPOGRAPHY ===== */
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+
+  /* Coach Typography */
+  --coach-font-size-xs: 0.75rem;    /* 12px */
+  --coach-font-size-sm: 0.875rem;   /* 14px */
+  --coach-font-size-base: 1rem;     /* 16px */
+  --coach-font-size-lg: 1.125rem;   /* 18px */
+  --coach-font-size-xl: 1.25rem;    /* 20px */
+  --coach-font-size-2xl: 1.5rem;    /* 24px */
+  --coach-font-size-3xl: 1.875rem;  /* 30px */
+
+  --coach-font-weight-light: 300;
+  --coach-font-weight-normal: 400;
+  --coach-font-weight-medium: 500;
+  --coach-font-weight-semibold: 600;
+  --coach-font-weight-bold: 700;
+
+  /* Athlete Typography (Larger for Accessibility) */
+  --athlete-font-size-xs: 0.875rem;   /* 14px - min readable */
+  --athlete-font-size-sm: 1rem;       /* 16px */
+  --athlete-font-size-base: 1.125rem; /* 18px */
+  --athlete-font-size-lg: 1.25rem;    /* 20px */
+  --athlete-font-size-xl: 1.5rem;     /* 24px */
+  --athlete-font-size-2xl: 1.875rem;  /* 30px */
+  --athlete-font-size-3xl: 2.25rem;   /* 36px */
+
+  --athlete-font-weight-light: 300;
+  --athlete-font-weight-normal: 400;
+  --athlete-font-weight-medium: 600;  /* Bolder for clarity */
+  --athlete-font-weight-semibold: 700;
+  --athlete-font-weight-bold: 800;    /* Extra bold for emphasis */
+
+  /* ===== SPACING ===== */
+  --space-xs: 0.25rem;   /* 4px */
+  --space-sm: 0.5rem;    /* 8px */
+  --space-md: 1rem;      /* 16px */
+  --space-lg: 1.5rem;    /* 24px */
+  --space-xl: 2rem;      /* 32px */
+  --space-2xl: 3rem;     /* 48px */
+
+  /* ===== BORDER RADIUS ===== */
+  --radius-sm: 0.25rem;   /* 4px */
+  --radius-md: 0.5rem;    /* 8px */
+  --radius-lg: 0.75rem;   /* 12px */
+  --radius-xl: 1rem;      /* 16px */
+  --radius-full: 9999px;  /* Fully rounded */
+
+  /* ===== SHADOWS ===== */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+
+  /* ===== Z-INDEX ===== */
+  --z-dropdown: 1000;
+  --z-sticky: 1010;
+  --z-fixed: 1020;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+}
+
+/* ===== COACH MODE ===== */
+[data-mode="coach"] {
+  --primary: var(--coach-primary);
+  --secondary: var(--coach-secondary);
+  --accent: var(--coach-accent);
+  --success: var(--coach-success);
+  --warning: var(--coach-warning);
+  --danger: var(--coach-danger);
+  --bg-light: var(--coach-bg-light);
+  --bg-dark: var(--coach-bg-dark);
+  --text-primary: var(--coach-text-primary);
+  --text-secondary: var(--coach-text-secondary);
+  --border: var(--coach-border);
+
+  --font-size-xs: var(--coach-font-size-xs);
+  --font-size-sm: var(--coach-font-size-sm);
+  --font-size-base: var(--coach-font-size-base);
+  --font-size-lg: var(--coach-font-size-lg);
+  --font-size-xl: var(--coach-font-size-xl);
+  --font-size-2xl: var(--coach-font-size-2xl);
+  --font-size-3xl: var(--coach-font-size-3xl);
+
+  --font-weight-light: var(--coach-font-weight-light);
+  --font-weight-normal: var(--coach-font-weight-normal);
+  --font-weight-medium: var(--coach-font-weight-medium);
+  --font-weight-semibold: var(--coach-font-weight-semibold);
+  --font-weight-bold: var(--coach-font-weight-bold);
+}
+
+/* ===== ATHLETE MODE ===== */
+[data-mode="athlete"] {
+  --primary: var(--athlete-primary);
+  --secondary: var(--athlete-secondary);
+  --accent: var(--athlete-accent);
+  --success: var(--athlete-success);
+  --warning: var(--athlete-warning);
+  --danger: var(--athlete-danger);
+  --bg-light: var(--athlete-bg-light);
+  --bg-dark: var(--athlete-bg-dark);
+  --text-primary: var(--athlete-text-primary);
+  --text-secondary: var(--athlete-text-secondary);
+  --border: var(--athlete-border);
+
+  --font-size-xs: var(--athlete-font-size-xs);
+  --font-size-sm: var(--athlete-font-size-sm);
+  --font-size-base: var(--athlete-font-size-base);
+  --font-size-lg: var(--athlete-font-size-lg);
+  --font-size-xl: var(--athlete-font-size-xl);
+  --font-size-2xl: var(--athlete-font-size-2xl);
+  --font-size-3xl: var(--athlete-font-size-3xl);
+
+  --font-weight-light: var(--athlete-font-weight-light);
+  --font-weight-normal: var(--athlete-font-weight-normal);
+  --font-weight-medium: var(--athlete-font-weight-medium);
+  --font-weight-semibold: var(--athlete-font-weight-semibold);
+  --font-weight-bold: var(--athlete-font-weight-bold);
+}
+
+/* ===== RESPONSIVE TYPOGRAPHY ===== */
+@media (max-width: 640px) {
+  [data-mode="athlete"] {
+    --font-size-base: 1.25rem; /* Larger on mobile for accessibility */
+    --font-size-lg: 1.5rem;
+    --font-size-xl: 1.875rem;
+  }
+}
