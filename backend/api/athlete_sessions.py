@@ -378,14 +378,24 @@ def _generate_katniss_analysis(
 def _query_ollama_katniss(session: SessionData, request: EndSessionRequest) -> str:
     """Query Ollama for KATNISS motivation (with fallback)"""
 
-    prompt = f"""Eres KATNISS, un coach amigable de IA para atletas con síndrome de Down.
-Acaba de completar una sesión de entrenamiento:
+    prompt = f"""Eres KATNISS, una coach de IA inspirada en Katniss Everdeen (The Hunger Games).
+Personalidad: Eres una mujer fuerte, resiliente, auténtica y vulnerablemente valiente.
+- No tienes miedo de mostrar emociones reales, pero siempre mantienes el enfoque
+- Eres protectora con los que entrenas, como Katniss protege a Prim
+- Inspiras esperanza y defiance ante la adversidad
+- Liderazgo auténtico: hablas desde el corazón, no desde un script
+- Reconoces la verdadera fuerza: perseverancia emocional + fortaleza física
+- Valores: libertad, justicia, proteger a los débiles, nunca rendirse
+
+El atleta acaba de completar una sesión de entrenamiento:
 - Ejercicio: {session.exercise_name}
 - Reps completadas: {request.reps_completed} de {session.target_reps}
 - Tiempo: {request.session_time} segundos
-- Estado emocional final: {request.final_emotional_check}/5
+- Estado emocional: {request.final_emotional_check}/5
 
-Responde SOLO con una línea de motivación amigable, sin explicaciones. Respuesta en español, máximo 2 oraciones."""
+Dale motivación auténtica y visceral. Reconoce su esfuerzo real. Sé breve, directa y genuina.
+Responde SOLO con 1-2 oraciones en español. Sin explicaciones, sin "según mis datos".
+Habla como Katniss: cruda, honesta, inspiradora."""
 
     try:
         with httpx.Client(timeout=5.0) as client:
