@@ -1,17 +1,21 @@
 /**
- * SESION-04: Live athlete session component
+ * SESION-04/06: Live athlete session component (Enhanced with TTS + Encryption)
  * AC: Cronómetro + conteo de reps + check-in emocional + KATNISS suggestions
+ * SESION-06: Azure TTS + segment encryption + dead-drop relay
  * No penalties - only positive feedback
  */
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { T21Button } from './T21Button';
 import { T21Card } from './T21Card';
 import { T21Modal } from './T21Modal';
 import { Pictogram, Pictograms } from './Pictograms';
-import { useAudioGuide } from './T21AudioGuide';
+import { useTTS } from '../hooks/useTTS';
+import { encryptAndUploadSegment } from '../lib/encryptAndUpload';
+import sesion06Config from '../config/sesion-06.config';
+import type { SegmentData } from '../lib/encryptAndUpload';
 
 interface LiveSessionProps {
   athleteId: string;
@@ -55,7 +59,13 @@ export const LiveSessionCard: React.FC<LiveSessionProps> = ({
   const [showEmotionalCheck, setShowEmotionalCheck] = useState(false);
   const [katnissMessage, setKatnissMessage] = useState('');
   const [heartRate] = useState(0);
-  const { speak } = useAudioGuide();
+  const [sessionStartId] = useState(() =>
+    `session_${new Date().toISOString().replace(/[:-]/g, '').split('.')[0]}`
+  );
+
+  // SESION-06: Azure TTS integration
+  const { synthesize: synthesizeTTS, isReady: ttsReady } = useTTS(sesion06Config.tts);
+  const segmentQueueRef = useRef<SegmentData[]>([]);
 
   // Timer
   useEffect(() => {
@@ -75,11 +85,17 @@ export const LiveSessionCard: React.FC<LiveSessionProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Handle rep addition + backend sync
+  // Handle rep addition + backend sync + SESION-06 encryption
   const handleAddRep = async () => {
     const newReps = reps + 1;
     setReps(newReps);
-    speak(`${newReps} repeticiones`);
+
+    // TTS feedback using Azure or fallback
+    if (ttsReady) {
+      synthesizeTTS(`${newReps} repeticiones`).catch((err) =>
+        console.warn('TTS error:', err)
+      );
+    }
 
     // Send to backend (optional - non-blocking)
     if (sessionId) {
@@ -97,25 +113,62 @@ export const LiveSessionCard: React.FC<LiveSessionProps> = ({
       }
     }
 
+    // Queue segment for encryption and dead-drop upload
+    const segment: SegmentData = {
+      segment_id: `${sessionStartId}_rep_${newReps}`,
+      timestamp: Date.now(),
+      reps: newReps,
+      rpe: emotionalCheck,
+      heart_rate: heartRate || undefined,
+      notes: `Rep ${newReps} completada`,
+    };
+    segmentQueueRef.current.push(segment);
+
+    // Trigger encryption/upload if we have config
+    if (sesion06Config.presign_url && sessionId) {
+      encryptAndUploadSegment(segment, {
+        presign_url: sesion06Config.presign_url,
+        nas_spki_url: sesion06Config.nas_spki_url || '',
+        segment_ms: sesion06Config.segment_ms,
+      }).catch((err) => {
+        console.warn('Encryption/upload error (will retry offline):', err);
+      });
+    }
+
     // KATNISS feedback at milestones (no penalties)
     if (newReps === 5) {
-      speak('¡Muy bien! 5 repeticiones completadas');
+      const msg = '¡Muy bien! 5 repeticiones completadas';
+      if (ttsReady) {
+        synthesizeTTS(msg).catch((err) => console.warn('TTS error:', err));
+      }
       setKatnissMessage('¡Vas bien! Continúa así 💪');
     } else if (newReps === 10) {
-      speak('¡Excelente! 10 repeticiones');
+      const msg = '¡Excelente! 10 repeticiones';
+      if (ttsReady) {
+        synthesizeTTS(msg).catch((err) => console.warn('TTS error:', err));
+      }
       setKatnissMessage('¡Mitad del camino! ¡Sigue adelante! 🔥');
     } else if (newReps === targetReps) {
-      speak(`¡Felicidades! Completaste ${targetReps} repeticiones`);
+      const msg = `¡Felicidades! Completaste ${targetReps} repeticiones`;
+      if (ttsReady) {
+        synthesizeTTS(msg).catch((err) => console.warn('TTS error:', err));
+      }
       setKatnissMessage('¡LO HICISTE! 🏆 ¡Eres un campeón!');
     }
   };
 
 
-  // Handle emotional check-in
+  // Handle emotional check-in + SESION-06 encryption
   const handleEmotionalCheckIn = async (value: 1 | 2 | 3 | 4 | 5) => {
     setEmotionalCheck(value);
     const feeling = EmotionalScale.find((s) => s.value === value)?.label;
-    speak(`Te sientes ${feeling}`);
+
+    // TTS feedback using Azure or fallback
+    if (ttsReady) {
+      synthesizeTTS(`Te sientes ${feeling}`).catch((err) =>
+        console.warn('TTS error:', err)
+      );
+    }
 
     // Send to backend (optional - non-blocking)
     if (sessionId) {
@@ -133,22 +186,57 @@ export const LiveSessionCard: React.FC<LiveSessionProps> = ({
       }
     }
 
+    // Queue RPE check as segment
+    const rpeSegment: SegmentData = {
+      segment_id: `${sessionStartId}_rpe_${value}`,
+      timestamp: Date.now(),
+      reps,
+      rpe: value,
+      heart_rate: heartRate || undefined,
+      notes: `RPE check-in: ${feeling}`,
+    };
+    segmentQueueRef.current.push(rpeSegment);
+
     // KATNISS adaptive feedback
+    let katnissMsg = '';
     if (value <= 2) {
-      setKatnissMessage('Descansa cuando lo necesites. ¡Eres fuerte! 💪');
+      katnissMsg = 'Descansa cuando lo necesites. ¡Eres fuerte! 💪';
       setIsRunning(false);
     } else if (value === 3) {
-      setKatnissMessage('¡Vamos! Un poco más 🌟');
+      katnissMsg = '¡Vamos! Un poco más 🌟';
     } else {
-      setKatnissMessage('¡Wow! ¡Increíble energía! 🚀');
+      katnissMsg = '¡Wow! ¡Increíble energía! 🚀';
     }
 
+    if (ttsReady && katnissMsg) {
+      synthesizeTTS(katnissMsg).catch((err) => console.warn('TTS error:', err));
+    }
+
+    setKatnissMessage(katnissMsg);
     setShowEmotionalCheck(false);
   };
 
-  // Handle session end
-  const handleSessionEnd = () => {
+  // Handle session end + process all segments
+  const handleSessionEnd = async () => {
     setIsRunning(false);
+
+    // Process any remaining segments in queue (offline-first)
+    if (segmentQueueRef.current.length > 0 && sesion06Config.presign_url) {
+      console.log(
+        `Processing ${segmentQueueRef.current.length} queued segments...`
+      );
+      for (const seg of segmentQueueRef.current) {
+        encryptAndUploadSegment(seg, {
+          presign_url: sesion06Config.presign_url,
+          nas_spki_url: sesion06Config.nas_spki_url || '',
+          segment_ms: sesion06Config.segment_ms,
+          offline_queue_name: 'offline_queue',
+        }).catch((err) => {
+          console.warn('Segment upload failed (queued for retry):', err);
+        });
+      }
+    }
+
     const data: SessionData = {
       athleteId,
       exerciseName,
@@ -158,8 +246,15 @@ export const LiveSessionCard: React.FC<LiveSessionProps> = ({
       timestamp: new Date().toISOString(),
       heartRateAvg: heartRate,
     };
+
+    // Completion message via TTS
+    if (ttsReady) {
+      synthesizeTTS('Sesión completada. ¡Buen trabajo!').catch((err) =>
+        console.warn('TTS error:', err)
+      );
+    }
+
     onSessionEnd(data);
-    speak('Sesión completada. ¡Buen trabajo!');
   };
 
   return (
