@@ -1,0 +1,418 @@
+/* Reusable Component Styles - FI-STRIDE Design System */
+
+/* ===== BUTTON VARIANTS ===== */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  user-select: none;
+  gap: var(--space-sm);
+}
+
+.button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Primary Button */
+.buttonPrimary {
+  composes: button;
+  background-color: var(--primary);
+  color: white;
+}
+
+.buttonPrimary:hover:not(:disabled) {
+  background-color: var(--secondary);
+}
+
+/* Secondary Button */
+.buttonSecondary {
+  composes: button;
+  background-color: transparent;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+}
+
+.buttonSecondary:hover:not(:disabled) {
+  background-color: var(--primary);
+  color: white;
+}
+
+/* Danger Button */
+.buttonDanger {
+  composes: button;
+  background-color: var(--danger);
+  color: white;
+}
+
+.buttonDanger:hover:not(:disabled) {
+  background-color: #d53030;
+}
+
+/* Large Button (for mobile/accessibility) */
+.buttonLarge {
+  composes: button;
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--font-size-lg);
+  min-height: 56px;
+  min-width: 56px;
+}
+
+/* ===== CARD COMPONENT ===== */
+.card {
+  background-color: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease-in-out;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary);
+}
+
+/* Card with left accent border */
+.cardAccent {
+  composes: card;
+  border-left: 4px solid var(--primary);
+}
+
+/* Card with success accent */
+.cardSuccess {
+  composes: card;
+  border-left: 4px solid var(--success);
+}
+
+/* Card with warning accent */
+.cardWarning {
+  composes: card;
+  border-left: 4px solid var(--warning);
+}
+
+/* ===== BADGE COMPONENT ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-full);
+  background-color: var(--primary);
+  color: white;
+}
+
+.badgeSuccess {
+  composes: badge;
+  background-color: var(--success);
+}
+
+.badgeWarning {
+  composes: badge;
+  background-color: var(--warning);
+  color: white;
+}
+
+.badgeDanger {
+  composes: badge;
+  background-color: var(--danger);
+}
+
+/* ===== INPUT COMPONENT ===== */
+.input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease-in-out;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.input:disabled {
+  background-color: var(--bg-light);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.inputLarge {
+  composes: input;
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--font-size-lg);
+  min-height: 48px;
+}
+
+/* ===== CHECKBOX/LABEL COMPONENT ===== */
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  user-select: none;
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease-in-out;
+}
+
+.checkboxLabel:hover {
+  background-color: var(--bg-light);
+}
+
+.checkboxLabel input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+/* ===== SECTION HEADER ===== */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) 0;
+  border-bottom: 2px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.sectionHeader:hover {
+  border-bottom-color: var(--primary);
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+  color: var(--text-primary);
+}
+
+/* ===== PROGRESS BAR ===== */
+.progressBar {
+  width: 100%;
+  height: 6px;
+  background-color: var(--bg-light);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progressBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  transition: width 0.3s ease-in-out;
+}
+
+/* ===== STAT CARD ===== */
+.statCard {
+  composes: card;
+  text-align: center;
+}
+
+.statValue {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--primary);
+  margin: var(--space-sm) 0;
+}
+
+.statLabel {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: var(--font-weight-medium);
+}
+
+/* ===== ALERT/MESSAGE BOX ===== */
+.alert {
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--border);
+  background-color: var(--bg-light);
+  margin-bottom: var(--space-md);
+}
+
+.alertSuccess {
+  composes: alert;
+  border-left-color: var(--success);
+  background-color: #c6f6d5;
+  color: #22543d;
+}
+
+.alertWarning {
+  composes: alert;
+  border-left-color: var(--warning);
+  background-color: #feebc8;
+  color: #7c2d12;
+}
+
+.alertDanger {
+  composes: alert;
+  border-left-color: var(--danger);
+  background-color: #fed7d7;
+  color: #742a2a;
+}
+
+/* ===== TABLE ===== */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.tableHeader {
+  background-color: var(--bg-light);
+  border-bottom: 2px solid var(--border);
+}
+
+.tableHeader th {
+  padding: var(--space-md) var(--space-lg);
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tableBody td {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.tableBody tr:hover {
+  background-color: var(--bg-light);
+}
+
+.tableBody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ===== EMPTY STATE ===== */
+.emptyState {
+  text-align: center;
+  padding: var(--space-2xl) var(--space-lg);
+  color: var(--text-secondary);
+}
+
+.emptyState p {
+  font-size: var(--font-size-lg);
+  margin: var(--space-md) 0;
+}
+
+.emptyState p:first-child {
+  font-size: var(--font-size-2xl);
+  margin-bottom: var(--space-lg);
+}
+
+/* ===== MODAL STYLES ===== */
+.modalBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal-backdrop);
+}
+
+.modal {
+  background-color: white;
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-xl);
+  z-index: var(--z-modal);
+  animation: slideUp 0.3s ease-in-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ===== ACCESSIBILITY ===== */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus visible for keyboard navigation */
+.button:focus-visible,
+.input:focus-visible,
+.checkboxLabel input:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ===== RESPONSIVE ADJUSTMENTS ===== */
+@media (max-width: 640px) {
+  .card {
+    padding: var(--space-md);
+  }
+
+  .button {
+    width: 100%;
+  }
+
+  .buttonLarge {
+    min-height: 56px;
+  }
+
+  .modal {
+    width: 95%;
+    padding: var(--space-lg);
+  }
+
+  .tableBody th,
+  .tableBody td {
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--font-size-sm);
+  }
+}
