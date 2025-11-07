@@ -170,5 +170,7 @@ class ApiClient {
 }
 
 // Export singleton instance
-export const apiClient = new ApiClient(process.env.REACT_APP_API_URL || '')
+// In browser environment, import.meta.env is used instead of process.env
+const baseUrl = (import.meta.env.VITE_API_URL as string) || ''
+export const apiClient = new ApiClient(baseUrl)
 export default apiClient
