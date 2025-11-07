@@ -13,7 +13,7 @@ Functions:
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -41,7 +41,7 @@ def create_job(session_id: str, audio_file_path: str, audio_file_size: int) -> s
         job_id (UUID)
     """
     job_id = str(uuid.uuid4())
-    now = datetime.now(UTC).isoformat() + "Z"
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "") + "Z"
 
     job = DiarizationJob(
         job_id=job_id,
@@ -109,7 +109,7 @@ def update_job(
         return None
 
     job = _jobs[job_id]
-    now = datetime.now(UTC).isoformat() + "Z"
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "") + "Z"
 
     if status:
         job.status = status

@@ -51,5 +51,17 @@ def __getattr__(name: str):
 
         return load_config
     elif name in ("ChunkID", "InteractionID", "JobID", "SessionID"):
-        return locals()[name]
+        from packages.fi_common.types.type_defs import (
+            ChunkID,
+            InteractionID,
+            JobID,
+            SessionID,
+        )
+
+        return {
+            "ChunkID": ChunkID,
+            "InteractionID": InteractionID,
+            "JobID": JobID,
+            "SessionID": SessionID,
+        }[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

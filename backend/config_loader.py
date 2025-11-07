@@ -1,5 +1,5 @@
-"""Compatibility wrapper - re-exports from backend.common.config_loader"""
+"""Compatibility wrapper - re-exports from packages.fi_common.config.config_loader"""
 
 from __future__ import annotations
 
-from backend.common.config_loader import *  # noqa: F401, F403
+from packages.fi_common.config.config_loader import *  # noqa: F403
