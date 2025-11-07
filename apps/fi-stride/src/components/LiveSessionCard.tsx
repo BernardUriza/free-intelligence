@@ -1,0 +1,287 @@
+/**
+ * SESION-04: Live athlete session component
+ * AC: Cronómetro + conteo de reps + check-in emocional + KATNISS suggestions
+ * No penalties - only positive feedback
+ */
+
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { T21Button } from './T21Button';
+import { T21Card } from './T21Card';
+import { T21Modal } from './T21Modal';
+import { Pictogram, Pictograms } from './Pictograms';
+import { useAudioGuide } from './T21AudioGuide';
+
+interface LiveSessionProps {
+  athleteId: string;
+  exerciseName: string;
+  targetReps?: number;
+  maxHeartRate?: number;
+  sessionId?: string; // Backend session ID
+  onSessionEnd: (data: SessionData) => void;
+}
+
+interface SessionData {
+  athleteId: string;
+  exerciseName: string;
+  repsCompleted: number;
+  sessionTime: number;
+  emotionalCheck: 1 | 2 | 3 | 4 | 5;
+  timestamp: string;
+  heartRateAvg?: number;
+}
+
+const EmotionalScale = [
+  { emoji: '😴', label: 'Muy cansado', value: 1 },
+  { emoji: '😔', label: 'Cansado', value: 2 },
+  { emoji: '😐', label: 'Normal', value: 3 },
+  { emoji: '😊', label: 'Bien', value: 4 },
+  { emoji: '🤩', label: 'Excelente', value: 5 },
+];
+
+export const LiveSessionCard: React.FC<LiveSessionProps> = ({
+  athleteId,
+  exerciseName,
+  targetReps = 20,
+  maxHeartRate,
+  sessionId,
+  onSessionEnd,
+}) => {
+  const [reps, setReps] = useState(0);
+  const [sessionTime, setSessionTime] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const [emotionalCheck, setEmotionalCheck] = useState<1 | 2 | 3 | 4 | 5>(3);
+  const [showEmotionalCheck, setShowEmotionalCheck] = useState(false);
+  const [katnissMessage, setKatnissMessage] = useState('');
+  const [heartRate] = useState(0);
+  const { speak } = useAudioGuide();
+
+  // Timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isRunning) {
+      interval = setInterval(() => {
+        setSessionTime((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isRunning]);
+
+  // Format time MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Handle rep addition + backend sync
+  const handleAddRep = async () => {
+    const newReps = reps + 1;
+    setReps(newReps);
+    speak(`${newReps} repeticiones`);
+
+    // Send to backend (optional - non-blocking)
+    if (sessionId) {
+      try {
+        await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7001/api'}/athlete-sessions/${sessionId}/rep`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rep_number: newReps, heart_rate: heartRate }),
+          }
+        );
+      } catch (error) {
+        console.error('Rep sync error:', error);
+      }
+    }
+
+    // KATNISS feedback at milestones (no penalties)
+    if (newReps === 5) {
+      speak('¡Muy bien! 5 repeticiones completadas');
+      setKatnissMessage('¡Vas bien! Continúa así 💪');
+    } else if (newReps === 10) {
+      speak('¡Excelente! 10 repeticiones');
+      setKatnissMessage('¡Mitad del camino! ¡Sigue adelante! 🔥');
+    } else if (newReps === targetReps) {
+      speak(`¡Felicidades! Completaste ${targetReps} repeticiones`);
+      setKatnissMessage('¡LO HICISTE! 🏆 ¡Eres un campeón!');
+    }
+  };
+
+
+  // Handle emotional check-in
+  const handleEmotionalCheckIn = async (value: 1 | 2 | 3 | 4 | 5) => {
+    setEmotionalCheck(value);
+    const feeling = EmotionalScale.find((s) => s.value === value)?.label;
+    speak(`Te sientes ${feeling}`);
+
+    // Send to backend (optional - non-blocking)
+    if (sessionId) {
+      try {
+        await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7001/api'}/athlete-sessions/${sessionId}/emotional-check`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ feeling: value }),
+          }
+        );
+      } catch (error) {
+        console.error('Emotional check-in sync error:', error);
+      }
+    }
+
+    // KATNISS adaptive feedback
+    if (value <= 2) {
+      setKatnissMessage('Descansa cuando lo necesites. ¡Eres fuerte! 💪');
+      setIsRunning(false);
+    } else if (value === 3) {
+      setKatnissMessage('¡Vamos! Un poco más 🌟');
+    } else {
+      setKatnissMessage('¡Wow! ¡Increíble energía! 🚀');
+    }
+
+    setShowEmotionalCheck(false);
+  };
+
+  // Handle session end
+  const handleSessionEnd = () => {
+    setIsRunning(false);
+    const data: SessionData = {
+      athleteId,
+      exerciseName,
+      repsCompleted: reps,
+      sessionTime,
+      emotionalCheck,
+      timestamp: new Date().toISOString(),
+      heartRateAvg: heartRate,
+    };
+    onSessionEnd(data);
+    speak('Sesión completada. ¡Buen trabajo!');
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Main Display */}
+      <T21Card title={exerciseName} icon={Pictograms.PLAY} color="blue">
+        {/* Timer */}
+        <div className="text-center mb-6">
+          <div className="text-6xl font-bold text-blue-700 font-mono">
+            {formatTime(sessionTime)}
+          </div>
+          <p className="text-2xl text-gray-700 mt-2">Tiempo de sesión</p>
+        </div>
+
+        {/* Rep Counter */}
+        <div className="bg-white rounded-lg p-6 mb-6 border-4 border-blue-700">
+          <div className="text-7xl font-bold text-center text-green-700 mb-4">
+            {reps}
+          </div>
+          <p className="text-2xl text-center text-gray-700">
+            de {targetReps} repeticiones
+          </p>
+          <div className="mt-6 w-full bg-gray-300 rounded-full h-6 overflow-hidden">
+            <div
+              className="bg-green-500 h-full transition-all duration-300 ease-out"
+              style={{ width: `${(reps / targetReps) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* KATNISS Message */}
+        {katnissMessage && (
+          <div className="bg-purple-100 border-4 border-purple-700 rounded-lg p-4 mb-6">
+            <p className="text-2xl text-purple-900 font-bold">
+              {Pictograms.SMILE_GOOD} {katnissMessage}
+            </p>
+          </div>
+        )}
+
+        {/* Heart Rate Monitor (if device) */}
+        {maxHeartRate && heartRate > 0 && (
+          <div className="bg-red-50 border-4 border-red-700 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <Pictogram icon="HEART" size="xl" animated />
+              <div>
+                <p className="text-2xl font-bold text-red-700">{heartRate} bpm</p>
+                <p className="text-lg text-gray-700">
+                  Máx seguro: {maxHeartRate} bpm
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <T21Button
+            onClick={handleAddRep}
+            variant="success"
+            size="2xl"
+            icon={Pictograms.CHECK}
+            ariaLabel="Agregar repetición"
+          >
+            Rep Hecha
+          </T21Button>
+
+          <div className="flex gap-3">
+            <T21Button
+              onClick={() => setIsRunning(!isRunning)}
+              variant={isRunning ? 'warning' : 'primary'}
+              size="xl"
+              icon={isRunning ? Pictograms.PAUSE : Pictograms.PLAY}
+              ariaLabel={isRunning ? 'Pausar' : 'Continuar'}
+            >
+              {isRunning ? 'Pausa' : 'Continuar'}
+            </T21Button>
+
+            <T21Button
+              onClick={() => setShowEmotionalCheck(true)}
+              variant="info"
+              size="xl"
+              icon={EmotionalScale.find((s) => s.value === emotionalCheck)?.emoji}
+              ariaLabel="Cómo te sientes"
+            >
+              Cómo Estás
+            </T21Button>
+          </div>
+
+          <T21Button
+            onClick={handleSessionEnd}
+            variant="success"
+            size="xl"
+            icon={Pictograms.TROPHY}
+            ariaLabel="Terminar sesión"
+          >
+            Sesión Hecha
+          </T21Button>
+        </div>
+      </T21Card>
+
+      {/* Emotional Check-in Modal */}
+      <T21Modal
+        isOpen={showEmotionalCheck}
+        title="¿Cómo te sientes?"
+        onClose={() => setShowEmotionalCheck(false)}
+        icon="😊"
+      >
+        <div className="space-y-4">
+          {EmotionalScale.map((scale) => (
+            <T21Button
+              key={scale.value}
+              onClick={() => handleEmotionalCheckIn(scale.value as 1 | 2 | 3 | 4 | 5)}
+              variant="info"
+              size="xl"
+              icon={scale.emoji}
+              ariaLabel={scale.label}
+            >
+              {scale.label}
+            </T21Button>
+          ))}
+        </div>
+      </T21Modal>
+    </div>
+  );
+};

@@ -1,12 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import katnissService, { SessionData, KATNISSResponse } from '../services/katnissService'
+
+interface SessionDataFromLive {
+  athleteId: string
+  exerciseName: string
+  repsCompleted: number
+  sessionTime: number
+  emotionalCheck: 1 | 2 | 3 | 4 | 5
+  timestamp: string
+  heartRateAvg?: number
+}
 
 interface SessionAnalysisProps {
   athleteName?: string
+  sessionData?: SessionDataFromLive | null
   onComplete?: (analysis: KATNISSResponse) => void
 }
 
-export function SessionAnalysis({ athleteName = 'Deportista', onComplete }: SessionAnalysisProps) {
+const mapEmotionalCheckToLabel = (emotionalCheck: number): 'happy' | 'neutral' | 'tired' => {
+  if (emotionalCheck >= 4) return 'happy'
+  if (emotionalCheck === 3) return 'neutral'
+  return 'tired'
+}
+
+export function SessionAnalysis({ athleteName = 'Deportista', sessionData, onComplete }: SessionAnalysisProps) {
   const [step, setStep] = useState<'input' | 'loading' | 'result'>('input')
   const [formData, setFormData] = useState<{
     duration: number
@@ -19,6 +36,18 @@ export function SessionAnalysis({ athleteName = 'Deportista', onComplete }: Sess
     emotionalCheckIn: 'neutral',
     notes: ''
   })
+
+  // Initialize form with data from LiveSessionCard if provided
+  useEffect(() => {
+    if (sessionData) {
+      setFormData({
+        duration: Math.ceil(sessionData.sessionTime / 60),
+        rpe: Math.min(10, Math.ceil((sessionData.repsCompleted / 20) * 10)),
+        emotionalCheckIn: mapEmotionalCheckToLabel(sessionData.emotionalCheck),
+        notes: `${sessionData.exerciseName}: ${sessionData.repsCompleted} reps completadas`
+      })
+    }
+  }, [sessionData])
   const [result, setResult] = useState<KATNISSResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
 

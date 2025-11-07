@@ -149,9 +149,27 @@ pm2 start ecosystem.config.js  # Deploy NAS (PM2)
 docker compose -f docker-compose.ollama.yml up -d  # Ollama only
 docker compose -f docker-compose.asr.yml up -d     # ASR worker only
 
-# 📋 TRELLO CLI
+# 📋 TRELLO CLI v2.2.0 - WITH CLAUDE AI ANALYSIS ⭐
 BOARD_ID=68fbfeeb7f8614df2eb61e42
-trello board-overview $BOARD_ID
+
+## Discovery Commands (START HERE)
+trello help-json                        # All commands in JSON
+trello board-overview $BOARD_ID         # Complete board structure
+trello board-ids $BOARD_ID              # Quick ID reference
+trello search-cards $BOARD_ID "query"   # Search across board
+
+## CARD MOVEMENTS WITH INTELLIGENT ANALYSIS (NEW IN v2.2)
+trello move-card <card_id> <list_id>    # Move card (includes Claude AI context)
+trello quick-start <card_id>            # Start work (auto-finds In Progress + analysis)
+trello quick-test <card_id>             # Move to Testing (auto-finds Testing + analysis)
+trello quick-done <card_id>             # Move to Done (auto-finds Done + analysis)
+
+## WORKFLOW: Each movement includes Claude AI analysis
+# Example:
+trello quick-start FI-STRIDE-SESION-04
+# Output:
+# ✅ Card moved to '⚙️ In Progress'
+# 💡 CLAUDE AI ANALYSIS: [Contextual intelligence about the work]
 
 🔬 Type Checking Automation (Pylance/Pyright)
 	•	CLI Tool: python3 tools/detect_type_errors.py backend/ (auto-detección)
