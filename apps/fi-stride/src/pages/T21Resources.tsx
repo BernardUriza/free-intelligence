@@ -101,13 +101,13 @@ export function T21Resources() {
         <div className="mt-12 pt-8 border-t border-gray-200 space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">💙 ¿Necesitas Ayuda?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div key="support-phone" className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-3">📞 Línea de Apoyo</h3>
               <p className="text-gray-700 font-semibold mb-1">Llama al: 1-800-T21-HELP</p>
               <p className="text-sm text-gray-500">Disponible 24/7</p>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div key="support-chat" className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-3">💬 Chat en Vivo</h3>
               <p className="text-gray-700 mb-4">Habla con un especialista</p>
               <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
@@ -115,7 +115,7 @@ export function T21Resources() {
               </button>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div key="support-email" className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-3">📧 Email</h3>
               <p className="text-gray-700 font-semibold mb-1">apoyo@fi-stride.com</p>
               <p className="text-sm text-gray-500">Respuesta en 24h</p>

@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 from backend.config.mock_loader import MockDataLoader
 from backend.schemas.schemas import APIResponse
 
-router = APIRouter(prefix="/coaches", tags=["coaches"])
+router = APIRouter(tags=["coaches"])
 
 
 @router.get("/", response_model=APIResponse)
@@ -21,6 +21,7 @@ async def list_coaches(
     coaches = MockDataLoader.get_coaches()
     return APIResponse(
         status="success",
+        code=200,
         data={
             "coaches": coaches[skip : skip + limit],
             "total": len(coaches),
@@ -39,6 +40,7 @@ async def get_coach(coach_id: str) -> APIResponse[dict[str, Any]]:
         )
     return APIResponse(
         status="success",
+        code=200,
         data={"coach": coach},
     )
 
@@ -58,6 +60,7 @@ async def get_coach_stats(coach_id: str) -> APIResponse[dict[str, Any]]:
 
     return APIResponse(
         status="success",
+        code=200,
         data={
             "coachId": coach_id,
             "activeAthletes": len(athletes),
@@ -81,6 +84,7 @@ async def get_coach_athletes(coach_id: str) -> APIResponse[dict[str, Any]]:
     athletes = MockDataLoader.get_athletes_by_coach(coach_id)
     return APIResponse(
         status="success",
+        code=200,
         data={
             "coachId": coach_id,
             "athletes": athletes,
@@ -109,6 +113,7 @@ async def get_coach_sessions(
 
     return APIResponse(
         status="success",
+        code=200,
         data={
             "coachId": coach_id,
             "sessions": sessions,

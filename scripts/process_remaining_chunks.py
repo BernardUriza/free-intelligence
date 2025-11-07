@@ -5,7 +5,7 @@ Usage: python3 scripts/process_remaining_chunks.py <job_id> <from_chunk>
 """
 
 import sys
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 import h5py
@@ -102,7 +102,7 @@ def process_remaining_chunks(job_id: str, from_chunk: int = 24):
             return True
 
     except Exception as e:
-        print(f"✗ Error: {str(e)}")
+        print(f"✗ Error: {e!s}")
         import traceback
 
         traceback.print_exc()

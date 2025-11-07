@@ -5,7 +5,7 @@
  * Mirrors backend/fi_consult_models.py
  */
 
-import { MessageRole, UrgencyLevel, SOAPSection } from '../types/events';
+import { MessageRole, UrgencyLevel } from '../types/events';
 
 export interface Message {
   role: MessageRole;
