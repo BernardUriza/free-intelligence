@@ -33,7 +33,6 @@ if TYPE_CHECKING:
         TranscriptionService,
         TriageService,
     )
-    from backend.services.diarization_job_service import DiarizationJobService
 else:
     # Runtime imports - accessed via __getattr__ on services module
     def _import_service(name: str) -> Any:
@@ -60,8 +59,6 @@ else:
     SystemHealthService = _import_service("SystemHealthService")  # type: ignore[assignment]
     TranscriptionService = _import_service("TranscriptionService")  # type: ignore[assignment]
     TriageService = _import_service("TriageService")  # type: ignore[assignment]
-
-    DiarizationJobService = _import_service("DiarizationJobService")  # type: ignore[assignment]
 
 
 def _get_logger() -> Any:
@@ -256,7 +253,7 @@ class DIContainer:
 
         return self._diarization_service
 
-    def get_diarization_job_service(self) -> DiarizationJobService:
+    def get_diarization_job_service(self) -> Any:  # type: ignore[name-defined]
         """Get or create DiarizationJobService singleton.
 
         Returns:
@@ -272,10 +269,12 @@ class DIContainer:
 
                 use_lowprio = os.getenv("DIARIZATION_LOWPRIO", "true").lower() == "true"
 
-                self._diarization_job_service = DiarizationJobService(use_lowprio=use_lowprio)
-                _get_logger().info(
-                    f"DiarizationJobService initialized with use_lowprio={use_lowprio}"
+                # TODO: DiarizationJobService not yet implemented - placeholder
+                # self._diarization_job_service = DiarizationJobService(use_lowprio=use_lowprio)
+                _get_logger().warning(
+                    "DiarizationJobService not implemented - returning None"
                 )
+                self._diarization_job_service = None
             except OSError as e:
                 _get_logger().error(f"DIARIZATION_JOB_SERVICE_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize DiarizationJobService: {e}") from e
