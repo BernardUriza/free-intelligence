@@ -11,7 +11,6 @@
  */
 
 import { useState } from 'react'
-import styles from '../styles/dashboard.module.css'
 
 interface SessionBlock {
   id: string
@@ -183,29 +182,25 @@ export function SessionDesigner() {
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <div className={styles.headerContent}>
-          <h1>📋 Diseñador de Sesiones</h1>
-          <p>Crea y publica sesiones para tus deportistas</p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">📋 Diseñador de Sesiones</h1>
+        <p className="text-gray-600 mt-2">Crea y publica sesiones para tus deportistas</p>
       </div>
 
       {/* Main Content */}
-      <main className={styles.main}>
+      <div className="space-y-6">
         {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+        <div className="flex gap-3">
           <button
-            className={styles.primaryBtn}
             onClick={createNewSession}
-            style={{ flex: 1 }}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
             ➕ Nueva Sesión
           </button>
           <button
-            className={styles.primaryBtn}
             onClick={() => setShowHistory(!showHistory)}
-            style={{ flex: 1 }}
+            className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
           >
             📜 {showHistory ? 'Ocultar' : 'Ver'} Historial
           </button>
@@ -213,66 +208,47 @@ export function SessionDesigner() {
 
         {/* Session History */}
         {showHistory && sessions.length > 0 && (
-          <div className={styles.section}>
-            <h2>📜 Historial de Sesiones</h2>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                gap: '1rem',
-              }}
-            >
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">📜 Historial de Sesiones</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {sessions.map((session) => (
                 <div
                   key={session.id}
-                  className={styles.section}
-                  style={{ borderLeft: '4px solid #667eea' }}
+                  className="bg-white border-l-4 border-indigo-500 border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <div style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ margin: '0 0 0.5rem 0' }}>{session.name}</h3>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#666' }}>
+                  <div className="mb-4">
+                    <h3 className="font-bold text-gray-900">{session.name}</h3>
+                    <p className="text-sm text-gray-600">
                       {session.blocks.length} bloques • {getTotalDuration(session.blocks)} min
                     </p>
                   </div>
 
                   {session.publishedTo && (
-                    <div
-                      style={{
-                        background: '#c6f6d5',
-                        color: '#22543d',
-                        padding: '0.5rem',
-                        borderRadius: '0.25rem',
-                        marginBottom: '1rem',
-                        fontSize: '0.85rem',
-                      }}
-                    >
+                    <div className="bg-green-100 text-green-800 px-3 py-2 rounded mb-4 text-sm font-semibold">
                       ✅ Publicada a {session.publishedTo.athleteName}
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div className="flex gap-2 flex-wrap">
                     <button
-                      className={styles.primaryBtn}
                       onClick={() => {
                         setEditingSession(session)
                         setIsModalOpen(true)
                       }}
-                      style={{ flex: 1, padding: '0.5rem' }}
+                      className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
                     >
                       ✏️ Editar
                     </button>
                     <button
-                      className={styles.primaryBtn}
                       onClick={() => cloneSession(session)}
-                      style={{ flex: 1, padding: '0.5rem' }}
+                      className="flex-1 px-3 py-1.5 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 transition-colors"
                     >
                       📋 Clonar
                     </button>
                     {!session.publishedTo && (
                       <button
-                        className={styles.primaryBtn}
                         onClick={() => publishSession(session.id)}
-                        style={{ flex: 1, padding: '0.5rem' }}
+                        className="flex-1 px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors"
                       >
                         📤 Publicar
                       </button>
@@ -286,61 +262,39 @@ export function SessionDesigner() {
 
         {/* Empty State */}
         {sessions.length === 0 && (
-          <div className={styles.emptyState}>
-            <p>📭 No hay sesiones creadas</p>
-            <p style={{ fontSize: '0.9rem', color: '#999' }}>
+          <div className="bg-gray-50 rounded-lg border border-gray-200 p-8 text-center">
+            <p className="text-3xl mb-2">📭</p>
+            <p className="text-xl text-gray-900 font-semibold">No hay sesiones creadas</p>
+            <p className="text-gray-600 mt-2">
               Comienza creando una nueva sesión con los bloques que necesites
             </p>
           </div>
         )}
-      </main>
+      </div>
 
       {/* Editor Modal */}
       {isModalOpen && editingSession && (
         <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={() => setIsModalOpen(false)}
         >
           <div
-            className={styles.section}
-            style={{
-              maxWidth: '700px',
-              width: '90%',
-              maxHeight: '90vh',
-              overflow: 'auto',
-              background: 'white',
-            }}
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ margin: 0 }}>Editar Sesión</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Editar Sesión</h2>
               <button
                 onClick={() => setIsModalOpen(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                }}
+                className="text-2xl text-gray-500 hover:text-gray-700"
               >
                 ✕
               </button>
             </div>
 
             {/* Session Name */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Nombre de la Sesión
               </label>
               <input
@@ -349,194 +303,140 @@ export function SessionDesigner() {
                 onChange={(e) =>
                   setEditingSession({ ...editingSession, name: e.target.value })
                 }
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #e0e0e0',
-                  borderRadius: '0.5rem',
-                  fontFamily: 'inherit',
-                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition"
               />
             </div>
 
             {/* Blocks */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ marginBottom: '1rem' }}>
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
                 🎯 Bloques ({getTotalDuration(editingSession.blocks)} min)
               </h3>
 
-              {editingSession.blocks.map((block, idx) => {
-                const blockDef = blockTypes.find((b) => b.type === block.type)
-                return (
-                  <div
-                    key={block.id}
-                    style={{
-                      padding: '1rem',
-                      border: `1px solid ${blockDef?.color || '#e0e0e0'}`,
-                      borderLeft: `4px solid ${blockDef?.color || '#e0e0e0'}`,
-                      borderRadius: '0.5rem',
-                      marginBottom: '1rem',
-                    }}
-                  >
-                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
-                      <select
-                        value={block.type}
-                        onChange={(e) =>
-                          updateBlock(block.id, {
-                            type: e.target.value as SessionBlock['type'],
-                          })
-                        }
-                        style={{
-                          flex: 1,
-                          padding: '0.5rem',
-                          border: '1px solid #e0e0e0',
-                          borderRadius: '0.25rem',
-                        }}
-                      >
-                        {blockTypes.map((bt) => (
-                          <option key={bt.type} value={bt.type}>
-                            {bt.label}
-                          </option>
-                        ))}
-                      </select>
+              <div className="space-y-4">
+                {editingSession.blocks.map((block) => {
+                  const blockDef = blockTypes.find((b) => b.type === block.type)
+                  const colorMap = {
+                    warmup: 'border-orange-400',
+                    movement: 'border-green-400',
+                    breathing: 'border-blue-400',
+                    cooldown: 'border-purple-400',
+                  }
+                  return (
+                    <div
+                      key={block.id}
+                      className={`p-4 border-l-4 ${colorMap[block.type] || 'border-gray-400'} border rounded-lg bg-gray-50`}
+                    >
+                      <div className="flex gap-3 mb-3">
+                        <select
+                          value={block.type}
+                          onChange={(e) =>
+                            updateBlock(block.id, {
+                              type: e.target.value as SessionBlock['type'],
+                            })
+                          }
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
+                        >
+                          {blockTypes.map((bt) => (
+                            <option key={bt.type} value={bt.type}>
+                              {bt.label}
+                            </option>
+                          ))}
+                        </select>
 
-                      <input
-                        type="number"
-                        min="1"
-                        max="120"
-                        value={block.duration}
+                        <input
+                          type="number"
+                          min="1"
+                          max="120"
+                          value={block.duration}
+                          onChange={(e) =>
+                            updateBlock(block.id, {
+                              duration: parseInt(e.target.value),
+                            })
+                          }
+                          placeholder="min"
+                          className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
+                        />
+
+                        <button
+                          onClick={() => removeBlock(block.id)}
+                          className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+
+                      <textarea
+                        value={block.description}
                         onChange={(e) =>
-                          updateBlock(block.id, {
-                            duration: parseInt(e.target.value),
-                          })
+                          updateBlock(block.id, { description: e.target.value })
                         }
-                        placeholder="Duración (min)"
-                        style={{
-                          width: '120px',
-                          padding: '0.5rem',
-                          border: '1px solid #e0e0e0',
-                          borderRadius: '0.25rem',
-                        }}
+                        placeholder="Descripción (ejercicios, instrucciones)"
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none mb-3"
                       />
 
-                      <button
-                        onClick={() => removeBlock(block.id)}
-                        className={styles.primaryBtn}
-                        style={{
-                          background: '#f56565',
-                          padding: '0.5rem 1rem',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        🗑️
-                      </button>
+                      {/* Safety Tips */}
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => addSafetyTip(block.id)}
+                          className="w-full px-3 py-2 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 transition-colors"
+                        >
+                          ⚠️ Agregar Consejo de Seguridad
+                        </button>
+
+                        {editingSession.safetyTips
+                          .filter((t) => t.blockId === block.id)
+                          .map((tip) => (
+                            <div
+                              key={tip.id}
+                              className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg space-y-2"
+                            >
+                              <input
+                                type="text"
+                                value={tip.title}
+                                onChange={(e) =>
+                                  updateSafetyTip(tip.id, { title: e.target.value })
+                                }
+                                placeholder="Título del consejo"
+                                className="w-full px-2 py-1 border border-yellow-300 rounded text-sm focus:ring-2 focus:ring-yellow-600 outline-none"
+                              />
+                              <textarea
+                                value={tip.content}
+                                onChange={(e) =>
+                                  updateSafetyTip(tip.id, { content: e.target.value })
+                                }
+                                placeholder="Contenido (aparecerá durante la sesión)"
+                                rows={2}
+                                className="w-full px-2 py-1 border border-yellow-300 rounded text-sm focus:ring-2 focus:ring-yellow-600 outline-none"
+                              />
+                            </div>
+                          ))}
+                      </div>
                     </div>
-
-                    <textarea
-                      value={block.description}
-                      onChange={(e) =>
-                        updateBlock(block.id, { description: e.target.value })
-                      }
-                      placeholder="Descripción del bloque (ej: ejercicios, instrucciones)"
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        border: '1px solid #e0e0e0',
-                        borderRadius: '0.25rem',
-                        fontFamily: 'inherit',
-                        minHeight: '60px',
-                        marginBottom: '0.5rem',
-                      }}
-                    />
-
-                    {/* Safety Tips for Block */}
-                    <div style={{ marginTop: '0.5rem' }}>
-                      <button
-                        className={styles.primaryBtn}
-                        onClick={() => addSafetyTip(block.id)}
-                        style={{
-                          fontSize: '0.85rem',
-                          padding: '0.35rem 0.7rem',
-                          width: '100%',
-                        }}
-                      >
-                        ⚠️ Agregar Consejo de Seguridad
-                      </button>
-
-                      {editingSession.safetyTips
-                        .filter((t) => t.blockId === block.id)
-                        .map((tip) => (
-                          <div
-                            key={tip.id}
-                            style={{
-                              marginTop: '0.5rem',
-                              padding: '0.5rem',
-                              background: '#fffbf5',
-                              border: '1px solid #feebc8',
-                              borderRadius: '0.25rem',
-                              fontSize: '0.85rem',
-                            }}
-                          >
-                            <input
-                              type="text"
-                              value={tip.title}
-                              onChange={(e) =>
-                                updateSafetyTip(tip.id, { title: e.target.value })
-                              }
-                              placeholder="Título del consejo"
-                              style={{
-                                width: '100%',
-                                padding: '0.35rem',
-                                border: '1px solid #fdb022',
-                                borderRadius: '0.2rem',
-                                marginBottom: '0.35rem',
-                                fontFamily: 'inherit',
-                              }}
-                            />
-                            <textarea
-                              value={tip.content}
-                              onChange={(e) =>
-                                updateSafetyTip(tip.id, { content: e.target.value })
-                              }
-                              placeholder="Contenido del consejo (aparecerá como modal durante la sesión)"
-                              style={{
-                                width: '100%',
-                                padding: '0.35rem',
-                                border: '1px solid #fdb022',
-                                borderRadius: '0.2rem',
-                                fontFamily: 'inherit',
-                                minHeight: '45px',
-                              }}
-                            />
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
 
               <button
                 onClick={addBlock}
-                className={styles.primaryBtn}
-                style={{ width: '100%', marginTop: '1rem' }}
+                className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
                 ➕ Agregar Bloque
               </button>
             </div>
 
             {/* Modal Actions */}
-            <div style={{ display: 'flex', gap: '1rem' }}>
+            <div className="flex gap-3">
               <button
                 onClick={saveSession}
-                className={styles.primaryBtn}
-                style={{ flex: 1 }}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
               >
                 💾 Guardar Sesión
               </button>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className={styles.primaryBtn}
-                style={{ flex: 1, background: '#cbd5e0', color: '#2d3748' }}
+                className="flex-1 px-4 py-2 bg-gray-300 text-gray-900 rounded-lg hover:bg-gray-400 transition-colors font-medium"
               >
                 ✕ Cancelar
               </button>

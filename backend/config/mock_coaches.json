@@ -1,0 +1,37 @@
+{
+  "coaches": [
+    {
+      "id": "coach_001",
+      "name": "Carlos Mendoza",
+      "email": "carlos.mendoza@fi-stride.com",
+      "specialties": ["Fuerza", "Resistencia"],
+      "activeAthletes": 12,
+      "sessionsThisWeek": 8,
+      "avgCompletionRate": 87,
+      "bio": "Entrenador especializado en programas de fuerza y acondicionamiento",
+      "createdAt": "2025-01-01T00:00:00Z"
+    },
+    {
+      "id": "coach_002",
+      "name": "Ana García",
+      "email": "ana.garcia@fi-stride.com",
+      "specialties": ["Flexibilidad", "Recuperación"],
+      "activeAthletes": 8,
+      "sessionsThisWeek": 5,
+      "avgCompletionRate": 92,
+      "bio": "Especialista en rehabilitación y recuperación funcional",
+      "createdAt": "2025-01-02T00:00:00Z"
+    },
+    {
+      "id": "coach_003",
+      "name": "Roberto López",
+      "email": "roberto.lopez@fi-stride.com",
+      "specialties": ["Técnica deportiva", "Coordinación"],
+      "activeAthletes": 15,
+      "sessionsThisWeek": 10,
+      "avgCompletionRate": 85,
+      "bio": "Entrenador de técnica deportiva avanzada",
+      "createdAt": "2025-01-03T00:00:00Z"
+    }
+  ]
+}

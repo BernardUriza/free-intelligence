@@ -1,0 +1,127 @@
+{
+  "sessions": [
+    {
+      "id": "session_001",
+      "coachId": "coach_001",
+      "athleteId": "athlete_001",
+      "name": "Entrenamiento de Fuerza - Semana 1",
+      "blocks": [
+        {
+          "id": "block_001",
+          "type": "warmup",
+          "duration": 10,
+          "description": "Movilización dinámica, flexiones de brazos y piernas"
+        },
+        {
+          "id": "block_002",
+          "type": "movement",
+          "duration": 35,
+          "description": "Sentadillas 3x8, Peso muerto 3x6, Bancos de pecho 3x8"
+        },
+        {
+          "id": "block_003",
+          "type": "breathing",
+          "duration": 5,
+          "description": "Respiración controlada entre series"
+        },
+        {
+          "id": "block_004",
+          "type": "cooldown",
+          "duration": 10,
+          "description": "Estiramientos estáticos de miembros inferiores y superiores"
+        }
+      ],
+      "safetyTips": [
+        {
+          "id": "tip_001",
+          "blockId": "block_002",
+          "title": "Forma correcta en sentadillas",
+          "content": "Mantén el pecho levantado, rodillas por encima de los tobillos, peso en los talones"
+        },
+        {
+          "id": "tip_002",
+          "blockId": "block_002",
+          "title": "Peso muerto seguro",
+          "content": "Espalda recta, caderas alineadas, levanta con las piernas, no con la espalda"
+        }
+      ],
+      "publishedTo": {
+        "athleteId": "athlete_001",
+        "athleteName": "Juan García",
+        "publishedAt": "2025-01-10T10:00:00Z"
+      },
+      "status": "completed",
+      "createdAt": "2025-01-09T00:00:00Z"
+    },
+    {
+      "id": "session_002",
+      "coachId": "coach_001",
+      "athleteId": "athlete_002",
+      "name": "Recuperación post-lesión",
+      "blocks": [
+        {
+          "id": "block_005",
+          "type": "warmup",
+          "duration": 5,
+          "description": "Calentamiento suave, movilización de articulaciones"
+        },
+        {
+          "id": "block_006",
+          "type": "movement",
+          "duration": 25,
+          "description": "Ejercicios de movilidad de rodilla, fortalecimiento isométrico"
+        },
+        {
+          "id": "block_007",
+          "type": "cooldown",
+          "duration": 15,
+          "description": "Estiramientos suaves enfocados en la zona afectada"
+        }
+      ],
+      "safetyTips": [
+        {
+          "id": "tip_003",
+          "blockId": "block_006",
+          "title": "Cuidado con la rodilla",
+          "content": "Evita movimientos que causen dolor. Para si sientes molestias agudas"
+        }
+      ],
+      "publishedTo": {
+        "athleteId": "athlete_002",
+        "athleteName": "María López",
+        "publishedAt": "2025-01-11T10:00:00Z"
+      },
+      "status": "in_progress",
+      "createdAt": "2025-01-10T00:00:00Z"
+    },
+    {
+      "id": "session_003",
+      "coachId": "coach_002",
+      "athleteId": "athlete_003",
+      "name": "Flexibilidad avanzada",
+      "blocks": [
+        {
+          "id": "block_008",
+          "type": "warmup",
+          "duration": 8,
+          "description": "Movimientos articulares suaves"
+        },
+        {
+          "id": "block_009",
+          "type": "movement",
+          "duration": 30,
+          "description": "Yoga dinámico, estiramientos activos, movilidad articular"
+        },
+        {
+          "id": "block_010",
+          "type": "cooldown",
+          "duration": 12,
+          "description": "Relajación profunda y respiración"
+        }
+      ],
+      "safetyTips": [],
+      "status": "pending",
+      "createdAt": "2025-01-11T00:00:00Z"
+    }
+  ]
+}

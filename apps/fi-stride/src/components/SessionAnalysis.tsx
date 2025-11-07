@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import katnissService, { SessionData, KATNISSResponse } from '../services/katnissService'
-import styles from '../styles/session-analysis.module.css'
 
 interface SessionAnalysisProps {
   athleteName?: string
@@ -29,6 +28,12 @@ export function SessionAnalysis({ athleteName = 'Deportista', onComplete }: Sess
     tired: '😴'
   }
 
+  const emotionLabels = {
+    happy: 'Feliz',
+    neutral: 'Normal',
+    tired: 'Cansado'
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setStep('loading')
@@ -48,7 +53,6 @@ export function SessionAnalysis({ athleteName = 'Deportista', onComplete }: Sess
         onComplete(analysis)
       }
 
-      // Guardar en IndexedDB
       await saveAnalysisToIndexedDB(analysis)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error analizando sesión')
@@ -76,41 +80,49 @@ export function SessionAnalysis({ athleteName = 'Deportista', onComplete }: Sess
   }
 
   return (
-    <div className={styles.container}>
+    <div className="w-full max-w-2xl mx-auto">
       {step === 'input' && (
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <h2>¿Cómo te fue en la sesión?</h2>
+        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 space-y-6">
+          <h2 className="text-3xl font-bold text-gray-900">¿Cómo te fue en la sesión?</h2>
 
           {/* Duration */}
-          <div className={styles.formGroup}>
-            <label>Duración (minutos)</label>
-            <div className={styles.slider}>
-              <input
-                type="range"
-                min="5"
-                max="120"
-                step="5"
-                value={formData.duration}
-                onChange={(e) =>
-                  setFormData({ ...formData, duration: Number(e.target.value) })
-                }
-              />
-              <span className={styles.value}>{formData.duration} min</span>
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-3">
+              Duración: <span className="text-blue-600">{formData.duration} min</span>
+            </label>
+            <input
+              type="range"
+              min="5"
+              max="120"
+              step="5"
+              value={formData.duration}
+              onChange={(e) =>
+                setFormData({ ...formData, duration: Number(e.target.value) })
+              }
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>5 min</span>
+              <span>120 min</span>
             </div>
           </div>
 
           {/* RPE */}
-          <div className={styles.formGroup}>
-            <label>¿Cuánto esfuerzo hiciste? (1-10)</label>
-            <div className={styles.rpeButtons}>
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-3">
+              ¿Cuánto esfuerzo hiciste? (1-10)
+            </label>
+            <div className="grid grid-cols-5 gap-2">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
                 <button
                   key={num}
                   type="button"
-                  className={`${styles.rpeBtn} ${
-                    formData.rpe === num ? styles.selected : ''
-                  }`}
                   onClick={() => setFormData({ ...formData, rpe: num })}
+                  className={`py-2 rounded-lg font-bold transition-all ${
+                    formData.rpe === num
+                      ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                  }`}
                 >
                   {num}
                 </button>
@@ -119,79 +131,93 @@ export function SessionAnalysis({ athleteName = 'Deportista', onComplete }: Sess
           </div>
 
           {/* Emotional Check-in */}
-          <div className={styles.formGroup}>
-            <label>¿Cómo te sientes ahora?</label>
-            <div className={styles.emotionButtons}>
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-3">
+              ¿Cómo te sientes ahora?
+            </label>
+            <div className="grid grid-cols-3 gap-3">
               {(['happy', 'neutral', 'tired'] as const).map((emotion) => (
                 <button
                   key={emotion}
                   type="button"
-                  className={`${styles.emotionBtn} ${
-                    formData.emotionalCheckIn === emotion ? styles.selected : ''
-                  }`}
                   onClick={() =>
                     setFormData({ ...formData, emotionalCheckIn: emotion })
                   }
+                  className={`py-4 px-3 rounded-lg font-semibold transition-all flex flex-col items-center gap-2 ${
+                    formData.emotionalCheckIn === emotion
+                      ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                  }`}
                 >
-                  <span className={styles.emoji}>
-                    {emotionEmojis[emotion]}
-                  </span>
-                  <span className={styles.label}>
-                    {emotion === 'happy'
-                      ? 'Feliz'
-                      : emotion === 'neutral'
-                        ? 'Normal'
-                        : 'Cansado'}
-                  </span>
+                  <span className="text-3xl">{emotionEmojis[emotion]}</span>
+                  <span className="text-sm">{emotionLabels[emotion]}</span>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Notes */}
-          <div className={styles.formGroup}>
-            <label>Notas (opcional)</label>
+          <div>
+            <label htmlFor="notes" className="block text-sm font-semibold text-gray-900 mb-2">
+              Notas (opcional)
+            </label>
             <textarea
+              id="notes"
               value={formData.notes}
               onChange={(e) =>
                 setFormData({ ...formData, notes: e.target.value })
               }
               placeholder="¿Algo más que quieras contar?"
               rows={3}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition"
             />
           </div>
 
-          {error && <div className={styles.error}>{error}</div>}
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
 
-          <button type="submit" className={styles.submitBtn}>
-            Obtener Feedback de KATNISS
+          <button
+            type="submit"
+            className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all"
+          >
+            🤖 Obtener Feedback de KATNISS
           </button>
         </form>
       )}
 
       {step === 'loading' && (
-        <div className={styles.loading}>
-          <div className={styles.spinner}></div>
-          <p>KATNISS analizando tu sesión...</p>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-4 animate-spin">
+            <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full"></div>
+          </div>
+          <p className="text-lg font-semibold text-gray-900">🤖 KATNISS analizando tu sesión...</p>
+          <p className="text-gray-600 mt-2">Por favor espera un momento</p>
         </div>
       )}
 
       {step === 'result' && result && (
-        <div className={styles.result}>
-          <h2>✨ Feedback de KATNISS ✨</h2>
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg shadow-sm border-2 border-purple-200 p-8 space-y-6">
+          <h2 className="text-3xl font-bold text-gray-900 text-center">✨ Feedback de KATNISS ✨</h2>
 
-          <div className={styles.resultCard}>
-            <div className={styles.motivationSection}>
-              <h3>Motivación</h3>
-              <p className={styles.motivation}>{result.motivation}</p>
+          <div className="space-y-6">
+            {/* Motivation Section */}
+            <div className="bg-white rounded-lg p-6 border border-purple-200">
+              <h3 className="text-xl font-bold text-purple-600 mb-4">💪 Motivación</h3>
+              <p className="text-gray-700 leading-relaxed text-lg italic">
+                {result.motivation}
+              </p>
             </div>
 
-            <div className={styles.suggestionSection}>
-              <h3>Próxima Sesión</h3>
-              <p className={styles.suggestion}>
-                💡 {result.nextSuggestion}
+            {/* Suggestion Section */}
+            <div className="bg-white rounded-lg p-6 border border-blue-200 space-y-3">
+              <h3 className="text-xl font-bold text-blue-600 mb-4">💡 Próxima Sesión</h3>
+              <p className="text-gray-700 leading-relaxed">
+                {result.nextSuggestion}
               </p>
-              <p className={styles.dayRecommended}>
+              <p className="text-gray-700 font-semibold">
                 📅 Te recomendamos entrenar {result.dayRecommended}
               </p>
             </div>
@@ -207,9 +233,9 @@ export function SessionAnalysis({ athleteName = 'Deportista', onComplete }: Sess
                 notes: ''
               })
             }}
-            className={styles.continueBtn}
+            className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all"
           >
-            Otra Sesión
+            ➕ Otra Sesión
           </button>
         </div>
       )}
