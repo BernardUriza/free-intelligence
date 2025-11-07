@@ -6,11 +6,23 @@ import { test, expect } from '@playwright/test'
  */
 
 const BASE_URL = 'http://localhost:9050'
+const LIBRARY_URL = `${BASE_URL}/biblioteca`
 
 test.describe('Exercise Library - Basic Functionality', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to exercise library (default landing page)
-    await page.goto(BASE_URL, { waitUntil: 'networkidle' })
+    // Set authenticated user in localStorage to bypass login
+    await page.evaluate(() => {
+      const mockUser = {
+        id: 'test-athlete-001',
+        name: 'Test Athlete',
+        role: 'athlete',
+        email: 'athlete@test.local'
+      }
+      localStorage.setItem('fi-stride-user', JSON.stringify(mockUser))
+    })
+
+    // Navigate to exercise library (library page requires authentication)
+    await page.goto(LIBRARY_URL, { waitUntil: 'networkidle' })
   })
 
   // ==========================================
