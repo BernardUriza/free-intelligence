@@ -1,8 +1,104 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import styles from '../styles/privacy.module.css'
+import { useAuthStore } from '../store/authStore'
 
 export function Privacy() {
   const [activeSection, setActiveSection] = useState<string | null>(null)
+  const [cacheStats, setCacheStats] = useState<{ exerciseCount: number; estimatedSize: string }>({
+    exerciseCount: 0,
+    estimatedSize: '0MB',
+  })
+  const [isClearing, setIsClearing] = useState(false)
+  const [showConfirmClear, setShowConfirmClear] = useState(false)
+  const user = useAuthStore((state) => state.user)
+
+  // Load cache stats on mount
+  useEffect(() => {
+    const loadCacheStats = async () => {
+      try {
+        // Try to get exerciseStorage stats if available
+        const { exerciseStorage } = await import('../services/exerciseStorage')
+        const stats = await exerciseStorage.getStorageStats()
+        setCacheStats(stats)
+      } catch (error) {
+        console.error('Failed to load cache stats:', error)
+      }
+    }
+    loadCacheStats()
+  }, [])
+
+  /**
+   * Clear all cached data (exercises, videos, metadata)
+   */
+  const handleClearCache = async () => {
+    setIsClearing(true)
+    try {
+      const { exerciseStorage } = await import('../services/exerciseStorage')
+      await exerciseStorage.clearAllData()
+      setCacheStats({ exerciseCount: 0, estimatedSize: '0MB' })
+      setShowConfirmClear(false)
+      // Optionally show success message
+      alert('✅ Caché eliminado correctamente')
+    } catch (error) {
+      console.error('Failed to clear cache:', error)
+      alert('❌ Error al limpiar caché')
+    } finally {
+      setIsClearing(false)
+    }
+  }
+
+  /**
+   * Download user data as JSON
+   */
+  const handleDownloadData = async () => {
+    try {
+      const userData = {
+        user: user,
+        exportedAt: new Date().toISOString(),
+        dataVersion: '1.0',
+      }
+
+      // Try to include cached exercises if available
+      try {
+        const { exerciseStorage } = await import('../services/exerciseStorage')
+        const exercises = await exerciseStorage.getAllExercises()
+        userData.exercises = exercises
+      } catch {
+        // Continue without exercises if storage not available
+      }
+
+      const dataStr = JSON.stringify(userData, null, 2)
+      const dataBlob = new Blob([dataStr], { type: 'application/json' })
+      const url = URL.createObjectURL(dataBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `fi-stride-personal-data-${Date.now()}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to download data:', error)
+      alert('❌ Error al descargar datos')
+    }
+  }
+
+  /**
+   * Revoke all permissions and logout
+   */
+  const handleRevokePermissions = () => {
+    const confirmed = window.confirm(
+      '⚠️ Esto revocará todos los permisos y cerrará tu sesión. ¿Continuar?'
+    )
+    if (confirmed) {
+      // Clear localStorage and logout
+      localStorage.removeItem('fi-stride-user')
+      localStorage.removeItem('fi-stride-auth-token')
+      const { logout } = useAuthStore.getState()
+      logout()
+      window.location.href = '/'
+    }
+  }
 
   const sections = [
     {
@@ -113,6 +209,62 @@ Si tienes dudas: derechos@fi-stride.com
             )}
           </div>
         ))}
+      </div>
+
+      {/* Cache Management */}
+      <div className={styles.dataControl}>
+        <h2>💾 Gestión de Caché</h2>
+        <div className={styles.cacheInfo}>
+          <div className={styles.statItem}>
+            <span className={styles.statLabel}>📦 Ejercicios descargados:</span>
+            <span className={styles.statValue}>{cacheStats.exerciseCount}</span>
+          </div>
+          <div className={styles.statItem}>
+            <span className={styles.statLabel}>📊 Espacio usado:</span>
+            <span className={styles.statValue}>{cacheStats.estimatedSize}</span>
+          </div>
+        </div>
+
+        {showConfirmClear ? (
+          <div className={styles.confirmBox}>
+            <p>⚠️ ¿Estás seguro? Se eliminarán todos los ejercicios descargados.</p>
+            <div className={styles.buttonGroup}>
+              <button
+                className={styles.dangerBtn}
+                onClick={handleClearCache}
+                disabled={isClearing}
+              >
+                {isClearing ? '⏳ Limpiando...' : '🗑️ Eliminar Caché'}
+              </button>
+              <button className={styles.cancelBtn} onClick={() => setShowConfirmClear(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            className={styles.actionBtn}
+            onClick={() => setShowConfirmClear(true)}
+            disabled={cacheStats.exerciseCount === 0}
+          >
+            🗑️ Limpiar Caché Local
+          </button>
+        )}
+      </div>
+
+      {/* Data Control */}
+      <div className={styles.dataControl}>
+        <h2>📥 Control de Datos</h2>
+        <p>Descarga o revoca tu información personal</p>
+
+        <div className={styles.buttonGroup}>
+          <button className={styles.actionBtn} onClick={handleDownloadData}>
+            📥 Descargar Mis Datos (JSON)
+          </button>
+          <button className={styles.dangerBtn} onClick={handleRevokePermissions}>
+            🚫 Revocar Permisos y Cerrar Sesión
+          </button>
+        </div>
       </div>
 
       {/* Consent Form */}
