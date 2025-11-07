@@ -61,9 +61,7 @@ else:
     TranscriptionService = _import_service("TranscriptionService")  # type: ignore[assignment]
     TriageService = _import_service("TriageService")  # type: ignore[assignment]
 
-    from backend.services.diarization_job_service import (
-        DiarizationJobService,  # type: ignore[assignment]
-    )
+    DiarizationJobService = _import_service("DiarizationJobService")  # type: ignore[assignment]
 
 
 def _get_logger() -> Any:

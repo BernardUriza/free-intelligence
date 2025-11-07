@@ -13,10 +13,8 @@ Clean Code Architecture:
 """
 
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
-
-UTC = UTC
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field

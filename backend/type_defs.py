@@ -1,11 +1,11 @@
 """Type definitions.
 
-Re-exports from backend.common.type_defs for backward compatibility.
+Re-exports from packages.fi_common.types.type_defs for backward compatibility.
 """
 
 from __future__ import annotations
 
-from backend.common.type_defs import *
+from packages.fi_common.types.type_defs import *
 
 __all__ = [
     "SessionID",
