@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
+import { SessionDesigner } from './SessionDesigner'
 import styles from '../styles/dashboard.module.css'
 
 interface CoachStats {
@@ -11,7 +12,7 @@ interface CoachStats {
 export function CoachDashboard() {
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
-  const [activeTab, setActiveTab] = useState<'overview' | 'athletes' | 'sessions' | 'settings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'athletes' | 'sessions' | 'designer' | 'settings'>('overview')
 
   // Mock stats - en producción vendrían del backend
   const stats: CoachStats = {
@@ -55,6 +56,12 @@ export function CoachDashboard() {
           onClick={() => setActiveTab('sessions')}
         >
           📋 Sesiones
+        </button>
+        <button
+          className={`${styles.navBtn} ${activeTab === 'designer' ? styles.active : ''}`}
+          onClick={() => setActiveTab('designer')}
+        >
+          ✏️ Diseñador
         </button>
         <button
           className={`${styles.navBtn} ${activeTab === 'settings' ? styles.active : ''}`}
@@ -164,6 +171,11 @@ export function CoachDashboard() {
               <button className={styles.primaryBtn}>+ Nueva Sesión</button>
             </div>
           </section>
+        )}
+
+        {/* Session Designer Tab */}
+        {activeTab === 'designer' && (
+          <SessionDesigner />
         )}
 
         {/* Settings Tab */}
