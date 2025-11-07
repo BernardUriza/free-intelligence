@@ -33,13 +33,16 @@ def create_app() -> FastAPI:
     # Include all API routers (lazy load to avoid circular imports)
     try:
         from backend.api import (
+            athletes,
             audit,
+            coaches,
             diarization,
             exports,
             fi_diag,
             katniss,
             kpis,
             library,
+            session_designs,
             sessions,
             system,
             t21_resources,
@@ -48,13 +51,16 @@ def create_app() -> FastAPI:
             triage,
         )
 
+        app.include_router(athletes.router, prefix="/api/athletes", tags=["athletes"])
         app.include_router(audit.router, prefix="/api/audit", tags=["audit"])
+        app.include_router(coaches.router, prefix="/api/coaches", tags=["coaches"])
         app.include_router(diarization.router, prefix="/api/diarization", tags=["diarization"])
         app.include_router(exports.router, prefix="/api/exports", tags=["exports"])
         app.include_router(fi_diag.router, prefix="/api/fi-diag", tags=["fi-diag"])
         app.include_router(katniss.router)
         app.include_router(kpis.router, prefix="/api/kpis", tags=["kpis"])
         app.include_router(library.router)
+        app.include_router(session_designs.router, prefix="/api/session-designs", tags=["session-designs"])
         app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
         app.include_router(system.router, prefix="/api/system", tags=["system"])
         app.include_router(t21_resources.router)

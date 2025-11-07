@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { SessionAnalysis } from './SessionAnalysis'
-import styles from '../styles/athlete-flow.module.css'
 
 type Step = 'consent' | 'permissions' | 'profile' | 'ready' | 'session-demo'
 
@@ -46,244 +45,229 @@ export function AthleteFlow() {
 
   const isConsentComplete = consents.privacy && consents.encryption && consents.dataProcessing
   const isPermissionsComplete = permissions.camera || permissions.microphone
+  const progressPercent = ((['consent', 'permissions', 'profile', 'ready'].indexOf(currentStep) + 1) / 4) * 100
 
   return (
-    <div className={styles.container}>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <header className={styles.header}>
-        <h1>FI-Stride</h1>
-        <p>Bienvenido, {user?.name}! 🏃</p>
-        <button onClick={logout} className={styles.logoutBtn}>
-          Cerrar sesión
-        </button>
+      <header className="bg-gradient-to-r from-green-600 to-blue-600 text-white shadow-lg p-6">
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">FI-Stride</h1>
+            <p className="text-green-100">Bienvenido, {user?.name}! 🏃</p>
+          </div>
+          <button
+            onClick={logout}
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors text-sm font-medium"
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </header>
 
       {/* Progress Bar */}
-      <div className={styles.progressContainer}>
-        <div className={styles.progressSteps}>
-          <div className={`${styles.step} ${currentStep === 'consent' ? styles.active : ''}`}>
-            Privacidad
+      <div className="bg-white border-b border-gray-200 shadow-sm p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex justify-between mb-4">
+            {['Privacidad', 'Permisos', 'Perfil', 'Listo'].map((label, idx) => (
+              <div
+                key={label}
+                className={`flex-1 text-center text-sm font-medium ${
+                  idx < ['consent', 'permissions', 'profile', 'ready'].indexOf(currentStep)
+                    ? 'text-green-600'
+                    : idx === ['consent', 'permissions', 'profile', 'ready'].indexOf(currentStep)
+                      ? 'text-blue-600'
+                      : 'text-gray-400'
+                }`}
+              >
+                {label}
+              </div>
+            ))}
           </div>
-          <div className={`${styles.step} ${currentStep === 'permissions' ? styles.active : ''}`}>
-            Permisos
-          </div>
-          <div className={`${styles.step} ${currentStep === 'profile' ? styles.active : ''}`}>
-            Perfil
-          </div>
-          <div className={`${styles.step} ${currentStep === 'ready' ? styles.active : ''}`}>
-            Listo
+          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+            <div
+              className="bg-blue-600 h-full transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            ></div>
           </div>
         </div>
-        <div
-          className={styles.progressBar}
-          style={{
-            width: `${((['consent', 'permissions', 'profile', 'ready'].indexOf(currentStep) + 1) / 4) * 100}%`
-          }}
-        />
       </div>
 
       {/* Content */}
-      <main className={styles.main}>
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8">
         {/* Privacy Consent Step */}
         {currentStep === 'consent' && (
-          <section className={styles.step_content}>
-            <h2>Privacidad y Consentimiento</h2>
-            <p className={styles.subtitle}>
+          <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Privacidad y Consentimiento</h2>
+            <p className="text-gray-600 mb-8">
               Necesitamos tu consentimiento para usar tus datos de forma segura
             </p>
 
-            <div className={styles.consentCard}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={consents.privacy}
-                  onChange={() => handleConsentChange('privacy')}
-                />
-                <span>
-                  <strong>Política de Privacidad</strong>
-                  <br />
-                  Acepto que mis datos se usen solo para mejorar mi entrenamiento
-                </span>
-              </label>
-            </div>
-
-            <div className={styles.consentCard}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={consents.encryption}
-                  onChange={() => handleConsentChange('encryption')}
-                />
-                <span>
-                  <strong>Encriptación</strong>
-                  <br />
-                  Entiendo que mis datos están protegidos con cifrado de extremo a extremo
-                </span>
-              </label>
-            </div>
-
-            <div className={styles.consentCard}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={consents.dataProcessing}
-                  onChange={() => handleConsentChange('dataProcessing')}
-                />
-                <span>
-                  <strong>Procesamiento de Datos</strong>
-                  <br />
-                  Acepto que se analicen mis sesiones para mejorar el entrenamiento
-                </span>
-              </label>
+            <div className="space-y-4">
+              {[
+                {
+                  key: 'privacy',
+                  title: 'Política de Privacidad',
+                  desc: 'Acepto que mis datos se usen solo para mejorar mi entrenamiento',
+                },
+                {
+                  key: 'encryption',
+                  title: 'Encriptación',
+                  desc: 'Entiendo que mis datos están protegidos con cifrado de extremo a extremo',
+                },
+                {
+                  key: 'dataProcessing',
+                  title: 'Procesamiento de Datos',
+                  desc: 'Acepto que se analicen mis sesiones para mejorar el entrenamiento',
+                },
+              ].map(({ key, title, desc }) => (
+                <label
+                  key={key}
+                  className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={(consents as any)[key]}
+                    onChange={() => handleConsentChange(key as keyof typeof consents)}
+                    className="mt-1 w-5 h-5 accent-blue-600"
+                  />
+                  <div>
+                    <strong className="text-gray-900 block">{title}</strong>
+                    <span className="text-gray-600 text-sm">{desc}</span>
+                  </div>
+                </label>
+              ))}
             </div>
           </section>
         )}
 
         {/* Permissions Step */}
         {currentStep === 'permissions' && (
-          <section className={styles.step_content}>
-            <h2>Permisos de Dispositivo</h2>
-            <p className={styles.subtitle}>
+          <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Permisos de Dispositivo</h2>
+            <p className="text-gray-600 mb-8">
               Selecciona qué sensores quieres usar durante tus sesiones
             </p>
 
-            <div className={styles.permissionCard}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={permissions.camera}
-                  onChange={() => handlePermissionChange('camera')}
-                />
-                <span>
-                  <strong>📷 Cámara</strong>
-                  <br />
-                  Para verificar tu postura y movimiento
-                </span>
-              </label>
-            </div>
-
-            <div className={styles.permissionCard}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={permissions.microphone}
-                  onChange={() => handlePermissionChange('microphone')}
-                />
-                <span>
-                  <strong>🎤 Micrófono</strong>
-                  <br />
-                  Para registrar comandos de voz (opcional)
-                </span>
-              </label>
-            </div>
-
-            <div className={styles.permissionCard}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={permissions.location}
-                  onChange={() => handlePermissionChange('location')}
-                  disabled
-                />
-                <span>
-                  <strong>📍 Ubicación</strong>
-                  <br />
-                  Próximamente en actualizaciones futuras
-                </span>
-              </label>
+            <div className="space-y-4">
+              {[
+                { key: 'camera', icon: '📷', title: 'Cámara', desc: 'Para verificar tu postura y movimiento' },
+                { key: 'microphone', icon: '🎤', title: 'Micrófono', desc: 'Para registrar comandos de voz (opcional)' },
+                { key: 'location', icon: '📍', title: 'Ubicación', desc: 'Próximamente en actualizaciones futuras', disabled: true },
+              ].map(({ key, icon, title, desc, disabled }) => (
+                <label
+                  key={key}
+                  className={`flex items-start gap-4 p-4 border border-gray-200 rounded-lg ${
+                    !disabled ? 'hover:bg-gray-50 cursor-pointer' : 'bg-gray-50 opacity-60'
+                  } transition-colors`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={(permissions as any)[key]}
+                    onChange={() => handlePermissionChange(key as keyof typeof permissions)}
+                    disabled={disabled}
+                    className="mt-1 w-5 h-5 accent-blue-600"
+                  />
+                  <div>
+                    <strong className="text-gray-900 block">{icon} {title}</strong>
+                    <span className="text-gray-600 text-sm">{desc}</span>
+                  </div>
+                </label>
+              ))}
             </div>
           </section>
         )}
 
         {/* Profile Step */}
         {currentStep === 'profile' && (
-          <section className={styles.step_content}>
-            <h2>Tu Perfil</h2>
-            <p className={styles.subtitle}>Información de tu cuenta</p>
+          <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Tu Perfil</h2>
+            <p className="text-gray-600 mb-8">Información de tu cuenta</p>
 
-            <div className={styles.profileInfo}>
-              <div className={styles.formGroup}>
-                <label>Nombre</label>
-                <input type="text" defaultValue={user?.name} disabled />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>Correo</label>
-                <input type="email" defaultValue={user?.email} disabled />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>Rol</label>
-                <input type="text" defaultValue="Deportista" disabled />
-              </div>
+            <div className="space-y-4">
+              {[
+                { label: 'Nombre', value: user?.name },
+                { label: 'Correo', value: user?.email },
+                { label: 'Rol', value: 'Deportista' },
+              ].map(({ label, value }) => (
+                <div key={label}>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+                  <input
+                    type={label === 'Correo' ? 'email' : 'text'}
+                    value={value}
+                    disabled
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-600"
+                  />
+                </div>
+              ))}
             </div>
           </section>
         )}
 
         {/* Ready Step */}
         {currentStep === 'ready' && (
-          <section className={styles.step_content}>
-            <div className={styles.readyCard}>
-              <h2>¡Listo para entrenar! 🎉</h2>
-              <p>
-                Tu perfil está completamente configurado. Ahora puedes comenzar tu primer entrenamiento
-                personalizado con FI-Stride.
-              </p>
-              <ul className={styles.checklist}>
-                <li>✅ Privacidad confirmada</li>
-                <li>✅ Permisos configurados</li>
-                <li>✅ Perfil completado</li>
-              </ul>
-            </div>
+          <section className="bg-gradient-to-br from-green-50 to-blue-50 rounded-lg shadow-sm border-2 border-green-200 p-8 text-center">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">¡Listo para entrenar! 🎉</h2>
+            <p className="text-gray-700 mb-8 text-lg">
+              Tu perfil está completamente configurado. Ahora puedes comenzar tu primer entrenamiento
+              personalizado con FI-Stride.
+            </p>
+            <ul className="space-y-2 text-gray-700 mb-8">
+              <li className="text-lg">✅ Privacidad confirmada</li>
+              <li className="text-lg">✅ Permisos configurados</li>
+              <li className="text-lg">✅ Perfil completado</li>
+            </ul>
           </section>
         )}
 
         {currentStep === 'session-demo' && (
-          <section className={styles.step_content}>
+          <section>
             <SessionAnalysis athleteName={user?.name} />
           </section>
         )}
       </main>
 
       {/* Navigation Buttons */}
-      <div className={styles.footer}>
-        {currentStep !== 'consent' && (
-          <button onClick={handlePrevStep} className={styles.secondaryBtn}>
-            ← Atrás
-          </button>
-        )}
-        {currentStep !== 'ready' && (
-          <button
-            onClick={handleNextStep}
-            disabled={
-              (currentStep === 'consent' && !isConsentComplete) ||
-              (currentStep === 'permissions' && !isPermissionsComplete)
-            }
-            className={styles.primaryBtn}
-          >
-            Siguiente →
-          </button>
-        )}
-        {currentStep === 'ready' && (
-          <button
-            onClick={() => setCurrentStep('session-demo')}
-            className={styles.primaryBtn}
-          >
-            Comenzar Entrenamiento 💪
-          </button>
-        )}
+      <div className="bg-white border-t border-gray-200 px-4 py-6 shadow-lg">
+        <div className="max-w-4xl mx-auto flex justify-between gap-4">
+          {currentStep !== 'consent' && (
+            <button
+              onClick={handlePrevStep}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              ← Atrás
+            </button>
+          )}
+          {currentStep !== 'ready' && (
+            <button
+              onClick={handleNextStep}
+              disabled={
+                (currentStep === 'consent' && !isConsentComplete) ||
+                (currentStep === 'permissions' && !isPermissionsComplete)
+              }
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
+            >
+              Siguiente →
+            </button>
+          )}
+          {currentStep === 'ready' && (
+            <button
+              onClick={() => setCurrentStep('session-demo')}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium ml-auto"
+            >
+              Comenzar Entrenamiento 💪
+            </button>
+          )}
 
-        {currentStep === 'session-demo' && (
-          <button
-            onClick={() => {
-              setCurrentStep('consent')
-              // Reset flow
-            }}
-            className={styles.secondaryBtn}
-          >
-            ← Volver al inicio
-          </button>
-        )}
+          {currentStep === 'session-demo' && (
+            <button
+              onClick={() => setCurrentStep('consent')}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              ← Volver al inicio
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

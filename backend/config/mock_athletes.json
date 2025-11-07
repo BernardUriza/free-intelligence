@@ -1,0 +1,60 @@
+{
+  "athletes": [
+    {
+      "id": "athlete_001",
+      "name": "Juan García",
+      "email": "juan.garcia@example.com",
+      "coachId": "coach_001",
+      "age": 28,
+      "goal": "Aumentar resistencia cardiovascular",
+      "fitnessLevel": "intermedio",
+      "injuries": [],
+      "sessionsCompleted": 15,
+      "sessionsTotal": 18,
+      "completionRate": 83,
+      "createdAt": "2025-01-05T00:00:00Z"
+    },
+    {
+      "id": "athlete_002",
+      "name": "María López",
+      "email": "maria.lopez@example.com",
+      "coachId": "coach_001",
+      "age": 32,
+      "goal": "Recuperación post-lesión",
+      "fitnessLevel": "principiante",
+      "injuries": ["Lesión de rodilla leve"],
+      "sessionsCompleted": 12,
+      "sessionsTotal": 15,
+      "completionRate": 80,
+      "createdAt": "2025-01-06T00:00:00Z"
+    },
+    {
+      "id": "athlete_003",
+      "name": "Pedro Rodríguez",
+      "email": "pedro.rodriguez@example.com",
+      "coachId": "coach_002",
+      "age": 25,
+      "goal": "Flexibilidad y movilidad",
+      "fitnessLevel": "avanzado",
+      "injuries": [],
+      "sessionsCompleted": 20,
+      "sessionsTotal": 22,
+      "completionRate": 91,
+      "createdAt": "2025-01-07T00:00:00Z"
+    },
+    {
+      "id": "athlete_004",
+      "name": "Laura Martínez",
+      "email": "laura.martinez@example.com",
+      "coachId": "coach_003",
+      "age": 29,
+      "goal": "Técnica deportiva",
+      "fitnessLevel": "intermedio",
+      "injuries": [],
+      "sessionsCompleted": 18,
+      "sessionsTotal": 20,
+      "completionRate": 90,
+      "createdAt": "2025-01-08T00:00:00Z"
+    }
+  ]
+}

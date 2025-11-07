@@ -1,5 +1,3 @@
-import styles from '../styles/library.module.css'
-
 export interface FilterOption {
   id: string
   label: string
@@ -63,31 +61,33 @@ export function FilterBar({
   onFilterChange
 }: FilterBarProps) {
   return (
-    <div className={styles.controls}>
+    <div className="flex flex-col sm:flex-row gap-4 mb-6">
       {/* Search Input */}
       <input
         type="text"
         placeholder={searchPlaceholder}
         value={searchValue}
         onChange={(e) => onSearchChange(e.target.value)}
-        className={styles.searchInput}
+        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition"
         aria-label="Search input"
       />
 
       {/* Filter Buttons */}
       {filters && filters.length > 0 && (
-        <div className={styles.filterButtons}>
+        <div className="flex gap-2 flex-wrap sm:flex-nowrap">
           {filters.map((filter) => (
             <button
               key={filter.id}
-              className={`${styles.filterBtn} ${
-                activeFilter === filter.id ? styles.active : ''
-              }`}
               onClick={() => onFilterChange?.(filter.id)}
               aria-pressed={activeFilter === filter.id}
               type="button"
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 whitespace-nowrap ${
+                activeFilter === filter.id
+                  ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                  : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+              }`}
             >
-              {filter.icon && <span>{filter.icon}</span>}
+              {filter.icon && <span className="mr-2">{filter.icon}</span>}
               {filter.label}
             </button>
           ))}
