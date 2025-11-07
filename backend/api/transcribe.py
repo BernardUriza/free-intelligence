@@ -24,7 +24,7 @@ Updated: 2025-11-05 (import from unified service)
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, File, Header, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel, Field
@@ -52,7 +52,7 @@ class TranscriptionResponse(BaseModel):
 async def transcribe_audio_endpoint(
     request: Request,
     audio: UploadFile = File(..., description="Audio file to transcribe"),
-    x_session_id: str | None = Header(None, alias="X-Session-ID"),
+    x_session_id: Optional[str] = Header(None, alias="X-Session-ID"),
 ) -> TranscriptionResponse:
     """
     Upload audio file and get transcription.
