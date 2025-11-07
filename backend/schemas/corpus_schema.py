@@ -10,4 +10,4 @@ warnings.warn(
     stacklevel=2,
 )
 
-from backend.storage.corpus_schema import *  # noqa: F401, F403
+from fi_common.storage.corpus_schema import *  # noqa: F403

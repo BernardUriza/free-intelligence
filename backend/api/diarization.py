@@ -41,6 +41,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import Response
+from fi_common.storage.audio_storage import AUDIO_STORAGE_DIR, save_audio_file
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
@@ -50,7 +51,6 @@ from backend.services.diarization_jobs import JobStatus, create_job, update_job_
 from backend.services.diarization_service import diarize_audio
 from backend.services.diarization_service_v2 import diarize_audio_parallel
 from backend.services.soap_generation.service import SOAPGenerationService
-from backend.storage.audio_storage import AUDIO_STORAGE_DIR, save_audio_file
 
 logger = get_logger(__name__)
 
