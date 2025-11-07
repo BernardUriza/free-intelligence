@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { SessionAnalysis } from './SessionAnalysis'
 import { LiveSessionCard } from './LiveSessionCard'
@@ -15,10 +15,25 @@ interface SessionResult {
   heartRateAvg?: number
 }
 
+// Utility: Check if consent was already given on this device
+const hasConsentBeenGiven = (): boolean => {
+  const stored = localStorage.getItem('fi-stride-consent-accepted')
+  return stored === 'true'
+}
+
+// Utility: Mark consent as given on this device
+const markConsentAsGiven = (): void => {
+  localStorage.setItem('fi-stride-consent-accepted', 'true')
+  localStorage.setItem('fi-stride-consent-date', new Date().toISOString())
+}
+
 export function AthleteFlow() {
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
-  const [currentStep, setCurrentStep] = useState<Step>('consent')
+  const [currentStep, setCurrentStep] = useState<Step>(() => {
+    // Load consent status from localStorage
+    return hasConsentBeenGiven() ? 'permissions' : 'consent'
+  })
   const [consents, setConsents] = useState({
     privacy: false,
     encryption: false,
@@ -41,6 +56,11 @@ export function AthleteFlow() {
   }
 
   const handleNextStep = () => {
+    // Save consent if moving away from consent step
+    if (currentStep === 'consent' && isConsentComplete) {
+      markConsentAsGiven()
+    }
+
     const steps: Step[] = ['consent', 'permissions', 'profile', 'ready']
     const currentIndex = steps.indexOf(currentStep)
     if (currentIndex < steps.length - 1) {
