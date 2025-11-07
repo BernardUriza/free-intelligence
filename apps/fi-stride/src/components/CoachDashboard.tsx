@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { SessionDesigner } from './SessionDesigner'
 
@@ -8,16 +8,67 @@ interface CoachStats {
   avgCompletionRate: number
 }
 
+interface Session {
+  id: string
+  name: string
+  athleteId: string
+  status: string
+  duration?: number
+}
+
+const API_BASE = 'http://localhost:7001/api'
+
 export function CoachDashboard() {
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
   const [activeTab, setActiveTab] = useState<'overview' | 'athletes' | 'sessions' | 'designer' | 'settings'>('overview')
+  const [stats, setStats] = useState<CoachStats>({
+    activeAthletes: 0,
+    sessionsThisWeek: 0,
+    avgCompletionRate: 0,
+  })
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [loading, setLoading] = useState(true)
+  const coachId = user?.id || 'coach_001'
 
-  const stats: CoachStats = {
-    activeAthletes: 12,
-    sessionsThisWeek: 8,
-    avgCompletionRate: 87,
-  }
+  // Fetch coach stats and sessions
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+
+        // Fetch stats from /api/coaches/{coachId}/stats
+        const statsRes = await fetch(`${API_BASE}/coaches/${coachId}/stats`)
+        if (statsRes.ok) {
+          const statsData = await statsRes.json()
+          setStats({
+            activeAthletes: statsData.data.activeAthletes || 0,
+            sessionsThisWeek: statsData.data.sessionsThisWeek || 0,
+            avgCompletionRate: statsData.data.avgCompletionRate || 0,
+          })
+        }
+
+        // Fetch recent sessions
+        const sessionsRes = await fetch(`${API_BASE}/coaches/${coachId}/sessions`)
+        if (sessionsRes.ok) {
+          const sessionsData = await sessionsRes.json()
+          setSessions(sessionsData.data.sessions || [])
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error)
+        // Use fallback data if fetch fails
+        setStats({
+          activeAthletes: 12,
+          sessionsThisWeek: 8,
+          avgCompletionRate: 87,
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [coachId])
 
   const KPICard = ({ title, value, icon, color, suffix = '' }: { title: string; value: number; icon: string; color: string; suffix?: string }) => (
     <div className={`bg-white rounded-lg p-6 border-l-4 ${color} shadow-sm`}>
@@ -128,38 +179,44 @@ export function CoachDashboard() {
                 <h2 className="text-xl font-bold text-gray-900">Sesiones Recientes</h2>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Deportista</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Tipo</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Duración</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-gray-900">Juan García</td>
-                      <td className="px-6 py-4 text-gray-600">Fuerza</td>
-                      <td className="px-6 py-4 text-gray-600">45 min</td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
-                          ✅ Completada
-                        </span>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-gray-900">María López</td>
-                      <td className="px-6 py-4 text-gray-600">Resistencia</td>
-                      <td className="px-6 py-4 text-gray-600">30 min</td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-semibold">
-                          ⏳ En Progreso
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                {loading ? (
+                  <div className="p-6 text-center text-gray-500">Cargando sesiones...</div>
+                ) : sessions.length === 0 ? (
+                  <div className="p-6 text-center text-gray-500">No hay sesiones recientes</div>
+                ) : (
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Nombre Sesión</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Deportista</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {sessions.slice(0, 5).map((session) => (
+                        <tr key={session.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-gray-900">{session.name}</td>
+                          <td className="px-6 py-4 text-gray-600">{session.athleteId}</td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                session.status === 'completed'
+                                  ? 'bg-green-100 text-green-800'
+                                  : session.status === 'in_progress'
+                                    ? 'bg-orange-100 text-orange-800'
+                                    : 'bg-gray-100 text-gray-800'
+                              }`}
+                            >
+                              {session.status === 'completed' && '✅ Completada'}
+                              {session.status === 'in_progress' && '⏳ En Progreso'}
+                              {session.status === 'pending' && '⏸️ Pendiente'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           </>
