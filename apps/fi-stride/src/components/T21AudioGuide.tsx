@@ -80,8 +80,42 @@ export const T21AudioGuide: React.FC<T21AudioGuideProps> = ({
 };
 
 /**
+ * Get female Spanish voice for KATNISS
+ * KATNISS is a woman coach, so use feminine voice
+ */
+const getFeminineSpanishVoice = (): SpeechSynthesisVoice | undefined => {
+  if (!('speechSynthesis' in window)) return undefined;
+
+  const voices = window.speechSynthesis.getVoices();
+
+  // Priority 1: Spanish female voice
+  const spanishFemale = voices.find(
+    (v) =>
+      v.lang.startsWith('es') &&
+      (v.name.toLowerCase().includes('female') ||
+        v.name.toLowerCase().includes('woman') ||
+        v.name.toLowerCase().includes('mujer'))
+  );
+  if (spanishFemale) return spanishFemale;
+
+  // Priority 2: Any Spanish voice (often female by default)
+  const spanishAny = voices.find((v) => v.lang.startsWith('es'));
+  if (spanishAny) return spanishAny;
+
+  // Priority 3: English female voice as fallback
+  const englishFemale = voices.find(
+    (v) =>
+      v.lang.startsWith('en') &&
+      (v.name.toLowerCase().includes('female') ||
+        v.name.toLowerCase().includes('woman'))
+  );
+  return englishFemale;
+};
+
+/**
  * Hook: useAudioGuide
  * Manage audio guide state globally
+ * KATNISS speaks with feminine voice
  */
 export const useAudioGuide = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -96,6 +130,13 @@ export const useAudioGuide = () => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
     utterance.rate = rate;
+
+    // Use feminine Spanish voice for KATNISS
+    const femaleVoice = getFeminineSpanishVoice();
+    if (femaleVoice) {
+      utterance.voice = femaleVoice;
+    }
+
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
 
