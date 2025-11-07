@@ -1,0 +1,144 @@
+{
+  "es": {
+    "session": {
+      "title": "Sesión de Entrenamiento",
+      "subtitle": "¡Vamos a entrenar!",
+      "start": "Iniciar Sesión",
+      "pause": "Pausa",
+      "resume": "Continuar",
+      "end": "Terminar Sesión",
+      "timer_label": "Tiempo",
+      "reps_label": "Repeticiones",
+      "of": "de"
+    },
+    "reps": {
+      "button": "Rep Hecha",
+      "completed_one": "1 repetición completada",
+      "completed_many": "{count} repeticiones completadas",
+      "milestone_5": "¡Muy bien! 5 repeticiones completadas",
+      "milestone_10": "¡Excelente! 10 repeticiones",
+      "milestone_target": "¡Felicidades! Completaste {target} repeticiones",
+      "progress": "{percent}% completado"
+    },
+    "emotional": {
+      "button": "¿Cómo Estás?",
+      "title": "¿Cómo te sientes?",
+      "tired": "Muy cansado",
+      "fatigued": "Cansado",
+      "normal": "Normal",
+      "good": "Bien",
+      "excellent": "Excelente",
+      "confirm": "Entendido"
+    },
+    "feedback": {
+      "tired": "Descansa cuando lo necesites. ¡Eres fuerte! 💪",
+      "fatigued": "Un pequeño descanso está bien. Vuelve cuando estés listo.",
+      "normal": "¡Vamos! Un poco más 🌟",
+      "good": "¡Muy bien! ¡Continúa así! 😊",
+      "excellent": "¡Wow! ¡Increíble energía! 🚀",
+      "milestone_5": "¡Vas bien! Continúa así 💪",
+      "milestone_10": "¡Mitad del camino! ¡Sigue adelante! 🔥",
+      "milestone_target": "¡LO HICISTE! 🏆 ¡Eres un campeón!",
+      "completion": "Sesión completada. ¡Buen trabajo!"
+    },
+    "sos": {
+      "button": "🆘 SOS - Necesito Parar",
+      "confirm_title": "¿Quieres parar la sesión?",
+      "confirm_message": "Has completado {reps} de {target} repeticiones.",
+      "confirm_cancel": "No, continuar",
+      "confirm_yes": "Sí, parar ahora"
+    },
+    "errors": {
+      "tts_error": "Error de audio",
+      "encryption_error": "Error al guardar datos",
+      "upload_error": "Error de conexión (se reintentará)"
+    },
+    "status": {
+      "ready": "Listo",
+      "running": "Entrenando",
+      "paused": "Pausado",
+      "finished": "Completado",
+      "tts_loading": "⏳ Cargando voz",
+      "tts_ready": "✓ Listo para escuchar"
+    },
+    "accessibility": {
+      "play_button": "Botón para iniciar sesión",
+      "rep_button": "Botón para completar repetición",
+      "pause_button": "Botón para pausar sesión",
+      "emotional_button": "Botón para reportar cómo te sientes",
+      "sos_button": "Botón SOS para emergencia",
+      "end_button": "Botón para terminar sesión"
+    }
+  },
+  "en": {
+    "session": {
+      "title": "Training Session",
+      "subtitle": "Let's train!",
+      "start": "Start Session",
+      "pause": "Pause",
+      "resume": "Continue",
+      "end": "End Session",
+      "timer_label": "Time",
+      "reps_label": "Reps",
+      "of": "of"
+    },
+    "reps": {
+      "button": "Rep Done",
+      "completed_one": "1 rep completed",
+      "completed_many": "{count} reps completed",
+      "milestone_5": "Great! 5 reps done",
+      "milestone_10": "Excellent! 10 reps",
+      "milestone_target": "Congratulations! You completed {target} reps",
+      "progress": "{percent}% done"
+    },
+    "emotional": {
+      "button": "How Are You?",
+      "title": "How do you feel?",
+      "tired": "Very tired",
+      "fatigued": "Tired",
+      "normal": "Normal",
+      "good": "Good",
+      "excellent": "Excellent",
+      "confirm": "Got it"
+    },
+    "feedback": {
+      "tired": "Rest when you need to. You are strong! 💪",
+      "fatigued": "A short break is fine. Come back when ready.",
+      "normal": "Let's go! A bit more 🌟",
+      "good": "Very good! Keep going! 😊",
+      "excellent": "Wow! Incredible energy! 🚀",
+      "milestone_5": "You're doing well! Keep going 💪",
+      "milestone_10": "Halfway there! Keep pushing! 🔥",
+      "milestone_target": "YOU DID IT! 🏆 You are a champion!",
+      "completion": "Session complete. Great work!"
+    },
+    "sos": {
+      "button": "🆘 SOS - Need to Stop",
+      "confirm_title": "Do you want to stop?",
+      "confirm_message": "You completed {reps} of {target} reps.",
+      "confirm_cancel": "No, keep going",
+      "confirm_yes": "Yes, stop now"
+    },
+    "errors": {
+      "tts_error": "Audio error",
+      "encryption_error": "Error saving data",
+      "upload_error": "Connection error (will retry)"
+    },
+    "status": {
+      "ready": "Ready",
+      "running": "Training",
+      "paused": "Paused",
+      "finished": "Complete",
+      "tts_loading": "⏳ Loading voice",
+      "tts_ready": "✓ Ready to listen"
+    },
+    "accessibility": {
+      "play_button": "Button to start session",
+      "rep_button": "Button to complete repetition",
+      "pause_button": "Button to pause session",
+      "emotional_button": "Button to report how you feel",
+      "sos_button": "SOS button for emergency",
+      "end_button": "Button to end session"
+    }
+  }
+}
