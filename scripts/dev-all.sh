@@ -161,7 +161,8 @@ start_services() {
     # Start Backend API
     echo -e "${CYAN}🚀 Starting Backend API (port 7001)...${NC}"
     export PYTHONPATH="${PROJECT_ROOT}"
-    python3 -m uvicorn backend.app.main:app \
+    python3 -m uvicorn backend.app.main:create_app \
+        --factory \
         --host 0.0.0.0 \
         --port 7001 \
         --reload \
