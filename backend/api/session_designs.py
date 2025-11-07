@@ -3,12 +3,13 @@ Session Designs API endpoints - Endpoints para diseños/templates de sesiones
 """
 
 from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Query
 
-from backend.schemas.schemas import APIResponse
 from backend.config.mock_loader import MockDataLoader
+from backend.schemas.schemas import APIResponse
 
-router = APIRouter(prefix="/session-designs", tags=["sessions"])
+router = APIRouter(tags=["sessions"])
 
 
 @router.get("/", response_model=APIResponse)
@@ -25,8 +26,9 @@ async def list_session_designs(
 
     return APIResponse(
         status="success",
+        code=200,
         data={
-            "sessions": sessions[skip : skip + limit],
+            "designs": sessions[skip : skip + limit],
             "total": len(sessions),
         },
     )
@@ -43,6 +45,7 @@ async def get_session_design(session_id: str) -> dict:
         )
     return APIResponse(
         status="success",
+        code=200,
         data={"session": session},
     )
 
@@ -71,6 +74,7 @@ async def create_session_design(
     # En producción, esto guardaría en BD
     return APIResponse(
         status="success",
+        code=201,
         data={
             "message": "Session design created successfully",
             "sessionId": f"session_{coach_id}_{int(__import__('time').time())}",
@@ -101,13 +105,14 @@ async def publish_session(
     # En producción, esto guardaría en BD
     return APIResponse(
         status="success",
+        code=200,
         data={
             "message": f"Session published to {athlete.get('name')}",
             "sessionId": session_id,
             "athleteId": athlete_id,
-            "publishedAt": __import__('datetime').datetime.now(
-                __import__('datetime').timezone.utc
-            ).isoformat(),
+            "publishedAt": __import__("datetime")
+            .datetime.now(__import__("datetime").timezone.utc)
+            .isoformat(),
         },
     )
 
@@ -124,6 +129,7 @@ async def get_session_blocks(session_id: str) -> dict:
 
     return APIResponse(
         status="success",
+        code=200,
         data={
             "sessionId": session_id,
             "blocks": session.get("blocks", []),
@@ -144,6 +150,7 @@ async def get_safety_tips(session_id: str) -> dict:
 
     return APIResponse(
         status="success",
+        code=200,
         data={
             "sessionId": session_id,
             "safetyTips": session.get("safetyTips", []),

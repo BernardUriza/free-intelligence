@@ -102,15 +102,15 @@ export class FIClient {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
+        const error = await response.json().catch(() => ({})) as Record<string, unknown>;
         throw new FIClientError(
           response.status,
-          error.detail || response.statusText,
+          (error?.detail as string) || response.statusText,
           error
         );
       }
 
-      return response.json();
+      return response.json() as Promise<T>;
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof FIClientError) {
@@ -145,15 +145,15 @@ export class FIClient {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
+        const error = await response.json().catch(() => ({})) as Record<string, unknown>;
         throw new FIClientError(
           response.status,
-          error.detail || response.statusText,
+          (error?.detail as string) || response.statusText,
           error
         );
       }
 
-      return response.json();
+      return response.json() as Promise<T>;
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof FIClientError) {

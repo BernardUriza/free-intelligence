@@ -14,7 +14,7 @@ FI-CORE-FEAT-003
 
 import hashlib
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from packages.fi_common.logging.log_rotation import LogRotation
@@ -118,7 +118,7 @@ class LogManifest:
         """
         if date is None:
             # Default to yesterday (since we manifest after day ends)
-            yesterday = datetime.now(UTC) - timedelta(days=1)
+            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
             date = yesterday.strftime("%Y-%m-%d")
 
         # Compute access log hash
@@ -133,7 +133,7 @@ class LogManifest:
             "access_log_hash": access_hash,
             "event_count": event_count,
             "previous_manifest_hash": prev_hash,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Compute manifest hash

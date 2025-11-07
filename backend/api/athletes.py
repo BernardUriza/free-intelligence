@@ -3,12 +3,13 @@ Athletes API endpoints - Mock data endpoints for development
 """
 
 from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Query
 
-from backend.schemas.schemas import APIResponse
 from backend.config.mock_loader import MockDataLoader
+from backend.schemas.schemas import APIResponse
 
-router = APIRouter(prefix="/athletes", tags=["athletes"])
+router = APIRouter(tags=["athletes"])
 
 
 @router.get("/", response_model=APIResponse)
@@ -25,6 +26,7 @@ async def list_athletes(
 
     return APIResponse(
         status="success",
+        code=200,
         data={
             "athletes": athletes[skip : skip + limit],
             "total": len(athletes),
@@ -43,6 +45,7 @@ async def get_athlete(athlete_id: str) -> dict:
         )
     return APIResponse(
         status="success",
+        code=200,
         data={"athlete": athlete},
     )
 
@@ -67,6 +70,7 @@ async def get_athlete_sessions(
 
     return APIResponse(
         status="success",
+        code=200,
         data={
             "athleteId": athlete_id,
             "sessions": sessions,
@@ -91,6 +95,7 @@ async def get_athlete_progress(athlete_id: str) -> dict:
 
     return APIResponse(
         status="success",
+        code=200,
         data={
             "athleteId": athlete_id,
             "name": athlete.get("name"),
