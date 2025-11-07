@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test'
  * Simple tests for exercise catalog, search, filters, and offline downloads
  */
 
-const BASE_URL = 'http://localhost:9050'
+const BASE_URL = 'http://localhost:9051'  // Preview server
 const LIBRARY_URL = `${BASE_URL}/biblioteca`
 
 test.describe('Exercise Library - Basic Functionality', () => {
