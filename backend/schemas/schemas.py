@@ -11,7 +11,7 @@ Clean Code Principles:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Generic, Optional, TypeVar
 
@@ -51,7 +51,7 @@ class APIResponse(BaseModel, Generic[T]):
     code: int = Field(description="HTTP status code")
     data: Optional[T] = Field(default=None, description="Response payload")
     message: Optional[str] = Field(default=None, description="Status message")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Response timestamp")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Response timestamp")
     request_id: Optional[str] = Field(default=None, description="Request tracking ID")
 
     class Config:
@@ -75,7 +75,7 @@ class ValidationErrorResponse(BaseModel):
     code: int = Field(default=422)
     message: str = Field(description="Validation failed")
     errors: list[ErrorDetail] = Field(description="List of validation errors")
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     request_id: Optional[str] = Field(default=None)
 
 
@@ -95,7 +95,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
     code: int = Field(default=200)
     data: list[T] = Field(description="List of items")
     meta: PaginationMeta = Field(description="Pagination metadata")
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     request_id: Optional[str] = Field(default=None)
 
 
