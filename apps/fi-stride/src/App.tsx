@@ -8,6 +8,7 @@ import { Library } from './pages/Library'
 import { Privacy } from './pages/Privacy'
 import { T21Resources } from './pages/T21Resources'
 import { Navbar } from './components/Navbar'
+import { OfflineStatusBar } from './components/OfflineStatusBar'
 import './App.css'
 
 /**
@@ -97,6 +98,7 @@ function App() {
   return (
     <BrowserRouter>
       <AppContent />
+      <OfflineStatusBar />
     </BrowserRouter>
   )
 }
