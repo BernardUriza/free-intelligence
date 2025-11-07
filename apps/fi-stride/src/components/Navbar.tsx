@@ -22,7 +22,6 @@ export function Navbar() {
   }
 
   const isCoach = user.role === 'coach'
-  const isAthlete = user.role === 'athlete'
 
   const handleLogout = () => {
     logout()
