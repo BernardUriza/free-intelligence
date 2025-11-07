@@ -1,8 +1,19 @@
 import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { SessionAnalysis } from './SessionAnalysis'
+import { LiveSessionCard } from './LiveSessionCard'
 
-type Step = 'consent' | 'permissions' | 'profile' | 'ready' | 'session-demo'
+type Step = 'consent' | 'permissions' | 'profile' | 'ready' | 'session-ready' | 'session-live' | 'session-demo'
+
+interface SessionResult {
+  athleteId: string
+  exerciseName: string
+  repsCompleted: number
+  sessionTime: number
+  emotionalCheck: 1 | 2 | 3 | 4 | 5
+  timestamp: string
+  heartRateAvg?: number
+}
 
 export function AthleteFlow() {
   const user = useAuthStore((state) => state.user)
@@ -18,6 +29,8 @@ export function AthleteFlow() {
     microphone: false,
     location: false
   })
+  const [sessionResult, setSessionResult] = useState<SessionResult | null>(null)
+  const [selectedExercise, setSelectedExercise] = useState('Press de Pecho')
 
   const handleConsentChange = (key: keyof typeof consents) => {
     setConsents((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -41,6 +54,15 @@ export function AthleteFlow() {
     if (currentIndex > 0) {
       setCurrentStep(steps[currentIndex - 1])
     }
+  }
+
+  const handleStartSession = () => {
+    setCurrentStep('session-ready')
+  }
+
+  const handleSessionEnd = (data: SessionResult) => {
+    setSessionResult(data)
+    setCurrentStep('session-demo')
   }
 
   const isConsentComplete = consents.privacy && consents.encryption && consents.dataProcessing
@@ -220,9 +242,45 @@ export function AthleteFlow() {
           </section>
         )}
 
+        {currentStep === 'session-ready' && (
+          <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6">Selecciona tu Ejercicio</h2>
+            <p className="text-gray-600 mb-8">
+              Elige el ejercicio que quieres hacer hoy
+            </p>
+
+            <div className="space-y-3 max-w-md">
+              {['Press de Pecho', 'Sentadillas', 'Flexiones', 'Saltos', 'Burpees'].map((exercise) => (
+                <button
+                  key={exercise}
+                  onClick={() => {
+                    setSelectedExercise(exercise)
+                    setCurrentStep('session-live')
+                  }}
+                  className="w-full px-6 py-4 text-xl font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  {exercise}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {currentStep === 'session-live' && (
+          <section>
+            <LiveSessionCard
+              athleteId={user?.id || 'athlete-unknown'}
+              exerciseName={selectedExercise}
+              targetReps={20}
+              maxHeartRate={140}
+              onSessionEnd={handleSessionEnd}
+            />
+          </section>
+        )}
+
         {currentStep === 'session-demo' && (
           <section>
-            <SessionAnalysis athleteName={user?.name} />
+            <SessionAnalysis athleteName={user?.name} sessionData={sessionResult} />
           </section>
         )}
       </main>
@@ -230,7 +288,7 @@ export function AthleteFlow() {
       {/* Navigation Buttons */}
       <div className="bg-white border-t border-gray-200 px-4 py-6 shadow-lg">
         <div className="max-w-4xl mx-auto flex justify-between gap-4">
-          {currentStep !== 'consent' && (
+          {currentStep !== 'consent' && !['session-live', 'session-ready'].includes(currentStep) && (
             <button
               onClick={handlePrevStep}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
@@ -238,7 +296,7 @@ export function AthleteFlow() {
               ← Atrás
             </button>
           )}
-          {currentStep !== 'ready' && (
+          {currentStep !== 'ready' && !['session-live', 'session-demo', 'session-ready'].includes(currentStep) && (
             <button
               onClick={handleNextStep}
               disabled={
@@ -252,10 +310,19 @@ export function AthleteFlow() {
           )}
           {currentStep === 'ready' && (
             <button
-              onClick={() => setCurrentStep('session-demo')}
+              onClick={handleStartSession}
               className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium ml-auto"
             >
               Comenzar Entrenamiento 💪
+            </button>
+          )}
+
+          {currentStep === 'session-ready' && (
+            <button
+              onClick={() => setCurrentStep('ready')}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              ← Atrás
             </button>
           )}
 
