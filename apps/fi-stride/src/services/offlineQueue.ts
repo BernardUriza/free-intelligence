@@ -110,13 +110,18 @@ export class OfflineQueueManager {
   async getQueuedRequests(): Promise<QueuedRequest[]> {
     if (!this.db) throw new Error('Database not initialized')
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([QUEUE_STORE], 'readonly')
-      const store = transaction.objectStore(QUEUE_STORE)
-      const request = store.getAll()
+    return new Promise((resolve) => {
+      try {
+        const transaction = this.db!.transaction([QUEUE_STORE], 'readonly')
+        const store = transaction.objectStore(QUEUE_STORE)
+        const request = store.getAll()
 
-      request.onerror = () => reject(request.error)
-      request.onsuccess = () => resolve(request.result || [])
+        request.onerror = () => resolve([])
+        request.onsuccess = () => resolve(request.result || [])
+      } catch {
+        // Store doesn't exist yet, return empty array
+        resolve([])
+      }
     })
   }
 
@@ -126,15 +131,20 @@ export class OfflineQueueManager {
   async getReadyToRetry(): Promise<QueuedRequest[]> {
     if (!this.db) throw new Error('Database not initialized')
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([QUEUE_STORE], 'readonly')
-      const store = transaction.objectStore(QUEUE_STORE)
-      const index = store.index('nextRetryTime')
-      const range = IDBKeyRange.upperBound(Date.now())
-      const request = index.getAll(range)
+    return new Promise((resolve) => {
+      try {
+        const transaction = this.db!.transaction([QUEUE_STORE], 'readonly')
+        const store = transaction.objectStore(QUEUE_STORE)
+        const index = store.index('nextRetryTime')
+        const range = IDBKeyRange.upperBound(Date.now())
+        const request = index.getAll(range)
 
-      request.onerror = () => reject(request.error)
-      request.onsuccess = () => resolve(request.result || [])
+        request.onerror = () => resolve([])
+        request.onsuccess = () => resolve(request.result || [])
+      } catch {
+        // Index or store doesn't exist yet, return empty array
+        resolve([])
+      }
     })
   }
 
