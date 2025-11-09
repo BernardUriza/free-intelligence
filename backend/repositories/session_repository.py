@@ -8,14 +8,14 @@ Clean Code: Abstraction - hides HDF5 complexity behind simple interface.
 
 from __future__ import annotations
 
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
 from backend.logger import get_logger
 
 from .base_repository import BaseRepository
-
-import json
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any
 
 logger = get_logger(__name__)
 
@@ -48,7 +48,7 @@ class SessionRepository(BaseRepository):
             logger.error("SESSION_STRUCTURE_INIT_FAILED", error=str(e))
             raise
 
-    def create(self, entity: dict[str, Any | None], **kwargs: Any) -> str:  # type: ignore[override]
+    def create(self, entity: dict[str, Any | None], **kwargs: Any) -> str:
         """Create new session.
 
         Args:
@@ -72,14 +72,14 @@ class SessionRepository(BaseRepository):
             with self._open_file("r+") as f:
                 sessions_group = f[self.SESSIONS_GROUP]
 
-                if session_id in sessions_group:  # type: ignore[operator]
+                if session_id in sessions_group:
                     raise ValueError(f"Session {session_id} already exists")
 
                 # Create session group
                 session_group = sessions_group.create_group(session_id)  # type: ignore[attr-defined]
 
                 # Store basic session info
-                session_group.attrs["created_at"] = datetime.now(timezone.utc).isoformat()
+                session_group.attrs["created_at"] = datetime.now(UTC).isoformat()
                 session_group.attrs["status"] = "active"
                 if user_id:
                     session_group.attrs["user_id"] = user_id
@@ -99,7 +99,7 @@ class SessionRepository(BaseRepository):
             self._log_operation("create", session_id, status="failed", error=str(e))
             raise
 
-    def read(self, entity_id: str) -> dict[str, Any] | None:  # type: ignore[override]
+    def read(self, entity_id: str) -> dict[str, Any] | None:
         """Read session data.
 
         Args:
@@ -130,7 +130,7 @@ class SessionRepository(BaseRepository):
         self,
         entity_id: str,
         entity: dict[str, Any | None],
-    ) -> bool:  # type: ignore[override]
+    ) -> bool:
         """Update session status and metadata.
 
         Args:
@@ -160,7 +160,7 @@ class SessionRepository(BaseRepository):
                         elif isinstance(value, (list, dict)):
                             session_group.attrs[key] = json.dumps(value)  # type: ignore[attr-defined]
 
-                session_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()  # type: ignore[attr-defined]
+                session_group.attrs["updated_at"] = datetime.now(UTC).isoformat()  # type: ignore[attr-defined]
 
             self._log_operation("update", session_id)
             return True
@@ -169,7 +169,7 @@ class SessionRepository(BaseRepository):
             self._log_operation("update", session_id, status="failed", error=str(e))
             return False
 
-    def delete(self, entity_id: str) -> bool:  # type: ignore[override]
+    def delete(self, entity_id: str) -> bool:
         """Delete session (marks as deleted).
 
         Args:
@@ -186,7 +186,7 @@ class SessionRepository(BaseRepository):
 
                 session_group = f[self.SESSIONS_GROUP][session_id]  # type: ignore[index]
                 session_group.attrs["status"] = "deleted"  # type: ignore[attr-defined]
-                session_group.attrs["deleted_at"] = datetime.now(timezone.utc).isoformat()  # type: ignore[attr-defined]
+                session_group.attrs["deleted_at"] = datetime.now(UTC).isoformat()  # type: ignore[attr-defined]
 
             self._log_operation("delete", session_id)
             return True

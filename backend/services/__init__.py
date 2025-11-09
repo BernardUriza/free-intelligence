@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from backend.services.export_service import ExportService
     from backend.services.session_service import SessionService
     from backend.services.system_health_service import SystemHealthService
-    from backend.services.transcription_service import TranscriptionService
+    from backend.services.transcription.service import TranscriptionService
     from backend.services.triage_service import TriageService
 
 
@@ -75,7 +75,7 @@ def __getattr__(name: str) -> Any:
 
             return SystemHealthService
         elif name == "TranscriptionService":
-            from backend.services.transcription_service import TranscriptionService
+            from backend.services.transcription.service import TranscriptionService
 
             return TranscriptionService
         elif name == "TriageService":

@@ -22,13 +22,13 @@ Created: 2025-11-08 (orchestrator pattern implementation)
 
 from __future__ import annotations
 
+from typing import Any, Optional
+
 from fastapi import APIRouter, File, Header, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
 from backend.logger import get_logger
-
-from typing import Any, Optional
 
 logger = get_logger(__name__)
 
@@ -109,37 +109,89 @@ async def start_consult_workflow(
 
         # Read audio content
         audio_content = await audio.read()
+        audio_size = len(audio_content)
 
-        # Orchestration Step 1: Start diarization job
-        # (Diarization service handles: file upload + transcription + speaker sep)
-        job_result = diarization_service.start_job(
+        # Orchestration Step 1: Save audio file to temporary storage
+        import os
+        import tempfile
+
+        temp_dir = os.path.join(tempfile.gettempdir(), "fi_audio")
+        os.makedirs(temp_dir, exist_ok=True)
+
+        # Create unique filename with session_id
+        audio_filename = audio.filename or "audio.webm"
+        audio_path = os.path.join(temp_dir, f"{x_session_id}_{audio_filename}")
+
+        # Save audio file
+        with open(audio_path, "wb") as f:
+            f.write(audio_content)
+
+        logger.info(
+            "WORKFLOW_AUDIO_SAVED",
             session_id=x_session_id,
-            audio_content=audio_content,
-            filename=audio.filename or "audio",
-            language="es",  # TODO: Auto-detect or from request
+            path=audio_path,
+            size=audio_size,
         )
 
-        # Log audit trail
-        audit_service.log_action(
-            action="workflow_consult_started",
-            user_id="system",
-            resource=f"session:{x_session_id}",
-            result="success",
-            details={
-                "job_id": job_result["job_id"],
-                "filename": audio.filename,
-                "workflow": "aurity_consult",
-            },
-        )
+        # Orchestration Step 2: Create diarization job
+        # This creates a job entry in the job tracker (in-memory or HDF5)
+        try:
+            job_id = diarization_service.create_job(
+                session_id=x_session_id,
+                audio_file_path=audio_path,
+                audio_file_size=audio_size,
+            )
+            logger.info("JOB_CREATED_SUCCESS", job_id=job_id)
+        except Exception as e:
+            logger.error("JOB_CREATION_FAILED", error=str(e), error_type=type(e).__name__)
+            raise
+
+        # Orchestration Step 3: Trigger background processing
+        # For MVP: Process synchronously in current request
+        # TODO: For production: Use background queue (Celery/RQ/AWS SQS)
+        import threading
+
+        from backend.services.diarization.worker import process_job
+        from backend.services.transcription.service import TranscriptionService
+
+        def process_job_async(job_id_to_process: str) -> None:
+            """Process job in background thread."""
+            transcription_svc = TranscriptionService()
+            diarization_svc = diarization_service  # Reuse from outer scope
+            process_job(job_id_to_process, transcription_svc, diarization_svc)
+
+        # Start processing in background thread
+        worker_thread = threading.Thread(target=process_job_async, args=(job_id,), daemon=True)
+        worker_thread.start()
+
+        logger.info("WORKFLOW_WORKER_STARTED", job_id=job_id)
+
+        # Log audit trail (temporarily disabled due to HDF5 dtype issues)
+        # TODO: Fix AuditService to handle string types in HDF5
+        try:
+            audit_service.log_action(
+                action="workflow_consult_started",
+                user_id="system",
+                resource=f"session:{x_session_id}",
+                result="success",
+                details={
+                    "job_id": job_id,
+                    "filename": audio.filename or "",
+                    "workflow": "aurity_consult",
+                    "audio_size": audio_size,
+                },
+            )
+        except Exception as audit_error:
+            logger.warning("AUDIT_LOG_FAILED", error=str(audit_error), job_id=job_id)
 
         logger.info(
             "WORKFLOW_CONSULT_STARTED",
-            job_id=job_result["job_id"],
+            job_id=job_id,
             session_id=x_session_id,
         )
 
         return ConsultStartResponse(
-            job_id=job_result["job_id"],
+            job_id=job_id,
             session_id=x_session_id,
             status="pending",
             message="Consultation workflow started. Use job_id to check progress.",
@@ -190,46 +242,46 @@ async def get_consult_status(job_id: str) -> Any:
     try:
         # Get services
         diarization_service = get_container().get_diarization_service()
-        soap_service = get_container().get_soap_service()
 
-        # Get diarization job status
-        job_status = diarization_service.get_job_status(job_id)
+        # Get diarization job
+        job = diarization_service.get_job(job_id)
 
-        if not job_status:
+        if not job:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Job {job_id} not found",
             )
 
-        # Build stages status
+        # Build stages status based on job status
         stages = {
             "upload": "completed",
-            "transcribe": "completed" if job_status["status"] == "completed" else "in_progress",
-            "diarize": "completed" if job_status["status"] == "completed" else "in_progress",
-            "soap": "pending",
+            "transcribe": "pending",  # Not implemented yet
+            "diarize": "pending",  # Not implemented yet
+            "soap": "pending",  # Not implemented yet
         }
 
-        soap_note = None
+        # Map job status to stages
+        if job.status == "completed":
+            stages["transcribe"] = "completed"
+            stages["diarize"] = "completed"
+            stages["soap"] = "pending"  # TODO: Check SOAP service
+        elif job.status == "processing":
+            stages["transcribe"] = "processing"
+            stages["diarize"] = "pending"
+        elif job.status == "failed":
+            stages["transcribe"] = "failed"
 
-        # If diarization completed, check SOAP
-        if job_status["status"] == "completed":
-            try:
-                soap_result = soap_service.get_soap_for_job(job_id)
-                if soap_result:
-                    stages["soap"] = "completed"
-                    soap_note = soap_result
-            except Exception:
-                # SOAP not generated yet or failed
-                stages["soap"] = "pending"
+        soap_note = None
+        # TODO: Get SOAP note from result_data if available
 
         return ConsultStatusResponse(
             job_id=job_id,
-            session_id=job_status["session_id"],
-            status=job_status["status"],
-            progress_pct=job_status.get("progress_pct", 0),
+            session_id=job.session_id,
+            status=job.status,
+            progress_pct=job.progress_percent or 0,
             stages=stages,
             soap_note=soap_note,
-            error=job_status.get("error"),
+            error=job.error_message,
         )
 
     except HTTPException:

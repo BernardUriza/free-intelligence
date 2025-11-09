@@ -6,8 +6,6 @@ File: backend/api/sessions/router.py
 Reorganized: 2025-11-08 (moved from backend/api/sessions.py)
 """
 
-from __future__ import annotations
-
 #!/usr/bin/env python3
 from __future__ import annotations
 
@@ -27,16 +25,16 @@ Endpoints:
 - PATCH /api/sessions/{id} -> update session
 """
 
+from datetime import UTC, datetime
+from typing import Optional
+from uuid import uuid4
+
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
 from backend.logger import get_logger
 from backend.schemas.schemas import error_response
-
-from datetime import timezone, datetime
-from typing import Optional
-from uuid import uuid4
 
 logger = get_logger(__name__)
 
@@ -251,7 +249,7 @@ async def create_session(request: CreateSessionRequest):
         )
 
         # Map service response to API response schema
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         return SessionResponse(
             id=session["session_id"],
             created_at=now,
@@ -313,7 +311,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
         if last_active is None and (
             request.status is not None or request.interaction_count is not None
         ):
-            last_active = datetime.now(timezone.utc).isoformat().replace("+00:00", "") + "Z"
+            last_active = datetime.now(UTC).isoformat().replace("+00:00", "") + "Z"
 
         # Delegate to service for update (handles validation)
         success = session_service.update_session(
@@ -343,7 +341,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
 
         logger.info("SESSION_UPDATED", session_id=session_id)
 
-        return SessionResponse(**session)
+        return SessionResponse(**session)  # type: ignore[arg-type]
 
     except ValueError as e:
         logger.warning("SESSION_UPDATE_VALIDATION_FAILED", session_id=session_id, error=str(e))

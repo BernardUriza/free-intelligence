@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.logger import get_logger  # type: ignore[attr-defined]
+from backend.logger import get_logger
 from backend.repositories import SessionRepository
 
 logger = get_logger(__name__)

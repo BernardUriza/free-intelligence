@@ -186,13 +186,13 @@ class OllamaResponseParser:
             return None
 
         try:
-            return json.loads(json_str)  # type: ignore
+            return json.loads(json_str)
         except json.JSONDecodeError:
             # Try to fix common issues
             try:
                 # Fix trailing commas
                 fixed_str = re.sub(r",(\s*[}\]])", r"\1", json_str)
-                return json.loads(fixed_str)  # type: ignore
+                return json.loads(fixed_str)
             except json.JSONDecodeError:
                 return None
 
@@ -224,7 +224,7 @@ class OllamaResponseParser:
                 "SOAP_VALIDATION_FAILED",
                 errors=e.errors(),
             )
-            raise OllamaExtractionError(f"SOAP response failed validation: {str(e)}") from e
+            raise OllamaExtractionError(f"SOAP response failed validation: {e!s}") from e
 
     def validate_and_convert(
         self,
@@ -248,4 +248,4 @@ class OllamaResponseParser:
                 "SOAP_CONVERSION_FAILED",
                 errors=e.errors(),
             )
-            raise OllamaExtractionError(f"Failed to convert to SOAP model: {str(e)}") from e
+            raise OllamaExtractionError(f"Failed to convert to SOAP model: {e!s}") from e

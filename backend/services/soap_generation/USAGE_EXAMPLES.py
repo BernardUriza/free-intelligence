@@ -68,7 +68,7 @@ def example_type_safe_usage() -> None:
         print(f"Incomplete fields: {errors}")
 
     # Serialize back to dict if needed
-    result_dict = soap_note.to_dict()
+    _result_dict = soap_note.to_dict()
 
 
 # ============================================================================
@@ -86,7 +86,7 @@ def example_error_handling() -> None:
     client = OllamaClient()
 
     try:
-        soap_note = client.extract_soap_validated("Some medical transcription")
+        _soap_note = client.extract_soap_validated("Some medical transcription")
     except OllamaExtractionError as e:
         logger.error(
             "SOAP_EXTRACTION_FAILED",
@@ -113,7 +113,7 @@ def example_custom_configuration() -> None:
         timeout=300,  # Longer timeout for larger models
     )
 
-    result = client.extract_soap("transcription text")
+    _result = client.extract_soap("transcription text")
 
 
 # ============================================================================
@@ -123,9 +123,9 @@ def example_custom_configuration() -> None:
 
 def example_testing_with_mocks() -> None:
     """Mock dependencies for unit testing."""
-    from backend.services.soap_generation.ollama_client import OllamaClient
-
     from unittest.mock import Mock
+
+    from backend.services.soap_generation.ollama_client import OllamaClient
 
     # Create mock HTTP client
     mock_response = Mock()

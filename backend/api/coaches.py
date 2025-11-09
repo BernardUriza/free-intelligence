@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.config.mock_loader import MockDataLoader
-from backend.schemas.schemas import APIResponse
+from backend.schemas.schemas import APIResponse, StatusCode
 
 router = APIRouter(tags=["coaches"])
 
@@ -20,7 +20,7 @@ async def list_coaches(
     """Lista todos los coaches"""
     coaches = MockDataLoader.get_coaches()
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={
             "coaches": coaches[skip : skip + limit],
@@ -39,7 +39,7 @@ async def get_coach(coach_id: str) -> APIResponse[dict[str, Any]]:
             detail=f"Coach {coach_id} not found",
         )
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={"coach": coach},
     )
@@ -59,7 +59,7 @@ async def get_coach_stats(coach_id: str) -> APIResponse[dict[str, Any]]:
     sessions = MockDataLoader.get_sessions_by_coach(coach_id)
 
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={
             "coachId": coach_id,
@@ -83,7 +83,7 @@ async def get_coach_athletes(coach_id: str) -> APIResponse[dict[str, Any]]:
 
     athletes = MockDataLoader.get_athletes_by_coach(coach_id)
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={
             "coachId": coach_id,
@@ -112,7 +112,7 @@ async def get_coach_sessions(
         sessions = [s for s in sessions if s.get("status") == status]
 
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={
             "coachId": coach_id,

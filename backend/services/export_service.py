@@ -8,16 +8,16 @@ Clean Code: This service layer makes endpoints simple and focused.
 
 from __future__ import annotations
 
-from backend.logger import get_logger
-
 import hashlib
 import json
 import os
 import random
 import time
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
+
+from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -51,7 +51,7 @@ class ExportService:
         self.signing_key = signing_key
         self.git_commit = git_commit
 
-        logger.info("ExportService initialized", export_dir=str(self.export_dir))  # type: ignore[call-arg]
+        logger.info("ExportService initialized", export_dir=str(self.export_dir))
 
     def generate_export_id(self) -> str:
         """Generate unique export ID.
@@ -112,7 +112,7 @@ class ExportService:
             "version": "1.0",
             "exportId": export_id,
             "sessionId": session_id,
-            "createdAt": datetime.now(timezone.utc).isoformat() + "Z",
+            "createdAt": datetime.now(UTC).isoformat() + "Z",
             "algorithm": "sha256",
             "files": files,
             "meta": {"generator": "FI", "commit": self.git_commit, "deterministic": True},
@@ -232,7 +232,7 @@ class ExportService:
             }
 
         except OSError as e:
-            logger.error("EXPORT_CREATION_FAILED", error=str(e))  # type: ignore[call-arg]
+            logger.error("EXPORT_CREATION_FAILED", error=str(e))
             raise
 
     def get_export_metadata(self, export_id: str) -> dict[str, Optional[Any]] | None:
@@ -257,7 +257,7 @@ class ExportService:
             # Read manifest
             manifest_path = export_path / "manifest.json"
             if not manifest_path.exists():
-                logger.error("MANIFEST_NOT_FOUND", export_id=export_id)  # type: ignore[call-arg]
+                logger.error("MANIFEST_NOT_FOUND", export_id=export_id)
                 return None
 
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -296,7 +296,7 @@ class ExportService:
             }
 
         except OSError as e:
-            logger.error("EXPORT_METADATA_FAILED", export_id=export_id, error=str(e))  # type: ignore[call-arg]
+            logger.error("EXPORT_METADATA_FAILED", export_id=export_id, error=str(e))
             raise
 
     def verify_export(self, export_id: str, targets: list[str]) -> dict[str, Any]:
@@ -409,7 +409,7 @@ class ExportService:
                         )
                         all_ok = False
 
-            logger.info("EXPORT_VERIFIED", export_id=export_id, all_ok=all_ok)  # type: ignore[call-arg]
+            logger.info("EXPORT_VERIFIED", export_id=export_id, all_ok=all_ok)
 
             return {
                 "ok": all_ok,
@@ -417,7 +417,7 @@ class ExportService:
             }
 
         except OSError as e:
-            logger.error("EXPORT_VERIFICATION_FAILED", export_id=export_id, error=str(e))  # type: ignore[call-arg]
+            logger.error("EXPORT_VERIFICATION_FAILED", export_id=export_id, error=str(e))
             raise
 
     def delete_export(self, export_id: str) -> bool:
@@ -438,11 +438,11 @@ class ExportService:
         try:
             # Mark as deleted (keep for audit trail)
             delete_marker = export_path / ".deleted"
-            delete_marker.write_text(datetime.now(timezone.utc).isoformat(), encoding="utf-8")
+            delete_marker.write_text(datetime.now(UTC).isoformat(), encoding="utf-8")
 
-            logger.info("EXPORT_DELETED", export_id=export_id)  # type: ignore[call-arg]
+            logger.info("EXPORT_DELETED", export_id=export_id)
             return True
 
         except OSError as e:
-            logger.error("EXPORT_DELETION_FAILED", export_id=export_id, error=str(e))  # type: ignore[call-arg]
+            logger.error("EXPORT_DELETION_FAILED", export_id=export_id, error=str(e))
             raise

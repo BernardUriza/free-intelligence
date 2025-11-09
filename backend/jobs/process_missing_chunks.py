@@ -6,7 +6,7 @@ Uses worker's _extract_chunk to get proper audio segments, then transcribes each
 
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import h5py
@@ -110,7 +110,7 @@ def process_missing_chunks():
                 # Transcribe
                 print("🎤 Transcribing...", end=" ", flush=True)
                 try:
-                    segments_iter, info = model.transcribe(
+                    segments_iter, _info = model.transcribe(
                         str(chunk_path),
                         language=None,  # Auto-detect
                         vad_filter=True,
@@ -138,7 +138,7 @@ def process_missing_chunks():
                                 "DESCONOCIDO",
                                 temperature,
                                 rtf,
-                                datetime.now(timezone.utc).isoformat(),
+                                datetime.now(UTC).isoformat(),
                             )
                         ],
                         dtype=existing_chunks[0].dtype if existing_chunks else None,
@@ -171,7 +171,7 @@ def process_missing_chunks():
                 job_group.attrs["processed_chunks"] = len(all_chunks)
                 job_group.attrs["total_chunks"] = 28
                 job_group.attrs["status"] = "completed"
-                job_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()
+                job_group.attrs["updated_at"] = datetime.now(UTC).isoformat()
 
                 print(f"\n✅ Complete! {len(existing_chunks)} → {len(all_chunks)} chunks")
                 logger.info(

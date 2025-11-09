@@ -430,7 +430,7 @@ class PediatricValidator:
         notes = output.get("notes", "") or ""  # Guard against None
         notes = notes.lower()
 
-        for drug_class, info in self.PEDIATRIC_CONTRAINDICATIONS.items():
+        for _drug_class, info in self.PEDIATRIC_CONTRAINDICATIONS.items():
             if age < info["age_limit"]:
                 for drug in info["drugs"]:
                     if drug in notes:

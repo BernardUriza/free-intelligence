@@ -201,7 +201,7 @@ class PolicyEnforcer:
         redacted = text
 
         # Apply all enabled patterns
-        for name, pattern in self._compiled_patterns.items():
+        for _name, pattern in self._compiled_patterns.items():
             redacted = pattern["regex"].sub(pattern["replacement"], redacted)
 
         # Apply stop terms

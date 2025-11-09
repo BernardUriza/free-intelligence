@@ -11,7 +11,7 @@ import h5py
 
 sys.path.insert(0, "/Users/bernardurizaorozco/Documents/free-intelligence")
 
-from backend.diarization_service import DiarizationService
+from backend.services.diarization_service import DiarizationService
 from backend.whisper_service import WhisperService
 
 job_id = "f2667c96-105b-42c7-b385-2e20417a7fff"

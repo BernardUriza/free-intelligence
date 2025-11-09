@@ -59,7 +59,7 @@ class SystemHealthService:
             whisper_ok = is_whisper_available()
             logger.info(f"WHISPER_HEALTH_CHECKED: available={whisper_ok}")
         except Exception as e:
-            logger.warning(f"WHISPER_CHECK_FAILED: error={str(e)}")
+            logger.warning(f"WHISPER_CHECK_FAILED: error={e!s}")
 
         diarization_status["whisper"] = whisper_ok
 
@@ -72,7 +72,7 @@ class SystemHealthService:
             ffmpeg_ok = result.returncode == 0
             logger.info(f"FFMPEG_HEALTH_CHECKED: available={ffmpeg_ok}")
         except Exception as e:
-            logger.warning(f"FFMPEG_CHECK_FAILED: error={str(e)}")
+            logger.warning(f"FFMPEG_CHECK_FAILED: error={e!s}")
 
         diarization_status["ffmpeg"] = ffmpeg_ok
 
@@ -94,7 +94,7 @@ class SystemHealthService:
         try:
             import requests
 
-            from backend.diarization_service import OLLAMA_BASE_URL
+            from backend.services.diarization_service import OLLAMA_BASE_URL
 
             response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=0.8)
 
@@ -106,7 +106,7 @@ class SystemHealthService:
             else:
                 logger.warning(f"OLLAMA_CHECK_FAILED: status={response.status_code}")
         except Exception as e:
-            logger.debug(f"OLLAMA_CHECK_FAILED: error={str(e)}")
+            logger.debug(f"OLLAMA_CHECK_FAILED: error={e!s}")
 
         return {"ollama": ollama_ok, "models": models}
 
@@ -120,13 +120,13 @@ class SystemHealthService:
             True if PolicyEnforcer can be instantiated, False otherwise
         """
         try:
-            from backend.policy_enforcer import PolicyEnforcer
+            from backend.policy.policy_enforcer import PolicyEnforcer
 
             _enforcer = PolicyEnforcer()
             logger.info("POLICY_HEALTH_CHECKED: healthy")
             return True
         except Exception as e:
-            logger.warning(f"POLICY_CHECK_FAILED: error={str(e)}")
+            logger.warning(f"POLICY_CHECK_FAILED: error={e!s}")
             return False
 
     def get_system_health(self) -> dict[str, Any]:

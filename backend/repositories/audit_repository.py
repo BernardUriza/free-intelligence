@@ -10,7 +10,7 @@ not business logic or policy enforcement.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -50,7 +50,7 @@ class AuditRepository(BaseRepository):
             logger.error("AUDIT_STRUCTURE_INIT_FAILED", error=str(e))
             raise
 
-    def create(self, entity: AuditLogDict, **kwargs: Any) -> str:  # type: ignore[override]
+    def create(self, entity: AuditLogDict, **kwargs: Any) -> str:
         """Create audit log entry (append-only).
 
         Args:
@@ -77,7 +77,7 @@ class AuditRepository(BaseRepository):
 
                 # Store log data
                 log_group.attrs["timestamp"] = entity.get(
-                    "timestamp", datetime.now(timezone.utc).isoformat()
+                    "timestamp", datetime.now(UTC).isoformat()
                 )
                 log_group.attrs["action"] = entity.get("action", "")
                 log_group.attrs["user_id"] = entity.get("user_id", "")
@@ -96,7 +96,7 @@ class AuditRepository(BaseRepository):
             self._log_operation("create", status="failed", error=str(e))
             raise
 
-    def read(self, entity_id: str) -> dict[str, Any] | None:  # type: ignore[override]
+    def read(self, entity_id: str) -> dict[str, Any] | None:
         """Read audit log entry.
 
         Args:
@@ -172,7 +172,7 @@ class AuditRepository(BaseRepository):
                 logs_group = f[self.AUDIT_LOGS_GROUP]
                 log_ids = sorted(
                     logs_group.keys(), reverse=True
-                )  # Most recent first  # type: ignore[attr-defined]
+                )  # Most recent first [attr-defined]
 
                 if limit:
                     log_ids = log_ids[:limit]

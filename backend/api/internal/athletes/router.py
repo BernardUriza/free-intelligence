@@ -8,12 +8,12 @@ Reorganized: 2025-11-08 (moved from backend/api/athletes.py)
 
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.config.mock_loader import MockDataLoader
-from backend.schemas.schemas import APIResponse
-
-from typing import Optional
+from backend.schemas.schemas import APIResponse, StatusCode
 
 router = APIRouter(tags=["athletes"])
 
@@ -31,7 +31,7 @@ async def list_athletes(
         athletes = MockDataLoader.get_athletes()
 
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={
             "athletes": athletes[skip : skip + limit],
@@ -50,7 +50,7 @@ async def get_athlete(athlete_id: str) -> APIResponse:
             detail=f"Athlete {athlete_id} not found",
         )
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={"athlete": athlete},
     )
@@ -75,7 +75,7 @@ async def get_athlete_sessions(
         sessions = [s for s in sessions if s.get("status") == status]
 
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={
             "athleteId": athlete_id,
@@ -100,7 +100,7 @@ async def get_athlete_progress(athlete_id: str) -> APIResponse:
     total = len(sessions)
 
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={
             "athleteId": athlete_id,

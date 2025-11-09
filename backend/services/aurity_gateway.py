@@ -21,17 +21,17 @@ File: backend/aurity_gateway.py
 Created: 2025-10-28
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from backend.adapters_redux import ReduxAdapter, validate_redux_action
-from backend.fi_consult_models import Consultation
-from backend.fi_event_store import EventStore
+from backend.fi_event_store import EventStore  # type: ignore[import] EventStore
 from backend.logger import get_logger
+from backend.providers.adapters_redux import ReduxAdapter, validate_redux_action
+from backend.providers.fi_consult_models import Consultation
 
 logger = get_logger(__name__)
 
@@ -156,7 +156,7 @@ async def health_check():
     """Health check endpoint"""
     return HealthResponse(
         status="healthy",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         services={
             "event_store": True,  # TODO: Check HDF5 file exists
             "redux_adapter": True,
@@ -246,7 +246,7 @@ async def process_redux_action(request: ReduxActionRequest):
             error=str(e),
         )
 
-        raise HTTPException(status_code=500, detail=f"Failed to process Redux action: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process Redux action: {e!s}")
 
 
 @app.get("/aurity/consultation/{consultation_id}", response_model=ConsultationStateResponse)
@@ -275,9 +275,9 @@ async def get_consultation_state(consultation_id: str):
             raise HTTPException(status_code=404, detail=f"Consultation {consultation_id} not found")
 
         # 2. Reconstruct state
-        consultation = Consultation(consultation_id=consultation_id)
+        consultation = Consultation(consultation_id=consultation_id, session_id=consultation_id)  # type: ignore[call-arg]
 
-        for event in events:
+        for _event in events:
             # Apply event to consultation state
             # (Consultation model should have apply_event method)
             pass  # TODO: Implement state reconstruction logic
@@ -300,7 +300,7 @@ async def get_consultation_state(consultation_id: str):
         )
 
         raise HTTPException(
-            status_code=500, detail=f"Failed to reconstruct consultation state: {str(e)}"
+            status_code=500, detail=f"Failed to reconstruct consultation state: {e!s}"
         )
 
 
@@ -347,7 +347,7 @@ async def websocket_event_stream(websocket: WebSocket, consultation_id: str):
             _data = await websocket.receive_text()
 
             # Echo back (ping/pong)
-            await websocket.send_json({"type": "PONG", "timestamp": datetime.now(timezone.utc).isoformat()})
+            await websocket.send_json({"type": "PONG", "timestamp": datetime.now(UTC).isoformat()})
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, consultation_id)

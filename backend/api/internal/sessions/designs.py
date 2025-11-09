@@ -8,12 +8,12 @@ Created: 2025-11-08
 
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.config.mock_loader import MockDataLoader
-from backend.schemas.schemas import APIResponse
-
-from typing import Optional
+from backend.schemas.schemas import APIResponse, StatusCode
 
 router = APIRouter(tags=["sessions"])
 
@@ -31,7 +31,7 @@ async def list_session_designs(
         sessions = MockDataLoader.get_sessions()
 
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={
             "designs": sessions[skip : skip + limit],
@@ -50,7 +50,7 @@ async def get_session_design(session_id: str) -> APIResponse:
             detail=f"Session design {session_id} not found",
         )
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={"session": session},
     )
@@ -79,7 +79,7 @@ async def create_session_design(
 
     # En producción, esto guardaría en BD
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=201,
         data={
             "message": "Session design created successfully",
@@ -110,7 +110,7 @@ async def publish_session(
 
     # En producción, esto guardaría en BD
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={
             "message": f"Session published to {athlete.get('name')}",
@@ -134,7 +134,7 @@ async def get_session_blocks(session_id: str) -> APIResponse:
         )
 
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={
             "sessionId": session_id,
@@ -155,7 +155,7 @@ async def get_safety_tips(session_id: str) -> APIResponse:
         )
 
     return APIResponse(
-        status="success",
+        status=StatusCode.SUCCESS,
         code=200,
         data={
             "sessionId": session_id,

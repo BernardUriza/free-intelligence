@@ -7,8 +7,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pytest
-
 if TYPE_CHECKING:
     from backend.repositories import AuditRepository, SessionRepository
 
