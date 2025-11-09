@@ -1,0 +1,24 @@
+name: Test Audit Sink
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/app/audit/**"
+      - "backend/tests/test_audit_sink.py"
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+      - name: Install dependencies
+        run: |
+          pip install pytest pyarrow celery redis
+      - name: Run audit sink tests
+        run: pytest backend/tests/test_audit_sink.py -v
