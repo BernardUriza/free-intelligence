@@ -16,7 +16,7 @@ def client():
     """Create test client for KATNISS API."""
     from fastapi import FastAPI
 
-    from backend.api.katniss import router
+    from backend.api.public.katniss.router import router
 
     app = FastAPI()
     app.include_router(router)
@@ -27,7 +27,7 @@ def client():
 class TestKATNISSAPI:
     """Test suite for KATNISS API."""
 
-    @patch("backend.api.katniss.httpx.AsyncClient")
+    @patch("httpx.AsyncClient")
     def test_analyze_session_success(self, mock_client_class, client):
         """Test successful session analysis."""
         # Mock Ollama response
@@ -58,7 +58,7 @@ class TestKATNISSAPI:
         assert "nextSuggestion" in data
         assert "dayRecommended" in data
 
-    @patch("backend.api.katniss.httpx.AsyncClient")
+    @patch("httpx.AsyncClient")
     def test_analyze_session_with_minimal_data(self, mock_client_class, client):
         """Test session analysis with minimal required fields."""
         mock_response = AsyncMock()
@@ -80,7 +80,7 @@ class TestKATNISSAPI:
 
         assert response.status_code == 200
 
-    @patch("backend.api.katniss.httpx.AsyncClient")
+    @patch("httpx.AsyncClient")
     def test_analyze_session_high_rpe(self, mock_client_class, client):
         """Test analysis with high RPE (fatigue detection)."""
         mock_response = AsyncMock()
@@ -109,7 +109,7 @@ class TestKATNISSAPI:
         assert "nextSuggestion" in data
         assert "dayRecommended" in data
 
-    @patch("backend.api.katniss.httpx.AsyncClient")
+    @patch("httpx.AsyncClient")
     def test_analyze_session_ollama_error(self, mock_client_class, client):
         """Test handling of Ollama connection error - returns fallback."""
         mock_client = AsyncMock()
