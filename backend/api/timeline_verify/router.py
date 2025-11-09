@@ -1,3 +1,13 @@
+"""Timeline Verify API Router.
+
+Timeline hash verification
+
+File: backend/api/timeline_verify/router.py
+Reorganized: 2025-11-08 (moved from backend/api/timeline_verify.py)
+"""
+
+from __future__ import annotations
+
 #!/usr/bin/env python3
 """
 Free Intelligence - Timeline Verify API

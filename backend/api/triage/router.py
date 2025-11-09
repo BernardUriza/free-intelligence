@@ -1,15 +1,12 @@
+"""Triage API Router.
+
+Triage intake flow
+
+File: backend/api/triage/router.py
+Created: 2025-11-08
+"""
+
 from __future__ import annotations
-
-"""
-Triage API - Intake endpoint for conversation capture
-Card: FI-API-FEAT-014
-
-Endpoints:
-  POST /api/triage/intake - Receive triage intake with optional audio transcription
-  GET /api/triage/manifest/{buffer_id} - Retrieve manifest for a triage buffer
-
-Updated to use clean code architecture with TriageService.
-"""
 
 from datetime import datetime
 from typing import Any, Literal, Optional, Union

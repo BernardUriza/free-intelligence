@@ -123,9 +123,9 @@ def example_custom_configuration() -> None:
 
 def example_testing_with_mocks() -> None:
     """Mock dependencies for unit testing."""
-    from unittest.mock import Mock
-
     from backend.services.soap_generation.ollama_client import OllamaClient
+
+    from unittest.mock import Mock
 
     # Create mock HTTP client
     mock_response = Mock()

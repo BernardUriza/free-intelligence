@@ -1,3 +1,13 @@
+"""Audit API Router.
+
+Audit log endpoints
+
+File: backend/api/audit/router.py
+Created: 2025-11-08
+"""
+
+from __future__ import annotations
+
 #!/usr/bin/env python3
 from __future__ import annotations
 

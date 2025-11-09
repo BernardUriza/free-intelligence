@@ -10,4 +10,4 @@ warnings.warn(
     stacklevel=2,
 )
 
-from fi_common.storage.corpus_schema import *  # noqa: F403
+from packages.fi_common.storage.corpus_schema import *  # noqa: F403

@@ -56,7 +56,7 @@ def append_interaction(
         ...     150
         ... )
     """
-    from fi_common.logging.logger import get_logger
+    from packages.fi_common.logging.logger import get_logger
 
     from backend.append_only_policy import AppendOnlyPolicy
 
@@ -128,7 +128,7 @@ def append_embedding(
         >>> append_embedding("storage/corpus.h5", interaction_id, vector)
         True
     """
-    from fi_common.logging.logger import get_logger
+    from packages.fi_common.logging.logger import get_logger
 
     from backend.append_only_policy import AppendOnlyPolicy
 
@@ -211,7 +211,7 @@ def append_interaction_with_embedding(
         ...     150
         ... )
     """
-    from fi_common.logging.logger import get_logger
+    from packages.fi_common.logging.logger import get_logger
 
     from backend.llm_router import llm_embed, pad_embedding_to_768
 
@@ -281,7 +281,7 @@ def get_corpus_stats(corpus_path: str) -> dict:
         >>> stats = get_corpus_stats("storage/corpus.h5")
         >>> print(stats["interactions_count"])
     """
-    from fi_common.logging.logger import get_logger
+    from packages.fi_common.logging.logger import get_logger
 
     logger = get_logger()
 
@@ -359,7 +359,7 @@ def read_interactions(corpus_path: str, limit: int = 10) -> list[dict]:
             return results
 
     except Exception as e:
-        from fi_common.logging.logger import get_logger
+        from packages.fi_common.logging.logger import get_logger
 
         logger = get_logger()
         logger.error("INTERACTIONS_READ_FAILED", error=str(e))

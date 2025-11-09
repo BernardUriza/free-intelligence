@@ -12,7 +12,7 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-from fi_common.logging.logger import get_logger
+from packages.fi_common.logging.logger import get_logger
 
 from backend.llm_router import llm_embed, pad_embedding_to_768
 

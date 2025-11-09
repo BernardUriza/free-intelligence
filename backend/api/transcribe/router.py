@@ -1,25 +1,9 @@
 """Transcription API Router.
 
-Cards: FI-BACKEND-FEAT-003, FI-UI-FEAT-210
+Audio transcription endpoints (internal)
 
-Endpoints:
-  POST /api/transcribe - Upload audio and get transcription
-  GET /api/transcribe/health - Health check
-
-Features:
-  - Audio upload with multipart/form-data
-  - Max file size: 100 MB
-  - Supported formats: webm, wav, mp3, m4a, ogg
-  - Session-based storage with TTL (7 days)
-  - SHA256 manifest for integrity
-  - Whisper transcription with auto-detection
-  - Graceful degradation if Whisper unavailable
-
-Uses unified TranscriptionService (chef with all equipment).
-
-File: backend/api/transcribe.py
-Created: 2025-10-30
-Updated: 2025-11-05 (import from unified service)
+File: backend/api/transcribe/router.py
+Reorganized: 2025-11-08 (moved from backend/api/transcribe.py)
 """
 
 from __future__ import annotations

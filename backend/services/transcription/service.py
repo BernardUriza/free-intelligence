@@ -21,7 +21,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from fi_common.storage.audio_storage import save_audio_file, validate_session_id
+from packages.fi_common.storage.audio_storage import save_audio_file, validate_session_id
 
 from backend.logger import get_logger
 from backend.services.transcription.whisper import (
@@ -539,7 +539,7 @@ class TranscriptionService:
         )
 
         # Get absolute path to audio file
-        from fi_common.storage.audio_storage import AUDIO_STORAGE_DIR
+        from packages.fi_common.storage.audio_storage import AUDIO_STORAGE_DIR
 
         audio_path = AUDIO_STORAGE_DIR.parent / audio_metadata["file_path"]
 

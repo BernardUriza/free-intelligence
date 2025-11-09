@@ -11,14 +11,14 @@ Validates:
 - ✅ Response format { valid: bool, details: {...} }
 """
 
-import hashlib
-import time
-from datetime import datetime
-
 import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
+
+import hashlib
+import time
+from datetime import datetime
 
 
 @pytest.fixture  # type: ignore[misc]

@@ -1,3 +1,13 @@
+"""Athlete Live Sessions API Router.
+
+Live session tracking + KATNISS analysis (SESION-04/05)
+
+File: backend/api/sessions/athlete_sessions.py
+Reorganized: 2025-11-08 (moved from backend/api/athlete_sessions.py)
+"""
+
+from __future__ import annotations
+
 #!/usr/bin/env python3
 from __future__ import annotations
 
@@ -18,14 +28,14 @@ Endpoints:
 - GET /api/athlete-sessions/{session_id} -> Get session data
 """
 
-from datetime import UTC, datetime
-from typing import Optional
-
 import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
+
+from datetime import UTC, datetime
+from typing import Optional
 
 logger = get_logger(__name__)
 

@@ -20,6 +20,8 @@ File: backend/audio_storage.py
 Created: 2025-10-30
 """
 
+from backend.logger import get_logger
+
 import hashlib
 import json
 import os
@@ -27,8 +29,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 from uuid import UUID
-
-from backend.logger import get_logger
 
 logger = get_logger(__name__)
 

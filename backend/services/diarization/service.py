@@ -16,10 +16,6 @@ Refactored: 2025-11-05 (separated from transcription)
 
 from __future__ import annotations
 
-import time
-from datetime import UTC, datetime
-from typing import Any, Optional
-
 from backend.logger import get_logger
 from backend.services.diarization.jobs import create_job, get_job, update_job
 from backend.services.diarization.models import (
@@ -32,6 +28,10 @@ from backend.services.diarization.ollama import (
     improve_text,
     is_ollama_available,
 )
+
+import time
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 logger = get_logger(__name__)
 
