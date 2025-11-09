@@ -3,11 +3,11 @@
 Test: Diarization API (FI-BACKEND-FEAT-004)
 
 Tests for diarization endpoints:
-- POST /api/diarization/upload - Upload audio and start diarization
-- GET /api/diarization/jobs/{job_id} - Get job status
-- GET /api/diarization/result/{job_id} - Get diarization result
-- GET /api/diarization/export/{job_id} - Export result
-- GET /api/diarization/jobs - List jobs
+- POST /internal/diarization/upload - Upload audio and start diarization
+- GET /internal/diarization/jobs/{job_id} - Get job status
+- GET /internal/diarization/result/{job_id} - Get diarization result
+- GET /internal/diarization/export/{job_id} - Export result
+- GET /internal/diarization/jobs - List jobs
 
 Test Coverage (25 test cases):
 ✓ Valid audio upload (creates job)
@@ -34,7 +34,7 @@ from __future__ import annotations
 import io
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -114,7 +114,7 @@ def valid_audio_content():
 @pytest.fixture
 def valid_session_id():
     """Generate valid session ID"""
-    return f"session_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+    return f"session_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
 
 
 # ============================================================================

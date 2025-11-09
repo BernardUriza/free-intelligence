@@ -9,7 +9,6 @@ import { useState, useEffect } from 'react';
 import { T21Button } from './T21Button';
 import { T21Card } from './T21Card';
 import { Pictogram, Pictograms } from './Pictograms';
-import { useAudioGuide } from './T21AudioGuide';
 
 interface SessionData {
   athleteId: string;
@@ -47,7 +46,6 @@ export const PostSessionAnalysis: React.FC<PostSessionProps> = ({
   const [katnissAnalysis, setKatnissAnalysis] = useState('');
   const [loading, setLoading] = useState(true);
   const [achievement, setAchievement] = useState<string>('');
-  const { speak } = useAudioGuide();
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

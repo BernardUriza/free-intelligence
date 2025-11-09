@@ -12,7 +12,7 @@ import { T21Button } from './T21Button';
 import { T21Card } from './T21Card';
 import { T21Modal } from './T21Modal';
 import { Pictogram, Pictograms } from './Pictograms';
-import { useTTS } from '../hooks/useTTS';
+import { useAudioCache } from '../hooks/useAudioCache';
 import { encryptAndUploadSegment } from '../lib/encryptAndUpload';
 import sesion06Config from '../config/sesion-06.config';
 import type { SegmentData } from '../lib/encryptAndUpload';
@@ -63,9 +63,16 @@ export const LiveSessionCard: React.FC<LiveSessionProps> = ({
     `session_${new Date().toISOString().replace(/[:-]/g, '').split('.')[0]}`
   );
 
-  // SESION-06: Azure TTS integration
-  const { synthesize: synthesizeTTS, isReady: ttsReady } = useTTS(sesion06Config.tts);
+  // Audio cache for pre-generated KATNISS phrases (rep counts, milestones, emotional feedback)
+  const { isReady: audioReady, playAudio, loadCache } = useAudioCache();
   const segmentQueueRef = useRef<SegmentData[]>([]);
+
+  // Load audio cache on session start
+  useEffect(() => {
+    if (isRunning && !audioReady) {
+      loadCache().catch((err) => console.warn('Failed to load audio cache:', err));
+    }
+  }, [isRunning, audioReady, loadCache]);
 
   // Timer
   useEffect(() => {
@@ -90,11 +97,35 @@ export const LiveSessionCard: React.FC<LiveSessionProps> = ({
     const newReps = reps + 1;
     setReps(newReps);
 
-    // TTS feedback using Azure or fallback
-    if (ttsReady) {
-      synthesizeTTS(`${newReps} repeticiones`).catch((err) =>
-        console.warn('TTS error:', err)
-      );
+    // Cancel any previous TTS to avoid overlapping
+    window.speechSynthesis?.cancel();
+
+    // Determine which cached audio to play (priority: milestones > count)
+    let audioKey: string | null = null;
+    let katnissMsg = '';
+
+    if (newReps === 5) {
+      audioKey = 'rep_5';
+      katnissMsg = '¡Vas bien! Continúa así 💪';
+    } else if (newReps === 10) {
+      audioKey = 'rep_10';
+      katnissMsg = '¡Mitad del camino! ¡Sigue adelante! 🔥';
+    } else if (newReps === targetReps) {
+      audioKey = `rep_${targetReps}`;
+      katnissMsg = '¡LO HICISTE! 🏆 ¡Eres un campeón!';
+    } else if (newReps <= 20) {
+      // Use pre-generated audio for reps 1-4, 6-9, 11-19
+      audioKey = `rep_${newReps}`;
+    }
+
+    // Play cached audio (instant, zero latency)
+    if (audioReady && audioKey) {
+      playAudio(audioKey).catch((err) => console.warn('Audio cache error:', err));
+    }
+
+    // Set KATNISS message
+    if (katnissMsg) {
+      setKatnissMessage(katnissMsg);
     }
 
     // Send to backend (optional - non-blocking)
@@ -134,27 +165,6 @@ export const LiveSessionCard: React.FC<LiveSessionProps> = ({
         console.warn('Encryption/upload error (will retry offline):', err);
       });
     }
-
-    // KATNISS feedback at milestones (no penalties)
-    if (newReps === 5) {
-      const msg = '¡Muy bien! 5 repeticiones completadas';
-      if (ttsReady) {
-        synthesizeTTS(msg).catch((err) => console.warn('TTS error:', err));
-      }
-      setKatnissMessage('¡Vas bien! Continúa así 💪');
-    } else if (newReps === 10) {
-      const msg = '¡Excelente! 10 repeticiones';
-      if (ttsReady) {
-        synthesizeTTS(msg).catch((err) => console.warn('TTS error:', err));
-      }
-      setKatnissMessage('¡Mitad del camino! ¡Sigue adelante! 🔥');
-    } else if (newReps === targetReps) {
-      const msg = `¡Felicidades! Completaste ${targetReps} repeticiones`;
-      if (ttsReady) {
-        synthesizeTTS(msg).catch((err) => console.warn('TTS error:', err));
-      }
-      setKatnissMessage('¡LO HICISTE! 🏆 ¡Eres un campeón!');
-    }
   };
 
 
@@ -163,12 +173,30 @@ export const LiveSessionCard: React.FC<LiveSessionProps> = ({
     setEmotionalCheck(value);
     const feeling = EmotionalScale.find((s) => s.value === value)?.label;
 
-    // TTS feedback using Azure or fallback
-    if (ttsReady) {
-      synthesizeTTS(`Te sientes ${feeling}`).catch((err) =>
-        console.warn('TTS error:', err)
-      );
+    // Cancel any previous Web Speech audio
+    window.speechSynthesis?.cancel();
+
+    // KATNISS adaptive feedback - use pre-cached audio
+    let audioKey: string | null = null;
+    let katnissMsg = '';
+    if (value <= 2) {
+      audioKey = `feeling_${value}`;
+      katnissMsg = 'Descansa cuando lo necesites. ¡Eres fuerte! 💪';
+      setIsRunning(false);
+    } else if (value === 3) {
+      audioKey = 'feeling_3';
+      katnissMsg = '¡Vamos! Un poco más 🌟';
+    } else {
+      audioKey = `feeling_${value}`;
+      katnissMsg = '¡Wow! ¡Increíble energía! 🚀';
     }
+
+    // Play cached audio - instant feedback
+    if (audioReady && audioKey) {
+      playAudio(audioKey).catch((err) => console.warn('Audio cache error:', err));
+    }
+
+    setKatnissMessage(katnissMsg);
 
     // Send to backend (optional - non-blocking)
     if (sessionId) {
@@ -197,28 +225,20 @@ export const LiveSessionCard: React.FC<LiveSessionProps> = ({
     };
     segmentQueueRef.current.push(rpeSegment);
 
-    // KATNISS adaptive feedback
-    let katnissMsg = '';
-    if (value <= 2) {
-      katnissMsg = 'Descansa cuando lo necesites. ¡Eres fuerte! 💪';
-      setIsRunning(false);
-    } else if (value === 3) {
-      katnissMsg = '¡Vamos! Un poco más 🌟';
-    } else {
-      katnissMsg = '¡Wow! ¡Increíble energía! 🚀';
-    }
-
-    if (ttsReady && katnissMsg) {
-      synthesizeTTS(katnissMsg).catch((err) => console.warn('TTS error:', err));
-    }
-
-    setKatnissMessage(katnissMsg);
     setShowEmotionalCheck(false);
   };
 
   // Handle session end + process all segments
   const handleSessionEnd = async () => {
     setIsRunning(false);
+
+    // Cancel any previous Web Speech audio
+    window.speechSynthesis?.cancel();
+
+    // Completion message from cache
+    if (audioReady) {
+      playAudio('session_end').catch((err) => console.warn('Audio cache error:', err));
+    }
 
     // Process any remaining segments in queue (offline-first)
     if (segmentQueueRef.current.length > 0 && sesion06Config.presign_url) {
@@ -246,13 +266,6 @@ export const LiveSessionCard: React.FC<LiveSessionProps> = ({
       timestamp: new Date().toISOString(),
       heartRateAvg: heartRate,
     };
-
-    // Completion message via TTS
-    if (ttsReady) {
-      synthesizeTTS('Sesión completada. ¡Buen trabajo!').catch((err) =>
-        console.warn('TTS error:', err)
-      );
-    }
 
     onSessionEnd(data);
   };

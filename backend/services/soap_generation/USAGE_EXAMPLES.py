@@ -6,6 +6,8 @@ into your medical consultation processing pipeline.
 
 from __future__ import annotations
 
+from typing import Optional
+
 # ============================================================================
 # Example 1: Basic Usage (Backward Compatible)
 # ============================================================================

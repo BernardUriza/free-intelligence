@@ -17,7 +17,7 @@ Refactored: 2025-11-05 (separated from transcription)
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 from backend.logger import get_logger
@@ -150,7 +150,6 @@ class DiarizationService:
 
         # Step 4: Create result
         processing_time = time.time() - start_time
-        from datetime import datetime
 
         result = DiarizationResult(
             session_id=session_id,
@@ -160,7 +159,7 @@ class DiarizationService:
             language=language,
             segments=merged_segments,
             processing_time_sec=processing_time,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
         )
 
         logger.info(

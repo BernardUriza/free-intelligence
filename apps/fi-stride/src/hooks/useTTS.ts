@@ -92,41 +92,57 @@ function synthesizeWebSpeech(
     }
 
     try {
+      // Cancel any previous utterance
       window.speechSynthesis.cancel();
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = config.locale_default || 'es-ES';
-      utterance.rate = config.rate || 0.9;
-      utterance.pitch = config.pitch || 1.0;
+      // Small delay to ensure cancel completes
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = config.locale_default || 'es-ES';
+        utterance.rate = config.rate || 0.9;
+        utterance.pitch = config.pitch || 1.0;
+        utterance.volume = 1.0; // Max volume
 
-      // Try to select feminine Spanish voice
-      const voices = window.speechSynthesis.getVoices();
-      const spanishFemale = voices.find(
-        (v) =>
-          v.lang.startsWith('es') &&
-          (v.name.toLowerCase().includes('female') ||
-            v.name.toLowerCase().includes('woman') ||
-            v.name.toLowerCase().includes('mujer'))
-      );
-      if (spanishFemale) {
-        utterance.voice = spanishFemale;
-      }
+        // Try to select feminine Spanish voice (prioritize Spain/Mexico)
+        const voices = window.speechSynthesis.getVoices();
 
-      const startTime = Date.now();
-      utterance.onend = () => {
-        const duration = (Date.now() - startTime) / 1000;
-        resolve({
-          audio: new Float32Array(0), // Web Speech doesn't return audio buffer
-          engine: 'webspeech',
-          duration,
-        });
-      };
+        // First try: Spanish female voice (es-ES or es-MX)
+        let selectedVoice = voices.find(
+          (v) =>
+            (v.lang === 'es-ES' || v.lang === 'es-MX' || v.lang.startsWith('es')) &&
+            (v.name.toLowerCase().includes('female') ||
+              v.name.toLowerCase().includes('woman') ||
+              v.name.toLowerCase().includes('mujer') ||
+              v.name.toLowerCase().includes('monica') ||
+              v.name.toLowerCase().includes('lucia') ||
+              v.name.toLowerCase().includes('conchita'))
+        );
 
-      utterance.onerror = (event) => {
-        reject(new Error(`Web Speech error: ${event.error}`));
-      };
+        // Fallback: any Spanish voice
+        if (!selectedVoice) {
+          selectedVoice = voices.find((v) => v.lang.startsWith('es'));
+        }
 
-      window.speechSynthesis.speak(utterance);
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
+        }
+
+        const startTime = Date.now();
+        utterance.onend = () => {
+          const duration = (Date.now() - startTime) / 1000;
+          resolve({
+            audio: new Float32Array(0), // Web Speech doesn't return audio buffer
+            engine: 'webspeech',
+            duration,
+          });
+        };
+
+        utterance.onerror = (event) => {
+          reject(new Error(`Web Speech error: ${event.error}`));
+        };
+
+        window.speechSynthesis.speak(utterance);
+      }, 100);
     } catch (error) {
       reject(error);
     }
@@ -143,6 +159,7 @@ async function synthesizeAzure(
   }
 
   try {
+    // Azure OpenAI TTS endpoint expects specific format
     const response = await fetch(config.azure_endpoint, {
       method: 'POST',
       headers: {
@@ -150,10 +167,8 @@ async function synthesizeAzure(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tts-hd',
         input: text,
         voice: 'nova', // Female voice for KATNISS
-        response_format: 'mp3',
       }),
     });
 
@@ -165,6 +180,17 @@ async function synthesizeAzure(
     const startTime = Date.now();
     const arrayBuffer = await response.arrayBuffer();
     const duration = (Date.now() - startTime) / 1000;
+
+    // Auto-play the audio
+    try {
+      const audioBlob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio();
+      audio.src = audioUrl;
+      audio.play().catch((err) => console.warn('Audio playback failed:', err));
+    } catch (playbackErr) {
+      console.warn('Could not auto-play audio:', playbackErr);
+    }
 
     return {
       audio: arrayBuffer,

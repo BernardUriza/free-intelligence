@@ -1,12 +1,20 @@
 """FastAPI application entry point.
 
 Creates and configures the main FastAPI app with all routers and middleware.
+
+Architecture:
+- Public API (/api/workflows, /api/katniss): CORS enabled, orchestrators only
+- Internal API (/internal/*): No CORS, atomic resources, localhost-only in production
 """
 
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from backend.middleware import InternalOnlyMiddleware
 
 
 def create_app() -> FastAPI:
@@ -15,20 +23,29 @@ def create_app() -> FastAPI:
     Returns:
         FastAPI: Configured application instance
     """
+    # Main app (no global CORS, uses sub-apps)
     app = FastAPI(
         title="Free Intelligence",
         description="Advanced Universal Reliable Intelligence for Telemedicine Yield",
         version="0.1.0",
     )
 
-    # Add CORS middleware
-    app.add_middleware(
+    # Sub-app: Public API (orchestrators, CORS enabled)
+    public_app = FastAPI(title="Public API")
+    allowed_origins = os.getenv(
+        "ALLOWED_ORIGINS", "http://localhost:9000,http://localhost:9050"
+    ).split(",")
+    public_app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=allowed_origins,
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["*"],
     )
+
+    # Sub-app: Internal API (atomic resources, no CORS, localhost-only)
+    internal_app = FastAPI(title="Internal API")
+    internal_app.add_middleware(InternalOnlyMiddleware)
 
     # Include all API routers (lazy load to avoid circular imports)
     try:
@@ -50,27 +67,38 @@ def create_app() -> FastAPI:
             timeline_verify,
             transcribe,
             triage,
+            workflows,
         )
 
-        app.include_router(athlete_sessions.router, prefix="/api", tags=["athlete-sessions"])
-        app.include_router(athletes.router, prefix="/api/athletes", tags=["athletes"])
-        app.include_router(audit.router, prefix="/api/audit", tags=["audit"])
-        app.include_router(coaches.router, prefix="/api/coaches", tags=["coaches"])
-        app.include_router(diarization.router, prefix="/api/diarization", tags=["diarization"])
-        app.include_router(exports.router, prefix="/api/exports", tags=["exports"])
-        app.include_router(fi_diag.router, prefix="/api/fi-diag", tags=["fi-diag"])
-        app.include_router(katniss.router)
-        app.include_router(kpis.router, prefix="/api/kpis", tags=["kpis"])
-        app.include_router(library.router)
-        app.include_router(
-            session_designs.router, prefix="/api/session-designs", tags=["session-designs"]
+        # PUBLIC API (CORS enabled, orchestrators)
+        public_app.include_router(workflows.router)  # Aurity orchestrator
+        public_app.include_router(katniss.router)
+        public_app.include_router(t21_resources.router)
+        public_app.include_router(system.router, prefix="/system", tags=["system"])
+
+        # INTERNAL API (no CORS, atomic resources, localhost-only)
+        internal_app.include_router(
+            athlete_sessions.router, prefix="/athlete-sessions", tags=["athlete-sessions"]
         )
-        app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
-        app.include_router(system.router, prefix="/api/system", tags=["system"])
-        app.include_router(t21_resources.router)
-        app.include_router(timeline_verify.router, prefix="/api/timeline", tags=["timeline"])
-        app.include_router(triage.router, prefix="/api/triage", tags=["triage"])
-        app.include_router(transcribe.router, prefix="/api/transcribe", tags=["transcribe"])
+        internal_app.include_router(athletes.router, prefix="/athletes", tags=["athletes"])
+        internal_app.include_router(audit.router, prefix="/audit", tags=["audit"])
+        internal_app.include_router(coaches.router, prefix="/coaches", tags=["coaches"])
+        internal_app.include_router(diarization.router, prefix="/diarization", tags=["diarization"])
+        internal_app.include_router(exports.router, prefix="/exports", tags=["exports"])
+        internal_app.include_router(fi_diag.router, prefix="/fi-diag", tags=["fi-diag"])
+        internal_app.include_router(kpis.router, prefix="/kpis", tags=["kpis"])
+        internal_app.include_router(library.router, prefix="/library", tags=["library"])
+        internal_app.include_router(
+            session_designs.router, prefix="/session-designs", tags=["session-designs"]
+        )
+        internal_app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
+        internal_app.include_router(timeline_verify.router, prefix="/timeline", tags=["timeline"])
+        internal_app.include_router(triage.router, prefix="/triage", tags=["triage"])
+        internal_app.include_router(transcribe.router, prefix="/transcribe", tags=["transcribe"])
+
+        # Mount sub-apps
+        app.mount("/api", public_app)
+        app.mount("/internal", internal_app)
     except (ImportError, AttributeError) as e:
         # If routers fail to load, log and continue with health check only
         import sys

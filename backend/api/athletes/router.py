@@ -17,7 +17,7 @@ async def list_athletes(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     coach_id: Optional[str] = Query(None),
-) -> dict:
+) -> APIResponse:
     """Lista athletes, opcionalmente filtrados por coach"""
     if coach_id:
         athletes = MockDataLoader.get_athletes_by_coach(coach_id)
@@ -35,7 +35,7 @@ async def list_athletes(
 
 
 @router.get("/{athlete_id}", response_model=APIResponse)
-async def get_athlete(athlete_id: str) -> dict:
+async def get_athlete(athlete_id: str) -> APIResponse:
     """Obtiene un athlete por ID"""
     athlete = MockDataLoader.get_athlete(athlete_id)
     if not athlete:
@@ -54,7 +54,7 @@ async def get_athlete(athlete_id: str) -> dict:
 async def get_athlete_sessions(
     athlete_id: str,
     status: Optional[str] = Query(None),
-) -> dict:
+) -> APIResponse:
     """Obtiene sessions asignadas a un athlete"""
     athlete = MockDataLoader.get_athlete(athlete_id)
     if not athlete:
@@ -80,7 +80,7 @@ async def get_athlete_sessions(
 
 
 @router.get("/{athlete_id}/progress", response_model=APIResponse)
-async def get_athlete_progress(athlete_id: str) -> dict:
+async def get_athlete_progress(athlete_id: str) -> APIResponse:
     """Obtiene progreso de un athlete"""
     athlete = MockDataLoader.get_athlete(athlete_id)
     if not athlete:

@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
@@ -98,7 +98,7 @@ class TriageService:
             buffer_dir.mkdir(parents=True, exist_ok=True)
 
             # Prepare intake data
-            received_at = datetime.now(timezone.utc).isoformat() + "Z"
+            received_at = datetime.now(UTC).isoformat() + "Z"
             intake_data = {
                 "bufferId": buffer_id,
                 "receivedAt": received_at,
@@ -157,10 +157,10 @@ class TriageService:
             }
 
         except OSError as e:
-            logger.error(f"TRIAGE_BUFFER_CREATION_FAILED: buffer_id={buffer_id}, error={str(e)}")
-            raise OSError(f"Failed to create triage buffer: {str(e)}") from e
+            logger.error(f"TRIAGE_BUFFER_CREATION_FAILED: buffer_id={buffer_id}, error={e!s}")
+            raise OSError(f"Failed to create triage buffer: {e!s}") from e
 
-    def get_manifest(self, buffer_id: str) -> dict[str, Optional[Any]]:
+    def get_manifest(self, buffer_id: str) -> dict[str, Optional[Any]] | None:
         """Retrieve manifest for a triage buffer.
 
         Args:
@@ -184,10 +184,10 @@ class TriageService:
             logger.info(f"TRIAGE_MANIFEST_RETRIEVED: buffer_id={buffer_id}")
             return manifest
         except OSError as e:
-            logger.error(f"TRIAGE_MANIFEST_READ_FAILED: buffer_id={buffer_id}, error={str(e)}")
-            raise OSError(f"Failed to read manifest: {str(e)}") from e
+            logger.error(f"TRIAGE_MANIFEST_READ_FAILED: buffer_id={buffer_id}, error={e!s}")
+            raise OSError(f"Failed to read manifest: {e!s}") from e
 
-    def get_intake(self, buffer_id: str) -> dict[str, Optional[Any]]:
+    def get_intake(self, buffer_id: str) -> dict[str, Optional[Any]] | None:
         """Retrieve intake data for a triage buffer.
 
         Args:
@@ -211,8 +211,8 @@ class TriageService:
             logger.info(f"TRIAGE_INTAKE_RETRIEVED: buffer_id={buffer_id}")
             return intake
         except OSError as e:
-            logger.error(f"TRIAGE_INTAKE_READ_FAILED: buffer_id={buffer_id}, error={str(e)}")
-            raise OSError(f"Failed to read intake: {str(e)}") from e
+            logger.error(f"TRIAGE_INTAKE_READ_FAILED: buffer_id={buffer_id}, error={e!s}")
+            raise OSError(f"Failed to read intake: {e!s}") from e
 
     def list_buffers(self, limit: int = 100) -> list[dict[str, Any]]:
         """List triage buffers.
@@ -241,7 +241,7 @@ class TriageService:
                         )
                     except Exception as e:
                         logger.warning(
-                            f"TRIAGE_BUFFER_LIST_ERROR: buffer_id={buffer_dir.name}, error={str(e)}"
+                            f"TRIAGE_BUFFER_LIST_ERROR: buffer_id={buffer_dir.name}, error={e!s}"
                         )
 
         logger.info(f"TRIAGE_BUFFERS_LISTED: count={len(buffers)}")
