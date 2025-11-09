@@ -231,21 +231,17 @@ class DIContainer:
         """Get or create DiarizationService singleton.
 
         Returns:
-            DiarizationService instance (with session and corpus services injected)
+            DiarizationService instance (post-processing only, no dependencies)
 
         Raises:
             IOError: If service initialization fails
         """
         if self._diarization_service is None:
             try:
-                # Inject other services
-                corpus_service = self.get_corpus_service()
-                session_service = self.get_session_service()
-
-                self._diarization_service = DiarizationService(
-                    corpus_service=corpus_service,
-                    session_service=session_service,
-                )
+                # DiarizationService (refactored 2025-11-05) is post-processing only
+                # It does NOT need corpus_service or session_service injected
+                # It only classifies speakers and improves text on pre-transcribed segments
+                self._diarization_service = DiarizationService()
                 _get_logger().info("DiarizationService initialized")
             except OSError as e:
                 _get_logger().error(f"DIARIZATION_SERVICE_INIT_FAILED: {e!s}")
@@ -271,9 +267,7 @@ class DIContainer:
 
                 # TODO: DiarizationJobService not yet implemented - placeholder
                 # self._diarization_job_service = DiarizationJobService(use_lowprio=use_lowprio)
-                _get_logger().warning(
-                    "DiarizationJobService not implemented - returning None"
-                )
+                _get_logger().warning("DiarizationJobService not implemented - returning None")
                 self._diarization_job_service = None
             except OSError as e:
                 _get_logger().error(f"DIARIZATION_JOB_SERVICE_INIT_FAILED: {e!s}")

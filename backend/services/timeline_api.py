@@ -24,7 +24,7 @@ Usage:
 
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -35,7 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
-from backend.timeline_models import (
+from backend.schemas.timeline_models import (
     RedactionPolicy,
     Timeline,
     TimelineEvent,
@@ -278,7 +278,7 @@ def compute_policy_badges(timeline: Timeline) -> PolicyBadges:
 def compute_session_timespan(timeline: Timeline) -> SessionTimespan:
     """Compute session timespan from events"""
     if not timeline.events:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         return SessionTimespan(start=now, end=now, duration_ms=0, duration_human="0s")
 
     # Sort events by timestamp
@@ -402,7 +402,7 @@ def timeline_to_session_detail(timeline: Timeline) -> SessionDetail:
 
 def init_mock_data():
     """Initialize mock timeline data for development"""
-    from backend.timeline_models import (
+    from backend.schemas.timeline_models import (
         CausalityType,
         create_causality,
         create_timeline_event,
@@ -410,7 +410,10 @@ def init_mock_data():
 
     # Create sample timeline
     timeline = Timeline(
-        session_id="session_20251029_100000", owner_hash="abc123def456789012345678901234567890"
+        session_id="session_20251029_100000",
+        owner_hash="abc123def456789012345678901234567890",
+        auto_events_count=0,
+        manual_events_count=5,
     )
 
     # Event 1: User message
@@ -516,7 +519,7 @@ async def health_check():
         status="healthy",
         storage_path=str(STORAGE_PATH),
         storage_exists=STORAGE_PATH.exists(),
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
 
 

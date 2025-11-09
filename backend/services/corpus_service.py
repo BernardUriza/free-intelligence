@@ -186,7 +186,8 @@ class CorpusService:
         if not all(field in chunk for field in required_fields):
             raise ValueError(f"Chunk missing required fields: {required_fields}")
 
-        if chunk["chunk_idx"] < 0:
+        chunk_idx = chunk.get("chunk_idx")
+        if chunk_idx is None or chunk_idx < 0:
             raise ValueError("chunk_idx must be >= 0")
 
         try:
@@ -195,12 +196,12 @@ class CorpusService:
                 logger.info(
                     "DIARIZATION_CHUNK_ADDED",
                     document_id=document_id,
-                    chunk_idx=chunk["chunk_idx"],
+                    chunk_idx=chunk_idx,
                 )
             return success
 
         except OSError as e:
-            logger.error("CHUNK_ADDITION_FAILED", document_id=document_id, error=str(e))  # type: ignore[call-arg]
+            logger.error("CHUNK_ADDITION_FAILED", document_id=document_id, error=str(e))
             raise
 
     def get_chunks(self, document_id: str) -> list[DiarizationChunkDict]:

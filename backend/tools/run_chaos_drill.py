@@ -650,7 +650,7 @@ class LLMTimeoutStormDrill(ChaosDrill):
             interval = 1.0 / requests_per_second
 
             futures = []
-            for i in range(total_requests):
+            for _i in range(total_requests):
                 futures.append(executor.submit(_make_request))
                 time.sleep(interval)
 
@@ -871,7 +871,7 @@ class DiskFullDrill(ChaosDrill):
             usage = shutil.disk_usage(self.path)
             fs_pct = (usage.used / usage.total) * 100
         except (OSError, FileNotFoundError, PermissionError) as e:
-            logger.warning("DISK_USAGE_CHECK_FAILED", path=str(self.path), error=str(e))
+            logger.warning(f"DISK_USAGE_CHECK_FAILED path={self.path} error={e}")
             fs_pct = 0
 
         return {

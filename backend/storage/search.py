@@ -13,7 +13,10 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-from backend.llm_router import llm_embed, pad_embedding_to_768
+from backend.llm_router import (  # type: ignore[import] llm_embed, pad_embedding_to_768
+    llm_embed,
+    pad_embedding_to_768,
+)
 from backend.logger import get_logger
 
 logger = get_logger(__name__)

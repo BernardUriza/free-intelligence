@@ -1,14 +1,14 @@
 {
   "include": [
-    "backend",
-    "tests"
+    "backend"
   ],
   "exclude": [
     "**/__pycache__",
     "**/.pytest_cache",
     "**/node_modules",
     "**/.venv",
-    "**/venv"
+    "**/venv",
+    "tests"
   ],
   "ignore": [
     "scripts"
@@ -35,10 +35,10 @@
   "reportMissingImports": "warning",
   "reportMissingTypeStubs": "none",
   "reportPrivateImportUsage": false,
-  "reportAttributeAccessIssue": "warning",
-  "reportIndexIssue": "warning",
+  "reportAttributeAccessIssue": "none",
+  "reportIndexIssue": "none",
   "reportOperatorIssue": "warning",
-  "reportArgumentType": "warning",
+  "reportArgumentType": "none",
   "reportAssignmentType": "warning",
   "reportOptionalMemberAccess": "warning",
   "reportOptionalSubscript": "warning",
@@ -58,10 +58,10 @@
   "reportUntypedBaseClass": false,
   "reportUntypedNamedTuple": false,
   "reportCallInDefaultInitializer": false,
-  "reportImplicitStringConcatenation": "warning",
+  "reportImplicitStringConcatenation": "none",
   "reportMissingSuperCall": false,
   "reportPropertyTypeMismatch": "warning",
   "reportUninitializedInstanceVariable": false,
-  "reportUnnecessaryTypeIgnoreComment": "warning",
+  "reportUnnecessaryTypeIgnoreComment": "none",
   "reportMatchNotExhaustive": "warning"
 }

@@ -13,10 +13,6 @@ __all__ = [
     "LLMCache",
     "MetricsCollector",
     "get_container",
-    "SessionID",
-    "InteractionID",
-    "JobID",
-    "ChunkID",
 ]
 
 
@@ -50,18 +46,5 @@ def __getattr__(name: str):
         from packages.fi_common.config.config_loader import load_config
 
         return load_config
-    elif name in ("ChunkID", "InteractionID", "JobID", "SessionID"):
-        from packages.fi_common.types.type_defs import (
-            ChunkID,
-            InteractionID,
-            JobID,
-            SessionID,
-        )
 
-        return {
-            "ChunkID": ChunkID,
-            "InteractionID": InteractionID,
-            "JobID": JobID,
-            "SessionID": SessionID,
-        }[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -8,9 +8,9 @@ from __future__ import annotations
 from packages.fi_common.types.type_defs import *
 
 __all__ = [
-    "SessionID",
-    "InteractionID",
-    "JobID",
-    "ChunkID",
     "DiarizationChunkDict",
+    "KPIsSnapshot",
+    "JobStatusDict",
+    "AuditLogDict",
+    "ConsultationMetadataDict",
 ]

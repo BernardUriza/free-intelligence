@@ -10,7 +10,7 @@ File: backend/fi_consult_models.py
 Created: 2025-10-28
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Optional
 from uuid import uuid4
@@ -171,23 +171,23 @@ class Symptoms(BaseModel):
     """Symptom data structure."""
 
     primary_symptoms: list[str] = Field(default_factory=list)
-    secondary_symptoms: list[Optional[str]] = None
+    secondary_symptoms: Optional[list[str]] = None
     duration: Optional[str] = None
     severity: Optional[Severity] = None
     location: Optional[str] = None
     quality: Optional[str] = None
-    aggravating_factors: list[Optional[str]] = None
-    relieving_factors: list[Optional[str]] = None
+    aggravating_factors: Optional[list[str]] = None
+    relieving_factors: Optional[list[str]] = None
 
 
 class MedicalContext(BaseModel):
     """Medical history and context."""
 
-    past_medical_history: list[Optional[str]] = None
-    family_history: list[Optional[str]] = None
-    medications: list[Optional[str]] = None
-    allergies: list[Optional[str]] = None
-    surgeries: list[Optional[str]] = None
+    past_medical_history: Optional[list[str]] = None
+    family_history: Optional[list[str]] = None
+    medications: Optional[list[str]] = None
+    allergies: Optional[list[str]] = None
+    surgeries: Optional[list[str]] = None
 
 
 # ============================================================================
@@ -290,7 +290,7 @@ class Objetivo(BaseModel):
 
     signos_vitales: SignosVitales
     exploracion_fisica: ExploracionFisica
-    estudios_complementarios: dict[str, Optional[Any]] = None
+    estudios_complementarios: Optional[dict[str, Any]] = None
 
     class Config:
         """Allow population from both Spanish and English field names."""
@@ -411,7 +411,7 @@ class Plan(BaseModel):
     estudios_adicionales: list[EstudioAdicional] = Field(default_factory=list)
     interconsultas: list[Interconsulta] = Field(default_factory=list)
     seguimiento: Seguimiento
-    criterios_hospitalizacion: list[Optional[str]] = None
+    criterios_hospitalizacion: Optional[list[str]] = None
 
     class Config:
         """Allow population from both Spanish and English field names."""
@@ -473,7 +473,7 @@ class ConsultationEvent(BaseModel):
 
     event_id: str = Field(default_factory=lambda: str(uuid4()))
     consultation_id: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     event_type: EventType
     payload: dict[str, Any]
     metadata: EventMetadata
@@ -492,7 +492,7 @@ class MessageReceivedEvent(ConsultationEvent):
     class PayloadSchema(BaseModel):
         message_content: str
         message_role: MessageRole
-        metadata: dict[str, Optional[Any]] = None
+        metadata: Optional[dict[str, Any]] = None
 
 
 class ExtractionStartedEvent(ConsultationEvent):
@@ -567,7 +567,7 @@ class CompletenessMetrics(BaseModel):
     """Completeness metrics for extraction/SOAP."""
 
     percentage: float = Field(ge=0, le=100)
-    sections: dict[str, Optional[float]] = None
+    sections: Optional[dict[str, float]] = None
     critical_fields_present: list[str] = Field(default_factory=list)
     critical_fields_missing: list[str] = Field(default_factory=list)
     nom_compliance: float = Field(ge=0, le=100)
@@ -594,13 +594,13 @@ class Consultation(BaseModel):
 
     consultation_id: str = Field(default_factory=lambda: str(uuid4()))
     session_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Current state
     messages: list[dict[str, Any]] = Field(default_factory=list)
     patient_data: Optional[PatientStub] = None
-    extraction_data: dict[str, Optional[Any]] = None
+    extraction_data: Optional[dict[str, Any]] = None
     soap_note: Optional[SOAPNote] = None
     urgency_assessment: Optional[UrgencyAssessment] = None
 

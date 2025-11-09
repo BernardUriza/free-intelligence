@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import tempfile
 from collections.abc import Generator
+from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -34,7 +35,7 @@ def temp_h5_file() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def di_container(temp_h5_file: Path) -> DIContainer:
+def di_container(temp_h5_file: Path) -> Generator[DIContainer, None, None]:
     """Create DI container with temporary HDF5 database.
 
     Args:
@@ -170,7 +171,7 @@ def audit_entry_factory():
     Returns:
         Callable that generates audit entry dictionaries
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     def _create_audit_entry(
         action: str = "test_action",
@@ -183,7 +184,7 @@ def audit_entry_factory():
             "user_id": user_id,
             "resource": resource,
             "result": result,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     return _create_audit_entry

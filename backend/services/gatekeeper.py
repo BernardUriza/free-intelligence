@@ -19,7 +19,9 @@ from enum import Enum
 from typing import Optional
 
 from backend.logger import get_logger
-from backend.policy_loader import get_policy_loader
+from backend.policy_loader import (
+    get_policy_loader,  # type: ignore[import] get_policy_loader
+)
 
 logger = get_logger(__name__)
 

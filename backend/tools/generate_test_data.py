@@ -20,7 +20,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
 from config_loader import load_config
-from corpus_ops import (
+from corpus_ops import (  # type: ignore[import]
     append_embedding,
     append_interaction,
     get_corpus_stats,

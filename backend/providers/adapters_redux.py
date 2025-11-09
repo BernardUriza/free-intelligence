@@ -15,14 +15,14 @@ Purpose:
   - Validates Redux actions before creating events
 
 Usage:
-  from backend.adapters_redux import ReduxAdapter
+  from backend.providers.adapters_redux import ReduxAdapter
 
   adapter = ReduxAdapter()
   event = adapter.translate_action(redux_action, consultation_id, user_id)
   event_store.append_event(consultation_id, event)
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -352,7 +352,7 @@ class ReduxAdapter:
         event = ConsultationEvent(
             event_id=str(uuid4()),
             consultation_id=consultation_id,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             event_type=event_type,
             payload=event_payload,
             metadata=EventMetadata(

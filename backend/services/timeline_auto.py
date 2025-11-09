@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
-"""
-Free Intelligence - Auto-Timeline Generator
+"""Free Intelligence - Auto-Timeline Generator.
 
 Heurística v1 para generar timeline automáticamente desde event store.
 Usa Ollama (qwen2.5 / deepseek-r1-distill-7b) para resumir eventos en lenguaje natural.
@@ -12,16 +9,18 @@ Card: [P0][Área: UX/UI][Tipo: feature] Memoria legible — Timeline AURITY
 Sprint: SPR-2025W44
 """
 
-from dataclasses import dataclass
-from datetime import datetime,timedelta, timezone
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
-from backend.llm_adapter import LLMAdapter, LLMRequest
 from backend.logger import get_logger
-from backend.timeline_models import (
+from backend.providers.llm_adapter import LLMAdapter, LLMRequest
+from backend.schemas.timeline_models import (
     CausalityType,
     RedactionPolicy,
     Timeline,
@@ -103,7 +102,7 @@ class EventCandidate:
     manifest_ref: Optional[str] = None
     artifact_id: Optional[str] = None  # For causality (same artifact)
     sensitive: bool = False  # If true, no content preview
-    metadata: dict[str, Any] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -135,7 +134,7 @@ class AutoTimelineGenerator:
     """
 
     def __init__(
-        self, llm_adapter: Optional[LLMAdapter] = None, config: dict[str, Optional[Any]] = None
+        self, llm_adapter: Optional[LLMAdapter] = None, config: Optional[dict[str, Any]] = None
     ):
         """
         Initialize auto-timeline generator.
@@ -144,9 +143,9 @@ class AutoTimelineGenerator:
             llm_adapter: LLM adapter (Ollama preferred)
             config: Timeline configuration (from fi.policy.yaml)
         """
-        self.config = config or load_timeline_config()
+        self.config: dict[str, Any] = config or load_timeline_config()
         self.llm = llm_adapter
-        self.auto_config = self.config.get("auto", {})
+        self.auto_config: dict[str, Any] = self.config.get("auto", {})
 
         # Feature flag check
         self.enabled = self.auto_config.get("enabled", False)
@@ -184,8 +183,8 @@ class AutoTimelineGenerator:
         # Sort by timestamp
         sorted_candidates = sorted(candidates, key=lambda e: e.timestamp)
 
-        groups = []
-        current_group = []
+        groups: list[list[EventCandidate]] = []
+        current_group: list[EventCandidate] = []
         current_window_start = None
         current_session = None
         current_manifest = None
@@ -203,11 +202,11 @@ class AutoTimelineGenerator:
                 start_new_group = True
             else:
                 time_delta = (candidate.timestamp - current_window_start).total_seconds()  # type: ignore[operator]
-                if time_delta > window_seconds:
-                    start_new_group = True
-                elif by_session and candidate.session_id != current_session:
-                    start_new_group = True
-                elif by_manifest and candidate.manifest_ref != current_manifest:
+                if (
+                    time_delta > window_seconds
+                    or (by_session and candidate.session_id != current_session)
+                    or (by_manifest and candidate.manifest_ref != current_manifest)
+                ):
                     start_new_group = True
 
             if start_new_group:
@@ -266,7 +265,7 @@ class AutoTimelineGenerator:
 
                 if event_artifact and next_artifact and event_artifact == next_artifact:
                     candidates.append(
-                        CausalityCandidate(
+                        CausalityCandidate(  # type: ignore[call-arg]
                             source_event_id=event.event_id,
                             target_event_id=next_event.event_id,
                             causality_type=CausalityType.TRIGGERED,
@@ -281,7 +280,7 @@ class AutoTimelineGenerator:
 
                 if time_delta <= temporal_adjacent_seconds and event.who == next_event.who:
                     candidates.append(
-                        CausalityCandidate(
+                        CausalityCandidate(  # type: ignore[call-arg]
                             source_event_id=event.event_id,
                             target_event_id=next_event.event_id,
                             causality_type=CausalityType.CAUSED_BY,
@@ -299,7 +298,10 @@ class AutoTimelineGenerator:
         return candidates
 
     def generate_summary_with_llm(
-        self, raw_content: str, event_type: str, sensitive: bool = False
+        self,
+        raw_content: str,
+        event_type: str,
+        sensitive: bool = False,  # noqa: ARG002
     ) -> tuple[str, bool]:
         """
         Generate summary with LLM (≤180 chars, no PII, active verbs).
@@ -348,9 +350,9 @@ Summary:"""
                 timeout_seconds=self.timeout_seconds,
             )
 
-            start_time = datetime.now(timezone.utc)
+            start_time = datetime.now(UTC)
             response = self.llm.generate(request)
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             summary = response.content.strip()
 
@@ -398,7 +400,11 @@ Summary:"""
                 details={"enable_in": "config/fi.policy.yaml → timeline.auto.enabled"},
             )
             return Timeline(
-                session_id=session_id, owner_hash=owner_hash, generation_mode=TimelineMode.MANUAL
+                session_id=session_id,
+                owner_hash=owner_hash,
+                generation_mode=TimelineMode.MANUAL,
+                auto_events_count=0,
+                manual_events_count=0,
             )
 
         logger.info(
@@ -419,7 +425,11 @@ Summary:"""
 
         # 3. Generate timeline events
         timeline = Timeline(
-            session_id=session_id, owner_hash=owner_hash, generation_mode=TimelineMode.AUTO
+            session_id=session_id,
+            owner_hash=owner_hash,
+            generation_mode=TimelineMode.AUTO,
+            auto_events_count=0,  # Will be updated as events are added
+            manual_events_count=0,
         )
 
         timeline_events = []
@@ -510,10 +520,10 @@ if __name__ == "__main__":
     generator = AutoTimelineGenerator(llm_adapter=None, config=config)
 
     # Create event candidates
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     candidates = [
-        EventCandidate(
+        EventCandidate(  # type: ignore[call-arg]
             event_type="HASH_WRITTEN",
             timestamp=now,
             who="user_abc123",
@@ -522,7 +532,7 @@ if __name__ == "__main__":
             manifest_ref="manifest_001",
             artifact_id="audio_001",
         ),
-        EventCandidate(
+        EventCandidate(  # type: ignore[call-arg]
             event_type="POLICY_CHECK",
             timestamp=now + timedelta(seconds=5),
             who="system",
@@ -531,7 +541,7 @@ if __name__ == "__main__":
             manifest_ref="manifest_001",
             artifact_id="corpus_001",
         ),
-        EventCandidate(
+        EventCandidate(  # type: ignore[call-arg]
             event_type="LLM_SUMMARY",
             timestamp=now + timedelta(seconds=15),
             who="assistant",
@@ -541,7 +551,7 @@ if __name__ == "__main__":
             artifact_id="soap_001",
             sensitive=True,
         ),
-        EventCandidate(
+        EventCandidate(  # type: ignore[call-arg]
             event_type="EXPORT_GENERATED",
             timestamp=now + timedelta(seconds=120),
             who="user_abc123",

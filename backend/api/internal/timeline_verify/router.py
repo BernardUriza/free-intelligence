@@ -24,6 +24,6 @@ Endpoints:
 
 from __future__ import annotations
 
-from backend.api.timeline_verify import router
+from backend.api.internal.timeline_verify import router
 
 __all__ = ["router"]

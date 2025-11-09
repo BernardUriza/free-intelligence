@@ -101,6 +101,9 @@ def get_whisper_model() -> Optional[Any]:
                 message="First transcription will be slow (~10-30s for model load)",
             )
 
+            assert (
+                WhisperModel is not None
+            ), "WhisperModel should be available when _whisper_available is True"
             _whisper_model_instance = WhisperModel(
                 WHISPER_MODEL_SIZE,
                 device=WHISPER_DEVICE,

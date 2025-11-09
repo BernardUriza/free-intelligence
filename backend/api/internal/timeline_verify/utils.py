@@ -51,8 +51,8 @@ def compute_hash_for_target(target_id: str) -> tuple[str, Optional[str]]:
                         content_hash = (
                             metadata_ds.attrs.get("content_hash", b"").decode()  # type: ignore[attr-defined, union-attr]
                             if isinstance(
-                                metadata_ds.attrs.get("content_hash"),
-                                bytes,  # type: ignore[attr-defined, union-attr]
+                                metadata_ds.attrs.get("content_hash"),  # type: ignore[attr-defined, union-attr]
+                                bytes,
                             )
                             else str(metadata_ds.attrs.get("content_hash", ""))  # type: ignore[attr-defined, union-attr]
                         )
@@ -64,7 +64,7 @@ def compute_hash_for_target(target_id: str) -> tuple[str, Optional[str]]:
 
             # Try interaction (search across all sessions)
             for session_id in corpus["/sessions"].keys():  # type: ignore[attr-defined, union-attr, index]
-                session_group = corpus[f"/sessions/{session_id}"]  # type: ignore[index, assignment]
+                session_group = corpus[f"/sessions/{session_id}"]
                 if f"interaction_{target_id}" in session_group:  # type: ignore[operator]
                     int_group = session_group[f"interaction_{target_id}"]  # type: ignore[index, assignment]
                     if "metadata" in int_group:  # type: ignore[operator]
@@ -72,8 +72,8 @@ def compute_hash_for_target(target_id: str) -> tuple[str, Optional[str]]:
                         content_hash = (
                             metadata_ds.attrs.get("content_hash", b"").decode()  # type: ignore[attr-defined, union-attr]
                             if isinstance(
-                                metadata_ds.attrs.get("content_hash"),
-                                bytes,  # type: ignore[attr-defined, union-attr]
+                                metadata_ds.attrs.get("content_hash"),  # type: ignore[attr-defined, union-attr]
+                                bytes,
                             )
                             else str(metadata_ds.attrs.get("content_hash", ""))  # type: ignore[attr-defined, union-attr]
                         )
@@ -84,7 +84,7 @@ def compute_hash_for_target(target_id: str) -> tuple[str, Optional[str]]:
 
     except Exception as e:
         logger.error("Error computing hash for %s: %s", target_id, str(e))
-        return "", f"Hash computation failed: {str(e)}"
+        return "", f"Hash computation failed: {e!s}"
 
 
 def get_hash_prefix(hash_value: str, prefix_length: int = 16) -> str:

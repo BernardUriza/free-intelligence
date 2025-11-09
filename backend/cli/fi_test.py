@@ -27,16 +27,16 @@ import argparse
 import json
 import sys
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.corpus_ops import append_interaction
-from backend.llm_adapter import LLMRequest, create_adapter
 from backend.logger import get_logger
+from backend.providers.llm_adapter import LLMRequest, create_adapter
+from backend.storage.corpus_ops import append_interaction
 
 logger = get_logger(__name__)
 
@@ -62,7 +62,7 @@ def cmd_prompt(args: argparse.Namespace) -> dict[str, Any]:
     3. Optionally save to corpus (if not --dry-run)
     4. Return JSON output
     """
-    session_id = f"cli_test_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+    session_id = f"cli_test_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
     interaction_id = str(uuid.uuid4())
 
     if args.verbose:
@@ -128,7 +128,7 @@ def cmd_prompt(args: argparse.Namespace) -> dict[str, Any]:
                 response=response.content,
                 model=response.model,
                 tokens=response.tokens_used,
-                timestamp=datetime.now(timezone.utc).isoformat() + "Z",
+                timestamp=datetime.now(UTC).isoformat() + "Z",
             )
             if args.verbose:
                 logger.info(f"Saved to corpus: {saved_id}")

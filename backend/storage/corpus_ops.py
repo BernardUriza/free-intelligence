@@ -56,8 +56,8 @@ def append_interaction(
         ...     150
         ... )
     """
-    from backend.append_only_policy import AppendOnlyPolicy
     from backend.logger import get_logger
+    from backend.policy.append_only_policy import AppendOnlyPolicy
 
     logger = get_logger()
     interaction_id = str(uuid.uuid4())
@@ -127,8 +127,8 @@ def append_embedding(
         >>> append_embedding("storage/corpus.h5", interaction_id, vector)
         True
     """
-    from backend.append_only_policy import AppendOnlyPolicy
     from backend.logger import get_logger
+    from backend.policy.append_only_policy import AppendOnlyPolicy
 
     logger = get_logger()
 
@@ -209,8 +209,8 @@ def append_interaction_with_embedding(
         ...     150
         ... )
     """
-    from backend.llm_router import llm_embed, pad_embedding_to_768
     from backend.logger import get_logger
+    from backend.providers.llm_router import llm_embed, pad_embedding_to_768
 
     logger = get_logger()
 

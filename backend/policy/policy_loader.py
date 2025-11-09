@@ -193,7 +193,7 @@ class PolicyLoader:
         """
         if self.policy is None:
             raise RuntimeError("Policy not loaded. Call load() first.")
-        return self.policy.get("llm", {})  # type: ignore[return-value]
+        return self.policy.get("llm", {})
 
     def get_primary_provider(self) -> str:
         """Get primary LLM provider name"""
@@ -236,13 +236,13 @@ class PolicyLoader:
         """Get export policy configuration"""
         if self.policy is None:
             raise RuntimeError("Policy not loaded. Call load() first.")
-        return self.policy.get("export", {})  # type: ignore[return-value]
+        return self.policy.get("export", {})
 
     def get_audit_config(self) -> dict[str, Any]:
         """Get audit policy configuration"""
         if self.policy is None:
             raise RuntimeError("Policy not loaded. Call load() first.")
-        return self.policy.get("audit", {})  # type: ignore[return-value]
+        return self.policy.get("audit", {})
 
     def is_offline_enabled(self) -> bool:
         """Check if offline-first mode is enabled"""

@@ -11,6 +11,8 @@ from __future__ import annotations
 import os
 from typing import Optional
 
+import requests
+
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
@@ -46,8 +48,6 @@ def is_ollama_available() -> bool:
         return _ollama_available
 
     try:
-        import requests
-
         response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2)
         _ollama_available = response.status_code == 200
 
@@ -100,8 +100,6 @@ def classify_speaker(
 
     # Try to use Ollama for classification
     try:
-        import requests
-
         # Build prompt with context
         prompt = f"""Clasifica el hablante del siguiente segmento de consulta médica.
 
@@ -182,8 +180,6 @@ def improve_text(text: str, speaker: str) -> str:
 
     # Try to improve text with Ollama
     try:
-        import requests
-
         prompt = f"""Mejora la ortografía y gramática del siguiente texto de una consulta médica.
 Mantén el significado original pero corrige errores y mejora la claridad.
 El hablante es un {speaker.lower()}.
