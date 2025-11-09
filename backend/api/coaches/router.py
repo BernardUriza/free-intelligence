@@ -1,23 +1,13 @@
-"""Coaches API endpoints - Mock data endpoints for development."""
+"""Coaches API Router.
+
+Coach management endpoints
+
+File: backend/api/coaches/router.py
+Created: 2025-11-08
+"""
 
 from __future__ import annotations
 
-from typing import Any, Optional
-
-from fastapi import APIRouter, HTTPException, Query
-
-from backend.config.mock_loader import MockDataLoader
-from backend.schemas.schemas import APIResponse
-
-router = APIRouter(tags=["coaches"])
-
-
-@router.get("/", response_model=APIResponse)
-async def list_coaches(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-) -> APIResponse[dict[str, Any]]:
-    """Lista todos los coaches"""
     coaches = MockDataLoader.get_coaches()
     return APIResponse(
         status="success",

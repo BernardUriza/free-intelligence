@@ -1,34 +1,12 @@
-"""
-Diarization API Endpoints
-Card: FI-BACKEND-FEAT-004 + FI-RELIABILITY-IMPL-004
+"""Diarization API Router.
 
-Endpoints:
-- POST /api/diarization/upload - Upload audio and start diarization (low-priority worker)
-- GET /api/diarization/jobs/{job_id} - Get job status with chunks[] from HDF5
-- GET /api/diarization/result/{job_id} - Get diarization result
-- GET /api/diarization/export/{job_id} - Export result (JSON/MD)
-- GET /api/diarization/jobs - List jobs
+Audio diarization with speaker separation (internal)
 
-Low-Priority Worker:
-- CPU scheduler: only processes when CPU idle ≥50% for 10s
-- Incremental HDF5 storage (storage/diarization.h5)
-- Per-chunk progress updates
-- Does NOT block Triage/Timeline APIs
-
-File: backend/api/diarization.py
-Created: 2025-10-30
-Updated: 2025-11-05
+File: backend/api/diarization/router.py
+Reorganized: 2025-11-08 (moved from backend/api/diarization.py)
 """
 
 from __future__ import annotations
-
-import asyncio
-import json
-import os
-import traceback
-from dataclasses import asdict
-from pathlib import Path
-from typing import Any, Optional
 
 from fastapi import (
     APIRouter,
@@ -41,7 +19,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import Response
-from fi_common.storage.audio_storage import AUDIO_STORAGE_DIR, save_audio_file
+from packages.fi_common.storage.audio_storage import AUDIO_STORAGE_DIR, save_audio_file
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
@@ -51,6 +29,14 @@ from backend.services.diarization_jobs import JobStatus, create_job, update_job_
 from backend.services.diarization_service import diarize_audio
 from backend.services.diarization_service_v2 import diarize_audio_parallel
 from backend.services.soap_generation.service import SOAPGenerationService
+
+import asyncio
+import json
+import os
+import traceback
+from dataclasses import asdict
+from pathlib import Path
+from typing import Any, Optional
 
 logger = get_logger(__name__)
 

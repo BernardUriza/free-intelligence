@@ -6,10 +6,10 @@ Supports loading from external files for better testability and maintainability.
 
 from __future__ import annotations
 
+from backend.logger import get_logger
+
 from pathlib import Path
 from typing import Optional
-
-from backend.logger import get_logger
 
 __all__ = ["OllamaPromptBuilder"]
 

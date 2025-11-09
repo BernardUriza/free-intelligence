@@ -16,19 +16,19 @@ Endpoints:
 - POST /api/workflows/aurity/consult - Audio → Transcription → SOAP (end-to-end)
 - GET /api/workflows/aurity/consult/{job_id} - Get consult status
 
-File: backend/api/workflows.py
-Created: 2025-11-08
+File: backend/api/workflows/router.py
+Created: 2025-11-08 (orchestrator pattern implementation)
 """
 
 from __future__ import annotations
-
-from typing import Any, Optional
 
 from fastapi import APIRouter, File, Header, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
 from backend.logger import get_logger
+
+from typing import Any, Optional
 
 logger = get_logger(__name__)
 

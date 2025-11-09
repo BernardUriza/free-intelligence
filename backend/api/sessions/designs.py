@@ -1,13 +1,19 @@
-"""
-Session Designs API endpoints - Endpoints para diseños/templates de sesiones
+"""Session Designs API Router.
+
+Session design/template endpoints
+
+File: backend/api/sessions/designs.py
+Created: 2025-11-08
 """
 
-from typing import Optional
+from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.config.mock_loader import MockDataLoader
 from backend.schemas.schemas import APIResponse
+
+from typing import Optional
 
 router = APIRouter(tags=["sessions"])
 

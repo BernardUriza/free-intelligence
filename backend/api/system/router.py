@@ -1,29 +1,21 @@
+"""System Health API.
+
+System health check aggregator
+
+File: backend/api/system/router.py
+Reorganized: 2025-11-08 (moved from backend/api/system.py)
+"""
+
 from __future__ import annotations
-
-"""
-System Health API - Unified health checks for all services
-
-Card: FI-UI-FEAT-206 (Diarization Progress + Health + Path Hardening)
-File: backend/api/system.py
-Created: 2025-10-30
-
-Endpoints:
-  GET /api/system/health - Unified health check aggregating all services
-
-Clean Code Architecture:
-- Thin controller delegates all health check logic to SystemHealthService
-- Service layer encapsulates backend, diarization, LLM, policy checks
-- Endpoint focuses only on HTTP response formatting
-"""
-
-from datetime import datetime, timezone
-from typing import Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from backend.container import get_container
 from backend.logger import get_logger
+
+from datetime import UTC, datetime
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -73,14 +65,14 @@ async def get_system_health() -> SystemHealthResponse:
             ok=health_data["ok"],
             services=health_data["services"],
             version="v0.3.0",
-            time=datetime.now(timezone.utc).isoformat() + "Z",
+            time=datetime.now(UTC).isoformat() + "Z",
         )
     except Exception as e:
-        logger.error(f"SYSTEM_HEALTH_FAILED: {str(e)}")
+        logger.error(f"SYSTEM_HEALTH_FAILED: {e!s}")
         # Return degraded response on error
         return SystemHealthResponse(
             ok=False,
             services={"error": str(e)},
             version="v0.3.0",
-            time=datetime.now(timezone.utc).isoformat() + "Z",
+            time=datetime.now(UTC).isoformat() + "Z",
         )

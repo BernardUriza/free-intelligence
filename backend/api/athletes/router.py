@@ -1,13 +1,19 @@
-"""
-Athletes API endpoints - Mock data endpoints for development
+"""Athletes API Router.
+
+Athlete management endpoints (mock data for development).
+
+File: backend/api/athletes/router.py
+Reorganized: 2025-11-08 (moved from backend/api/athletes.py)
 """
 
-from typing import Optional
+from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.config.mock_loader import MockDataLoader
 from backend.schemas.schemas import APIResponse
+
+from typing import Optional
 
 router = APIRouter(tags=["athletes"])
 

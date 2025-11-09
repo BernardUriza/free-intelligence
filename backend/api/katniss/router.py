@@ -1,9 +1,12 @@
-"""
-KATNISS API Endpoint
-Keeper Artificial Trainer Nurturing Intelligence Sportive Spark
+"""KATNISS API Router.
 
-Proxy para Ollama local con análisis post-sesión
+KATNISS AI analysis endpoints
+
+File: backend/api/katniss/router.py
+Created: 2025-11-08
 """
+
+from __future__ import annotations
 
 import logging
 import os

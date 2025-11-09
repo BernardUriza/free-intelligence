@@ -5,10 +5,10 @@ Validates Ollama proxy functionality for post-session analysis.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
-
 import pytest
 from fastapi.testclient import TestClient
+
+from unittest.mock import AsyncMock, patch
 
 
 @pytest.fixture

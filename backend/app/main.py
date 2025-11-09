@@ -9,12 +9,12 @@ Architecture:
 
 from __future__ import annotations
 
-import os
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.middleware import InternalOnlyMiddleware
+
+import os
 
 
 def create_app() -> FastAPI:
@@ -50,7 +50,6 @@ def create_app() -> FastAPI:
     # Include all API routers (lazy load to avoid circular imports)
     try:
         from backend.api import (
-            athlete_sessions,
             athletes,
             audit,
             coaches,
@@ -60,7 +59,6 @@ def create_app() -> FastAPI:
             katniss,
             kpis,
             library,
-            session_designs,
             sessions,
             system,
             t21_resources,
@@ -78,21 +76,25 @@ def create_app() -> FastAPI:
 
         # INTERNAL API (no CORS, atomic resources, localhost-only)
         internal_app.include_router(
-            athlete_sessions.router, prefix="/athlete-sessions", tags=["athlete-sessions"]
+            sessions.athlete_sessions.router, prefix="/athlete-sessions", tags=["athlete-sessions"]
         )
         internal_app.include_router(athletes.router, prefix="/athletes", tags=["athletes"])
         internal_app.include_router(audit.router, prefix="/audit", tags=["audit"])
         internal_app.include_router(coaches.router, prefix="/coaches", tags=["coaches"])
-        internal_app.include_router(diarization.router, prefix="/diarization", tags=["diarization"])
+        internal_app.include_router(
+            diarization.router, prefix="/diarization", tags=["diarization"]
+        )
         internal_app.include_router(exports.router, prefix="/exports", tags=["exports"])
         internal_app.include_router(fi_diag.router, prefix="/fi-diag", tags=["fi-diag"])
         internal_app.include_router(kpis.router, prefix="/kpis", tags=["kpis"])
         internal_app.include_router(library.router, prefix="/library", tags=["library"])
         internal_app.include_router(
-            session_designs.router, prefix="/session-designs", tags=["session-designs"]
+            sessions.designs.router, prefix="/session-designs", tags=["session-designs"]
         )
         internal_app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
-        internal_app.include_router(timeline_verify.router, prefix="/timeline", tags=["timeline"])
+        internal_app.include_router(
+            timeline_verify.router, prefix="/timeline", tags=["timeline"]
+        )
         internal_app.include_router(triage.router, prefix="/triage", tags=["triage"])
         internal_app.include_router(transcribe.router, prefix="/transcribe", tags=["transcribe"])
 

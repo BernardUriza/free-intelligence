@@ -8,6 +8,8 @@ Clean Code: This service layer makes endpoints simple and focused.
 
 from __future__ import annotations
 
+from backend.logger import get_logger
+
 import hashlib
 import json
 import os
@@ -15,8 +17,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
-
-from backend.logger import get_logger
 
 logger = get_logger(__name__)
 

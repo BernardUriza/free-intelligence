@@ -1,11 +1,11 @@
 """Evidence pack module - wrapper for fi_common.
 
-Re-exports from fi_common.infrastructure.evidence_pack for backward compatibility.
+Re-exports from packages.fi_common.infrastructure.evidence_pack for backward compatibility.
 """
 
 from __future__ import annotations
 
-from fi_common.infrastructure.evidence_pack import (
+from packages.fi_common.infrastructure.evidence_pack import (
     ClinicalSource,
     EvidencePack,
     EvidencePackBuilder,

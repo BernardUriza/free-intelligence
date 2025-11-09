@@ -11,13 +11,13 @@ Card: [P0][Área: UX/UI][Tipo: feature] Memoria legible — Timeline AURITY
 Sprint: SPR-2025W44
 """
 
+from pydantic import BaseModel, Field
+
 import hashlib
 import uuid
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Optional
-
-from pydantic import BaseModel, Field
 
 # ============================================================================
 # ENUMS
