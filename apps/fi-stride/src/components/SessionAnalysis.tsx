@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import katnissService, { SessionData, KATNISSResponse } from '../services/katnissService'
+import { useTTS } from '../hooks/useTTS'
+import sesion06Config from '../config/sesion-06.config'
 
 interface SessionDataFromLive {
   athleteId: string
@@ -25,6 +27,7 @@ const mapEmotionalCheckToLabel = (emotionalCheck: number): 'happy' | 'neutral' |
 
 export function SessionAnalysis({ athleteName = 'Deportista', sessionData, onComplete }: SessionAnalysisProps) {
   const [step, setStep] = useState<'input' | 'loading' | 'result'>('input')
+  const { synthesize, isReady: ttsReady } = useTTS(sesion06Config.tts)
   const [formData, setFormData] = useState<{
     duration: number
     rpe: number
@@ -77,6 +80,13 @@ export function SessionAnalysis({ athleteName = 'Deportista', sessionData, onCom
       const analysis = await katnissService.analyzeSession(sessionData)
       setResult(analysis)
       setStep('result')
+
+      // Speak motivation from KATNISS using useTTS (Azure + fallback chain)
+      if (analysis.motivation && ttsReady) {
+        await synthesize(analysis.motivation).catch((err) =>
+          console.warn('TTS error:', err)
+        )
+      }
 
       if (onComplete) {
         onComplete(analysis)

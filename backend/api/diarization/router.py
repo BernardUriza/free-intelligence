@@ -152,8 +152,7 @@ def _process_diarization_background_v2(
             update_job_status(
                 job_id,
                 JobStatus.IN_PROGRESS,
-                progress=10,
-                last_event="DIARIZATION_STARTED_V2",
+                progress_percent=10,
             )
 
             # Create progress callback
@@ -163,10 +162,9 @@ def _process_diarization_background_v2(
                 update_job_status(
                     job_id,
                     JobStatus.IN_PROGRESS,
-                    progress=progress_pct,
-                    processed=processed,
-                    total=total,
-                    last_event=event or f"PROCESSING_CHUNK_{processed}",
+                    progress_percent=progress_pct,
+                    processed_chunks=processed,
+                    total_chunks=total,
                 )
 
             # Run optimized diarization pipeline
@@ -178,11 +176,10 @@ def _process_diarization_background_v2(
             update_job_status(
                 job_id,
                 JobStatus.COMPLETED,
-                progress=100,
+                progress_percent=100,
                 result_path=f"/api/diarization/result/{job_id}",
-                processed=len(result.segments),
-                total=len(result.segments),
-                last_event="DIARIZATION_COMPLETED_V2",
+                processed_chunks=len(result.segments),
+                total_chunks=len(result.segments),
                 result_data=asdict(result),  # Cache full result
             )
 
@@ -197,8 +194,7 @@ def _process_diarization_background_v2(
             update_job_status(
                 job_id,
                 JobStatus.FAILED,
-                error=str(err),
-                last_event="DIARIZATION_FAILED_V2",
+                error_message=str(err),
             )
 
     # Run async pipeline in sync context
@@ -224,8 +220,7 @@ def _process_diarization_background(
         update_job_status(
             job_id,
             JobStatus.IN_PROGRESS,
-            progress=10,
-            last_event="DIARIZATION_STARTED",
+            progress_percent=10,
         )
 
         def progress_callback(
@@ -234,10 +229,9 @@ def _process_diarization_background(
             update_job_status(
                 job_id,
                 JobStatus.IN_PROGRESS,
-                progress=progress_pct,
-                processed=processed,
-                total=total,
-                last_event=event or f"PROCESSING_CHUNK_{processed}",
+                progress_percent=progress_pct,
+                processed_chunks=processed,
+                total_chunks=total,
             )
 
         result = diarize_audio(
@@ -251,11 +245,10 @@ def _process_diarization_background(
         update_job_status(
             job_id,
             JobStatus.COMPLETED,
-            progress=100,
+            progress_percent=100,
             result_path=f"/api/diarization/result/{job_id}",
-            processed=len(result.segments),
-            total=len(result.segments),
-            last_event="DIARIZATION_COMPLETED",
+            processed_chunks=len(result.segments),
+            total_chunks=len(result.segments),
             result_data=asdict(result),
         )
 
@@ -266,8 +259,7 @@ def _process_diarization_background(
         update_job_status(
             job_id,
             JobStatus.FAILED,
-            error=str(err),
-            last_event="DIARIZATION_FAILED",
+            error_message=str(err),
         )
 
 

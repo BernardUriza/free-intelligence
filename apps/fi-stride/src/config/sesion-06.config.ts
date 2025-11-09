@@ -35,15 +35,15 @@ export const sesion06Config: SESION06Config = {
 
   // TTS Configuration (Azure primary, fallback to local engines)
   tts: {
-    engines_priority: ['azure', 'piper', 'webspeech', 'kokoro'],
-    use_cloud_tts: getEnvVar('VITE_USE_CLOUD_TTS') === 'true',
+    engines_priority: ['azure', 'webspeech', 'piper', 'kokoro'],
+    use_cloud_tts: true, // Force Azure enabled
     azure_endpoint: getEnvVar('VITE_AZURE_TTS_ENDPOINT'),
     azure_key: getEnvVar('VITE_AZURE_TTS_KEY'),
     locale_default: 'es-MX',
     rate: 0.85, // Slower for T21 accessibility
     pitch: 1.0, // Normal pitch
     dtype: 'q8', // For local engines (Kokoro/Piper)
-    timeout: 5000, // 5 second per-engine timeout
+    timeout: 3000, // 3 second per-engine timeout (faster fallback)
   },
 
   // Session configuration

@@ -1,0 +1,219 @@
+{
+  "rep_1": {
+    "text": "¡Excelente! una repetición",
+    "file": "rep_1.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_2": {
+    "text": "¡Excelente! 2 repeticiones",
+    "file": "rep_2.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_3": {
+    "text": "¡Excelente! 3 repeticiones",
+    "file": "rep_3.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_4": {
+    "text": "¡Excelente! 4 repeticiones",
+    "file": "rep_4.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_5": {
+    "text": "¡Muy bien! 5 repeticiones completadas",
+    "file": "rep_5.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_6": {
+    "text": "¡Excelente! 6 repeticiones",
+    "file": "rep_6.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_7": {
+    "text": "¡Excelente! 7 repeticiones",
+    "file": "rep_7.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_8": {
+    "text": "¡Excelente! 8 repeticiones",
+    "file": "rep_8.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_9": {
+    "text": "¡Excelente! 9 repeticiones",
+    "file": "rep_9.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_10": {
+    "text": "¡Excelente! 10 repeticiones",
+    "file": "rep_10.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_11": {
+    "text": "¡Excelente! 11 repeticiones",
+    "file": "rep_11.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_12": {
+    "text": "¡Excelente! 12 repeticiones",
+    "file": "rep_12.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_13": {
+    "text": "¡Excelente! 13 repeticiones",
+    "file": "rep_13.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_14": {
+    "text": "¡Excelente! 14 repeticiones",
+    "file": "rep_14.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_15": {
+    "text": "¡Excelente! 15 repeticiones",
+    "file": "rep_15.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_16": {
+    "text": "¡Excelente! 16 repeticiones",
+    "file": "rep_16.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_17": {
+    "text": "¡Excelente! 17 repeticiones",
+    "file": "rep_17.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_18": {
+    "text": "¡Excelente! 18 repeticiones",
+    "file": "rep_18.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_19": {
+    "text": "¡Excelente! 19 repeticiones",
+    "file": "rep_19.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "rep_20": {
+    "text": "¡Felicidades! Completaste 20 repeticiones",
+    "file": "rep_20.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "milestone_5": {
+    "text": "¡Vas bien! Continúa así 💪",
+    "file": "milestone_5.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "milestone_10": {
+    "text": "¡Mitad del camino! ¡Sigue adelante! 🔥",
+    "file": "milestone_10.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "milestone_20": {
+    "text": "¡LO HICISTE! 🏆 ¡Eres un campeón!",
+    "file": "milestone_20.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "feeling_1": {
+    "text": "Descansa cuando lo necesites. ¡Eres fuerte! 💪",
+    "file": "feeling_1.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "feeling_2": {
+    "text": "Un pequeño descanso está bien. Vuelve cuando estés listo.",
+    "file": "feeling_2.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "feeling_3": {
+    "text": "¡Vamos! Un poco más 🌟",
+    "file": "feeling_3.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "feeling_4": {
+    "text": "¡Muy bien! ¡Continúa así! 😊",
+    "file": "feeling_4.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "feeling_5": {
+    "text": "¡Wow! ¡Increíble energía! 🚀",
+    "file": "feeling_5.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "session_start": {
+    "text": "Sesión iniciada. ¡Vamos a entrenar!",
+    "file": "session_start.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "session_end": {
+    "text": "Sesión completada. ¡Buen trabajo!",
+    "file": "session_end.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  },
+  "session_ready": {
+    "text": "Esperando tu señal. ¿Listo para empezar?",
+    "file": "session_ready.mp3",
+    "voice": "nova",
+    "rate": 0.85,
+    "lang": "es-MX"
+  }
+}

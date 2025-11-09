@@ -17,7 +17,7 @@ async def list_session_designs(
     coach_id: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-) -> dict:
+) -> APIResponse:
     """Lista diseños de sesiones, opcionalmente por coach"""
     if coach_id:
         sessions = MockDataLoader.get_sessions_by_coach(coach_id)
@@ -35,7 +35,7 @@ async def list_session_designs(
 
 
 @router.get("/{session_id}", response_model=APIResponse)
-async def get_session_design(session_id: str) -> dict:
+async def get_session_design(session_id: str) -> APIResponse:
     """Obtiene un diseño de sesión por ID"""
     session = MockDataLoader.get_session(session_id)
     if not session:
@@ -55,7 +55,7 @@ async def create_session_design(
     name: str,
     coach_id: str,
     blocks: list,
-) -> dict:
+) -> APIResponse:
     """Crea un nuevo diseño de sesión"""
     # En mock, solo validamos que los datos sean válidos
     if not name or not coach_id or not blocks:
@@ -86,7 +86,7 @@ async def create_session_design(
 async def publish_session(
     session_id: str,
     athlete_id: str,
-) -> dict:
+) -> APIResponse:
     """Publica un diseño de sesión a un athlete"""
     session = MockDataLoader.get_session(session_id)
     if not session:
@@ -118,7 +118,7 @@ async def publish_session(
 
 
 @router.get("/{session_id}/blocks", response_model=APIResponse)
-async def get_session_blocks(session_id: str) -> dict:
+async def get_session_blocks(session_id: str) -> APIResponse:
     """Obtiene los bloques de una sesión"""
     session = MockDataLoader.get_session(session_id)
     if not session:
@@ -139,7 +139,7 @@ async def get_session_blocks(session_id: str) -> dict:
 
 
 @router.get("/{session_id}/safety-tips", response_model=APIResponse)
-async def get_safety_tips(session_id: str) -> dict:
+async def get_safety_tips(session_id: str) -> APIResponse:
     """Obtiene los consejos de seguridad de una sesión"""
     session = MockDataLoader.get_session(session_id)
     if not session:

@@ -18,7 +18,7 @@ from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.app.llm_middleware import app
+from backend.app.main import app
 
 
 @pytest.fixture  # type: ignore[misc]
@@ -55,7 +55,7 @@ class TestVerifyHashEndpoint:
     def test_endpoint_exists(self, client):
         """Verify endpoint is registered and responds"""
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [
                     {
@@ -71,7 +71,7 @@ class TestVerifyHashEndpoint:
     def test_invalid_hash_format_rejected(self, client):
         """Verify request with invalid hash format is rejected"""
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [
                     {
@@ -87,7 +87,7 @@ class TestVerifyHashEndpoint:
     def test_empty_items_rejected(self, client):
         """Verify empty items list is rejected"""
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [],
                 "verbose": False,
@@ -105,7 +105,7 @@ class TestVerifyHashEndpoint:
             for i in range(101)  # 101 items (exceeds limit)
         ]
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": items,
                 "verbose": False,
@@ -116,7 +116,7 @@ class TestVerifyHashEndpoint:
     def test_valid_single_item_request(self, client):
         """Verify single valid hash verification request"""
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [
                     {
@@ -146,7 +146,7 @@ class TestVerifyHashEndpoint:
             for i in range(5)
         ]
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": items,
                 "verbose": True,
@@ -161,7 +161,7 @@ class TestVerifyHashEndpoint:
     def test_response_format_compliance(self, client):
         """Verify response matches required format: { valid: bool, details: {...} }"""
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [
                     {
@@ -201,7 +201,7 @@ class TestVerifyHashEndpoint:
     def test_timestamp_iso8601_format(self, client):
         """Verify timestamp is ISO 8601 format"""
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [
                     {
@@ -236,7 +236,7 @@ class TestVerifyHashEndpoint:
 
         start_time = time.time()
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": items,
                 "verbose": False,
@@ -264,7 +264,7 @@ class TestVerifyHashEndpoint:
         ]
 
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": items,
                 "verbose": False,
@@ -288,7 +288,7 @@ class TestVerifyHashEndpoint:
     def test_verbose_flag_included_in_audit(self, client):
         """Verify verbose flag is captured (for audit purposes)"""
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [
                     {
@@ -306,7 +306,7 @@ class TestVerifyHashEndpoint:
     def test_error_item_format(self, client):
         """Verify error items include error field"""
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [
                     {
@@ -338,7 +338,7 @@ class TestTimelineVerifyIntegration:
     def test_endpoint_mounted_on_app(self, client):
         """Verify endpoint is properly mounted on FastAPI app"""
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [
                     {
@@ -355,7 +355,7 @@ class TestTimelineVerifyIntegration:
     def test_cors_headers_present(self, client):
         """Verify CORS headers are set"""
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [
                     {
@@ -390,7 +390,7 @@ class TestTimelineVerifyEdgeCases:
     def test_whitespace_in_hash(self, client):
         """Verify hash with whitespace is rejected"""
         response = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [
                     {
@@ -408,7 +408,7 @@ class TestTimelineVerifyEdgeCases:
         hash_upper = "A" * 64
 
         response_lower = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [
                     {
@@ -420,7 +420,7 @@ class TestTimelineVerifyEdgeCases:
         )
 
         response_upper = client.post(
-            "/api/timeline/verify-hash",
+            "/internal/timeline/verify-hash",
             json={
                 "items": [
                     {

@@ -184,7 +184,7 @@ def save_audio_file(
     }
 
 
-def get_audio_manifest(session_id: str, timestamp_ms: int) -> dict[str, Optional[Any]]:
+def get_audio_manifest(session_id: str, timestamp_ms: int) -> dict[str, Optional[Any]] | None:
     """
     Retrieve audio manifest by session_id and timestamp.
 
