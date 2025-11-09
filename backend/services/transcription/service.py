@@ -42,9 +42,9 @@ logger = get_logger(__name__)
 try:
     from faster_whisper import WhisperModel
 
-    _WHISPER_AVAILABLE = True
+    _WHISPER_AVAILABLE = True  # pyright: ignore[reportConstantRedefinition]
 except ImportError:
-    _WHISPER_AVAILABLE = False
+    _WHISPER_AVAILABLE = False  # pyright: ignore[reportConstantRedefinition]
     WhisperModel = None
 
 

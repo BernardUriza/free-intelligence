@@ -213,7 +213,7 @@ class TestOllamaResponseParser:
         json_with_trailing_comma = '{"key": "value",}'
         parser = OllamaResponseParser()
 
-        result = parser._parse_json_string(json_with_trailing_comma)
+        result = parser._parse_json_string(json_with_trailing_comma)  # pyright: ignore[reportPrivateUsage]
 
         assert result == {"key": "value"}
 
