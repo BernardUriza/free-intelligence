@@ -11,7 +11,7 @@ try:
 except ImportError:
     pass
 
-__all__ = ["AuditService", "append_audit_log", "read_audit_logs"]
+__all__ = ["AuditService", "append_audit_log"]
 
 
 def append_audit_log(

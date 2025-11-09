@@ -159,8 +159,8 @@ def scan_directory(
 
     directory_path = Path(directory)
     for py_file in directory_path.rglob("*.py"):
-        # Skip excluded directories
-        if any(excluded in str(py_file) for excluded in exclude_dirs):
+        # Skip excluded directories (exclude_dirs is guaranteed non-None after line 155)
+        if any(excluded in str(py_file) for excluded in exclude_dirs):  # pyright: ignore[reportOperatorIssue]
             continue
 
         violations = scan_file_for_mutations(str(py_file))

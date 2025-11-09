@@ -17,6 +17,7 @@ Metrics:
 
 import time
 from collections import defaultdict
+from typing import Any
 
 
 class LLMMetrics:
@@ -152,7 +153,7 @@ class LLMMetrics:
 
         return "\n".join(lines)
 
-    def get_stats(self) -> dict[str, any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get metrics as dictionary.
 
