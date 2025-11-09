@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -141,7 +141,7 @@ def process_missing_chunks():
                                 "DESCONOCIDO",
                                 temperature,
                                 rtf,
-                                datetime.now(UTC).isoformat(),
+                                datetime.now(timezone.utc).isoformat(),
                             )
                         ],
                         dtype=existing_chunks[0].dtype if existing_chunks else None,
@@ -174,7 +174,7 @@ def process_missing_chunks():
                 job_group.attrs["processed_chunks"] = len(all_chunks)
                 job_group.attrs["total_chunks"] = 28
                 job_group.attrs["status"] = "completed"
-                job_group.attrs["updated_at"] = datetime.now(UTC).isoformat()
+                job_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()
 
                 print(f"\n✅ Complete! {len(existing_chunks)} → {len(all_chunks)} chunks")
                 logger.info(
