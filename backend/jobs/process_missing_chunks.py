@@ -4,10 +4,13 @@ Process missing chunks 24-27 using the worker's extraction + Whisper transcripti
 Uses worker's _extract_chunk to get proper audio segments, then transcribes each.
 """
 
+from __future__ import annotations
+
 import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Optional
 
 import h5py
 import numpy as np
@@ -29,7 +32,7 @@ CHUNK_SIZE_SEC = 30
 CHUNK_OVERLAP_SEC = 0.8
 
 
-def extract_chunk(audio_path: Path, start_sec: float, end_sec: float, idx: int) -> Path | None:
+def extract_chunk(audio_path: Path, start_sec: float, end_sec: float, idx: int) -> Optional[Path]:
     """Extract audio chunk using ffmpeg (worker method)."""
     chunk_path = Path(f"/tmp/diarization_chunk_{idx:04d}.wav")
     duration = end_sec - start_sec

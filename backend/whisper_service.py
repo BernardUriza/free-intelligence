@@ -7,4 +7,5 @@ from __future__ import annotations
 
 from backend.services.whisper_service import *  # type: ignore[import]  # noqa: F403
 
+# pyright: reportUnsupportedDunderAll=false
 __all__ = ["get_whisper_model", "is_whisper_available", "transcribe_audio"]

@@ -6,6 +6,7 @@ Do NOT add eager imports here - all dependencies must be lazy-loaded.
 
 from __future__ import annotations
 
+# pyright: reportUnsupportedDunderAll=false
 __all__ = [
     "get_logger",
     "init_logger_from_config",

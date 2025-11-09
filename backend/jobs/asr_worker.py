@@ -47,7 +47,7 @@ try:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 except (OSError, PermissionError):
     # Fallback to local storage
-    LOG_DIR = Path("./storage/logs/asr")
+    LOG_DIR = Path("./storage/logs/asr")  # pyright: ignore[reportConstantRedefinition]
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
@@ -79,7 +79,7 @@ try:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 except (OSError, PermissionError):
     # Fallback to local storage
-    OUT_DIR = Path("./storage/asr/json")
+    OUT_DIR = Path("./storage/asr/json")  # pyright: ignore[reportConstantRedefinition]
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 

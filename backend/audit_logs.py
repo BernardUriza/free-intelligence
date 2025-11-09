@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-# Export AuditService class
+# Export AuditService class for backward compatibility
+# pyright: reportUnusedImport=false
 try:
-    from backend.services.audit_service import (  # noqa: F401  # type: ignore[reportUnusedImport]
-        AuditService,
-    )
+    from backend.services.audit_service import AuditService
 except ImportError:
     pass
+
+__all__ = ["AuditService", "append_audit_log", "read_audit_logs"]
 
 
 def append_audit_log(
