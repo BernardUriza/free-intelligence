@@ -49,54 +49,47 @@ def create_app() -> FastAPI:
 
     # Include all API routers (lazy load to avoid circular imports)
     try:
-        from backend.api import (
-            athletes,
-            audit,
-            coaches,
-            diarization,
-            exports,
-            fi_diag,
-            katniss,
-            kpis,
-            library,
-            sessions,
-            system,
-            t21_resources,
-            timeline_verify,
-            transcribe,
-            triage,
-            workflows,
-        )
+        from backend.api import internal, public
 
         # PUBLIC API (CORS enabled, orchestrators)
-        public_app.include_router(workflows.router)  # Aurity orchestrator
-        public_app.include_router(katniss.router)
-        public_app.include_router(t21_resources.router)
-        public_app.include_router(system.router, prefix="/system", tags=["system"])
+        public_app.include_router(public.workflows.router)  # Aurity orchestrator
+        public_app.include_router(public.katniss.router)
+        public_app.include_router(public.t21_resources.router)
+        public_app.include_router(public.system.router, prefix="/system", tags=["system"])
 
         # INTERNAL API (no CORS, atomic resources, localhost-only)
         internal_app.include_router(
-            sessions.athlete_sessions.router, prefix="/athlete-sessions", tags=["athlete-sessions"]
+            internal.sessions.athlete_sessions.router,
+            prefix="/athlete-sessions",
+            tags=["athlete-sessions"],
         )
-        internal_app.include_router(athletes.router, prefix="/athletes", tags=["athletes"])
-        internal_app.include_router(audit.router, prefix="/audit", tags=["audit"])
-        internal_app.include_router(coaches.router, prefix="/coaches", tags=["coaches"])
         internal_app.include_router(
-            diarization.router, prefix="/diarization", tags=["diarization"]
+            internal.athletes.router, prefix="/athletes", tags=["athletes"]
         )
-        internal_app.include_router(exports.router, prefix="/exports", tags=["exports"])
-        internal_app.include_router(fi_diag.router, prefix="/fi-diag", tags=["fi-diag"])
-        internal_app.include_router(kpis.router, prefix="/kpis", tags=["kpis"])
-        internal_app.include_router(library.router, prefix="/library", tags=["library"])
+        internal_app.include_router(internal.audit.router, prefix="/audit", tags=["audit"])
+        internal_app.include_router(internal.coaches.router, prefix="/coaches", tags=["coaches"])
         internal_app.include_router(
-            sessions.designs.router, prefix="/session-designs", tags=["session-designs"]
+            internal.diarization.router, prefix="/diarization", tags=["diarization"]
         )
-        internal_app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
+        internal_app.include_router(internal.exports.router, prefix="/exports", tags=["exports"])
         internal_app.include_router(
-            timeline_verify.router, prefix="/timeline", tags=["timeline"]
+            internal.fi_diag.router, prefix="/fi-diag", tags=["fi-diag"]
         )
-        internal_app.include_router(triage.router, prefix="/triage", tags=["triage"])
-        internal_app.include_router(transcribe.router, prefix="/transcribe", tags=["transcribe"])
+        internal_app.include_router(internal.kpis.router, prefix="/kpis", tags=["kpis"])
+        internal_app.include_router(internal.library.router, prefix="/library", tags=["library"])
+        internal_app.include_router(
+            internal.sessions.designs.router, prefix="/session-designs", tags=["session-designs"]
+        )
+        internal_app.include_router(
+            internal.sessions.router, prefix="/sessions", tags=["sessions"]
+        )
+        internal_app.include_router(
+            internal.timeline_verify.router, prefix="/timeline", tags=["timeline"]
+        )
+        internal_app.include_router(internal.triage.router, prefix="/triage", tags=["triage"])
+        internal_app.include_router(
+            internal.transcribe.router, prefix="/transcribe", tags=["transcribe"]
+        )
 
         # Mount sub-apps
         app.mount("/api", public_app)
