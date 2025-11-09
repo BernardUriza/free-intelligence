@@ -38,7 +38,7 @@ from backend.providers.fi_consult_models import ConsultationEvent
 
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -156,7 +156,7 @@ class EventStore:
 
         # Ensure metadata attributes
         if "created_at" not in consultation_group.attrs:
-            consultation_group.attrs["created_at"] = datetime.now(UTC).isoformat()
+            consultation_group.attrs["created_at"] = datetime.now(timezone.utc).isoformat()
             consultation_group.attrs["event_count"] = 0
 
         return consultation_group
@@ -199,7 +199,7 @@ class EventStore:
 
             # Update metadata
             consultation_group.attrs["event_count"] = current_size + 1
-            consultation_group.attrs["updated_at"] = datetime.now(UTC).isoformat()
+            consultation_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         logger.info(
             "EVENT_APPENDED",
@@ -362,7 +362,7 @@ class EventStore:
             snapshots_group = consultation_group.require_group("snapshots")  # type: ignore[attr-defined]
 
             # Create snapshot dataset
-            snapshot_name = datetime.now(UTC).isoformat()
+            snapshot_name = datetime.now(timezone.utc).isoformat()
             snapshot_json = json.dumps(state)
 
             dt = h5py.special_dtype(vlen=str)  # type: ignore[attr-defined]

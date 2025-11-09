@@ -36,7 +36,7 @@ import random
 # ULID generation (simple implementation)
 import time
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -144,7 +144,7 @@ class SessionsStore:
         Returns:
             Created Session instance
         """
-        now = datetime.now(UTC).isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat() + "Z"
         session = Session(
             id=generate_ulid(),
             created_at=now,
@@ -276,7 +276,7 @@ class SessionsStore:
             return None
 
         # Create updated session
-        now = datetime.now(UTC).isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat() + "Z"
         updated = Session(
             id=current.id,
             created_at=current.created_at,

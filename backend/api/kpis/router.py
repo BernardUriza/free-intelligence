@@ -1,14 +1,13 @@
-from __future__ import annotations
+"""KPIs API Router.
 
-"""
-Free Intelligence - KPIs API
+KPI aggregation endpoints with summary/chips/timeseries views.
 
-GET /api/kpis endpoint with summary/chips/timeseries views.
-
-File: backend/api/kpis.py
-Created: 2025-10-30
+File: backend/api/kpis/router.py
+Reorganized: 2025-11-08 (moved from backend/api/kpis.py)
 Card: FI-API-FEAT-011
 """
+
+from __future__ import annotations
 
 from typing import Optional
 

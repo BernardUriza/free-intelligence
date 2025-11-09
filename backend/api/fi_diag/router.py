@@ -1,16 +1,18 @@
-from __future__ import annotations
+"""FI Diagnostics API Router.
 
-"""
-FI Diagnostics API Router
+System health checks and diagnostics endpoints.
+
+File: backend/api/fi_diag/router.py
+Reorganized: 2025-11-08 (moved from backend/api/fi_diag.py)
 Card: FI-INFRA-STR-014
-
-Endpoints para health checks y diagnósticos del sistema.
 
 Clean Code Architecture:
 - Thin controllers delegate all diagnostics logic to DiagnosticsService
 - Service layer encapsulates system probes (Python, storage, corpus, Node.js, pnpm, PM2)
 - Endpoints focus only on HTTP response formatting
 """
+
+from __future__ import annotations
 
 import os
 from datetime import datetime, timezone

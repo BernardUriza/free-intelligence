@@ -1,9 +1,9 @@
-"""Library API endpoints for consultation browsing and search.
+"""Library API Router.
 
-Handles:
-- GET /api/consultations - List user consultations
-- GET /api/consultations/{id} - Get consultation details
-- GET /api/consultations/search - Search consultations
+Consultation browsing and search endpoints.
+
+File: backend/api/library/router.py
+Reorganized: 2025-11-08 (moved from backend/api/library.py)
 """
 
 from __future__ import annotations

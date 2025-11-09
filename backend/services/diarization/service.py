@@ -30,7 +30,7 @@ from backend.services.diarization.ollama import (
 )
 
 import time
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any, Optional
 
 logger = get_logger(__name__)
@@ -159,7 +159,7 @@ class DiarizationService:
             language=language,
             segments=merged_segments,
             processing_time_sec=processing_time,
-            created_at=datetime.now(UTC).isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
 
         logger.info(

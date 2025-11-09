@@ -13,7 +13,7 @@ from backend.logger import get_logger
 from backend.repositories import AuditRepository
 from backend.type_defs import AuditLogDict
 
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any, Optional
 
 logger = get_logger(__name__)
@@ -75,7 +75,7 @@ class AuditService:
 
         try:
             audit_log: AuditLogDict = {
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "action": action,
                 "user_id": user_id,
                 "resource": resource,
