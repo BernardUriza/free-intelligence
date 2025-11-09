@@ -22,7 +22,7 @@ Usage:
   event_store.append_event(consultation_id, event)
 """
 
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -352,7 +352,7 @@ class ReduxAdapter:
         event = ConsultationEvent(
             event_id=str(uuid4()),
             consultation_id=consultation_id,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             event_type=event_type,
             payload=event_payload,
             metadata=EventMetadata(
