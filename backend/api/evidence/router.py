@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
-from __future__ import annotations
+"""Evidence API Router.
 
-"""
-Free Intelligence - Evidence API
+Evidence pack management endpoints.
 
-FastAPI router for evidence packs.
-
-Updated to use clean code architecture with EvidenceService.
-
-File: backend/api/evidence.py
+File: backend/api/evidence/router.py
+Reorganized: 2025-11-08 (moved from backend/api/evidence.py)
 Card: FI-DATA-RES-021
-Created: 2025-10-30
 """
+
+from __future__ import annotations
 
 from typing import Optional
 

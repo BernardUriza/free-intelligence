@@ -1,11 +1,9 @@
-"""T21 Resources API endpoints.
+"""T21 Resources API Router.
 
-Provides resources and support information for Down Syndrome (T21).
+Down Syndrome (T21) resources and support information.
 
-Handles:
-- GET /api/t21/resources - List all T21 resources
-- GET /api/t21/resources/{id} - Get resource details
-- GET /api/t21/resources/category/{category} - Filter by category
+File: backend/api/t21_resources/router.py
+Reorganized: 2025-11-08 (moved from backend/api/t21_resources.py)
 """
 
 from __future__ import annotations

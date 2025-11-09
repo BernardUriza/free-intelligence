@@ -34,7 +34,7 @@ from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
 
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Optional
 
 logger = get_logger(__name__)
@@ -146,7 +146,7 @@ router = APIRouter(prefix="/athlete-sessions", tags=["athlete-sessions"])
 @router.post("/start", response_model=StartSessionResponse)
 async def start_session(request: StartSessionRequest):
     """Start live athlete session (SESION-04)"""
-    session_id = f"session_{datetime.now(UTC).isoformat().replace(':', '').replace('-', '')}"
+    session_id = f"session_{datetime.now(timezone.utc).isoformat().replace(':', '').replace('-', '')}"
 
     session = SessionData(
         session_id=session_id,
@@ -155,7 +155,7 @@ async def start_session(request: StartSessionRequest):
         target_reps=request.target_reps,
         reps_completed=0,
         session_time=0,
-        started_at=datetime.now(UTC).isoformat(),
+        started_at=datetime.now(timezone.utc).isoformat(),
     )
 
     sessions_db[session_id] = session
@@ -232,7 +232,7 @@ async def end_session(session_id: str, request: EndSessionRequest):
     session.session_time = request.session_time
     session.emotional_checks.append(request.final_emotional_check)
     session.status = "completed"
-    session.ended_at = datetime.now(UTC).isoformat()
+    session.ended_at = datetime.now(timezone.utc).isoformat()
 
     if request.avg_heart_rate:
         session.heart_rates.append(request.avg_heart_rate)
@@ -309,7 +309,7 @@ feedbacks_db: dict[str, list[CoachFeedbackResponse]] = {}  # athlete_id -> [feed
 async def send_coach_feedback(request: CoachFeedbackRequest):
     """Coach sends feedback to athlete (one-tap emoji + optional text)"""
 
-    feedback_id = f"feedback_{datetime.now(UTC).isoformat().replace(':', '').replace('-', '')}"
+    feedback_id = f"feedback_{datetime.now(timezone.utc).isoformat().replace(':', '').replace('-', '')}"
 
     feedback = CoachFeedbackResponse(
         feedback_id=feedback_id,
@@ -318,7 +318,7 @@ async def send_coach_feedback(request: CoachFeedbackRequest):
         session_id=request.session_id,
         emoji=request.emoji_feedback,
         message=request.text_feedback,
-        sent_at=datetime.now(UTC).isoformat(),
+        sent_at=datetime.now(timezone.utc).isoformat(),
     )
 
     # Store feedback
