@@ -21,4 +21,4 @@ jobs:
         run: |
           pip install pytest pyarrow celery redis
       - name: Run audit sink tests
-        run: pytest backend/tests/test_audit_sink.py -v
+        run: pytest backend/tests/infrastructure/test_audit_sink.py -v
