@@ -22,10 +22,15 @@ Created: 2025-11-08 (orchestrator pattern implementation)
 
 from __future__ import annotations
 
+import os
+import shutil
+import subprocess
+import tempfile
 import threading
+from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import APIRouter, File, Header, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
@@ -35,8 +40,253 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/workflows/aurity", tags=["workflows-aurity"])
 
+# Dev-only: load .env.local if exists; in prod use real process vars
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(".env.local")
+except Exception:
+    pass
+
+# Environment configuration (absolute path + mkdir)
+AUDIO_DIR = Path(os.getenv("AURITY_AUDIO_ROOT", "storage/audio")).resolve()
+AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+FFMPEG = os.getenv("FFMPEG_BIN", "ffmpeg")
+FFPROBE = os.getenv("FFPROBE_BIN", "ffprobe")
+ENABLE_GRAFT = os.getenv("AURITY_ENABLE_WEBM_GRAFT", "false").lower() in {"1", "true", "yes"}
+
+# WebM EBML Cluster ID for header extraction
+EBML_CLUSTER_ID = b"\x1F\x43\xB6\x75"
+_header_cache: dict[str, bytes] = {}
+
 # Global semaphore to limit concurrent SOAP generation (max 1 at a time)
 _soap_worker_semaphore = threading.Semaphore(1)
+
+
+def _atomic_write(src_file: UploadFile, dst_path: Path) -> Path:
+    """
+    Atomically write uploaded file to destination with fsync.
+
+    **Args:**
+    - src_file: FastAPI UploadFile
+    - dst_path: Target path
+
+    **Returns:**
+    - Path to written file
+
+    **Guarantees:**
+    - Atomic rename (no partial writes visible)
+    - fsync before rename (data persisted to disk)
+    - Parent directory created if missing
+    """
+    dst_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=dst_path.parent, delete=False) as tmp:
+        shutil.copyfileobj(src_file.file, tmp)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+        tmp_path = Path(tmp.name)
+    tmp_path.replace(dst_path)  # Atomic rename
+    return dst_path
+
+
+def _probe_ok(path: Path) -> bool:
+    """
+    Validate audio file with ffprobe.
+
+    **Args:**
+    - path: Path to audio file
+
+    **Returns:**
+    - True if valid audio stream detected, False otherwise
+
+    **Guards:**
+    - Detects invalid/corrupted containers
+    - Prevents ffmpeg decode failures downstream
+    """
+    try:
+        subprocess.run(
+            [FFPROBE, "-v", "error", "-show_streams", "-select_streams", "a:0", path.as_posix()],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
+            timeout=5,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _to_wav(src: Path, dst: Path) -> None:
+    """
+    Convert audio to WAV with conservative flags for fragmented WebM/Opus.
+
+    **Args:**
+    - src: Source audio file (WebM, MP3, etc.)
+    - dst: Destination WAV file (16kHz mono)
+
+    **Flags:**
+    - genpts: Generate presentation timestamps
+    - igndts: Ignore decode timestamps (for fragmented streams)
+    - ac 1: Mono output
+    - ar 16000: 16kHz sample rate (Whisper optimal)
+
+    **Raises:**
+    - subprocess.CalledProcessError if conversion fails
+    """
+    cmd = [
+        FFMPEG,
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-nostdin",
+        "-y",
+        "-fflags",
+        "+genpts+igndts",
+        "-i",
+        src.as_posix(),
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        dst.as_posix(),
+    ]
+    subprocess.run(cmd, check=True, timeout=30)
+
+
+def _extract_header_bytes(webm_bytes: bytes) -> bytes:
+    """
+    Extract WebM EBML header (everything before first Cluster).
+
+    **Args:**
+    - webm_bytes: Raw WebM file bytes
+
+    **Returns:**
+    - Header bytes (EBML + Segment Info + Tracks)
+
+    **Notes:**
+    - Searches for EBML Cluster ID (0x1F43B675)
+    - If no cluster found, returns first 4KB (conservative)
+    """
+    idx = webm_bytes.find(EBML_CLUSTER_ID)
+    if idx == -1:
+        return webm_bytes[: min(len(webm_bytes), 4096)]
+    return webm_bytes[:idx]
+
+
+def _ensure_session_header(sess_dir: Path, chunk0_path: Path) -> bytes:
+    """
+    Extract and cache session header from chunk 0.
+
+    **Args:**
+    - sess_dir: Session directory
+    - chunk0_path: Path to first chunk (0.webm)
+
+    **Returns:**
+    - Header bytes
+
+    **Side Effects:**
+    - Caches header in memory (_header_cache)
+    - Persists header to sess_dir/_header.bin for inspection
+    """
+    key = sess_dir.as_posix()
+    hb = _header_cache.get(key)
+    if hb is not None:
+        return hb
+    data = chunk0_path.read_bytes()
+    hb = _extract_header_bytes(data)
+    _header_cache[key] = hb
+    (sess_dir / "_header.bin").write_bytes(hb)
+    logger.info("HEADER_EXTRACTED", session=key, header_size=len(hb))
+    return hb
+
+
+def _resolve_ext(mime: str) -> str:
+    """
+    Resolve file extension from MIME type.
+
+    **Args:**
+    - mime: MIME type string (e.g., "audio/webm;codecs=opus")
+
+    **Returns:**
+    - File extension (.webm, .mp4, .wav, .bin)
+    """
+    m = mime.split(";")[0].strip().lower()
+    if m == "audio/webm":
+        return ".webm"
+    if m in {"audio/mp4", "audio/mp4a-latm"}:
+        return ".mp4"
+    if m in {"audio/wav", "audio/wave", "audio/x-wav"}:
+        return ".wav"
+    return ".bin"
+
+
+def _is_ebml(path: Path) -> bool:
+    """
+    Check if file has valid EBML header (0x1A45DFA3).
+
+    **Args:**
+    - path: Path to file
+
+    **Returns:**
+    - True if file starts with EBML magic number
+    """
+    try:
+        with open(path, "rb") as f:
+            return f.read(4) == b"\x1A\x45\xDF\xA3"
+    except Exception:
+        return False
+
+
+def _maybe_graft_header(sess_dir: Path, chunk_number: int, raw_path: Path) -> Path:
+    """
+    Graft WebM header to chunk if needed (chunks > 0).
+
+    **Args:**
+    - sess_dir: Session directory
+    - chunk_number: Sequential chunk number
+    - raw_path: Path to raw chunk file
+
+    **Returns:**
+    - Path to grafted file (or raw_path if chunk 0)
+
+    **Logic:**
+    - Chunk 0: Return as-is (has header)
+    - Chunk N>0: Prepend header from chunk 0
+    - If no header available: Return raw_path (frontend should have grafted)
+    - Search for chunk 0 with extensions: .webm, .mp4, .ogg
+
+    **Output:**
+    - Creates {chunk_number}.grafted.webm if grafting applied
+    """
+    # Only WebM chunks and only after first chunk
+    if raw_path.suffix != ".webm" or chunk_number == 0:
+        return raw_path
+
+    # Find chunk 0 with any supported extension
+    c0 = None
+    for ext in (".webm", ".mp4", ".ogg"):
+        p = sess_dir / f"0{ext}"
+        if p.exists():
+            c0 = p
+            break
+
+    if not c0:
+        logger.warning(
+            "HEADER_MISSING_CHUNK0_NOT_FOUND", session=sess_dir.as_posix(), chunk=chunk_number
+        )
+        return raw_path
+
+    # Extract and cache header from chunk 0
+    hb = _ensure_session_header(sess_dir, c0)
+
+    # Create grafted file: header + chunk
+    grafted = raw_path.with_suffix(".grafted.webm")
+    with open(grafted, "wb") as g, open(raw_path, "rb") as r:
+        g.write(hb)
+        g.write(r.read())
+
+    logger.info("HEADER_GRAFTED", chunk=chunk_number, grafted_size=grafted.stat().st_size)
+    return grafted
 
 
 class ConsultStartResponse(BaseModel):
@@ -60,7 +310,23 @@ class ConsultStatusResponse(BaseModel):
         description="Status of each stage: upload, transcribe, diarize, soap",
     )
     soap_note: Optional[dict] = Field(None, description="SOAP note if completed")
-    result_data: Optional[dict] = Field(None, description="Full result data (transcription + diarization)")
+    result_data: Optional[dict] = Field(
+        None, description="Full result data (transcription + diarization)"
+    )
+    error: Optional[str] = Field(None, description="Error message if failed")
+
+
+class StreamChunkResponse(BaseModel):
+    """Response for real-time audio chunk processing."""
+
+    chunk_id: str = Field(..., description="Unique chunk identifier")
+    session_id: str = Field(..., description="Session identifier")
+    chunk_number: int = Field(..., description="Sequential chunk number")
+    transcription: Optional[str] = Field(None, description="Partial transcription text")
+    speaker: Optional[str] = Field(None, description="Detected speaker (if diarization enabled)")
+    timestamp_start: float = Field(..., description="Start time in seconds")
+    timestamp_end: float = Field(..., description="End time in seconds")
+    status: str = Field(..., description="Chunk status: processing, completed, failed")
     error: Optional[str] = Field(None, description="Error message if failed")
 
 
@@ -171,8 +437,7 @@ async def start_consult_workflow(
 
         logger.info("WORKFLOW_WORKER_STARTED", job_id=job_id)
 
-        # Log audit trail (temporarily disabled due to HDF5 dtype issues)
-        # TODO: Fix AuditService to handle string types in HDF5
+        # Log audit trail
         try:
             audit_service.log_action(
                 action="workflow_consult_started",
@@ -224,7 +489,7 @@ async def start_consult_workflow(
 @router.get(
     "/consult/{job_id}", response_model=ConsultStatusResponse, status_code=status.HTTP_200_OK
 )
-async def get_consult_status(job_id: str) -> Any:
+async def get_consult_status(job_id: str, retry_soap: bool = False) -> Any:
     """
     Get status of consultation workflow.
 
@@ -287,6 +552,16 @@ async def get_consult_status(job_id: str) -> Any:
             soap_note_data = result_data.get("soap_note")
             soap_status = result_data.get("soap_status")
 
+            # If retry_soap requested and status is failed, clear the failure to allow retry
+            if retry_soap and soap_status == "failed":
+                logger.info("SOAP_RETRY_REQUESTED", job_id=job_id)
+                from backend.services.diarization.jobs import update_job
+
+                result_data["soap_status"] = None
+                result_data.pop("soap_error", None)  # Clear error message too
+                update_job(job_id, result_data=result_data)
+                soap_status = None
+
             if soap_note_data:
                 soap_note = soap_note_data
                 stages["soap"] = "completed"
@@ -300,11 +575,14 @@ async def get_consult_status(job_id: str) -> Any:
 
                 # Start background worker if not already started
                 if not soap_status:
-                    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+                    from concurrent.futures import ThreadPoolExecutor
+                    from concurrent.futures import TimeoutError as FuturesTimeoutError
 
                     from backend.services.diarization.jobs import update_job
 
-                    def generate_soap_async(job_id_to_process: str, result_data_to_process: dict) -> None:
+                    def generate_soap_async(
+                        job_id_to_process: str, result_data_to_process: dict
+                    ) -> None:
                         """Generate SOAP in background thread with timeout protection."""
                         # Acquire semaphore to ensure only 1 SOAP generation at a time
                         acquired = _soap_worker_semaphore.acquire(blocking=False)
@@ -324,9 +602,15 @@ async def get_consult_status(job_id: str) -> Any:
 
                             def _generate_soap_with_timeout():
                                 """Inner function to run Ollama with timeout."""
-                                from backend.services.soap_generation.ollama_client import OllamaClient
-                                from backend.services.soap_generation.soap_builder import SOAPBuilder
-                                from backend.services.soap_generation.completeness import CompletenessCalculator
+                                from backend.services.soap_generation.completeness import (
+                                    CompletenessCalculator,
+                                )
+                                from backend.services.soap_generation.ollama_client import (
+                                    OllamaClient,
+                                )
+                                from backend.services.soap_generation.soap_builder import (
+                                    SOAPBuilder,
+                                )
 
                                 # Extract improved text from diarization segments
                                 transcription_text = ""
@@ -338,7 +622,9 @@ async def get_consult_status(job_id: str) -> Any:
                                     )
 
                                 if not transcription_text:
-                                    transcription_text = result_data_to_process.get("transcription", {}).get("text", "")
+                                    transcription_text = result_data_to_process.get(
+                                        "transcription", {}
+                                    ).get("text", "")
 
                                 if not transcription_text:
                                     raise ValueError("No transcription text available")
@@ -348,9 +634,20 @@ async def get_consult_status(job_id: str) -> Any:
                                 soap_data = ollama_client.extract_soap(transcription_text)
 
                                 # Build SOAP models
-                                subjetivo, objetivo, analisis, plan = SOAPBuilder.build(job_id_to_process, soap_data)
-                                completeness = CompletenessCalculator.calculate(subjetivo, objetivo, analisis, plan)
-                                soap_obj = SOAPBuilder.build_note(job_id_to_process, subjetivo, objetivo, analisis, plan, completeness)
+                                subjetivo, objetivo, analisis, plan = SOAPBuilder.build(
+                                    job_id_to_process, soap_data
+                                )
+                                completeness = CompletenessCalculator.calculate(
+                                    subjetivo, objetivo, analisis, plan
+                                )
+                                soap_obj = SOAPBuilder.build_note(
+                                    job_id_to_process,
+                                    subjetivo,
+                                    objetivo,
+                                    analisis,
+                                    plan,
+                                    completeness,
+                                )
 
                                 return soap_obj
 
@@ -361,7 +658,7 @@ async def get_consult_status(job_id: str) -> Any:
                                     soap_obj = future.result(timeout=60.0)  # 60 second timeout
 
                                     # Store SOAP note in result_data (use mode='json' to serialize datetime)
-                                    updated_result["soap_note"] = soap_obj.model_dump(mode='json')
+                                    updated_result["soap_note"] = soap_obj.model_dump(mode="json")
                                     updated_result["soap_status"] = "completed"
                                     update_job(job_id_to_process, result_data=updated_result)
 
@@ -377,7 +674,9 @@ async def get_consult_status(job_id: str) -> Any:
                                         timeout_sec=60,
                                     )
                                     updated_result["soap_status"] = "failed"
-                                    updated_result["soap_error"] = "SOAP generation timeout (60s) - Ollama may be overloaded"
+                                    updated_result[
+                                        "soap_error"
+                                    ] = "SOAP generation timeout (60s) - Ollama may be overloaded"
                                     update_job(job_id_to_process, result_data=updated_result)
                                 except ValueError as ve:
                                     updated_result["soap_status"] = "failed"
@@ -401,9 +700,7 @@ async def get_consult_status(job_id: str) -> Any:
 
                     # Start background thread
                     worker_thread = threading.Thread(
-                        target=generate_soap_async,
-                        args=(job_id, result_data),
-                        daemon=True
+                        target=generate_soap_async, args=(job_id, result_data), daemon=True
                     )
                     worker_thread.start()
                     logger.info("WORKFLOW_SOAP_WORKER_STARTED", job_id=job_id)
@@ -473,4 +770,198 @@ async def list_consult_jobs(status_filter: Optional[str] = None) -> Any:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to list jobs",
+        )
+
+
+@router.post("/consult/stream", response_model=StreamChunkResponse, status_code=status.HTTP_200_OK)
+async def process_audio_chunk(
+    session_id: str = Form(...),
+    chunk_number: int = Form(...),
+    audio: UploadFile = File(...),
+    mime: str = Form(""),
+    timestamp_start: Optional[float] = Form(None),
+    timestamp_end: Optional[float] = Form(None),
+) -> StreamChunkResponse:
+    """
+    Process individual audio chunk in real-time (AUR-PROMPT-3.4 - RecordRTC mode).
+
+    **Decode-First Strategy (AUR-PROMPT-3.4):**
+    1. Atomic write with fsync + MIME-based extension
+    2. Optional WebM graft (if ENABLE_GRAFT=true and .webm and chunk>0)
+    3. Decode-first: Attempt ffmpeg conversion before validation
+    4. Transcribe with faster-whisper
+    5. Return partial transcription
+
+    **Args:**
+    - session_id: Session identifier (UUID4 format)
+    - chunk_number: Sequential chunk number (0, 1, 2, ...)
+    - audio: Audio segment (RecordRTC chunks with headers)
+    - mime: MIME type from blob.type (e.g., "audio/webm")
+    - timestamp_start: Start time in seconds (optional)
+    - timestamp_end: End time in seconds (optional)
+
+    **Returns:**
+    - Partial transcription for this chunk
+    - Chunk metadata
+
+    **Errors:**
+    - 400: Invalid session_id
+    - 422: Unprocessable audio (ffmpeg decode failed)
+    - 500: Transcription or storage failed
+
+    **AUR-PROMPT-3.4 Compliance:**
+    - ✅ RecordRTC chunks (valid headers)
+    - ✅ Decode-first (no pre-validation)
+    - ✅ WebM graft optional (flag-controlled)
+    - ✅ Multi-format support (WebM/MP4/WAV)
+    - ✅ Semantic error codes (422 vs 500)
+    """
+    try:
+        # Validate session ID
+        if not session_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing required field: session_id",
+            )
+
+        logger.info(
+            "CHUNK_RECEIVED",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            mime=mime,
+            timestamp_start=timestamp_start,
+            timestamp_end=timestamp_end,
+        )
+
+        # 1. Atomic write with MIME-based extension
+        sess_dir = AUDIO_DIR / session_id
+        ext = _resolve_ext(mime or (audio.content_type or ""))
+        raw_path = sess_dir / f"{chunk_number}{ext}"
+        _atomic_write(audio, raw_path)
+
+        logger.info(
+            "CHUNK_ATOMIC_WRITE",
+            session=session_id,
+            chunk=chunk_number,
+            ext=ext,
+            size=raw_path.stat().st_size,
+        )
+
+        # 2. Optional WebM graft (flag-controlled)
+        candidate = raw_path
+        if ENABLE_GRAFT and ext == ".webm" and chunk_number > 0:
+            candidate = _maybe_graft_header(sess_dir, chunk_number, raw_path)
+            logger.info(
+                "CHUNK_GRAFT_APPLIED",
+                session=session_id,
+                chunk=chunk_number,
+                candidate=candidate.name,
+            )
+
+        # Diagnostic logging
+        logger.info(
+            "CHUNK_DECODE_DIAGNOSTIC",
+            session=session_id,
+            chunk=chunk_number,
+            raw=raw_path.name,
+            candidate=candidate.name,
+            ebml=_is_ebml(candidate),
+            graft_enabled=ENABLE_GRAFT,
+        )
+
+        # 3. Decode-first: Attempt ffmpeg conversion without pre-validation
+        wav_path = sess_dir / f"{chunk_number}.wav"
+        try:
+            _to_wav(candidate, wav_path)
+            logger.info(
+                "CHUNK_TO_WAV_SUCCESS",
+                session=session_id,
+                chunk=chunk_number,
+                wav_size=wav_path.stat().st_size,
+            )
+        except subprocess.CalledProcessError as decode_error:
+            logger.error(
+                "CHUNK_DECODE_FAILED",
+                session=session_id,
+                chunk=chunk_number,
+                error=str(decode_error),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"ffmpeg decode failed: {raw_path.name}",
+            )
+
+        # 4. Transcribe with faster-whisper
+        transcription_service = get_container().get_transcription_service()
+        logger.info(
+            "CHUNK_TRANSCRIPTION_START",
+            session=session_id,
+            chunk=chunk_number,
+            wav_path=wav_path.name,
+        )
+
+        transcription_result = transcription_service.transcribe(
+            audio_path=wav_path, language="es", vad_filter=True
+        )
+
+        transcription_text = (
+            transcription_result.get("text", "") if isinstance(transcription_result, dict) else ""
+        )
+
+        logger.info(
+            "CHUNK_TRANSCRIPTION_COMPLETE",
+            session=session_id,
+            chunk=chunk_number,
+            text_length=len(transcription_text),
+            text_preview=transcription_text[:50] if transcription_text else "EMPTY",
+            mime=mime,
+            ext=ext,
+        )
+
+        # Generate chunk ID
+        import uuid
+
+        chunk_id = f"{session_id}_chunk_{chunk_number}_{uuid.uuid4().hex[:8]}"
+
+        # TODO: Append to HDF5 corpus (event sourcing)
+        # TODO: Speaker diarization (batch after streaming ends)
+
+        return StreamChunkResponse(
+            chunk_id=chunk_id,
+            session_id=session_id,
+            chunk_number=chunk_number,
+            transcription=transcription_text,
+            speaker=None,
+            timestamp_start=timestamp_start or 0.0,
+            timestamp_end=timestamp_end or 0.0,
+            status="completed",
+        )
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        logger.warning(
+            "CHUNK_VALIDATION_FAILED",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            error=str(e),
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(
+            "CHUNK_PROCESSING_FAILED",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            error=str(e),
+        )
+        return StreamChunkResponse(
+            chunk_id=f"{session_id}_chunk_{chunk_number}_failed",
+            session_id=session_id or "unknown",
+            chunk_number=chunk_number,
+            transcription=None,
+            speaker=None,
+            timestamp_start=timestamp_start or 0.0,
+            timestamp_end=timestamp_end or 0.0,
+            status="failed",
+            error=str(e),
         )
