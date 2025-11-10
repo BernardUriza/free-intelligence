@@ -79,7 +79,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ \
+          pytest backend/tests/ \
             --cov=backend \
             --cov-report=term-with-missing \
             --cov-report=xml \

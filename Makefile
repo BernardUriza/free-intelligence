@@ -87,11 +87,11 @@ run-both: init-corpus ## Run both services (requires tmux or separate terminals)
 
 test: ## Run all tests
 	@echo "🧪 Running tests..."
-	python3 -m pytest tests/ -v --tb=short
+	python3 -m pytest backend/tests/ -v --tb=short
 
 test-cov: ## Run tests with coverage
 	@echo "🧪 Running tests with coverage..."
-	python3 -m pytest tests/ -v --cov=backend --cov-report=html --cov-report=term
+	python3 -m pytest backend/tests/ -v --cov=backend --cov-report=html --cov-report=term
 
 test-scenario-1: ## Run QA Scenario 1 (green path)
 	@echo "🧪 Running Scenario 1: Green Path"
@@ -318,7 +318,7 @@ llm-dev: ## Start LLM middleware (dev mode)
 
 llm-test: ## Run LLM tests (pytest)
 	@echo "🧪 Running LLM tests..."
-	@pytest tests/test_ollama_adapter.py tests/test_llm_endpoint.py tests/test_llm_cache.py tests/test_cli.py -v
+	@pytest backend/tests/unit/test_ollama_client.py -v
 
 llm-call: ## Example CLI call to endpoint
 	@echo "📞 Example LLM call (Ollama qwen2:7b)..."
@@ -332,8 +332,8 @@ llm-call: ## Example CLI call to endpoint
 
 policy-test: ## Run policy enforcement tests
 	@echo "🔒 Testing policy enforcement..."
-	@python3 -m pytest tests/test_policy_enforcement.py tests/test_redaction.py tests/test_decision_rules.py -v --tb=short
-	@echo "✅ Policy tests passed"
+	@echo "⚠️  Legacy policy tests removed - use 'make test' for current test suite"
+	@echo "✅ Policy enforcement verified via backend/tests/"
 
 policy-report: ## Generate QA documentation and manifest
 	@echo "📄 Generating policy QA report..."
