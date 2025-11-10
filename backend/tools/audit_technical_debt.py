@@ -130,7 +130,8 @@ class TechnicalDebtAuditor:
                             )
                         )
 
-                    current_func = re.match(r"^def\s+(\w+)", line).group(1)
+                    match = re.match(r"^def\s+(\w+)", line)
+                    current_func = match.group(1) if match else None  # type: ignore[union-attr]
                     func_start = i
 
             # Check last function
@@ -161,7 +162,8 @@ class TechnicalDebtAuditor:
                 func_body = match.group(0)
                 if "try:" not in func_body and "async def" in func_body:
                     line_num = content[: match.start()].count("\n") + 1
-                    func_name = re.search(r"def\s+(\w+)", func_body).group(1)
+                    name_match = re.search(r"def\s+(\w+)", func_body)
+                    func_name = name_match.group(1) if name_match else "unknown"  # type: ignore[union-attr]
                     issues.append(
                         Issue(
                             severity="HIGH",

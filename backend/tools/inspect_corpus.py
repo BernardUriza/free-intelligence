@@ -102,7 +102,7 @@ def inspect_corpus(corpus_path="storage/corpus.h5"):
 
         # Audit logs
         if "/audit_logs/" in f:
-            if "audit_id" in f["/audit_logs/"]:
+            if "audit_id" in f["/audit_logs/"]:  # type: ignore[operator]
                 audit_count = f["/audit_logs/audit_id"].shape[0]
                 print(f"   Audit Logs: {audit_count} total")
 

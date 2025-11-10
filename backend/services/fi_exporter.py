@@ -581,7 +581,7 @@ if __name__ == "__main__":
         output_path = sys.argv[4]
         try:
             path, manifest = export_range_to_hdf5(corpus_path, output_path, start_date, end_date)
-            interactions_count = manifest.metadata["interactions_count"]
+            interactions_count = manifest.metadata["interactions_count"]  # type: ignore[index]
             print(f"✅ Exported range to: {path}")
             print(f"   Interactions: {interactions_count}")
             manifest_path = output_path.replace(".h5", ".manifest.json")
@@ -597,8 +597,8 @@ if __name__ == "__main__":
         output_path = sys.argv[3]
         try:
             path, manifest = export_user_to_markdown(corpus_path, user_id, output_path)
-            sessions_count = manifest.metadata["sessions_count"]
-            interactions_count = manifest.metadata["interactions_count"]
+            sessions_count = manifest.metadata["sessions_count"]  # type: ignore[index]
+            interactions_count = manifest.metadata["interactions_count"]  # type: ignore[index]
             print(f"✅ Exported user to: {path}")
             print(f"   Sessions: {sessions_count}")
             print(f"   Interactions: {interactions_count}")
