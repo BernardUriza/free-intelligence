@@ -10,7 +10,7 @@ File: backend/fi_consult_models.py
 Created: 2025-10-28
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 from uuid import uuid4

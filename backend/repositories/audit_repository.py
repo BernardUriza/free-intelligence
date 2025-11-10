@@ -10,7 +10,7 @@ not business logic or policy enforcement.
 from __future__ import annotations
 
 import json
-from datetime import timezone, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -75,10 +75,14 @@ class AuditRepository(BaseRepository):
                 logs_group = f[self.AUDIT_LOGS_GROUP]
                 log_group = logs_group.create_group(log_id)  # type: ignore[attr-defined]
 
-                # Store log data
-                log_group.attrs["timestamp"] = entity.get(
-                    "timestamp", datetime.now(timezone.utc).isoformat()
+                # Store log data - ensure timestamp is ISO string
+                timestamp_raw = entity.get("timestamp", datetime.now(UTC))
+                timestamp_str = (
+                    timestamp_raw.isoformat()
+                    if isinstance(timestamp_raw, datetime)
+                    else timestamp_raw
                 )
+                log_group.attrs["timestamp"] = timestamp_str
                 log_group.attrs["action"] = entity.get("action", "")
                 log_group.attrs["user_id"] = entity.get("user_id", "")
                 log_group.attrs["resource"] = entity.get("resource", "")

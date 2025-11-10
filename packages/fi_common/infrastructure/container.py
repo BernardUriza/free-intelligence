@@ -260,18 +260,29 @@ class DIContainer:
         """
         if self._diarization_job_service is None:
             try:
-                # Check if using low-priority worker
                 import os
 
-                use_lowprio = os.getenv("DIARIZATION_LOWPRIO", "true").lower() == "true"
+                from backend.services.diarization.job_service import (
+                    DiarizationJobService,
+                )
 
-                # TODO: DiarizationJobService not yet implemented - placeholder
-                # self._diarization_job_service = DiarizationJobService(use_lowprio=use_lowprio)
-                _get_logger().warning("DiarizationJobService not implemented - returning None")
-                self._diarization_job_service = None
-            except OSError as e:
+                hdf5_path = os.getenv("AURITY_DIARIZATION_HDF5", "storage/diarization.h5")
+                persist = os.getenv(
+                    "AURITY_DIARIZATION_PERSIST_RESOLVED_STATUS", "false"
+                ).lower() in {
+                    "1",
+                    "true",
+                    "yes",
+                }
+
+                self._diarization_job_service = DiarizationJobService(
+                    hdf5_path=hdf5_path, persist_resolved=persist
+                )
+                _get_logger().info("DiarizationJobService initialized")
+            except Exception as e:
                 _get_logger().error(f"DIARIZATION_JOB_SERVICE_INIT_FAILED: {e!s}")
-                raise OSError(f"Failed to initialize DiarizationJobService: {e}") from e
+                # Don't raise - return None for graceful degradation
+                self._diarization_job_service = None
 
         return self._diarization_job_service
 

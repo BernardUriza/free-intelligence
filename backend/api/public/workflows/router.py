@@ -317,17 +317,21 @@ class ConsultStatusResponse(BaseModel):
 
 
 class StreamChunkResponse(BaseModel):
-    """Response for real-time audio chunk processing."""
+    """Response for real-time audio chunk processing (AUR-PROMPT-4.2)."""
 
-    chunk_id: str = Field(..., description="Unique chunk identifier")
+    chunk_id: str = Field(..., description="Unique chunk identifier (or job_id if queued)")
     session_id: str = Field(..., description="Session identifier")
     chunk_number: int = Field(..., description="Sequential chunk number")
-    transcription: Optional[str] = Field(None, description="Partial transcription text")
+    transcription: Optional[str] = Field(
+        None, description="Partial transcription text (null if queued)"
+    )
     speaker: Optional[str] = Field(None, description="Detected speaker (if diarization enabled)")
     timestamp_start: float = Field(..., description="Start time in seconds")
     timestamp_end: float = Field(..., description="End time in seconds")
-    status: str = Field(..., description="Chunk status: processing, completed, failed")
+    status: str = Field(..., description="Chunk status: queued, processing, completed, failed")
     error: Optional[str] = Field(None, description="Error message if failed")
+    queued: bool = Field(default=False, description="True if job queued (async processing)")
+    job_id: Optional[str] = Field(None, description="Celery job ID for polling (if queued=True)")
 
 
 @router.post("/consult", response_model=ConsultStartResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -417,25 +421,41 @@ async def start_consult_workflow(
             logger.error("JOB_CREATION_FAILED", error=str(e), error_type=type(e).__name__)
             raise
 
-        # Orchestration Step 3: Trigger background processing
-        # For MVP: Process synchronously in current request
-        # TODO: For production: Use background queue (Celery/RQ/AWS SQS)
-        import threading
+        # Orchestration Step 3: Trigger background processing via Celery
+        # Primary: Celery distributed task queue (production-ready)
+        # Fallback: threading.Thread (development mode if Celery unavailable)
+        try:
+            from backend.workers.tasks import process_diarization_job
 
-        from backend.services.diarization.worker import process_job
-        from backend.services.transcription.service import TranscriptionService
+            # Queue job for async processing with Celery
+            task = process_diarization_job.delay(job_id)
 
-        def process_job_async(job_id_to_process: str) -> None:
-            """Process job in background thread."""
-            transcription_svc = TranscriptionService()
-            diarization_svc = diarization_service  # Reuse from outer scope
-            process_job(job_id_to_process, transcription_svc, diarization_svc)
+            logger.info(
+                "WORKFLOW_WORKER_QUEUED",
+                job_id=job_id,
+                task_id=task.id,
+                backend="celery",
+            )
+        except ImportError:
+            # Fallback to threading if Celery not available (dev mode)
+            logger.warning("CELERY_UNAVAILABLE_FALLBACK_THREADING", job_id=job_id)
 
-        # Start processing in background thread
-        worker_thread = threading.Thread(target=process_job_async, args=(job_id,), daemon=True)
-        worker_thread.start()
+            import threading
 
-        logger.info("WORKFLOW_WORKER_STARTED", job_id=job_id)
+            from backend.services.diarization.worker import process_job
+            from backend.services.transcription.service import TranscriptionService
+
+            def process_job_async(job_id_to_process: str) -> None:
+                """Process job in background thread."""
+                transcription_svc = TranscriptionService()
+                diarization_svc = diarization_service  # Reuse from outer scope
+                process_job(job_id_to_process, transcription_svc, diarization_svc)
+
+            # Start processing in background thread
+            worker_thread = threading.Thread(target=process_job_async, args=(job_id,), daemon=True)
+            worker_thread.start()
+
+            logger.info("WORKFLOW_WORKER_STARTED_FALLBACK", job_id=job_id, backend="threading")
 
         # Log audit trail
         try:
@@ -773,7 +793,9 @@ async def list_consult_jobs(status_filter: Optional[str] = None) -> Any:
         )
 
 
-@router.post("/consult/stream", response_model=StreamChunkResponse, status_code=status.HTTP_200_OK)
+@router.post(
+    "/consult/stream", response_model=StreamChunkResponse, status_code=status.HTTP_202_ACCEPTED
+)
 async def process_audio_chunk(
     session_id: str = Form(...),
     chunk_number: int = Form(...),
@@ -783,14 +805,17 @@ async def process_audio_chunk(
     timestamp_end: Optional[float] = Form(None),
 ) -> StreamChunkResponse:
     """
-    Process individual audio chunk in real-time (AUR-PROMPT-3.4 - RecordRTC mode).
+    Process individual audio chunk (AUR-PROMPT-4.2 - PURE ORCHESTRATOR).
 
-    **Decode-First Strategy (AUR-PROMPT-3.4):**
-    1. Atomic write with fsync + MIME-based extension
-    2. Optional WebM graft (if ENABLE_GRAFT=true and .webm and chunk>0)
-    3. Decode-first: Attempt ffmpeg conversion before validation
-    4. Transcribe with faster-whisper
-    5. Return partial transcription
+    **Architecture: PUBLIC layer (CRITICAL)**
+    - PURE orchestrator: NO Services, ONLY calls INTERNAL endpoints
+    - Returns job_id for async processing (202 Accepted)
+    - Frontend polls /internal/transcribe/jobs/{job_id} for result
+
+    **Workflow:**
+    1. Validate session_id
+    2. POST audio to /internal/transcribe/chunks (INTERNAL layer)
+    3. Return job_id + queued status (no blocking)
 
     **Args:**
     - session_id: Session identifier (UUID4 format)
@@ -801,20 +826,18 @@ async def process_audio_chunk(
     - timestamp_end: End time in seconds (optional)
 
     **Returns:**
-    - Partial transcription for this chunk
-    - Chunk metadata
+    - 202 Accepted with job_id
+    - Frontend should poll GET /internal/transcribe/jobs/{job_id}
 
     **Errors:**
     - 400: Invalid session_id
-    - 422: Unprocessable audio (ffmpeg decode failed)
-    - 500: Transcription or storage failed
+    - 500: Failed to dispatch job
 
-    **AUR-PROMPT-3.4 Compliance:**
-    - ✅ RecordRTC chunks (valid headers)
-    - ✅ Decode-first (no pre-validation)
-    - ✅ WebM graft optional (flag-controlled)
-    - ✅ Multi-format support (WebM/MP4/WAV)
-    - ✅ Semantic error codes (422 vs 500)
+    **AUR-PROMPT-4.2 Compliance:**
+    - ✅ PUBLIC layer: Pure orchestrator
+    - ✅ Calls INTERNAL /internal/transcribe/chunks
+    - ✅ Returns job_id (non-blocking)
+    - ✅ Worker handles: WAV conversion + transcription + HDF5 append
     """
     try:
         # Validate session ID
@@ -825,123 +848,73 @@ async def process_audio_chunk(
             )
 
         logger.info(
-            "CHUNK_RECEIVED",
+            "PUBLIC_CHUNK_RECEIVED",
             session_id=session_id,
             chunk_number=chunk_number,
             mime=mime,
-            timestamp_start=timestamp_start,
-            timestamp_end=timestamp_end,
         )
 
-        # 1. Atomic write with MIME-based extension
-        sess_dir = AUDIO_DIR / session_id
-        ext = _resolve_ext(mime or (audio.content_type or ""))
-        raw_path = sess_dir / f"{chunk_number}{ext}"
-        _atomic_write(audio, raw_path)
+        # Call INTERNAL endpoint (pure orchestration)
+        import httpx
 
-        logger.info(
-            "CHUNK_ATOMIC_WRITE",
-            session=session_id,
-            chunk=chunk_number,
-            ext=ext,
-            size=raw_path.stat().st_size,
-        )
+        # Read audio content
+        audio_content = await audio.read()
 
-        # 2. Optional WebM graft (flag-controlled)
-        candidate = raw_path
-        if ENABLE_GRAFT and ext == ".webm" and chunk_number > 0:
-            candidate = _maybe_graft_header(sess_dir, chunk_number, raw_path)
-            logger.info(
-                "CHUNK_GRAFT_APPLIED",
-                session=session_id,
-                chunk=chunk_number,
-                candidate=candidate.name,
+        # POST to INTERNAL /internal/transcribe/chunks
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://localhost:7001/internal/transcribe/chunks",
+                files={
+                    "audio": (f"chunk_{chunk_number}.webm", audio_content, mime or "audio/webm")
+                },
+                headers={
+                    "X-Session-ID": session_id,
+                    "X-Chunk-Number": str(chunk_number),
+                },
+                timeout=30.0,
             )
 
-        # Diagnostic logging
-        logger.info(
-            "CHUNK_DECODE_DIAGNOSTIC",
-            session=session_id,
-            chunk=chunk_number,
-            raw=raw_path.name,
-            candidate=candidate.name,
-            ebml=_is_ebml(candidate),
-            graft_enabled=ENABLE_GRAFT,
-        )
+            if response.status_code != 202:
+                logger.error(
+                    "PUBLIC_INTERNAL_CALL_FAILED",
+                    session_id=session_id,
+                    chunk_number=chunk_number,
+                    status=response.status_code,
+                    error=response.text,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Internal endpoint failed: {response.text}",
+                )
 
-        # 3. Decode-first: Attempt ffmpeg conversion without pre-validation
-        wav_path = sess_dir / f"{chunk_number}.wav"
-        try:
-            _to_wav(candidate, wav_path)
-            logger.info(
-                "CHUNK_TO_WAV_SUCCESS",
-                session=session_id,
-                chunk=chunk_number,
-                wav_size=wav_path.stat().st_size,
-            )
-        except subprocess.CalledProcessError as decode_error:
-            logger.error(
-                "CHUNK_DECODE_FAILED",
-                session=session_id,
-                chunk=chunk_number,
-                error=str(decode_error),
-            )
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"ffmpeg decode failed: {raw_path.name}",
-            )
-
-        # 4. Transcribe with faster-whisper
-        transcription_service = get_container().get_transcription_service()
-        logger.info(
-            "CHUNK_TRANSCRIPTION_START",
-            session=session_id,
-            chunk=chunk_number,
-            wav_path=wav_path.name,
-        )
-
-        transcription_result = transcription_service.transcribe(
-            audio_path=wav_path, language="es", vad_filter=True
-        )
-
-        transcription_text = (
-            transcription_result.get("text", "") if isinstance(transcription_result, dict) else ""
-        )
+            job_data = response.json()
 
         logger.info(
-            "CHUNK_TRANSCRIPTION_COMPLETE",
-            session=session_id,
-            chunk=chunk_number,
-            text_length=len(transcription_text),
-            text_preview=transcription_text[:50] if transcription_text else "EMPTY",
-            mime=mime,
-            ext=ext,
+            "PUBLIC_JOB_CREATED",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            job_id=job_data.get("job_id"),
         )
 
-        # Generate chunk ID
-        import uuid
-
-        chunk_id = f"{session_id}_chunk_{chunk_number}_{uuid.uuid4().hex[:8]}"
-
-        # TODO: Append to HDF5 corpus (event sourcing)
-        # TODO: Speaker diarization (batch after streaming ends)
-
+        # Return job_id (non-blocking)
         return StreamChunkResponse(
-            chunk_id=chunk_id,
+            chunk_id=job_data.get("job_id", ""),
             session_id=session_id,
             chunk_number=chunk_number,
-            transcription=transcription_text,
+            transcription=None,  # Not available yet (async)
             speaker=None,
             timestamp_start=timestamp_start or 0.0,
             timestamp_end=timestamp_end or 0.0,
-            status="completed",
+            status="queued",  # Job queued, not completed
+            queued=True,
+            job_id=job_data.get("job_id"),
         )
 
     except HTTPException:
         raise
     except ValueError as e:
         logger.warning(
-            "CHUNK_VALIDATION_FAILED",
+            "PUBLIC_VALIDATION_FAILED",
             session_id=session_id,
             chunk_number=chunk_number,
             error=str(e),
@@ -949,19 +922,12 @@ async def process_audio_chunk(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(
-            "CHUNK_PROCESSING_FAILED",
+            "PUBLIC_ORCHESTRATION_FAILED",
             session_id=session_id,
             chunk_number=chunk_number,
             error=str(e),
         )
-        return StreamChunkResponse(
-            chunk_id=f"{session_id}_chunk_{chunk_number}_failed",
-            session_id=session_id or "unknown",
-            chunk_number=chunk_number,
-            transcription=None,
-            speaker=None,
-            timestamp_start=timestamp_start or 0.0,
-            timestamp_end=timestamp_end or 0.0,
-            status="failed",
-            error=str(e),
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create transcription job: {e!s}",
         )

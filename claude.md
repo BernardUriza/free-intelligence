@@ -41,6 +41,19 @@ TZ: America/Mexico_City
 	•	Archivar antes de responder; auditoría obligatoria en acciones sensibles (export/verify/delete/search).
 	•	LAN‑only, sin dependencias cloud en runtime.
 
+🏗️ Arquitectura Layering (CRÍTICO)
+	•	PUBLIC (/api/workflows/*) = Orquestadores PUROS
+	  └─ NUNCA usar Services directamente
+	  └─ SOLO llamar endpoints /internal/*
+	  └─ SOLO coordinar flujos y devolver job_id
+	•	INTERNAL (/api/internal/*) = Recursos atómicos
+	  └─ Estos SÍ usan Services
+	  └─ Estos SÍ hacen append a HDF5
+	  └─ Endpoints: /transcribe, /sessions, /diarization, etc.
+	•	WORKERS (background) = Procesamiento asíncrono
+	  └─ Celery tasks, threading
+	  └─ Frontend polling con job_id
+
 ♻️ Workflow Innegociable
 	•	Nunca dejar ⚙️ In Progress vacío.
 	1.	Si queda vacío → mover de inmediato la siguiente card prioritaria (P0>P1>P2).
@@ -78,8 +91,22 @@ free-intelligence/
 
   📁 storage/
     ├─ corpus.h5              [Main corpus HDF5 (append-only)]
+    │   ├─ /interactions/     [LLM interactions]
+    │   ├─ /embeddings/       [Vector embeddings]
+    │   └─ /sessions/{session_id}/chunks/  [Audio transcription chunks - AUR-PROMPT-4.2]
     ├─ diarization.h5         [Diarization jobs + chunks]
     └─ audio/                 [Session audio files]
+
+  📦 HDF5 Session Chunks Schema (AUR-PROMPT-4.2):
+    /sessions/{session_id}/chunks/chunk_{idx}/
+      ├─ transcript       : utf-8 string (h5py.string_dtype) - NO dtype('O')
+      ├─ audio_hash       : utf-8 string (SHA256)
+      ├─ duration         : float64 (seconds)
+      ├─ language         : utf-8 string (es, en)
+      ├─ timestamp_start  : float64 (seconds from start)
+      ├─ timestamp_end    : float64 (seconds from start)
+      └─ created_at       : utf-8 string (ISO 8601)
+    File: backend/storage/session_chunks_schema.py
 
   🎨 apps/aurity/ (Next.js/React port 9000)
     ├─ pages/dashboard        [Main UI]
@@ -210,5 +237,6 @@ trello quick-start FI-STRIDE-SESION-04
 	•	NAS DS923+ Deployment Stack ✅: Ollama (11434) + ASR worker (faster-whisper INT8), scripts automatizados, validation 7/7.
 	•	Type Checking Automation ✅: pyright CLI integration, tools/detect_type_errors.py, make type-check* commands, JSON export para batch fixing con Claude Code (821 errors baseline → remediation plan ready).
 	•	Python 3.9 Compatibility + Datetime Fix ✅: from __future__ imports (82 files), datetime.utcnow() → datetime.now(timezone.utc) (22 files), h5py type ignore (13 files).
+	•	Chunk Transcription Layering (AUR-PROMPT-4.2) ✅: PUBLIC → INTERNAL → WORKER arquitectura implementada. PUBLIC /consult/stream (pure orchestrator, NO Services), INTERNAL /transcribe/chunks (job creation + 202), Worker transcribe_chunk_task (ffmpeg + ASR + HDF5 append). HDF5 schema /sessions/{session_id}/chunks/chunk_{idx} con typed dtypes (NO object). Tests: backend/tests/test_chunk_layering.py. Docs: CLAUDE.md actualizado.
 
 Nota: Este kernel es guía operativa mínima; las bitácoras y reportes viven en la conversación salvo docs permanentes.

@@ -62,9 +62,13 @@ py-trello>=0.20.0               # Trello API client
 # ============================================================================
 # Diarization V2 - Performance Optimization (FI-RELIABILITY-IMPL-003)
 # ============================================================================
-# Optional: Redis Queue for worker architecture
-rq>=1.15.0                      # Redis Queue for async job processing
+# Background Task Processing (FI-BACKEND-ARCH-001 TODO #1)
+celery[redis]>=5.3.0            # Distributed task queue with Redis broker
 redis>=5.0.0                    # Redis client
+flower>=2.0.0                   # Celery monitoring web UI (optional)
+
+# Legacy: Redis Queue (deprecated, use Celery)
+# rq>=1.15.0                      # Redis Queue for async job processing
 
 # Optional: GPU acceleration (Mac M1/M2/M3)
 # torch>=2.0.0                  # PyTorch with MPS support (uncomment for M1 GPU)
@@ -73,4 +77,3 @@ redis>=5.0.0                    # Redis client
 # Diarization Low-Priority Worker (FI-RELIABILITY-IMPL-004)
 # ============================================================================
 psutil>=6.1.1                   # CPU monitoring for scheduler
-
