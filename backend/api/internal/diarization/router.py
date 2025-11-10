@@ -33,8 +33,12 @@ from backend.container import get_container
 from backend.logger import get_logger
 from backend.schemas import StatusCode, error_response, success_response
 from backend.services.diarization_jobs import JobStatus, create_job, update_job_status
-from backend.services.diarization_service import diarize_audio
-from backend.services.diarization_service_v2 import diarize_audio_parallel
+
+# NOTE (2025-11-10): Diarization services deprecated - moved to _deprecated_20251109/
+#   This router is disabled in backend/app/main.py:80
+#   Imports commented out to prevent test collection errors
+# from backend.services.diarization_service import diarize_audio
+# from backend.services.diarization_service_v2 import diarize_audio_parallel
 from backend.services.soap_generation.service import SOAPGenerationService
 from packages.fi_common.storage.audio_storage import AUDIO_STORAGE_DIR, save_audio_file
 
