@@ -63,7 +63,7 @@ run: init-corpus ## Run FI Consult Service (port 7001)
 	@echo "   Health check: http://localhost:7001/health"
 	@echo "   Press Ctrl+C to stop"
 	@echo ""
-	PYTHONPATH=. python3 -m uvicorn backend.fi_consult_service:app --host 0.0.0.0 --port 7001 --reload
+	PYTHONPATH=. python3 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 --reload
 
 run-gateway: init-corpus ## Run AURITY Gateway (port 7002)
 	@echo "🚀 Starting AURITY Gateway on http://localhost:7002"

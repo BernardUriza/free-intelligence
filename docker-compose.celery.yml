@@ -1,0 +1,73 @@
+# Docker Compose for Celery Workers + Redis
+# Card: FI-BACKEND-ARCH-001 (TODO #1)
+#
+# Usage:
+#   docker-compose -f docker-compose.celery.yml up -d
+#
+# Created: 2025-11-09
+
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: fi-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    container_name: fi-celery-worker
+    command: celery -A backend.workers.celery_app worker --loglevel=info --concurrency=2 --max-tasks-per-child=100
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB_BROKER=0
+      - REDIS_DB_BACKEND=1
+      - PYTHONPATH=/app
+    volumes:
+      - ./backend:/app/backend
+      - ./packages:/app/packages
+      - ./storage:/app/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A backend.workers.celery_app inspect ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  celery_flower:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    container_name: fi-celery-flower
+    command: celery -A backend.workers.celery_app flower --port=5555
+    depends_on:
+      - redis
+      - celery_worker
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB_BROKER=0
+      - REDIS_DB_BACKEND=1
+    ports:
+      - "5555:5555"
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local

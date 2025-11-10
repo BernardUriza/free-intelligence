@@ -8,6 +8,14 @@ Reorganized: 2025-11-08 (moved from backend/api/diarization.py)
 
 from __future__ import annotations
 
+import asyncio
+import json
+import os
+import traceback
+from dataclasses import asdict
+from pathlib import Path
+from typing import Any, Optional
+
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -19,7 +27,6 @@ from fastapi import (
     status,
 )
 from fastapi.responses import Response
-from packages.fi_common.storage.audio_storage import AUDIO_STORAGE_DIR, save_audio_file
 from pydantic import BaseModel, Field
 
 from backend.container import get_container
@@ -29,14 +36,7 @@ from backend.services.diarization_jobs import JobStatus, create_job, update_job_
 from backend.services.diarization_service import diarize_audio
 from backend.services.diarization_service_v2 import diarize_audio_parallel
 from backend.services.soap_generation.service import SOAPGenerationService
-
-import asyncio
-import json
-import os
-import traceback
-from dataclasses import asdict
-from pathlib import Path
-from typing import Any, Optional
+from packages.fi_common.storage.audio_storage import AUDIO_STORAGE_DIR, save_audio_file
 
 logger = get_logger(__name__)
 
@@ -493,21 +493,36 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
         job_service = get_container().get_diarization_job_service()
         audit_service = get_container().get_audit_service()
 
+        # Check if service is available
+        if job_service is None:
+            logger.error("DIARIZATION_JOB_SERVICE_UNAVAILABLE")
+            raise HTTPException(status_code=500, detail="DiarizationJobService not available")
+
         # Delegate to service layer
-        status_dict = job_service.get_job_status(job_id)
+        try:
+            status_dict = job_service.get_job_status(job_id)
+        except KeyError:
+            logger.warning(f"JOB_NOT_FOUND: job_id={job_id}")
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+        except FileNotFoundError as e:
+            logger.error(f"HDF5_FILE_NOT_FOUND: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
         if not status_dict:
             logger.warning(f"JOB_NOT_FOUND: job_id={job_id}")
             raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
 
-        # Log audit trail
-        audit_service.log_action(
-            action="job_status_retrieved",
-            user_id="system",
-            resource=f"diarization_job:{job_id}",
-            result="success",
-            details={"status": status_dict.get("status")},
-        )
+        # Log audit trail (disable for now due to HDF5 object dtype issue)
+        try:
+            audit_service.log_action(
+                action="job_status_retrieved",
+                user_id="system",
+                resource=f"diarization_job:{job_id}",
+                result="success",
+                details={"status": str(status_dict.get("status"))},  # Convert to string
+            )
+        except Exception as audit_err:
+            logger.warning(f"AUDIT_LOG_FAILED: {audit_err}")
 
         logger.info(f"JOB_STATUS_RETRIEVED: job_id={job_id}, status={status_dict['status']}")
 
@@ -526,25 +541,33 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
             for c in (status_dict.get("chunks") or [])
         ]
 
+        # Map fields to response model (handle both progress_percent and progress_pct)
+        progress = status_dict.get("progress_pct") or status_dict.get("progress_percent", 0)
+
         return JobStatusResponse(
             job_id=status_dict["job_id"],
             session_id=status_dict["session_id"],
             status=status_dict["status"],
-            progress_pct=status_dict.get("progress_pct", 0),
+            progress_pct=progress,
             total_chunks=status_dict.get("total_chunks", 0),
             processed_chunks=status_dict.get("processed_chunks", 0),
             chunks=chunks,
             created_at=status_dict["created_at"],
-            updated_at=status_dict["updated_at"],
+            updated_at=status_dict.get("updated_at", status_dict["created_at"]),
             error=status_dict.get("error"),
         )
 
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except ValueError as err:
         logger.warning(f"JOB_STATUS_VALIDATION_FAILED: job_id={job_id}, error={err!s}")
         raise HTTPException(status_code=400, detail=str(err)) from err
     except Exception as err:
         logger.error(f"JOB_STATUS_FAILED: job_id={job_id}, error={err!s}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve job status") from err
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve job status: {err}"
+        ) from err
 
 
 @router.get("/result/{job_id}", response_model=DiarizationResultResponse)

@@ -8,8 +8,8 @@ TODO: Implement actual parallel processing with chunking and optimization.
 
 from __future__ import annotations
 
-from typing import Any, Optional
 from collections.abc import Callable
+from typing import Any, Optional
 
 from backend.services.diarization_service import diarize_audio
 
