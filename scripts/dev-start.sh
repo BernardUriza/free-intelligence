@@ -34,7 +34,7 @@ echo ""
 
 # Step 3: Start Celery infrastructure (Redis + Worker + Flower)
 echo "📦 Starting Celery infrastructure (Redis + Worker + Flower)..."
-docker-compose -f docker-compose.celery.yml up -d
+docker-compose -f docker/docker-compose.celery.yml up -d
 sleep 3
 
 # Verify services are healthy

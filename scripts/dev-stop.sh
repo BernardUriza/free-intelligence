@@ -26,7 +26,7 @@ echo ""
 
 # Stop Celery infrastructure
 echo "🛑 Stopping Celery infrastructure..."
-docker-compose -f docker-compose.celery.yml down
+docker-compose -f docker/docker-compose.celery.yml down
 echo "✅ Celery infrastructure stopped"
 echo ""
 

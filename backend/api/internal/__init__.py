@@ -25,7 +25,7 @@ from . import (
     athletes,
     audit,
     coaches,
-    diarization,
+    # diarization,  # Temporarily disabled - needs refactor for diarization/service.py
     evidence,
     exports,
     fi_diag,

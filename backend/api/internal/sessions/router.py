@@ -25,7 +25,7 @@ Endpoints:
 - PATCH /api/sessions/{id} -> update session
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 

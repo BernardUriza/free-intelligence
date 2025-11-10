@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import pathlib
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 
 import h5py
