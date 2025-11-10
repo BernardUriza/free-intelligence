@@ -15,6 +15,7 @@
     "backend:dev": "make run",
     "backend:gateway": "make run-gateway",
     "frontend:dev": "cd apps/aurity && PORT=9000 pnpm dev",
+    "generate:api": "node scripts/generate-api-client.mjs",
     "install:all": "pnpm install --frozen-lockfile",
     "prune": "pnpm prune && turbo prune",
     "check-deps": "pnpm audit --audit-level=moderate",
@@ -24,6 +25,7 @@
     "qa:be": "node scripts/py_compile_all.py && node scripts/console_harvest.mjs"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "^0.87.1",
     "@types/node": "24.10.0",
     "playwright": "^1.56.1",
     "turbo": "^1.11.2",
