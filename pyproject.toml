@@ -96,6 +96,24 @@ markers = [
     "integration: marks tests as integration tests",
 ]
 
+[tool.coverage.run]
+source = ["backend"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/node_modules/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+fail_under = 70.0
+
+[tool.coverage.html]
+directory = "htmlcov"
+
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true

@@ -6,11 +6,12 @@ Structure:
 - workflows/      → Aurity orchestrator (end-to-end workflows)
 - katniss/        → KATNISS AI analysis
 - t21_resources/  → T21 resources
+- tts/            → Azure TTS (Text-to-Speech)
 - system/         → Health checks
 """
 
 from __future__ import annotations
 
-from . import katniss, system, t21_resources, workflows
+from . import katniss, system, t21_resources, tts, workflows
 
-__all__ = ["workflows", "katniss", "t21_resources", "system"]
+__all__ = ["workflows", "katniss", "t21_resources", "tts", "system"]

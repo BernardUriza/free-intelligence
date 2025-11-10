@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from backend.logger import get_logger
 from backend.schemas.fi_event_store import EventStore
@@ -29,13 +29,12 @@ router = APIRouter(prefix="/api/consultations", tags=["library"])
 class ConsultationMetadata(BaseModel):
     """Consultation metadata for library listing."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     consultation_id: str
     event_count: int
     created_at: str
     updated_at: Optional[str] = None
-
-    class Config:
-        populate_by_name = True  # Allow both snake_case and camelCase
 
 
 class ConsultationsResponse(BaseModel):

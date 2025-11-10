@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from backend.logger import get_logger
 
@@ -38,6 +38,8 @@ class ResourceCategory(str, Enum):
 class T21Resource(BaseModel):
     """T21 resource model."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     resource_id: str
     title: str
     description: str
@@ -45,9 +47,6 @@ class T21Resource(BaseModel):
     icon: str
     url: Optional[str] = None
     tags: list[str] = []
-
-    class Config:
-        populate_by_name = True  # Allow both resource_id and id for compatibility
 
 
 class T21ResourcesResponse(BaseModel):
