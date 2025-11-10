@@ -41,7 +41,7 @@ __all__ = [
     "athletes",
     "coaches",
     "sessions",
-    "diarization",
+    # "diarization",  # Temporarily disabled
     "transcribe",
     "triage",
     "kpis",

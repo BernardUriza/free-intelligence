@@ -344,7 +344,7 @@ async def create_transcribe_chunk_job(
         session_id=session_id,
         chunk_number=chunk_number,
         status="queued",
-        created_at=datetime.now(UTC).isoformat(),
+        created_at=datetime.now(timezone.utc).isoformat(),
     )
 
 

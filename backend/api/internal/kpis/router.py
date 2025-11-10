@@ -13,7 +13,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from backend.kpis_aggregator import get_kpis_aggregator
+from backend.services.kpis_aggregator import get_kpis_aggregator
 from backend.logger import get_logger
 
 logger = get_logger(__name__)

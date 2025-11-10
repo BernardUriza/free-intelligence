@@ -76,9 +76,9 @@ def create_app() -> FastAPI:
         internal_app.include_router(internal.athletes.router, prefix="/athletes", tags=["athletes"])
         internal_app.include_router(internal.audit.router, prefix="/audit", tags=["audit"])
         internal_app.include_router(internal.coaches.router, prefix="/coaches", tags=["coaches"])
-        internal_app.include_router(
-            internal.diarization.router, prefix="/diarization", tags=["diarization"]
-        )
+        # internal_app.include_router(
+        #     internal.diarization.router, prefix="/diarization", tags=["diarization"]
+        # )  # Temporarily disabled - needs refactor
         internal_app.include_router(internal.exports.router, prefix="/exports", tags=["exports"])
         internal_app.include_router(internal.fi_diag.router, prefix="/fi-diag", tags=["fi-diag"])
         internal_app.include_router(internal.kpis.router, prefix="/kpis", tags=["kpis"])
