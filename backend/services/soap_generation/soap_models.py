@@ -6,7 +6,7 @@ All fields support multilingual content with English field names (medical standa
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 __all__ = ["SubjetiveData", "ObjetivoData", "AnalisisData", "PlanData", "SOAPNote"]
 
@@ -34,10 +34,7 @@ class SubjetiveData(BaseModel):
         min_length=1,
     )
 
-    class Config:
-        """Pydantic config."""
-
-        extra = "allow"  # Allow additional fields from LLM
+    model_config = ConfigDict(extra="allow")
 
 
 class ObjetivoData(BaseModel):
@@ -57,10 +54,7 @@ class ObjetivoData(BaseModel):
         min_length=1,
     )
 
-    class Config:
-        """Pydantic config."""
-
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
 
 class AnalisisData(BaseModel):
@@ -87,10 +81,7 @@ class AnalisisData(BaseModel):
             return [v]
         return v if v else []
 
-    class Config:
-        """Pydantic config."""
-
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
 
 class PlanData(BaseModel):
@@ -122,10 +113,7 @@ class PlanData(BaseModel):
             return [v]
         return v if v else []
 
-    class Config:
-        """Pydantic config."""
-
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
 
 class SOAPNote(BaseModel):
@@ -152,10 +140,7 @@ class SOAPNote(BaseModel):
         description="Plan section (treatment and follow-up)",
     )
 
-    class Config:
-        """Pydantic config."""
-
-        extra = "allow"  # Allow additional fields from LLM
+    model_config = ConfigDict(extra="allow")
 
     def to_dict(self) -> dict:
         """Convert SOAP note to dictionary with nested structure.

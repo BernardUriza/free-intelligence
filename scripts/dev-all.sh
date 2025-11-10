@@ -216,31 +216,31 @@ start_services() {
 
     echo ""
 
-    # Start Frontend (FI-Stride)
-    echo -e "${CYAN}🚀 Starting Frontend FI-Stride (port 9050)...${NC}"
-    cd apps/fi-stride
-    PORT=9050 pnpm dev > ../../logs/frontend-stride-dev.log 2>&1 &
-    STRIDE_PID=$!
-    cd ../..
+    # FI-Stride disabled (commented out for now)
+    # echo -e "${CYAN}🚀 Starting Frontend FI-Stride (port 9050)...${NC}"
+    # cd apps/fi-stride
+    # PORT=9050 pnpm dev > ../../logs/frontend-stride-dev.log 2>&1 &
+    # STRIDE_PID=$!
+    # cd ../..
+    #
+    # echo -n "   Waiting for FI-Stride to start"
+    # for i in {1..15}; do
+    #     if curl -s http://localhost:9050 > /dev/null 2>&1; then
+    #         echo ""
+    #         echo -e "   ${GREEN}✓${NC} Frontend FI-Stride ready"
+    #         break
+    #     fi
+    #     echo -n "."
+    #     sleep 1
+    # done
+    #
+    # if ! curl -s http://localhost:9050 > /dev/null 2>&1; then
+    #     echo ""
+    #     echo -e "   ${YELLOW}⚠️  Frontend FI-Stride still starting...${NC}"
+    #     echo -e "   ${YELLOW}   Check logs: tail -f logs/frontend-stride-dev.log${NC}"
+    # fi
 
-    # Wait for FI-Stride to be ready (Vite is faster than Next.js)
-    echo -n "   Waiting for FI-Stride to start"
-    for i in {1..15}; do
-        if curl -s http://localhost:9050 > /dev/null 2>&1; then
-            echo ""
-            echo -e "   ${GREEN}✓${NC} Frontend FI-Stride ready"
-            break
-        fi
-        echo -n "."
-        sleep 1
-    done
-
-    if ! curl -s http://localhost:9050 > /dev/null 2>&1; then
-        echo ""
-        echo -e "   ${YELLOW}⚠️  Frontend FI-Stride still starting...${NC}"
-        echo -e "   ${YELLOW}   Check logs: tail -f logs/frontend-stride-dev.log${NC}"
-    fi
-
+    echo -e "   ${YELLOW}ℹ️  FI-Stride disabled (not started)${NC}"
     echo ""
 }
 
@@ -259,18 +259,15 @@ show_info() {
     echo "    └─ Dashboard: http://localhost:9000/dashboard"
     echo "    └─ Triage:    http://localhost:9000/triage"
     echo ""
-    echo "  • FI-Stride SPA: http://localhost:9050"
-    echo "    └─ Console Dashboard"
+    echo -e "  ${YELLOW}• FI-Stride SPA: DISABLED${NC}"
     echo ""
     echo -e "${CYAN}Logs:${NC}"
     echo "  • Backend:        tail -f logs/backend-dev.log"
     echo "  • AURITY:         tail -f logs/frontend-aurity-dev.log"
-    echo "  • FI-Stride:      tail -f logs/frontend-stride-dev.log"
     echo ""
     echo -e "${CYAN}Process IDs:${NC}"
     echo "  • Backend PID:    $BACKEND_PID"
     echo "  • AURITY PID:     $FRONTEND_PID"
-    echo "  • FI-Stride PID:  $STRIDE_PID"
     echo ""
     echo "=========================================="
     echo -e "${YELLOW}Press Ctrl+C to stop all services${NC}"
@@ -279,15 +276,15 @@ show_info() {
     echo -e "${CYAN}Stack:${NC}"
     echo "  • FastAPI (Backend, port 7001)"
     echo "  • Next.js 16.0.1 (AURITY, port 9000)"
-    echo "  • Vite 5.0 + React 18.3 (FI-Stride, port 9050)"
-    echo "  • pnpm 10.20.0"
+    echo ""
+    echo -e "${YELLOW}Note: FI-Stride disabled. To run it separately: make stride-dev${NC}"
     echo ""
 }
 
 # Monitor logs in real-time
 monitor_logs() {
-    # Use tail to follow all logs
-    tail -f logs/backend-dev.log logs/frontend-aurity-dev.log logs/frontend-stride-dev.log 2>/dev/null || {
+    # Use tail to follow all logs (FI-Stride disabled)
+    tail -f logs/backend-dev.log logs/frontend-aurity-dev.log 2>/dev/null || {
         # Fallback: just wait for Ctrl+C
         while true; do
             sleep 1

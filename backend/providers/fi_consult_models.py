@@ -10,12 +10,12 @@ File: backend/fi_consult_models.py
 Created: 2025-10-28
 """
 
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Optional
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ============================================================================
 # ENUMS
@@ -229,10 +229,7 @@ class Subjetivo(BaseModel):
     contexto_psicosocial: Optional[str] = None
     habitos: Optional[Habitos] = None
 
-    class Config:
-        """Allow population from both Spanish and English field names."""
-
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SignosVitales(BaseModel):
@@ -252,10 +249,7 @@ class SignosVitales(BaseModel):
     imc: Optional[float] = None
     glucosa: Optional[float] = None
 
-    class Config:
-        """Allow population from both Spanish and English field names."""
-
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ExploracionFisica(BaseModel):
@@ -275,10 +269,7 @@ class ExploracionFisica(BaseModel):
     neurologico: Optional[str] = None
     piel: Optional[str] = None
 
-    class Config:
-        """Allow population from both Spanish and English field names."""
-
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class Objetivo(BaseModel):
@@ -292,10 +283,7 @@ class Objetivo(BaseModel):
     exploracion_fisica: ExploracionFisica
     estudios_complementarios: Optional[dict[str, Any]] = None
 
-    class Config:
-        """Allow population from both Spanish and English field names."""
-
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class DiagnosticoPrincipal(BaseModel):
@@ -347,10 +335,7 @@ class Analisis(BaseModel):
     pronostico: Pronostico
     razonamiento_clinico: Optional[str] = None
 
-    class Config:
-        """Allow population from both Spanish and English field names."""
-
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class TratamientoFarmacologico(BaseModel):
@@ -413,10 +398,7 @@ class Plan(BaseModel):
     seguimiento: Seguimiento
     criterios_hospitalizacion: Optional[list[str]] = None
 
-    class Config:
-        """Allow population from both Spanish and English field names."""
-
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SOAPMetadata(BaseModel):
@@ -473,7 +455,7 @@ class ConsultationEvent(BaseModel):
 
     event_id: str = Field(default_factory=lambda: str(uuid4()))
     consultation_id: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     event_type: EventType
     payload: dict[str, Any]
     metadata: EventMetadata
@@ -594,8 +576,8 @@ class Consultation(BaseModel):
 
     consultation_id: str = Field(default_factory=lambda: str(uuid4()))
     session_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Current state
     messages: list[dict[str, Any]] = Field(default_factory=list)
@@ -613,11 +595,6 @@ class Consultation(BaseModel):
     # Event stream
     event_count: int = Field(default=0, ge=0)
     last_event_id: Optional[str] = None
-
-    class Config:
-        """Pydantic config."""
-
-        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 # ============================================================================

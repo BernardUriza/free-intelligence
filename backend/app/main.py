@@ -64,6 +64,7 @@ def create_app() -> FastAPI:
         public_app.include_router(public.workflows.router)  # Aurity orchestrator
         public_app.include_router(public.katniss.router)
         public_app.include_router(public.t21_resources.router)
+        public_app.include_router(public.tts.router)  # Azure TTS
         public_app.include_router(public.system.router, prefix="/system", tags=["system"])
 
         # INTERNAL API (no CORS, atomic resources, localhost-only)

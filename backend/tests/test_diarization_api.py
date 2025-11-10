@@ -34,7 +34,7 @@ from __future__ import annotations
 import io
 import json
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -42,7 +42,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 # Import services and models only (avoid full app initialization in tests)
-from backend.api import diarization
+from backend.api.internal.diarization import router as diarization
 
 
 @pytest.fixture
@@ -114,7 +114,7 @@ def valid_audio_content():
 @pytest.fixture
 def valid_session_id():
     """Generate valid session ID"""
-    return f"session_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+    return f"session_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
 
 
 # ============================================================================

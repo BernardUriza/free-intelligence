@@ -9,9 +9,9 @@ Created: 2025-11-09
 
 from __future__ import annotations
 
-import os
 import tempfile
-from datetime import datetime, timezone
+from collections.abc import Generator
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -20,7 +20,7 @@ from backend.app.audit.sink import read_audit_events, write_audit_event
 
 
 @pytest.fixture
-def audit_root(monkeypatch: pytest.MonkeyPatch) -> Path:
+def audit_root(monkeypatch: pytest.MonkeyPatch) -> Generator[Path, None, None]:
     """Temporary audit root for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         audit_path = Path(tmpdir) / "audit"
@@ -50,7 +50,7 @@ def test_write_audit_event_creates_partition(audit_root: Path) -> None:
     assert event_id.count("-") == 4
 
     # Check partition directory exists
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
     partition_dir = audit_root / f"date={today}"
     assert partition_dir.exists()
 
@@ -72,7 +72,7 @@ def test_write_and_read_audit_event(audit_root: Path) -> None:
     )
 
     # Read back
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
     events = read_audit_events(start_date=today, end_date=today)
 
     assert len(events) >= 1
@@ -121,7 +121,7 @@ def test_write_audit_event_handles_empty_metadata(audit_root: Path) -> None:
         metadata=None,
     )
 
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
     events = read_audit_events(start_date=today)
 
     event = next(e for e in events if e["event_id"] == event_id)
