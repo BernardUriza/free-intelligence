@@ -46,7 +46,7 @@ def compute_hash_for_target(target_id: str) -> tuple[str, Optional[str]]:
                     interaction_group = session_group[int_id]
 
                     # Read content_hash from metadata
-                    if "metadata" in interaction_group:
+                    if "metadata" in interaction_group:  # type: ignore[operator]
                         metadata_ds = interaction_group["metadata"]
                         content_hash = (
                             metadata_ds.attrs.get("content_hash", b"").decode()  # type: ignore[attr-defined, union-attr]

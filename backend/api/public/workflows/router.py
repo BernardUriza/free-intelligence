@@ -441,9 +441,6 @@ async def list_consult_jobs(status_filter: Optional[str] = None) -> Any:
     - List of jobs with basic info (job_id, session_id, status, created_at)
     """
     try:
-        # Get services
-        diarization_service = get_container().get_diarization_service()
-
         # Get all jobs
         from backend.services.diarization.jobs import list_jobs
 
@@ -456,7 +453,7 @@ async def list_consult_jobs(status_filter: Optional[str] = None) -> Any:
         # Sort by created_at descending (most recent first)
         all_jobs.sort(key=lambda x: x.created_at, reverse=True)
 
-        # Return simplified job list
+        # Return simplified job list with result_data for SOAP status
         return [
             {
                 "job_id": job.job_id,
@@ -466,6 +463,7 @@ async def list_consult_jobs(status_filter: Optional[str] = None) -> Any:
                 "created_at": job.created_at,
                 "completed_at": job.completed_at,
                 "audio_file_size": job.audio_file_size,
+                "result_data": job.result_data,  # Include for SOAP status badges
             }
             for job in all_jobs
         ]

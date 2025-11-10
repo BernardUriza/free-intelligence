@@ -76,7 +76,7 @@ def _save_job_to_hdf5(job: DiarizationJob) -> None:
         jobs_group = f["jobs"]
 
         # Delete existing dataset if present
-        if job.job_id in jobs_group:
+        if job.job_id in jobs_group:  # type: ignore[operator]
             del jobs_group[job.job_id]
 
         # Create new dataset with JSON string
@@ -92,7 +92,7 @@ def _load_job_from_hdf5(job_id: str) -> Optional[DiarizationJob]:
 
     try:
         with h5py.File(DIARIZATION_H5_PATH, "r") as f:
-            if "jobs" not in f or job_id not in f["jobs"]:
+            if "jobs" not in f or job_id not in f["jobs"]:  # type: ignore[operator]
                 return None
 
             job_json = f["jobs"][job_id][()]
@@ -281,7 +281,7 @@ def delete_job(job_id: str) -> bool:
 
     try:
         with h5py.File(DIARIZATION_H5_PATH, "a") as f:
-            if "jobs" not in f or job_id not in f["jobs"]:
+            if "jobs" not in f or job_id not in f["jobs"]:  # type: ignore[operator]
                 return False
 
             del f["jobs"][job_id]
