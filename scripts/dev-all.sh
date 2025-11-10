@@ -108,7 +108,7 @@ install_deps() {
 
 # Initialize storage
 init_storage() {
-    echo -e "${BLUE}[3/4]${NC} Initializing storage..."
+    echo -e "${BLUE}[3/5]${NC} Initializing storage..."
 
     # Create directories
     mkdir -p storage logs data/triage_buffers data/diarization_jobs
@@ -125,55 +125,50 @@ init_storage() {
     echo ""
 }
 
-# Cleanup function
-cleanup() {
-    echo ""
-    echo -e "${YELLOW}Shutting down services...${NC}"
+# Start Docker services (Full Stack: Redis + Backend + Celery + Flower)
+start_docker() {
+    echo -e "${BLUE}[4/5]${NC} Starting Docker services..."
 
-    # Kill background processes
-    if [ -n "$BACKEND_PID" ]; then
-        kill $BACKEND_PID 2>/dev/null || true
-    fi
-    if [ -n "$FRONTEND_PID" ]; then
-        kill $FRONTEND_PID 2>/dev/null || true
-    fi
-    if [ -n "$STRIDE_PID" ]; then
-        kill $STRIDE_PID 2>/dev/null || true
+    # Check if docker is available
+    if ! command -v docker &> /dev/null; then
+        echo -e "   ${YELLOW}⚠️  Docker not found - skipping Docker stack${NC}"
+        echo ""
+        return
     fi
 
-    # Kill any remaining uvicorn/node processes on our ports
-    lsof -ti:7001 | xargs kill -9 2>/dev/null || true
-    lsof -ti:9000 | xargs kill -9 2>/dev/null || true
-    lsof -ti:9050 | xargs kill -9 2>/dev/null || true
+    # Check if docker-compose is available
+    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null 2>&1; then
+        echo -e "   ${YELLOW}⚠️  docker-compose not found - skipping Docker stack${NC}"
+        echo ""
+        return
+    fi
 
-    echo -e "${GREEN}✓${NC} Services stopped"
-    exit 0
-}
+    # Use 'docker compose' (v2) if available, fallback to 'docker-compose' (v1)
+    if docker compose version &> /dev/null 2>&1; then
+        DOCKER_COMPOSE="docker compose"
+    else
+        DOCKER_COMPOSE="docker-compose"
+    fi
 
-# Register cleanup handler
-trap cleanup SIGINT SIGTERM EXIT
+    # Start Full Stack (Redis + Backend + Celery Worker + Flower)
+    echo "   Starting Full Docker Stack (Redis + Backend + Workers + Flower)..."
+    $DOCKER_COMPOSE -f docker/docker-compose.full.yml up -d --build
 
-# Start services
-start_services() {
-    echo -e "${BLUE}[4/4]${NC} Starting services..."
-    echo ""
+    # Wait for services to be healthy
+    echo -n "   Waiting for Redis to be healthy"
+    for i in {1..30}; do
+        if docker inspect fi-redis 2>/dev/null | grep -q '"Status": "healthy"'; then
+            echo ""
+            echo -e "   ${GREEN}✓${NC} Redis ready"
+            break
+        fi
+        echo -n "."
+        sleep 1
+    done
 
-    # Start Backend API
-    echo -e "${CYAN}🚀 Starting Backend API (port 7001)...${NC}"
-    export PYTHONPATH="${PROJECT_ROOT}"
-    python3 -m uvicorn backend.app.main:create_app \
-        --factory \
-        --host 0.0.0.0 \
-        --port 7001 \
-        --reload \
-        --log-level info \
-        > logs/backend-dev.log 2>&1 &
-    BACKEND_PID=$!
-
-    # Wait for backend to be ready
-    echo -n "   Waiting for backend to start"
-    for i in {1..15}; do
-        if curl -s http://localhost:7001/health > /dev/null 2>&1; then
+    echo -n "   Waiting for Backend API to be healthy"
+    for i in {1..30}; do
+        if docker inspect fi-backend 2>/dev/null | grep -q '"Status": "healthy"'; then
             echo ""
             echo -e "   ${GREEN}✓${NC} Backend API ready"
             break
@@ -182,11 +177,60 @@ start_services() {
         sleep 1
     done
 
-    if ! curl -s http://localhost:7001/health > /dev/null 2>&1; then
-        echo ""
-        echo -e "   ${YELLOW}⚠️  Backend may still be starting...${NC}"
+    echo -n "   Waiting for Celery Worker to be healthy"
+    for i in {1..30}; do
+        if docker inspect fi-celery-worker 2>/dev/null | grep -q '"Status": "healthy"'; then
+            echo ""
+            echo -e "   ${GREEN}✓${NC} Celery Worker ready"
+            break
+        fi
+        echo -n "."
+        sleep 1
+    done
+
+    echo -e "   ${GREEN}✓${NC} Flower (monitoring) started"
+    echo ""
+}
+
+# Cleanup function
+cleanup() {
+    echo ""
+    echo -e "${YELLOW}Shutting down services...${NC}"
+
+    # Kill Frontend process
+    if [ -n "$FRONTEND_PID" ]; then
+        kill $FRONTEND_PID 2>/dev/null || true
+    fi
+    if [ -n "$STRIDE_PID" ]; then
+        kill $STRIDE_PID 2>/dev/null || true
     fi
 
+    # Kill any remaining node processes on our ports
+    lsof -ti:9000 | xargs kill -9 2>/dev/null || true
+    lsof -ti:9050 | xargs kill -9 2>/dev/null || true
+
+    # Stop Docker services (Full Stack)
+    if command -v docker &> /dev/null; then
+        echo -e "${YELLOW}Stopping Docker stack...${NC}"
+        if docker compose version &> /dev/null 2>&1; then
+            DOCKER_COMPOSE="docker compose"
+        else
+            DOCKER_COMPOSE="docker-compose"
+        fi
+        $DOCKER_COMPOSE -f docker/docker-compose.full.yml down 2>/dev/null || true
+        echo -e "${GREEN}✓${NC} Docker stack stopped"
+    fi
+
+    echo -e "${GREEN}✓${NC} All services stopped"
+    exit 0
+}
+
+# Register cleanup handler
+trap cleanup SIGINT SIGTERM EXIT
+
+# Start services (Frontend only - Backend runs in Docker)
+start_services() {
+    echo -e "${BLUE}[5/5]${NC} Starting Frontend service..."
     echo ""
 
     # Start Frontend (AURITY)
@@ -251,22 +295,34 @@ show_info() {
     echo "=========================================="
     echo ""
     echo -e "${CYAN}Services:${NC}"
-    echo "  • Backend API:  http://localhost:7001"
-    echo "    └─ Docs:      http://localhost:7001/docs"
-    echo "    └─ Health:    http://localhost:7001/health"
+    echo "  • Backend API (Docker):  http://localhost:7001"
+    echo "    └─ Docs:               http://localhost:7001/docs"
+    echo "    └─ Health:             http://localhost:7001/health"
     echo ""
-    echo "  • AURITY Frontend: http://localhost:9000"
-    echo "    └─ Dashboard: http://localhost:9000/dashboard"
-    echo "    └─ Triage:    http://localhost:9000/triage"
+    echo "  • AURITY Frontend (Host): http://localhost:9000"
+    echo "    └─ Dashboard:           http://localhost:9000/dashboard"
+    echo "    └─ Triage:              http://localhost:9000/triage"
     echo ""
+
+    # Show Docker services
+    if command -v docker &> /dev/null && docker ps --format '{{.Names}}' | grep -q "fi-redis"; then
+        echo -e "${CYAN}Docker Stack:${NC}"
+        echo "  • Redis:           localhost:6379 (broker)"
+        echo "  • Backend API:     localhost:7001 (Docker)"
+        echo "  • Celery Worker:   2 workers (queues: asr, celery)"
+        echo "  • Flower:          http://localhost:5555 (monitoring)"
+        echo ""
+    fi
+
     echo -e "  ${YELLOW}• FI-Stride SPA: DISABLED${NC}"
     echo ""
     echo -e "${CYAN}Logs:${NC}"
-    echo "  • Backend:        tail -f logs/backend-dev.log"
-    echo "  • AURITY:         tail -f logs/frontend-aurity-dev.log"
+    echo "  • Backend (Docker):  docker logs -f fi-backend"
+    echo "  • AURITY (Host):     tail -f logs/frontend-aurity-dev.log"
+    echo "  • Celery Worker:     docker logs -f fi-celery-worker"
+    echo "  • All Docker:        docker compose -f docker/docker-compose.full.yml logs -f"
     echo ""
     echo -e "${CYAN}Process IDs:${NC}"
-    echo "  • Backend PID:    $BACKEND_PID"
     echo "  • AURITY PID:     $FRONTEND_PID"
     echo ""
     echo "=========================================="
@@ -274,8 +330,12 @@ show_info() {
     echo "=========================================="
     echo ""
     echo -e "${CYAN}Stack:${NC}"
-    echo "  • FastAPI (Backend, port 7001)"
-    echo "  • Next.js 16.0.1 (AURITY, port 9000)"
+    echo "  • Backend API:         FastAPI (Docker, port 7001)"
+    echo "  • Frontend:            Next.js 16.0.1 (Host, port 9000)"
+    echo "  • Infrastructure:      Redis 7 + Celery 5.5 + Flower 2.0 (Docker)"
+    echo "  • ASR Engine:          faster-whisper small INT8 (Docker Worker)"
+    echo ""
+    echo -e "${GREEN}✨ Full Docker deployment active!${NC}"
     echo ""
     echo -e "${YELLOW}Note: FI-Stride disabled. To run it separately: make stride-dev${NC}"
     echo ""
@@ -297,6 +357,7 @@ main() {
     check_prereqs
     install_deps
     init_storage
+    start_docker
     start_services
     show_info
     monitor_logs

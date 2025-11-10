@@ -264,8 +264,30 @@ info: ## Show project information
 # Turborepo Commands
 # ============================================================================
 
-dev-all: ## Start all services (Backend + AURITY + FI-Stride in single terminal)
+dev-all: ## Start all services (Full Docker Stack + Frontend in single terminal)
 	@./scripts/dev-all.sh
+
+# Docker commands
+docker-up: ## Start Docker stack only (Redis + Backend + Workers + Flower)
+	@docker compose -f docker/docker-compose.full.yml up -d
+
+docker-down: ## Stop Docker stack
+	@docker compose -f docker/docker-compose.full.yml down
+
+docker-logs: ## Show Docker logs (all services)
+	@docker compose -f docker/docker-compose.full.yml logs -f
+
+docker-logs-backend: ## Show Backend API logs
+	@docker logs -f fi-backend
+
+docker-logs-worker: ## Show Celery Worker logs
+	@docker logs -f fi-celery-worker
+
+docker-rebuild: ## Rebuild and restart Docker stack
+	@docker compose -f docker/docker-compose.full.yml up -d --build
+
+docker-ps: ## Show Docker containers status
+	@docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "(NAMES|fi-)"
 
 stride-dev: ## Start FI-Stride dev server (port 9050)
 	@echo "🚀 Starting FI-Stride dev server on http://localhost:9050"
