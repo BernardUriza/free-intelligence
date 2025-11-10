@@ -1,0 +1,159 @@
+# Docker Compose - Full Stack
+# Backend API + Frontend + Celery Workers + Redis + Flower
+#
+# Usage:
+#   docker compose -f docker/docker-compose.full.yml up -d
+#   docker compose -f docker/docker-compose.full.yml down
+#
+# Created: 2025-11-10
+
+version: '3.8'
+
+services:
+  # Redis - Message broker & result backend
+  redis:
+    image: redis:7-alpine
+    container_name: fi-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - fi-network
+
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: fi-backend
+    ports:
+      - "7001:7001"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB_BROKER=0
+      - REDIS_DB_BACKEND=1
+      # Storage
+      - AURITY_CORPUS_H5=/app/storage/corpus.h5
+      - AURITY_AUDIO_ROOT=/app/storage/audio
+      - AURITY_ENABLE_WEBM_GRAFT=true
+      - HDF5_USE_FILE_LOCKING=FALSE
+      # Whisper
+      - WHISPER_MODEL_SIZE=small
+      - AURITY_ASR_PROVIDER=whisper
+      # Python
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../backend:/app/backend
+      - ../packages:/app/packages
+      - ../storage:/app/storage
+      - ../logs:/app/logs
+      - ../data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - fi-network
+
+  # Celery Worker (ASR + Background tasks)
+  celery_worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.celery
+    container_name: fi-celery-worker
+    command: celery -A backend.workers.celery_app worker --loglevel=info --queues=asr,celery --concurrency=2 --max-tasks-per-child=100
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB_BROKER=0
+      - REDIS_DB_BACKEND=1
+      - PYTHONPATH=/app
+      - AURITY_CORPUS_H5=/app/storage/corpus.h5
+      - AURITY_AUDIO_ROOT=/app/storage/audio
+      - AURITY_ENABLE_WEBM_GRAFT=true
+      - HDF5_USE_FILE_LOCKING=FALSE
+      - WHISPER_MODEL_SIZE=small
+    volumes:
+      - ../backend:/app/backend
+      - ../packages:/app/packages
+      - ../storage:/app/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A backend.workers.celery_app inspect ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - fi-network
+
+  # Flower - Celery monitoring UI
+  celery_flower:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.celery
+    container_name: fi-celery-flower
+    command: celery -A backend.workers.celery_app flower --port=5555
+    depends_on:
+      - redis
+      - celery_worker
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB_BROKER=0
+      - REDIS_DB_BACKEND=1
+    ports:
+      - "5555:5555"
+    restart: unless-stopped
+    networks:
+      - fi-network
+
+  # Frontend (Next.js - AURITY)
+  # Note: For development, we still run this on host with hot-reload
+  # Uncomment for full Docker deployment
+  # frontend:
+  #   build:
+  #     context: ..
+  #     dockerfile: apps/aurity/Dockerfile
+  #   container_name: fi-frontend
+  #   ports:
+  #     - "9000:3000"
+  #   environment:
+  #     - NEXT_PUBLIC_API_URL=http://backend:7001
+  #   depends_on:
+  #     - backend
+  #   volumes:
+  #     - ../apps/aurity:/app
+  #     - /app/node_modules
+  #     - /app/.next
+  #   restart: unless-stopped
+  #   networks:
+  #     - fi-network
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  fi-network:
+    driver: bridge
