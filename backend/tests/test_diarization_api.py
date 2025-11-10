@@ -27,14 +27,25 @@ Test Coverage (25 test cases):
 ✓ Restart job management
 ✓ Cancel job management
 ✓ Audit logging on actions
+
+NOTE: Diarization endpoint disabled (2025-11-10) - needs refactor
+      Services moved to _deprecated_20251109/
+      Endpoint commented out in backend/app/main.py:80
 """
 
 from __future__ import annotations
 
+import pytest
+
+# Skip entire test module - diarization endpoint disabled pending refactor
+pytestmark = pytest.mark.skip(
+    reason="Diarization endpoint disabled - needs refactor (see backend/app/main.py:80)"
+)
+
 import io
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
