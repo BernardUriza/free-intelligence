@@ -19,7 +19,7 @@ from __future__ import annotations
 import threading
 import time
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
@@ -51,11 +51,11 @@ class JobStatusResponse(BaseModel):
     session_id: str
     chunk_number: int
     status: str = Field(..., description="pending | processing | completed | failed")
-    transcript: Optional[str] = Field(None, description="Transcript (if completed)")
-    duration: Optional[float] = Field(None, description="Audio duration in seconds")
-    language: Optional[str] = Field(None, description="Detected language")
-    error: Optional[str] = Field(None, description="Error message (if failed)")
-    latency_ms: Optional[int] = Field(None, description="Processing time in ms")
+    transcript: str | None = Field(None, description="Transcript (if completed)")
+    duration: float | None = Field(None, description="Audio duration in seconds")
+    language: str | None = Field(None, description="Detected language")
+    error: str | None = Field(None, description="Error message (if failed)")
+    latency_ms: int | None = Field(None, description="Processing time in ms")
 
 
 def _process_chunk_background(
