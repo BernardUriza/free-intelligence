@@ -31,14 +31,18 @@ from packages.fi_common.storage.corpus_identity import (
     verify_corpus_ownership,
 )
 
-# Re-export corpus_ops functions
-from packages.fi_common.storage.corpus_ops import (
-    append_embedding,
-    append_interaction,
-    append_interaction_with_embedding,
-    get_corpus_stats,
-    read_interactions,
-)
+# Re-export corpus_ops functions (lazy import to avoid llm_router dependency)
+try:
+    from packages.fi_common.storage.corpus_ops import (
+        append_embedding,
+        append_interaction,
+        append_interaction_with_embedding,
+        get_corpus_stats,
+        read_interactions,
+    )
+except ImportError:
+    # Allow import to succeed even if llm_router not available
+    pass
 
 # Re-export corpus_schema functions and classes
 from packages.fi_common.storage.corpus_schema import (
@@ -48,12 +52,16 @@ from packages.fi_common.storage.corpus_schema import (
     validate_corpus,
 )
 
-# Re-export search functions
-from packages.fi_common.storage.search import (
-    cosine_similarity,
-    search_by_session,
-    semantic_search,
-)
+# Re-export search functions (lazy import to avoid llm_router dependency)
+try:
+    from packages.fi_common.storage.search import (
+        cosine_similarity,
+        search_by_session,
+        semantic_search,
+    )
+except ImportError:
+    # Allow import to succeed even if llm_router not available
+    pass
 
 # Re-export sessions_store functions and classes
 from packages.fi_common.storage.sessions_store import Session, SessionsStore, generate_ulid

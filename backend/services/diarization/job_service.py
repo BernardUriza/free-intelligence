@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 
 def now_utc() -> datetime:
     """Python 3.9 compatible UTC now."""
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 @dataclass

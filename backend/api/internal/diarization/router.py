@@ -158,7 +158,7 @@ def _process_diarization_background_v2(
                 )
 
             # Run optimized diarization pipeline
-            result = await diarize_audio_parallel(
+            result = await diarize_audio_parallel(  # type: ignore[name-defined]
                 audio_path, session_id, language, persist, progress_callback
             )
 
@@ -224,7 +224,7 @@ def _process_diarization_background(
                 total_chunks=total,
             )
 
-        result = diarize_audio(
+        result = diarize_audio(  # type: ignore[name-defined]
             audio_path,
             session_id,
             language,

@@ -26,10 +26,10 @@ services:
 
   celery_worker:
     build:
-      context: .
-      dockerfile: Dockerfile.celery
+      context: ..
+      dockerfile: docker/Dockerfile.celery
     container_name: fi-celery-worker
-    command: celery -A backend.workers.celery_app worker --loglevel=info --concurrency=2 --max-tasks-per-child=100
+    command: celery -A backend.workers.celery_app worker --loglevel=info --queues=asr,celery --concurrency=4 --max-tasks-per-child=100
     depends_on:
       redis:
         condition: service_healthy
@@ -39,10 +39,15 @@ services:
       - REDIS_DB_BROKER=0
       - REDIS_DB_BACKEND=1
       - PYTHONPATH=/app
+      - AURITY_CORPUS_H5=/app/storage/corpus.h5
+      - AURITY_AUDIO_ROOT=/app/storage/audio
+      - AURITY_ENABLE_WEBM_GRAFT=false
+      - HDF5_USE_FILE_LOCKING=FALSE
+      - WHISPER_MODEL_SIZE=small
     volumes:
-      - ./backend:/app/backend
-      - ./packages:/app/packages
-      - ./storage:/app/storage
+      - ../backend:/app/backend
+      - ../packages:/app/packages
+      - ../storage:/app/storage
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "celery -A backend.workers.celery_app inspect ping"]
@@ -52,8 +57,8 @@ services:
 
   celery_flower:
     build:
-      context: .
-      dockerfile: Dockerfile.celery
+      context: ..
+      dockerfile: docker/Dockerfile.celery
     container_name: fi-celery-flower
     command: celery -A backend.workers.celery_app flower --port=5555
     depends_on:

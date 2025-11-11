@@ -1,7 +1,7 @@
 {
   "timestamp": "2025-10-29T00:00:00Z",
   "total": 12,
-  "valid": 12,
+  "valid": 10,
   "results": [
     {
       "status": "VALID",
@@ -67,18 +67,16 @@
       "message": "\u2705 Artifact valid and executable"
     },
     {
-      "status": "VALID",
+      "status": "MISSING",
       "card_id": "FI-POLICY-004",
       "artifact": "tests/test_redaction.py",
-      "size_kb": 5.37,
-      "message": "\u2705 Artifact valid and executable"
+      "message": "Artifact not found: tests/test_redaction.py"
     },
     {
-      "status": "VALID",
+      "status": "MISSING",
       "card_id": "FI-POLICY-005",
       "artifact": "tests/test_decision_rules.py",
-      "size_kb": 6.71,
-      "message": "\u2705 Artifact valid and executable"
+      "message": "Artifact not found: tests/test_decision_rules.py"
     },
     {
       "status": "VALID",

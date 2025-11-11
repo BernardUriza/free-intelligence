@@ -14,7 +14,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.api.public.workflows.router import _atomic_write, _probe_ok
+from backend.api.public.workflows.router import (  # type: ignore[reportPrivateUsage]
+    _atomic_write,  # pyright: ignore[reportPrivateUsage]
+    _probe_ok,  # pyright: ignore[reportPrivateUsage]
+)
 
 
 def test_atomic_write_creates_file():

@@ -45,10 +45,9 @@ pytestmark = pytest.mark.skip(
 import io
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -125,7 +124,7 @@ def valid_audio_content():
 @pytest.fixture
 def valid_session_id():
     """Generate valid session ID"""
-    return f"session_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+    return f"session_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
 
 
 # ============================================================================

@@ -1,15 +1,29 @@
 """WebM Header Grafting for RecordRTC Chunk Repair.
 
-Card: AUR-PROMPT-3.4
-Created: 2025-11-09
+⚠️ DEPRECATED (2025-11-10) - NO LONGER NEEDED ⚠️
 
-Problem:
+Card: AUR-PROMPT-3.4 (OLD) → AUR-PROMPT-4.2 (NEW FIX)
+Created: 2025-11-09
+Deprecated: 2025-11-10
+
+Problem (OLD):
 - RecordRTC chunks > 0 arrive as raw Opus (no EBML header)
 - FFmpeg fails: "EBML header parsing failed"
 
-Solution:
+Solution (OLD - DEPRECATED):
 - Extract header from chunk_0.webm (has EBML)
 - Graft header onto raw chunks before ffmpeg decode
+- ISSUE: Segment size mismatch caused corruption
+
+Solution (NEW - PRODUCTION):
+- Frontend uses RecordRTC stop/start loop pattern
+- Each chunk is a COMPLETE recording with full headers
+- 100% chunks have headers (not just chunk 0)
+- FFmpeg decodes all chunks without modification
+- See: apps/aurity/lib/recording/makeRecorder.ts
+
+This module remains for legacy MediaRecorder fallback but is
+disabled by default: AURITY_ENABLE_WEBM_GRAFT=false
 
 File: backend/workers/webm_graft.py
 """
@@ -17,6 +31,7 @@ File: backend/workers/webm_graft.py
 from __future__ import annotations
 
 import shutil
+import time
 from pathlib import Path
 
 EBML_MAGIC = b"\x1A\x45\xDF\xA3"
@@ -33,11 +48,20 @@ def is_ebml(path: Path) -> bool:
 
 
 def _extract_header_bytes(webm_bytes: bytes) -> bytes:
-    """Extract WebM header (everything before first Cluster element)."""
+    """
+    Extract WebM header (everything before first Cluster element).
+
+    IMPORTANT: RecordRTC chunks > 0 are headerless BUT already contain
+    their own Cluster elements. We must NOT include any Cluster data
+    from chunk_0, only the EBML + Segment + Tracks metadata.
+    """
     idx = webm_bytes.find(EBML_CLUSTER_ID)
     if idx == -1:
-        # Header till first cluster unknown; keep a safe cap
+        # No Cluster found - unlikely but cap at safe size
         return webm_bytes[: min(len(webm_bytes), 8192)]
+
+    # Return everything BEFORE the first Cluster
+    # This ensures we only get: EBML header + Segment info + Tracks + Codecs
     return webm_bytes[:idx]
 
 
@@ -46,6 +70,37 @@ def _candidate_chunk0_paths(sess_dir: Path) -> list[Path]:
     # Soporta 0.webm, chunk_0.webm y variantes grafted
     names = ["0.webm", "chunk_0.webm", "0.grafted.webm", "chunk_0.grafted.webm"]
     return [sess_dir / n for n in names]
+
+
+def wait_for_chunk0(sess_dir: Path, timeout: float = 3.0) -> Path | None:
+    """
+    Wait for chunk 0 to be available (race condition killer).
+
+    Chunks > 0 may arrive before chunk 0 is fully written.
+    This helper polls for chunk 0 existence with timeout.
+
+    Args:
+        sess_dir: Session directory
+        timeout: Max wait time in seconds
+
+    Returns:
+        Path to chunk 0 if found, None if timeout
+    """
+    deadline = time.time() + timeout
+
+    # Quick check first (no wait)
+    for p in _candidate_chunk0_paths(sess_dir):
+        if p.exists() and p.stat().st_size > 0:
+            return p
+
+    # Poll with backoff
+    while time.time() < deadline:
+        for p in _candidate_chunk0_paths(sess_dir):
+            if p.exists() and p.stat().st_size > 0:
+                return p
+        time.sleep(0.05)  # 50ms poll interval
+
+    return None
 
 
 def ensure_session_header(sess_dir: Path) -> bytes:
