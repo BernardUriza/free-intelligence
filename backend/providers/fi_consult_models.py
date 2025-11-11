@@ -455,7 +455,7 @@ class ConsultationEvent(BaseModel):
 
     event_id: str = Field(default_factory=lambda: str(uuid4()))
     consultation_id: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     event_type: EventType
     payload: dict[str, Any]
     metadata: EventMetadata
@@ -576,8 +576,8 @@ class Consultation(BaseModel):
 
     consultation_id: str = Field(default_factory=lambda: str(uuid4()))
     session_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Current state
     messages: list[dict[str, Any]] = Field(default_factory=list)

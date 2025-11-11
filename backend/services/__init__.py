@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from backend.services.audit_service import AuditService
     from backend.services.corpus_service import CorpusService
     from backend.services.diagnostics_service import DiagnosticsService
-    from backend.services.diarization_service import DiarizationService
+    from backend.services.diarization import DiarizationService
     from backend.services.evidence_service import EvidenceService
     from backend.services.export_service import ExportService
     from backend.services.session_service import SessionService
@@ -49,7 +49,7 @@ def __getattr__(name: str) -> Any:
 
             return DiagnosticsService
         elif name == "DiarizationService":
-            from backend.services.diarization_service import DiarizationService
+            from backend.services.diarization import DiarizationService
 
             return DiarizationService
         elif name == "EvidenceService":

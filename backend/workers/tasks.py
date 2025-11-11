@@ -273,7 +273,15 @@ def generate_soap_note(self, job_id: str, result_data: dict) -> dict:
         raise self.retry(exc=exc, countdown=countdown)
 
 
-@celery_app.task(bind=True, name="transcribe_chunk_task", max_retries=2)
+@celery_app.task(
+    bind=True,
+    name="transcribe_chunk_task",
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    max_retries=3,
+    queue="asr",
+    acks_late=True,
+)
 def transcribe_chunk_task(
     self,
     session_id: str,
@@ -329,13 +337,32 @@ def transcribe_chunk_task(
         )
 
         # Step 1: WebM Header Graft (AUR-PROMPT-3.4)
-        # RecordRTC chunks > 0 lack EBML header → graft from chunk 0
+        # ========================================================================
+        # WEBM HEADER GRAFTING (DEPRECATED - 2025-11-10)
+        # ========================================================================
+        # NO LONGER NEEDED: RecordRTC stop/start loop (makeRecorder.ts) now
+        # generates independent chunks with complete headers (EBML/MP4/WAV).
+        #
+        # This code remains as fallback for legacy MediaRecorder mode, but is
+        # disabled by default: AURITY_ENABLE_WEBM_GRAFT=false
+        #
+        # Problem it solved (OLD):
+        # - RecordRTC chunks > 0 lacked EBML header → graft from chunk 0
+        #
+        # Solution (NEW):
+        # - Frontend uses stop/getBlob/start loop → each chunk is COMPLETE
+        # - 100% chunks have headers (not just chunk 0)
+        # - FFmpeg decodes all chunks without modification
+        #
+        # See: apps/aurity/lib/recording/makeRecorder.ts (Stop/Start Loop Pattern)
+        # Card: AUR-PROMPT-4.2 (Fix Pack v2)
+        # ========================================================================
         audio_file = Path(audio_path)
         if not audio_file.exists():
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
         candidate = audio_file
-        enable_graft = os.getenv("AURITY_ENABLE_WEBM_GRAFT", "true").lower() in {
+        enable_graft = os.getenv("AURITY_ENABLE_WEBM_GRAFT", "false").lower() in {
             "1",
             "true",
             "yes",
@@ -347,14 +374,26 @@ def transcribe_chunk_task(
                     ensure_session_header,
                     graft_header,
                     is_ebml,
+                    wait_for_chunk0,
                 )
 
                 if not is_ebml(audio_file):
+                    # Race condition killer: wait for chunk 0 before grafting
+                    chunk0 = wait_for_chunk0(audio_file.parent, timeout=3.0)
+                    if not chunk0:
+                        logger.warning(
+                            "CHUNK_GRAFT_NO_CHUNK0",
+                            session_id=session_id,
+                            chunk_number=chunk_number,
+                            message="chunk 0 not ready after 3s, attempting anyway",
+                        )
+
                     logger.info(
                         "CHUNK_GRAFT_NEEDED",
                         session_id=session_id,
                         chunk_number=chunk_number,
                         audio_file=str(audio_file),
+                        chunk0_found=chunk0 is not None,
                     )
                     header = ensure_session_header(audio_file.parent)
                     candidate = graft_header(audio_file, header)
@@ -447,23 +486,31 @@ def transcribe_chunk_task(
                     )
                     raise
 
-        # Step 2: Transcribe with faster-whisper
-        transcription_service = get_container().get_transcription_service()
-
-        with open(wav_path, "rb") as f:
-            audio_content = f.read()
-
-        result = transcription_service.process_transcription(
+        # Step 2: Transcribe with faster-whisper (using cached global instance)
+        logger.info(
+            "CHUNK_BEFORE_TRANSCRIPTION",
             session_id=session_id,
-            audio_content=audio_content,
-            filename=f"chunk_{chunk_number}.wav",
-            content_type="audio/wav",
-            metadata={
-                "chunk_number": chunk_number,
-                "audio_hash": audio_hash,
-                "worker_task_id": self.request.id,
-            },
+            chunk_number=chunk_number,
+            wav_size=wav_path.stat().st_size if wav_path.exists() else 0,
         )
+
+        # Use singleton Whisper model directly (no DI container in workers)
+        from backend.services.transcription.whisper import (
+            is_whisper_available,
+            transcribe_audio,
+        )
+
+        if not is_whisper_available():
+            raise RuntimeError("Whisper not available - check faster-whisper installation")
+
+        logger.info(
+            "CHUNK_CALLING_WHISPER",
+            session_id=session_id,
+            chunk_number=chunk_number,
+        )
+
+        # transcribe_audio uses the global cached model instance
+        result = transcribe_audio(str(wav_path))
 
         transcript = result.get("text", "")
         language = result.get("language", "es")
@@ -478,20 +525,24 @@ def transcribe_chunk_task(
             duration=duration,
         )
 
-        # Step 3: Append to HDF5 corpus
-        from backend.storage.session_chunks_schema import append_chunk_to_session
+        # Step 3: Append to HDF5 corpus (atomic, lock-safe for prefork)
+        from backend.workers.h5_append import append_chunk_h5
 
-        hdf5_path = append_chunk_to_session(
+        CORPUS_PATH = os.getenv("AURITY_CORPUS_H5", "storage/corpus.h5")
+
+        append_chunk_h5(
+            corpus_path=CORPUS_PATH,
             session_id=session_id,
-            chunk_idx=chunk_number,
+            chunk_number=chunk_number,
             transcript=transcript,
             audio_hash=audio_hash,
-            duration=duration,
-            language=language,
             timestamp_start=chunk_number * 3.0,  # Assuming 3s chunks
             timestamp_end=(chunk_number + 1) * 3.0,
+            language=language,
+            duration=duration,
         )
 
+        hdf5_path = f"/sessions/{session_id}/chunks/chunk_{chunk_number}"
         logger.info(
             "CHUNK_APPENDED_TO_HDF5",
             session_id=session_id,

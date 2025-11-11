@@ -5,9 +5,9 @@ Validates corpus storage and retrieval functionality.
 
 from __future__ import annotations
 
-import pytest
-
 from typing import TYPE_CHECKING
+
+import pytest
 
 if TYPE_CHECKING:
     from backend.services.corpus_service import CorpusService

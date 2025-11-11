@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -575,7 +575,7 @@ async def create_transcribe_chunk_job(
         session_id=session_id,
         chunk_number=chunk_number,
         status="queued",
-        created_at=datetime.now(UTC).isoformat(),
+        created_at=datetime.now(timezone.utc).isoformat(),
     )
 
 

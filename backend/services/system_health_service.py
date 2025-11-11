@@ -94,7 +94,7 @@ class SystemHealthService:
         try:
             import requests
 
-            from backend.services.diarization_service import OLLAMA_BASE_URL
+            from backend.services.diarization.ollama import OLLAMA_BASE_URL
 
             response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=0.8)
 

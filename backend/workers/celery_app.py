@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import os
 
-from celery import Celery
+from celery import Celery, signals
 
 # Redis configuration from environment
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
@@ -62,3 +62,17 @@ celery_app.conf.update(
 
 # Auto-discover tasks in backend.workers.tasks module
 celery_app.autodiscover_tasks(["backend.workers"])
+
+
+# Worker process initialization signal - warm up heavy services
+@signals.worker_process_init.connect
+def warmup_worker(**kwargs) -> None:
+    """
+    Warm-up heavy singleton services when worker process starts.
+
+    This runs ONCE per worker fork, NOT per task.
+    Prevents deadlocks from initializing ML models in task execution.
+    """
+    from backend.workers import warmup_worker_services
+
+    warmup_worker_services()

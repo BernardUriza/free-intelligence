@@ -76,7 +76,7 @@ class AuditRepository(BaseRepository):
                 log_group = logs_group.create_group(log_id)  # type: ignore[attr-defined]
 
                 # Store log data - ensure timestamp is ISO string
-                timestamp_raw = entity.get("timestamp", datetime.now(UTC))
+                timestamp_raw = entity.get("timestamp", datetime.now(timezone.utc))
                 timestamp_str = (
                     timestamp_raw.isoformat()
                     if isinstance(timestamp_raw, datetime)
