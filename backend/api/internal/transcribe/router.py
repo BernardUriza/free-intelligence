@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -184,7 +184,223 @@ async def transcribe_health_check() -> dict:
 
 
 # ============================================================================
-# NEW: JOB-BASED CHUNK ENDPOINTS (AUR-PROMPT-4.2)
+# NEW: DIRECT SYNCHRONOUS ENDPOINT (AUR-PROMPT-4.2 - Hybrid Architecture)
+# ============================================================================
+
+
+class DirectTranscriptionResponse(BaseModel):
+    """Response for direct (synchronous) transcription."""
+
+    transcript: str = Field(..., description="Transcribed text")
+    chunk_number: int = Field(..., description="Chunk index")
+    session_id: str = Field(..., description="Session identifier")
+    duration: float = Field(..., description="Audio duration in seconds")
+    language: str = Field(..., description="Detected language")
+    method: str = Field(default="direct", description="Processing method")
+    latency_ms: int = Field(..., description="End-to-end latency in milliseconds")
+    appended_to_h5: bool = Field(..., description="Whether chunk was appended to HDF5")
+
+
+@router.post("/direct", response_model=DirectTranscriptionResponse, status_code=status.HTTP_200_OK)
+async def transcribe_chunk_direct(
+    audio: UploadFile = File(..., description="Audio chunk (WebM/MP4/WAV)"),
+    x_session_id: Optional[str] = Header(None, alias="X-Session-ID"),
+    x_chunk_number: Optional[int] = Header(None, alias="X-Chunk-Number"),
+) -> DirectTranscriptionResponse:
+    """
+    DIRECT (synchronous) chunk transcription - NO Celery workers.
+
+    **Architecture: Hybrid Real-time/Offline (AUR-PROMPT-4.2)**
+
+    This endpoint provides FAST transcription (1-3s latency) for real-time UX.
+    Used as primary path when client is connected to backend.
+
+    **Workflow:**
+    1. Save audio chunk to filesystem
+    2. Transcribe IMMEDIATELY using Whisper (synchronous)
+    3. Append to HDF5 corpus (atomic)
+    4. Return transcript to client
+
+    **Fallback Strategy:**
+    - Frontend should timeout this endpoint after 5s
+    - If timeout/error → fallback to /chunks (async worker mode)
+    - Workers handle offline scenarios and retry logic
+
+    **Headers:**
+    - X-Session-ID: Session identifier (required)
+    - X-Chunk-Number: Chunk index 0-based (required)
+
+    **Returns:**
+    - 200 OK with transcript (fast path)
+    - 503 Service Unavailable (client should fallback to /chunks)
+
+    **Latency Target:** <3s (vs 23s+ with Celery workers)
+    """
+    import time
+
+    from backend.services.transcription.service import TranscriptionService
+
+    start_time = time.time()
+
+    # Validate headers
+    if not x_session_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing required header: X-Session-ID",
+        )
+    if x_chunk_number is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing required header: X-Chunk-Number",
+        )
+
+    try:
+        # 1. Save audio chunk to filesystem
+        session_dir = AUDIO_ROOT / x_session_id
+        session_dir.mkdir(parents=True, exist_ok=True)
+
+        # Determine file extension
+        content_type = audio.content_type or "audio/wav"
+        ext = ".wav" if "wav" in content_type else ".webm" if "webm" in content_type else ".mp4"
+
+        audio_path = session_dir / f"chunk_{x_chunk_number}{ext}"
+        audio_content = await audio.read()
+
+        # Atomic write
+        audio_path.write_bytes(audio_content)
+
+        # Calculate hash
+        audio_hash = hashlib.sha256(audio_content).hexdigest()
+
+        logger.info(
+            "DIRECT_TRANSCRIBE_STARTED",
+            session_id=x_session_id,
+            chunk_number=x_chunk_number,
+            audio_size=len(audio_content),
+            audio_hash=audio_hash[:16],
+            audio_path=str(audio_path),
+        )
+
+        # 2. Transcribe SYNCHRONOUSLY (no Celery)
+        whisper_svc = TranscriptionService()
+
+        # Convert to WAV if needed (ffmpeg)
+        wav_path = audio_path
+        if ext != ".wav":
+            import subprocess
+
+            wav_path = audio_path.with_suffix(".wav")
+            cmd = [
+                "ffmpeg",
+                "-i",
+                str(audio_path),
+                "-ar",
+                "16000",
+                "-ac",
+                "1",
+                "-y",
+                str(wav_path),
+            ]
+            subprocess.run(cmd, check=True, capture_output=True, timeout=5)
+
+        # Transcribe (blocking operation ~1-3s)
+        result = whisper_svc.transcribe(str(wav_path))
+
+        transcript = result["text"].strip() if result and "text" in result else ""
+        duration = result.get("duration", 0.0) if result else 0.0
+        language = result.get("language", "es") if result else "es"
+
+        logger.info(
+            "DIRECT_TRANSCRIBE_WHISPER_DONE",
+            session_id=x_session_id,
+            chunk_number=x_chunk_number,
+            transcript_length=len(transcript),
+            duration=duration,
+            language=language,
+        )
+
+        # VAD check: Skip HDF5 append if no speech detected
+        if len(transcript) == 0:
+            latency_ms = int((time.time() - start_time) * 1000)
+
+            logger.warning(
+                "DIRECT_NO_SPEECH_DETECTED",
+                session_id=x_session_id,
+                chunk_number=x_chunk_number,
+                latency_ms=latency_ms,
+                duration=duration,
+            )
+
+            # Return empty transcript (fast path, no HDF5 write)
+            return DirectTranscriptionResponse(
+                transcript="",
+                chunk_number=x_chunk_number,
+                session_id=x_session_id,
+                duration=duration,
+                language=language,
+                method="direct",
+                latency_ms=latency_ms,
+                appended_to_h5=False,  # Skipped due to no speech
+            )
+
+        # 3. Append to HDF5 (atomic) - Only if speech detected
+        from backend.storage.session_chunks_schema import append_chunk_to_session
+
+        timestamp_start = x_chunk_number * 3.0  # 3 second chunks
+        timestamp_end = timestamp_start + duration
+
+        append_chunk_to_session(
+            session_id=x_session_id,
+            chunk_idx=x_chunk_number,
+            transcript=transcript,
+            audio_hash=audio_hash[:16],
+            duration=duration,
+            language=language,
+            timestamp_start=timestamp_start,
+            timestamp_end=timestamp_end,
+        )
+
+        latency_ms = int((time.time() - start_time) * 1000)
+
+        logger.info(
+            "DIRECT_TRANSCRIBE_COMPLETED",
+            session_id=x_session_id,
+            chunk_number=x_chunk_number,
+            latency_ms=latency_ms,
+            appended_to_h5=True,
+        )
+
+        return DirectTranscriptionResponse(
+            transcript=transcript,
+            chunk_number=x_chunk_number,
+            session_id=x_session_id,
+            duration=duration,
+            language=language,
+            method="direct",
+            latency_ms=latency_ms,
+            appended_to_h5=True,
+        )
+
+    except Exception as e:
+        latency_ms = int((time.time() - start_time) * 1000)
+
+        logger.error(
+            "DIRECT_TRANSCRIBE_FAILED",
+            session_id=x_session_id,
+            chunk_number=x_chunk_number,
+            error=str(e),
+            latency_ms=latency_ms,
+        )
+
+        # Return 503 to signal client to fallback to /chunks (worker mode)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Direct transcription failed. Use /chunks endpoint. Error: {e!s}",
+        )
+
+
+# ============================================================================
+# JOB-BASED CHUNK ENDPOINTS (AUR-PROMPT-4.2) - Worker Fallback
 # ============================================================================
 
 
@@ -221,7 +437,7 @@ async def create_transcribe_chunk_job(
     audio: UploadFile = File(..., description="Audio chunk (WebM/MP4/WAV)"),
     x_session_id: Optional[str] = Header(None, alias="X-Session-ID"),
     x_chunk_number: Optional[int] = Header(None, alias="X-Chunk-Number"),
-) -> TranscribeChunkJobResponse:
+) -> TranscribeChunkJobResponse | JSONResponse:
     """
     Create transcription job for audio chunk (ATOMIC operation).
 
@@ -315,10 +531,17 @@ async def create_transcribe_chunk_job(
     audio_hash = hashlib.sha256(audio_content).hexdigest()
 
     # Dispatch Celery task (async worker)
-    # Use send_task to avoid import issues with uvicorn reload
-    task = celery_app.send_task(
-        "transcribe_chunk_task",
-        args=[],
+    # Import task directly for stable routing
+    from backend.workers.tasks import transcribe_chunk_task
+
+    logger.info(
+        "BEFORE_APPLY_ASYNC",
+        session_id=session_id,
+        chunk_number=chunk_number,
+        task_queue=transcribe_chunk_task.queue,  # type: ignore[attr-defined]
+    )
+
+    task = transcribe_chunk_task.apply_async(  # type: ignore[attr-defined]
         kwargs={
             "session_id": session_id,
             "chunk_number": chunk_number,
@@ -326,9 +549,17 @@ async def create_transcribe_chunk_job(
             "audio_hash": audio_hash,
             "content_type": content_type,
         },
+        queue="asr",  # Explicit queue routing
     )
 
     job_id = task.id
+
+    logger.info(
+        "AFTER_APPLY_ASYNC",
+        session_id=session_id,
+        chunk_number=chunk_number,
+        job_id=job_id,
+    )
 
     logger.info(
         "TRANSCRIBE_CHUNK_JOB_CREATED",
@@ -344,7 +575,7 @@ async def create_transcribe_chunk_job(
         session_id=session_id,
         chunk_number=chunk_number,
         status="queued",
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
     )
 
 
@@ -394,4 +625,123 @@ async def get_transcribe_job_status(job_id: str) -> TranscribeJobStatusResponse:
         result=result_data,
         error=error_msg,
         traceback=traceback_msg,
+    )
+
+
+class ChunkData(BaseModel):
+    """Chunk data from HDF5."""
+
+    chunk_number: int
+    transcript: str
+    language: str
+    duration: float
+    audio_hash: str
+    timestamp_start: float
+    timestamp_end: float
+    created_at: str
+
+
+@router.get("/sessions/{session_id}/chunks")
+async def list_session_chunks(session_id: str) -> dict:
+    """
+    List all chunks for a session from HDF5 corpus.
+
+    **Returns:**
+    - chunks: List of chunk data with transcripts
+    - total: Total number of chunks
+    """
+    import h5py
+
+    CORPUS_PATH = os.getenv("AURITY_CORPUS_H5", "storage/corpus.h5")
+    corpus_path = Path(CORPUS_PATH).resolve()
+
+    if not corpus_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Corpus not found: {corpus_path}",
+        )
+
+    try:
+        with h5py.File(corpus_path, "r") as f:
+            chunks_ds_path = f"sessions/{session_id}/chunks"
+            if chunks_ds_path not in f:
+                return {"chunks": [], "total": 0, "session_id": session_id}
+
+            chunks_ds = f[chunks_ds_path]
+            chunks_data = []
+
+            for row in chunks_ds:  # type: ignore[union-attr]
+                chunks_data.append(
+                    ChunkData(
+                        chunk_number=int(row["chunk_number"]),
+                        transcript=row["transcription"].decode("utf-8")
+                        if isinstance(row["transcription"], bytes)
+                        else str(row["transcription"]),
+                        language=row["language"].decode("utf-8")
+                        if isinstance(row["language"], bytes)
+                        else str(row["language"]),
+                        duration=float(row["duration"]),
+                        audio_hash=row["audio_hash"].decode("utf-8")
+                        if isinstance(row["audio_hash"], bytes)
+                        else str(row["audio_hash"]),
+                        timestamp_start=float(row["timestamp_start"]),
+                        timestamp_end=float(row["timestamp_end"]),
+                        created_at=row["created_at"].decode("utf-8")
+                        if isinstance(row["created_at"], bytes)
+                        else str(row["created_at"]),
+                    ).model_dump()
+                )
+
+            return {
+                "chunks": sorted(chunks_data, key=lambda x: x["chunk_number"]),
+                "total": len(chunks_data),
+                "session_id": session_id,
+            }
+
+    except Exception as e:
+        logger.error("LIST_CHUNKS_FAILED", session_id=session_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list chunks: {e!s}",
+        )
+
+
+from fastapi.responses import FileResponse
+
+
+@router.get("/sessions/{session_id}/chunks/{chunk_number}/audio")
+async def get_chunk_audio(session_id: str, chunk_number: int):
+    """
+    Serve audio file for a specific chunk.
+
+    **Returns:**
+    - Audio file (WebM, WAV, or MP4)
+    """
+    session_dir = AUDIO_ROOT / session_id
+
+    if not session_dir.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session not found: {session_id}",
+        )
+
+    # Try different extensions
+    for ext in [".webm", ".wav", ".mp4"]:
+        audio_path = session_dir / f"chunk_{chunk_number}{ext}"
+        if audio_path.exists():
+            media_type = {
+                ".webm": "audio/webm",
+                ".wav": "audio/wav",
+                ".mp4": "audio/mp4",
+            }.get(ext, "audio/webm")
+
+            return FileResponse(
+                path=audio_path,
+                media_type=media_type,
+                filename=f"chunk_{chunk_number}{ext}",
+            )
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Audio file not found for chunk {chunk_number}",
     )

@@ -28,7 +28,7 @@ import subprocess
 import tempfile
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
@@ -309,11 +309,11 @@ class ConsultStatusResponse(BaseModel):
         ...,
         description="Status of each stage: upload, transcribe, diarize, soap",
     )
-    soap_note: Optional[dict] = Field(None, description="SOAP note if completed")
-    result_data: Optional[dict] = Field(
+    soap_note: dict | None = Field(None, description="SOAP note if completed")
+    result_data: dict | None = Field(
         None, description="Full result data (transcription + diarization)"
     )
-    error: Optional[str] = Field(None, description="Error message if failed")
+    error: str | None = Field(None, description="Error message if failed")
 
 
 class StreamChunkResponse(BaseModel):
@@ -322,22 +322,22 @@ class StreamChunkResponse(BaseModel):
     chunk_id: str = Field(..., description="Unique chunk identifier (or job_id if queued)")
     session_id: str = Field(..., description="Session identifier")
     chunk_number: int = Field(..., description="Sequential chunk number")
-    transcription: Optional[str] = Field(
+    transcription: str | None = Field(
         None, description="Partial transcription text (null if queued)"
     )
-    speaker: Optional[str] = Field(None, description="Detected speaker (if diarization enabled)")
+    speaker: str | None = Field(None, description="Detected speaker (if diarization enabled)")
     timestamp_start: float = Field(..., description="Start time in seconds")
     timestamp_end: float = Field(..., description="End time in seconds")
     status: str = Field(..., description="Chunk status: queued, processing, completed, failed")
-    error: Optional[str] = Field(None, description="Error message if failed")
+    error: str | None = Field(None, description="Error message if failed")
     queued: bool = Field(default=False, description="True if job queued (async processing)")
-    job_id: Optional[str] = Field(None, description="Celery job ID for polling (if queued=True)")
+    job_id: str | None = Field(None, description="Celery job ID for polling (if queued=True)")
 
 
 @router.post("/consult", response_model=ConsultStartResponse, status_code=status.HTTP_202_ACCEPTED)
 async def start_consult_workflow(
-    audio: UploadFile = File(..., description="Audio file (webm, wav, mp3, etc.)"),
-    x_session_id: Optional[str] = Header(None, alias="X-Session-ID"),
+    audio: UploadFile,
+    x_session_id: str | None = Header(None, alias="X-Session-ID"),
 ) -> ConsultStartResponse:
     """
     Start end-to-end consultation workflow: Audio → Transcription → SOAP.
@@ -428,7 +428,7 @@ async def start_consult_workflow(
             from backend.workers.tasks import process_diarization_job
 
             # Queue job for async processing with Celery
-            task = process_diarization_job.delay(job_id)
+            task = process_diarization_job.delay(job_id)  # type: ignore[attr-defined]
 
             logger.info(
                 "WORKFLOW_WORKER_QUEUED",
@@ -493,7 +493,7 @@ async def start_consult_workflow(
             session_id=x_session_id,
             error=str(e),
         )
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         logger.error(
             "WORKFLOW_CONSULT_FAILED",
@@ -503,7 +503,7 @@ async def start_consult_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to start consultation workflow",
-        )
+        ) from e
 
 
 @router.get(
@@ -743,11 +743,11 @@ async def get_consult_status(job_id: str, retry_soap: bool = False) -> Any:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get workflow status",
-        )
+        ) from e
 
 
 @router.get("/consult", status_code=status.HTTP_200_OK)
-async def list_consult_jobs(status_filter: Optional[str] = None) -> Any:
+async def list_consult_jobs(status_filter: str | None = None) -> Any:
     """
     List all consultation workflow jobs.
 
@@ -790,7 +790,7 @@ async def list_consult_jobs(status_filter: Optional[str] = None) -> Any:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to list jobs",
-        )
+        ) from e
 
 
 @router.post(
@@ -801,8 +801,8 @@ async def process_audio_chunk(
     chunk_number: int = Form(...),
     audio: UploadFile = File(...),
     mime: str = Form(""),
-    timestamp_start: Optional[float] = Form(None),
-    timestamp_end: Optional[float] = Form(None),
+    timestamp_start: float | None = Form(None),
+    timestamp_end: float | None = Form(None),
 ) -> StreamChunkResponse:
     """
     Process individual audio chunk (AUR-PROMPT-4.2 - PURE ORCHESTRATOR).
@@ -854,60 +854,135 @@ async def process_audio_chunk(
             mime=mime,
         )
 
-        # Call INTERNAL endpoint (pure orchestration)
+        # HYBRID TRANSCRIPTION: Try-Direct-First Pattern
         import httpx
 
         # Read audio content
         audio_content = await audio.read()
 
-        # POST to INTERNAL /internal/transcribe/chunks
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "http://localhost:7001/internal/transcribe/chunks",
-                files={
-                    "audio": (f"chunk_{chunk_number}.webm", audio_content, mime or "audio/webm")
-                },
-                headers={
-                    "X-Session-ID": session_id,
-                    "X-Chunk-Number": str(chunk_number),
-                },
-                timeout=30.0,
-            )
+        # PATH 1: Try DIRECT transcription (fast path, 1-3s latency)
+        direct_success = False
+        transcript_result = None
 
-            if response.status_code != 202:
-                logger.error(
-                    "PUBLIC_INTERNAL_CALL_FAILED",
+        async with httpx.AsyncClient() as client:
+            try:
+                logger.info(
+                    "PUBLIC_TRY_DIRECT",
                     session_id=session_id,
                     chunk_number=chunk_number,
-                    status=response.status_code,
-                    error=response.text,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Internal endpoint failed: {response.text}",
                 )
 
-            job_data = response.json()
+                direct_response = await client.post(
+                    "http://localhost:7001/internal/transcribe/direct",
+                    files={
+                        "audio": (f"chunk_{chunk_number}.webm", audio_content, mime or "audio/webm")
+                    },
+                    headers={
+                        "X-Session-ID": session_id,
+                        "X-Chunk-Number": str(chunk_number),
+                    },
+                    timeout=5.0,  # 5s timeout for direct path
+                )
 
-        logger.info(
-            "PUBLIC_JOB_CREATED",
-            session_id=session_id,
-            chunk_number=chunk_number,
-            job_id=job_data.get("job_id"),
-        )
+                if direct_response.status_code == 200:
+                    transcript_result = direct_response.json()
+                    direct_success = True
 
-        # Return job_id (non-blocking)
-        return StreamChunkResponse(
-            chunk_id=job_data.get("job_id", ""),
-            session_id=session_id,
-            chunk_number=chunk_number,
-            transcription=None,  # Not available yet (async)
-            speaker=None,
-            timestamp_start=timestamp_start or 0.0,
-            timestamp_end=timestamp_end or 0.0,
-            status="queued",  # Job queued, not completed
-            queued=True,
-            job_id=job_data.get("job_id"),
+                    logger.info(
+                        "PUBLIC_DIRECT_SUCCESS",
+                        session_id=session_id,
+                        chunk_number=chunk_number,
+                        latency_ms=transcript_result.get("latency_ms"),
+                        transcript_length=len(transcript_result.get("transcript", "")),
+                    )
+
+                    # Return transcript immediately (synchronous response)
+                    return StreamChunkResponse(
+                        chunk_id=f"{session_id}_chunk_{chunk_number}",
+                        session_id=session_id,
+                        chunk_number=chunk_number,
+                        transcription=transcript_result.get("transcript", ""),
+                        speaker=None,
+                        timestamp_start=timestamp_start or 0.0,
+                        timestamp_end=timestamp_end or (transcript_result.get("duration", 0.0)),
+                        status="completed",  # Direct path completed synchronously
+                        error=None,
+                        queued=False,
+                        job_id=None,  # No job_id needed (direct response)
+                    )
+
+            except (httpx.TimeoutException, httpx.HTTPStatusError) as e:
+                logger.warning(
+                    "PUBLIC_DIRECT_FAILED",
+                    session_id=session_id,
+                    chunk_number=chunk_number,
+                    error=str(e),
+                    reason="timeout_or_error",
+                )
+                # Continue to fallback path below
+
+        # PATH 2: Fallback to WORKER (resilient path, async)
+        if not direct_success:
+            logger.info(
+                "PUBLIC_WORKER_FALLBACK",
+                session_id=session_id,
+                chunk_number=chunk_number,
+            )
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "http://localhost:7001/internal/transcribe/chunks",
+                    files={
+                        "audio": (f"chunk_{chunk_number}.webm", audio_content, mime or "audio/webm")
+                    },
+                    headers={
+                        "X-Session-ID": session_id,
+                        "X-Chunk-Number": str(chunk_number),
+                    },
+                    timeout=30.0,
+                )
+
+                if response.status_code != 202:
+                    logger.error(
+                        "PUBLIC_INTERNAL_CALL_FAILED",
+                        session_id=session_id,
+                        chunk_number=chunk_number,
+                        status=response.status_code,
+                        error=response.text,
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Internal endpoint failed: {response.text}",
+                    )
+
+                job_data = response.json()
+
+            logger.info(
+                "PUBLIC_JOB_CREATED",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                job_id=job_data.get("job_id"),
+            )
+
+            # Return job_id (non-blocking, async worker)
+            return StreamChunkResponse(
+                chunk_id=job_data.get("job_id", ""),
+                session_id=session_id,
+                chunk_number=chunk_number,
+                transcription=None,  # Not available yet (async)
+                speaker=None,
+                timestamp_start=timestamp_start or 0.0,
+                timestamp_end=timestamp_end or 0.0,
+                status="queued",  # Job queued, not completed
+                error=None,
+                queued=True,
+                job_id=job_data.get("job_id"),
+            )
+
+        # Safeguard: should never reach here (either direct or worker path returns)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Transcription failed: no valid response from direct or worker path",
         )
 
     except HTTPException:
@@ -919,7 +994,7 @@ async def process_audio_chunk(
             chunk_number=chunk_number,
             error=str(e),
         )
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         logger.error(
             "PUBLIC_ORCHESTRATION_FAILED",
@@ -930,4 +1005,4 @@ async def process_audio_chunk(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create transcription job: {e!s}",
-        )
+        ) from e
