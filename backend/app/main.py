@@ -10,9 +10,11 @@ Architecture:
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from backend.middleware import InternalOnlyMiddleware
 
@@ -111,6 +113,33 @@ def create_app() -> FastAPI:
     async def health_check() -> dict[str, str]:
         """Health check endpoint."""
         return {"status": "ok"}
+
+    # Mount static files (for demo audio, etc.)
+    # Note: StaticFiles doesn't inherit CORS from parent app, so we wrap it
+    static_dir = Path(__file__).parent.parent / "static"
+    if static_dir.exists():
+        static_app = StaticFiles(directory=str(static_dir))
+
+        # Wrap with CORS for frontend access
+        class CORSStaticFiles:
+            def __init__(self, static_files):
+                self.static_files = static_files
+
+            async def __call__(self, scope, receive, send):
+                if scope["type"] == "http":
+
+                    async def send_with_cors(message):
+                        if message["type"] == "http.response.start":
+                            headers = list(message.get("headers", []))
+                            headers.append((b"access-control-allow-origin", b"*"))
+                            message["headers"] = headers
+                        await send(message)
+
+                    await self.static_files(scope, receive, send_with_cors)
+                else:
+                    await self.static_files(scope, receive, send)
+
+        app.mount("/static", CORSStaticFiles(static_app), name="static")
 
     return app
 
