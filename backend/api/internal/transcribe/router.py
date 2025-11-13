@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -310,6 +310,15 @@ async def transcribe_chunk_direct(
         duration = result.get("duration", 0.0) if result else 0.0
         language = result.get("language", "es") if result else "es"
 
+        # Extract confidence (avg_logprob from Whisper result, normalize to 0-1)
+        avg_logprob = result.get("avg_logprob", -0.5) if result else -0.5
+        confidence = max(0.0, min(1.0, 1.0 + (avg_logprob / 1.0)))  # Normalize [-1, 0] → [0, 1]
+
+        # Calculate audio quality (heuristic based on duration and transcript length)
+        words_count = len(transcript.split())
+        words_per_second = words_count / duration if duration > 0 else 0
+        audio_quality = max(0.5, min(1.0, words_per_second / 2.5))  # Normalize to 0.5-1.0
+
         logger.info(
             "DIRECT_TRANSCRIBE_WHISPER_DONE",
             session_id=x_session_id,
@@ -317,6 +326,8 @@ async def transcribe_chunk_direct(
             transcript_length=len(transcript),
             duration=duration,
             language=language,
+            confidence=confidence,
+            audio_quality=audio_quality,
         )
 
         # VAD check: Skip HDF5 append if no speech detected
@@ -343,7 +354,7 @@ async def transcribe_chunk_direct(
                 appended_to_h5=False,  # Skipped due to no speech
             )
 
-        # 3. Append to HDF5 (atomic) - Only if speech detected
+        # 3. Append to HDF5 (atomic) - Only if speech detected - dual write to production + ml_ready
         from backend.storage.session_chunks_schema import append_chunk_to_session
 
         timestamp_start = x_chunk_number * 3.0  # 3 second chunks
@@ -358,6 +369,8 @@ async def transcribe_chunk_direct(
             language=language,
             timestamp_start=timestamp_start,
             timestamp_end=timestamp_end,
+            confidence=confidence,
+            audio_quality=audio_quality,
         )
 
         latency_ms = int((time.time() - start_time) * 1000)
@@ -575,7 +588,7 @@ async def create_transcribe_chunk_job(
         session_id=session_id,
         chunk_number=chunk_number,
         status="queued",
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
     )
 
 

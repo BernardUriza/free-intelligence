@@ -19,7 +19,7 @@ from __future__ import annotations
 import threading
 import time
 import uuid
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
@@ -51,11 +51,11 @@ class JobStatusResponse(BaseModel):
     session_id: str
     chunk_number: int
     status: str = Field(..., description="pending | processing | completed | failed")
-    transcript: str | None = Field(None, description="Transcript (if completed)")
-    duration: float | None = Field(None, description="Audio duration in seconds")
-    language: str | None = Field(None, description="Detected language")
-    error: str | None = Field(None, description="Error message (if failed)")
-    latency_ms: int | None = Field(None, description="Processing time in ms")
+    transcript: Optional[str] = Field(None, description="Transcript (if completed)")
+    duration: Optional[float] = Field(None, description="Audio duration in seconds")
+    language: Optional[str] = Field(None, description="Detected language")
+    error: Optional[str] = Field(None, description="Error message (if failed)")
+    latency_ms: Optional[int] = Field(None, description="Processing time in ms")
 
 
 def _process_chunk_background(
@@ -119,11 +119,23 @@ def _process_chunk_background(
         # 3. Whisper transcription
         from backend.services.transcription.whisper import transcribe_audio
 
-        result = transcribe_audio(str(wav_path), language=None, vad_filter=True)
+        result = transcribe_audio(
+            str(wav_path), language=None, vad_filter=False
+        )  # VAD OFF for demo
 
         transcript = result.get("text", "").strip()
         duration = result.get("duration", 0.0)
         language = result.get("language", "unknown")
+
+        # Extract confidence (avg_logprob from Whisper result, normalize to 0-1)
+        avg_logprob = result.get("avg_logprob", -0.5)  # Default -0.5 if not present
+        confidence = max(0.0, min(1.0, 1.0 + (avg_logprob / 1.0)))  # Normalize [-1, 0] → [0, 1]
+
+        # Calculate audio quality (heuristic based on duration and transcript length)
+        # Good audio: ~150 words/min, poor audio: <50 words/min
+        words_count = len(transcript.split())
+        words_per_second = words_count / duration if duration > 0 else 0
+        audio_quality = max(0.5, min(1.0, words_per_second / 2.5))  # Normalize to 0.5-1.0
 
         logger.info(
             "CHUNK_WHISPER_DONE",
@@ -131,9 +143,11 @@ def _process_chunk_background(
             transcript_length=len(transcript),
             duration=duration,
             language=language,
+            confidence=confidence,
+            audio_quality=audio_quality,
         )
 
-        # 4. Append to HDF5 (if transcript not empty)
+        # 4. Append to HDF5 (if transcript not empty) - dual write to production + ml_ready
         if len(transcript) > 0:
             from backend.storage.session_chunks_schema import append_chunk_to_session
 
@@ -149,6 +163,8 @@ def _process_chunk_background(
                 language=language,
                 timestamp_start=timestamp_start,
                 timestamp_end=timestamp_end,
+                confidence=confidence,
+                audio_quality=audio_quality,
             )
 
             logger.info(
@@ -207,6 +223,9 @@ async def stream_chunk(
     session_id: str = Form(...),
     chunk_number: int = Form(...),
     audio: UploadFile = File(...),  # noqa: B008
+    mime: Optional[str] = Form(None),  # MIME type hint (optional)
+    timestamp_start: Optional[float] = Form(None),  # Chunk start time (optional)
+    timestamp_end: Optional[float] = Form(None),  # Chunk end time (optional)
 ) -> StreamChunkResponse:
     """
     Upload audio chunk for transcription.
@@ -220,6 +239,9 @@ async def stream_chunk(
     - session_id: Session UUID
     - chunk_number: Sequential chunk (0, 1, 2, ...)
     - audio: Audio blob from RecordRTC
+    - mime: MIME type hint (optional, for logging)
+    - timestamp_start: Chunk start time in seconds (optional)
+    - timestamp_end: Chunk end time in seconds (optional)
 
     **Returns:**
     - job_id: Poll with GET /jobs/{job_id}
@@ -245,6 +267,9 @@ async def stream_chunk(
             session_id=session_id,
             chunk_number=chunk_number,
             audio_size=len(audio_bytes),
+            mime=mime,
+            timestamp_start=timestamp_start,
+            timestamp_end=timestamp_end,
         )
 
         # Store job metadata
@@ -330,3 +355,228 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
         )
 
     return JobStatusResponse(**job)
+
+
+@router.post("/end-session", status_code=status.HTTP_200_OK)
+async def end_session(
+    session_id: str = Form(...),
+    full_audio: UploadFile = File(...),  # noqa: B008
+) -> dict:
+    """
+    End session and save full audio file for playback.
+
+    **Args:**
+    - session_id: Session UUID
+    - full_audio: Complete audio file (WebM/WAV/MP3)
+
+    **Returns:**
+    - success: bool
+    - audio_path: str (for playback)
+    - chunks_count: int
+    - duration: float
+    """
+    from pathlib import Path
+
+    try:
+        # 1. Save audio to storage/audio/{session_id}/full.webm
+        audio_dir = Path("storage/audio") / session_id
+        audio_dir.mkdir(parents=True, exist_ok=True)
+
+        # Detect extension from MIME type
+        mime = full_audio.content_type or "audio/webm"
+        ext = (
+            ".webm"
+            if "webm" in mime
+            else ".wav"
+            if "wav" in mime
+            else ".mp3"
+            if "mp3" in mime
+            else ".bin"
+        )
+
+        audio_path = audio_dir / f"full{ext}"
+        audio_bytes = await full_audio.read()
+        audio_path.write_bytes(audio_bytes)
+
+        logger.info(
+            "FULL_AUDIO_SAVED",
+            session_id=session_id,
+            path=str(audio_path),
+            size_bytes=len(audio_bytes),
+        )
+
+        # 2. Get session info from HDF5
+        from backend.storage.session_chunks_schema import (
+            get_session_chunks,
+            save_full_audio_metadata,
+        )
+
+        chunks = get_session_chunks(session_id)
+        total_duration = sum(c["duration"] for c in chunks)
+        total_chunks = len(chunks)
+
+        # 3. Save metadata to HDF5
+        # Use relative path directly (storage/audio/{session_id}/full.ext)
+        relative_audio_path = f"storage/audio/{session_id}/full{ext}"
+        save_full_audio_metadata(
+            session_id=session_id,
+            audio_path=relative_audio_path,
+            total_duration=total_duration,
+            total_chunks=total_chunks,
+        )
+
+        logger.info(
+            "SESSION_ENDED",
+            session_id=session_id,
+            total_chunks=total_chunks,
+            total_duration=total_duration,
+        )
+
+        return {
+            "success": True,
+            "session_id": session_id,
+            "audio_path": f"/api/workflows/aurity/sessions/{session_id}/audio",
+            "chunks_count": total_chunks,
+            "duration": total_duration,
+        }
+
+    except Exception as e:
+        logger.error(
+            "SESSION_END_FAILED",
+            session_id=session_id,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to end session: {e!s}",
+        ) from e
+
+
+@router.get("/sessions/{session_id}/audio", status_code=status.HTTP_200_OK)
+async def get_session_audio(session_id: str):
+    """
+    Get full audio file for playback.
+
+    **Args:**
+    - session_id: Session UUID
+
+    **Returns:**
+    - Audio file (WebM/WAV/MP3)
+    """
+    from pathlib import Path
+
+    import h5py
+    from fastapi.responses import FileResponse
+
+    try:
+        # Read audio path from HDF5
+        metadata_path = f"/sessions/{session_id}/ml_ready/metadata/recording"
+        corpus_path = Path("storage/corpus.h5")
+
+        with h5py.File(corpus_path, "r") as f:
+            if metadata_path not in f:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Session {session_id} not found or has no audio",
+                )
+
+            metadata = f[metadata_path]
+            if "full_audio_path" not in metadata:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Session {session_id} has no full audio saved",
+                )
+
+            audio_path_str = metadata["full_audio_path"][()].decode("utf-8")
+
+        audio_path = Path(audio_path_str)
+
+        if not audio_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Audio file not found: {audio_path}",
+            )
+
+        # Determine media type
+        ext = audio_path.suffix.lower()
+        media_type = (
+            "audio/webm" if ext == ".webm" else "audio/wav" if ext == ".wav" else "audio/mpeg"
+        )
+
+        logger.info(
+            "SESSION_AUDIO_SERVED",
+            session_id=session_id,
+            path=str(audio_path),
+        )
+
+        return FileResponse(
+            path=str(audio_path),
+            media_type=media_type,
+            filename=f"session_{session_id}{ext}",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "SESSION_AUDIO_FAILED",
+            session_id=session_id,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get audio: {e!s}",
+        ) from e
+
+
+@router.get("/sessions/{session_id}/chunks", status_code=status.HTTP_200_OK)
+async def get_session_chunks_api(session_id: str) -> dict:
+    """
+    Get all chunks/logs for a session (for UI display).
+
+    **Args:**
+    - session_id: Session UUID
+
+    **Returns:**
+    - chunks: List of chunks with transcript, duration, quality, timestamps
+    - total_duration: float
+    - total_chunks: int
+    """
+    from backend.storage.session_chunks_schema import get_session_chunks as get_chunks
+
+    try:
+        chunks = get_chunks(session_id)
+
+        if not chunks:
+            return {
+                "session_id": session_id,
+                "chunks": [],
+                "total_duration": 0.0,
+                "total_chunks": 0,
+            }
+
+        total_duration = sum(c["duration"] for c in chunks)
+
+        logger.info(
+            "SESSION_CHUNKS_RETRIEVED",
+            session_id=session_id,
+            total_chunks=len(chunks),
+        )
+
+        return {
+            "session_id": session_id,
+            "chunks": chunks,
+            "total_duration": total_duration,
+            "total_chunks": len(chunks),
+        }
+
+    except Exception as e:
+        logger.error(
+            "SESSION_CHUNKS_FAILED",
+            session_id=session_id,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get chunks: {e!s}",
+        ) from e
