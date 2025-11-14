@@ -10,7 +10,7 @@ Card: FI-DATA-RES-021
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -47,7 +47,7 @@ class EvidencePackResponse(BaseModel):
     created_at: str
     session_id: Optional[str]
     source_count: int
-    source_hashes: list[str]
+    source_hashes: List[str]
     policy_snapshot_id: str
     metadata: dict
 
@@ -113,10 +113,10 @@ async def create_evidence_pack(request: CreateEvidencePackRequest) -> EvidencePa
         )
 
     except ValueError as e:
-        logger.warning(f"EVIDENCE_PACK_CREATION_VALIDATION_FAILED: {str(e)}")
+        logger.warning(f"EVIDENCE_PACK_CREATION_VALIDATION_FAILED: {e!s}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"EVIDENCE_PACK_CREATION_FAILED: {str(e)}")
+        logger.error(f"EVIDENCE_PACK_CREATION_FAILED: {e!s}")
         raise HTTPException(status_code=500, detail="Failed to create evidence pack")
 
 
@@ -170,7 +170,7 @@ async def get_evidence_pack(pack_id: str) -> EvidencePackResponse:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"EVIDENCE_PACK_RETRIEVAL_FAILED: pack_id={pack_id}, error={str(e)}")
+        logger.error(f"EVIDENCE_PACK_RETRIEVAL_FAILED: pack_id={pack_id}, error={e!s}")
         raise HTTPException(status_code=500, detail="Failed to retrieve evidence pack")
 
 
@@ -222,5 +222,5 @@ async def get_session_evidence(session_id: str) -> list[EvidencePackResponse]:
         ]
 
     except Exception as e:
-        logger.error(f"SESSION_EVIDENCE_RETRIEVAL_FAILED: session_id={session_id}, error={str(e)}")
+        logger.error(f"SESSION_EVIDENCE_RETRIEVAL_FAILED: session_id={session_id}, error={e!s}")
         raise HTTPException(status_code=500, detail="Failed to retrieve session evidence")

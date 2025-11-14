@@ -8,14 +8,14 @@ Reorganized: 2025-11-08 (moved from backend/api/system.py)
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from typing import Any, Dict
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from backend.container import get_container
 from backend.logger import get_logger
-
-from datetime import timezone, datetime
-from typing import Any
 
 logger = get_logger(__name__)
 
@@ -26,7 +26,7 @@ class SystemHealthResponse(BaseModel):
     """Unified system health response"""
 
     ok: bool
-    services: dict[str, Any]
+    services: Dict[str, Any]
     version: str
     time: str
 
@@ -65,7 +65,7 @@ async def get_system_health() -> SystemHealthResponse:
             ok=health_data["ok"],
             services=health_data["services"],
             version="v0.3.0",
-            time=datetime.now(timezone.utc).isoformat() + "Z",
+            time=datetime.now(UTC).isoformat() + "Z",
         )
     except Exception as e:
         logger.error(f"SYSTEM_HEALTH_FAILED: {e!s}")
@@ -74,5 +74,5 @@ async def get_system_health() -> SystemHealthResponse:
             ok=False,
             services={"error": str(e)},
             version="v0.3.0",
-            time=datetime.now(timezone.utc).isoformat() + "Z",
+            time=datetime.now(UTC).isoformat() + "Z",
         )

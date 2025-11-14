@@ -8,7 +8,7 @@ not scattered across multiple endpoint handlers.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from backend.logger import get_logger
 from backend.repositories import SessionRepository
@@ -39,7 +39,7 @@ class SessionService:
     def create_session(
         self,
         session_id: str,
-        user_id: str | None = None,
+        user_id: Optional[str] = None,
         config: dict[str, Any | None] | None = None,
     ) -> dict[str, Any]:
         """Create new session with validation.
@@ -158,8 +158,8 @@ class SessionService:
     def fail_session(
         self,
         session_id: str,
-        error: str | None = None,
-        error_code: str | None = None,
+        error: Optional[str] = None,
+        error_code: Optional[str] = None,
     ) -> bool:
         """Mark session as failed.
 
@@ -181,9 +181,9 @@ class SessionService:
 
     def list_sessions(
         self,
-        limit: int | None = None,
-        user_id: str | None = None,
-        status: str | None = None,
+        limit: Optional[int] = None,
+        user_id: Optional[str] = None,
+        status: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         """List sessions with optional filtering.
 

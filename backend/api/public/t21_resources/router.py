@@ -9,7 +9,7 @@ Reorganized: 2025-11-08 (moved from backend/api/t21_resources.py)
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
@@ -46,7 +46,7 @@ class T21Resource(BaseModel):
     category: ResourceCategory
     icon: str
     url: Optional[str] = None
-    tags: list[str] = []
+    tags: List[str] = []
 
 
 class T21ResourcesResponse(BaseModel):

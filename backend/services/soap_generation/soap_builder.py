@@ -7,7 +7,7 @@ handling type conversions and validation.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from pydantic import ValidationError
 
@@ -44,7 +44,7 @@ class SOAPBuilder:
     """Builds SOAP model instances from extracted JSON data."""
 
     @staticmethod
-    def build(job_id: str, soap_data: dict[str, Any]) -> tuple[Subjetivo, Objetivo, Analisis, Plan]:
+    def build(job_id: str, soap_data: Dict[str, Any]) -> tuple[Subjetivo, Objetivo, Analisis, Plan]:
         """Build SOAP sections from extracted data.
 
         Args:
@@ -67,10 +67,10 @@ class SOAPBuilder:
 
         except ValidationError as e:
             logger.error("SOAP_VALIDATION_FAILED", job_id=job_id, errors=str(e))
-            raise SOAPBuildError(f"Failed to build SOAP models: {str(e)}") from e
+            raise SOAPBuildError(f"Failed to build SOAP models: {e!s}") from e
         except Exception as e:
             logger.error("SOAP_BUILD_FAILED", job_id=job_id, error=str(e))
-            raise SOAPBuildError(f"Unexpected error building SOAP: {str(e)}") from e
+            raise SOAPBuildError(f"Unexpected error building SOAP: {e!s}") from e
 
     @staticmethod
     def build_note(
@@ -117,10 +117,10 @@ class SOAPBuilder:
             )
 
         except ValidationError as e:
-            raise SOAPBuildError(f"Failed to build SOAPNote: {str(e)}") from e
+            raise SOAPBuildError(f"Failed to build SOAPNote: {e!s}") from e
 
     @staticmethod
-    def _build_subjetivo(soap_data: dict[str, Any]) -> Subjetivo:
+    def _build_subjetivo(soap_data: Dict[str, Any]) -> Subjetivo:
         """Build Subjetivo section."""
         subjetivo_data = soap_data.get("subjetivo", {})
 
@@ -146,7 +146,7 @@ class SOAPBuilder:
         )
 
     @staticmethod
-    def _build_objetivo(soap_data: dict[str, Any]) -> Objetivo:
+    def _build_objetivo(soap_data: Dict[str, Any]) -> Objetivo:
         """Build Objetivo section."""
         objetivo_data = soap_data.get("objetivo", {})
 
@@ -188,7 +188,7 @@ class SOAPBuilder:
         )
 
     @staticmethod
-    def _build_analisis(soap_data: dict[str, Any]) -> Analisis:
+    def _build_analisis(soap_data: Dict[str, Any]) -> Analisis:
         """Build Analisis section."""
         analisis_data = soap_data.get("analisis", {})
 
@@ -272,7 +272,7 @@ class SOAPBuilder:
         return diagnosticos_diferenciales
 
     @staticmethod
-    def _build_plan(soap_data: dict[str, Any]) -> Plan:
+    def _build_plan(soap_data: Dict[str, Any]) -> Plan:
         """Build Plan section."""
         from backend.providers.fi_consult_models import Seguimiento
 

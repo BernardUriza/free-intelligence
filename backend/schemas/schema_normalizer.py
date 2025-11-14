@@ -16,14 +16,14 @@ File: backend/schema_normalizer.py
 Created: 2025-10-28
 """
 
-from typing import Any
+from typing import Any, Dict
 
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-def normalize_output(output: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:
+def normalize_output(output: Dict[str, Any], schema: Dict[str, Any]) -> dict[str, Any]:
     """
     Normalize LLM output to match schema requirements.
 
@@ -128,7 +128,7 @@ def normalize_output(output: dict[str, Any], schema: dict[str, Any]) -> dict[str
     return normalized
 
 
-def normalize_intake_output(output: dict[str, Any]) -> dict[str, Any]:
+def normalize_intake_output(output: Dict[str, Any]) -> dict[str, Any]:
     """
     Normalize IntakeCoach output specifically.
 

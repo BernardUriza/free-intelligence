@@ -6,7 +6,7 @@ managing I/O operations and chunk concatenation.
 
 from __future__ import annotations
 
-from typing import cast
+from typing import List, cast
 
 import h5py
 
@@ -73,7 +73,7 @@ class TranscriptionReader:
         except Exception as e:
             logger.error("TRANSCRIPTION_READ_FAILED", job_id=job_id, error=str(e))
             raise TranscriptionReadError(
-                f"Failed to read transcription for job {job_id}: {str(e)}"
+                f"Failed to read transcription for job {job_id}: {e!s}"
             ) from e
 
     def _extract_texts(self, chunks_dataset: h5py.Dataset) -> list[str]:
@@ -85,7 +85,7 @@ class TranscriptionReader:
         Returns:
             List of non-empty text strings
         """
-        texts: list[str] = []
+        texts: List[str] = []
         dataset_length = len(chunks_dataset)  # type: ignore[arg-type]
 
         for i in range(dataset_length):

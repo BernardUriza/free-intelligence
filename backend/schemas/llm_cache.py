@@ -20,7 +20,7 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 from backend.logger import get_logger
 
@@ -150,7 +150,7 @@ class LLMCache:
         provider: str,
         model: str,
         prompt: str,
-        response: dict[str, Any],
+        response: Dict[str, Any],
         system: str = "",
         params: dict[str, Any | None] | None = None,
     ) -> str:

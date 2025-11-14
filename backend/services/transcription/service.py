@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from backend.logger import get_logger
 from backend.services.transcription.whisper import (
@@ -240,7 +240,7 @@ class TranscriptionService:
     def _transcribe_with_whisper(
         self,
         audio_path: Path,
-        language: str | None = None,
+        language: Optional[str] = None,
         vad_filter: bool = True,
     ) -> dict[str, Any]:
         """Transcribe audio file using internal Whisper model.
@@ -314,10 +314,10 @@ class TranscriptionService:
 
             # Collect segments
             segments_list: list[dict[str, Any]] = []
-            full_text_parts: list[str] = []
+            full_text_parts: List[str] = []
 
             for segment in segments_iter:
-                segment_dict: dict[str, Any] = {
+                segment_dict: Dict[str, Any] = {
                     "start": segment.start,
                     "end": segment.end,
                     "text": segment.text.strip(),
@@ -413,7 +413,7 @@ class TranscriptionService:
         session_id: str,
         audio_content: bytes,
         file_extension: str,
-        metadata: dict[str, Any] | None = None,
+        metadata: Dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Save audio file to storage.
 
@@ -448,7 +448,7 @@ class TranscriptionService:
     def transcribe(
         self,
         audio_path: Path,
-        language: str | None = None,
+        language: Optional[str] = None,
         vad_filter: bool = True,
     ) -> dict[str, Any]:
         """Transcribe audio file using Whisper.
@@ -494,7 +494,7 @@ class TranscriptionService:
         audio_content: bytes,
         filename: str,
         content_type: str,
-        metadata: dict[str, Any] | None = None,
+        metadata: Dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Process audio file and generate transcription (main orchestration).
 

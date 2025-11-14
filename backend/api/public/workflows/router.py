@@ -19,7 +19,7 @@ from __future__ import annotations
 import threading
 import time
 import uuid
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/workflows/aurity", tags=["workflows-aurity"])
 
 # In-memory job store (replace with Redis in production)
-_job_store: dict[str, dict[str, Any]] = {}
+_job_store: Dict[str, Dict[str, Any]] = {}
 _job_store_lock = threading.Lock()
 
 
@@ -481,7 +481,7 @@ async def get_session_audio(session_id: str):
                 )
 
             metadata = f[metadata_path]
-            if "full_audio_path" not in metadata:
+            if "full_audio_path" not in metadata:  # type: ignore[operator]
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Session {session_id} has no full audio saved",

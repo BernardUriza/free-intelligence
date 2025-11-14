@@ -9,7 +9,7 @@ Created: 2025-11-08
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal, Optional, Union
+from typing import Any, Dict, Literal, Optional, Union
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, constr, field_validator
@@ -32,7 +32,7 @@ class IntakePayload(BaseModel):
     reason: constr(min_length=3)  # type: ignore
     symptoms: Union[str, list[str]] = []
     audioTranscription: Optional[str] = None
-    metadata: dict[str, Any] = {}
+    metadata: Dict[str, Any] = {}
 
     @field_validator("audioTranscription")
     @classmethod
@@ -127,12 +127,10 @@ async def triage_intake(payload: IntakePayload, request: Request) -> IntakeAck:
         )
 
     except OSError as e:
-        logger.warning(f"TRIAGE_INTAKE_STORAGE_FAILED: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to store triage intake: {str(e)}"
-        ) from e
+        logger.warning(f"TRIAGE_INTAKE_STORAGE_FAILED: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to store triage intake: {e!s}") from e
     except Exception as e:
-        logger.error(f"TRIAGE_INTAKE_FAILED: {str(e)}")
+        logger.error(f"TRIAGE_INTAKE_FAILED: {e!s}")
         raise HTTPException(status_code=500, detail="Failed to process triage intake") from e
 
 
@@ -184,5 +182,5 @@ async def get_manifest(buffer_id: str) -> dict[str, Any]:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"TRIAGE_MANIFEST_RETRIEVAL_FAILED: buffer_id={buffer_id}, error={str(e)}")
+        logger.error(f"TRIAGE_MANIFEST_RETRIEVAL_FAILED: buffer_id={buffer_id}, error={e!s}")
         raise HTTPException(status_code=500, detail="Failed to retrieve manifest") from e

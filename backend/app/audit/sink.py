@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Optional
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -44,7 +44,7 @@ def write_audit_event(
     user_id: str,
     resource: str,
     result: str,
-    metadata: dict[str, Any] | None = None,
+    metadata: Dict[str, Any] | None = None,
 ) -> str:
     """Write audit event to Parquet.
 
@@ -70,7 +70,7 @@ def write_audit_event(
     import json
 
     event_id = str(uuid.uuid4())
-    timestamp = datetime.now(timezone.utc)
+    timestamp = datetime.now(UTC)
 
     # Partition by date (YYYY-MM-DD)
     partition_date = timestamp.strftime("%Y-%m-%d")
@@ -117,9 +117,9 @@ def write_audit_event(
 
 
 def read_audit_events(
-    start_date: str | None = None,
-    end_date: str | None = None,
-    action: str | None = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    action: Optional[str] = None,
 ) -> list[dict[str, Any]]:
     """Read audit events from Parquet.
 

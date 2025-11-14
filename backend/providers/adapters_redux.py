@@ -22,8 +22,8 @@ Usage:
   event_store.append_event(consultation_id, event)
 """
 
-from datetime import timezone, datetime
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from backend.logger import get_logger
@@ -91,7 +91,7 @@ class PayloadTranslator:
     """Translates Redux action payloads to FI event payloads."""
 
     @staticmethod
-    def translate_add_message(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_add_message(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate medicalChat/addMessage payload."""
         return {
             "message_content": redux_payload.get("content"),
@@ -100,7 +100,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_update_message(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_update_message(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate medicalChat/updateMessage payload."""
         return {
             "message_id": redux_payload.get("messageId"),
@@ -108,12 +108,12 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_delete_message(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_delete_message(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate medicalChat/deleteMessage payload."""
         return {"message_id": redux_payload.get("messageId")}
 
     @staticmethod
-    def translate_extraction_started(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_extraction_started(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate medicalChat/extractMedicalData/pending payload."""
         meta_arg = redux_payload.get("meta", {}).get("arg", {})
         return {
@@ -123,7 +123,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_extraction_completed(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_extraction_completed(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate medicalChat/extractMedicalData/fulfilled payload."""
         return {
             "iteration": redux_payload.get("iteration", 1),
@@ -134,7 +134,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_extraction_failed(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_extraction_failed(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate medicalChat/extractMedicalData/rejected payload."""
         return {
             "iteration": redux_payload.get("iteration", 1),
@@ -143,7 +143,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_demographics(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_demographics(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate medicalChat/updateDemographics payload."""
         return {
             "age": redux_payload.get("age"),
@@ -154,7 +154,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_symptoms(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_symptoms(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate medicalChat/updateSymptoms payload."""
         return {
             "primary_symptoms": redux_payload.get("primarySymptoms", []),
@@ -168,7 +168,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_context(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_context(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate medicalChat/updateContext payload."""
         return {
             "past_medical_history": redux_payload.get("pastMedicalHistory"),
@@ -179,7 +179,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_completeness(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_completeness(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate medicalChat/updateCompleteness payload."""
         return {
             "completeness_percentage": redux_payload.get("percentage", 0),
@@ -187,7 +187,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_soap_section(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_soap_section(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate soapAnalysisReal/updateSOAPSection payload."""
         return {
             "section_name": redux_payload.get("section"),
@@ -196,7 +196,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_soap_completed(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_soap_completed(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate soapAnalysisReal/extractionSuccess payload."""
         return {
             "soap_data": redux_payload.get("analysis", {}),
@@ -205,7 +205,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_soap_failed(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_soap_failed(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate soapAnalysisReal/extractionError payload."""
         return {
             "error_message": redux_payload.get("error", "Unknown error"),
@@ -213,7 +213,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_critical_pattern(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_critical_pattern(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate cognitive/addCognitiveEvent payload."""
         data = redux_payload.get("data", {})
         return {
@@ -226,7 +226,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_urgency(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_urgency(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate cognitive/updateSystemHealth payload."""
         metrics = redux_payload.get("metrics", {})
         return {
@@ -238,7 +238,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_llm_initiated(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_llm_initiated(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate decisions/startDecision payload."""
         return {
             "decision_id": redux_payload.get("id"),
@@ -248,7 +248,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_llm_completed(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_llm_completed(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate decisions/completeDecision payload."""
         return {
             "decision_id": redux_payload.get("id"),
@@ -260,7 +260,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_llm_failed(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_llm_failed(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate decisions/failDecision payload."""
         return {
             "decision_id": redux_payload.get("id"),
@@ -269,7 +269,7 @@ class PayloadTranslator:
         }
 
     @staticmethod
-    def translate_audit_entries(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_audit_entries(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate decisions/addAuditEntries payload."""
         # Redux payload is array of audit entries
         if isinstance(redux_payload, list):
@@ -277,7 +277,7 @@ class PayloadTranslator:
         return {"audit_entries": [redux_payload]}
 
     @staticmethod
-    def translate_consultation_committed(redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def translate_consultation_committed(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate soapAnalysisReal/completeAnalysis payload."""
         from backend.schemas.fi_event_store import calculate_sha256
 
@@ -311,10 +311,10 @@ class ReduxAdapter:
 
     def translate_action(
         self,
-        redux_action: dict[str, Any],
+        redux_action: Dict[str, Any],
         consultation_id: str,
         user_id: str,
-        session_id: str | None = None,
+        session_id: Optional[str] = None,
     ) -> ConsultationEvent:
         """
         Translate Redux action to FI domain event.
@@ -352,7 +352,7 @@ class ReduxAdapter:
         event = ConsultationEvent(
             event_id=str(uuid4()),
             consultation_id=consultation_id,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             event_type=event_type,
             payload=event_payload,
             metadata=EventMetadata(
@@ -372,7 +372,7 @@ class ReduxAdapter:
 
         return event
 
-    def _translate_payload(self, action_type: str, redux_payload: dict[str, Any]) -> dict[str, Any]:
+    def _translate_payload(self, action_type: str, redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """
         Translate Redux payload to event payload.
 
@@ -438,7 +438,7 @@ class BatchReduxAdapter:
         redux_actions: list[dict[str, Any]],
         consultation_id: str,
         user_id: str,
-        session_id: str | None = None,
+        session_id: Optional[str] = None,
     ) -> list[ConsultationEvent]:
         """
         Translate batch of Redux actions to events.
@@ -479,7 +479,7 @@ class BatchReduxAdapter:
 # ============================================================================
 
 
-def validate_redux_action(redux_action: dict[str, Any]) -> bool:
+def validate_redux_action(redux_action: Dict[str, Any]) -> bool:
     """
     Validate Redux action structure.
 

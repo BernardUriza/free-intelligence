@@ -10,9 +10,9 @@ File: backend/fi_consult_models.py
 Created: 2025-10-28
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -170,7 +170,7 @@ class Demographics(BaseModel):
 class Symptoms(BaseModel):
     """Symptom data structure."""
 
-    primary_symptoms: list[str] = Field(default_factory=list)
+    primary_symptoms: List[str] = Field(default_factory=list)
     secondary_symptoms: Optional[list[str]] = None
     duration: Optional[str] = None
     severity: Optional[Severity] = None
@@ -198,11 +198,11 @@ class MedicalContext(BaseModel):
 class Antecedentes(BaseModel):
     """Antecedentes médicos (Medical history)."""
 
-    personales: list[str] = Field(default_factory=list)
-    familiares: list[str] = Field(default_factory=list)
-    medicamentos: list[str] = Field(default_factory=list)
-    alergias: list[str] = Field(default_factory=list)
-    quirurgicos: list[str] = Field(default_factory=list)
+    personales: List[str] = Field(default_factory=list)
+    familiares: List[str] = Field(default_factory=list)
+    medicamentos: List[str] = Field(default_factory=list)
+    alergias: List[str] = Field(default_factory=list)
+    quirurgicos: List[str] = Field(default_factory=list)
 
 
 class Habitos(BaseModel):
@@ -291,7 +291,7 @@ class DiagnosticoPrincipal(BaseModel):
 
     condicion: str
     cie10: str = Field(description="ICD-10 code")
-    evidencia: list[str] = Field(default_factory=list)
+    evidencia: List[str] = Field(default_factory=list)
     probabilidad: float = Field(ge=0, le=1)
     confianza: float = Field(ge=0, le=1)
 
@@ -307,8 +307,8 @@ class DiagnosticoDiferencial(BaseModel):
     defensive_score: float = Field(
         description="Defensive score = gravity * 0.7 + probability * 0.3"
     )
-    evidencia: list[str] = Field(default_factory=list)
-    descartar_mediante: list[str] = Field(default_factory=list)
+    evidencia: List[str] = Field(default_factory=list)
+    descartar_mediante: List[str] = Field(default_factory=list)
 
 
 class Pronostico(BaseModel):
@@ -328,8 +328,8 @@ class Analisis(BaseModel):
 
     diagnostico_principal: DiagnosticoPrincipal
     diagnosticos_diferenciales: list[DiagnosticoDiferencial]
-    factores_riesgo: list[str] = Field(default_factory=list)
-    senos_peligro: list[str] = Field(
+    factores_riesgo: List[str] = Field(default_factory=list)
+    senos_peligro: List[str] = Field(
         default_factory=list, description="Red flags (widow maker patterns)"
     )
     pronostico: Pronostico
@@ -379,9 +379,9 @@ class Seguimiento(BaseModel):
     """Seguimiento (Follow-up plan)."""
 
     proxima_cita: str
-    vigilar: list[str] = Field(default_factory=list)
-    criterios_emergencia: list[str] = Field(default_factory=list)
-    educacion_paciente: list[str] = Field(default_factory=list)
+    vigilar: List[str] = Field(default_factory=list)
+    criterios_emergencia: List[str] = Field(default_factory=list)
+    educacion_paciente: List[str] = Field(default_factory=list)
 
 
 class Plan(BaseModel):
@@ -455,9 +455,9 @@ class ConsultationEvent(BaseModel):
 
     event_id: str = Field(default_factory=lambda: str(uuid4()))
     consultation_id: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     event_type: EventType
-    payload: dict[str, Any]
+    payload: Dict[str, Any]
     metadata: EventMetadata
 
     # For audit compliance
@@ -497,8 +497,8 @@ class ExtractionCompletedEvent(ConsultationEvent):
         iteration: int
         completeness: float = Field(ge=0, le=100)
         nom_compliance: float = Field(ge=0, le=100)
-        missing_fields: list[str]
-        extraction_data: dict[str, Any]
+        missing_fields: List[str]
+        extraction_data: Dict[str, Any]
 
 
 class SOAPGenerationCompletedEvent(ConsultationEvent):
@@ -507,7 +507,7 @@ class SOAPGenerationCompletedEvent(ConsultationEvent):
     event_type: EventType = EventType.SOAP_GENERATION_COMPLETED
 
     class PayloadSchema(BaseModel):
-        soap_data: dict[str, Any]  # Full SOAP structure
+        soap_data: Dict[str, Any]  # Full SOAP structure
         quality_score: float = Field(ge=0, le=1)
         ready_for_commit: bool
 
@@ -521,8 +521,8 @@ class CriticalPatternDetectedEvent(ConsultationEvent):
         pattern_name: str
         gravity_score: int = Field(ge=1, le=10)
         widow_maker_alert: bool
-        symptoms_matched: list[str]
-        critical_differentials: list[str]
+        symptoms_matched: List[str]
+        critical_differentials: List[str]
         time_to_action: str
 
 
@@ -532,7 +532,7 @@ class ConsultationCommittedEvent(ConsultationEvent):
     event_type: EventType = EventType.CONSULTATION_COMMITTED
 
     class PayloadSchema(BaseModel):
-        soap_data: dict[str, Any]
+        soap_data: Dict[str, Any]
         committed_by: str
         commit_hash: str = Field(description="SHA256 of SOAP data")
         quality_score: float
@@ -550,10 +550,10 @@ class CompletenessMetrics(BaseModel):
 
     percentage: float = Field(ge=0, le=100)
     sections: Optional[dict[str, float]] = None
-    critical_fields_present: list[str] = Field(default_factory=list)
-    critical_fields_missing: list[str] = Field(default_factory=list)
+    critical_fields_present: List[str] = Field(default_factory=list)
+    critical_fields_missing: List[str] = Field(default_factory=list)
     nom_compliance: float = Field(ge=0, le=100)
-    nom_violations: list[str] = Field(default_factory=list)
+    nom_violations: List[str] = Field(default_factory=list)
     ready_for_commit: bool
 
 
@@ -564,8 +564,8 @@ class UrgencyAssessment(BaseModel):
     gravity_score: int = Field(ge=1, le=10)
     time_to_action: str
     identified_patterns: list[dict[str, Any]] = Field(default_factory=list)
-    risk_factors: list[str] = Field(default_factory=list)
-    immediate_actions: list[str] = Field(default_factory=list)
+    risk_factors: List[str] = Field(default_factory=list)
+    immediate_actions: List[str] = Field(default_factory=list)
 
 
 class Consultation(BaseModel):
@@ -576,8 +576,8 @@ class Consultation(BaseModel):
 
     consultation_id: str = Field(default_factory=lambda: str(uuid4()))
     session_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Current state
     messages: list[dict[str, Any]] = Field(default_factory=list)
@@ -621,7 +621,7 @@ class AppendEventRequest(BaseModel):
     """Request to append event to consultation."""
 
     event_type: EventType
-    payload: dict[str, Any]
+    payload: Dict[str, Any]
     user_id: str
 
 

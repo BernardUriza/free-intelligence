@@ -10,9 +10,9 @@ not business logic or policy enforcement.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from backend.logger import get_logger
@@ -76,7 +76,7 @@ class AuditRepository(BaseRepository):
                 log_group = logs_group.create_group(log_id)  # type: ignore[attr-defined]
 
                 # Store log data - ensure timestamp is ISO string
-                timestamp_raw = entity.get("timestamp", datetime.now(timezone.utc))
+                timestamp_raw = entity.get("timestamp", datetime.now(UTC))
                 timestamp_str = (
                     timestamp_raw.isoformat()
                     if isinstance(timestamp_raw, datetime)
@@ -115,7 +115,7 @@ class AuditRepository(BaseRepository):
                     return None
 
                 log_group = f[self.AUDIT_LOGS_GROUP][entity_id]  # type: ignore[index]
-                log_data: dict[str, Any] = {
+                log_data: Dict[str, Any] = {
                     "log_id": entity_id,
                     "timestamp": log_group.attrs.get("timestamp", ""),  # type: ignore[attr-defined]
                     "action": log_group.attrs.get("action", ""),  # type: ignore[attr-defined]
@@ -155,10 +155,10 @@ class AuditRepository(BaseRepository):
 
     def list_all(
         self,
-        limit: int | None = None,
-        action: str | None = None,
-        user_id: str | None = None,
-        resource: str | None = None,
+        limit: Optional[int] = None,
+        action: Optional[str] = None,
+        user_id: Optional[str] = None,
+        resource: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         """List audit logs with optional filtering.
 
@@ -205,7 +205,7 @@ class AuditRepository(BaseRepository):
         self,
         start_date: datetime,
         end_date: datetime,
-        limit: int | None = None,
+        limit: Optional[int] = None,
     ) -> list[dict[str, Any]]:
         """Get audit logs within date range.
 

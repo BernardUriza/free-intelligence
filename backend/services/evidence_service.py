@@ -8,7 +8,7 @@ Clean Code: This service layer makes endpoints simple and focused.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from backend.evidence_pack import EvidencePackBuilder, create_evidence_pack_from_sources
 from backend.logger import get_logger
@@ -35,7 +35,7 @@ class EvidenceService:
     def create_evidence_pack(
         self,
         sources: list[dict[str, Any]],
-        session_id: str | None = None,
+        session_id: Optional[str] = None,
     ) -> dict[str, Any]:
         """Create evidence pack from clinical sources.
 
@@ -76,8 +76,8 @@ class EvidenceService:
             }
 
         except Exception as e:
-            logger.error(f"EVIDENCE_PACK_CREATION_FAILED: error={str(e)}")
-            raise ValueError(f"Failed to create evidence pack: {str(e)}") from e
+            logger.error(f"EVIDENCE_PACK_CREATION_FAILED: error={e!s}")
+            raise ValueError(f"Failed to create evidence pack: {e!s}") from e
 
     def get_evidence_pack(self, pack_id: str) -> dict[str, Any | None] | None:
         """Get evidence pack by ID.

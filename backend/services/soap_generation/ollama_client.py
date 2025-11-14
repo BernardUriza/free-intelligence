@@ -7,7 +7,7 @@ Validates responses against Pydantic models for type safety.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Optional
+from typing import Any, Dict, Optional, Protocol
 
 import requests
 
@@ -38,7 +38,7 @@ class HttpClient(Protocol):
     def post(
         self,
         url: str,
-        json: dict[str, Any],
+        json: Dict[str, Any],
         timeout: int,
     ) -> Any:
         """Execute POST request."""
@@ -148,7 +148,7 @@ class OllamaClient:
             raise
         except Exception as e:
             logger.error("OLLAMA_EXTRACTION_FAILED", error=str(e))
-            raise OllamaExtractionError(f"Failed to extract SOAP from Ollama: {str(e)}") from e
+            raise OllamaExtractionError(f"Failed to extract SOAP from Ollama: {e!s}") from e
 
     def extract_soap_validated(
         self,

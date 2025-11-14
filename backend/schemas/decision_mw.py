@@ -15,7 +15,7 @@ Created: 2025-10-28
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import yaml
 
@@ -30,7 +30,7 @@ class DecisionEvent:
 
     event: str
     priority: str
-    metadata: dict[str, Any]
+    metadata: Dict[str, Any]
     rule_name: str
 
 
@@ -51,7 +51,7 @@ class ConditionEvaluator:
     def __init__(self):
         self.logger = get_logger(__name__)
 
-    def evaluate(self, condition: dict[str, Any], data: dict[str, Any]) -> bool:
+    def evaluate(self, condition: Dict[str, Any], data: Dict[str, Any]) -> bool:
         """
         Evaluate condition against data.
 
@@ -120,7 +120,7 @@ class ConditionEvaluator:
         """Evaluate OR of multiple conditions"""
         return any(self.evaluate(cond, data) for cond in conditions)
 
-    def _get_field_value(self, data: dict[str, Any], field: str) -> Any:
+    def _get_field_value(self, data: Dict[str, Any], field: str) -> Any:
         """
         Get nested field value using dot notation.
 
@@ -209,7 +209,7 @@ class DecisionMiddleware:
             raise ValueError(f"Failed to load rules: {e}")
 
     def apply_rules(
-        self, preset_id: str, data: dict[str, Any], stop_on_first_match: bool = False
+        self, preset_id: str, data: Dict[str, Any], stop_on_first_match: bool = False
     ) -> list[DecisionEvent]:
         """
         Apply decision rules to validated JSON data.
