@@ -9,12 +9,12 @@ Created: 2025-11-09
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from typing import Any, Dict
+
 from backend.app.audit.sink import write_audit_event
 from backend.app.celery_app import celery_app
 from backend.logger import get_logger
-
-from datetime import UTC, datetime
-from typing import Any, Dict
 
 logger = get_logger(__name__)
 

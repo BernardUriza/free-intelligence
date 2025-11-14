@@ -17,14 +17,14 @@ Architecture:
 - No PHI in logs (redaction)
 """
 
-from backend.logger import get_logger
-
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Dict, Optional
+
+from backend.logger import get_logger
 
 logger = get_logger(__name__)
 

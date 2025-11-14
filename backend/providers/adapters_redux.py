@@ -22,16 +22,16 @@ Usage:
   event_store.append_event(consultation_id, event)
 """
 
+from datetime import UTC, datetime
+from typing import Any, Dict, Optional
+from uuid import uuid4
+
 from backend.logger import get_logger
 from backend.providers.fi_consult_models import (
     ConsultationEvent,
     EventMetadata,
     EventType,
 )
-
-from datetime import UTC, datetime
-from typing import Any, Dict, Optional
-from uuid import uuid4
 
 logger = get_logger(__name__)
 

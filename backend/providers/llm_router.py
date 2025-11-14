@@ -11,10 +11,6 @@ Provides a unified interface for LLM interactions, supporting multiple providers
 Philosophy: Provider-agnostic design. No vendor lock-in.
 """
 
-import anthropic
-import numpy as np
-from dotenv import load_dotenv
-
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -22,16 +18,20 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Optional
 
+import anthropic
+import numpy as np
+from dotenv import load_dotenv
+
 # Load environment variables from .env
 load_dotenv()
-
-from backend.logger import get_logger
-from backend.policy.policy_loader import get_policy_loader
-from backend.schemas.llm_audit_policy import require_audit_log
 
 import hashlib
 import re
 from functools import lru_cache
+
+from backend.logger import get_logger
+from backend.policy.policy_loader import get_policy_loader
+from backend.schemas.llm_audit_policy import require_audit_log
 
 logger = get_logger(__name__)
 
