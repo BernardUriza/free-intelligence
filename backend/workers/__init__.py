@@ -11,6 +11,9 @@ from __future__ import annotations
 
 from backend.logger import get_logger
 
+# Import all task modules for Celery autodiscovery
+from backend.workers import transcription_tasks  # noqa: F401  # type: ignore[reportUnusedImport]
+
 logger = get_logger(__name__)
 
 
