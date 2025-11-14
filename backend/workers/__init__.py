@@ -12,7 +12,12 @@ from __future__ import annotations
 from backend.logger import get_logger
 
 # Import all task modules for Celery autodiscovery
-from backend.workers import transcription_tasks  # noqa: F401  # type: ignore[reportUnusedImport]
+from backend.workers import (  # noqa: F401  # type: ignore[reportUnusedImport]
+    diarization_tasks,
+)
+from backend.workers import (  # noqa: F401  # type: ignore[reportUnusedImport]
+    transcription_tasks,
+)
 
 logger = get_logger(__name__)
 
@@ -49,9 +54,7 @@ def warmup_worker_services() -> None:
             else:
                 logger.warning("WORKER_WHISPER_FAILED", reason="Model returned None")
         else:
-            logger.warning(
-                "WORKER_WHISPER_UNAVAILABLE", reason="faster-whisper not installed"
-            )
+            logger.warning("WORKER_WHISPER_UNAVAILABLE", reason="faster-whisper not installed")
 
     except Exception as e:
         logger.error("WORKER_WARMUP_FAILED", error=str(e), exc_info=True)

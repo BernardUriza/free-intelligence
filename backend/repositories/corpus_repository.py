@@ -9,17 +9,17 @@ not business logic or API concerns.
 
 from __future__ import annotations
 
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Optional
+
 import h5py
 
 from backend.logger import get_logger
 from backend.type_defs import DiarizationChunkDict
 
 from .base_repository import BaseRepository
-
-import json
-from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any, Optional
 
 logger = get_logger(__name__)
 

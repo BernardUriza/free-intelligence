@@ -10,14 +10,17 @@ Clean Code Principles Applied:
 - Open/Closed: Easy to extend with new repository types without modifying existing code
 """
 
+from .audit_repository import AuditRepository
 from .base_repository import BaseRepository
 from .corpus_repository import CorpusRepository
+from .job_repository import JobRepository, job_repository
 from .session_repository import SessionRepository
-from .audit_repository import AuditRepository
 
 __all__ = [
     "BaseRepository",
     "CorpusRepository",
     "SessionRepository",
     "AuditRepository",
+    "JobRepository",
+    "job_repository",
 ]

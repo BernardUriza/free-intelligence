@@ -1,7 +1,7 @@
 """HDF5-backed diarization job management.
 
 Manages async diarization jobs with states: pending, in_progress, completed, failed.
-Uses HDF5 (storage/diarization.h5) for persistent job storage.
+Uses unified JobRepository for persistent job storage in corpus.h5.
 
 Functions:
   - create_job(): Create new job
@@ -12,120 +12,16 @@ Functions:
 
 from __future__ import annotations
 
-import h5py
-
-from backend.logger import get_logger
-from backend.services.diarization.models import DiarizationJob
-
-import json
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
+
+from backend.logger import get_logger
+from backend.models import JobType
+from backend.repositories import job_repository
+from backend.services.diarization.models import DiarizationJob
 
 logger = get_logger(__name__)
-
-# HDF5 storage path
-DIARIZATION_H5_PATH = Path(__file__).parent.parent.parent.parent / "storage" / "diarization.h5"
-
-
-def _ensure_jobs_group() -> None:
-    """Ensure HDF5 file and jobs group exist."""
-    DIARIZATION_H5_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    with h5py.File(DIARIZATION_H5_PATH, "a") as f:
-        if "jobs" not in f:
-            f.create_group("jobs")
-
-
-def _job_to_dict(job: DiarizationJob) -> dict[str, Any]:
-    """Convert DiarizationJob to dict for JSON serialization."""
-    return {
-        "job_id": job.job_id,
-        "session_id": job.session_id,
-        "audio_file_path": job.audio_file_path,
-        "audio_file_size": job.audio_file_size,
-        "status": job.status,
-        "progress_percent": job.progress_percent,
-        "created_at": job.created_at,
-        "started_at": job.started_at,
-        "completed_at": job.completed_at,
-        "error_message": job.error_message,
-        "result_path": job.result_path,
-        "processed_chunks": job.processed_chunks,
-        "total_chunks": job.total_chunks,
-        "last_event": job.last_event,
-        "updated_at": job.updated_at,
-        "result_data": job.result_data,
-    }
-
-
-def _dict_to_job(data: Dict[str, Any]) -> DiarizationJob:
-    """Convert dict to DiarizationJob."""
-    return DiarizationJob(**data)
-
-
-def _save_job_to_hdf5(job: DiarizationJob) -> None:
-    """Save job to HDF5 as JSON string."""
-    _ensure_jobs_group()
-
-    job_dict = _job_to_dict(job)
-    job_json = json.dumps(job_dict)
-
-    with h5py.File(DIARIZATION_H5_PATH, "a") as f:
-        jobs_group = f["jobs"]
-
-        # Delete existing dataset if present
-        if job.job_id in jobs_group:  # type: ignore[operator]
-            del jobs_group[job.job_id]
-
-        # Create new dataset with JSON string
-        jobs_group.create_dataset(
-            job.job_id, data=job_json, dtype=h5py.string_dtype(encoding="utf-8")
-        )
-
-
-def _load_job_from_hdf5(job_id: str) -> Optional[DiarizationJob]:
-    """Load job from HDF5."""
-    if not DIARIZATION_H5_PATH.exists():
-        return None
-
-    try:
-        with h5py.File(DIARIZATION_H5_PATH, "r") as f:
-            if "jobs" not in f or job_id not in f["jobs"]:  # type: ignore[operator]
-                return None
-
-            job_json = f["jobs"][job_id][()]
-            if isinstance(job_json, bytes):
-                job_json = job_json.decode("utf-8")
-
-            job_dict = json.loads(job_json)
-            return _dict_to_job(job_dict)
-    except Exception as e:
-        logger.error("LOAD_JOB_FAILED", job_id=job_id, error=str(e))
-        return None
-
-
-def _list_jobs_from_hdf5() -> list[DiarizationJob]:
-    """List all jobs from HDF5."""
-    if not DIARIZATION_H5_PATH.exists():
-        return []
-
-    jobs = []
-    try:
-        with h5py.File(DIARIZATION_H5_PATH, "r") as f:
-            if "jobs" not in f:
-                return []
-
-            jobs_group = f["jobs"]
-            for job_id in jobs_group.keys():
-                job = _load_job_from_hdf5(job_id)
-                if job:
-                    jobs.append(job)
-    except Exception as e:
-        logger.error("LIST_JOBS_FAILED", error=str(e))
-
-    return jobs
 
 
 def create_job(session_id: str, audio_file_path: str, audio_file_size: int) -> str:
@@ -140,49 +36,59 @@ def create_job(session_id: str, audio_file_path: str, audio_file_size: int) -> s
         job_id (UUID)
     """
     job_id = str(uuid.uuid4())
-    now = datetime.now(UTC).isoformat().replace("+00:00", "") + "Z"
 
-    job = DiarizationJob(
+    # Create job using factory method
+    job = DiarizationJob.create_for_session(
         job_id=job_id,
         session_id=session_id,
         audio_file_path=audio_file_path,
         audio_file_size=audio_file_size,
-        status="pending",
-        progress_percent=0,
-        created_at=now,
-        processed_chunks=0,
         total_chunks=0,
-        last_event="JOB_CREATED",
-        updated_at=now,
     )
 
-    # Save to HDF5 for persistence
-    _save_job_to_hdf5(job)
+    # Save to HDF5 using unified repository
+    job_repository.save(job)
 
     logger.info("JOB_CREATED", job_id=job_id, session_id=session_id, file_size=audio_file_size)
     return job_id
 
 
-def get_job(job_id: str) -> Optional[DiarizationJob]:
+def get_job(job_id: str, session_id: Optional[str] = None) -> Optional[DiarizationJob]:
     """Retrieve job by ID from HDF5.
 
     Args:
         job_id: Job identifier
+        session_id: Optional session identifier (for faster lookup)
 
     Returns:
         DiarizationJob or None if not found
     """
-    job = _load_job_from_hdf5(job_id)
+    # If session_id provided, direct lookup
+    if session_id:
+        job = job_repository.load(
+            job_id=job_id,
+            session_id=session_id,
+            job_type=JobType.DIARIZATION,
+            job_class=DiarizationJob,
+        )
+        if not job:
+            logger.warning("JOB_NOT_FOUND", job_id=job_id, session_id=session_id)
+        return job
 
-    if not job:
-        logger.warning("JOB_NOT_FOUND", job_id=job_id)
-        return None
+    # Otherwise, search across all diarization jobs (less efficient)
+    # This maintains backward compatibility but is slower
+    all_jobs = list_jobs()
+    for job in all_jobs:
+        if job.job_id == job_id:
+            return job
 
-    return job
+    logger.warning("JOB_NOT_FOUND", job_id=job_id)
+    return None
 
 
 def update_job(
     job_id: str,
+    session_id: Optional[str] = None,
     status: Optional[str] = None,
     progress_percent: Optional[int] = None,
     processed_chunks: Optional[int] = None,
@@ -195,6 +101,7 @@ def update_job(
 
     Args:
         job_id: Job identifier
+        session_id: Optional session identifier (for faster lookup)
         status: New status (pending | in_progress | completed | failed)
         progress_percent: Progress percentage (0-100)
         processed_chunks: Number of chunks processed
@@ -207,24 +114,29 @@ def update_job(
         Updated DiarizationJob or None if not found
     """
     # Load job from HDF5
-    job = _load_job_from_hdf5(job_id)
+    job = get_job(job_id, session_id=session_id)
 
     if not job:
         logger.warning("JOB_NOT_FOUND", job_id=job_id)
         return None
 
-    now = datetime.now(UTC).isoformat().replace("+00:00", "") + "Z"
-
+    # Update fields using base Job methods where applicable
     if status:
-        job.status = status
-        if status == "in_progress" and not job.started_at:
-            job.started_at = now
-        if status == "completed":
-            job.completed_at = now
-            job.progress_percent = 100
+        from backend.models import JobStatus
+
+        job_status = JobStatus(status)
+        if job_status == JobStatus.IN_PROGRESS and job.status == JobStatus.PENDING:
+            job.start()
+        elif job_status == JobStatus.COMPLETED:
+            job.complete(result_data=result_data)
+        elif job_status == JobStatus.FAILED and error_message:
+            job.fail(error_message)
+        else:
+            job.status = job_status
+            job.updated_at = datetime.now(UTC).isoformat()
 
     if progress_percent is not None:
-        job.progress_percent = progress_percent
+        job.update_progress(progress_percent)
 
     if processed_chunks is not None:
         job.processed_chunks = processed_chunks
@@ -232,19 +144,11 @@ def update_job(
     if total_chunks is not None:
         job.total_chunks = total_chunks
 
-    if error_message:
-        job.error_message = error_message
-
     if result_path:
         job.result_path = result_path
 
-    if result_data:
-        job.result_data = result_data
-
-    job.updated_at = now
-
-    # Save updated job to HDF5
-    _save_job_to_hdf5(job)
+    # Save updated job to HDF5 using unified repository
+    job_repository.save(job)
 
     logger.info(
         "JOB_UPDATED",
@@ -258,35 +162,65 @@ def update_job(
     return job
 
 
-def list_jobs() -> list[DiarizationJob]:
-    """List all jobs from HDF5.
+def list_jobs(session_id: Optional[str] = None) -> list[DiarizationJob]:
+    """List all diarization jobs from HDF5.
+
+    Args:
+        session_id: Optional session identifier to filter by session
 
     Returns:
         List of all DiarizationJob objects
     """
-    return _list_jobs_from_hdf5()
+    if session_id:
+        # List jobs for specific session
+        return job_repository.list_by_session(
+            session_id=session_id, job_type=JobType.DIARIZATION, job_class=DiarizationJob
+        )
+    else:
+        # List all diarization jobs across all sessions
+        # Combine jobs from all statuses
+        from backend.models import JobStatus
+
+        all_jobs = []
+        for status in JobStatus:
+            jobs = job_repository.list_by_status(status=status, job_class=DiarizationJob)
+            # Filter to only diarization jobs
+            all_jobs.extend([j for j in jobs if j.job_type == JobType.DIARIZATION])
+
+        # Remove duplicates by job_id
+        seen = set()
+        unique_jobs = []
+        for job in all_jobs:
+            if job.job_id not in seen:
+                seen.add(job.job_id)
+                unique_jobs.append(job)
+
+        return unique_jobs
 
 
-def delete_job(job_id: str) -> bool:
+def delete_job(job_id: str, session_id: Optional[str] = None) -> bool:
     """Delete job from HDF5 (for cleanup).
 
     Args:
         job_id: Job identifier
+        session_id: Optional session identifier (for faster lookup)
 
     Returns:
         True if job was deleted, False if not found
     """
-    if not DIARIZATION_H5_PATH.exists():
+    # Load job first to get session_id if not provided
+    job = get_job(job_id, session_id=session_id)
+    if not job:
         return False
 
-    try:
-        with h5py.File(DIARIZATION_H5_PATH, "a") as f:
-            if "jobs" not in f or job_id not in f["jobs"]:  # type: ignore[operator]
-                return False
+    # Delete using repository
+    deleted = job_repository.delete(
+        job_id=job_id, session_id=job.session_id, job_type=JobType.DIARIZATION
+    )
 
-            del f["jobs"][job_id]
-            logger.info("JOB_DELETED", job_id=job_id)
-            return True
-    except Exception as e:
-        logger.error("DELETE_JOB_FAILED", job_id=job_id, error=str(e))
-        return False
+    if deleted:
+        logger.info("JOB_DELETED", job_id=job_id, session_id=job.session_id)
+    else:
+        logger.error("DELETE_JOB_FAILED", job_id=job_id, session_id=job.session_id)
+
+    return deleted
