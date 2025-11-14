@@ -6,11 +6,11 @@ managing I/O operations and chunk concatenation.
 
 from __future__ import annotations
 
-from typing import List, cast
-
 import h5py
 
 from backend.logger import get_logger
+
+from typing import List, cast
 
 __all__ = ["TranscriptionReader", "TranscriptionReadError"]
 

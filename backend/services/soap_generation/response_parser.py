@@ -6,14 +6,14 @@ Converts parsed JSON to Pydantic models for type safety.
 
 from __future__ import annotations
 
-import json
-import re
-from typing import Any, Dict, Optional
-
 from pydantic import ValidationError
 
 from backend.logger import get_logger
 from backend.services.soap_generation.soap_models import SOAPNote
+
+import json
+import re
+from typing import Any, Dict, Optional
 
 __all__ = ["OllamaResponseParser", "OllamaExtractionError"]
 

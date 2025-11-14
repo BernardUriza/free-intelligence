@@ -10,13 +10,13 @@ Card: FI-DATA-RES-021
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from backend.container import get_container
 from backend.logger import get_logger
+
+from typing import List, Optional
 
 logger = get_logger(__name__)
 

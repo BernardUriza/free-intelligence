@@ -10,11 +10,11 @@ Clean Code: This service layer makes endpoints simple and focused.
 
 from __future__ import annotations
 
-from typing import Any, Optional
-
 from backend.logger import get_logger
 from backend.repositories import CorpusRepository
 from backend.type_defs import DiarizationChunkDict
+
+from typing import Any, Optional
 
 logger = get_logger(__name__)
 

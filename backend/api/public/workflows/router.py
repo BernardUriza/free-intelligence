@@ -463,10 +463,10 @@ async def get_session_audio(session_id: str):
     **Returns:**
     - Audio file (WebM/WAV/MP3)
     """
-    from pathlib import Path
-
     import h5py
     from fastapi.responses import FileResponse
+
+    from pathlib import Path
 
     try:
         # Read audio path from HDF5

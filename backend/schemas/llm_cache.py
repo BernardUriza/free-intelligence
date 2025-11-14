@@ -16,13 +16,13 @@ Features:
 - JSON serialization
 """
 
+from backend.logger import get_logger
+
 import hashlib
 import json
 import time
 from pathlib import Path
 from typing import Any, Dict
-
-from backend.logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -16,9 +16,9 @@ File: backend/schema_normalizer.py
 Created: 2025-10-28
 """
 
-from typing import Any, Dict
-
 from backend.logger import get_logger
+
+from typing import Any, Dict
 
 logger = get_logger(__name__)
 

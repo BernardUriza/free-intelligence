@@ -9,16 +9,16 @@ not business logic or policy enforcement.
 
 from __future__ import annotations
 
+from backend.logger import get_logger
+from backend.type_defs import AuditLogDict
+
+from .base_repository import BaseRepository
+
 import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 from uuid import uuid4
-
-from backend.logger import get_logger
-from backend.type_defs import AuditLogDict
-
-from .base_repository import BaseRepository
 
 logger = get_logger(__name__)
 

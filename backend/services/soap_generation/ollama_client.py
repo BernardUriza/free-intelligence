@@ -7,8 +7,6 @@ Validates responses against Pydantic models for type safety.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Protocol
-
 import requests
 
 from backend.logger import get_logger
@@ -18,6 +16,8 @@ from backend.services.soap_generation.response_parser import (
     OllamaResponseParser,
 )
 from backend.services.soap_generation.soap_models import SOAPNote
+
+from typing import Any, Dict, Optional, Protocol
 
 __all__ = ["OllamaClient", "OllamaExtractionError"]
 

@@ -11,15 +11,15 @@ Clean Code Principles:
 
 from __future__ import annotations
 
+import h5py
+
+from backend.logger import get_logger
+
 from abc import ABC, abstractmethod
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Generic, Optional, TypeVar
-
-import h5py
-
-from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
