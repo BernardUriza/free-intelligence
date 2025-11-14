@@ -12,16 +12,16 @@ Functions:
 
 from __future__ import annotations
 
+import h5py
+
+from backend.logger import get_logger
+from backend.services.diarization.models import DiarizationJob
+
 import json
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
-
-import h5py
-
-from backend.logger import get_logger
-from backend.services.diarization.models import DiarizationJob
 
 logger = get_logger(__name__)
 

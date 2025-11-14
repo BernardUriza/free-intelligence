@@ -22,15 +22,8 @@ Usage:
   uvicorn backend.timeline_api:app --reload --port 9002 --host 0.0.0.0
 """
 
-import time
-from collections import defaultdict
-from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any, List, Optional
-
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query, status
 from fastapi import Path as PathParam
-from fastapi import Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -42,6 +35,12 @@ from backend.schemas.timeline_models import (
     TimelineEventType,
     TimelineMode,
 )
+
+import time
+from collections import defaultdict
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, List, Optional
 
 logger = get_logger(__name__)
 

@@ -21,11 +21,11 @@ File: backend/medical_validators.py
 Created: 2025-10-28
 """
 
+from backend.logger import get_logger
+
 import re
 from dataclasses import dataclass
 from typing import Any, Dict
-
-from backend.logger import get_logger
 
 logger = get_logger(__name__)
 

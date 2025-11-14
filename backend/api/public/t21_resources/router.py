@@ -8,13 +8,13 @@ Reorganized: 2025-11-08 (moved from backend/api/t21_resources.py)
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import List, Optional
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 
 from backend.logger import get_logger
+
+from enum import Enum
+from typing import List, Optional
 
 logger = get_logger(__name__)
 

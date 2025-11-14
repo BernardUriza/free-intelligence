@@ -21,9 +21,6 @@ File: backend/aurity_gateway.py
 Created: 2025-10-28
 """
 
-from datetime import UTC, datetime
-from typing import Any, Dict
-
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -32,6 +29,9 @@ from backend.fi_event_store import EventStore  # type: ignore[import] EventStore
 from backend.logger import get_logger
 from backend.providers.adapters_redux import ReduxAdapter, validate_redux_action
 from backend.providers.fi_consult_models import Consultation
+
+from datetime import UTC, datetime
+from typing import Any, Dict
 
 logger = get_logger(__name__)
 

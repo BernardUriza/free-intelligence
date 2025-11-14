@@ -12,14 +12,14 @@ File: backend/decision_mw.py
 Created: 2025-10-28
 """
 
+import yaml
+
+from backend.logger import get_logger
+
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional
-
-import yaml
-
-from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
