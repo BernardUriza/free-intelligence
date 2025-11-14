@@ -16,7 +16,7 @@ import json
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import jsonschema
 import yaml
@@ -52,13 +52,13 @@ class PresetConfig:
     # Caching
     cache_enabled: bool
     cache_ttl_seconds: int
-    cache_key_fields: list[str]
+    cache_key_fields: List[str]
 
     # Examples (for few-shot)
     examples: list[dict[str, str]]
 
     # Metadata
-    metadata: dict[str, Any]
+    metadata: Dict[str, Any]
 
 
 class PresetLoader:
@@ -200,7 +200,7 @@ class PresetLoader:
             self.logger.error("SCHEMA_LOADING_FAILED", schema_path=schema_path, error=str(e))
             raise ValueError(f"Failed to load schema {schema_path}: {e}")
 
-    def validate_output(self, output: dict[str, Any], schema: dict[str, Any]) -> bool:
+    def validate_output(self, output: Dict[str, Any], schema: Dict[str, Any]) -> bool:
         """
         Validate LLM output against JSON Schema.
 

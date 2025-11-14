@@ -23,7 +23,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 
@@ -35,7 +35,7 @@ logger = logging.getLogger("chaos_drill")
 class ChaosDrill:
     """Base class for chaos drills"""
 
-    def __init__(self, config: dict[str, Any], dry_run: bool = True):
+    def __init__(self, config: Dict[str, Any], dry_run: bool = True):
         self.config = config
         self.dry_run = dry_run
         self.results: list[dict[str, Any]] = []
@@ -113,14 +113,14 @@ class NetworkPartitionDrill(ChaosDrill):
     """Network partition drill (Linux iptables, macOS pfctl/app-mock)"""
 
     def __init__(
-        self, config: dict[str, Any], dry_run: bool = True, port: int = 7001, duration: int = 20
+        self, config: Dict[str, Any], dry_run: bool = True, port: int = 7001, duration: int = 20
     ):
         super().__init__(config, dry_run)
         self.port = port
         self.duration = duration
         self.platform_name = platform.system()
         self.mode = None  # Will be set in pre_check: "linux-iptables", "darwin-pf", "app-mock"
-        self.errors: list[str] = []
+        self.errors: List[str] = []
         self.pf_enabled_by_us = False
 
     def pre_check(self) -> bool:
@@ -379,7 +379,7 @@ class CorpusFileLockDrill(ChaosDrill):
 
     def __init__(
         self,
-        config: dict[str, Any],
+        config: Dict[str, Any],
         dry_run: bool = True,
         file_path: str = "storage/corpus.h5",
         concurrency: int = 10,
@@ -398,7 +398,7 @@ class CorpusFileLockDrill(ChaosDrill):
         )
         self.processes: list[mp.Process] = []
         self.pids: list[int] = []
-        self.errors: list[str] = []
+        self.errors: List[str] = []
         self.crash_count = 0
         self.join_timeout_count = 0
 
@@ -549,7 +549,7 @@ class LLMTimeoutStormDrill(ChaosDrill):
 
     def __init__(
         self,
-        config: dict[str, Any],
+        config: Dict[str, Any],
         dry_run: bool = True,
         mode: str = "app-mock",
         duration: int = 20,
@@ -728,7 +728,7 @@ class DiskFullDrill(ChaosDrill):
 
     def __init__(
         self,
-        config: dict[str, Any],
+        config: Dict[str, Any],
         dry_run: bool = True,
         path: str = "/tmp/fi-chaos-disk",
         fill_until_pct: int = 95,

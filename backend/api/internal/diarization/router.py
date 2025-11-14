@@ -14,7 +14,7 @@ import os
 import traceback
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import (
     APIRouter,
@@ -43,6 +43,18 @@ from backend.services.soap_generation.service import SOAPGenerationService
 from packages.fi_common.storage.audio_storage import AUDIO_STORAGE_DIR, save_audio_file
 
 logger = get_logger(__name__)
+
+
+# Stub functions for deprecated diarization services (to avoid undefined name errors)
+def diarize_audio(*args: Any, **kwargs: Any) -> Any:
+    """Deprecated - diarization service moved to _deprecated_20251109/."""
+    raise NotImplementedError("diarize_audio is deprecated")
+
+
+async def diarize_audio_parallel(*args: Any, **kwargs: Any) -> Any:
+    """Deprecated - diarization service V2 moved to _deprecated_20251109/."""
+    raise NotImplementedError("diarize_audio_parallel is deprecated")
+
 
 router = APIRouter()
 
@@ -390,7 +402,7 @@ async def upload_audio_for_diarization(
         )
 
         # Build configuration dict from optional parameters
-        config_overrides: dict[str, Any] = {}
+        config_overrides: Dict[str, Any] = {}
         if whisper_model is not None:
             config_overrides["whisper_model"] = whisper_model
         if enable_llm_classification is not None:

@@ -21,8 +21,8 @@ File: backend/aurity_gateway.py
 Created: 2025-10-28
 """
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -65,7 +65,7 @@ class ReduxActionRequest(BaseModel):
     """Redux action from AURITY frontend"""
 
     type: str = Field(..., description="Redux action type (e.g., 'medicalChat/addMessage')")
-    payload: dict[str, Any] = Field(default_factory=dict, description="Action payload")
+    payload: Dict[str, Any] = Field(default_factory=dict, description="Action payload")
     consultation_id: str = Field(..., description="Consultation ID")
     user_id: str = Field(default="aurity_user", description="User ID")
 
@@ -85,7 +85,7 @@ class ConsultationStateResponse(BaseModel):
     """Current consultation state reconstructed from events"""
 
     consultation_id: str
-    state: dict[str, Any]
+    state: Dict[str, Any]
     event_count: int
     last_updated: str
 
@@ -131,7 +131,7 @@ class ConnectionManager:
 
         logger.info("WEBSOCKET_DISCONNECTED", consultation_id=consultation_id)
 
-    async def broadcast(self, consultation_id: str, message: dict[str, Any]):
+    async def broadcast(self, consultation_id: str, message: Dict[str, Any]):
         """Broadcast message to all connected clients for consultation"""
         if consultation_id in self.active_connections:
             for connection in self.active_connections[consultation_id]:
@@ -156,7 +156,7 @@ async def health_check():
     """Health check endpoint"""
     return HealthResponse(
         status="healthy",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         services={
             "event_store": True,  # TODO: Check HDF5 file exists
             "redux_adapter": True,
@@ -347,7 +347,7 @@ async def websocket_event_stream(websocket: WebSocket, consultation_id: str):
             _data = await websocket.receive_text()
 
             # Echo back (ping/pong)
-            await websocket.send_json({"type": "PONG", "timestamp": datetime.now(timezone.utc).isoformat()})
+            await websocket.send_json({"type": "PONG", "timestamp": datetime.now(UTC).isoformat()})
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, consultation_id)

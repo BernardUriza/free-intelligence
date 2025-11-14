@@ -23,7 +23,7 @@ Created: 2025-10-28
 
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Dict
 
 from backend.logger import get_logger
 
@@ -221,7 +221,7 @@ class MedicalScorer:
             severity="WARNING",
         )
 
-    def score_required_history(self, output: dict[str, Any], case_prompt: str) -> ValidationResult:
+    def score_required_history(self, output: Dict[str, Any], case_prompt: str) -> ValidationResult:
         """
         Validate required medical history is present.
 
@@ -305,7 +305,7 @@ class MedicalScorer:
                 is_safe=True, score=score, reason="Required history complete", severity="INFO"
             )
 
-    def detect_widow_maker(self, case_prompt: str, output: dict[str, Any]) -> ValidationResult:
+    def detect_widow_maker(self, case_prompt: str, output: Dict[str, Any]) -> ValidationResult:
         """
         Detect widow-maker patterns (life-threatening conditions).
 
@@ -403,7 +403,7 @@ class PediatricValidator:
         self.logger = get_logger(__name__)
 
     def validate_pediatric_response(
-        self, output: dict[str, Any], case_prompt: str
+        self, output: Dict[str, Any], case_prompt: str
     ) -> ValidationResult:
         """
         Validate pediatric safety if patient age <18.

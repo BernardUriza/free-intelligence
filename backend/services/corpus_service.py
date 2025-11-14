@@ -10,7 +10,7 @@ Clean Code: This service layer makes endpoints simple and focused.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from backend.logger import get_logger
 from backend.repositories import CorpusRepository
@@ -41,7 +41,7 @@ class CorpusService:
         self,
         document_id: str,
         content: str,
-        source: str | None = None,
+        source: Optional[str] = None,
         tags: list[str | None] | None = None,
     ) -> dict[str, Any]:
         """Create new corpus document with validation.
@@ -144,8 +144,8 @@ class CorpusService:
 
     def list_documents(
         self,
-        limit: int | None = None,
-        source: str | None = None,
+        limit: Optional[int] = None,
+        source: Optional[str] = None,
     ) -> list[dict[str, Any] | None]:
         """List documents with optional filtering.
 

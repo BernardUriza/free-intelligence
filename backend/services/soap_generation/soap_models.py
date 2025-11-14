@@ -6,6 +6,8 @@ All fields support multilingual content with English field names (medical standa
 
 from __future__ import annotations
 
+from typing import List
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 __all__ = ["SubjetiveData", "ObjetivoData", "AnalisisData", "PlanData", "SOAPNote"]
@@ -63,7 +65,7 @@ class AnalisisData(BaseModel):
     Contains differential diagnoses and primary diagnosis determination.
     """
 
-    diagnosticos_diferenciales: list[str] = Field(
+    diagnosticos_diferenciales: List[str] = Field(
         default_factory=list,
         description="Differential diagnoses list",
     )
@@ -75,7 +77,7 @@ class AnalisisData(BaseModel):
 
     @field_validator("diagnosticos_diferenciales", mode="before")
     @classmethod
-    def ensure_list(cls, v: list[str] | str) -> list[str]:
+    def ensure_list(cls, v: List[str] | str) -> list[str]:
         """Ensure diagnosticos_diferenciales is always a list."""
         if isinstance(v, str):
             return [v]
@@ -100,14 +102,14 @@ class PlanData(BaseModel):
         description="Follow-up instructions",
         min_length=1,
     )
-    estudios: list[str] = Field(
+    estudios: List[str] = Field(
         default_factory=list,
         description="Recommended studies or diagnostic tests",
     )
 
     @field_validator("estudios", mode="before")
     @classmethod
-    def ensure_list(cls, v: list[str] | str) -> list[str]:
+    def ensure_list(cls, v: List[str] | str) -> list[str]:
         """Ensure estudios is always a list."""
         if isinstance(v, str):
             return [v]
@@ -156,7 +158,7 @@ class SOAPNote(BaseModel):
         Returns:
             List of validation errors (empty if valid).
         """
-        errors: list[str] = []
+        errors: List[str] = []
 
         # Check subjective
         if not self.subjetivo.motivo_consulta.strip():

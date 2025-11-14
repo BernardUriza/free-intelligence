@@ -14,9 +14,9 @@ Philosophy: Provider-agnostic design. No vendor lock-in.
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 import anthropic
 import numpy as np
@@ -122,8 +122,8 @@ class LLMResponse:
     model: str
     provider: str
     tokens_used: int
-    cost_usd: float | None = None
-    latency_ms: float | None = None
+    cost_usd: Optional[float] = None
+    latency_ms: Optional[float] = None
     metadata: dict[str, Any | None] | None = None
 
 
@@ -197,11 +197,13 @@ class ClaudeProvider(LLMProvider):
         """Generate completion using Claude API"""
         model: str = str(kwargs.get("model", self.default_model))
         max_tokens: int = int(kwargs.get("max_tokens") or self.config.get("max_tokens") or 4096)
-        temperature: float = float(kwargs.get("temperature") or self.config.get("temperature") or 0.7)
+        temperature: float = float(
+            kwargs.get("temperature") or self.config.get("temperature") or 0.7
+        )
 
         self.logger.info("CLAUDE_GENERATE_STARTED", model=model, prompt_length=len(prompt))
 
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             message = self.client.messages.create(
@@ -212,7 +214,7 @@ class ClaudeProvider(LLMProvider):
                 timeout=self.timeout,
             )
 
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             # Extract response content
             content = message.content[0].text if message.content else ""  # type: ignore[attr-defined]
@@ -337,7 +339,9 @@ class OllamaProvider(LLMProvider):
         """
         model: str = str(kwargs.get("model", self.default_model))
         max_tokens: int = int(kwargs.get("max_tokens") or self.config.get("max_tokens") or 2048)
-        temperature: float = float(kwargs.get("temperature") or self.config.get("temperature") or 0.7)
+        temperature: float = float(
+            kwargs.get("temperature") or self.config.get("temperature") or 0.7
+        )
 
         self.logger.info(
             "OLLAMA_GENERATE_STARTED",
@@ -346,7 +350,7 @@ class OllamaProvider(LLMProvider):
             base_url=self.base_url,
         )
 
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             # Call Ollama API
@@ -359,7 +363,7 @@ class OllamaProvider(LLMProvider):
                 },
             )
 
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             # Extract response
             content = response["message"]["content"]
@@ -476,7 +480,7 @@ def get_provider(provider_name: str, config: dict[str, Any | None] | None = None
 @require_audit_log
 def llm_generate(
     prompt: str,
-    provider: str | None = None,
+    provider: Optional[str] = None,
     provider_config: dict[str, Any | None] | None = None,
     **kwargs,
 ) -> LLMResponse:

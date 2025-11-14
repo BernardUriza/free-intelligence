@@ -1,3 +1,5 @@
+from typing import List
+
 #!/usr/bin/env python3
 """
 Free Intelligence - Trello Workflow Validator (Python)
@@ -30,7 +32,7 @@ LISTS = {
 TRELLO_CLI = str(Path.home() / "Documents/trello-cli-python/trello")
 
 
-def run_trello_command(args: list[str]) -> tuple[int, str]:
+def run_trello_command(args: List[str]) -> tuple[int, str]:
     """Run trello CLI command."""
     cmd = [TRELLO_CLI] + args
     result = subprocess.run(cmd, capture_output=True, text=True)

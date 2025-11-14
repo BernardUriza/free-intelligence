@@ -13,9 +13,9 @@ import json
 import os
 import random
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from backend.logger import get_logger
 
@@ -112,7 +112,7 @@ class ExportService:
             "version": "1.0",
             "exportId": export_id,
             "sessionId": session_id,
-            "createdAt": datetime.now(timezone.utc).isoformat() + "Z",
+            "createdAt": datetime.now(UTC).isoformat() + "Z",
             "algorithm": "sha256",
             "files": files,
             "meta": {"generator": "FI", "commit": self.git_commit, "deterministic": True},
@@ -127,7 +127,7 @@ class ExportService:
         self,
         session_id: str,
         content_dict: dict[str, str],
-        formats: list[str],
+        formats: List[str],
     ) -> dict[str, Any]:
         """Create export bundle.
 
@@ -299,7 +299,7 @@ class ExportService:
             logger.error("EXPORT_METADATA_FAILED", export_id=export_id, error=str(e))
             raise
 
-    def verify_export(self, export_id: str, targets: list[str]) -> dict[str, Any]:
+    def verify_export(self, export_id: str, targets: List[str]) -> dict[str, Any]:
         """Verify export file integrity.
 
         Args:
@@ -438,7 +438,7 @@ class ExportService:
         try:
             # Mark as deleted (keep for audit trail)
             delete_marker = export_path / ".deleted"
-            delete_marker.write_text(datetime.now(timezone.utc).isoformat(), encoding="utf-8")
+            delete_marker.write_text(datetime.now(UTC).isoformat(), encoding="utf-8")
 
             logger.info("EXPORT_DELETED", export_id=export_id)
             return True

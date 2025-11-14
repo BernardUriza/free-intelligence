@@ -24,9 +24,9 @@ Usage:
 
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi import Path as PathParam
@@ -112,7 +112,7 @@ class EventResponse(BaseModel):
     content_hash: str
     redaction_policy: str
     causality: list[dict[str, Any]]
-    tags: list[str]
+    tags: List[str]
     auto_generated: bool
     generation_mode: str
     confidence_score: float
@@ -278,7 +278,7 @@ def compute_policy_badges(timeline: Timeline) -> PolicyBadges:
 def compute_session_timespan(timeline: Timeline) -> SessionTimespan:
     """Compute session timespan from events"""
     if not timeline.events:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         return SessionTimespan(start=now, end=now, duration_ms=0, duration_human="0s")
 
     # Sort events by timestamp
@@ -519,7 +519,7 @@ async def health_check():
         status="healthy",
         storage_path=str(STORAGE_PATH),
         storage_exists=STORAGE_PATH.exists(),
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
 
 

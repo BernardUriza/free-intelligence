@@ -31,16 +31,16 @@ Usage:
   hash_valid = store.verify_event_hash(event)
 """
 
+import hashlib
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
+
 import h5py
 
 from backend.logger import get_logger
 from backend.providers.fi_consult_models import ConsultationEvent
-
-import hashlib
-import json
-from datetime import timezone, datetime
-from pathlib import Path
-from typing import Any, Optional
 
 logger = get_logger(__name__)
 
@@ -50,7 +50,7 @@ logger = get_logger(__name__)
 # ============================================================================
 
 
-def calculate_sha256(data: dict[str, Any]) -> str:
+def calculate_sha256(data: Dict[str, Any]) -> str:
     """
     Calculate SHA256 hash of data for audit trail.
 
@@ -156,7 +156,7 @@ class EventStore:
 
         # Ensure metadata attributes
         if "created_at" not in consultation_group.attrs:
-            consultation_group.attrs["created_at"] = datetime.now(timezone.utc).isoformat()
+            consultation_group.attrs["created_at"] = datetime.now(UTC).isoformat()
             consultation_group.attrs["event_count"] = 0
 
         return consultation_group
@@ -199,7 +199,7 @@ class EventStore:
 
             # Update metadata
             consultation_group.attrs["event_count"] = current_size + 1
-            consultation_group.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()
+            consultation_group.attrs["updated_at"] = datetime.now(UTC).isoformat()
 
         logger.info(
             "EVENT_APPENDED",
@@ -341,7 +341,7 @@ class EventStore:
 
         return consultations
 
-    def create_snapshot(self, consultation_id: str, state: dict[str, Any]) -> None:
+    def create_snapshot(self, consultation_id: str, state: Dict[str, Any]) -> None:
         """
         Create state snapshot for performance optimization.
 
@@ -362,7 +362,7 @@ class EventStore:
             snapshots_group = consultation_group.require_group("snapshots")  # type: ignore[attr-defined]
 
             # Create snapshot dataset
-            snapshot_name = datetime.now(timezone.utc).isoformat()
+            snapshot_name = datetime.now(UTC).isoformat()
             snapshot_json = json.dumps(state)
 
             dt = h5py.special_dtype(vlen=str)  # type: ignore[attr-defined]

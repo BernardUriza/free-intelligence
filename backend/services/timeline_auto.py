@@ -12,9 +12,9 @@ Sprint: SPR-2025W44
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import yaml  # type: ignore[import-untyped]
 
@@ -102,7 +102,7 @@ class EventCandidate:
     manifest_ref: Optional[str] = None
     artifact_id: Optional[str] = None  # For causality (same artifact)
     sensitive: bool = False  # If true, no content preview
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -143,9 +143,9 @@ class AutoTimelineGenerator:
             llm_adapter: LLM adapter (Ollama preferred)
             config: Timeline configuration (from fi.policy.yaml)
         """
-        self.config: dict[str, Any] = config or load_timeline_config()
+        self.config: Dict[str, Any] = config or load_timeline_config()
         self.llm = llm_adapter
-        self.auto_config: dict[str, Any] = self.config.get("auto", {})
+        self.auto_config: Dict[str, Any] = self.config.get("auto", {})
 
         # Feature flag check
         self.enabled = self.auto_config.get("enabled", False)
@@ -350,9 +350,9 @@ Summary:"""
                 timeout_seconds=self.timeout_seconds,
             )
 
-            start_time = datetime.now(timezone.utc)
+            start_time = datetime.now(UTC)
             response = self.llm.generate(request)
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             summary = response.content.strip()
 
@@ -520,7 +520,7 @@ if __name__ == "__main__":
     generator = AutoTimelineGenerator(llm_adapter=None, config=config)
 
     # Create event candidates
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     candidates = [
         EventCandidate(  # type: ignore[call-arg]

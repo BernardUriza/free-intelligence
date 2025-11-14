@@ -5,7 +5,7 @@ Defines request/response models for hash verification functionality.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
@@ -51,6 +51,6 @@ class VerifyHashResponse(BaseModel):
     timestamp: str
     all_valid: bool
     items: list[VerifyHashDetail]
-    summary: dict[str, Any] = Field(
+    summary: Dict[str, Any] = Field(
         default_factory=dict, description="Stats: total, valid, invalid, duration_ms"
     )

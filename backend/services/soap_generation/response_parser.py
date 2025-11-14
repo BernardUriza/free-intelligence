@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from pydantic import ValidationError
 
@@ -196,7 +196,7 @@ class OllamaResponseParser:
             except json.JSONDecodeError:
                 return None
 
-    def _validate_soap_structure(self, data: dict[str, Any]) -> None:
+    def _validate_soap_structure(self, data: Dict[str, Any]) -> None:
         """Validate that parsed JSON matches SOAP structure.
 
         Uses Pydantic model validation for type safety.
@@ -228,7 +228,7 @@ class OllamaResponseParser:
 
     def validate_and_convert(
         self,
-        data: dict[str, Any],
+        data: Dict[str, Any],
     ) -> SOAPNote:
         """Validate and convert raw dict to SOAPNote model.
 

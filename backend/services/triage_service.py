@@ -8,15 +8,15 @@ Clean Code: This service layer makes endpoints simple and focused.
 
 from __future__ import annotations
 
-from backend.logger import get_logger
-
 import hashlib
 import json
 import os
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 from uuid import uuid4
+
+from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -52,7 +52,7 @@ class TriageService:
         """
         return f"tri_{uuid4().hex}"
 
-    def compute_payload_hash(self, payload: dict[str, Any]) -> str:
+    def compute_payload_hash(self, payload: Dict[str, Any]) -> str:
         """Compute SHA256 hash of payload.
 
         Args:
@@ -66,7 +66,7 @@ class TriageService:
 
     def create_buffer(
         self,
-        payload: dict[str, Any],
+        payload: Dict[str, Any],
         client_ip: str,
         user_agent: str,
     ) -> dict[str, Any]:
@@ -98,7 +98,7 @@ class TriageService:
             buffer_dir.mkdir(parents=True, exist_ok=True)
 
             # Prepare intake data
-            received_at = datetime.now(timezone.utc).isoformat() + "Z"
+            received_at = datetime.now(UTC).isoformat() + "Z"
             intake_data = {
                 "bufferId": buffer_id,
                 "receivedAt": received_at,

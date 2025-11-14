@@ -13,9 +13,9 @@ Sprint: SPR-2025W44
 
 import hashlib
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -118,7 +118,7 @@ class TimelineEvent(BaseModel):
     # Core fields (obligatorios)
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     event_type: TimelineEventType
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Causalidad (quién→qué→cuándo→por qué)
     who: str = Field(..., description="Quién ejecutó (user_hash/assistant/system)")
@@ -137,7 +137,7 @@ class TimelineEvent(BaseModel):
     # Metadata
     session_id: Optional[str] = Field(None, description="ID de sesión/consulta")
     reference_id: Optional[str] = Field(None, description="ID en event store (HDF5)")
-    tags: list[str] = Field(default_factory=list, description="Tags para filtrado")
+    tags: List[str] = Field(default_factory=list, description="Tags para filtrado")
 
     # Auto-timeline metadata
     auto_generated: bool = Field(False, description="Si fue generado automáticamente")
@@ -168,8 +168,8 @@ class Timeline(BaseModel):
     events: list[TimelineEvent] = Field(default_factory=list)
 
     # Metadata
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Generation metadata
     generation_mode: TimelineMode = Field(
@@ -187,7 +187,7 @@ class Timeline(BaseModel):
     def add_event(self, event: TimelineEvent):
         """Add event to timeline and update metadata."""
         self.events.append(event)
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(UTC)
 
         # Update counters
         if event.auto_generated:

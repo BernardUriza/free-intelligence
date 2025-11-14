@@ -11,7 +11,7 @@ Philosophy: Policy-driven configuration for provider-agnostic LLM routing.
 
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Optional
 
 import yaml
 
@@ -29,7 +29,7 @@ class PolicyValidationError(Exception):
 class PolicyLoader:
     """Loads and validates fi.policy.yaml"""
 
-    def __init__(self, policy_path: str | None = None):
+    def __init__(self, policy_path: Optional[str] = None):
         """
         Initialize policy loader.
 
@@ -42,7 +42,7 @@ class PolicyLoader:
             policy_path = str(project_root / "config" / "fi.policy.yaml")
 
         self.policy_path = Path(policy_path)
-        self.policy: dict[str, Any] | None = None
+        self.policy: Dict[str, Any] | None = None
         self.logger = get_logger(self.__class__.__name__)
 
     def load(self) -> dict[str, Any]:
@@ -89,7 +89,7 @@ class PolicyLoader:
             self.logger.error("POLICY_VALIDATION_FAILED", error=str(e))
             raise
 
-    def _validate_policy(self, policy: dict[str, Any]) -> None:
+    def _validate_policy(self, policy: Dict[str, Any]) -> None:
         """
         Validate policy schema and required fields.
 
@@ -119,7 +119,7 @@ class PolicyLoader:
 
         self.logger.info("POLICY_VALIDATION_PASSED")
 
-    def _validate_llm_section(self, llm: dict[str, Any]) -> None:
+    def _validate_llm_section(self, llm: Dict[str, Any]) -> None:
         """Validate LLM policy section"""
         required_fields = ["primary_provider", "fallback_provider", "providers"]
         for field in required_fields:
@@ -156,7 +156,7 @@ class PolicyLoader:
                         "Each fallback_rule must have 'condition' and 'action'"
                     )
 
-    def _validate_export_section(self, export: dict[str, Any]) -> None:
+    def _validate_export_section(self, export: Dict[str, Any]) -> None:
         """Validate export policy section"""
         required_fields = ["require_manifest", "compute_sha256", "allowed_formats"]
         for field in required_fields:
@@ -167,14 +167,14 @@ class PolicyLoader:
         if not isinstance(export["allowed_formats"], list):
             raise PolicyValidationError("export.allowed_formats must be a list")
 
-    def _validate_audit_section(self, audit: dict[str, Any]) -> None:
+    def _validate_audit_section(self, audit: Dict[str, Any]) -> None:
         """Validate audit policy section"""
         required_fields = ["log_all_operations", "retention_days", "hash_payloads", "hash_results"]
         for field in required_fields:
             if field not in audit:
                 raise PolicyValidationError(f"Missing required audit field: {field}")
 
-    def _validate_metadata_section(self, metadata: dict[str, Any]) -> None:
+    def _validate_metadata_section(self, metadata: Dict[str, Any]) -> None:
         """Validate metadata section"""
         required_fields = ["version", "last_updated", "owner"]
         for field in required_fields:
@@ -254,7 +254,7 @@ _policy_loader: PolicyLoader | None = None
 _policy_loader_lock = threading.Lock()
 
 
-def get_policy_loader(policy_path: str | None = None) -> PolicyLoader:
+def get_policy_loader(policy_path: Optional[str] = None) -> PolicyLoader:
     """
     Get singleton PolicyLoader instance (thread-safe).
 
@@ -290,7 +290,7 @@ def get_policy_loader(policy_path: str | None = None) -> PolicyLoader:
     return _policy_loader
 
 
-def reload_policy(policy_path: str | None = None) -> PolicyLoader:
+def reload_policy(policy_path: Optional[str] = None) -> PolicyLoader:
     """
     Force reload of policy (useful for testing or configuration changes).
 

@@ -53,9 +53,9 @@ import hashlib
 import json
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 # Optional logger import
 try:
@@ -153,7 +153,7 @@ class ExportManifest:
     data_hash: str
     format: str
     purpose: str
-    retention_days: int | None = None
+    retention_days: Optional[int] = None
     includes_pii: bool = True
     metadata: dict[str, Any | None] | None = None
 
@@ -296,7 +296,7 @@ def create_export_manifest(
     export_filepath: Path,
     format: str,
     purpose: str,
-    retention_days: int | None = None,
+    retention_days: Optional[int] = None,
     includes_pii: bool = True,
     metadata: dict[str, Any | None] | None = None,
 ) -> ExportManifest:
@@ -320,7 +320,7 @@ def create_export_manifest(
     export_id = str(uuid.uuid4())
 
     # Generate timestamp
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
 
     # Compute data hash
     data_hash = compute_file_hash(export_filepath)
@@ -461,7 +461,7 @@ if __name__ == "__main__":
 
         except (InvalidManifest, ExportPolicyViolation) as e:
             print("\n❌ EXPORT VALIDATION FAILED")
-            print(f"   Error: {str(e)}")
+            print(f"   Error: {e!s}")
             sys.exit(1)
 
     elif command == "load":
@@ -481,7 +481,7 @@ if __name__ == "__main__":
 
         except (FileNotFoundError, InvalidManifest) as e:
             print("\n❌ Failed to load manifest")
-            print(f"   Error: {str(e)}")
+            print(f"   Error: {e!s}")
             sys.exit(1)
 
     else:

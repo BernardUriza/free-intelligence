@@ -21,8 +21,8 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import timezone, datetime
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any, Dict, Optional
 
 from backend.logger import get_logger
 
@@ -44,7 +44,7 @@ class LLMRequest:
     temperature: float = 0.7
     system_prompt: Optional[str] = None
     timeout_seconds: int = 30
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -57,8 +57,8 @@ class LLMResponse:
     tokens_used: int
     latency_ms: int
     finish_reason: str
-    metadata: dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat() + "Z")
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat() + "Z")
 
 
 @dataclass
