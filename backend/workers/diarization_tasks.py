@@ -1,23 +1,26 @@
 """Celery tasks for diarization (speaker separation + text improvement).
 
 Tasks:
-- diarize_chunk_task: Process individual audio chunk with provider-agnostic diarization
-- diarize_session_task: Process all chunks from a session with DiarizationService
+- diarize_session_task: Process session with provider-agnostic diarization (Triple Vision)
 
 Architecture:
-  PUBLIC/INTERNAL → dispatch task → WORKER (this file) → DiarizationProvider/DiarizationService
+  PUBLIC/INTERNAL → dispatch task → WORKER (this file) → DiarizationProvider
+
+Diarization Strategy:
+  1. Use TRIPLE VISION: full_transcription + chunks + webspeech_final
+  2. If using LLM provider (Ollama/Claude): Intelligent segmentation via LLM
+  3. If using audio provider (Pyannote/Deepgram): Direct audio diarization
+  4. Store speaker segments with timestamps and confidence
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-14
-Updated: 2025-11-15 (Added provider-agnostic diarization)
+Updated: 2025-11-15 (Made provider-agnostic, added audio provider option)
 """
 
 from __future__ import annotations
 
 import hashlib
 import time
-from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from backend.logger import get_logger
@@ -44,248 +47,32 @@ session_repo = SessionRepository(
 )
 
 
-@celery_app.task(name="diarize_chunk", bind=True, max_retries=3)
-def diarize_chunk_task(
-    self,
-    session_id: str,
-    chunk_number: int,
-    diarization_provider: str | None = None,
+@celery_app.task(name="diarize_session", bind=True, max_retries=3)
+def diarize_session_task(
+    self, session_id: str, diarization_provider: str | None = None
 ) -> dict[str, Any]:
-    """Diarize individual audio chunk using provider-agnostic diarization.
+    """Diarize all transcribed chunks from a session using Triple Vision.
 
-    Identifies speakers in a single audio chunk (who speaks when).
-    Stores speaker segments with timestamps and confidence scores.
+    Uses provider-agnostic diarization:
+    - TRIPLE VISION: full_transcription + chunks + webspeech_final
+    - LLM provider (Ollama/Claude): Intelligent segmentation
+    - Audio provider (Pyannote/Deepgram): Direct audio diarization
 
     Args:
         session_id: Session identifier
-        chunk_number: Chunk index (e.g., 0, 1, 2, ...)
-        diarization_provider: Provider name (pyannote, deepgram, aws_transcribe, google_speech)
+        diarization_provider: Provider name (pyannote, deepgram, ollama, claude)
                              If None, uses policy primary provider
 
     Returns:
-        dict with diarization results (speaker count, segments, latency)
+        dict with diarization results (segments, confidence, model)
     """
     start_time = time.time()
     logger.info(
-        "DIARIZATION_CHUNK_STARTED",
+        "DIARIZATION_SESSION_STARTED",
         session_id=session_id,
-        chunk_number=chunk_number,
         provider=diarization_provider,
         task_id=self.request.id,
     )
-
-    self.update_state(
-        state="STARTED",
-        meta={
-            "session_id": session_id,
-            "chunk_number": chunk_number,
-            "progress": 10,
-        },
-    )
-
-    try:
-        # 1. Load policy and determine provider
-        if not diarization_provider:
-            policy_loader = get_policy_loader()
-            diarization_provider = policy_loader.get_primary_diarization_provider()
-            logger.info(
-                "USING_PRIMARY_PROVIDER",
-                provider=diarization_provider,
-                chunk_number=chunk_number,
-            )
-
-        # 2. Get provider config from policy
-        policy_loader = get_policy_loader()
-        provider_config = policy_loader.get_diarization_provider_config(diarization_provider)
-
-        # 3. Get diarization provider instance
-        provider = get_diarization_provider(diarization_provider, provider_config)
-        logger.info(
-            "PROVIDER_INITIALIZED",
-            provider=diarization_provider,
-            chunk_number=chunk_number,
-        )
-
-        # 4. Load audio chunk from HDF5
-        import h5py
-
-        from backend.storage.task_repository import CORPUS_PATH
-
-        chunk_data = None
-        audio_path_str = None
-
-        with h5py.File(CORPUS_PATH, "r") as f:
-            chunk_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/chunks/chunk_{chunk_number}"
-            if chunk_path in f:
-                chunk_group = f[chunk_path]
-                # Audio is stored as binary in 'audio_bytes' dataset
-                if "audio_bytes" in chunk_group:
-                    audio_bytes = chunk_group["audio_bytes"][()]
-                    # Save to temporary file for diarization
-                    temp_audio_path = Path(f"/tmp/diarization_{session_id}_{chunk_number}.webm")
-                    with open(temp_audio_path, "wb") as audio_file:
-                        audio_file.write(audio_bytes)
-                    audio_path_str = str(temp_audio_path)
-                    logger.info(
-                        "AUDIO_CHUNK_LOADED",
-                        session_id=session_id,
-                        chunk_number=chunk_number,
-                        audio_path=audio_path_str,
-                        size_bytes=len(audio_bytes),
-                    )
-            else:
-                logger.error(
-                    "AUDIO_CHUNK_NOT_FOUND",
-                    session_id=session_id,
-                    chunk_number=chunk_number,
-                    path=chunk_path,
-                )
-                return {
-                    "status": "failed",
-                    "error": f"Audio chunk {chunk_number} not found in HDF5",
-                    "chunk_number": chunk_number,
-                }
-
-        # 5. Run diarization on chunk
-        if not audio_path_str:
-            return {
-                "status": "failed",
-                "error": "Failed to load audio path",
-                "chunk_number": chunk_number,
-            }
-
-        logger.info(
-            "DIARIZATION_STARTING",
-            provider=diarization_provider,
-            chunk_number=chunk_number,
-        )
-
-        diarization_response = provider.diarize(
-            audio_path_str,
-            num_speakers=2,  # Medical context: doctor + patient
-        )
-
-        latency_ms = diarization_response.latency_ms or (time.time() - start_time) * 1000
-
-        logger.info(
-            "DIARIZATION_CHUNK_COMPLETE",
-            session_id=session_id,
-            chunk_number=chunk_number,
-            provider=diarization_provider,
-            num_speakers=diarization_response.num_speakers,
-            num_segments=len(diarization_response.segments),
-            latency_ms=round(latency_ms, 2),
-            confidence=round(diarization_response.confidence, 2),
-        )
-
-        # 6. Store speaker segments in HDF5
-        ensure_task_exists(session_id, TaskType.DIARIZATION, allow_existing=True)
-
-        # Convert provider segments to standard format and save
-        import h5py
-
-        with h5py.File(CORPUS_PATH, "a") as f:
-            chunk_diar_path = f"/sessions/{session_id}/tasks/DIARIZATION/chunks/chunk_{chunk_number}"
-
-            # Create group if needed
-            if chunk_diar_path not in f:
-                f.create_group(chunk_diar_path)
-
-            chunk_group = f[chunk_diar_path]
-
-            # Store speaker segments as JSON
-            import json
-
-            segments_data = {
-                "num_speakers": diarization_response.num_speakers,
-                "duration_sec": diarization_response.duration,
-                "confidence": diarization_response.confidence,
-                "provider": diarization_response.provider,
-                "segments": [
-                    {
-                        "start_time": seg.start_time,
-                        "end_time": seg.end_time,
-                        "speaker_id": seg.speaker.speaker_id,
-                        "speaker_name": seg.speaker.name,
-                        "speaker_confidence": seg.speaker.confidence,
-                        "segment_confidence": seg.confidence,
-                        "text": seg.text,
-                        "duration": seg.duration,
-                    }
-                    for seg in diarization_response.segments
-                ],
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            }
-
-            segments_json = json.dumps(segments_data)
-            chunk_group["segments"] = segments_json.encode("utf-8")
-            chunk_group["num_speakers"] = diarization_response.num_speakers
-            chunk_group["latency_ms"] = latency_ms
-
-            logger.info(
-                "DIARIZATION_SEGMENTS_STORED",
-                session_id=session_id,
-                chunk_number=chunk_number,
-                segments_count=len(diarization_response.segments),
-                path=chunk_diar_path,
-            )
-
-        # Clean up temp audio file
-        if audio_path_str:
-            try:
-                Path(audio_path_str).unlink(missing_ok=True)
-            except Exception as e:  # noqa: BLE001
-                logger.warning(
-                    "TEMP_AUDIO_CLEANUP_FAILED",
-                    path=audio_path_str,
-                    error=str(e),
-                )
-
-        processing_time = time.time() - start_time
-
-        return {
-            "status": "completed",
-            "session_id": session_id,
-            "chunk_number": chunk_number,
-            "provider": diarization_provider,
-            "num_speakers": diarization_response.num_speakers,
-            "num_segments": len(diarization_response.segments),
-            "confidence": round(diarization_response.confidence, 2),
-            "latency_ms": round(latency_ms, 2),
-            "processing_time_sec": round(processing_time, 2),
-        }
-
-    except Exception as e:  # noqa: BLE001
-        logger.error(
-            "DIARIZATION_CHUNK_FAILED",
-            session_id=session_id,
-            chunk_number=chunk_number,
-            provider=diarization_provider,
-            error=str(e),
-            exc_info=True,
-        )
-        return {
-            "status": "failed",
-            "error": str(e),
-            "chunk_number": chunk_number,
-        }
-
-
-@celery_app.task(name="diarize_session", bind=True, max_retries=3)
-def diarize_session_task(self, session_id: str) -> dict[str, Any]:
-    """Diarize all transcribed chunks from a session.
-
-    Reads TranscriptionJob, converts chunks to DiarizationSegments,
-    applies speaker classification + text improvement with Ollama.
-
-    Args:
-        session_id: Session identifier
-
-    Returns:
-        dict with diarization results
-    """
-    start_time = time.time()
-    logger.info("DIARIZATION_TASK_STARTED", session_id=session_id, task_id=self.request.id)
 
     # Update Celery task state with session_id so status endpoint can retrieve it
     self.update_state(state="STARTED", meta={"session_id": session_id, "progress": 10})
@@ -407,57 +194,205 @@ def diarize_session_task(self, session_id: str) -> dict[str, Any]:
             primary_language=primary_language,
         )
 
-        # 5. Run DiarizationService with TRIPLE VISION (full_text + chunks + webspeech)
-        logger.info("🔧 [WORKER] Initializing DiarizationService...", session_id=session_id)
-        diarization_service = DiarizationService()
+        # 5. Determine diarization provider (agnóstico)
+        if not diarization_provider:
+            policy_loader = get_policy_loader()
+            diarization_provider = policy_loader.get_primary_diarization_provider()
+            logger.info(
+                "USING_PRIMARY_PROVIDER",
+                provider=diarization_provider,
+                session_id=session_id,
+            )
+
+        # Check if provider is audio-based (pyannote, deepgram) or LLM-based
+        is_audio_provider = diarization_provider in ["pyannote", "deepgram", "aws_transcribe", "google_speech"]
+        is_llm_provider = diarization_provider in ["ollama", "claude"]
+
+        logger.info(
+            "PROVIDER_DETERMINED",
+            provider=diarization_provider,
+            is_audio=is_audio_provider,
+            is_llm=is_llm_provider,
+            session_id=session_id,
+        )
 
         # Calculate audio hash (dummy for now, as we don't have audio file path)
         audio_hash = hashlib.sha256(f"{session_id}-audio".encode()).hexdigest()
 
-        logger.info(
-            "🚀 [WORKER] Calling diarize_full_text with TRIPLE VISION",
-            session_id=session_id,
-            full_text_length=len(full_transcription),
-            chunks_count=len(chunks),
-            webspeech_count=len(webspeech_final) if webspeech_final else 0,
-            duration_sec=total_duration,
-            language=primary_language,
-        )
+        # 5b. Route to appropriate diarization method
+        diarization_result = None
 
-        # NEW: Use diarize_full_text() with TRIPLE VISION
-        # Qwen will intelligently segment and classify using 3 sources:
-        # - chunks: Timestamps (every 13s) with mixed speakers
-        # - full_transcription: Clean complete text
-        # - webspeech_final: Instant transcriptions (for pause detection)
-        logger.info(
-            "⏳ [WORKER] This will call Claude API and may take 10-60 seconds...",
-            session_id=session_id,
-        )
-
-        try:
-            diarization_result = diarization_service.diarize_full_text(
+        if is_llm_provider:
+            # ===== LLM Provider Path: TRIPLE VISION with Claude/Ollama =====
+            logger.info(
+                "🚀 [WORKER] LLM Provider: Calling diarize_full_text with TRIPLE VISION",
                 session_id=session_id,
-                full_text=full_transcription,
-                chunks=chunks,
-                webspeech_final=webspeech_final,
-                audio_file_path=f"storage/audio/{session_id}/full.webm",
-                audio_file_hash=audio_hash,
+                provider=diarization_provider,
+                full_text_length=len(full_transcription),
+                chunks_count=len(chunks),
+                webspeech_count=len(webspeech_final) if webspeech_final else 0,
                 duration_sec=total_duration,
                 language=primary_language,
             )
-        except Exception as e:
-            logger.error("DIARIZATION_SERVICE_ERROR", session_id=session_id, error=str(e), exc_info=True)
+
+            logger.info(
+                "⏳ [WORKER] LLM will intelligently segment using 3 sources (10-60 seconds)...",
+                session_id=session_id,
+            )
+
+            try:
+                diarization_result = diarization_service.diarize_full_text(
+                    session_id=session_id,
+                    full_text=full_transcription,
+                    chunks=chunks,
+                    webspeech_final=webspeech_final,
+                    audio_file_path=f"storage/audio/{session_id}/full.webm",
+                    audio_file_hash=audio_hash,
+                    duration_sec=total_duration,
+                    language=primary_language,
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.error(
+                    "DIARIZATION_LLM_ERROR",
+                    session_id=session_id,
+                    provider=diarization_provider,
+                    error=str(e),
+                    exc_info=True,
+                )
+                return {
+                    "status": "failed",
+                    "error": f"LLM diarization failed: {str(e)}",
+                }
+
+            logger.info(
+                "✅ [WORKER] LLM DIARIZATION_COMPLETED",
+                session_id=session_id,
+                provider=diarization_provider,
+                segment_count=len(diarization_result.segments),
+                processing_time=diarization_result.processing_time_sec,
+            )
+
+        elif is_audio_provider:
+            # ===== Audio Provider Path: TRIPLE VISION + Direct Audio Diarization =====
+            logger.info(
+                "🎤 [WORKER] Audio Provider: Using TRIPLE VISION + audio diarization",
+                session_id=session_id,
+                provider=diarization_provider,
+                full_text_length=len(full_transcription),
+                chunks_count=len(chunks),
+            )
+
+            try:
+                # Get provider config and instance
+                policy_loader = get_policy_loader()
+                provider_config = policy_loader.get_diarization_provider_config(diarization_provider)
+                provider = get_diarization_provider(diarization_provider, provider_config)
+
+                logger.info(
+                    "AUDIO_PROVIDER_INITIALIZED",
+                    provider=diarization_provider,
+                    session_id=session_id,
+                )
+
+                # Load full audio file from storage
+                from pathlib import Path as PathlibPath
+
+                audio_file_path = PathlibPath(f"storage/audio/{session_id}/full.webm")
+                if not audio_file_path.exists():
+                    logger.warning(
+                        "AUDIO_FILE_NOT_FOUND",
+                        path=str(audio_file_path),
+                        session_id=session_id,
+                    )
+                    # Try alternate path
+                    audio_file_path = PathlibPath(f"storage/audio/{session_id}.webm")
+
+                if audio_file_path.exists():
+                    logger.info(
+                        "AUDIO_FILE_FOUND",
+                        path=str(audio_file_path),
+                        size_bytes=audio_file_path.stat().st_size,
+                    )
+
+                    # Run audio provider diarization
+                    logger.info(
+                        "RUNNING_AUDIO_DIARIZATION",
+                        provider=diarization_provider,
+                        audio_path=str(audio_file_path),
+                    )
+
+                    provider_response = provider.diarize(str(audio_file_path), num_speakers=2)
+
+                    logger.info(
+                        "AUDIO_DIARIZATION_COMPLETE",
+                        provider=diarization_provider,
+                        num_speakers=provider_response.num_speakers,
+                        num_segments=len(provider_response.segments),
+                        latency_ms=provider_response.latency_ms,
+                    )
+
+                    # Convert provider response to DiarizationResult format
+                    # For compatibility with existing save_diarization_segments
+                    from backend.services.diarization.diarization_service import DiarizationResult
+
+                    diarization_result = DiarizationResult(
+                        segments=provider_response.segments,
+                        model_llm=diarization_provider,
+                        processing_time_sec=(time.time() - start_time),
+                        created_at=__import__("datetime").datetime.now(
+                            __import__("datetime").timezone.utc
+                        ).isoformat(),
+                    )
+                else:
+                    logger.error(
+                        "NO_AUDIO_FILE_FOR_PROVIDER",
+                        session_id=session_id,
+                        provider=diarization_provider,
+                    )
+                    # Fallback: Use LLM service if available
+                    logger.warning("FALLING_BACK_TO_LLM", session_id=session_id)
+                    diarization_service = DiarizationService()
+                    diarization_result = diarization_service.diarize_full_text(
+                        session_id=session_id,
+                        full_text=full_transcription,
+                        chunks=chunks,
+                        webspeech_final=webspeech_final,
+                        audio_file_path=f"storage/audio/{session_id}/full.webm",
+                        audio_file_hash=audio_hash,
+                        duration_sec=total_duration,
+                        language=primary_language,
+                    )
+
+            except Exception as e:  # noqa: BLE001
+                logger.error(
+                    "DIARIZATION_AUDIO_PROVIDER_ERROR",
+                    session_id=session_id,
+                    provider=diarization_provider,
+                    error=str(e),
+                    exc_info=True,
+                )
+                return {
+                    "status": "failed",
+                    "error": f"Audio provider diarization failed: {str(e)}",
+                }
+
+        else:
+            logger.error(
+                "UNKNOWN_DIARIZATION_PROVIDER",
+                provider=diarization_provider,
+                session_id=session_id,
+            )
             return {
                 "status": "failed",
-                "error": f"Diarization service error: {str(e)}",
+                "error": f"Unknown diarization provider: {diarization_provider}",
             }
 
-        logger.info(
-            "✅ [WORKER] DIARIZATION_COMPLETED",
-            session_id=session_id,
-            segment_count=len(diarization_result.segments),
-            processing_time=diarization_result.processing_time_sec,
-        )
+        if not diarization_result:
+            logger.error("DIARIZATION_RESULT_EMPTY", session_id=session_id)
+            return {
+                "status": "failed",
+                "error": "Diarization produced no results",
+            }
 
         # 4. Save diarization result to DIARIZATION task
         ensure_task_exists(session_id, TaskType.DIARIZATION, allow_existing=True)
