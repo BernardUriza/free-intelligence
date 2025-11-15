@@ -65,6 +65,10 @@ stt:
     azure_whisper:
       api_version: "2024-02-15-preview"
       timeout_seconds: 30
+      # Rate limiting (S0 tier: ~3 requests/min)
+      retry_max_attempts: 3
+      retry_base_delay_seconds: 15  # Azure recommended retry delay
+      retry_backoff_multiplier: 2   # Exponential backoff: 15s, 30s, 60s
       # Credentials from environment:
       # - AZURE_OPENAI_ENDPOINT: https://resource.openai.azure.com/
       # - AZURE_OPENAI_KEY: your-api-key

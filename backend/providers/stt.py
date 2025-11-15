@@ -133,12 +133,15 @@ class AzureWhisperProvider(STTProvider):
 
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(
-                        asyncio.run, self._transcribe_async(audio_bytes=audio_bytes, language=language)
+                        asyncio.run,
+                        self._transcribe_async(audio_bytes=audio_bytes, language=language),
                     )
                     result = future.result()
             else:
                 # No event loop running, safe to use asyncio.run()
-                result = asyncio.run(self._transcribe_async(audio_bytes=audio_bytes, language=language))
+                result = asyncio.run(
+                    self._transcribe_async(audio_bytes=audio_bytes, language=language)
+                )
 
             latency_ms = (time.time() - start_time) * 1000
 
@@ -171,53 +174,87 @@ class AzureWhisperProvider(STTProvider):
     async def _transcribe_async(
         self, audio_bytes: bytes, language: Optional[str] = None
     ) -> dict[str, Any]:
-        """Async call to Azure Whisper API"""
+        """Async call to Azure Whisper API with exponential backoff retry"""
+        import asyncio
+
         import aiohttp
 
         url = f"{self.endpoint}openai/deployments/whisper/audio/transcriptions?api-version={self.api_version}"
 
         headers = {"api-key": self.api_key}
 
-        # Use form data for file upload
-        data = aiohttp.FormData()
-        data.add_field("file", audio_bytes, filename="audio.webm", content_type="audio/webm")
-        data.add_field("model", "whisper-1")
-        if language:
-            data.add_field("language", language)
+        # Retry configuration for rate limiting
+        max_retries = 3
+        base_delay = 15  # Azure asks for 15s retry delay
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url,
-                headers=headers,
-                data=data,
-                timeout=aiohttp.ClientTimeout(total=self.timeout),
-            ) as resp:
-                if resp.status != 200:
-                    error_text = await resp.text()
-                    raise Exception(f"Azure API error {resp.status}: {error_text}")
+        for attempt in range(max_retries + 1):
+            # Use form data for file upload
+            data = aiohttp.FormData()
+            data.add_field("file", audio_bytes, filename="audio.webm", content_type="audio/webm")
+            data.add_field("model", "whisper-1")
+            if language:
+                data.add_field("language", language)
 
-                api_response = await resp.json()
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url,
+                    headers=headers,
+                    data=data,
+                    timeout=aiohttp.ClientTimeout(total=self.timeout),
+                ) as resp:
+                    if resp.status == 200:
+                        api_response = await resp.json()
 
-                # Parse response
-                text = api_response.get("text", "")
-                detected_language = api_response.get("language", language or "unknown")
+                        # Parse response
+                        text = api_response.get("text", "")
+                        detected_language = api_response.get("language", language or "unknown")
 
-                # Create segments from text (no timing info from Azure)
-                segments = [
-                    {
-                        "start": 0.0,
-                        "end": 0.0,
-                        "text": text,
-                    }
-                ]
+                        # Create segments from text (no timing info from Azure)
+                        segments = [
+                            {
+                                "start": 0.0,
+                                "end": 0.0,
+                                "text": text,
+                            }
+                        ]
 
-                return {
-                    "text": text,
-                    "segments": segments,
-                    "language": detected_language,
-                    "duration": 0.0,  # Azure doesn't return duration
-                    "confidence": 0.9,  # Default confidence
-                }
+                        return {
+                            "text": text,
+                            "segments": segments,
+                            "language": detected_language,
+                            "duration": 0.0,  # Azure doesn't return duration
+                            "confidence": 0.9,  # Default confidence
+                        }
+
+                    elif resp.status == 429:  # Rate limit
+                        error_text = await resp.text()
+                        retry_delay = base_delay * (
+                            2**attempt
+                        )  # Exponential backoff: 15s, 30s, 60s
+
+                        if attempt < max_retries:
+                            self.logger.warning(
+                                "AZURE_RATE_LIMIT_HIT",
+                                attempt=attempt + 1,
+                                max_retries=max_retries,
+                                retry_after_seconds=retry_delay,
+                                error=error_text,
+                            )
+                            await asyncio.sleep(retry_delay)
+                            continue  # Retry
+                        else:
+                            self.logger.error(
+                                "AZURE_RATE_LIMIT_EXHAUSTED",
+                                attempts=max_retries + 1,
+                                error=error_text,
+                            )
+                            raise Exception(
+                                f"Azure API rate limit exceeded after {max_retries + 1} attempts: {error_text}"
+                            )
+
+                    else:
+                        error_text = await resp.text()
+                        raise Exception(f"Azure API error {resp.status}: {error_text}")
 
     def get_provider_name(self) -> str:
         return "azure_whisper"
