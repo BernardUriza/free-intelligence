@@ -186,11 +186,9 @@ def transcribe_chunk_task(
 
         # 6. Write chunk to HDF5 (tasks/TRANSCRIPTION/chunks/)
         if len(transcript) > 0:
-            # Calculate timestamps
-            if timestamp_start is None:
-                timestamp_start = chunk_number * 3.0
-            if timestamp_end is None:
-                timestamp_end = timestamp_start + duration
+            # Calculate timestamps (worker generates these)
+            timestamp_start = chunk_number * 3.0
+            timestamp_end = timestamp_start + duration
 
             append_chunk_to_task(
                 session_id=session_id,

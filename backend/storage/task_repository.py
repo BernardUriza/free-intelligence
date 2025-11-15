@@ -114,6 +114,8 @@ def ensure_task_exists(
             "created_at": datetime.now(UTC).isoformat(),
             "updated_at": datetime.now(UTC).isoformat(),
             "progress_percent": 0,
+            "total_chunks": 0,
+            "processed_chunks": 0,
         }
 
         metadata_json = json.dumps(default_metadata)
