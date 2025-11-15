@@ -458,13 +458,21 @@ async def finalize_session_workflow(
         # Call internal finalize function DIRECTLY (no HTTP call - avoids middleware)
         result = await internal_finalize(session_id, request)
 
+        # result is a Pydantic model (FinalizeSessionResponse from internal endpoint)
+        diarization_job_id = result.diarization_job_id if hasattr(result, 'diarization_job_id') else result.get('diarization_job_id') if isinstance(result, dict) else None
+
         logger.info(
             "FINALIZE_SESSION_WORKFLOW_SUCCESS",
             session_id=session_id,
-            diarization_job_id=result.get("diarization_job_id"),
+            diarization_job_id=diarization_job_id,
         )
 
-        return FinalizeSessionResponse(**result)
+        # Convert Pydantic model to dict if needed
+        if isinstance(result, dict):
+            return FinalizeSessionResponse(**result)
+        else:
+            # Already a FinalizeSessionResponse
+            return result
 
     except HTTPException:
         raise
@@ -512,49 +520,29 @@ async def get_diarization_status_workflow(job_id: str) -> DiarizationStatusRespo
     Frontend polls this every 2 seconds to update the diarization progress modal.
 
     Flow:
-    1. Delegates to INTERNAL /diarization/jobs/{job_id} endpoint
-    2. Returns combined Celery + HDF5 status
+    1. Calls INTERNAL diarization status function directly (backend-to-backend)
+    2. Returns combined HDF5 + task metadata status
 
     Args:
-        job_id: Celery task ID (returned from finalize endpoint)
+        job_id: Session ID (used as job identifier since we removed Celery)
 
     Returns:
         DiarizationStatusResponse with current status and progress
     """
-    import httpx
-
-    from backend.logger import get_logger
-
-    logger = get_logger(__name__)
+    from backend.api.internal.diarization.status import get_diarization_status
 
     try:
-        # Delegate to internal endpoint
-        internal_url = f"http://localhost:7001/internal/diarization/jobs/{job_id}"
+        # Call internal function directly (no HTTP overhead, no middleware bypass)
+        result = await get_diarization_status(job_id)
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(internal_url)
-
-        if response.status_code != 200:
-            logger.error(
-                "DIARIZATION_STATUS_FAILED",
-                job_id=job_id,
-                status_code=response.status_code,
-            )
-            raise HTTPException(
-                status_code=response.status_code,
-                detail=f"Failed to get diarization status: {response.text}",
-            )
-
-        # Parse and return
-        result = response.json()
         logger.info(
             "DIARIZATION_STATUS_POLLED",
             job_id=job_id,
-            status=result.get("status"),
-            progress=result.get("progress"),
+            status=result.status,
+            progress=result.progress,
         )
 
-        return DiarizationStatusResponse(**result)
+        return result
 
     except HTTPException:
         raise

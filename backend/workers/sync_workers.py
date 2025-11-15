@@ -35,7 +35,7 @@ logger = get_logger(__name__)
 def transcribe_chunk_worker(
     session_id: str,
     chunk_number: int,
-    stt_provider: str = "faster_whisper",
+    stt_provider: str = "deepgram",
 ) -> dict[str, Any]:
     """Synchronous transcription of audio chunk.
 
@@ -124,7 +124,7 @@ def transcribe_chunk_worker(
             provider=stt_provider,
         )
 
-        if stt_provider == "faster_whisper":
+        if stt_provider == "deepgram":
             from backend.services.transcription.whisper import transcribe_audio
 
             result = transcribe_audio(audio_bytes)
@@ -132,7 +132,7 @@ def transcribe_chunk_worker(
             logger.warning(
                 "UNSUPPORTED_STT_PROVIDER",
                 provider=stt_provider,
-                falling_back_to="faster_whisper",
+                falling_back_to="deepgram",
             )
             from backend.services.transcription.whisper import transcribe_audio
 

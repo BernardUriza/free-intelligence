@@ -260,7 +260,7 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
 
         from backend.workers.transcription_tasks import transcribe_full_audio_task
 
-        stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "faster_whisper")
+        stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "deepgram")
         full_transcription_task = transcribe_full_audio_task.delay(
             session_id=session_id, stt_provider=stt_provider
         )

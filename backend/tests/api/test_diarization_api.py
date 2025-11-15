@@ -363,7 +363,7 @@ class TestDiarizationResultEndpoint:
             "audio_file_hash": "abc123def456",
             "duration_sec": 120.5,
             "language": "es",
-            "model_asr": "faster-whisper",
+            "model_asr": "deepgram",
             "model_llm": "none",
             "segments": [
                 {
@@ -616,7 +616,7 @@ class TestHealthCheckEndpoint:
         mock_diarization_service.health_check.return_value = {
             "status": "healthy",
             "components": {
-                "whisper": {"available": True, "version": "faster-whisper"},
+                "whisper": {"available": True, "version": "deepgram"},
                 "ffmpeg": {"available": True},
             },
             "active_jobs": 3,

@@ -1,7 +1,7 @@
 # Free Intelligence - Makefile
 # Convenience commands for development and deployment
 
-.PHONY: help setup install install-dev test run run-gateway run-both clean docker-build docker-run docker-stop lint format fmt check-deps init-corpus policy-test policy-report policy-verify policy-all
+.PHONY: help setup install install-dev test run lint format fmt check-deps init-corpus policy-test policy-report policy-verify policy-all
 
 # Default target
 .DEFAULT_GOAL := help
@@ -150,50 +150,6 @@ type-check-batch: ## Detect and report all type errors (comprehensive)
 	python3 tools/detect_type_errors.py backend/ --all --export
 
 # ============================================================================
-# Docker
-# ============================================================================
-
-docker-build: ## Build Docker image
-	@echo "🐳 Building Docker image..."
-	docker build -t free-intelligence:latest -t free-intelligence:0.3.0 .
-	@echo "✅ Docker image built: free-intelligence:latest"
-
-docker-run: ## Run Docker container (FI Consult Service)
-	@echo "🐳 Running Docker container..."
-	docker run -d \
-		--name fi-consult \
-		-p 7001:7001 \
-		-v $(PWD)/storage:/app/storage \
-		-v $(PWD)/logs:/app/logs \
-		free-intelligence:latest
-	@echo "✅ Container started: fi-consult"
-	@echo "   Health: http://localhost:7001/health"
-
-docker-run-gateway: ## Run Docker container (AURITY Gateway)
-	@echo "🐳 Running AURITY Gateway container..."
-	docker run -d \
-		--name fi-gateway \
-		-p 7002:7002 \
-		-v $(PWD)/storage:/app/storage \
-		-v $(PWD)/logs:/app/logs \
-		free-intelligence:latest \
-		python3 -m uvicorn backend.aurity_gateway:app --host 0.0.0.0 --port 7002
-	@echo "✅ Container started: fi-gateway"
-	@echo "   Health: http://localhost:7002/health"
-
-docker-stop: ## Stop all Docker containers
-	@echo "🛑 Stopping Docker containers..."
-	-docker stop fi-consult fi-gateway
-	-docker rm fi-consult fi-gateway
-	@echo "✅ Containers stopped"
-
-docker-logs: ## Show Docker logs
-	docker logs -f fi-consult
-
-docker-shell: ## Open shell in running container
-	docker exec -it fi-consult /bin/bash
-
-# ============================================================================
 # Cleanup
 # ============================================================================
 
@@ -207,7 +163,7 @@ clean: ## Clean generated files
 	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✅ Cleaned"
 
-clean-all: clean docker-stop ## Clean everything (including Docker)
+clean-all: clean ## Clean everything
 	@echo "🧹 Deep cleaning..."
 	rm -rf htmlcov/ .coverage
 	@echo "✅ Deep clean complete"
@@ -264,7 +220,7 @@ info: ## Show project information
 # Turborepo Commands
 # ============================================================================
 
-dev-all: ## Start all services (Full Docker Stack + Frontend in single terminal)
+dev-all: ## Start all services (Python 3.14 Native + Frontend in single terminal)
 	@./scripts/dev-all.sh
 
 dev-kill: ## Nuclear cleanup - kill ALL FI processes and containers
