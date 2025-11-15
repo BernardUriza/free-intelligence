@@ -487,6 +487,7 @@ def get_diarization_provider(
         "aws_transcribe": AWSTranscribeProvider,
         "google_speech": GoogleSpeechProvider,
         "deepgram": DeepgramProvider,
+        "azure_gpt4": AzureGPT4Provider,
     }
 
     provider_class = provider_map.get(provider_name.lower())
@@ -497,3 +498,144 @@ def get_diarization_provider(
         )
 
     return provider_class(config)
+
+
+class AzureGPT4Provider(DiarizationProvider):
+    """Azure GPT-4 - Text-based diarization using LLM"""
+
+    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+        super().__init__(config)
+        import os
+
+        self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        self.api_key = os.getenv("AZURE_OPENAI_KEY")
+        self.deployment = "gpt-4"
+        self.api_version = "2024-02-15-preview"
+
+        if not self.endpoint:
+            raise ValueError("AZURE_OPENAI_ENDPOINT environment variable not set")
+        if not self.api_key:
+            raise ValueError("AZURE_OPENAI_KEY environment variable not set")
+
+        self.logger.info("AZURE_GPT4_DIARIZATION_PROVIDER_INITIALIZED")
+
+    def diarize(
+        self,
+        audio_path: Optional[Union[str, Path]] = None,
+        transcript: Optional[str] = None,
+        num_speakers: int = 2,
+    ) -> DiarizationResponse:
+        """Text-based diarization using Azure GPT-4"""
+        import json
+        import time
+
+        import requests
+
+        if not transcript:
+            raise ValueError("Azure GPT-4 provider requires transcript text")
+
+        start_time = time.time()
+
+        # Prompt for diarization
+        prompt = f"""Eres un asistente médico experto en identificar speakers en transcripciones de consultas médicas.
+
+TRANSCRIPT:
+{transcript}
+
+TASK: Identifica quién dijo qué en la transcripción. En una consulta médica típica hay 2 speakers:
+- Doctor/Doctora (hace preguntas médicas, examina, diagnostica)
+- Paciente (describe síntomas, responde preguntas)
+
+IMPORTANTE:
+- Divide el texto en segmentos
+- Asigna cada segmento a "Doctor" o "Paciente"
+- Mantén el texto exacto de cada segmento
+- Estima timestamps relativos si no los tienes
+
+OUTPUT FORMAT (JSON):
+{{
+  "segments": [
+    {{"speaker": "Doctor", "text": "...", "start": 0.0, "end": 5.0}},
+    {{"speaker": "Paciente", "text": "...", "start": 5.0, "end": 10.0}}
+  ]
+}}
+
+Responde SOLO con el JSON, sin explicaciones adicionales."""
+
+        url = f"{self.endpoint}openai/deployments/{self.deployment}/chat/completions?api-version={self.api_version}"
+        headers = {"api-key": self.api_key, "Content-Type": "application/json"}
+        payload = {
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 4000,
+            "temperature": 0.1,
+        }
+
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            response.raise_for_status()
+            result = response.json()
+
+            # Parse GPT-4 response
+            gpt_text = result["choices"][0]["message"]["content"]
+
+            # Extract JSON from response (might have markdown code blocks)
+            if "```json" in gpt_text:
+                json_text = gpt_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in gpt_text:
+                json_text = gpt_text.split("```")[1].split("```")[0].strip()
+            else:
+                json_text = gpt_text.strip()
+
+            diarization_data = json.loads(json_text)
+
+            # Convert to DiarizationResponse format
+            segments = []
+            speakers_dict = {}
+            current_time = 0.0
+
+            for seg in diarization_data.get("segments", []):
+                speaker_name = seg["speaker"]
+                speaker_id = speaker_name.lower()
+
+                if speaker_id not in speakers_dict:
+                    speakers_dict[speaker_id] = Speaker(
+                        speaker_id=speaker_id, name=speaker_name, confidence=0.95
+                    )
+
+                segment = DiarizationSegment(
+                    start_time=seg.get("start", current_time),
+                    end_time=seg.get("end", current_time + 5.0),
+                    speaker=speakers_dict[speaker_id],
+                    confidence=0.95,
+                    text=seg["text"],
+                    duration=seg.get("end", current_time + 5.0) - seg.get("start", current_time),
+                )
+                segments.append(segment)
+                current_time = segment.end_time
+
+            latency_ms = (time.time() - start_time) * 1000
+
+            self.logger.info(
+                "AZURE_GPT4_DIARIZATION_COMPLETE",
+                num_segments=len(segments),
+                num_speakers=len(speakers_dict),
+                latency_ms=round(latency_ms, 2),
+            )
+
+            return DiarizationResponse(
+                segments=segments,
+                speakers=speakers_dict,
+                num_speakers=len(speakers_dict),
+                duration=current_time,
+                confidence=0.95,
+                provider="azure_gpt4",
+                latency_ms=latency_ms,
+                metadata={"model": result.get("model"), "deployment": self.deployment},
+            )
+
+        except Exception as e:
+            self.logger.error("AZURE_GPT4_DIARIZATION_FAILED", error=str(e))
+            raise
+
+    def get_provider_name(self) -> str:
+        return "azure_gpt4"
