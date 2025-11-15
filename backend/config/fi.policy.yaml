@@ -54,10 +54,10 @@ stt:
   # Primary provider for transcription
   primary_provider: azure_whisper
 
-  # Fallback providers in order (cloud → local)
+  # Fallback providers in order (cloud only)
   fallback_providers:
     - deepgram
-    - faster_whisper
+    - azure_whisper
 
   # Provider-specific configurations
   providers:
@@ -76,13 +76,6 @@ stt:
       language_default: es
       # Credentials from environment:
       # - DEEPGRAM_API_KEY: your-api-key
-
-    # Faster-Whisper - Local offline STT (CPU optimized)
-    faster_whisper:
-      model_size: small
-      compute_type: int8
-      device: cpu
-      timeout_seconds: 120
 
 # ===== LLM Provider Configuration =====
 llm:
