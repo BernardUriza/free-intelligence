@@ -91,18 +91,10 @@ check_deps() {
     fi
     echo -e "   ${GREEN}✓${NC} Node.js dependencies OK"
 
-    # Python virtual environment
-    if [ ! -d "$PROJECT_ROOT/.venv" ]; then
-        echo -e "   ${YELLOW}Creating Python 3.14 venv...${NC}"
-        python3.14 -m venv "$PROJECT_ROOT/.venv"
-    fi
-
-    # Activate venv and install dependencies
-    source "$PROJECT_ROOT/.venv/bin/activate"
-
-    if ! python3 -c "import fastapi" 2>/dev/null; then
+    # Python dependencies (native, no venv)
+    if ! python3.14 -c "import fastapi" 2>/dev/null; then
         echo -e "   ${YELLOW}Installing Python dependencies...${NC}"
-        pip install -q -r "$PROJECT_ROOT/requirements.txt" 2>/dev/null || true
+        python3.14 -m pip install -q -r "$PROJECT_ROOT/requirements.txt" 2>/dev/null || true
     fi
     echo -e "   ${GREEN}✓${NC} Python dependencies OK"
 
@@ -120,7 +112,7 @@ init_storage() {
 
     if [ ! -f "$PROJECT_ROOT/storage/corpus.h5" ]; then
         echo -e "   ${YELLOW}Initializing HDF5 corpus...${NC}"
-        python3 -c "
+        python3.14 -c "
 import h5py
 with h5py.File('$PROJECT_ROOT/storage/corpus.h5', 'w') as f:
     f.create_group('sessions')
@@ -138,12 +130,9 @@ start_services() {
     echo -e "${BLUE}[4/4]${NC} Starting services..."
     echo ""
 
-    # Activate venv for backend
-    source "$PROJECT_ROOT/.venv/bin/activate"
-
-    # Start Backend API in background
-    echo -e "${CYAN}🚀 Starting Backend API (Python 3.14)${NC}"
-    python3 -m uvicorn backend.app.main:app \
+    # Start Backend API in background (native Python 3.14)
+    echo -e "${CYAN}🚀 Starting Backend API (Python 3.14 Native)${NC}"
+    python3.14 -m uvicorn backend.app.main:app \
         --host 0.0.0.0 \
         --port 7001 \
         --reload \

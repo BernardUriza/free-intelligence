@@ -245,10 +245,22 @@ class DeepgramProvider(STTProvider):
             with open(audio_path, "rb") as f:
                 audio_bytes = f.read()
 
+            # Detect MIME type from file extension
+            extension = audio_path.suffix.lower()
+            mime_types = {
+                ".mp3": "audio/mpeg",
+                ".webm": "audio/webm",
+                ".wav": "audio/wav",
+                ".m4a": "audio/mp4",
+                ".ogg": "audio/ogg",
+                ".flac": "audio/flac",
+            }
+            content_type = mime_types.get(extension, "audio/webm")
+
             # Call Deepgram API
             headers = {
                 "Authorization": f"Token {self.api_key}",
-                "Content-Type": "audio/webm",
+                "Content-Type": content_type,
             }
 
             url = "https://api.deepgram.com/v1/listen"
@@ -269,6 +281,13 @@ class DeepgramProvider(STTProvider):
                 raise Exception(f"Deepgram API error {response.status_code}: {response.text}")
 
             api_response = response.json()
+
+            # Log raw response for debugging
+            self.logger.debug(
+                "DEEPGRAM_RAW_RESPONSE",
+                response_keys=list(api_response.keys()),
+                results=api_response.get("results", {}),
+            )
 
             # Parse Deepgram response
             transcript = (
@@ -331,8 +350,6 @@ class DeepgramProvider(STTProvider):
 
     def get_provider_name(self) -> str:
         return "deepgram"
-
-
 
 
 def get_stt_provider(provider_name: str, config: Optional[dict[str, Any]] = None) -> STTProvider:
