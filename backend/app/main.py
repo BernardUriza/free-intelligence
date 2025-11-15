@@ -3,8 +3,11 @@
 Creates and configures the main FastAPI app with all routers and middleware.
 
 Architecture:
-- Public API (/api/workflows, /api/katniss): CORS enabled, orchestrators only
-- Internal API (/internal/*): No CORS, atomic resources, localhost-only in production
+- Public API (/api/workflows, /api/system): CORS enabled, orchestrators only
+- Internal API (/internal/*): Localhost-only in production, atomic resources
+
+AURITY-ONLY: All non-AURITY routers removed (FI-STRIDE apps deprecated)
+Refactored: 2025-11-14 (Pruned unused endpoints)
 """
 
 from __future__ import annotations
@@ -63,31 +66,13 @@ def create_app() -> FastAPI:
         from backend.api import internal, public
 
         # PUBLIC API (CORS enabled, orchestrators)
-        public_app.include_router(public.workflows.router)  # Aurity orchestrator
-        public_app.include_router(public.katniss.router)
-        public_app.include_router(public.t21_resources.router)
-        public_app.include_router(public.tts.router)  # Azure TTS
+        public_app.include_router(public.workflows.router)  # AURITY orchestrator
         public_app.include_router(public.system.router, prefix="/system", tags=["system"])
 
-        # INTERNAL API (no CORS, atomic resources, localhost-only)
-        internal_app.include_router(
-            internal.sessions.athlete_sessions.router,
-            prefix="/athlete-sessions",
-            tags=["athlete-sessions"],
-        )
-        internal_app.include_router(internal.athletes.router, prefix="/athletes", tags=["athletes"])
+        # INTERNAL API (atomic resources, AURITY-only)
         internal_app.include_router(internal.audit.router, prefix="/audit", tags=["audit"])
-        internal_app.include_router(internal.coaches.router, prefix="/coaches", tags=["coaches"])
-        # internal_app.include_router(
-        #     internal.diarization.router, prefix="/diarization", tags=["diarization"]
-        # )  # Temporarily disabled - needs refactor
         internal_app.include_router(internal.exports.router, prefix="/exports", tags=["exports"])
-        internal_app.include_router(internal.fi_diag.router, prefix="/fi-diag", tags=["fi-diag"])
         internal_app.include_router(internal.kpis.router, prefix="/kpis", tags=["kpis"])
-        internal_app.include_router(internal.library.router, prefix="/library", tags=["library"])
-        internal_app.include_router(
-            internal.sessions.designs.router, prefix="/session-designs", tags=["session-designs"]
-        )
         internal_app.include_router(internal.sessions.router, prefix="/sessions", tags=["sessions"])
         internal_app.include_router(
             internal.sessions.checkpoint.router, prefix="", tags=["sessions-checkpoint"]
@@ -95,9 +80,6 @@ def create_app() -> FastAPI:
         internal_app.include_router(
             internal.sessions.finalize.router, prefix="", tags=["sessions-finalize"]
         )  # Session finalization + encryption + diarization
-        internal_app.include_router(
-            internal.timeline_verify.router, prefix="/timeline", tags=["timeline"]
-        )
         internal_app.include_router(internal.triage.router, prefix="/triage", tags=["triage"])
         internal_app.include_router(
             internal.transcribe.router, prefix="/transcribe", tags=["transcribe"]
