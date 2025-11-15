@@ -13,7 +13,6 @@ from backend.logger import get_logger
 
 # Import all task modules for Celery autodiscovery
 from backend.workers import (  # noqa: F401  # type: ignore[reportUnusedImport]
-    deepgram_transcription_task,
     diarization_tasks,
     transcription_tasks,
 )
