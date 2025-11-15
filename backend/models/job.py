@@ -22,7 +22,7 @@ Card: Architecture unification
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -106,7 +106,7 @@ class Job:
         Returns:
             Job instance with pending status and current timestamp
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         return cls(
             job_id=job_id,
             session_id=session_id,
@@ -120,7 +120,7 @@ class Job:
     def start(self) -> None:
         """Mark job as started."""
         self.status = JobStatus.IN_PROGRESS
-        self.started_at = datetime.now(timezone.utc).isoformat()
+        self.started_at = datetime.now(UTC).isoformat()
         self.updated_at = self.started_at
 
     def complete(self, result_data: Optional[dict[str, Any]] = None) -> None:
@@ -130,7 +130,7 @@ class Job:
             result_data: Job-specific result data
         """
         self.status = JobStatus.COMPLETED
-        self.completed_at = datetime.now(timezone.utc).isoformat()
+        self.completed_at = datetime.now(UTC).isoformat()
         self.updated_at = self.completed_at
         self.progress_percent = 100
         if result_data:
@@ -144,7 +144,7 @@ class Job:
         """
         self.status = JobStatus.FAILED
         self.error_message = error_message
-        self.updated_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(UTC).isoformat()
 
     def update_progress(self, percent: int) -> None:
         """Update job progress.
@@ -153,7 +153,7 @@ class Job:
             percent: Progress percentage (0-100)
         """
         self.progress_percent = max(0, min(100, percent))
-        self.updated_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(UTC).isoformat()
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
