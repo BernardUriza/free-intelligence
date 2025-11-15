@@ -8,7 +8,7 @@
 # ===== Diarization (Speaker Identification) Configuration =====
 diarization:
   # Primary provider for speaker identification
-  primary_provider: pyannote
+  primary_provider: azure  # GPT-4o from Azure OpenAI for fast demo (2025-11-15)
 
   # Fallback providers in order (local → cloud)
   fallback_providers:

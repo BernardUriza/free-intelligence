@@ -29,8 +29,8 @@ ollama==0.6.0                   # Local Ollama integration
 # NLP & Embeddings
 # ============================================================================
 sentence-transformers==5.1.2    # Semantic search and embeddings
-torch==2.8.0                    # PyTorch for transformers
-transformers==4.57.1            # Hugging Face transformers
+torch>=2.9.0                    # PyTorch for transformers (compatible with Python 3.14)
+transformers>=4.57.1            # Hugging Face transformers
 
 # ============================================================================
 # Data Validation & Processing
@@ -64,11 +64,17 @@ py-trello>=0.20.0               # Trello API client
 # ============================================================================
 # Audio Processing & Task Management
 # ============================================================================
-faster-whisper>=1.0.0           # Optimized Whisper ASR (CTranslate2 backend)
+# NOTE: faster-whisper removed (compilation issues on Python 3.14)
+# Use Deepgram API instead (backend/services/deepgram_service.py)
 filelock>=3.12.0                # File locking for HDF5 concurrent writes
 
 # Optional: GPU acceleration (Mac M1/M2/M3)
 # torch>=2.0.0                  # PyTorch with MPS support (uncomment for M1 GPU)
+
+# ============================================================================
+# Audit & Analytics
+# ============================================================================
+pyarrow>=14.0.0                 # Parquet file support for audit logs
 
 # ============================================================================
 # Diarization Low-Priority Worker (FI-RELIABILITY-IMPL-004)

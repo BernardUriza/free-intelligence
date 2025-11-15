@@ -94,7 +94,7 @@ async def upload_chunk(
         audio: Audio file (WebM/WAV/MP3)
         timestamp_start: Optional chunk start time
         timestamp_end: Optional chunk end time
-        stt_provider: Optional STT provider ("azure_whisper", "deepgram", "faster_whisper")
+        stt_provider: Optional STT provider ("azure_whisper", "deepgram")
                       If not provided, uses primary_provider from policy
 
     Returns:

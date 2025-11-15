@@ -242,7 +242,7 @@ class TranscriptionService:
         from backend.workers.executor_pool import spawn_worker
         from backend.workers.sync_workers import transcribe_chunk_worker
 
-        stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "faster_whisper")
+        stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "deepgram")
 
         logger.info(
             "DISPATCHING_WORKER",

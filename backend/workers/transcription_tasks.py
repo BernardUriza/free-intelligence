@@ -53,7 +53,7 @@ def transcribe_chunk_task(
     self,
     session_id: str,
     chunk_number: int,
-    stt_provider: str = "faster_whisper",
+    stt_provider: str = "deepgram",
 ) -> dict:
     """Transcribe audio chunk using configurable STT provider.
 
@@ -68,7 +68,7 @@ def transcribe_chunk_task(
     Args:
         session_id: Session UUID
         chunk_number: Chunk index
-        stt_provider: Provider name ("azure_whisper", "deepgram", "faster_whisper")
+        stt_provider: Provider name ("azure_whisper", "deepgram", "deepgram")
 
     Returns:
         dict with transcript, duration, language, etc.
@@ -203,11 +203,11 @@ def transcribe_chunk_task(
                 error=str(e),
             )
             # Fallback to faster_whisper
-            stt_provider = "faster_whisper"
+            stt_provider = "deepgram"
             provider = get_stt_provider(stt_provider)
 
         # Use WAV path for local provider, original audio for cloud providers
-        if stt_provider == "faster_whisper":
+        if stt_provider == "deepgram":
             audio_input_path = wav_path
         else:
             # Cloud providers (Azure, Deepgram) work with webm/mp3
@@ -409,7 +409,7 @@ def transcribe_chunk_task(
 def transcribe_full_audio_task(
     self,
     session_id: str,
-    stt_provider: str = "faster_whisper",
+    stt_provider: str = "deepgram",
 ) -> dict:
     """Transcribe full concatenated audio using configurable STT provider.
 
@@ -419,7 +419,7 @@ def transcribe_full_audio_task(
 
     Args:
         session_id: Session UUID
-        stt_provider: Provider name (default "faster_whisper")
+        stt_provider: Provider name (default "deepgram")
 
     Returns:
         dict with transcript, confidence, duration, language
@@ -477,7 +477,7 @@ def transcribe_full_audio_task(
                 error=str(e),
             )
             # Fallback to faster_whisper
-            stt_provider = "faster_whisper"
+            stt_provider = "deepgram"
             provider = get_stt_provider(stt_provider)
 
         # 3. Write audio to temp file for provider
