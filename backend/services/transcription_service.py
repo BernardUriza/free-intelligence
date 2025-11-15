@@ -164,14 +164,17 @@ class TranscriptionService:
             total_chunks=metadata["total_chunks"],
         )
 
-        # 5. Dispatch Celery worker (with REFERENCES ONLY, no large audio blobs!)
+        # 5. Dispatch sync worker in background thread
         # Use configurable STT provider (set via AURITY_ASR_PROVIDER env var)
         import os
+        from concurrent.futures import ThreadPoolExecutor
 
-        from backend.workers.transcription_tasks import transcribe_chunk_task
+        from backend.workers.sync_workers import transcribe_chunk_worker
 
         stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "faster_whisper")
-        task = transcribe_chunk_task.delay(  # type: ignore[attr-defined]
+        executor = ThreadPoolExecutor(max_workers=4)
+        future = executor.submit(
+            transcribe_chunk_worker,
             session_id=session_id,
             chunk_number=chunk_number,
             stt_provider=stt_provider,
@@ -183,7 +186,6 @@ class TranscriptionService:
             "WORKER_DISPATCHED",
             session_id=session_id,
             chunk_number=chunk_number,
-            task_id=task.id,
         )
 
         # 6. Return result

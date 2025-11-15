@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from dotenv import load_dotenv
 
@@ -56,7 +56,9 @@ class STTProvider(ABC):
         self.logger = get_logger(self.__class__.__name__)
 
     @abstractmethod
-    def transcribe(self, audio_path: str | Path, language: Optional[str] = None) -> STTResponse:
+    def transcribe(
+        self, audio_path: Union[str, Path], language: Optional[str] = None
+    ) -> STTResponse:
         """
         Transcribe audio file.
 
@@ -96,7 +98,9 @@ class AzureWhisperProvider(STTProvider):
             endpoint=self.endpoint,
         )
 
-    def transcribe(self, audio_path: str | Path, language: Optional[str] = None) -> STTResponse:
+    def transcribe(
+        self, audio_path: Union[str, Path], language: Optional[str] = None
+    ) -> STTResponse:
         """Transcribe using Azure Whisper API"""
         import asyncio
         import time
@@ -217,7 +221,9 @@ class DeepgramProvider(STTProvider):
 
         self.logger.info("DEEPGRAM_PROVIDER_INITIALIZED")
 
-    def transcribe(self, audio_path: str | Path, language: Optional[str] = None) -> STTResponse:
+    def transcribe(
+        self, audio_path: Union[str, Path], language: Optional[str] = None
+    ) -> STTResponse:
         """Transcribe using Deepgram API"""
         import time
 
@@ -366,7 +372,9 @@ class FasterWhisperProvider(STTProvider):
             )
         return self._model_instance
 
-    def transcribe(self, audio_path: str | Path, language: Optional[str] = None) -> STTResponse:
+    def transcribe(
+        self, audio_path: Union[str, Path], language: Optional[str] = None
+    ) -> STTResponse:
         """Transcribe using faster-whisper"""
         import time
 

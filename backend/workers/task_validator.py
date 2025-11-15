@@ -1,5 +1,8 @@
 """Task Validation & Startup Diagnostics for Celery Worker.
 
+DEPRECATED: Celery removed as of 2025-11-15.
+This file is kept for historical reference only.
+
 Comprehensive validation that ensures all registered tasks exist and are callable.
 Prevents silent failures from orphaned task definitions.
 
@@ -10,12 +13,12 @@ Features:
 - Fails loudly on inconsistencies (not silently!)
 
 Created: 2025-11-15
+Updated: 2025-11-15 (Deprecated - Celery removed)
 Card: AUR-LOGGING-IMPROVEMENT
 """
 
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
 
 from backend.logger import get_logger
@@ -65,9 +68,7 @@ class CeleryTaskValidator:
 
         if self.errors:
             self._report_errors()
-            raise TaskValidationError(
-                f"Task validation failed with {len(self.errors)} error(s)"
-            )
+            raise TaskValidationError(f"Task validation failed with {len(self.errors)} error(s)")
 
         if self.warnings:
             self._report_warnings()
@@ -86,9 +87,7 @@ class CeleryTaskValidator:
         registered_names = set(self.celery_app.tasks.keys())
 
         if not registered_names:
-            self.errors.append(
-                "No tasks registered! Celery app has empty task registry."
-            )
+            self.errors.append("No tasks registered! Celery app has empty task registry.")
             return
 
         logger.info(
@@ -124,8 +123,7 @@ class CeleryTaskValidator:
             try:
                 if not callable(task_obj):
                     self.errors.append(
-                        f"Task '{task_name}' is not callable. "
-                        f"Type: {type(task_obj)}"
+                        f"Task '{task_name}' is not callable. " f"Type: {type(task_obj)}"
                     )
                     continue
 
@@ -143,9 +141,7 @@ class CeleryTaskValidator:
                 )
 
             except Exception as e:
-                self.errors.append(
-                    f"Error checking task '{task_name}': {str(e)}"
-                )
+                self.errors.append(f"Error checking task '{task_name}': {e!s}")
 
     def _validate_task_imports(self) -> None:
         """Validate that task modules can be imported."""
@@ -162,13 +158,9 @@ class CeleryTaskValidator:
                 __import__(module_name)
                 logger.debug("MODULE_IMPORT_OK", module=module_name)
             except ImportError as e:
-                self.warnings.append(
-                    f"⚠️  Could not import task module '{module_name}': {str(e)}"
-                )
+                self.warnings.append(f"⚠️  Could not import task module '{module_name}': {e!s}")
             except Exception as e:
-                self.errors.append(
-                    f"Error importing module '{module_name}': {str(e)}"
-                )
+                self.errors.append(f"Error importing module '{module_name}': {e!s}")
 
     def _report_errors(self) -> None:
         """Report validation errors prominently."""

@@ -2,25 +2,24 @@
 
 INTERNAL layer:
 - Creates/updates TranscriptionJob (1 per session)
-- Dispatches Celery workers for heavy processing
+- Dispatches synchronous workers for audio processing
 - Returns immediately (202 Accepted)
 
 Architecture:
-  PUBLIC → INTERNAL → WORKER
+  PUBLIC → INTERNAL → WORKER (sync)
 
 Storage:
-  /sessions/{session_id}/jobs/transcription/{job_id}.json  (Job metadata)
-  /sessions/{session_id}/production/chunks/chunk_{N}/      (Transcripts)
-  /sessions/{session_id}/ml_ready/text/chunks/chunk_{N}/   (ML data)
+  /sessions/{session_id}/tasks/TRANSCRIPTION/  (Task-based HDF5)
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-14
+Updated: 2025-11-15 (Migrated from Celery to sync workers)
 Card: Architecture unification
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
@@ -166,20 +165,24 @@ async def upload_chunk(
             provider=stt_provider,
         )
 
-        # 5. Dispatch Celery task (worker will write to HDF5)
-        from backend.workers.transcription_tasks import transcribe_chunk_task
+        # 5. Dispatch sync worker (worker writes to HDF5)
+        from concurrent.futures import ThreadPoolExecutor
 
-        task = transcribe_chunk_task.delay(  # type: ignore[attr-defined]
+        from backend.workers.sync_workers import transcribe_chunk_worker
+
+        # Run transcription in background thread to avoid blocking
+        executor = ThreadPoolExecutor(max_workers=4)
+        future = executor.submit(
+            transcribe_chunk_worker,
             session_id=session_id,
             chunk_number=chunk_number,
             stt_provider=stt_provider,
         )
 
         logger.info(
-            "CELERY_TASK_DISPATCHED",
+            "TRANSCRIBE_TASK_DISPATCHED",
             session_id=session_id,
             chunk_number=chunk_number,
-            task_id=task.id,
         )
 
         # 6. Return 202 Accepted
@@ -259,8 +262,8 @@ async def get_transcription_job(session_id: str) -> TranscriptionJobResponse:
             processed_chunks=processed_chunks,
             progress_percent=progress_percent,
             chunks=chunks,  # type: ignore[arg-type]
-            created_at=metadata.get("created_at", datetime.now(timezone.utc).isoformat()),
-            updated_at=metadata.get("updated_at", datetime.now(timezone.utc).isoformat()),
+            created_at=metadata.get("created_at", datetime.now(UTC).isoformat()),
+            updated_at=metadata.get("updated_at", datetime.now(UTC).isoformat()),
         )
 
     except HTTPException:

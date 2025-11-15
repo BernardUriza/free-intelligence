@@ -5,11 +5,11 @@ Finalizes a session (recording stopped):
 2. Saves 3 transcription sources to HDF5 (WebSpeech, Chunks, Full)
 3. Encrypts session data (AES-GCM-256)
 4. Marks session as FINALIZED (immutable)
-5. Dispatches Celery task for diarization
-6. Returns 202 Accepted (diarization will run in background)
+5. Dispatches sync worker for diarization
+6. Returns 202 Accepted (diarization will run in background thread)
 
 Architecture:
-  PUBLIC → INTERNAL (this file) → WORKER (diarization_task)
+  PUBLIC → INTERNAL (this file) → WORKER (sync diarization_worker)
 
 Storage (Task-based schema):
   /sessions/{session_id}/tasks/TRANSCRIPTION/
@@ -370,16 +370,19 @@ async def finalize_session(
             recording_duration=session.recording_duration,
         )
 
-        # 4. Dispatch Celery task for diarization
-        from backend.workers.diarization_tasks import diarize_session_task
+        # 4. Dispatch sync worker for diarization in background thread
+        from concurrent.futures import ThreadPoolExecutor
 
-        task = diarize_session_task.delay(session_id=session_id)  # type: ignore[attr-defined]
-        diarization_job_id = task.id
+        from backend.workers.sync_workers import diarize_session_worker
+
+        executor = ThreadPoolExecutor(max_workers=2)
+        future = executor.submit(diarize_session_worker, session_id=session_id)
+        diarization_job_id = session_id  # Use session_id as job identifier
 
         logger.info(
             "DIARIZATION_DISPATCHED",
             session_id=session_id,
-            celery_task_id=diarization_job_id,
+            job_id=diarization_job_id,
         )
 
         # 5. Return 202 Accepted
