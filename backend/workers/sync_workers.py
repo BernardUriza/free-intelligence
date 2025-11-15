@@ -53,50 +53,140 @@ def transcribe_chunk_worker(
 
     try:
         logger.info(
-            "TRANSCRIBE_CHUNK_START",
+            "TRANSCRIBE_CHUNK_WORKER_START",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            provider=stt_provider,
+            timestamp=start_time,
+        )
+
+        # Step 1: Ensure TRANSCRIPTION task exists
+        logger.debug(
+            "ENSURING_TASK_EXISTS",
+            session_id=session_id,
+            task_type="TRANSCRIPTION",
+        )
+        ensure_task_exists(session_id, TaskType.TRANSCRIPTION)
+        logger.debug(
+            "TASK_EXISTS_OK",
+            session_id=session_id,
+        )
+
+        # Step 2: Get current task metadata
+        logger.debug(
+            "FETCHING_TASK_METADATA",
+            session_id=session_id,
+            chunk_number=chunk_number,
+        )
+        task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
+        if not task_metadata:
+            task_metadata = {
+                "total_chunks": 1,
+                "processed_chunks": 0,
+            }
+            logger.warning(
+                "NO_TASK_METADATA_FOUND",
+                session_id=session_id,
+                using_default=True,
+            )
+        logger.debug(
+            "TASK_METADATA_FETCHED",
+            session_id=session_id,
+            total_chunks=task_metadata.get("total_chunks"),
+            processed_chunks=task_metadata.get("processed_chunks"),
+        )
+
+        # Step 3: Read audio from HDF5 and transcribe using Whisper
+        logger.info(
+            "READING_AUDIO_FROM_HDF5",
+            session_id=session_id,
+            chunk_number=chunk_number,
+        )
+
+        from backend.storage.task_repository import get_chunk_audio_bytes
+
+        audio_bytes = get_chunk_audio_bytes(session_id, TaskType.TRANSCRIPTION, chunk_number)
+        logger.debug(
+            "AUDIO_READ_FROM_HDF5",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            audio_size=len(audio_bytes) if audio_bytes else 0,
+        )
+
+        if not audio_bytes:
+            raise ValueError(f"No audio data for chunk {chunk_number} in session {session_id}")
+
+        # Transcribe using Whisper (or other provider)
+        logger.info(
+            "STARTING_TRANSCRIPTION",
             session_id=session_id,
             chunk_number=chunk_number,
             provider=stt_provider,
         )
 
-        # Ensure TRANSCRIPTION task exists
-        ensure_task_exists(session_id, TaskType.TRANSCRIPTION)
+        if stt_provider == "faster_whisper":
+            from backend.services.transcription.whisper import transcribe_audio
 
-        # Get task metadata to find audio path in HDF5
-        task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
-        chunk_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/chunks/chunk_{chunk_number}"
+            result = transcribe_audio(audio_bytes)
+        else:
+            logger.warning(
+                "UNSUPPORTED_STT_PROVIDER",
+                provider=stt_provider,
+                falling_back_to="faster_whisper",
+            )
+            from backend.services.transcription.whisper import transcribe_audio
 
-        # For now, read audio from HDF5 and transcribe with faster-whisper
-        # (Deepgram integration can be added later as async option)
-        from backend.services.transcription_service import TranscriptionService
+            result = transcribe_audio(audio_bytes)
 
-        service = TranscriptionService()
-        result = service.transcribe_chunk(session_id, chunk_number, stt_provider)
+        logger.info(
+            "TRANSCRIPTION_COMPLETED",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            has_transcript=bool(result and "transcript" in result),
+            transcript_length=len(result.get("transcript", "")) if result else 0,
+        )
 
-        # Update task metadata with progress
+        # Step 4: Update task metadata with progress
+        logger.debug(
+            "UPDATING_TASK_METADATA",
+            session_id=session_id,
+            chunk_number=chunk_number,
+        )
         total_chunks = task_metadata.get("total_chunks", 1)
         processed = task_metadata.get("processed_chunks", 0) + 1
         progress = int((processed / total_chunks) * 100)
 
+        metadata_update = {
+            "processed_chunks": processed,
+            "progress_percent": progress,
+            "last_chunk": chunk_number,
+            "status": TaskStatus.IN_PROGRESS.value
+            if processed < total_chunks
+            else TaskStatus.COMPLETED.value,
+        }
         update_task_metadata(
             session_id,
             TaskType.TRANSCRIPTION,
-            {
-                "processed_chunks": processed,
-                "progress_percent": progress,
-                "last_chunk": chunk_number,
-                "status": TaskStatus.IN_PROGRESS
-                if processed < total_chunks
-                else TaskStatus.COMPLETED,
-            },
+            metadata_update,
+        )
+        logger.info(
+            "TASK_METADATA_UPDATED",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            processed_chunks=processed,
+            total_chunks=total_chunks,
+            progress_percent=progress,
+            new_status=metadata_update["status"],
         )
 
         elapsed = time.time() - start_time
         logger.info(
-            "TRANSCRIBE_CHUNK_SUCCESS",
+            "TRANSCRIBE_CHUNK_WORKER_SUCCESS",
             session_id=session_id,
             chunk_number=chunk_number,
             duration_seconds=elapsed,
+            processed_chunks=processed,
+            total_chunks=total_chunks,
         )
 
         return {
@@ -109,10 +199,13 @@ def transcribe_chunk_worker(
 
     except Exception as e:
         logger.error(
-            "TRANSCRIBE_CHUNK_FAILED",
+            "TRANSCRIBE_CHUNK_WORKER_FAILED",
             session_id=session_id,
             chunk_number=chunk_number,
             error=str(e),
+            error_type=type(e).__name__,
+            duration_seconds=time.time() - start_time,
+            exc_info=True,
         )
         raise
 

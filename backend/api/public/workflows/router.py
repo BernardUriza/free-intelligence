@@ -423,11 +423,11 @@ async def finalize_session_workflow(
     """Finalize session: encrypt + dispatch diarization workflow (PUBLIC orchestrator).
 
     Flow:
-    1. Call INTERNAL /sessions/{session_id}/finalize endpoint
+    1. Call the INTERNAL finalize function DIRECTLY (no HTTP call)
     2. Return diarization job ID to frontend
     3. Frontend polls /diarization/jobs/{job_id} for status
 
-    PUBLIC layer: Pure orchestrator - delegates to INTERNAL endpoint
+    PUBLIC layer: Pure orchestrator - calls internal function directly
 
     Args:
         session_id: Session UUID
@@ -441,8 +441,9 @@ async def finalize_session_workflow(
         400: Transcription not completed yet
         500: Encryption or storage failed
     """
-    import httpx
-
+    from backend.api.internal.sessions.finalize import (
+        finalize_session as internal_finalize,
+    )
     from backend.logger import get_logger
 
     logger = get_logger(__name__)
@@ -454,31 +455,8 @@ async def finalize_session_workflow(
             sources_count=len(request.transcription_sources.webspeech_final),
         )
 
-        # Call internal finalize endpoint (must be running on same port)
-        internal_url = f"http://localhost:7001/internal/sessions/{session_id}/finalize"
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                internal_url,
-                json=request.model_dump(),
-                headers={"Content-Type": "application/json"},
-            )
-
-        if response.status_code != 202:
-            error_detail = response.text
-            logger.error(
-                "INTERNAL_FINALIZE_FAILED",
-                session_id=session_id,
-                status_code=response.status_code,
-                error=error_detail,
-            )
-            raise HTTPException(
-                status_code=response.status_code,
-                detail=f"Internal finalize failed: {error_detail}",
-            )
-
-        # Parse response from internal endpoint
-        result = response.json()
+        # Call internal finalize function DIRECTLY (no HTTP call - avoids middleware)
+        result = await internal_finalize(session_id, request)
 
         logger.info(
             "FINALIZE_SESSION_WORKFLOW_SUCCESS",
