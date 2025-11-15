@@ -187,7 +187,8 @@ def transcribe_chunk_task(
         # 6. Write chunk to HDF5 (tasks/TRANSCRIPTION/chunks/)
         if len(transcript) > 0:
             # Calculate timestamps (worker generates these)
-            timestamp_start = chunk_number * 3.0
+            # Using CHUNK_DURATION_SECONDS from config as single source of truth
+            timestamp_start = chunk_number * CHUNK_DURATION_SECONDS
             timestamp_end = timestamp_start + duration
 
             append_chunk_to_task(
