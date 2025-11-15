@@ -121,7 +121,9 @@ class SessionService:
         if not tasks_metadata:
             return TaskStatus.PENDING.value
 
-        statuses = [meta.get("status", TaskStatus.PENDING.value) for meta in tasks_metadata.values()]
+        statuses = [
+            meta.get("status", TaskStatus.PENDING.value) for meta in tasks_metadata.values()
+        ]
 
         # Priority: FAILED > IN_PROGRESS > COMPLETED > PENDING
         if TaskStatus.FAILED.value in statuses:

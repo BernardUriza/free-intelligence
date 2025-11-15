@@ -71,6 +71,9 @@ def create_app() -> FastAPI:
 
         # INTERNAL API (atomic resources, AURITY-only)
         internal_app.include_router(internal.audit.router, prefix="/audit", tags=["audit"])
+        internal_app.include_router(
+            internal.diarization.router, prefix="/diarization", tags=["diarization"]
+        )
         internal_app.include_router(internal.exports.router, prefix="/exports", tags=["exports"])
         internal_app.include_router(internal.kpis.router, prefix="/kpis", tags=["kpis"])
         internal_app.include_router(internal.sessions.router, prefix="/sessions", tags=["sessions"])

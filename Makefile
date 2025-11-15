@@ -267,6 +267,11 @@ info: ## Show project information
 dev-all: ## Start all services (Full Docker Stack + Frontend in single terminal)
 	@./scripts/dev-all.sh
 
+dev-kill: ## Nuclear cleanup - kill ALL FI processes and containers
+	@./scripts/kill-all-fi.sh
+
+dev-restart: dev-kill dev-all ## Restart everything (kill + start)
+
 # Docker commands
 docker-up: ## Start Docker stack only (Redis + Backend + Workers + Flower)
 	@docker compose -f docker/docker-compose.full.yml up -d

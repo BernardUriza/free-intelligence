@@ -95,8 +95,8 @@ Language:"""
 
 def diarize_with_claude(
     full_text: str,
-    chunks: list[dict[str, Any]] | None = None,
-    webspeech_final: list[dict[str, Any]] | None = None,
+    chunks: Optional[list[dict[str, Any]]] = None,
+    webspeech_final: Optional[list[dict[str, Any]]] = None,
     language: str = "es",
 ) -> list[DiarizationSegment]:
     """Diarize full transcription using Claude 3.5 Sonnet with triple vision.
@@ -124,7 +124,7 @@ def diarize_with_claude(
     num_ctx = calculate_num_ctx(len(full_text))
 
     logger.info(
-        "CLAUDE_DIARIZATION_START",
+        "🎯 [DIARIZATION] Starting Claude diarization",
         text_length=len(full_text),
         chunk_count=len(chunks) if chunks else 0,
         webspeech_count=len(webspeech_final) if webspeech_final else 0,
@@ -133,10 +133,19 @@ def diarize_with_claude(
     )
 
     # Build prompt (always in English, regardless of content language)
+    logger.info("📝 [DIARIZATION] Building prompt for Claude...")
     prompt = _build_prompt(full_text, chunks, webspeech_final, language)
+    logger.info(
+        "✅ [DIARIZATION] Prompt built",
+        prompt_length=len(prompt),
+        first_100_chars=prompt[:100],
+    )
 
     try:
         # Use llm_generate with Claude provider (model from policy: claude-sonnet-4-5-20250929)
+        logger.info("🚀 [DIARIZATION] Calling Claude API (llm_generate)...")
+        logger.info("⏳ [DIARIZATION] Waiting for Claude response (this may take 10-30 seconds)...")
+
         response = llm_generate(
             prompt,
             provider="claude",
@@ -144,25 +153,41 @@ def diarize_with_claude(
             temperature=0.3,  # Balanced between deterministic and creative
         )
 
+        logger.info("✅ [DIARIZATION] Claude API response received")
         generated_text = response.content.strip()
 
-        logger.debug("CLAUDE_RAW_RESPONSE", response_preview=generated_text[:500])
+        logger.info(
+            "📄 [DIARIZATION] Raw response preview",
+            response_length=len(generated_text),
+            first_500_chars=generated_text[:500],
+        )
 
         # Parse JSON response
+        logger.info("🔍 [DIARIZATION] Parsing JSON response...")
         segments = _parse_response(generated_text, full_text)
 
-        logger.info("CLAUDE_DIARIZATION_SUCCESS", segment_count=len(segments), provider="claude")
+        logger.info(
+            "✅ [DIARIZATION] SUCCESS - Diarization complete",
+            segment_count=len(segments),
+            provider="claude",
+        )
         return segments
 
     except Exception as e:
-        logger.error("CLAUDE_DIARIZATION_ERROR", error=str(e), exc_info=True)
+        logger.error(
+            "❌ [DIARIZATION] FATAL ERROR during Claude diarization",
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True,
+        )
+        logger.info("🔄 [DIARIZATION] Falling back to DESCONOCIDO segment...")
         return _fallback_segments(full_text)
 
 
 def _build_prompt(
     full_text: str,
-    chunks: list[dict[str, Any]] | None = None,
-    webspeech_final: list[dict[str, Any]] | None = None,
+    chunks: Optional[list[dict[str, Any]]] = None,
+    webspeech_final: Optional[list[dict[str, Any]]] = None,
     content_language: str = "en",
 ) -> str:
     """Build English prompt for Claude with triple vision.

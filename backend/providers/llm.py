@@ -124,14 +124,14 @@ class LLMResponse:
     tokens_used: int
     cost_usd: Optional[float] = None
     latency_ms: Optional[float] = None
-    metadata: dict[str, Any | None] | None = None
+    metadata: Optional[dict[str, Any]] = None
 
 
 class LLMProvider(ABC):
     """Abstract base class for LLM providers"""
 
-    def __init__(self, config: dict[str, Any | None] | None = None) -> None:
-        self.config: dict[str, Any | None] = config or {}
+    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+        self.config: dict[str, Any] = config or {}
         self.logger = get_logger(self.__class__.__name__)
 
     @abstractmethod
@@ -182,7 +182,7 @@ class ClaudeProvider(LLMProvider):
         },
     }
 
-    def __init__(self, config: dict[str, Any | None] | None = None) -> None:
+    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
         super().__init__(config)
         api_key = os.getenv("CLAUDE_API_KEY")
         if not api_key:
@@ -201,11 +201,20 @@ class ClaudeProvider(LLMProvider):
             kwargs.get("temperature") or self.config.get("temperature") or 0.7
         )
 
-        self.logger.info("CLAUDE_GENERATE_STARTED", model=model, prompt_length=len(prompt))
+        self.logger.info(
+            "🤖 [CLAUDE] GENERATE_STARTED",
+            model=model,
+            prompt_length=len(prompt),
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
 
         start_time = datetime.now(UTC)
 
         try:
+            self.logger.info("📡 [CLAUDE] Calling anthropic.client.messages.create()...")
+            self.logger.info(f"⏳ [CLAUDE] Waiting for API response (timeout: {self.timeout}s)...")
+
             message = self.client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
@@ -214,10 +223,18 @@ class ClaudeProvider(LLMProvider):
                 timeout=self.timeout,
             )
 
+            self.logger.info("✅ [CLAUDE] API response received successfully")
+
             latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             # Extract response content
             content = message.content[0].text if message.content else ""  # type: ignore[attr-defined]
+
+            self.logger.info(
+                "📝 [CLAUDE] Response content extracted",
+                content_length=len(content),
+                first_100_chars=content[:100] if content else "",
+            )
 
             # Calculate cost
             input_tokens = message.usage.input_tokens
@@ -230,9 +247,11 @@ class ClaudeProvider(LLMProvider):
             ) * pricing["output"]
 
             self.logger.info(
-                "CLAUDE_GENERATE_COMPLETED",
+                "✅ [CLAUDE] GENERATE_COMPLETED",
                 model=model,
                 tokens_used=total_tokens,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
                 cost_usd=round(cost_usd, 6),
                 latency_ms=round(latency_ms, 2),
             )
@@ -253,20 +272,22 @@ class ClaudeProvider(LLMProvider):
 
         except anthropic.APITimeoutError as e:
             sanitized_error = sanitize_error_message(str(e))
-            self.logger.error("CLAUDE_TIMEOUT_ERROR", error=sanitized_error, timeout=self.timeout)
+            self.logger.error(
+                "❌ [CLAUDE] TIMEOUT_ERROR", error=sanitized_error, timeout=self.timeout
+            )
             raise
         except anthropic.APIConnectionError as e:
             sanitized_error = sanitize_error_message(str(e))
-            self.logger.error("CLAUDE_CONNECTION_ERROR", error=sanitized_error)
+            self.logger.error("❌ [CLAUDE] CONNECTION_ERROR", error=sanitized_error)
             raise
         except anthropic.RateLimitError as e:
             sanitized_error = sanitize_error_message(str(e))
-            self.logger.error("CLAUDE_RATE_LIMIT_ERROR", error=sanitized_error)
+            self.logger.error("❌ [CLAUDE] RATE_LIMIT_ERROR", error=sanitized_error)
             raise
         except anthropic.APIError as e:
             sanitized_error = sanitize_error_message(str(e))
             self.logger.error(
-                "CLAUDE_API_ERROR",
+                "❌ [CLAUDE] API_ERROR",
                 error=sanitized_error,
                 status_code=getattr(e, "status_code", None),
             )
@@ -298,7 +319,7 @@ class ClaudeProvider(LLMProvider):
 class OllamaProvider(LLMProvider):
     """Ollama local inference provider for offline-first operation"""
 
-    def __init__(self, config: dict[str, Any | None] | None = None) -> None:
+    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
         super().__init__(config)
         self.base_url: str = str(self.config.get("base_url") or "http://localhost:11434")
         self.default_model: str = str(self.config.get("model") or "qwen2.5:7b-instruct-q4_0")
@@ -448,7 +469,7 @@ class OllamaProvider(LLMProvider):
         return "ollama"
 
 
-def get_provider(provider_name: str, config: dict[str, Any | None] | None = None) -> LLMProvider:
+def get_provider(provider_name: str, config: Optional[dict[str, Any]] = None) -> LLMProvider:
     """
     Factory function to get LLM provider instance.
 
@@ -481,7 +502,7 @@ def get_provider(provider_name: str, config: dict[str, Any | None] | None = None
 def llm_generate(
     prompt: str,
     provider: Optional[str] = None,
-    provider_config: dict[str, Any | None] | None = None,
+    provider_config: Optional[dict[str, Any]] = None,
     **kwargs,
 ) -> LLMResponse:
     """
@@ -529,7 +550,12 @@ def llm_generate(
 
     logger.info("LLM_CONFIG_FROM_POLICY", provider=provider, model=provider_config.get("model"))
 
-    logger.info("LLM_GENERATE_STARTED", provider=provider, prompt_length=len(prompt))
+    logger.info(
+        "🌐 [LLM] LLM_GENERATE_STARTED",
+        provider=provider,
+        prompt_length=len(prompt),
+        kwargs_keys=list(kwargs.keys()),
+    )
 
     try:
         # Ensure provider is a string
@@ -537,26 +563,43 @@ def llm_generate(
             raise ValueError(f"Provider must be a string, got {type(provider)}")
 
         # Get provider instance
+        logger.info("🔌 [LLM] Getting provider instance...", provider=provider)
         llm_provider = get_provider(provider, provider_config)
+        logger.info("✅ [LLM] Provider instance created", provider_type=type(llm_provider).__name__)
 
         # Generate response
+        logger.info(
+            "🚀 [LLM] Calling provider.generate()...",
+            provider=provider,
+            max_tokens=kwargs.get("max_tokens"),
+            temperature=kwargs.get("temperature"),
+        )
+
         response = llm_provider.generate(prompt, **kwargs)
+
+        logger.info("✅ [LLM] Provider.generate() returned successfully")
 
         # Note: audit_logs and metrics collection are not yet implemented
         # These will be added in a future release when those modules are available
 
         logger.info(
-            "LLM_GENERATE_COMPLETED",
+            "✅ [LLM] LLM_GENERATE_COMPLETED",
             provider=provider,
             model=response.model,
             tokens=response.tokens_used,
+            latency_ms=response.latency_ms,
         )
 
         return response
 
     except Exception as e:
         sanitized_error = sanitize_error_message(str(e))
-        logger.error("LLM_GENERATE_FAILED", provider=provider, error=sanitized_error)
+        logger.error(
+            "❌ [LLM] LLM_GENERATE_FAILED",
+            provider=provider,
+            error=sanitized_error,
+            error_type=type(e).__name__,
+        )
 
         # Note: error metrics and audit logging not yet implemented
         # These will be added in a future release when those modules are available
@@ -589,7 +632,7 @@ def _cached_embed(text_hash: str, text: str, provider: str) -> bytes:
 
 
 def llm_embed(
-    text: str, provider: str = "claude", provider_config: dict[str, Any | None] | None = None
+    text: str, provider: str = "claude", provider_config: Optional[dict[str, Any]] = None
 ) -> np.ndarray:
     """
     Generate embedding vector for text with LRU caching.

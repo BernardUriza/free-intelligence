@@ -26,7 +26,6 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
@@ -47,31 +46,30 @@ def transcribe_chunk_task(
     self,
     session_id: str,
     chunk_number: int,
-    audio_bytes: bytes,
-    timestamp_start: Optional[float] = None,
-    timestamp_end: Optional[float] = None,
 ) -> dict:
     """Transcribe audio chunk using Whisper ASR.
 
     This is a Celery task that:
     1. Ensures TRANSCRIPTION task exists
-    2. Converts audio to WAV
-    3. Runs Whisper transcription
-    4. Writes chunk to HDF5 (tasks/TRANSCRIPTION/chunks/)
-    5. Updates task metadata with progress
+    2. Reads audio from HDF5 (already stored by service layer)
+    3. Converts audio to WAV
+    4. Runs Whisper transcription
+    5. Writes chunk to HDF5 (tasks/TRANSCRIPTION/chunks/)
+    6. Updates task metadata with progress
 
     Args:
         session_id: Session UUID
         chunk_number: Chunk index
-        audio_bytes: Raw audio bytes (WebM/WAV/MP3)
-        timestamp_start: Optional chunk start time
-        timestamp_end: Optional chunk end time
 
     Returns:
         dict with transcript, duration, language, etc.
 
     Raises:
         Retry on transient errors
+
+    Note:
+        Audio is already in HDF5, stored by service layer.
+        This avoids serializing large binary blobs through Redis.
     """
     start_time = time.time()
 
@@ -81,7 +79,6 @@ def transcribe_chunk_task(
             task_id=self.request.id,
             session_id=session_id,
             chunk_number=chunk_number,
-            audio_size=len(audio_bytes),
         )
 
         # 1. Ensure TRANSCRIPTION task exists
@@ -98,7 +95,22 @@ def transcribe_chunk_task(
                 "processed_chunks": 0,
             }
 
-        # 3. Save audio to temp file
+        # 3. Read audio from HDF5 (stored by service layer)
+        from backend.storage.task_repository import get_chunk_audio_bytes
+
+        audio_bytes = get_chunk_audio_bytes(
+            session_id=session_id,
+            task_type=TaskType.TRANSCRIPTION,
+            chunk_idx=chunk_number,
+        )
+        if not audio_bytes:
+            logger.error(
+                "CHUNK_AUDIO_NOT_FOUND",
+                session_id=session_id,
+                chunk_number=chunk_number,
+            )
+            raise ValueError(f"Audio for chunk {chunk_number} not found in HDF5")
+
         audio_hash = hashlib.sha256(audio_bytes).hexdigest()[:16]
         temp_dir = Path(tempfile.gettempdir()) / "fi_chunks"
         temp_dir.mkdir(exist_ok=True)

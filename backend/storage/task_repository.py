@@ -688,6 +688,66 @@ def add_full_audio(
     return audio_path
 
 
+def create_empty_chunk(
+    session_id: str,
+    task_type: TaskType,
+    chunk_idx: int,
+) -> str:
+    """Create an empty chunk structure (for audio storage before transcription).
+
+    Args:
+        session_id: Session identifier
+        task_type: Task type
+        chunk_idx: Chunk index
+
+    Returns:
+        HDF5 path to chunk
+
+    Raises:
+        ValueError: If task doesn't exist or chunk already exists
+    """
+    import h5py
+
+    if not task_exists(session_id, task_type):
+        raise ValueError(f"Task {task_type.value} does not exist")
+
+    task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+    chunk_path = f"{task_path}/chunks/chunk_{chunk_idx}"
+
+    with h5py.File(CORPUS_PATH, "a") as f:
+        task_group = f[task_path]  # type: ignore[index]
+
+        # Create chunks group if not exists
+        if "chunks" not in task_group:  # type: ignore[operator]
+            task_group.create_group("chunks")  # type: ignore[index]
+
+        chunks_group = task_group["chunks"]  # type: ignore[index]
+
+        # Check if chunk already exists
+        if f"chunk_{chunk_idx}" in chunks_group:  # type: ignore[operator]
+            # Already exists, that's ok for this use case (idempotent)
+            logger.info(
+                "EMPTY_CHUNK_ALREADY_EXISTS",
+                session_id=session_id,
+                task_type=task_type.value,
+                chunk_idx=chunk_idx,
+            )
+            return chunk_path
+
+        # Create empty chunk group
+        chunk_group = chunks_group.create_group(f"chunk_{chunk_idx}")  # type: ignore[attr-defined]
+
+        # We'll add metadata later, for now just create the group
+        logger.info(
+            "EMPTY_CHUNK_CREATED",
+            session_id=session_id,
+            task_type=task_type.value,
+            chunk_idx=chunk_idx,
+        )
+
+    return chunk_path
+
+
 def add_audio_to_chunk(
     session_id: str,
     chunk_idx: int,
@@ -740,6 +800,78 @@ def add_audio_to_chunk(
     )
 
     return audio_path
+
+
+def get_chunk_audio_bytes(
+    session_id: str,
+    task_type: TaskType,
+    chunk_idx: int,
+    filename: str = "audio.webm",
+) -> Optional[bytes]:
+    """Get audio bytes from a chunk.
+
+    Args:
+        session_id: Session identifier
+        task_type: Task type
+        chunk_idx: Chunk index
+        filename: Audio filename (default audio.webm)
+
+    Returns:
+        Audio bytes or None if not found
+    """
+    import h5py
+
+    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with h5py.File(CORPUS_PATH, "r") as f:
+            chunk_path = f"/sessions/{session_id}/tasks/{task_type.value}/chunks/chunk_{chunk_idx}"
+
+            if chunk_path not in f:  # type: ignore[operator]
+                logger.warning(
+                    "CHUNK_NOT_FOUND",
+                    session_id=session_id,
+                    task_type=task_type.value,
+                    chunk_idx=chunk_idx,
+                )
+                return None
+
+            chunk_group = f[chunk_path]  # type: ignore[index]
+
+            if filename not in chunk_group:  # type: ignore[operator]
+                logger.warning(
+                    "AUDIO_NOT_FOUND_IN_CHUNK",
+                    session_id=session_id,
+                    task_type=task_type.value,
+                    chunk_idx=chunk_idx,
+                    filename=filename,
+                )
+                return None
+
+            # Read audio dataset
+            audio_dataset = chunk_group[filename]  # type: ignore[index]
+            audio_bytes = bytes(audio_dataset[()])  # type: ignore[index]
+
+            logger.info(
+                "CHUNK_AUDIO_READ",
+                session_id=session_id,
+                task_type=task_type.value,
+                chunk_idx=chunk_idx,
+                filename=filename,
+                size_bytes=len(audio_bytes),
+            )
+
+            return audio_bytes
+
+    except Exception as e:
+        logger.error(
+            "GET_CHUNK_AUDIO_FAILED",
+            session_id=session_id,
+            task_type=task_type.value,
+            chunk_idx=chunk_idx,
+            error=str(e),
+        )
+        return None
 
 
 def save_diarization_segments(

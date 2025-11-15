@@ -155,7 +155,7 @@ class ExportManifest:
     purpose: str
     retention_days: Optional[int] = None
     includes_pii: bool = True
-    metadata: dict[str, Any | None] | None = None
+    metadata: Optional[dict[str, Any]] = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convierte a dict (para JSON serialization)."""
@@ -298,7 +298,7 @@ def create_export_manifest(
     purpose: str,
     retention_days: Optional[int] = None,
     includes_pii: bool = True,
-    metadata: dict[str, Any | None] | None = None,
+    metadata: Optional[dict[str, Any]] = None,
 ) -> ExportManifest:
     """
     Crea manifest de export con metadata completa.

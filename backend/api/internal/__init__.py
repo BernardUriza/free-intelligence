@@ -6,6 +6,7 @@ In production, restricted by InternalOnlyMiddleware.
 AURITY-ONLY endpoints:
 - sessions/         → Session CRUD + finalize + checkpoint
 - transcribe/       → Transcription (Whisper ASR)
+- diarization/      → Diarization job status polling (AURITY)
 - triage/           → Triage intake
 - kpis/             → KPI aggregation
 - audit/            → Audit logs
@@ -14,7 +15,6 @@ AURITY-ONLY endpoints:
 Removed (FI-STRIDE deprecated):
 - athletes/ (deleted 2025-11-14)
 - coaches/ (deleted 2025-11-14)
-- diarization/ (deleted 2025-11-14)
 - evidence/ (deleted 2025-11-14)
 - fi_diag/ (deleted 2025-11-14)
 - library/ (deleted 2025-11-14)
@@ -23,11 +23,12 @@ Removed (FI-STRIDE deprecated):
 
 from __future__ import annotations
 
-from . import audit, exports, kpis, sessions, transcribe, triage
+from . import audit, diarization, exports, kpis, sessions, transcribe, triage
 
 __all__ = [
     "sessions",
     "transcribe",
+    "diarization",
     "triage",
     "kpis",
     "audit",
