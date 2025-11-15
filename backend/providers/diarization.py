@@ -14,12 +14,11 @@ to enable speaker-specific SOAP note generation and quality metrics.
 
 from __future__ import annotations
 
-import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from backend.logger import get_logger
 
@@ -79,7 +78,7 @@ class DiarizationProvider(ABC):
 
     @abstractmethod
     def diarize(
-        self, audio_path: str | Path, num_speakers: Optional[int] = None
+        self, audio_path: Union[str, Path], num_speakers: Optional[int] = None
     ) -> DiarizationResponse:
         """
         Identify speakers in audio file.
@@ -124,7 +123,7 @@ class PyannoteProvider(DiarizationProvider):
             device=self.device,
         )
 
-    def _get_pipeline(self) -> Any:  # noqa: ANN401
+    def _get_pipeline(self) -> Any:
         """Get or create Pyannote pipeline singleton"""
         if self._pipeline_instance is None:
             import os
@@ -138,7 +137,7 @@ class PyannoteProvider(DiarizationProvider):
                     self.model_name,
                     use_auth_token=hf_token,
                 )
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 self.logger.warning(
                     "PYANNOTE_MODEL_LOAD_FAILED",
                     error=str(e),
@@ -152,7 +151,7 @@ class PyannoteProvider(DiarizationProvider):
         return self._pipeline_instance
 
     def diarize(
-        self, audio_path: str | Path, num_speakers: Optional[int] = None
+        self, audio_path: Union[str, Path], num_speakers: Optional[int] = None
     ) -> DiarizationResponse:
         """Diarize audio using Pyannote"""
         import time
@@ -221,7 +220,7 @@ class PyannoteProvider(DiarizationProvider):
                 latency_ms=latency_ms,
             )
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.logger.error(
                 "PYANNOTE_DIARIZATION_FAILED",
                 audio_path=str(audio_path),
@@ -259,7 +258,7 @@ class AWSTranscribeProvider(DiarizationProvider):
         )
 
     def diarize(
-        self, audio_path: str | Path, num_speakers: Optional[int] = None
+        self, audio_path: Union[str, Path], num_speakers: Optional[int] = None
     ) -> DiarizationResponse:
         """Diarize audio using AWS Transcribe"""
         audio_path = Path(audio_path)
@@ -281,7 +280,7 @@ class AWSTranscribeProvider(DiarizationProvider):
 
         except NotImplementedError:
             raise
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.logger.error(
                 "AWS_TRANSCRIBE_DIARIZATION_FAILED",
                 audio_path=str(audio_path),
@@ -319,10 +318,9 @@ class GoogleSpeechProvider(DiarizationProvider):
         )
 
     def diarize(
-        self, audio_path: str | Path, num_speakers: Optional[int] = None
+        self, audio_path: Union[str, Path], num_speakers: Optional[int] = None
     ) -> DiarizationResponse:
         """Diarize audio using Google Cloud Speech"""
-        # noqa: ARG002
         raise NotImplementedError(
             "Google Speech provider requires credentials and full implementation"
         )
@@ -358,7 +356,7 @@ class DeepgramProvider(DiarizationProvider):
         )
 
     def diarize(
-        self, audio_path: str | Path, num_speakers: Optional[int] = None
+        self, audio_path: Union[str, Path], num_speakers: Optional[int] = None
     ) -> DiarizationResponse:
         """Diarize audio using Deepgram"""
         import time
@@ -456,7 +454,7 @@ class DeepgramProvider(DiarizationProvider):
                 latency_ms=latency_ms,
             )
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.logger.error(
                 "DEEPGRAM_DIARIZATION_FAILED",
                 audio_path=str(audio_path),

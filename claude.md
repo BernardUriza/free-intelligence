@@ -41,18 +41,62 @@ TZ: America/Mexico_City
 	•	Archivar antes de responder; auditoría obligatoria en acciones sensibles (export/verify/delete/search).
 	•	LAN‑only, sin dependencias cloud en runtime.
 
-🏗️ Arquitectura Layering (CRÍTICO)
-	•	PUBLIC (/api/workflows/*) = Orquestadores PUROS
-	  └─ NUNCA usar Services directamente
-	  └─ SOLO llamar endpoints /internal/*
-	  └─ SOLO coordinar flujos y devolver job_id
-	•	INTERNAL (/api/internal/*) = Recursos atómicos
-	  └─ Estos SÍ usan Services
-	  └─ Estos SÍ hacen append a HDF5
-	  └─ Endpoints: /transcribe, /sessions, /diarization, etc.
-	•	WORKERS (background) = Procesamiento asíncrono
-	  └─ Celery tasks, threading
-	  └─ Frontend polling con job_id
+🏗️ Arquitectura Layering (CRÍTICO - NO CONFUNDIR)
+
+	⚠️⚠️⚠️ REGLA ABSOLUTA ⚠️⚠️⚠️
+	🚫 /internal/* ESTÁ COMPLETAMENTE PROHIBIDO
+	   NO llames /internal/* NUNCA desde curl, frontend, o pruebas
+	   InternalOnlyMiddleware rechazará con 403 Forbidden
+	   Si encuentras /internal/* en una URL = ERROR CRÍTICO
+	⚠️⚠️⚠️
+
+	CAPAS VÁLIDAS:
+
+	1️⃣  PUBLIC (/api/workflows/*) = ÚNICO PUNTO DE ENTRADA VÁLIDO
+	    ├─ ✅ POST /api/workflows/aurity/stream → Upload chunk
+	    ├─ ✅ GET /api/workflows/aurity/jobs/{session_id} → Get status
+	    ├─ ✅ GET /api/workflows/aurity/result/{session_id} → Get result
+	    ├─ Orquestadores PUROS (coordinan flujos)
+	    ├─ Llaman /internal/* solo INTERNAMENTE (no visible al frontend)
+	    └─ ÚNICOS endpoints para usar desde curl/frontend/tests
+
+	2️⃣  INTERNAL (/api/internal/*) = PROHIBIDO ACCESO DIRECTO
+	    ├─ 🚫 /api/internal/transcribe/chunks
+	    ├─ 🚫 /api/internal/transcribe/jobs/{id}
+	    ├─ 🚫 /api/internal/diarization/...
+	    ├─ 🚫 /api/internal/sessions/...
+	    ├─ Solo para uso INTERNO: PUBLIC router → INTERNAL router
+	    ├─ Middleware InternalOnlyMiddleware bloqueará acceso directo
+	    └─ Si ves /internal en una URL = CONFUSIÓN/BUG
+
+	3️⃣  WORKERS (background) = Celery tasks
+	    ├─ Procesan jobs asincronamente
+	    ├─ Frontend polls con job_id para status
+	    └─ No se llaman directamente
+
+	FLUJO CORRECTO:
+	  frontend → POST /api/workflows/aurity/stream (PUBLIC)
+             ↓
+          router PUBLIC (recibe chunk)
+             ↓
+          llama internamente a /api/internal/transcribe/chunks (INVISIBLE)
+             ↓
+          HDF5 append + Celery dispatch
+             ↓
+          return 202 Accepted
+             ↓
+          frontend → GET /api/workflows/aurity/jobs/{session_id} (PUBLIC)
+             ↓
+          worker procesa
+             ↓
+          frontend obtiene status actualizado
+
+	EJEMPLOS CORTOS:
+	  ✅ curl -X POST http://localhost:7001/api/workflows/aurity/stream ...
+	  ✅ curl -X GET http://localhost:7001/api/workflows/aurity/jobs/SESSION_ID
+	  ❌ curl -X POST http://localhost:7001/internal/api/transcribe/chunks ... (PROHIBIDO)
+	  ❌ curl -X GET http://localhost:7001/internal/api/... (PROHIBIDO)
+	  ❌ curl -X GET http://localhost:7001/api/internal/... (PROHIBIDO)
 
 ♻️ Workflow Innegociable
 	•	Nunca dejar ⚙️ In Progress vacío.

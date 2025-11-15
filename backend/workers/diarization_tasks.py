@@ -49,7 +49,7 @@ session_repo = SessionRepository(
 
 @celery_app.task(name="diarize_session", bind=True, max_retries=3)
 def diarize_session_task(
-    self, session_id: str, diarization_provider: str | None = None
+    self, session_id: str, diarization_provider: Optional[str] = None
 ) -> dict[str, Any]:
     """Diarize all transcribed chunks from a session using Triple Vision.
 
@@ -153,9 +153,7 @@ def diarize_session_task(
             )
             if chunks:
                 # Build full_transcription by concatenating all chunk transcripts
-                full_transcription = " ".join(
-                    chunk.get("transcript", "") for chunk in chunks
-                )
+                full_transcription = " ".join(chunk.get("transcript", "") for chunk in chunks)
                 logger.info(
                     "FULL_TRANSCRIPTION_BUILT_FROM_CHUNKS",
                     session_id=session_id,
@@ -205,7 +203,12 @@ def diarize_session_task(
             )
 
         # Check if provider is audio-based (pyannote, deepgram) or LLM-based
-        is_audio_provider = diarization_provider in ["pyannote", "deepgram", "aws_transcribe", "google_speech"]
+        is_audio_provider = diarization_provider in [
+            "pyannote",
+            "deepgram",
+            "aws_transcribe",
+            "google_speech",
+        ]
         is_llm_provider = diarization_provider in ["ollama", "claude"]
 
         logger.info(
@@ -251,7 +254,7 @@ def diarize_session_task(
                     duration_sec=total_duration,
                     language=primary_language,
                 )
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.error(
                     "DIARIZATION_LLM_ERROR",
                     session_id=session_id,
@@ -261,7 +264,7 @@ def diarize_session_task(
                 )
                 return {
                     "status": "failed",
-                    "error": f"LLM diarization failed: {str(e)}",
+                    "error": f"LLM diarization failed: {e!s}",
                 }
 
             logger.info(
@@ -284,7 +287,9 @@ def diarize_session_task(
             try:
                 # Get provider config and instance
                 policy_loader = get_policy_loader()
-                provider_config = policy_loader.get_diarization_provider_config(diarization_provider)
+                provider_config = policy_loader.get_diarization_provider_config(
+                    diarization_provider
+                )
                 provider = get_diarization_provider(diarization_provider, provider_config)
 
                 logger.info(
@@ -294,8 +299,9 @@ def diarize_session_task(
                 )
 
                 # Load audio chunks from HDF5 corpus and diarize each
-                import h5py
                 from pathlib import Path as PathlibPath
+
+                import h5py
 
                 from backend.storage.task_repository import CORPUS_PATH
 
@@ -329,7 +335,9 @@ def diarize_session_task(
                         audio_bytes = chunk_group["audio_bytes"][()]
 
                         # Save to temporary file
-                        temp_audio_path = PathlibPath(f"/tmp/diar_chunk_{session_id}_{chunk_number}.webm")
+                        temp_audio_path = PathlibPath(
+                            f"/tmp/diar_chunk_{session_id}_{chunk_number}.webm"
+                        )
                         with open(temp_audio_path, "wb") as af:
                             af.write(audio_bytes)
 
@@ -363,7 +371,7 @@ def diarize_session_task(
 
                             successful_chunks += 1
 
-                        except Exception as e:  # noqa: BLE001
+                        except Exception as e:
                             logger.warning(
                                 "CHUNK_DIARIZATION_FAILED",
                                 chunk_number=chunk_number,
@@ -375,7 +383,7 @@ def diarize_session_task(
                             # Clean up temp file
                             try:
                                 temp_audio_path.unlink(missing_ok=True)
-                            except Exception:  # noqa: BLE001
+                            except Exception:
                                 pass
 
                 logger.info(
@@ -384,12 +392,16 @@ def diarize_session_task(
                     total_chunks=len(chunks),
                     successful=successful_chunks,
                     total_segments=len(combined_segments),
-                    avg_latency_ms=total_chunk_latency / successful_chunks if successful_chunks > 0 else 0,
+                    avg_latency_ms=total_chunk_latency / successful_chunks
+                    if successful_chunks > 0
+                    else 0,
                 )
 
                 # Convert combined segments to DiarizationResult
                 if combined_segments:
-                    from backend.services.diarization.diarization_service import DiarizationResult
+                    from backend.services.diarization.diarization_service import (
+                        DiarizationResult,
+                    )
 
                     # Detect unique speakers
                     speaker_map = {}
@@ -401,9 +413,9 @@ def diarize_session_task(
                         segments=combined_segments,
                         model_llm=f"{diarization_provider}@corpus",
                         processing_time_sec=(time.time() - start_time),
-                        created_at=__import__("datetime").datetime.now(
-                            __import__("datetime").timezone.utc
-                        ).isoformat(),
+                        created_at=__import__("datetime")
+                        .datetime.now(__import__("datetime").timezone.utc)
+                        .isoformat(),
                     )
                 else:
                     logger.error(
@@ -425,7 +437,7 @@ def diarize_session_task(
                         language=primary_language,
                     )
 
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.error(
                     "DIARIZATION_AUDIO_PROVIDER_ERROR",
                     session_id=session_id,
@@ -435,7 +447,7 @@ def diarize_session_task(
                 )
                 return {
                     "status": "failed",
-                    "error": f"Audio provider diarization failed: {str(e)}",
+                    "error": f"Audio provider diarization failed: {e!s}",
                 }
 
         else:
