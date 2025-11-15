@@ -13,7 +13,7 @@ Functions:
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from backend.logger import get_logger
@@ -133,7 +133,7 @@ def update_job(
             job.fail(error_message)
         else:
             job.status = job_status
-            job.updated_at = datetime.now(UTC).isoformat()
+            job.updated_at = datetime.now(timezone.utc).isoformat()
 
     if progress_percent is not None:
         job.update_progress(progress_percent)

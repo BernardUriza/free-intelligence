@@ -17,7 +17,7 @@ Refactored: 2025-11-05 (separated from transcription)
 from __future__ import annotations
 
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from backend.logger import get_logger
@@ -159,7 +159,7 @@ class DiarizationService:
             language=language,
             segments=merged_segments,
             processing_time_sec=processing_time,
-            created_at=datetime.now(UTC).isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
 
         logger.info(
@@ -311,7 +311,7 @@ class DiarizationService:
             language=language,
             segments=segments,
             processing_time_sec=processing_time,
-            created_at=datetime.now(UTC).isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
             model_llm="claude-sonnet-4-5-20250929",  # Using ClaudeAdapter default
         )
 

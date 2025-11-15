@@ -28,7 +28,7 @@ from __future__ import annotations
 import secrets
 import subprocess
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -168,7 +168,7 @@ async def finalize_session(
         # 2. Generate encryption metadata (AES-GCM-256)
         encryption_key_id = f"key-{session_id[:8]}"  # Key identifier for rotation
         encryption_iv = secrets.token_hex(12)  # 96-bit IV for GCM
-        encrypted_at = datetime.now(UTC).isoformat()
+        encrypted_at = datetime.now(timezone.utc).isoformat()
 
         encryption_metadata = EncryptionMetadata(
             algorithm="AES-GCM-256",

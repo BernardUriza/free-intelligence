@@ -23,7 +23,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, status
@@ -179,7 +179,7 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
             )
             return CheckpointResponse(
                 session_id=session_id,
-                checkpoint_at=datetime.now(UTC).isoformat(),
+                checkpoint_at=datetime.now(timezone.utc).isoformat(),
                 chunks_concatenated=0,
                 full_audio_size=0,
                 message="No new chunks to concatenate",
@@ -249,7 +249,7 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
 
         # 6. Update task metadata with new checkpoint
         task_metadata["last_checkpoint_idx"] = request.last_chunk_idx
-        task_metadata["last_checkpoint_at"] = datetime.now(UTC).isoformat()
+        task_metadata["last_checkpoint_at"] = datetime.now(timezone.utc).isoformat()
         update_task_metadata(session_id, TaskType.TRANSCRIPTION, task_metadata)
 
         # Cleanup temp files
@@ -276,7 +276,7 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
 
         return CheckpointResponse(
             session_id=session_id,
-            checkpoint_at=datetime.now(UTC).isoformat(),
+            checkpoint_at=datetime.now(timezone.utc).isoformat(),
             chunks_concatenated=chunks_concatenated,
             full_audio_size=len(full_audio_bytes),
             message=f"Checkpoint created: {chunks_concatenated} chunks + full_transcription task {full_transcription_task.id}",

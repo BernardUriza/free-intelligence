@@ -12,7 +12,7 @@ Sprint: SPR-2025W44
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -341,7 +341,7 @@ Requirements:
 Summary:"""
 
         try:
-            start_time = datetime.now(UTC)
+            start_time = datetime.now(timezone.utc)
 
             # Use llm_router unified interface (provider from config)
             provider = self.auto_config.get("provider", "ollama")
@@ -352,7 +352,7 @@ Summary:"""
                 temperature=0.5,
             )
 
-            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             summary = response.content.strip()
 
@@ -520,7 +520,7 @@ if __name__ == "__main__":
     generator = AutoTimelineGenerator(config=config)
 
     # Create event candidates
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     candidates = [
         EventCandidate(  # type: ignore[call-arg]
