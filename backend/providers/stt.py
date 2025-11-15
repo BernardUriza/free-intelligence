@@ -121,7 +121,24 @@ class AzureWhisperProvider(STTProvider):
             audio_bytes = audio_path.read_bytes()
 
             # Call Azure API asynchronously
-            result = asyncio.run(self._transcribe_async(audio_bytes=audio_bytes, language=language))
+            # Use get_event_loop() instead of asyncio.run() to avoid nested loop error
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                # We're already in an async context, run in thread pool
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        asyncio.run, self._transcribe_async(audio_bytes=audio_bytes, language=language)
+                    )
+                    result = future.result()
+            else:
+                # No event loop running, safe to use asyncio.run()
+                result = asyncio.run(self._transcribe_async(audio_bytes=audio_bytes, language=language))
 
             latency_ms = (time.time() - start_time) * 1000
 
@@ -157,7 +174,7 @@ class AzureWhisperProvider(STTProvider):
         """Async call to Azure Whisper API"""
         import aiohttp
 
-        url = f"{self.endpoint}openai/deployments/whisper-1/audio/transcriptions?api-version={self.api_version}"
+        url = f"{self.endpoint}openai/deployments/whisper/audio/transcriptions?api-version={self.api_version}"
 
         headers = {"api-key": self.api_key}
 
