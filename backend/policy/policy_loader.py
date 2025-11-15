@@ -100,10 +100,13 @@ class PolicyLoader:
             PolicyValidationError: If validation fails
         """
         # Check top-level sections
-        required_sections = ["llm", "export", "audit", "metadata"]
+        required_sections = ["stt", "llm", "export", "audit", "metadata"]
         for section in required_sections:
             if section not in policy:
                 raise PolicyValidationError(f"Missing required section: {section}")
+
+        # Validate STT section
+        self._validate_stt_section(policy["stt"])
 
         # Validate LLM section
         self._validate_llm_section(policy["llm"])
@@ -118,6 +121,30 @@ class PolicyLoader:
         self._validate_metadata_section(policy["metadata"])
 
         self.logger.info("POLICY_VALIDATION_PASSED")
+
+    def _validate_stt_section(self, stt: Dict[str, Any]) -> None:
+        """Validate STT policy section"""
+        required_fields = ["primary_provider", "fallback_providers", "providers"]
+        for field in required_fields:
+            if field not in stt:
+                raise PolicyValidationError(f"Missing required STT field: {field}")
+
+        # Validate primary_provider is in providers
+        primary = stt["primary_provider"]
+        if primary not in stt["providers"]:
+            raise PolicyValidationError(
+                f"primary_provider '{primary}' not found in STT providers configuration"
+            )
+
+        # Validate all fallback_providers are in providers
+        if not isinstance(stt["fallback_providers"], list):
+            raise PolicyValidationError("stt.fallback_providers must be a list")
+
+        for fallback in stt["fallback_providers"]:
+            if fallback not in stt["providers"]:
+                raise PolicyValidationError(
+                    f"fallback_provider '{fallback}' not found in STT providers configuration"
+                )
 
     def _validate_llm_section(self, llm: Dict[str, Any]) -> None:
         """Validate LLM policy section"""
@@ -180,6 +207,49 @@ class PolicyLoader:
         for field in required_fields:
             if field not in metadata:
                 raise PolicyValidationError(f"Missing required metadata field: {field}")
+
+    def get_stt_config(self) -> dict[str, Any]:
+        """
+        Get STT configuration section.
+
+        Returns:
+            Dict with STT configuration
+
+        Raises:
+            RuntimeError: If policy not loaded
+        """
+        if self.policy is None:
+            raise RuntimeError("Policy not loaded. Call load() first.")
+        return self.policy.get("stt", {})
+
+    def get_primary_stt_provider(self) -> str:
+        """Get primary STT provider name"""
+        return self.get_stt_config()["primary_provider"]
+
+    def get_fallback_stt_providers(self) -> list[str]:
+        """Get fallback STT providers in order"""
+        return self.get_stt_config()["fallback_providers"]
+
+    def get_stt_provider_config(self, provider_name: str) -> dict[str, Any]:
+        """
+        Get configuration for specific STT provider.
+
+        Args:
+            provider_name: Provider name (e.g., "azure_whisper", "deepgram")
+
+        Returns:
+            Dict with provider configuration
+
+        Raises:
+            KeyError: If provider not found
+        """
+        stt_config = self.get_stt_config()
+        providers = stt_config["providers"]
+
+        if provider_name not in providers:
+            raise KeyError(f"STT provider '{provider_name}' not found in policy")
+
+        return providers[provider_name]
 
     def get_llm_config(self) -> dict[str, Any]:
         """

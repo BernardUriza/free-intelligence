@@ -5,6 +5,41 @@
 # Version: 0.1.0
 # Created: 2025-11-14
 
+# ===== STT Provider Configuration =====
+stt:
+  # Primary provider for transcription
+  primary_provider: azure_whisper
+
+  # Fallback providers in order (cloud → local)
+  fallback_providers:
+    - deepgram
+    - faster_whisper
+
+  # Provider-specific configurations
+  providers:
+    # Azure Whisper - Cloud-based STT (fastest, requires API key)
+    azure_whisper:
+      api_version: "2024-02-15-preview"
+      timeout_seconds: 30
+      # Credentials from environment:
+      # - AZURE_OPENAI_ENDPOINT: https://resource.openai.azure.com/
+      # - AZURE_OPENAI_KEY: your-api-key
+
+    # Deepgram - Cloud-based STT (very fast, nova-2 model)
+    deepgram:
+      model: nova-2
+      timeout_seconds: 30
+      language_default: es
+      # Credentials from environment:
+      # - DEEPGRAM_API_KEY: your-api-key
+
+    # Faster-Whisper - Local offline STT (CPU optimized)
+    faster_whisper:
+      model_size: small
+      compute_type: int8
+      device: cpu
+      timeout_seconds: 120
+
 # ===== LLM Provider Configuration =====
 llm:
   # Primary provider for production workloads

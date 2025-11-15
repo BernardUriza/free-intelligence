@@ -1,12 +1,12 @@
-"""Deepgram Transcription Worker Task.
+"""Chunk Transcription Worker Task.
 
-Celery task that:
+Celery task that transcribes individual audio chunks using configured STT provider:
 1. Reads audio chunk from HDF5
-2. Sends to Deepgram API
+2. Sends to STT provider (Deepgram, Azure Whisper, or local Faster-Whisper)
 3. Updates HDF5 with transcript + metadata
 4. Tracks progress in task metadata
 
-Much faster than local Whisper - no GPU needed.
+Provider is determined by AURITY_ASR_PROVIDER env var (default: deepgram).
 
 Usage:
     from backend.workers.deepgram_transcription_task import deepgram_transcribe_chunk
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import time
-from datetime import UTC
+from pathlib import Path
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
@@ -39,14 +39,13 @@ def deepgram_transcribe_chunk(
     chunk_number: int,
     language: str = "es",
 ) -> dict:
-    """Transcribe chunk using Deepgram API.
+    """Transcribe chunk using Deepgram STT provider.
 
     This is a Celery task that:
     1. Reads audio from HDF5 (stored by service layer)
-    2. Converts audio to WAV if needed
-    3. Sends to Deepgram API
-    4. Writes transcript to HDF5
-    5. Updates task metadata with progress
+    2. Sends to Deepgram API via STT provider
+    3. Writes transcript to HDF5
+    4. Updates task metadata with progress
 
     Args:
         session_id: Session UUID
@@ -96,86 +95,105 @@ def deepgram_transcribe_chunk(
         # 2. Audio ready to send
         audio_to_send = audio_bytes
 
-        # 3. Call Deepgram API
-
-        import os
-
-        deepgram_api_key = os.environ.get("DEEPGRAM_API_KEY")
-        if not deepgram_api_key:
-            logger.error(
-                "DEEPGRAM_API_KEY_MISSING",
-                session_id=session_id,
-            )
-            raise ValueError("DEEPGRAM_API_KEY environment variable not set")
-
-        # Call Deepgram REST API directly (sync)
-        result = _transcribe_with_deepgram_sync(
-            audio_bytes=audio_to_send,
-            language=language,
-            api_key=deepgram_api_key,
-            session_id=session_id,
-            chunk_number=chunk_number,
-        )
-
-        # 4. Update HDF5 with transcript and metadata
+        # 3. Call Deepgram via STT provider
+        import tempfile
         from datetime import datetime
 
-        update_chunk_dataset(
-            session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
-            chunk_idx=chunk_number,
-            field="transcript",
-            value=result["transcript"],
-        )
-        update_chunk_dataset(
-            session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
-            chunk_idx=chunk_number,
-            field="audio_hash",
-            value=audio_hash,
-        )
-        update_chunk_dataset(
-            session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
-            chunk_idx=chunk_number,
-            field="confidence",
-            value=result["confidence"],
-        )
-        update_chunk_dataset(
-            session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
-            chunk_idx=chunk_number,
-            field="duration",
-            value=result["duration"],
-        )
-        update_chunk_dataset(
-            session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
-            chunk_idx=chunk_number,
-            field="language",
-            value=result["language"],
-        )
+        from backend.providers.stt import get_stt_provider
 
-        logger.info(
-            "CHUNK_TRANSCRIPT_UPDATED",
-            session_id=session_id,
-            chunk_number=chunk_number,
-            transcript_length=len(result["transcript"]),
-            confidence=result["confidence"],
-        )
+        try:
+            deepgram_provider = get_stt_provider("deepgram")
+        except ValueError as e:
+            logger.error(
+                "DEEPGRAM_PROVIDER_INIT_FAILED",
+                session_id=session_id,
+                error=str(e),
+            )
+            raise
 
-        # 5. Update task metadata with progress
-        task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
-        processed = task_metadata.get("processed_chunks", 0) + 1
-        total = task_metadata.get("total_chunks", 0)
+        # Write audio to temp file for provider (it needs a file path)
+        temp_dir = Path(tempfile.gettempdir()) / "fi_chunks"
+        temp_dir.mkdir(exist_ok=True)
+        temp_audio_path = temp_dir / f"{session_id}_{chunk_number}_deepgram.webm"
+        temp_audio_path.write_bytes(audio_to_send)
 
-        task_metadata["processed_chunks"] = processed
-        task_metadata["updated_at"] = datetime.now(UTC).isoformat()
+        try:
+            stt_response = deepgram_provider.transcribe(str(temp_audio_path), language=language)
 
-        if total > 0:
-            task_metadata["progress_percent"] = int((processed / total) * 100)
+            logger.info(
+                "DEEPGRAM_TRANSCRIPTION_DONE",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                text_length=len(stt_response.text),
+                duration=stt_response.duration,
+                confidence=stt_response.confidence,
+                latency_ms=stt_response.latency_ms,
+            )
 
-        update_task_metadata(session_id, TaskType.TRANSCRIPTION, task_metadata)
+            # 4. Update HDF5 with transcript and metadata
+            update_chunk_dataset(
+                session_id=session_id,
+                task_type=TaskType.TRANSCRIPTION,
+                chunk_idx=chunk_number,
+                field="transcript",
+                value=stt_response.text,
+            )
+            update_chunk_dataset(
+                session_id=session_id,
+                task_type=TaskType.TRANSCRIPTION,
+                chunk_idx=chunk_number,
+                field="audio_hash",
+                value=audio_hash,
+            )
+            update_chunk_dataset(
+                session_id=session_id,
+                task_type=TaskType.TRANSCRIPTION,
+                chunk_idx=chunk_number,
+                field="confidence",
+                value=stt_response.confidence,
+            )
+            update_chunk_dataset(
+                session_id=session_id,
+                task_type=TaskType.TRANSCRIPTION,
+                chunk_idx=chunk_number,
+                field="duration",
+                value=stt_response.duration,
+            )
+            update_chunk_dataset(
+                session_id=session_id,
+                task_type=TaskType.TRANSCRIPTION,
+                chunk_idx=chunk_number,
+                field="language",
+                value=stt_response.language,
+            )
+
+            logger.info(
+                "CHUNK_TRANSCRIPT_UPDATED",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                transcript_length=len(stt_response.text),
+                confidence=stt_response.confidence,
+            )
+
+            # 5. Update task metadata with progress
+            task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+            processed = task_metadata.get("processed_chunks", 0) + 1
+            total = task_metadata.get("total_chunks", 0)
+
+            task_metadata["processed_chunks"] = processed
+            task_metadata["updated_at"] = datetime.now(UTC).isoformat()
+
+            if total > 0:
+                task_metadata["progress_percent"] = int((processed / total) * 100)
+
+            update_task_metadata(session_id, TaskType.TRANSCRIPTION, task_metadata)
+
+        finally:
+            # Clean up temp file
+            try:
+                temp_audio_path.unlink()
+            except:
+                pass
 
         elapsed = time.time() - start_time
 
@@ -248,11 +266,8 @@ def _transcribe_with_deepgram_sync(
     url = f"{base_url}/listen"
 
     params = {
-        "model": "nova-2",
-        "language": language,
-        "detect_language": "false",
+        "detect_language": "true",
         "punctuate": "true",
-        "diarize": "false",
         "smart_format": "true",
         "filler_words": "false",
     }
