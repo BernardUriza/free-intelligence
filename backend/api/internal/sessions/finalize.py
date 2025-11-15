@@ -1,22 +1,26 @@
 """Session finalization endpoint - INTERNAL layer.
 
 Finalizes a session (recording stopped):
-1. Loads TranscriptionJob to verify all chunks completed
-2. Encrypts session data (AES-GCM-256)
-3. Marks session as FINALIZED (immutable)
-4. Dispatches Celery task for diarization
-5. Returns 202 Accepted (diarization will run in background)
+1. Verifies TRANSCRIPTION task completed (all chunks have transcripts)
+2. Saves 3 transcription sources to HDF5 (WebSpeech, Chunks, Full)
+3. Encrypts session data (AES-GCM-256)
+4. Marks session as FINALIZED (immutable)
+5. Dispatches Celery task for diarization
+6. Returns 202 Accepted (diarization will run in background)
 
 Architecture:
   PUBLIC → INTERNAL (this file) → WORKER (diarization_task)
 
-Storage:
-  /sessions/{session_id}/metadata.json  (Session model)
-  /sessions/{session_id}/jobs/transcription/{job_id}.json
-  /sessions/{session_id}/production/chunks/...
+Storage (Task-based schema):
+  /sessions/{session_id}/tasks/TRANSCRIPTION/
+    ├─ chunks/chunk_{idx}/  (Whisper transcripts + audio)
+    ├─ webspeech_final      (WebSpeech previews)
+    ├─ full_transcription   (concatenated text)
+    └─ job_metadata         (task metadata)
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-14
+Updated: 2025-11-14 (Migrated from TranscriptionJob to task-based schema)
 """
 
 from __future__ import annotations
@@ -32,15 +36,15 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
-from backend.models import EncryptionMetadata, JobType, Session, TranscriptionJob
+from backend.models import EncryptionMetadata, Session
 from backend.models.task_type import TaskType
-from backend.repositories import job_repository
 from backend.repositories.session_repository import SessionRepository
 from backend.storage.task_repository import (
     add_full_audio,
     add_full_transcription,
     add_webspeech_transcripts,
     get_task_chunks,
+    get_task_metadata,
 )
 
 logger = get_logger(__name__)
@@ -102,54 +106,63 @@ class FinalizeSessionResponse(BaseModel):
 async def finalize_session(
     session_id: str, request: FinalizeSessionRequest = FinalizeSessionRequest()
 ) -> FinalizeSessionResponse:
-    """Finalize session: encrypt + mark immutable + dispatch diarization.
+    """Finalize session: save 3 sources + encrypt + dispatch diarization.
 
     Flow:
-    1. Verify transcription job completed (all chunks processed)
-    2. Generate encryption key + IV
-    3. Create Session model + mark FINALIZED
-    4. Dispatch Celery task for diarization
-    5. Return 202 Accepted
+    1. Verify TRANSCRIPTION task exists and all chunks completed
+    2. Save 3 transcription sources to HDF5 (WebSpeech, Chunks, Full)
+    3. Generate encryption key + IV
+    4. Create Session model + mark FINALIZED
+    5. Dispatch Celery task for diarization
+    6. Return 202 Accepted
 
     Args:
         session_id: Session UUID
+        request: FinalizeSessionRequest with 3 transcription sources
 
     Returns:
         FinalizeSessionResponse with diarization job ID
 
     Raises:
-        404: Session not found or no transcription job
+        404: Session not found or no TRANSCRIPTION task
         400: Transcription not completed yet
         500: Encryption or storage failed
     """
     try:
         logger.info("FINALIZE_SESSION_STARTED", session_id=session_id)
 
-        # 1. Load transcription job (verify completed)
-        transcription_job = job_repository.load(
-            job_id=session_id,
-            session_id=session_id,
-            job_type=JobType.TRANSCRIPTION,
-            job_class=TranscriptionJob,
-        )
-
-        if not transcription_job:
+        # 1. Verify TRANSCRIPTION task exists and get chunks
+        task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
+        if not task_metadata:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Transcription job not found for session {session_id}",
+                detail=f"TRANSCRIPTION task not found for session {session_id}",
             )
 
-        if transcription_job.progress_percent < 100:
+        # Get all chunks to verify completion
+        chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+        if not chunks:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Transcription not completed ({transcription_job.progress_percent}% done). Wait for all chunks to finish.",
+                detail=f"No transcription chunks found for session {session_id}",
+            )
+
+        # Check if all chunks are completed (have transcripts)
+        total_chunks = len(chunks)
+        completed_chunks = sum(1 for c in chunks if c.get("transcript"))
+        progress_percent = (completed_chunks / total_chunks * 100) if total_chunks > 0 else 0
+
+        if progress_percent < 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Transcription not completed ({progress_percent:.0f}% done, {completed_chunks}/{total_chunks} chunks). Wait for all chunks to finish.",
             )
 
         logger.info(
             "TRANSCRIPTION_VERIFIED",
             session_id=session_id,
-            total_chunks=transcription_job.total_chunks,
-            processed_chunks=transcription_job.processed_chunks,
+            total_chunks=total_chunks,
+            completed_chunks=completed_chunks,
         )
 
         # 2. Generate encryption metadata (AES-GCM-256)
@@ -173,18 +186,33 @@ async def finalize_session(
 
         # 3. Create Session model + mark FINALIZED
         session = Session.create_now(session_id)
-        session.recording_duration = sum(c.duration or 0.0 for c in transcription_job.chunks)
-        session.total_chunks = transcription_job.total_chunks
+        session.recording_duration = sum(c.get("duration", 0.0) for c in chunks)
+        session.total_chunks = total_chunks
         session.finalize(encryption_metadata)
 
-        # Save session to HDF5
+        # Save session to HDF5 (update if exists, create if not)
         session_data = session.to_dict()
-        session_repo.create(
-            {
-                "session_id": session_id,
-                "metadata": session_data,
-            }
-        )
+        existing_session = session_repo.read(session_id)
+
+        if existing_session:
+            # Session exists, update it
+            session_repo.update(
+                session_id,
+                {
+                    "session_id": session_id,
+                    "metadata": session_data,
+                },
+            )
+            logger.info("SESSION_UPDATED", session_id=session_id)
+        else:
+            # Session doesn't exist, create it
+            session_repo.create(
+                {
+                    "session_id": session_id,
+                    "metadata": session_data,
+                }
+            )
+            logger.info("SESSION_CREATED", session_id=session_id)
 
         # Save 3 transcription sources to TRANSCRIPTION task (NEW schema)
         try:
