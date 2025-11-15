@@ -81,6 +81,10 @@ class TranscriptionService:
         Raises:
             ValueError: If audio is empty or invalid
         """
+        import time
+
+        start_time = time.time()
+
         # 1. Business validation
         if not audio_bytes or len(audio_bytes) == 0:
             raise ValueError("Audio data cannot be empty")
@@ -94,30 +98,61 @@ class TranscriptionService:
             session_id=session_id,
             chunk_number=chunk_number,
             audio_size=audio_size,
+            timestamp=start_time,
+        )
+        logger.debug(
+            "AUDIO_VALIDATION_OK",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            audio_size=audio_size,
         )
 
         # 2. Ensure TRANSCRIPTION task exists
+        logger.debug(
+            "ENSURING_TRANSCRIPTION_TASK",
+            session_id=session_id,
+        )
         ensure_task_exists(
             session_id=session_id,
             task_type=TaskType.TRANSCRIPTION,
             allow_existing=True,
         )
+        logger.debug(
+            "TRANSCRIPTION_TASK_EXISTS",
+            session_id=session_id,
+        )
 
-        # 3. Store audio in HDF5 FIRST (before Celery dispatch)
-        # This avoids serializing large binary blobs through Redis
+        # 3. Store audio in HDF5 FIRST (before worker dispatch)
+        # This avoids serializing large binary blobs through Redis/Celery
         from backend.storage.task_repository import (
             add_audio_to_chunk,
             create_empty_chunk,
         )
 
         try:
+            logger.debug(
+                "CREATING_EMPTY_CHUNK",
+                session_id=session_id,
+                chunk_number=chunk_number,
+            )
             # First, create empty chunk structure
             create_empty_chunk(
                 session_id=session_id,
                 task_type=TaskType.TRANSCRIPTION,
                 chunk_idx=chunk_number,
             )
+            logger.debug(
+                "EMPTY_CHUNK_CREATED",
+                session_id=session_id,
+                chunk_number=chunk_number,
+            )
 
+            logger.debug(
+                "ADDING_AUDIO_TO_CHUNK",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                audio_size=audio_size,
+            )
             # Then add audio to it
             add_audio_to_chunk(
                 session_id=session_id,
@@ -137,10 +172,16 @@ class TranscriptionService:
                 session_id=session_id,
                 chunk_number=chunk_number,
                 error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
             )
             raise
 
         # 4. Update metadata
+        logger.debug(
+            "FETCHING_TASK_METADATA",
+            session_id=session_id,
+        )
         metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
         if not metadata:
             metadata = {
@@ -148,32 +189,70 @@ class TranscriptionService:
                 "total_chunks": 0,
                 "processed_chunks": 0,
             }
+            logger.debug(
+                "CREATED_DEFAULT_METADATA",
+                session_id=session_id,
+            )
 
         # Check if this is a new chunk
+        logger.debug(
+            "CHECKING_EXISTING_CHUNKS",
+            session_id=session_id,
+        )
         existing_chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
         chunk_numbers = {c.get("chunk_number", -1) for c in existing_chunks}
+        logger.debug(
+            "EXISTING_CHUNKS",
+            session_id=session_id,
+            existing_chunk_numbers=sorted(chunk_numbers),
+            total_existing=len(chunk_numbers),
+        )
 
         if chunk_number not in chunk_numbers:
             metadata["total_chunks"] = metadata.get("total_chunks", 0) + 1
+            logger.debug(
+                "INCREMENTING_TOTAL_CHUNKS",
+                session_id=session_id,
+                new_total_chunks=metadata["total_chunks"],
+            )
             update_task_metadata(session_id, TaskType.TRANSCRIPTION, metadata)
+            logger.debug(
+                "METADATA_UPDATED",
+                session_id=session_id,
+            )
+        else:
+            logger.debug(
+                "CHUNK_ALREADY_EXISTS",
+                session_id=session_id,
+                chunk_number=chunk_number,
+            )
 
         logger.info(
             "TASK_METADATA_UPDATED",
             session_id=session_id,
             chunk_number=chunk_number,
             total_chunks=metadata["total_chunks"],
+            processed_chunks=metadata.get("processed_chunks", 0),
         )
 
-        # 5. Dispatch sync worker in background thread
+        # 5. Dispatch sync worker in background thread via global executor
         # Use configurable STT provider (set via AURITY_ASR_PROVIDER env var)
         import os
-        from concurrent.futures import ThreadPoolExecutor
 
+        from backend.workers.executor_pool import spawn_worker
         from backend.workers.sync_workers import transcribe_chunk_worker
 
         stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "faster_whisper")
-        executor = ThreadPoolExecutor(max_workers=4)
-        future = executor.submit(
+
+        logger.info(
+            "DISPATCHING_WORKER",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            provider=stt_provider,
+        )
+
+        # Spawn worker via global executor (fire-and-forget)
+        spawn_worker(
             transcribe_chunk_worker,
             session_id=session_id,
             chunk_number=chunk_number,
@@ -183,13 +262,15 @@ class TranscriptionService:
         )
 
         logger.info(
-            "WORKER_DISPATCHED",
+            "WORKER_SPAWNED",
             session_id=session_id,
             chunk_number=chunk_number,
+            provider=stt_provider,
         )
 
         # 6. Return result (use session_id as job identifier, no Celery task.id)
-        return ChunkProcessingResult(
+        elapsed = time.time() - start_time
+        result = ChunkProcessingResult(
             session_id=session_id,
             chunk_number=chunk_number,
             task_id=session_id,  # Use session_id since we use ThreadPoolExecutor now
@@ -197,6 +278,18 @@ class TranscriptionService:
             total_chunks=metadata["total_chunks"],
             processed_chunks=metadata.get("processed_chunks", 0),
         )
+
+        logger.info(
+            "CHUNK_PROCESSING_COMPLETED",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            total_chunks=result.total_chunks,
+            processed_chunks=result.processed_chunks,
+            duration_seconds=elapsed,
+            status=result.status,
+        )
+
+        return result
 
     async def get_transcription_status(
         self,
