@@ -17,6 +17,13 @@ from __future__ import annotations
 
 from enum import Enum
 
+# ============================================================
+# CHUNK CONFIGURATION - SINGLE SOURCE OF TRUTH
+# ============================================================
+# All chunk timing is derived from this constant
+# Change this value ONE place to reconfigure all chunk durations
+CHUNK_DURATION_SECONDS = 13  # Default chunk duration (in seconds)
+
 
 class TaskType(str, Enum):
     """Types of tasks that can be performed on a session.

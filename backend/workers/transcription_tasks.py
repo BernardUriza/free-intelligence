@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 
 from backend.logger import get_logger
-from backend.models.task_type import TaskStatus, TaskType
+from backend.models.task_type import CHUNK_DURATION_SECONDS, TaskStatus, TaskType
 from backend.storage.task_repository import (
     add_audio_to_chunk,
     append_chunk_to_task,
