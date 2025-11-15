@@ -255,12 +255,23 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
         # Cleanup temp files
         shutil.rmtree(temp_dir)
 
+        # 7. Launch full_transcription task (transcribe complete audio)
+        import os
+
+        from backend.workers.transcription_tasks import transcribe_full_audio_task
+
+        stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "faster_whisper")
+        full_transcription_task = transcribe_full_audio_task.delay(
+            session_id=session_id, stt_provider=stt_provider
+        )
+
         logger.info(
             "CHECKPOINT_COMPLETED",
             session_id=session_id,
             chunks_concatenated=chunks_concatenated,
             full_audio_size=len(full_audio_bytes),
             checkpoint_idx=request.last_chunk_idx,
+            full_transcription_task_id=full_transcription_task.id,
         )
 
         return CheckpointResponse(
@@ -268,7 +279,7 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
             checkpoint_at=datetime.now(UTC).isoformat(),
             chunks_concatenated=chunks_concatenated,
             full_audio_size=len(full_audio_bytes),
-            message=f"Checkpoint created: {chunks_concatenated} chunks added to full_audio.webm",
+            message=f"Checkpoint created: {chunks_concatenated} chunks + full_transcription task {full_transcription_task.id}",
         )
 
     except HTTPException:

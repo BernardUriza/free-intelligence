@@ -21,6 +21,7 @@ Card: Architecture refactor - task-based HDF5
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import subprocess
 import tempfile
@@ -359,3 +360,183 @@ def transcribe_chunk_task(
 
         # Don't retry on permanent errors
         raise
+
+
+@celery_app.task(name="transcribe_full_audio", bind=True, max_retries=3)
+def transcribe_full_audio_task(
+    self,
+    session_id: str,
+    stt_provider: str = "faster_whisper",
+) -> dict:
+    """Transcribe full concatenated audio using configurable STT provider.
+
+    Called after checkpoint pause. Transcribes the complete audio file
+    (full_audio.webm) that has been accumulated since session start.
+    Used for context-aware diarization and SOAP generation.
+
+    Args:
+        session_id: Session UUID
+        stt_provider: Provider name (default "faster_whisper")
+
+    Returns:
+        dict with transcript, confidence, duration, language
+
+    Raises:
+        Retry on transient errors
+    """
+    start_time = time.time()
+
+    try:
+        logger.info(
+            "FULL_AUDIO_TRANSCRIPTION_STARTED",
+            task_id=self.request.id,
+            session_id=session_id,
+            provider=stt_provider,
+        )
+
+        # 1. Read full_audio.webm from HDF5
+        import h5py
+
+        from backend.storage.task_repository import CORPUS_PATH, get_task_metadata
+
+        audio_bytes = None
+        with h5py.File(CORPUS_PATH, "r") as f:
+            full_audio_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/full_audio.webm"
+            if full_audio_path in f:
+                audio_data = f[full_audio_path][()]
+                audio_bytes = bytes(audio_data) if hasattr(audio_data, "__iter__") else audio_data
+
+        if not audio_bytes:
+            logger.error(
+                "FULL_AUDIO_NOT_FOUND",
+                session_id=session_id,
+            )
+            raise ValueError(f"Full audio not found for session {session_id}")
+
+        audio_hash = hashlib.sha256(audio_bytes).hexdigest()[:16]
+        logger.info(
+            "FULL_AUDIO_READ_FROM_HDF5",
+            session_id=session_id,
+            audio_size=len(audio_bytes),
+            audio_hash=audio_hash,
+        )
+
+        # 2. Get STT provider
+        from backend.providers.stt import get_stt_provider
+
+        try:
+            provider = get_stt_provider(stt_provider)
+        except ValueError as e:
+            logger.error(
+                "STT_PROVIDER_INVALID",
+                session_id=session_id,
+                provider=stt_provider,
+                error=str(e),
+            )
+            # Fallback to faster_whisper
+            stt_provider = "faster_whisper"
+            provider = get_stt_provider(stt_provider)
+
+        # 3. Write audio to temp file for provider
+        temp_dir = Path(tempfile.gettempdir()) / "fi_full_audio"
+        temp_dir.mkdir(exist_ok=True)
+        temp_audio_path = temp_dir / f"{session_id}_full_audio.webm"
+        temp_audio_path.write_bytes(audio_bytes)
+
+        try:
+            stt_response = provider.transcribe(str(temp_audio_path), language=None)
+
+            transcript = stt_response.text.strip()
+            duration = stt_response.duration
+            language = stt_response.language
+            confidence = stt_response.confidence
+
+            logger.info(
+                "FULL_AUDIO_TRANSCRIPTION_DONE",
+                session_id=session_id,
+                provider=stt_provider,
+                transcript_length=len(transcript),
+                duration=duration,
+                language=language,
+                confidence=confidence,
+                latency_ms=stt_response.latency_ms,
+            )
+        except Exception as e:
+            logger.error(
+                "STT_TRANSCRIPTION_FAILED",
+                session_id=session_id,
+                provider=stt_provider,
+                error=str(e),
+            )
+            raise
+        finally:
+            # Clean up temp file
+            with contextlib.suppress(Exception):
+                temp_audio_path.unlink()
+
+        # 4. Save full_transcription to HDF5
+        from backend.storage.task_repository import add_full_transcription
+
+        add_full_transcription(
+            session_id=session_id,
+            transcript=transcript,
+            confidence=confidence,
+            duration=duration,
+            language=language,
+            audio_hash=audio_hash,
+            task_type=TaskType.TRANSCRIPTION,
+        )
+
+        logger.info(
+            "FULL_TRANSCRIPTION_SAVED",
+            session_id=session_id,
+            transcript_length=len(transcript),
+            confidence=confidence,
+        )
+
+        # 5. Update task metadata
+
+        task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+        task_metadata["full_transcription_completed_at"] = time.time()
+        task_metadata["full_transcription_confidence"] = confidence
+        task_metadata["full_transcription_provider"] = stt_provider
+        update_task_metadata(session_id, TaskType.TRANSCRIPTION, task_metadata)
+
+        elapsed = time.time() - start_time
+
+        logger.info(
+            "FULL_AUDIO_TRANSCRIPTION_COMPLETED",
+            task_id=self.request.id,
+            session_id=session_id,
+            elapsed_seconds=round(elapsed, 2),
+            transcript_length=len(transcript),
+        )
+
+        return {
+            "session_id": session_id,
+            "transcript": transcript,
+            "confidence": confidence,
+            "duration": duration,
+            "language": language,
+            "elapsed_seconds": elapsed,
+        }
+
+    except Exception as e:
+        logger.error(
+            "FULL_AUDIO_TRANSCRIPTION_FAILED",
+            task_id=self.request.id,
+            session_id=session_id,
+            error=str(e),
+            retry_count=self.request.retries,
+        )
+
+        # Retry with exponential backoff
+        if self.request.retries < self.max_retries:
+            retry_delay = 2**self.request.retries  # 2, 4, 8 seconds
+            raise self.retry(exc=e, countdown=retry_delay)
+        else:
+            logger.error(
+                "FULL_AUDIO_TRANSCRIPTION_FINAL_FAILURE",
+                session_id=session_id,
+            )
+            raise
