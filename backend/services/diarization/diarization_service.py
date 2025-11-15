@@ -115,7 +115,7 @@ class DiarizationService:
             )
 
         # Process segments: classify speaker + improve text
-        enriched_segments = []
+        enriched_segments: list[DiarizationSegment] = []
         for i, segment in enumerate(segments):
             # Get context from adjacent segments
             context_before = enriched_segments[-1].text if enriched_segments else ""
@@ -254,37 +254,26 @@ class DiarizationService:
             language=language,
         )
 
-        if not is_ollama_available():
-            logger.warning("OLLAMA_UNAVAILABLE_FALLBACK", session_id=session_id)
-            # Fallback: return single segment as DESCONOCIDO
-            return DiarizationResult(
-                session_id=session_id,
-                audio_file_path=str(audio_file_path),
-                audio_file_hash=audio_file_hash,
-                duration_sec=duration_sec,
-                language=language,
-                segments=[
-                    DiarizationSegment(
-                        start_time=0.0,
-                        end_time=duration_sec,
-                        speaker="DESCONOCIDO",
-                        text=full_text,
-                    )
-                ],
-                processing_time_sec=time.time() - start_time,
-                created_at=datetime.now(UTC).isoformat(),
-            )
-
-        # Detect language from first chunk (using Ollama/Qwen)
+        # Detect language from first chunk (using Ollama/Qwen - optional)
         from backend.services.diarization.llm_diarizer import (
             detect_language,
             diarize_with_claude,
         )
 
         if chunks and chunks[0].get("transcript"):
-            detected_language = detect_language(chunks[0]["transcript"])
-            logger.info("LANGUAGE_AUTO_DETECTED", from_first_chunk=True, language=detected_language)
-            language = detected_language  # Override param with detected language
+            try:
+                detected_language = detect_language(chunks[0]["transcript"])
+                logger.info(
+                    "LANGUAGE_AUTO_DETECTED", from_first_chunk=True, language=detected_language
+                )
+                language = detected_language  # Override param with detected language
+            except Exception as e:
+                logger.warning(
+                    "LANGUAGE_DETECTION_FAILED_USING_DEFAULT",
+                    error=str(e),
+                    default_language=language,
+                )
+                # Continue with provided language parameter
 
         # Call Claude to diarize with TRIPLE VISION
         segments = diarize_with_claude(full_text, chunks, webspeech_final, language)
@@ -323,7 +312,8 @@ class DiarizationService:
         Returns:
             Job ID (UUID)
         """
-        return create_job(session_id, audio_file_path, audio_file_size)
+        job_id: str = create_job(session_id, audio_file_path, audio_file_size)
+        return job_id
 
     def get_job(self, job_id: str) -> Optional[DiarizationJob]:
         """Get job status.
