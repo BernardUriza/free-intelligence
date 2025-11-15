@@ -44,7 +44,7 @@ def transcribe_chunk_worker(
     Args:
         session_id: Session identifier
         chunk_number: Chunk index
-        stt_provider: Provider name (faster_whisper, deepgram, azure_whisper)
+        stt_provider: Provider name (deepgram, azure_whisper)
 
     Returns:
         dict with transcript, duration, language, confidence
