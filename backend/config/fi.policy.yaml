@@ -1,0 +1,127 @@
+# Free Intelligence - Policy Configuration
+# Controls LLM provider routing, export policies, audit policies, and budgets
+#
+# Owner: Bernard Uriza Orozco
+# Version: 0.1.0
+# Created: 2025-11-14
+
+# ===== LLM Provider Configuration =====
+llm:
+  # Primary provider for production workloads
+  primary_provider: claude
+
+  # Fallback provider if primary fails
+  fallback_provider: ollama
+
+  # Offline-first mode (prefer local inference)
+  enable_offline: false  # Set to true when NAS deployment is ready
+
+  # Provider-specific configurations
+  providers:
+    # Anthropic Claude - Production LLM (cloud)
+    claude:
+      model: claude-sonnet-4-5-20250929  # Claude Sonnet 4.5 (latest official version)
+      timeout_seconds: 60  # API timeout
+      max_tokens: 8192  # Max output tokens
+      temperature: 0.3  # Balanced between deterministic and creative
+      # API key loaded from environment: CLAUDE_API_KEY
+
+    # Ollama - Local inference (offline-first)
+    ollama:
+      model: qwen2.5:7b-instruct-q4_0  # Local model
+      base_url: http://localhost:11434  # Ollama server
+      timeout_seconds: 120  # Longer timeout for CPU inference
+      max_tokens: 2048  # Max output tokens
+      temperature: 0.7  # Default temperature
+      embed_model: nomic-embed-text  # Embedding model (768-dim)
+
+    # OpenAI - Future optional provider
+    # openai:
+    #   model: gpt-4-turbo
+    #   timeout_seconds: 30
+    #   max_tokens: 4096
+    #   temperature: 0.7
+
+  # Budget controls (cost management)
+  budgets:
+    max_cost_per_day: 10.0  # USD - Demo budget
+    max_requests_per_hour: 100  # Rate limiting
+    alert_threshold: 0.8  # Alert at 80% budget usage
+
+  # Fallback rules (provider selection logic)
+  fallback_rules:
+    - condition: rate_limit_exceeded
+      action: switch_to_fallback
+    - condition: timeout
+      action: switch_to_fallback
+    - condition: api_error
+      action: retry_with_backoff
+
+# ===== Export Policy =====
+export:
+  # Require manifest.json for all exports
+  require_manifest: true
+
+  # Compute SHA256 hashes for verification
+  compute_sha256: true
+
+  # Allowed export formats
+  allowed_formats:
+    - json
+    - markdown
+    - txt
+    - csv
+    - yaml
+
+  # Redact sensitive fields in exports
+  redact_fields:
+    - api_key
+    - session_token
+    - password
+
+  # Export destination restrictions
+  allowed_destinations:
+    - local  # Local filesystem
+    - nas    # NAS storage (DS923+)
+    # - cloud  # Disabled for LAN-only policy
+
+# ===== Audit Policy =====
+audit:
+  # Log all LLM operations to audit trail
+  log_all_operations: true
+
+  # Retention period for audit logs
+  retention_days: 365  # 1 year
+
+  # Hash payloads (prompts) for privacy
+  hash_payloads: true  # SHA256 hash instead of full text
+
+  # Hash results (responses) for privacy
+  hash_results: true  # SHA256 hash instead of full text
+
+  # Log levels for different operations
+  log_levels:
+    llm_generate: info
+    llm_embed: info
+    export: warning
+    search: warning
+    delete: error  # Critical operation
+
+  # PII detection (future)
+  detect_pii: false  # Enable when PII detection is implemented
+
+# ===== Metadata =====
+metadata:
+  version: 0.1.0
+  last_updated: 2025-11-14
+  owner: Bernard Uriza Orozco
+  description: Free Intelligence policy configuration for Claude-based diarization demo
+
+  # Environment
+  environment: development  # development | staging | production
+
+  # Compliance
+  compliance:
+    - LAN_ONLY  # No cloud dependencies in runtime
+    - APPEND_ONLY  # HDF5 corpus is append-only
+    - AUDIT_TRAIL  # All operations logged

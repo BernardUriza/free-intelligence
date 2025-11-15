@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from backend.providers.fi_consult_models import Analisis, Objetivo, Plan, Subjetivo
+from backend.providers.models import Analisis, Objetivo, Plan, Subjetivo
 
 from .completeness import CompletenessCalculator
 from .defaults import get_default_soap_structure
@@ -92,9 +92,7 @@ class TestOllamaClient:
 
     def test_system_prompt(self) -> None:
         """Test system prompt generation."""
-        from backend.services.soap_generation.prompt_builder import (
-            OllamaPromptBuilder,
-        )
+        from backend.services.soap_generation.prompt_builder import OllamaPromptBuilder
 
         builder = OllamaPromptBuilder()
         prompt = builder.load_system_prompt()

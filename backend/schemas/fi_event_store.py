@@ -40,7 +40,7 @@ from typing import Any, Dict, Optional
 import h5py
 
 from backend.logger import get_logger
-from backend.providers.fi_consult_models import ConsultationEvent
+from backend.providers.models import ConsultationEvent
 
 logger = get_logger(__name__)
 

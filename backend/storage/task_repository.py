@@ -149,8 +149,12 @@ def task_exists(session_id: str, task_type: TaskType | str) -> bool:
     task_type_str = task_type.value if isinstance(task_type, TaskType) else task_type
     task_path = f"/sessions/{session_id}/tasks/{task_type_str}"
 
-    with h5py.File(CORPUS_PATH, "r") as f:
-        return task_path in f  # type: ignore[operator]
+    try:
+        with h5py.File(CORPUS_PATH, "r") as f:
+            return task_path in f  # type: ignore[operator]
+    except OSError:
+        # File exists but is not a valid HDF5 file
+        return False
 
 
 def list_session_tasks(session_id: str) -> list[str]:
@@ -418,10 +422,18 @@ def get_task_chunks(session_id: str, task_type: TaskType | str) -> list[dict[str
 
             for chunk_name in sorted(chunks_group.keys()):  # type: ignore[union-attr]
                 chunk_group = chunks_group[chunk_name]  # type: ignore[index]
+                chunk_idx = int(chunk_name.split("_")[1])
+                transcript = chunk_group["transcript"][()].decode("utf-8")  # type: ignore[index]
+
+                # Determine status based on transcript presence
+                status = "completed" if transcript else "pending"
+
                 chunks.append(
                     {
-                        "chunk_idx": int(chunk_name.split("_")[1]),
-                        "transcript": chunk_group["transcript"][()].decode("utf-8"),  # type: ignore[index]
+                        "chunk_idx": chunk_idx,
+                        "chunk_number": chunk_idx,  # Alias for frontend compatibility
+                        "status": status,
+                        "transcript": transcript,
                         "audio_hash": chunk_group["audio_hash"][()].decode("utf-8"),  # type: ignore[index]
                         "duration": float(chunk_group["duration"][()]),  # type: ignore[index]
                         "language": chunk_group["language"][()].decode("utf-8"),  # type: ignore[index]
@@ -430,6 +442,8 @@ def get_task_chunks(session_id: str, task_type: TaskType | str) -> list[dict[str
                         "confidence": float(chunk_group["confidence"][()]),  # type: ignore[index]
                         "audio_quality": float(chunk_group["audio_quality"][()]),  # type: ignore[index]
                         "created_at": chunk_group["created_at"][()].decode("utf-8"),  # type: ignore[index]
+                        "audio_size_bytes": None,  # Not stored in new schema
+                        "error_message": None,  # Not stored in new schema
                     }
                 )
 
@@ -523,3 +537,268 @@ def get_session_chunks_compat(session_id: str) -> list[dict[str, Any]]:
                 return []
 
     return []
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TRANSCRIPTION SOURCES (3 sources + audio files)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+def add_webspeech_transcripts(
+    session_id: str, transcripts: list[str], task_type: TaskType = TaskType.TRANSCRIPTION
+) -> str:
+    """Add WebSpeech instant preview transcripts to TRANSCRIPTION task.
+
+    Args:
+        session_id: Session identifier
+        transcripts: List of WebSpeech transcript strings
+        task_type: Task type (default TRANSCRIPTION)
+
+    Returns:
+        HDF5 path to webspeech_final dataset
+    """
+    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    with h5py.File(CORPUS_PATH, "a") as f:
+        task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+
+        if task_path not in f:  # type: ignore[operator]
+            raise ValueError(f"Task {task_type.value} does not exist for session {session_id}")
+
+        task_group = f[task_path]  # type: ignore[index]
+
+        # Delete existing webspeech_final if present
+        if "webspeech_final" in task_group:  # type: ignore[operator]
+            del task_group["webspeech_final"]  # type: ignore[index]
+
+        # Create webspeech_final dataset (list of strings)
+        transcripts_json = json.dumps(transcripts)
+        task_group.create_dataset(  # type: ignore[union-attr]
+            "webspeech_final",
+            data=transcripts_json,
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+
+    webspeech_path = f"{task_path}/webspeech_final"
+    logger.info(
+        "WEBSPEECH_ADDED",
+        session_id=session_id,
+        task_type=task_type.value,
+        transcript_count=len(transcripts),
+        path=webspeech_path,
+    )
+
+    return webspeech_path
+
+
+def add_full_transcription(
+    session_id: str, full_text: str, task_type: TaskType = TaskType.TRANSCRIPTION
+) -> str:
+    """Add full concatenated transcription to TRANSCRIPTION task.
+
+    Args:
+        session_id: Session identifier
+        full_text: Complete transcription text
+        task_type: Task type (default TRANSCRIPTION)
+
+    Returns:
+        HDF5 path to full_transcription dataset
+    """
+    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    with h5py.File(CORPUS_PATH, "a") as f:
+        task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+
+        if task_path not in f:  # type: ignore[operator]
+            raise ValueError(f"Task {task_type.value} does not exist for session {session_id}")
+
+        task_group = f[task_path]  # type: ignore[index]
+
+        # Delete existing full_transcription if present
+        if "full_transcription" in task_group:  # type: ignore[operator]
+            del task_group["full_transcription"]  # type: ignore[index]
+
+        # Create full_transcription dataset
+        task_group.create_dataset(  # type: ignore[union-attr]
+            "full_transcription",
+            data=full_text,
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+
+    full_path = f"{task_path}/full_transcription"
+    logger.info(
+        "FULL_TRANSCRIPTION_ADDED",
+        session_id=session_id,
+        task_type=task_type.value,
+        text_length=len(full_text),
+        path=full_path,
+    )
+
+    return full_path
+
+
+def add_full_audio(
+    session_id: str,
+    audio_bytes: bytes,
+    filename: str = "full_audio.webm",
+    task_type: TaskType = TaskType.TRANSCRIPTION,
+) -> str:
+    """Add full audio file to TRANSCRIPTION task.
+
+    Args:
+        session_id: Session identifier
+        audio_bytes: Raw audio bytes
+        filename: Audio filename (default full_audio.webm)
+        task_type: Task type (default TRANSCRIPTION)
+
+    Returns:
+        HDF5 path to audio dataset
+    """
+    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    with h5py.File(CORPUS_PATH, "a") as f:
+        task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+
+        if task_path not in f:  # type: ignore[operator]
+            raise ValueError(f"Task {task_type.value} does not exist for session {session_id}")
+
+        task_group = f[task_path]  # type: ignore[index]
+
+        # Delete existing audio if present
+        if filename in task_group:  # type: ignore[operator]
+            del task_group[filename]  # type: ignore[index]
+
+        # Create audio dataset (binary data with opaque dtype)
+        import numpy as np
+
+        task_group.create_dataset(  # type: ignore[union-attr]
+            filename, data=np.frombuffer(audio_bytes, dtype=np.uint8)
+        )
+
+    audio_path = f"{task_path}/{filename}"
+    logger.info(
+        "FULL_AUDIO_ADDED",
+        session_id=session_id,
+        task_type=task_type.value,
+        filename=filename,
+        size_bytes=len(audio_bytes),
+        path=audio_path,
+    )
+
+    return audio_path
+
+
+def add_audio_to_chunk(
+    session_id: str,
+    chunk_idx: int,
+    audio_bytes: bytes,
+    filename: str = "audio.webm",
+    task_type: TaskType = TaskType.TRANSCRIPTION,
+) -> str:
+    """Add audio file to an existing chunk.
+
+    Args:
+        session_id: Session identifier
+        chunk_idx: Chunk index
+        audio_bytes: Raw audio bytes
+        filename: Audio filename (default audio.webm)
+        task_type: Task type (default TRANSCRIPTION)
+
+    Returns:
+        HDF5 path to chunk audio dataset
+    """
+    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    with h5py.File(CORPUS_PATH, "a") as f:
+        chunk_path = f"/sessions/{session_id}/tasks/{task_type.value}/chunks/chunk_{chunk_idx}"
+
+        if chunk_path not in f:  # type: ignore[operator]
+            raise ValueError(f"Chunk {chunk_idx} does not exist for session {session_id}")
+
+        chunk_group = f[chunk_path]  # type: ignore[index]
+
+        # Delete existing audio if present
+        if filename in chunk_group:  # type: ignore[operator]
+            del chunk_group[filename]  # type: ignore[index]
+
+        # Create audio dataset (binary data with opaque dtype)
+        import numpy as np
+
+        chunk_group.create_dataset(  # type: ignore[union-attr]
+            filename, data=np.frombuffer(audio_bytes, dtype=np.uint8)
+        )
+
+    audio_path = f"{chunk_path}/{filename}"
+    logger.info(
+        "CHUNK_AUDIO_ADDED",
+        session_id=session_id,
+        task_type=task_type.value,
+        chunk_idx=chunk_idx,
+        filename=filename,
+        size_bytes=len(audio_bytes),
+        path=audio_path,
+    )
+
+    return audio_path
+
+
+def save_diarization_segments(
+    session_id: str,
+    segments: list,
+    task_type: TaskType = TaskType.DIARIZATION,
+) -> str:
+    """Save diarization segments to HDF5.
+
+    Args:
+        session_id: Session identifier
+        segments: List of DiarizationSegment objects
+        task_type: Task type (default DIARIZATION)
+
+    Returns:
+        HDF5 path to segments group
+    """
+    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    with h5py.File(CORPUS_PATH, "a") as f:
+        task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+
+        if task_path not in f:  # type: ignore[operator]
+            raise ValueError(f"Task {task_type.value} does not exist for session {session_id}")
+
+        task_group = f[task_path]  # type: ignore[index]
+
+        # Delete existing segments if present
+        if "segments" in task_group:  # type: ignore[operator]
+            del task_group["segments"]  # type: ignore[index]
+
+        # Create segments group
+        segments_group = task_group.create_group("segments")  # type: ignore[union-attr]
+
+        # Save each segment
+        for i, segment in enumerate(segments):
+            seg_group = segments_group.create_group(f"segment_{i}")
+
+            # Save segment attributes
+            seg_group.create_dataset("speaker", data=segment.speaker.encode("utf-8"))
+            seg_group.create_dataset("text", data=segment.text.encode("utf-8"))
+            seg_group.create_dataset("start_time", data=segment.start_time)
+            seg_group.create_dataset("end_time", data=segment.end_time)
+
+            if hasattr(segment, "confidence") and segment.confidence is not None:
+                seg_group.create_dataset("confidence", data=segment.confidence)
+
+            if hasattr(segment, "improved_text") and segment.improved_text:
+                seg_group.create_dataset(
+                    "improved_text", data=segment.improved_text.encode("utf-8")
+                )
+
+    segments_path = f"{task_path}/segments"
+    logger.info(
+        "DIARIZATION_SEGMENTS_SAVED",
+        session_id=session_id,
+        task_type=task_type.value,
+        segment_count=len(segments),
+        path=segments_path,
+    )
+
+    return segments_path

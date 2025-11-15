@@ -210,7 +210,7 @@ def append_interaction_with_embedding(
         ... )
     """
     from backend.logger import get_logger
-    from backend.providers.llm_router import llm_embed, pad_embedding_to_768
+    from backend.providers.llm import llm_embed, pad_embedding_to_768
 
     logger = get_logger()
 

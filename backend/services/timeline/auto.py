@@ -19,7 +19,7 @@ from typing import Any, Dict, Optional
 import yaml  # type: ignore[import-untyped]
 
 from backend.logger import get_logger
-from backend.providers.llm_adapter import LLMAdapter, LLMRequest
+from backend.providers.llm import llm_generate
 from backend.schemas.timeline_models import (
     CausalityType,
     RedactionPolicy,
@@ -133,18 +133,16 @@ class AutoTimelineGenerator:
     5. Fallback to manual+assist if LLM fails (timeout >8s)
     """
 
-    def __init__(
-        self, llm_adapter: Optional[LLMAdapter] = None, config: Optional[dict[str, Any]] = None
-    ):
+    def __init__(self, config: Optional[dict[str, Any]] = None):
         """
         Initialize auto-timeline generator.
 
         Args:
-            llm_adapter: LLM adapter (Ollama preferred)
             config: Timeline configuration (from fi.policy.yaml)
+
+        Note: Uses llm_router.llm_generate() for LLM calls (no adapter injection needed)
         """
         self.config: Dict[str, Any] = config or load_timeline_config()
-        self.llm = llm_adapter
         self.auto_config: Dict[str, Any] = self.config.get("auto", {})
 
         # Feature flag check
@@ -343,15 +341,17 @@ Requirements:
 Summary:"""
 
         try:
-            request = LLMRequest(
+            start_time = datetime.now(UTC)
+
+            # Use llm_router unified interface (provider from config)
+            provider = self.auto_config.get("provider", "ollama")
+            response = llm_generate(
                 prompt=prompt,
-                max_tokens=100,  # ~50 chars per token
+                provider=provider,
+                max_tokens=100,
                 temperature=0.5,
-                timeout_seconds=self.timeout_seconds,
             )
 
-            start_time = datetime.now(UTC)
-            response = self.llm.generate(request)
             latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             summary = response.content.strip()
@@ -516,8 +516,8 @@ if __name__ == "__main__":
     print(f"Config loaded: timeline.auto.enabled = {config.get('auto', {}).get('enabled')}")
     print()
 
-    # Create generator (without LLM for demo)
-    generator = AutoTimelineGenerator(llm_adapter=None, config=config)
+    # Create generator (uses llm_router internally)
+    generator = AutoTimelineGenerator(config=config)
 
     # Create event candidates
     now = datetime.now(UTC)

@@ -5,9 +5,9 @@ SOAP (Subjective-Objective-Assessment-Plan) notes from diarization
 transcriptions using LLM extraction.
 
 Architecture:
-    - service.py: Main orchestrator (SOAPGenerationService)
+    - soap_generation_service.py: Main orchestrator (SOAPGenerationService)
     - reader.py: HDF5 transcription I/O (TranscriptionReader)
-    - ollama_client.py: LLM interaction (OllamaClient)
+    - llm_client.py: Provider-agnostic LLM interaction (LLMClient)
     - soap_builder.py: Pydantic model building (SOAPBuilder)
     - completeness.py: Scoring logic (CompletenessCalculator)
     - defaults.py: Fallback structures
@@ -18,8 +18,7 @@ Example usage:
 
     service = SOAPGenerationService(
         h5_path="storage/diarization.h5",
-        ollama_base_url="http://localhost:11434",
-        ollama_model="mistral"
+        provider="claude"  # or "ollama", "openai"
     )
 
     soap_note = service.generate_soap_for_job(job_id="some-uuid")
@@ -30,25 +29,38 @@ from __future__ import annotations
 
 from .completeness import CompletenessCalculator
 from .defaults import get_default_soap_structure
-from .ollama_client import OllamaClient, OllamaExtractionError
+from .llm_client import LLMClient, SOAPExtractionError
 from .reader import TranscriptionReader, TranscriptionReadError
-from .service import SOAPGenerationService
 from .soap_builder import SOAPBuilder, SOAPBuildError
+from .soap_generation_service import SOAPGenerationService
+from .soap_models import (
+    AssessmentData,
+    ObjectiveData,
+    PlanData,
+    SOAPNote,
+    SubjectiveData,
+)
 
 __all__ = [
     # Main service
     "SOAPGenerationService",
     # Utilities
     "TranscriptionReader",
-    "OllamaClient",
+    "LLMClient",
     "SOAPBuilder",
     "CompletenessCalculator",
     "get_default_soap_structure",
     # Exceptions
     "TranscriptionReadError",
-    "OllamaExtractionError",
+    "SOAPExtractionError",
     "SOAPBuildError",
+    # Models
+    "SOAPNote",
+    "SubjectiveData",
+    "ObjectiveData",
+    "AssessmentData",
+    "PlanData",
 ]
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"  # Provider-agnostic refactor
 __author__ = "Free Intelligence"

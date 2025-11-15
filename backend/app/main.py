@@ -90,6 +90,9 @@ def create_app() -> FastAPI:
         )
         internal_app.include_router(internal.sessions.router, prefix="/sessions", tags=["sessions"])
         internal_app.include_router(
+            internal.sessions.checkpoint.router, prefix="", tags=["sessions-checkpoint"]
+        )  # Session checkpoint - incremental audio concatenation
+        internal_app.include_router(
             internal.sessions.finalize.router, prefix="", tags=["sessions-finalize"]
         )  # Session finalization + encryption + diarization
         internal_app.include_router(

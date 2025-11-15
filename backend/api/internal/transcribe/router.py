@@ -20,14 +20,21 @@ Card: Architecture unification
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
-from backend.models import ChunkMetadata, JobType, TranscriptionJob
-from backend.repositories import job_repository
+from backend.models.task_type import TaskStatus, TaskType
+from backend.storage.task_repository import (
+    ensure_task_exists,
+    get_task_chunks,
+    get_task_metadata,
+    task_exists,
+    update_task_metadata,
+)
 
 logger = get_logger(__name__)
 
@@ -109,41 +116,40 @@ async def upload_chunk(
             audio_size=audio_size,
         )
 
-        # 1. Load or create TranscriptionJob (session_id = job_id)
-        job = job_repository.load(
-            job_id=session_id,
+        # 1. Ensure TRANSCRIPTION task exists (allow existing)
+        ensure_task_exists(
             session_id=session_id,
-            job_type=JobType.TRANSCRIPTION,
-            job_class=TranscriptionJob,
+            task_type=TaskType.TRANSCRIPTION,
+            allow_existing=True,
         )
 
-        if not job:
-            job = TranscriptionJob.create_for_session(
-                job_id=session_id,
-                session_id=session_id,
-                total_chunks=0,
-            )
-            logger.info("TRANSCRIPTION_JOB_CREATED", session_id=session_id)
+        # 2. Get current metadata
+        metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
+        if not metadata:
+            metadata = {
+                "job_id": session_id,
+                "status": TaskStatus.PENDING.value,
+                "total_chunks": 0,
+                "processed_chunks": 0,
+                "progress_percent": 0,
+            }
 
-        # 2. Add chunk metadata (pending)
-        chunk_meta = ChunkMetadata(
-            chunk_number=chunk_number,
-            status="pending",
-            audio_size_bytes=audio_size,
-        )
-        job.add_chunk(chunk_meta)
+        # 3. Update chunk count if this is a new chunk
+        existing_chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+        chunk_numbers = [c.get("chunk_number", -1) for c in existing_chunks]
 
-        # 3. Save to HDF5
-        job_repository.save(job)
+        if chunk_number not in chunk_numbers:
+            metadata["total_chunks"] = metadata.get("total_chunks", 0) + 1
+            update_task_metadata(session_id, TaskType.TRANSCRIPTION, metadata)
 
         logger.info(
-            "CHUNK_METADATA_SAVED",
+            "TASK_READY_FOR_PROCESSING",
             session_id=session_id,
             chunk_number=chunk_number,
-            total_chunks=job.total_chunks,
+            total_chunks=metadata["total_chunks"],
         )
 
-        # 4. Dispatch Celery task
+        # 4. Dispatch Celery task (worker will write to HDF5)
         from backend.workers.transcription_tasks import transcribe_chunk_task
 
         task = transcribe_chunk_task.delay(  # type: ignore[attr-defined]
@@ -167,8 +173,8 @@ async def upload_chunk(
             job_id=session_id,
             chunk_number=chunk_number,
             status="pending",
-            total_chunks=job.total_chunks,
-            processed_chunks=job.processed_chunks,
+            total_chunks=metadata["total_chunks"],
+            processed_chunks=metadata.get("processed_chunks", 0),
         )
 
     except Exception as e:
@@ -186,50 +192,60 @@ async def upload_chunk(
 
 @router.get("/jobs/{session_id}", response_model=TranscriptionJobResponse)
 async def get_transcription_job(session_id: str) -> TranscriptionJobResponse:
-    """Get transcription job status with all chunks."""
+    """Get transcription job status with all chunks (task-based)."""
     try:
-        job = job_repository.load(
-            job_id=session_id,
-            session_id=session_id,
-            job_type=JobType.TRANSCRIPTION,
-            job_class=TranscriptionJob,
-        )
-
-        if not job:
+        # 1. Check if task exists
+        if not task_exists(session_id, TaskType.TRANSCRIPTION):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Transcription job not found for session {session_id}",
             )
 
-        chunks_dict = [
+        # 2. Get task metadata
+        metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
+        if not metadata:
+            metadata = {}
+
+        # Ensure job_id is set
+        if "job_id" not in metadata or metadata["job_id"] is None:
+            metadata["job_id"] = session_id
+
+        # 3. Get all chunks
+        chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+
+        # 4. Calculate stats from chunks
+        total_chunks = len(chunks)
+        processed_chunks = sum(1 for c in chunks if c.get("status") == "completed")
+        progress_percent = int(processed_chunks / total_chunks * 100) if total_chunks > 0 else 0
+
+        # Determine overall status
+        if processed_chunks == 0:
+            job_status = TaskStatus.PENDING.value
+        elif processed_chunks < total_chunks:
+            job_status = TaskStatus.IN_PROGRESS.value
+        else:
+            job_status = TaskStatus.COMPLETED.value
+
+        # Update metadata with current stats
+        metadata.update(
             {
-                "chunk_number": c.chunk_number,
-                "status": c.status,
-                "audio_size_bytes": c.audio_size_bytes,
-                "audio_hash": c.audio_hash,
-                "transcript": c.transcript,
-                "duration": c.duration,
-                "language": c.language,
-                "confidence": c.confidence,
-                "audio_quality": c.audio_quality,
-                "timestamp_start": c.timestamp_start,
-                "timestamp_end": c.timestamp_end,
-                "created_at": c.created_at,
-                "error_message": c.error_message,
+                "total_chunks": total_chunks,
+                "processed_chunks": processed_chunks,
+                "progress_percent": progress_percent,
+                "status": job_status,
             }
-            for c in job.chunks
-        ]
+        )
 
         return TranscriptionJobResponse(
-            session_id=job.session_id,
-            job_id=job.job_id,
-            status=job.status.value,
-            total_chunks=job.total_chunks,
-            processed_chunks=job.processed_chunks,
-            progress_percent=job.progress_percent,
-            chunks=chunks_dict,
-            created_at=job.created_at,
-            updated_at=job.updated_at,
+            session_id=session_id,
+            job_id=metadata.get("job_id", session_id),
+            status=job_status,
+            total_chunks=total_chunks,
+            processed_chunks=processed_chunks,
+            progress_percent=progress_percent,
+            chunks=chunks,  # type: ignore[arg-type]
+            created_at=metadata.get("created_at", datetime.now(UTC).isoformat()),
+            updated_at=metadata.get("updated_at", datetime.now(UTC).isoformat()),
         )
 
     except HTTPException:
@@ -244,38 +260,30 @@ async def get_transcription_job(session_id: str) -> TranscriptionJobResponse:
 
 @router.get("/jobs/{session_id}/chunks/{chunk_number}")
 async def get_chunk_status(session_id: str, chunk_number: int) -> dict:
-    """Get status of a specific chunk."""
+    """Get status of a specific chunk (task-based)."""
     try:
-        job = job_repository.load(
-            job_id=session_id,
-            session_id=session_id,
-            job_type=JobType.TRANSCRIPTION,
-            job_class=TranscriptionJob,
-        )
+        # Get all chunks
+        chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
 
-        if not job:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Job not found for session {session_id}",
-            )
+        # Find the specific chunk
+        chunk = next((c for c in chunks if c.get("chunk_number") == chunk_number), None)
 
-        chunk = job.get_chunk(chunk_number)
         if not chunk:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Chunk {chunk_number} not found",
+                detail=f"Chunk {chunk_number} not found for session {session_id}",
             )
 
         return {
             "session_id": session_id,
-            "chunk_number": chunk.chunk_number,
-            "status": chunk.status,
-            "transcript": chunk.transcript,
-            "duration": chunk.duration,
-            "language": chunk.language,
-            "confidence": chunk.confidence,
-            "audio_quality": chunk.audio_quality,
-            "error_message": chunk.error_message,
+            "chunk_number": chunk.get("chunk_number"),
+            "status": chunk.get("status", "unknown"),
+            "transcript": chunk.get("transcript"),
+            "duration": chunk.get("duration"),
+            "language": chunk.get("language"),
+            "confidence": chunk.get("confidence"),
+            "audio_quality": chunk.get("audio_quality"),
+            "error_message": chunk.get("error_message"),
         }
 
     except HTTPException:

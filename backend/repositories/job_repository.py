@@ -1,12 +1,27 @@
-"""Unified job repository for HDF5 storage.
+"""DEPRECATED: Unified job repository for HDF5 storage.
 
-Philosophy:
+⚠️  DEPRECATION WARNING ⚠️
+
+This module is DEPRECATED as of 2025-11-14.
+Use backend.storage.task_repository instead.
+
+The old architecture (jobs/ + production/) has been replaced with
+a unified task-based architecture (tasks/{TASK_TYPE}/).
+
+Migration:
+  OLD: job_repository.save(job)
+  NEW: ensure_task_exists(session_id, task_type)
+       update_task_metadata(session_id, task_type, metadata)
+
+See: backend/storage/task_repository.py
+
+Philosophy (OLD - DEPRECATED):
   - Jobs stored in /sessions/{session_id}/jobs/{job_type}/{job_id}.json
   - Each job type (transcription, diarization, etc.) uses same storage pattern
   - Supports polymorphic job types via to_dict/from_dict
   - Thread-safe HDF5 operations
 
-Storage structure:
+Storage structure (OLD - DEPRECATED):
   /sessions/{session_id}/jobs/
     ├─ transcription/{job_id}.json
     ├─ diarization/{job_id}.json
@@ -15,15 +30,17 @@ Storage structure:
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-14
-Card: Architecture unification
+Deprecated: 2025-11-14
+Card: Architecture refactor - task-based HDF5
 """
 
 from __future__ import annotations
 
-import h5py
 import json
 from pathlib import Path
 from typing import Optional, Type, TypeVar
+
+import h5py
 
 from backend.logger import get_logger
 from backend.models import Job, JobStatus, JobType
@@ -91,9 +108,7 @@ class JobRepository:
         job_json = json.dumps(job_dict)
 
         with h5py.File(self.corpus_path, "a") as f:
-            job_type_str = (
-                job.job_type.value if isinstance(job.job_type, JobType) else job.job_type
-            )
+            job_type_str = job.job_type.value if isinstance(job.job_type, JobType) else job.job_type
             job_group_path = f"sessions/{job.session_id}/jobs/{job_type_str}"
             job_group = f[job_group_path]  # type: ignore[index]
 
@@ -115,7 +130,11 @@ class JobRepository:
         )
 
     def load(
-        self, job_id: str, session_id: str, job_type: JobType, job_class: Type[TJob] = Job  # type: ignore[assignment]
+        self,
+        job_id: str,
+        session_id: str,
+        job_type: JobType,
+        job_class: Type[TJob] = Job,  # type: ignore[assignment]
     ) -> Optional[TJob]:
         """Load job from HDF5.
 
@@ -170,7 +189,10 @@ class JobRepository:
             return None
 
     def list_by_session(
-        self, session_id: str, job_type: Optional[JobType] = None, job_class: Type[TJob] = Job  # type: ignore[assignment]
+        self,
+        session_id: str,
+        job_type: Optional[JobType] = None,
+        job_class: Type[TJob] = Job,  # type: ignore[assignment]
     ) -> list[TJob]:
         """List all jobs for a session, optionally filtered by job_type.
 
@@ -220,7 +242,9 @@ class JobRepository:
         return jobs
 
     def list_by_status(
-        self, status: JobStatus, job_class: Type[TJob] = Job  # type: ignore[assignment]
+        self,
+        status: JobStatus,
+        job_class: Type[TJob] = Job,  # type: ignore[assignment]
     ) -> list[TJob]:
         """List all jobs with a specific status across all sessions.
 

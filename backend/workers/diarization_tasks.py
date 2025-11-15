@@ -17,11 +17,17 @@ import time
 from typing import Any
 
 from backend.logger import get_logger
-from backend.models import JobType, SessionStatus, TranscriptionJob
-from backend.repositories import job_repository
+from backend.models import SessionStatus
+from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.session_repository import SessionRepository
-from backend.services.diarization.models import DiarizationSegment
-from backend.services.diarization.service import DiarizationService
+from backend.services.diarization.diarization_service import DiarizationService
+from backend.storage.task_repository import (
+    ensure_task_exists,
+    get_task_chunks,
+    get_task_metadata,
+    save_diarization_segments,
+    update_task_metadata,
+)
 from backend.workers.celery_app import celery_app
 
 logger = get_logger(__name__)
@@ -68,94 +74,105 @@ def diarize_session_task(self, session_id: str) -> dict[str, Any]:
         else:
             logger.warning("NO_TRANSCRIPTION_SOURCES", session_id=session_id)
 
-        # 2. Load transcription job
-        transcription_job = job_repository.load(
-            job_id=session_id,
-            session_id=session_id,
-            job_type=JobType.TRANSCRIPTION,
-            job_class=TranscriptionJob,
-        )
+        # 2. Load transcription task metadata
+        task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
 
-        if not transcription_job:
+        if not task_metadata:
             logger.error("DIARIZATION_NO_TRANSCRIPTION", session_id=session_id)
             return {
                 "status": "failed",
-                "error": f"No transcription job found for session {session_id}",
+                "error": f"No transcription task found for session {session_id}",
             }
 
-        if transcription_job.progress_percent < 100:
-            logger.warning(
-                "DIARIZATION_INCOMPLETE_TRANSCRIPTION",
-                session_id=session_id,
-                progress=transcription_job.progress_percent,
-            )
-            # Retry after 30 seconds if transcription not complete
-            raise self.retry(countdown=30, max_retries=10)
+        # 3. Load TRIPLE VISION from HDF5: full_transcription + chunks + webspeech_final
+        import h5py
+
+        from backend.storage.task_repository import CORPUS_PATH
+
+        full_transcription = None
+        webspeech_final = None
+
+        with h5py.File(CORPUS_PATH, "r") as f:
+            # Load full_transcription
+            full_text_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/full_transcription"
+            if full_text_path in f:
+                text_data = f[full_text_path][()]
+                full_transcription = bytes(text_data).decode("utf-8")
+                logger.info(
+                    "FULL_TRANSCRIPTION_LOADED",
+                    session_id=session_id,
+                    text_length=len(full_transcription),
+                )
+
+            # Load webspeech_final
+            webspeech_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/webspeech_final"
+            if webspeech_path in f:
+                import json
+
+                ws_data = f[webspeech_path][()]
+                webspeech_json = bytes(ws_data).decode("utf-8")
+                webspeech_final = json.loads(webspeech_json)
+                logger.info(
+                    "WEBSPEECH_FINAL_LOADED",
+                    session_id=session_id,
+                    count=len(webspeech_final),
+                )
+
+        if not full_transcription:
+            logger.error("NO_FULL_TRANSCRIPTION", session_id=session_id)
+            return {
+                "status": "failed",
+                "error": "full_transcription not found in TRANSCRIPTION task",
+            }
+
+        # Load transcription chunks (for timestamps and metadata)
+        chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
 
         logger.info(
             "TRANSCRIPTION_LOADED",
             session_id=session_id,
-            total_chunks=transcription_job.total_chunks,
-            processed_chunks=transcription_job.processed_chunks,
+            total_chunks=task_metadata.get("total_chunks", 0),
+            processed_chunks=task_metadata.get("processed_chunks", 0),
+            chunks_loaded=len(chunks),
         )
 
-        # 2. Convert chunks to DiarizationSegment[]
-        segments: list[DiarizationSegment] = []
+        # 4. Calculate metadata from chunks (duration, language)
         total_duration = 0.0
+        for chunk in chunks:
+            end_time = chunk.get("timestamp_end", 0.0)
+            total_duration = max(total_duration, end_time)
 
-        for chunk in transcription_job.chunks:
-            if chunk.status != "completed" or not chunk.transcript:
-                logger.warning(
-                    "SKIPPING_INCOMPLETE_CHUNK",
-                    session_id=session_id,
-                    chunk_number=chunk.chunk_number,
-                    status=chunk.status,
-                )
-                continue
-
-            segment = DiarizationSegment(
-                start_time=chunk.timestamp_start or 0.0,
-                end_time=chunk.timestamp_end or 0.0,
-                speaker="DESCONOCIDO",  # Will be classified by DiarizationService
-                text=chunk.transcript,
-                confidence=chunk.confidence,
-            )
-            segments.append(segment)
-            total_duration = max(total_duration, segment.end_time)
-
-        if not segments:
-            logger.error("DIARIZATION_NO_SEGMENTS", session_id=session_id)
-            return {
-                "status": "failed",
-                "error": "No completed segments found for diarization",
-            }
+        # Get primary language from chunks (most common language)
+        languages = [chunk.get("language", "unknown") for chunk in chunks if chunk.get("language")]
+        primary_language = max(set(languages), key=languages.count) if languages else "en"
 
         logger.info(
-            "SEGMENTS_PREPARED",
+            "METADATA_PREPARED",
             session_id=session_id,
-            segment_count=len(segments),
             total_duration=total_duration,
+            primary_language=primary_language,
         )
 
-        # 3. Run DiarizationService (with access to 3 transcription sources)
-        # TODO: Pass transcription_sources to DiarizationService for LLM analysis
-        # The LLM can compare:
-        # - webspeech_final: instant previews (may have errors)
-        # - transcription_per_chunks: high-quality Whisper per chunk
-        # - full_transcription: concatenated final
-        # And produce a curated, diarized transcript (PACIENTE vs MÉDICO)
+        # 5. Run DiarizationService with TRIPLE VISION (full_text + chunks + webspeech)
         diarization_service = DiarizationService()
 
         # Calculate audio hash (dummy for now, as we don't have audio file path)
         audio_hash = hashlib.sha256(f"{session_id}-audio".encode()).hexdigest()
 
-        diarization_result = diarization_service.diarize_segments(
+        # NEW: Use diarize_full_text() with TRIPLE VISION
+        # Qwen will intelligently segment and classify using 3 sources:
+        # - chunks: Timestamps (every 13s) with mixed speakers
+        # - full_transcription: Clean complete text
+        # - webspeech_final: Instant transcriptions (for pause detection)
+        diarization_result = diarization_service.diarize_full_text(
             session_id=session_id,
-            segments=segments,
-            audio_file_path=f"storage/audio/{session_id}/full.webm",  # Path where full audio should be
+            full_text=full_transcription,
+            chunks=chunks,
+            webspeech_final=webspeech_final,
+            audio_file_path=f"storage/audio/{session_id}/full.webm",
             audio_file_hash=audio_hash,
             duration_sec=total_duration,
-            language=transcription_job.primary_language,
+            language=primary_language,
         )
 
         logger.info(
@@ -165,9 +182,35 @@ def diarize_session_task(self, session_id: str) -> dict[str, Any]:
             processing_time=diarization_result.processing_time_sec,
         )
 
-        # 4. Save diarization result to HDF5
-        # TODO: Implement diarization result storage (similar to transcription chunks)
-        # For now, we'll store it in session metadata
+        # 4. Save diarization result to DIARIZATION task
+        ensure_task_exists(session_id, TaskType.DIARIZATION, allow_existing=True)
+
+        # 5. Save segments to HDF5
+        save_diarization_segments(
+            session_id=session_id,
+            segments=diarization_result.segments,
+            task_type=TaskType.DIARIZATION,
+        )
+
+        diarization_metadata = {
+            "job_id": self.request.id,
+            "status": TaskStatus.COMPLETED.value,
+            "progress_percent": 100,
+            "segment_count": len(diarization_result.segments),
+            "processing_time_sec": diarization_result.processing_time_sec,
+            "model_llm": diarization_result.model_llm,
+            "language": primary_language,
+            "audio_hash": audio_hash,
+            "duration_sec": total_duration,
+        }
+
+        update_task_metadata(session_id, TaskType.DIARIZATION, diarization_metadata)
+
+        logger.info(
+            "DIARIZATION_TASK_SAVED",
+            session_id=session_id,
+            path=f"/sessions/{session_id}/tasks/DIARIZATION",
+        )
 
         # 5. Update Session status to DIARIZED
         session_data = session_repo.read(session_id)

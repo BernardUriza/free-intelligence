@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import Any, Dict
 
 from backend.app.audit.sink import write_audit_event
-from backend.app.celery_app import celery_app
+from backend.app.celery import celery_app
 from backend.logger import get_logger
 
 logger = get_logger(__name__)

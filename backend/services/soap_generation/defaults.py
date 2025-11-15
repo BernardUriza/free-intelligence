@@ -14,29 +14,29 @@ __all__ = ["get_default_soap_structure"]
 def get_default_soap_structure() -> dict[str, Any]:
     """Return default empty SOAP structure.
 
-    Used as fallback when Ollama extraction fails or returns invalid JSON.
+    Used as fallback when LLM extraction fails or returns invalid JSON.
     Ensures graceful degradation with empty but valid structure.
 
     Returns:
-        Dictionary with SOAP structure (subjetivo, objetivo, analisis, plan)
+        Dictionary with SOAP structure (English field names - medical standard)
     """
     return {
-        "subjetivo": {
-            "motivo_consulta": "",
-            "historia_actual": "",
-            "antecedentes": "",
+        "subjective": {
+            "chief_complaint": "",
+            "history_present_illness": "",
+            "past_medical_history": "",
         },
-        "objetivo": {
-            "signos_vitales": "",
-            "examen_fisico": "",
+        "objective": {
+            "vital_signs": "",
+            "physical_exam": "",
         },
-        "analisis": {
-            "diagnosticos_diferenciales": [],
-            "diagnostico_principal": "",
+        "assessment": {
+            "differential_diagnoses": [],
+            "primary_diagnosis": "",
         },
         "plan": {
-            "tratamiento": "",
-            "seguimiento": "",
-            "estudios": [],
+            "treatment": "",
+            "follow_up": "",
+            "studies": [],
         },
     }

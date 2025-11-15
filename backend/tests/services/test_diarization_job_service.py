@@ -12,7 +12,7 @@ from pathlib import Path
 import h5py
 import pytest
 
-from backend.services.diarization.job_service import DiarizationJobService
+from backend.services.diarization.job_controller import DiarizationJobService
 
 
 def _write_scalar_job(h5_path: str, job_id: str, payload: dict) -> None:

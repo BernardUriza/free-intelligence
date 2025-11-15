@@ -6,10 +6,13 @@ handling type conversions and validation.
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any, Dict, Optional
+
 from pydantic import ValidationError
 
 from backend.logger import get_logger
-from backend.providers.fi_consult_models import (
+from backend.providers.models import (
     Analisis,
     Antecedentes,
     DiagnosticoDiferencial,
@@ -25,9 +28,6 @@ from backend.providers.fi_consult_models import (
     Subjetivo,
     UrgenciaTriaje,
 )
-
-from datetime import datetime
-from typing import Any, Dict, Optional
 
 __all__ = ["SOAPBuilder", "SOAPBuildError"]
 
@@ -122,10 +122,11 @@ class SOAPBuilder:
     @staticmethod
     def _build_subjetivo(soap_data: Dict[str, Any]) -> Subjetivo:
         """Build Subjetivo section."""
-        subjetivo_data = soap_data.get("subjetivo", {})
+        # Read English keys from JSON
+        subjetivo_data = soap_data.get("subjective", {})
 
-        # Parse antecedentes
-        antecedentes_raw = subjetivo_data.get("antecedentes", {})
+        # Parse antecedentes (past_medical_history)
+        antecedentes_raw = subjetivo_data.get("past_medical_history", {})
         if isinstance(antecedentes_raw, str):
             antecedentes_data = {"personales": [antecedentes_raw] if antecedentes_raw else []}
         else:
@@ -140,18 +141,19 @@ class SOAPBuilder:
         )
 
         return Subjetivo(
-            motivo_consulta=subjetivo_data.get("motivo_consulta", ""),
-            historia_actual=subjetivo_data.get("historia_actual", ""),
+            motivo_consulta=subjetivo_data.get("chief_complaint", ""),
+            historia_actual=subjetivo_data.get("history_present_illness", ""),
             antecedentes=antecedentes,
         )
 
     @staticmethod
     def _build_objetivo(soap_data: Dict[str, Any]) -> Objetivo:
         """Build Objetivo section."""
-        objetivo_data = soap_data.get("objetivo", {})
+        # Read English keys from JSON
+        objetivo_data = soap_data.get("objective", {})
 
-        # Parse signos vitales
-        signos_vitales_raw = objetivo_data.get("signos_vitales", {})
+        # Parse signos vitales (vital_signs)
+        signos_vitales_raw = objetivo_data.get("vital_signs", {})
         if isinstance(signos_vitales_raw, str):
             signos_vitales_data = {"presion_arterial": signos_vitales_raw or None}
         else:
@@ -168,8 +170,8 @@ class SOAPBuilder:
             peso=SOAPBuilder._to_float(signos_vitales_data.get("peso")),
         )
 
-        # Parse exploracion fisica
-        examen_fisico_raw = objetivo_data.get("examen_fisico", "")
+        # Parse exploracion fisica (physical_exam)
+        examen_fisico_raw = objetivo_data.get("physical_exam", "")
         exploracion_fisica = ExploracionFisica(
             aspecto=examen_fisico_raw or "Examen físico realizado",
             cabeza_cuello=objetivo_data.get("cabeza_cuello"),
@@ -190,10 +192,11 @@ class SOAPBuilder:
     @staticmethod
     def _build_analisis(soap_data: Dict[str, Any]) -> Analisis:
         """Build Analisis section."""
-        analisis_data = soap_data.get("analisis", {})
+        # Read English keys from JSON
+        analisis_data = soap_data.get("assessment", {})
 
-        # Build diagnostico principal
-        diagnostico_principal_raw = analisis_data.get("diagnostico_principal", "")
+        # Build diagnostico principal (primary_diagnosis)
+        diagnostico_principal_raw = analisis_data.get("primary_diagnosis", "")
         if isinstance(diagnostico_principal_raw, str):
             diagnostico_principal = DiagnosticoPrincipal(
                 condicion=diagnostico_principal_raw or "Diagnóstico pendiente",
@@ -205,8 +208,8 @@ class SOAPBuilder:
         else:
             diagnostico_principal = diagnostico_principal_raw
 
-        # Build diagnosticos diferenciales
-        diferenciales_raw = analisis_data.get("diagnosticos_diferenciales", [])
+        # Build diagnosticos diferenciales (differential_diagnoses)
+        diferenciales_raw = analisis_data.get("differential_diagnoses", [])
         diagnosticos_diferenciales = SOAPBuilder._build_diagnosticos_diferenciales(
             diferenciales_raw
         )
@@ -274,12 +277,13 @@ class SOAPBuilder:
     @staticmethod
     def _build_plan(soap_data: Dict[str, Any]) -> Plan:
         """Build Plan section."""
-        from backend.providers.fi_consult_models import Seguimiento
+        from backend.providers.models import Seguimiento
 
+        # Note: plan key is same in English
         plan_data = soap_data.get("plan", {})
 
-        # Parse seguimiento
-        seguimiento_raw = plan_data.get("seguimiento", {})
+        # Parse seguimiento (follow_up)
+        seguimiento_raw = plan_data.get("follow_up", {})
         if isinstance(seguimiento_raw, str):
             seguimiento = Seguimiento(
                 proxima_cita=seguimiento_raw or "A convenir",
