@@ -734,10 +734,38 @@ def create_empty_chunk(
             )
             return chunk_path
 
-        # Create empty chunk group
+        # Create chunk group
         chunk_group = chunks_group.create_group(f"chunk_{chunk_idx}")  # type: ignore[attr-defined]
 
-        # We'll add metadata later, for now just create the group
+        # Create placeholder datasets (will be updated by worker after transcription)
+        # These are required by get_task_chunks() function
+        chunk_group.create_dataset(  # type: ignore[union-attr]
+            "transcript",
+            data="",
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        chunk_group.create_dataset(  # type: ignore[union-attr]
+            "audio_hash",
+            data="",
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        chunk_group.create_dataset("duration", data=0.0, dtype="float64")  # type: ignore[union-attr]
+        chunk_group.create_dataset(  # type: ignore[union-attr]
+            "language",
+            data="",
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        chunk_group.create_dataset("timestamp_start", data=0.0, dtype="float64")  # type: ignore[union-attr]
+        chunk_group.create_dataset("timestamp_end", data=0.0, dtype="float64")  # type: ignore[union-attr]
+        chunk_group.create_dataset("confidence", data=0.0, dtype="float32")  # type: ignore[union-attr]
+        chunk_group.create_dataset("audio_quality", data=0.0, dtype="float32")  # type: ignore[union-attr]
+        chunk_group.create_dataset(  # type: ignore[union-attr]
+            "created_at",
+            data=datetime.now(UTC).isoformat(),
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        chunk_group.create_dataset("status", data="pending", dtype=h5py.string_dtype(encoding="utf-8"))  # type: ignore[union-attr]
+
         logger.info(
             "EMPTY_CHUNK_CREATED",
             session_id=session_id,
