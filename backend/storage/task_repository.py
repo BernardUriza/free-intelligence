@@ -30,9 +30,9 @@ Card: Architecture refactor - task-based HDF5
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import h5py
 
@@ -111,8 +111,8 @@ def ensure_task_exists(
         default_metadata = {
             "job_id": None,
             "status": TaskStatus.PENDING.value,
-            "created_at": datetime.now(UTC).isoformat(),
-            "updated_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
             "progress_percent": 0,
             "total_chunks": 0,
             "processed_chunks": 0,
@@ -229,7 +229,7 @@ def update_task_metadata(
 
         # Merge with new metadata
         existing_metadata.update(metadata)
-        existing_metadata["updated_at"] = datetime.now(UTC).isoformat()
+        existing_metadata["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         # Write back
         metadata_json = json.dumps(existing_metadata)
@@ -337,7 +337,7 @@ def append_chunk_to_task(
 
     task_path = f"/sessions/{session_id}/tasks/{task_type_str}"
     chunk_path = f"{task_path}/chunks/chunk_{chunk_idx}"
-    created_at = datetime.now(UTC).isoformat()
+    created_at = datetime.now(timezone.utc).isoformat()
 
     with h5py.File(CORPUS_PATH, "a") as f:
         task_group = f[task_path]  # type: ignore[index]
@@ -763,7 +763,7 @@ def create_empty_chunk(
         chunk_group.create_dataset("audio_quality", data=0.0, dtype="float32")  # type: ignore[union-attr]
         chunk_group.create_dataset(  # type: ignore[union-attr]
             "created_at",
-            data=datetime.now(UTC).isoformat(),
+            data=datetime.now(timezone.utc).isoformat(),
             dtype=h5py.string_dtype(encoding="utf-8"),
         )
         chunk_group.create_dataset(

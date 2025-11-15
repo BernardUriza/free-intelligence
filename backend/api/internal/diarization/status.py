@@ -53,7 +53,7 @@ class DiarizationStatusResponse(BaseModel):
 
 
 @router.get(
-    "/diarization/jobs/{job_id}",
+    "/jobs/{job_id}",
     response_model=DiarizationStatusResponse,
     status_code=status.HTTP_200_OK,
 )
