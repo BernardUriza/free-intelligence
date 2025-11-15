@@ -20,7 +20,7 @@ Card: Architecture unification
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
@@ -83,6 +83,7 @@ async def upload_chunk(
     audio: UploadFile = File(...),
     timestamp_start: Optional[float] = Form(None),
     timestamp_end: Optional[float] = Form(None),
+    stt_provider: Optional[str] = Form(None),
 ) -> ChunkUploadResponse:
     """Upload audio chunk for transcription.
 
@@ -94,6 +95,8 @@ async def upload_chunk(
         audio: Audio file (WebM/WAV/MP3)
         timestamp_start: Optional chunk start time
         timestamp_end: Optional chunk end time
+        stt_provider: Optional STT provider ("azure_whisper", "deepgram", "faster_whisper")
+                      If not provided, uses primary_provider from policy
 
     Returns:
         ChunkUploadResponse with job status
@@ -102,7 +105,7 @@ async def upload_chunk(
         1. Load or create TranscriptionJob
         2. Add ChunkMetadata (status="pending")
         3. Save to HDF5 (JobRepository)
-        4. Dispatch Celery task
+        4. Dispatch Celery task with STT provider
         5. Return 202 Accepted
     """
     try:
@@ -149,15 +152,27 @@ async def upload_chunk(
             total_chunks=metadata["total_chunks"],
         )
 
-        # 4. Dispatch Celery task (worker will write to HDF5)
+        # 4. Determine STT provider (from request or policy)
+        from backend.policy.policy_loader import get_policy_loader
+
+        if not stt_provider:
+            policy_loader = get_policy_loader()
+            stt_provider = policy_loader.get_primary_stt_provider()
+
+        logger.info(
+            "STT_PROVIDER_SELECTED",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            provider=stt_provider,
+        )
+
+        # 5. Dispatch Celery task (worker will write to HDF5)
         from backend.workers.transcription_tasks import transcribe_chunk_task
 
         task = transcribe_chunk_task.delay(  # type: ignore[attr-defined]
             session_id=session_id,
             chunk_number=chunk_number,
-            audio_bytes=audio_bytes,
-            timestamp_start=timestamp_start,
-            timestamp_end=timestamp_end,
+            stt_provider=stt_provider,
         )
 
         logger.info(
@@ -167,7 +182,7 @@ async def upload_chunk(
             task_id=task.id,
         )
 
-        # 5. Return 202 Accepted
+        # 6. Return 202 Accepted
         return ChunkUploadResponse(
             session_id=session_id,
             job_id=session_id,
@@ -244,8 +259,8 @@ async def get_transcription_job(session_id: str) -> TranscriptionJobResponse:
             processed_chunks=processed_chunks,
             progress_percent=progress_percent,
             chunks=chunks,  # type: ignore[arg-type]
-            created_at=metadata.get("created_at", datetime.now(UTC).isoformat()),
-            updated_at=metadata.get("updated_at", datetime.now(UTC).isoformat()),
+            created_at=metadata.get("created_at", datetime.now(timezone.utc).isoformat()),
+            updated_at=metadata.get("updated_at", datetime.now(timezone.utc).isoformat()),
         )
 
     except HTTPException:

@@ -46,20 +46,22 @@ def transcribe_chunk_task(
     self,
     session_id: str,
     chunk_number: int,
+    stt_provider: str = "faster_whisper",
 ) -> dict:
-    """Transcribe audio chunk using Whisper ASR.
+    """Transcribe audio chunk using configurable STT provider.
 
     This is a Celery task that:
     1. Ensures TRANSCRIPTION task exists
     2. Reads audio from HDF5 (already stored by service layer)
-    3. Converts audio to WAV
-    4. Runs Whisper transcription
+    3. Converts audio to WAV (if needed for local providers)
+    4. Runs transcription via selected STT provider (Azure, Deepgram, or Faster-Whisper)
     5. Writes chunk to HDF5 (tasks/TRANSCRIPTION/chunks/)
     6. Updates task metadata with progress
 
     Args:
         session_id: Session UUID
         chunk_number: Chunk index
+        stt_provider: Provider name ("azure_whisper", "deepgram", "faster_whisper")
 
     Returns:
         dict with transcript, duration, language, etc.
@@ -156,33 +158,69 @@ def transcribe_chunk_task(
             wav_size=wav_path.stat().st_size,
         )
 
-        # 5. Whisper transcription
-        from backend.services.transcription.whisper import transcribe_audio
+        # 5. STT Transcription via selected provider
+        from backend.providers.stt import get_stt_provider
 
-        result = transcribe_audio(str(wav_path), language=None, vad_filter=False)
+        logger.info(
+            "STT_PROVIDER_SELECTED",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            provider=stt_provider,
+        )
 
-        transcript = result.get("text", "").strip()
-        duration = result.get("duration", 0.0)
-        language = result.get("language", "unknown")
+        try:
+            provider = get_stt_provider(stt_provider)
+        except ValueError as e:
+            logger.error(
+                "STT_PROVIDER_INVALID",
+                session_id=session_id,
+                provider=stt_provider,
+                error=str(e),
+            )
+            # Fallback to faster_whisper
+            stt_provider = "faster_whisper"
+            provider = get_stt_provider(stt_provider)
 
-        # Extract confidence (avg_logprob normalized to 0-1)
-        avg_logprob = result.get("avg_logprob", -0.5)
-        confidence = max(0.0, min(1.0, 1.0 + (avg_logprob / 1.0)))
+        # Use WAV path for local provider, original audio for cloud providers
+        if stt_provider == "faster_whisper":
+            audio_input_path = wav_path
+        else:
+            # Cloud providers (Azure, Deepgram) work with webm/mp3
+            audio_input_path = audio_path
+
+        try:
+            stt_response = provider.transcribe(str(audio_input_path), language=None)
+
+            transcript = stt_response.text.strip()
+            duration = stt_response.duration
+            language = stt_response.language
+            confidence = stt_response.confidence
+
+            logger.info(
+                "STT_TRANSCRIPTION_DONE",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                provider=stt_provider,
+                transcript_length=len(transcript),
+                duration=duration,
+                language=language,
+                confidence=confidence,
+                latency_ms=stt_response.latency_ms,
+            )
+        except Exception as e:
+            logger.error(
+                "STT_TRANSCRIPTION_FAILED",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                provider=stt_provider,
+                error=str(e),
+            )
+            raise
 
         # Calculate audio quality heuristic
         words_count = len(transcript.split())
         words_per_second = words_count / duration if duration > 0 else 0
         audio_quality = max(0.5, min(1.0, words_per_second / 2.5))
-
-        logger.info(
-            "WHISPER_DONE",
-            session_id=session_id,
-            chunk_number=chunk_number,
-            transcript_length=len(transcript),
-            duration=duration,
-            language=language,
-            confidence=confidence,
-        )
 
         # 6. Write chunk to HDF5 (tasks/TRANSCRIPTION/chunks/)
         if len(transcript) > 0:
