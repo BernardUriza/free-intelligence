@@ -165,15 +165,16 @@ class TranscriptionService:
         )
 
         # 5. Dispatch Celery worker (with REFERENCES ONLY, no large audio blobs!)
-        # Use Deepgram instead of Whisper for faster, cloud-based transcription
-        from backend.workers.deepgram_transcription_task import (
-            deepgram_transcribe_chunk,
-        )
+        # Use configurable STT provider (set via AURITY_ASR_PROVIDER env var)
+        import os
 
-        task = deepgram_transcribe_chunk.delay(  # type: ignore[attr-defined]
+        from backend.workers.transcription_tasks import transcribe_chunk_task
+
+        stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "faster_whisper")
+        task = transcribe_chunk_task.delay(  # type: ignore[attr-defined]
             session_id=session_id,
             chunk_number=chunk_number,
-            language="es",  # Default to Spanish; can be made configurable
+            stt_provider=stt_provider,
             # IMPORTANT: Only send references, not audio_bytes!
             # Audio is already in HDF5, worker will read from there
         )

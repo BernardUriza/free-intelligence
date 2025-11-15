@@ -41,7 +41,7 @@ services:
         condition: service_healthy
     environment:
       # Deepgram (Primary STT Provider)
-      - DEEPGRAM_API_KEY=1458d348587ba229dbd33e254f9fe9c534978b1f
+      - DEEPGRAM_API_KEY=b219fefcb2407f36a4b064ef49ffa48ae83f19d0
       # Redis
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -87,7 +87,7 @@ services:
         condition: service_started
     environment:
       # Deepgram (Primary STT Provider)
-      - DEEPGRAM_API_KEY=1458d348587ba229dbd33e254f9fe9c534978b1f
+      - DEEPGRAM_API_KEY=b219fefcb2407f36a4b064ef49ffa48ae83f19d0
       # Redis
       - REDIS_HOST=redis
       - REDIS_PORT=6379
