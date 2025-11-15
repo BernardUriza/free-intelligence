@@ -63,9 +63,10 @@ class TranscriptionService:
         Business logic:
         1. Validate input
         2. Ensure TRANSCRIPTION task exists
-        3. Update metadata
-        4. Dispatch Celery worker
-        5. Return processing result
+        3. Store audio in HDF5 (NOT in Celery message!)
+        4. Update metadata
+        5. Dispatch Celery worker (with references only)
+        6. Return processing result
 
         Args:
             session_id: Session UUID
@@ -102,7 +103,44 @@ class TranscriptionService:
             allow_existing=True,
         )
 
-        # 3. Update metadata
+        # 3. Store audio in HDF5 FIRST (before Celery dispatch)
+        # This avoids serializing large binary blobs through Redis
+        from backend.storage.task_repository import (
+            add_audio_to_chunk,
+            create_empty_chunk,
+        )
+
+        try:
+            # First, create empty chunk structure
+            create_empty_chunk(
+                session_id=session_id,
+                task_type=TaskType.TRANSCRIPTION,
+                chunk_idx=chunk_number,
+            )
+
+            # Then add audio to it
+            add_audio_to_chunk(
+                session_id=session_id,
+                task_type=TaskType.TRANSCRIPTION,
+                chunk_idx=chunk_number,
+                audio_bytes=audio_bytes,
+            )
+            logger.info(
+                "AUDIO_STORED_IN_HDF5",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                audio_size=audio_size,
+            )
+        except Exception as e:
+            logger.error(
+                "AUDIO_STORAGE_FAILED",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                error=str(e),
+            )
+            raise
+
+        # 4. Update metadata
         metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
         if not metadata:
             metadata = {
@@ -126,15 +164,14 @@ class TranscriptionService:
             total_chunks=metadata["total_chunks"],
         )
 
-        # 4. Dispatch Celery worker
+        # 5. Dispatch Celery worker (with REFERENCES ONLY, no large audio blobs!)
         from backend.workers.transcription_tasks import transcribe_chunk_task
 
         task = transcribe_chunk_task.delay(  # type: ignore[attr-defined]
             session_id=session_id,
             chunk_number=chunk_number,
-            audio_bytes=audio_bytes,
-            timestamp_start=timestamp_start,
-            timestamp_end=timestamp_end,
+            # IMPORTANT: Only send references, not audio_bytes!
+            # Audio is already in HDF5, worker will read from there
         )
 
         logger.info(
@@ -144,7 +181,7 @@ class TranscriptionService:
             task_id=task.id,
         )
 
-        # 5. Return result
+        # 6. Return result
         return ChunkProcessingResult(
             session_id=session_id,
             chunk_number=chunk_number,

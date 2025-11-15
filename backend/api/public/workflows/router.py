@@ -28,6 +28,8 @@ Refactored: 2025-11-14 (Clean Architecture with Service Layer)
 
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -77,8 +79,8 @@ async def stream_chunk(
     session_id: str = Form(...),
     chunk_number: int = Form(...),
     audio: UploadFile = File(...),  # noqa: B008
-    timestamp_start: float | None = Form(None),
-    timestamp_end: float | None = Form(None),
+    timestamp_start: Optional[float] = Form(None),
+    timestamp_end: Optional[float] = Form(None),
     service: TranscriptionService = Depends(get_transcription_service),
 ) -> StreamChunkResponse:
     """Upload audio chunk for transcription (orchestrator).

@@ -246,7 +246,7 @@ class DiarizationService:
         start_time = time.time()
 
         logger.info(
-            "DIARIZATION_FULL_TEXT_START",
+            "🎬 [SERVICE] DIARIZATION_FULL_TEXT_START",
             session_id=session_id,
             text_length=len(full_text),
             chunk_count=len(chunks) if chunks else 0,
@@ -255,28 +255,51 @@ class DiarizationService:
         )
 
         # Detect language from first chunk (using Ollama/Qwen - optional)
+        logger.info("📦 [SERVICE] Importing llm_diarizer module...", session_id=session_id)
         from backend.services.diarization.llm_diarizer import (
             detect_language,
             diarize_with_claude,
         )
 
+        logger.info("✅ [SERVICE] llm_diarizer imported successfully", session_id=session_id)
+
         if chunks and chunks[0].get("transcript"):
             try:
+                logger.info(
+                    "🌍 [SERVICE] Detecting language from first chunk...", session_id=session_id
+                )
                 detected_language = detect_language(chunks[0]["transcript"])
                 logger.info(
-                    "LANGUAGE_AUTO_DETECTED", from_first_chunk=True, language=detected_language
+                    "✅ [SERVICE] LANGUAGE_AUTO_DETECTED",
+                    from_first_chunk=True,
+                    language=detected_language,
+                    session_id=session_id,
                 )
                 language = detected_language  # Override param with detected language
             except Exception as e:
                 logger.warning(
-                    "LANGUAGE_DETECTION_FAILED_USING_DEFAULT",
+                    "⚠️ [SERVICE] LANGUAGE_DETECTION_FAILED_USING_DEFAULT",
                     error=str(e),
                     default_language=language,
+                    session_id=session_id,
                 )
                 # Continue with provided language parameter
 
         # Call Claude to diarize with TRIPLE VISION
+        logger.info(
+            "🚀 [SERVICE] Calling diarize_with_claude (TRIPLE VISION)...",
+            session_id=session_id,
+            text_length=len(full_text),
+            chunk_count=len(chunks) if chunks else 0,
+        )
+
         segments = diarize_with_claude(full_text, chunks, webspeech_final, language)
+
+        logger.info(
+            "✅ [SERVICE] diarize_with_claude returned",
+            session_id=session_id,
+            segment_count=len(segments),
+        )
 
         processing_time = time.time() - start_time
 

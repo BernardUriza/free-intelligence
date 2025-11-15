@@ -154,16 +154,32 @@ def diarize_session_task(self, session_id: str) -> dict[str, Any]:
         )
 
         # 5. Run DiarizationService with TRIPLE VISION (full_text + chunks + webspeech)
+        logger.info("🔧 [WORKER] Initializing DiarizationService...", session_id=session_id)
         diarization_service = DiarizationService()
 
         # Calculate audio hash (dummy for now, as we don't have audio file path)
         audio_hash = hashlib.sha256(f"{session_id}-audio".encode()).hexdigest()
+
+        logger.info(
+            "🚀 [WORKER] Calling diarize_full_text with TRIPLE VISION",
+            session_id=session_id,
+            full_text_length=len(full_transcription),
+            chunks_count=len(chunks),
+            webspeech_count=len(webspeech_final) if webspeech_final else 0,
+            duration_sec=total_duration,
+            language=primary_language,
+        )
 
         # NEW: Use diarize_full_text() with TRIPLE VISION
         # Qwen will intelligently segment and classify using 3 sources:
         # - chunks: Timestamps (every 13s) with mixed speakers
         # - full_transcription: Clean complete text
         # - webspeech_final: Instant transcriptions (for pause detection)
+        logger.info(
+            "⏳ [WORKER] This will call Claude API and may take 10-60 seconds...",
+            session_id=session_id,
+        )
+
         diarization_result = diarization_service.diarize_full_text(
             session_id=session_id,
             full_text=full_transcription,
@@ -176,7 +192,7 @@ def diarize_session_task(self, session_id: str) -> dict[str, Any]:
         )
 
         logger.info(
-            "DIARIZATION_COMPLETED",
+            "✅ [WORKER] DIARIZATION_COMPLETED",
             session_id=session_id,
             segment_count=len(diarization_result.segments),
             processing_time=diarization_result.processing_time_sec,

@@ -28,6 +28,36 @@ echo -e "${CYAN}Free Intelligence - Development Mode${NC}"
 echo "=========================================="
 echo ""
 
+# STEP 0: Nuclear cleanup of existing processes
+cleanup_existing() {
+    echo -e "${BLUE}[0/5]${NC} Cleaning up existing processes..."
+
+    # Run the nuclear cleanup script
+    if [ -f "$PROJECT_ROOT/scripts/kill-all-fi.sh" ]; then
+        "$PROJECT_ROOT/scripts/kill-all-fi.sh" 2>/dev/null || true
+    else
+        # Fallback: manual cleanup
+        echo -e "${YELLOW}   Warning: kill-all-fi.sh not found, doing manual cleanup...${NC}"
+        lsof -ti:7001,9000,9050,11434 2>/dev/null | xargs kill -9 2>/dev/null || true
+        pgrep -f "uvicorn.*main:app" | xargs kill -9 2>/dev/null || true
+        pgrep -f "next.*dev.*-p 9000" | xargs kill -9 2>/dev/null || true
+        pgrep -f "pnpm.*dev" | xargs kill -9 2>/dev/null || true
+    fi
+
+    # Stop Docker if running
+    if command -v docker &> /dev/null; then
+        if docker compose version &> /dev/null 2>&1; then
+            DOCKER_COMPOSE="docker compose"
+        else
+            DOCKER_COMPOSE="docker-compose"
+        fi
+        $DOCKER_COMPOSE -f docker/docker-compose.full.yml down 2>/dev/null || true
+    fi
+
+    echo -e "   ${GREEN}✓${NC} Cleanup complete"
+    echo ""
+}
+
 # Check prerequisites
 check_prereqs() {
     echo -e "${BLUE}[1/4]${NC} Checking prerequisites..."
@@ -131,16 +161,72 @@ start_docker() {
 
     # Check if docker is available
     if ! command -v docker &> /dev/null; then
-        echo -e "   ${YELLOW}⚠️  Docker not found - skipping Docker stack${NC}"
+        echo -e "   ${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "   ${RED}❌ FATAL: Docker not found${NC}"
+        echo -e "   ${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         echo ""
-        return
+        echo -e "   ${YELLOW}Docker is REQUIRED for Free Intelligence${NC}"
+        echo ""
+        echo -e "   ${CYAN}Install Docker Desktop:${NC}"
+        echo "   → https://www.docker.com/products/docker-desktop"
+        echo ""
+        exit 1
+    fi
+
+    # Check if Docker daemon is running and responsive
+    if ! docker version --format '{{.Server.Version}}' &> /dev/null; then
+        echo -e "   ${YELLOW}⚠️  Docker daemon is NOT responding${NC}"
+        echo -e "   ${CYAN}Attempting automatic restart...${NC}"
+        echo ""
+
+        # Kill Docker Desktop
+        echo -e "   ${YELLOW}Stopping Docker Desktop...${NC}"
+        killall "Docker Desktop" 2>/dev/null || osascript -e 'quit app "Docker"' 2>/dev/null || true
+        sleep 3
+
+        # Start Docker Desktop
+        echo -e "   ${CYAN}Starting Docker Desktop...${NC}"
+        open -a Docker
+
+        # Wait for daemon to be ready (max 60 seconds)
+        echo -n "   Waiting for Docker daemon to be ready"
+        for i in {1..60}; do
+            if docker version --format '{{.Server.Version}}' &> /dev/null; then
+                echo ""
+                echo -e "   ${GREEN}✓${NC} Docker daemon is ready"
+                break
+            fi
+            echo -n "."
+            sleep 1
+        done
+
+        # Final check
+        if ! docker version --format '{{.Server.Version}}' &> /dev/null; then
+            echo ""
+            echo -e "   ${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "   ${RED}❌ FATAL: Docker daemon failed to start after 60s${NC}"
+            echo -e "   ${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo ""
+            echo -e "   ${YELLOW}Manual intervention required:${NC}"
+            echo "   1. Check Docker Desktop in Applications"
+            echo "   2. Look for error messages in Docker Desktop UI"
+            echo "   3. Try restarting your Mac if problem persists"
+            echo ""
+            exit 1
+        fi
+        echo ""
     fi
 
     # Check if docker-compose is available
     if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null 2>&1; then
-        echo -e "   ${YELLOW}⚠️  docker-compose not found - skipping Docker stack${NC}"
+        echo -e "   ${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "   ${RED}❌ FATAL: docker-compose not found${NC}"
+        echo -e "   ${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         echo ""
-        return
+        echo -e "   ${YELLOW}Docker Compose is REQUIRED${NC}"
+        echo "   Reinstall Docker Desktop (includes Compose)"
+        echo ""
+        exit 1
     fi
 
     # Use 'docker compose' (v2) if available, fallback to 'docker-compose' (v1)
@@ -151,6 +237,7 @@ start_docker() {
     fi
 
     # Start Full Stack (Redis + Backend + Celery Worker + Flower)
+    export DOCKER_MODE=true
     echo "   Starting Full Docker Stack (Redis + Backend + Workers + Flower)..."
     $DOCKER_COMPOSE -f docker/docker-compose.full.yml up -d --build
 
@@ -199,18 +286,23 @@ cleanup() {
 
     # Kill Frontend process
     if [ -n "$FRONTEND_PID" ]; then
+        echo -e "${YELLOW}Stopping frontend (PID $FRONTEND_PID)...${NC}"
         kill $FRONTEND_PID 2>/dev/null || true
+        sleep 1
+        kill -9 $FRONTEND_PID 2>/dev/null || true
     fi
     if [ -n "$STRIDE_PID" ]; then
         kill $STRIDE_PID 2>/dev/null || true
     fi
 
-    # Kill any remaining node processes on our ports
+    # Nuclear port cleanup (ensure no zombies)
+    echo -e "${YELLOW}Cleaning up ports 7001, 9000, 9050...${NC}"
+    lsof -ti:7001 | xargs kill -9 2>/dev/null || true
     lsof -ti:9000 | xargs kill -9 2>/dev/null || true
     lsof -ti:9050 | xargs kill -9 2>/dev/null || true
 
     # Stop Docker services (Full Stack)
-    if command -v docker &> /dev/null; then
+    if command -v docker &> /dev/null && docker ps &> /dev/null; then
         echo -e "${YELLOW}Stopping Docker stack...${NC}"
         if docker compose version &> /dev/null 2>&1; then
             DOCKER_COMPOSE="docker compose"
@@ -354,6 +446,7 @@ monitor_logs() {
 
 # Main execution
 main() {
+    cleanup_existing  # NEW: Always clean first
     check_prereqs
     install_deps
     init_storage
