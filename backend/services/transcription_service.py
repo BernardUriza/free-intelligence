@@ -21,7 +21,6 @@ from backend.storage.task_repository import (
     ensure_task_exists,
     get_task_chunks,
     get_task_metadata,
-    update_task_metadata,
 )
 
 logger = get_logger(__name__)
@@ -122,144 +121,94 @@ class TranscriptionService:
             session_id=session_id,
         )
 
-        # 3. Store audio in HDF5 FIRST (before worker dispatch)
-        # This avoids serializing large binary blobs through Redis/Celery
-        from backend.storage.task_repository import (
-            add_audio_to_chunk,
-            create_empty_chunk,
+        # 3. Transcribe FIRST (append-only: everything happens before HDF5 write)
+        import hashlib
+        import os
+        import tempfile
+
+        from backend.models.task_type import CHUNK_DURATION_SECONDS
+        from backend.providers.stt import get_stt_provider
+        from backend.storage.task_repository import append_chunk_to_task
+
+        stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "deepgram")
+
+        logger.info(
+            "STARTING_TRANSCRIPTION",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            provider=stt_provider,
+            audio_size=audio_size,
         )
 
+        # Save audio to temp file for STT provider
+        # Try to detect format from magic bytes (fallback to .webm)
+        audio_hash = hashlib.sha256(audio_bytes).hexdigest()
+        if audio_bytes[:3] == b"ID3" or audio_bytes[:2] == b"\xff\xfb":
+            suffix = ".mp3"
+        elif audio_bytes[:4] == b"RIFF":
+            suffix = ".wav"
+        elif audio_bytes[:4] == b"\x1a\x45\xdf\xa3":
+            suffix = ".webm"
+        else:
+            suffix = ".webm"  # Default for browser MediaRecorder
+
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(audio_bytes)
+            tmp_path = tmp.name
+
         try:
-            logger.debug(
-                "CREATING_EMPTY_CHUNK",
+            # Transcribe with configured provider (Deepgram, Azure Whisper, etc.)
+            provider = get_stt_provider(stt_provider)
+            stt_response = provider.transcribe(tmp_path, language="es")
+
+            logger.info(
+                "TRANSCRIPTION_COMPLETE",
                 session_id=session_id,
                 chunk_number=chunk_number,
+                transcript_length=len(stt_response.text),
+                latency_ms=stt_response.latency_ms,
             )
-            # First, create empty chunk structure
-            create_empty_chunk(
+
+            # Calculate timestamps
+            timestamp_start = chunk_number * CHUNK_DURATION_SECONDS
+            timestamp_end = timestamp_start + stt_response.duration
+
+            # 4. NOW save everything to HDF5 in one append-only operation
+            append_chunk_to_task(
                 session_id=session_id,
                 task_type=TaskType.TRANSCRIPTION,
                 chunk_idx=chunk_number,
-            )
-            logger.debug(
-                "EMPTY_CHUNK_CREATED",
-                session_id=session_id,
-                chunk_number=chunk_number,
+                transcript=stt_response.text,
+                audio_hash=audio_hash,
+                duration=stt_response.duration,
+                language=stt_response.language,
+                timestamp_start=timestamp_start,
+                timestamp_end=timestamp_end,
+                confidence=stt_response.confidence,
+                audio_quality=0.9,  # Default
             )
 
-            logger.debug(
-                "ADDING_AUDIO_TO_CHUNK",
-                session_id=session_id,
-                chunk_number=chunk_number,
-                audio_size=audio_size,
-            )
-            # Then add audio to it
+            # Also save the audio file to HDF5 (colocated with transcript)
+            from backend.storage.task_repository import add_audio_to_chunk
+
             add_audio_to_chunk(
                 session_id=session_id,
                 task_type=TaskType.TRANSCRIPTION,
                 chunk_idx=chunk_number,
                 audio_bytes=audio_bytes,
             )
+
             logger.info(
-                "AUDIO_STORED_IN_HDF5",
+                "CHUNK_SAVED_TO_HDF5",
                 session_id=session_id,
                 chunk_number=chunk_number,
-                audio_size=audio_size,
-            )
-        except Exception as e:
-            logger.error(
-                "AUDIO_STORAGE_FAILED",
-                session_id=session_id,
-                chunk_number=chunk_number,
-                error=str(e),
-                error_type=type(e).__name__,
-                exc_info=True,
-            )
-            raise
-
-        # 4. Update metadata
-        logger.debug(
-            "FETCHING_TASK_METADATA",
-            session_id=session_id,
-        )
-        metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
-        if not metadata:
-            metadata = {
-                "job_id": session_id,
-                "total_chunks": 0,
-                "processed_chunks": 0,
-            }
-            logger.debug(
-                "CREATED_DEFAULT_METADATA",
-                session_id=session_id,
+                transcript_length=len(stt_response.text),
             )
 
-        # Check if this is a new chunk
-        logger.debug(
-            "CHECKING_EXISTING_CHUNKS",
-            session_id=session_id,
-        )
-        existing_chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
-        chunk_numbers = {c.get("chunk_number", -1) for c in existing_chunks}
-        logger.debug(
-            "EXISTING_CHUNKS",
-            session_id=session_id,
-            existing_chunk_numbers=sorted(chunk_numbers),
-            total_existing=len(chunk_numbers),
-        )
-
-        if chunk_number not in chunk_numbers:
-            metadata["total_chunks"] = metadata.get("total_chunks", 0) + 1
-            logger.debug(
-                "INCREMENTING_TOTAL_CHUNKS",
-                session_id=session_id,
-                new_total_chunks=metadata["total_chunks"],
-            )
-            update_task_metadata(session_id, TaskType.TRANSCRIPTION, metadata)
-            logger.debug(
-                "METADATA_UPDATED",
-                session_id=session_id,
-            )
-        else:
-            logger.debug(
-                "CHUNK_ALREADY_EXISTS",
-                session_id=session_id,
-                chunk_number=chunk_number,
-            )
-
-        logger.info(
-            "TASK_METADATA_UPDATED",
-            session_id=session_id,
-            chunk_number=chunk_number,
-            total_chunks=metadata["total_chunks"],
-            processed_chunks=metadata.get("processed_chunks", 0),
-        )
-
-        # 5. Dispatch sync worker in background thread via global executor
-        # Use configurable STT provider (set via AURITY_ASR_PROVIDER env var)
-        import os
-
-        from backend.workers.executor_pool import spawn_worker
-        from backend.workers.sync_workers import transcribe_chunk_worker
-
-        stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "deepgram")
-
-        logger.info(
-            "DISPATCHING_WORKER",
-            session_id=session_id,
-            chunk_number=chunk_number,
-            provider=stt_provider,
-        )
-
-        # Spawn worker via global executor (fire-and-forget)
-        spawn_worker(
-            transcribe_chunk_worker,
-            session_id=session_id,
-            chunk_number=chunk_number,
-            stt_provider=stt_provider,
-            # IMPORTANT: Only send references, not audio_bytes!
-            # Audio is already in HDF5, worker will read from there
-        )
+        finally:
+            # Cleanup temp file
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
         logger.info(
             "WORKER_SPAWNED",
@@ -268,14 +217,15 @@ class TranscriptionService:
             provider=stt_provider,
         )
 
-        # 6. Return result (use session_id as job identifier, no Celery task.id)
+        # 6. Get updated metadata and return result
+        metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
         elapsed = time.time() - start_time
         result = ChunkProcessingResult(
             session_id=session_id,
             chunk_number=chunk_number,
             task_id=session_id,  # Use session_id since we use ThreadPoolExecutor now
             status="pending",
-            total_chunks=metadata["total_chunks"],
+            total_chunks=metadata.get("total_chunks", 0),
             processed_chunks=metadata.get("processed_chunks", 0),
         )
 
