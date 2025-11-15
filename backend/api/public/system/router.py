@@ -8,7 +8,7 @@ Reorganized: 2025-11-08 (moved from backend/api/system.py)
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from fastapi import APIRouter
@@ -65,7 +65,7 @@ async def get_system_health() -> SystemHealthResponse:
             ok=health_data["ok"],
             services=health_data["services"],
             version="v0.3.0",
-            time=datetime.now(UTC).isoformat() + "Z",
+            time=datetime.now(timezone.utc).isoformat() + "Z",
         )
     except Exception as e:
         logger.error(f"SYSTEM_HEALTH_FAILED: {e!s}")
@@ -74,5 +74,5 @@ async def get_system_health() -> SystemHealthResponse:
             ok=False,
             services={"error": str(e)},
             version="v0.3.0",
-            time=datetime.now(UTC).isoformat() + "Z",
+            time=datetime.now(timezone.utc).isoformat() + "Z",
         )

@@ -9,7 +9,7 @@ Created: 2025-11-09
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from backend.app.audit.sink import write_audit_event
@@ -78,7 +78,7 @@ def example_async_operation(self: Any, data: Dict[str, Any]) -> dict[str, Any]:
     logger.info("ASYNC_OPERATION_STARTED", task_id=self.request.id, data=data)
 
     # Placeholder for actual work
-    result = {"processed_at": datetime.now(UTC).isoformat(), "status": "SUCCESS"}
+    result = {"processed_at": datetime.now(timezone.utc).isoformat(), "status": "SUCCESS"}
 
     logger.info("ASYNC_OPERATION_COMPLETED", task_id=self.request.id, result=result)
     return result

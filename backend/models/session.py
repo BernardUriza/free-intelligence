@@ -20,7 +20,7 @@ Created: 2025-11-14
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -76,7 +76,7 @@ class Session:
         Returns:
             Session instance
         """
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         return cls(
             session_id=session_id,
             status=SessionStatus.ACTIVE,
@@ -92,7 +92,7 @@ class Session:
         """
         self.status = SessionStatus.FINALIZED
         self.encryption_metadata = encryption_metadata
-        self.finalized_at = datetime.now(UTC).isoformat()
+        self.finalized_at = datetime.now(timezone.utc).isoformat()
         self.updated_at = self.finalized_at
 
     def mark_diarized(self, diarization_job_id: str) -> None:
@@ -103,13 +103,13 @@ class Session:
         """
         self.status = SessionStatus.DIARIZED
         self.diarization_job_id = diarization_job_id
-        self.diarized_at = datetime.now(UTC).isoformat()
+        self.diarized_at = datetime.now(timezone.utc).isoformat()
         self.updated_at = self.diarized_at
 
     def mark_reviewed(self) -> None:
         """Mark session as reviewed (human approved)."""
         self.status = SessionStatus.REVIEWED
-        self.reviewed_at = datetime.now(UTC).isoformat()
+        self.reviewed_at = datetime.now(timezone.utc).isoformat()
         self.updated_at = self.reviewed_at
 
     def mark_completed(self, soap_note_path: str) -> None:
@@ -120,7 +120,7 @@ class Session:
         """
         self.status = SessionStatus.COMPLETED
         self.soap_note_path = soap_note_path
-        self.completed_at = datetime.now(UTC).isoformat()
+        self.completed_at = datetime.now(timezone.utc).isoformat()
         self.updated_at = self.completed_at
 
     def to_dict(self) -> dict[str, Any]:
