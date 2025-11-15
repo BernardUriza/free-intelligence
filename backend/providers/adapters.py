@@ -15,7 +15,7 @@ Purpose:
   - Validates Redux actions before creating events
 
 Usage:
-  from backend.providers.adapters_redux import ReduxAdapter
+  from backend.providers.adapters import ReduxAdapter
 
   adapter = ReduxAdapter()
   event = adapter.translate_action(redux_action, consultation_id, user_id)
@@ -27,11 +27,7 @@ from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from backend.logger import get_logger
-from backend.providers.fi_consult_models import (
-    ConsultationEvent,
-    EventMetadata,
-    EventType,
-)
+from backend.providers.models import ConsultationEvent, EventMetadata, EventType
 
 logger = get_logger(__name__)
 

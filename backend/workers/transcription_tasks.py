@@ -2,15 +2,21 @@
 
 WORKER layer:
 - Processes audio chunks with Whisper ASR
-- Dual write to HDF5 (production + ml_ready)
-- Updates TranscriptionJob with results
+- Writes to task-based HDF5 (tasks/TRANSCRIPTION/)
+- Updates task metadata with progress
 
 Architecture:
   PUBLIC → INTERNAL → WORKER (this file)
 
+Migration notes:
+  - NOW USES: backend.storage.task_repository (NEW task-based API)
+  - DEPRECATED: backend.repositories.job_repository
+  - DEPRECATED: backend.storage.session_chunks_schema
+
 Author: Bernard Uriza Orozco
 Created: 2025-11-14
-Card: Architecture unification
+Updated: 2025-11-14 (task-based refactor)
+Card: Architecture refactor - task-based HDF5
 """
 
 from __future__ import annotations
@@ -19,13 +25,18 @@ import hashlib
 import subprocess
 import tempfile
 import time
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
 from backend.logger import get_logger
-from backend.models import JobType, TranscriptionJob
-from backend.repositories import job_repository
+from backend.models.task_type import TaskStatus, TaskType
+from backend.storage.task_repository import (
+    add_audio_to_chunk,
+    append_chunk_to_task,
+    ensure_task_exists,
+    get_task_metadata,
+    update_task_metadata,
+)
 from backend.workers.celery_app import celery_app
 
 logger = get_logger(__name__)
@@ -43,13 +54,11 @@ def transcribe_chunk_task(
     """Transcribe audio chunk using Whisper ASR.
 
     This is a Celery task that:
-    1. Loads TranscriptionJob from HDF5
-    2. Marks chunk as "processing"
-    3. Converts audio to WAV
-    4. Runs Whisper transcription
-    5. Dual write to HDF5 (production + ml_ready)
-    6. Marks chunk as "completed" with results
-    7. Updates job progress
+    1. Ensures TRANSCRIPTION task exists
+    2. Converts audio to WAV
+    3. Runs Whisper transcription
+    4. Writes chunk to HDF5 (tasks/TRANSCRIPTION/chunks/)
+    5. Updates task metadata with progress
 
     Args:
         session_id: Session UUID
@@ -75,24 +84,19 @@ def transcribe_chunk_task(
             audio_size=len(audio_bytes),
         )
 
-        # 1. Load job from HDF5
-        job = job_repository.load(
-            job_id=session_id,
-            session_id=session_id,
-            job_type=JobType.TRANSCRIPTION,
-            job_class=TranscriptionJob,
-        )
+        # 1. Ensure TRANSCRIPTION task exists
+        ensure_task_exists(session_id, TaskType.TRANSCRIPTION, allow_existing=True)
 
-        if not job:
-            error_msg = f"TranscriptionJob not found for session {session_id}"
-            logger.error("JOB_NOT_FOUND", session_id=session_id)
-            raise ValueError(error_msg)
-
-        # 2. Mark chunk as processing
-        chunk = job.get_chunk(chunk_number)
-        if chunk:
-            chunk.status = "processing"
-            job_repository.save(job)
+        # 2. Get current task metadata
+        task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
+        if not task_metadata:
+            task_metadata = {
+                "job_id": self.request.id,
+                "status": TaskStatus.PENDING.value,
+                "progress_percent": 0,
+                "total_chunks": 0,
+                "processed_chunks": 0,
+            }
 
         # 3. Save audio to temp file
         audio_hash = hashlib.sha256(audio_bytes).hexdigest()[:16]
@@ -168,20 +172,17 @@ def transcribe_chunk_task(
             confidence=confidence,
         )
 
-        # 6. Dual write to HDF5 (if transcript not empty)
+        # 6. Write chunk to HDF5 (tasks/TRANSCRIPTION/chunks/)
         if len(transcript) > 0:
-            from backend.storage.session_chunks_schema import append_chunk_to_session
-
             # Calculate timestamps
             if timestamp_start is None:
                 timestamp_start = chunk_number * 3.0
             if timestamp_end is None:
                 timestamp_end = timestamp_start + duration
 
-            created_at = datetime.now(UTC).isoformat()
-
-            append_chunk_to_session(
+            append_chunk_to_task(
                 session_id=session_id,
+                task_type=TaskType.TRANSCRIPTION,
                 chunk_idx=chunk_number,
                 transcript=transcript,
                 audio_hash=audio_hash,
@@ -194,38 +195,63 @@ def transcribe_chunk_task(
             )
 
             logger.info(
-                "HDF5_DUAL_WRITE_DONE",
+                "HDF5_CHUNK_WRITTEN",
                 session_id=session_id,
                 chunk_number=chunk_number,
+                path=f"/sessions/{session_id}/tasks/TRANSCRIPTION/chunks/chunk_{chunk_number}",
             )
 
-            # 7. Mark chunk completed in job
-            job = job_repository.load(
-                job_id=session_id,
-                session_id=session_id,
-                job_type=JobType.TRANSCRIPTION,
-                job_class=TranscriptionJob,
-            )
+            # 7. Save audio file alongside transcript (NEW: audio + transcript colocated)
+            try:
+                # Determine audio extension from original file
+                audio_ext = audio_path.suffix if audio_path.suffix else ".webm"
+                audio_filename = f"audio{audio_ext}"
 
-            if job:
-                job.mark_chunk_completed(
-                    chunk_number=chunk_number,
-                    transcript=transcript,
-                    duration=duration,
-                    language=language,
-                    audio_hash=audio_hash,
-                    confidence=confidence,
-                    audio_quality=audio_quality,
-                    timestamp_start=timestamp_start,
-                    timestamp_end=timestamp_end,
-                    created_at=created_at,
+                add_audio_to_chunk(
+                    session_id=session_id,
+                    chunk_idx=chunk_number,
+                    audio_bytes=audio_bytes,
+                    filename=audio_filename,
+                    task_type=TaskType.TRANSCRIPTION,
                 )
 
-                # Update job status to in_progress
-                if job.status.value == "pending":
-                    job.start()
+                logger.info(
+                    "CHUNK_AUDIO_SAVED",
+                    session_id=session_id,
+                    chunk_number=chunk_number,
+                    filename=audio_filename,
+                    size_bytes=len(audio_bytes),
+                )
+            except Exception as audio_err:
+                # Don't fail the entire task if audio save fails
+                logger.error(
+                    "CHUNK_AUDIO_SAVE_FAILED",
+                    session_id=session_id,
+                    chunk_number=chunk_number,
+                    error=str(audio_err),
+                )
 
-                job_repository.save(job)
+            # 8. Update task metadata with progress
+            task_metadata["status"] = TaskStatus.IN_PROGRESS.value
+            task_metadata["processed_chunks"] = task_metadata.get("processed_chunks", 0) + 1
+
+            # Update total_chunks if this chunk is higher
+            if chunk_number + 1 > task_metadata.get("total_chunks", 0):
+                task_metadata["total_chunks"] = chunk_number + 1
+
+            # Calculate progress
+            total = task_metadata["total_chunks"]
+            processed = task_metadata["processed_chunks"]
+            if total > 0:
+                task_metadata["progress_percent"] = int((processed / total) * 100)
+
+            update_task_metadata(session_id, TaskType.TRANSCRIPTION, task_metadata)
+
+            logger.info(
+                "TASK_METADATA_UPDATED",
+                session_id=session_id,
+                progress=f"{processed}/{total} ({task_metadata['progress_percent']}%)",
+            )
 
         # Cleanup temp files
         audio_path.unlink(missing_ok=True)
@@ -264,19 +290,14 @@ def transcribe_chunk_task(
             latency_ms=latency_ms,
         )
 
-        # Mark chunk as failed in job
+        # Update task metadata with error
         try:
-            job = job_repository.load(
-                job_id=session_id,
-                session_id=session_id,
-                job_type=JobType.TRANSCRIPTION,
-                job_class=TranscriptionJob,
-            )
-            if job:
-                job.mark_chunk_failed(chunk_number, str(e))
-                job_repository.save(job)
-        except Exception as save_error:
-            logger.error("FAILED_TO_MARK_CHUNK_FAILED", error=str(save_error))
+            task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+            task_metadata["status"] = TaskStatus.FAILED.value
+            task_metadata["error_message"] = str(e)
+            update_task_metadata(session_id, TaskType.TRANSCRIPTION, task_metadata)
+        except Exception as meta_error:
+            logger.error("FAILED_TO_UPDATE_ERROR_METADATA", error=str(meta_error))
 
         # Retry on transient errors
         if "timeout" in str(e).lower() or "connection" in str(e).lower():

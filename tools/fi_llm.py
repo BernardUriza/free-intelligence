@@ -73,41 +73,32 @@ def call_direct_adapter(
     prompt: str,
     system: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Call adapter directly (bypass HTTP endpoint)."""
+    """Call llm_router directly (unified LLM interface)."""
     # Import here to avoid loading heavy dependencies if not needed
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
-    from backend.llm_adapter import LLMRequest
-    from backend.providers.claude import ClaudeAdapter
-    from backend.providers.ollama import OllamaAdapter
+    from backend.providers.llm import llm_generate
 
     try:
-        if provider == "ollama":
-            adapter = OllamaAdapter(model=model)
-        elif provider == "claude":
-            adapter = ClaudeAdapter(model=model)
-        else:
-            return {"ok": False, "error": f"Unknown provider: {provider}"}
-
-        llm_request = LLMRequest(
+        # Use llm_router unified interface (supports both Claude and Ollama)
+        response = llm_generate(
             prompt=prompt,
-            system_prompt=system,
-            max_tokens=512,
+            provider=provider,
+            provider_config={"model": model},
             temperature=0.2,
+            max_tokens=512,
         )
-
-        llm_response = adapter.generate(llm_request)
 
         return {
             "ok": True,
-            "text": llm_response.content,
+            "text": response.content,
             "usage": {
-                "in": llm_response.metadata.get("input_tokens", 0),
-                "out": llm_response.metadata.get("output_tokens", 0),
+                "in": response.metadata.get("input_tokens", 0) if response.metadata else 0,
+                "out": response.metadata.get("output_tokens", 0) if response.metadata else 0,
             },
-            "latency_ms": llm_response.latency_ms,
-            "provider": provider,
-            "model": model,
+            "latency_ms": response.latency_ms,
+            "provider": response.provider,
+            "model": response.model,
         }
 
     except Exception as e:

@@ -1,41 +1,44 @@
-"""Aurity Workflow Orchestrator - PUBLIC layer (Pure).
+"""Aurity Workflow Orchestrator - PUBLIC layer (Clean Architecture).
 
 PUBLIC layer (orchestrator):
-- NO acceso directo a Services
-- NO acceso directo a HDF5
-- SOLO coordina llamadas a INTERNAL endpoints
+- Uses Service layer for business logic
+- NO direct HDF5 access (uses Repository via Service)
+- Clean separation: Router → Service → Repository
 - Returns job metadata immediately
 
 Architecture:
-  PUBLIC (this file) → INTERNAL → WORKER
+  PUBLIC (this file) → SERVICE → REPOSITORY → HDF5
+                          ↓
+                       WORKER (Celery)
+
+Best Practices 2024-2025:
+- Dependency Injection for services
+- Route handlers < 20 lines
+- Business logic in Service layer
+- Async/await without blocking
 
 Endpoints:
-- POST /stream → Proxy to INTERNAL /transcribe/chunks
-- GET /jobs/{session_id} → Proxy to INTERNAL /transcribe/jobs/{session_id}
-- POST /end-session → Save full audio + metadata
-- GET /sessions/{session_id}/audio → Serve audio file
-- GET /sessions/{session_id}/chunks → Get all chunks
+- POST /stream → Upload audio chunk
+- GET /jobs/{session_id} → Get transcription status
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-10
-Refactored: 2025-11-14 (unified architecture)
+Refactored: 2025-11-14 (Clean Architecture with Service Layer)
 """
 
 from __future__ import annotations
 
-import httpx
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from backend.dependencies import get_transcription_service
 from backend.logger import get_logger
+from backend.services.transcription_service import TranscriptionService
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/workflows/aurity", tags=["workflows-aurity"])
-
-# Internal API base URL (same process for now, could be separate service)
-INTERNAL_API_BASE = "http://localhost:7001"
 
 
 # ============================================================================
@@ -65,7 +68,7 @@ class JobStatusResponse(BaseModel):
 
 
 # ============================================================================
-# Endpoints (Pure Orchestrators - call INTERNAL only)
+# Endpoints (Pure Orchestrators - use Service layer)
 # ============================================================================
 
 
@@ -76,10 +79,11 @@ async def stream_chunk(
     audio: UploadFile = File(...),  # noqa: B008
     timestamp_start: float | None = Form(None),
     timestamp_end: float | None = Form(None),
+    service: TranscriptionService = Depends(get_transcription_service),
 ) -> StreamChunkResponse:
     """Upload audio chunk for transcription (orchestrator).
 
-    PUBLIC layer: Proxies request to INTERNAL /transcribe/chunks
+    PUBLIC layer: Uses Service layer for business logic
 
     Args:
         session_id: Session UUID
@@ -87,6 +91,7 @@ async def stream_chunk(
         audio: Audio blob (WebM/WAV/MP3)
         timestamp_start: Optional chunk start time
         timestamp_end: Optional chunk end time
+        service: Injected TranscriptionService
 
     Returns:
         StreamChunkResponse with session_id for polling
@@ -99,71 +104,28 @@ async def stream_chunk(
         ```
     """
     try:
-        logger.info(
-            "PUBLIC_STREAM_CHUNK",
+        audio_bytes = await audio.read()
+        result = await service.process_chunk(
             session_id=session_id,
             chunk_number=chunk_number,
-        )
-
-        # Proxy to INTERNAL API
-        async with httpx.AsyncClient() as client:
-            # Read audio once
-            audio_bytes = await audio.read()
-
-            # Prepare multipart form data
-            files = {"audio": (audio.filename, audio_bytes, audio.content_type)}
-            data = {
-                "session_id": session_id,
-                "chunk_number": str(chunk_number),
-            }
-            if timestamp_start is not None:
-                data["timestamp_start"] = str(timestamp_start)
-            if timestamp_end is not None:
-                data["timestamp_end"] = str(timestamp_end)
-
-            response = await client.post(
-                f"{INTERNAL_API_BASE}/internal/transcribe/chunks",
-                files=files,
-                data=data,
-                timeout=10.0,  # Quick dispatch, worker does heavy lifting
-            )
-
-            response.raise_for_status()
-            result = response.json()
-
-        logger.info(
-            "PUBLIC_STREAM_PROXIED",
-            session_id=session_id,
-            chunk_number=chunk_number,
-            total_chunks=result.get("total_chunks"),
+            audio_bytes=audio_bytes,
+            timestamp_start=timestamp_start,
+            timestamp_end=timestamp_end,
         )
 
         return StreamChunkResponse(
-            session_id=result["session_id"],
-            chunk_number=result["chunk_number"],
-            status=result["status"],
-            total_chunks=result["total_chunks"],
-            processed_chunks=result["processed_chunks"],
+            session_id=result.session_id,
+            chunk_number=result.chunk_number,
+            status=result.status,
+            total_chunks=result.total_chunks,
+            processed_chunks=result.processed_chunks,
         )
 
-    except httpx.HTTPStatusError as e:
-        logger.error(
-            "INTERNAL_API_ERROR",
-            session_id=session_id,
-            status_code=e.response.status_code,
-            detail=e.response.text,
-        )
-        raise HTTPException(
-            status_code=e.response.status_code,
-            detail=f"Internal API error: {e.response.text}",
-        ) from e
+    except ValueError as e:
+        logger.error("VALIDATION_ERROR", session_id=session_id, error=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
-        logger.error(
-            "PUBLIC_STREAM_FAILED",
-            session_id=session_id,
-            chunk_number=chunk_number,
-            error=str(e),
-        )
+        logger.error("CHUNK_UPLOAD_FAILED", session_id=session_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process chunk: {e!s}",
@@ -171,13 +133,17 @@ async def stream_chunk(
 
 
 @router.get("/jobs/{session_id}", response_model=JobStatusResponse)
-async def get_job_status(session_id: str) -> JobStatusResponse:
+async def get_job_status(
+    session_id: str,
+    service: TranscriptionService = Depends(get_transcription_service),
+) -> JobStatusResponse:
     """Poll transcription job status (orchestrator).
 
-    PUBLIC layer: Proxies to INTERNAL /transcribe/jobs/{session_id}
+    PUBLIC layer: Uses Service layer for business logic
 
     Args:
         session_id: Session UUID
+        service: Injected TranscriptionService
 
     Returns:
         JobStatusResponse with all chunks
@@ -196,36 +162,14 @@ async def get_job_status(session_id: str) -> JobStatusResponse:
         ```
     """
     try:
-        logger.info("PUBLIC_GET_JOB", session_id=session_id)
-
-        # Proxy to INTERNAL API
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{INTERNAL_API_BASE}/internal/transcribe/jobs/{session_id}",
-                timeout=5.0,
-            )
-            response.raise_for_status()
-            result = response.json()
-
+        result = await service.get_transcription_status(session_id)
         return JobStatusResponse(**result)
 
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 404:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Session {session_id} not found",
-            ) from e
-        logger.error(
-            "INTERNAL_API_ERROR",
-            session_id=session_id,
-            status_code=e.response.status_code,
-        )
-        raise HTTPException(
-            status_code=e.response.status_code,
-            detail=f"Internal API error: {e.response.text}",
-        ) from e
+    except ValueError as e:
+        logger.error("SESSION_NOT_FOUND", session_id=session_id, error=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
-        logger.error("PUBLIC_GET_JOB_FAILED", session_id=session_id, error=str(e))
+        logger.error("GET_JOB_FAILED", session_id=session_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get job: {e!s}",
@@ -386,46 +330,25 @@ async def get_session_audio(session_id: str):
 
 
 @router.get("/sessions/{session_id}/chunks", status_code=status.HTTP_200_OK)
-async def get_session_chunks_api(session_id: str) -> dict:
+async def get_session_chunks_api(
+    session_id: str,
+    service: TranscriptionService = Depends(get_transcription_service),
+) -> dict:
     """Get all chunks for a session (orchestrator).
 
-    Calls INTERNAL API to get TranscriptionJob with all chunks.
+    Uses Service layer to get TranscriptionJob with all chunks.
 
     Args:
         session_id: Session UUID
+        service: Injected TranscriptionService
 
     Returns:
         dict with chunks, total_duration, total_chunks
     """
     try:
-        logger.info("PUBLIC_GET_CHUNKS", session_id=session_id)
-
-        # Proxy to INTERNAL API
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{INTERNAL_API_BASE}/internal/transcribe/jobs/{session_id}",
-                timeout=5.0,
-            )
-
-            if response.status_code == 404:
-                return {
-                    "session_id": session_id,
-                    "chunks": [],
-                    "total_duration": 0.0,
-                    "total_chunks": 0,
-                }
-
-            response.raise_for_status()
-            result = response.json()
-
+        result = await service.get_transcription_status(session_id)
         chunks = result.get("chunks", [])
         total_duration = sum(c.get("duration", 0.0) for c in chunks if c.get("duration"))
-
-        logger.info(
-            "PUBLIC_GET_CHUNKS_SUCCESS",
-            session_id=session_id,
-            total_chunks=len(chunks),
-        )
 
         return {
             "session_id": session_id,
@@ -434,18 +357,16 @@ async def get_session_chunks_api(session_id: str) -> dict:
             "total_chunks": len(chunks),
         }
 
-    except httpx.HTTPStatusError as e:
-        logger.error(
-            "INTERNAL_API_ERROR",
-            session_id=session_id,
-            status_code=e.response.status_code,
-        )
-        raise HTTPException(
-            status_code=e.response.status_code,
-            detail=f"Internal API error: {e.response.text}",
-        ) from e
+    except ValueError:
+        # Session not found - return empty
+        return {
+            "session_id": session_id,
+            "chunks": [],
+            "total_duration": 0.0,
+            "total_chunks": 0,
+        }
     except Exception as e:
-        logger.error("PUBLIC_GET_CHUNKS_FAILED", session_id=session_id, error=str(e))
+        logger.error("GET_CHUNKS_FAILED", session_id=session_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get chunks: {e!s}",

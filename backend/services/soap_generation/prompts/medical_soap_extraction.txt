@@ -9,22 +9,22 @@ IMPORTANT:
 
 Return JSON structure with these exact fields:
 {
-  "subjetivo": {
-    "motivo_consulta": "Chief complaint (main reason for consultation)",
-    "historia_actual": "History of present illness (detailed symptom description)",
-    "antecedentes": "Medical history (relevant past medical events)"
+  "subjective": {
+    "chief_complaint": "Chief complaint (main reason for consultation)",
+    "history_present_illness": "History of present illness (detailed symptom description)",
+    "past_medical_history": "Medical history (relevant past medical events)"
   },
-  "objetivo": {
-    "signos_vitales": "Vital signs (BP, temperature, heart rate, respiration rate)",
-    "examen_fisico": "Physical examination findings"
+  "objective": {
+    "vital_signs": "Vital signs (BP, temperature, heart rate, respiration rate)",
+    "physical_exam": "Physical examination findings"
   },
-  "analisis": {
-    "diagnosticos_diferenciales": ["Differential diagnosis 1", "Differential diagnosis 2"],
-    "diagnostico_principal": "Primary diagnosis (most likely condition)"
+  "assessment": {
+    "differential_diagnoses": ["Differential diagnosis 1", "Differential diagnosis 2"],
+    "primary_diagnosis": "Primary diagnosis (most likely condition)"
   },
   "plan": {
-    "tratamiento": "Treatment plan (medications and interventions)",
-    "seguimiento": "Follow-up instructions",
-    "estudios": ["Study 1", "Study 2"]
+    "treatment": "Treatment plan (medications and interventions)",
+    "follow_up": "Follow-up instructions",
+    "studies": ["Study 1", "Study 2"]
   }
 }

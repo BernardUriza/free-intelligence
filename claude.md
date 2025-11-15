@@ -93,20 +93,49 @@ free-intelligence/
     ├─ corpus.h5              [Main corpus HDF5 (append-only)]
     │   ├─ /interactions/     [LLM interactions]
     │   ├─ /embeddings/       [Vector embeddings]
-    │   └─ /sessions/{session_id}/chunks/  [Audio transcription chunks - AUR-PROMPT-4.2]
-    ├─ diarization.h5         [Diarization jobs + chunks]
+    │   └─ /sessions/{session_id}/tasks/  [Task-based architecture (2025-11-14)]
+    ├─ diarization.h5         [DEPRECATED - migrated to corpus.h5]
     └─ audio/                 [Session audio files]
 
-  📦 HDF5 Session Chunks Schema (AUR-PROMPT-4.2):
-    /sessions/{session_id}/chunks/chunk_{idx}/
-      ├─ transcript       : utf-8 string (h5py.string_dtype) - NO dtype('O')
-      ├─ audio_hash       : utf-8 string (SHA256)
-      ├─ duration         : float64 (seconds)
-      ├─ language         : utf-8 string (es, en)
-      ├─ timestamp_start  : float64 (seconds from start)
-      ├─ timestamp_end    : float64 (seconds from start)
-      └─ created_at       : utf-8 string (ISO 8601)
-    File: backend/storage/session_chunks_schema.py
+  📦 HDF5 Task-Based Schema (Refactored 2025-11-14):
+    Philosophy:
+      - 1 Session = 1 consulta médica con catálogo único de tasks
+      - 1 Task Type máximo por session (no duplicados)
+      - Cada task contiene: chunks/ (data) + metadata (JSON)
+
+    Structure:
+      /sessions/{session_id}/tasks/{TASK_TYPE}/
+        ├─ chunks/          [Task-specific data chunks]
+        │   └─ chunk_{idx}/ [Individual chunk with typed datasets]
+        └─ metadata         [Job execution metadata: status, progress, etc.]
+
+    Task Types (backend/models/task_type.py):
+      - TRANSCRIPTION    : Whisper ASR transcription
+      - DIARIZATION      : Speaker classification + text improvement
+      - SOAP_GENERATION  : Clinical notes extraction
+      - EMOTION_ANALYSIS : Patient emotion detection
+      - ENCRYPTION       : AES-GCM audio encryption
+
+    TRANSCRIPTION Chunk Schema:
+      /sessions/{session_id}/tasks/TRANSCRIPTION/chunks/chunk_{idx}/
+        ├─ transcript       : utf-8 string (h5py.string_dtype)
+        ├─ audio_hash       : utf-8 string (SHA256)
+        ├─ duration         : float64 (seconds)
+        ├─ language         : utf-8 string (es, en)
+        ├─ timestamp_start  : float64 (seconds from start)
+        ├─ timestamp_end    : float64 (seconds from start)
+        ├─ confidence       : float64 (0-1, Whisper confidence)
+        ├─ audio_quality    : float64 (0-1, heuristic quality)
+        └─ created_at       : utf-8 string (ISO 8601)
+
+    API:
+      - backend/storage/task_repository.py (NEW, production)
+      - backend/storage/session_chunks_schema.py (DEPRECATED, backward compat)
+      - backend/repositories/job_repository.py (DEPRECATED, backward compat)
+
+    Migration:
+      - tools/migrate_jobs_to_tasks.py (58 sessions migrated ✅)
+      - Old schemas (jobs/, production/) still readable via compat layer
 
   🎨 apps/aurity/ (Next.js/React port 9000)
     ├─ pages/dashboard        [Main UI]
@@ -238,5 +267,6 @@ trello quick-start FI-STRIDE-SESION-04
 	•	Type Checking Automation ✅: pyright CLI integration, tools/detect_type_errors.py, make type-check* commands, JSON export para batch fixing con Claude Code (821 errors baseline → remediation plan ready).
 	•	Python 3.9 Compatibility + Datetime Fix ✅: from __future__ imports (82 files), datetime.utcnow() → datetime.now(timezone.utc) (22 files), h5py type ignore (13 files).
 	•	Chunk Transcription Layering (AUR-PROMPT-4.2) ✅: PUBLIC → INTERNAL → WORKER arquitectura implementada. PUBLIC /consult/stream (pure orchestrator, NO Services), INTERNAL /transcribe/chunks (job creation + 202), Worker transcribe_chunk_task (ffmpeg + ASR + HDF5 append). HDF5 schema /sessions/{session_id}/chunks/chunk_{idx} con typed dtypes (NO object). Tests: backend/tests/test_chunk_layering.py. Docs: CLAUDE.md actualizado.
+	•	HDF5 Task-Based Architecture Refactor (2025-11-14) ✅: Migración completa de jobs/+production/ a tasks/{TASK_TYPE}/. Filosofía: 1 Session = 1 consulta médica con catálogo único de tasks (max 1 por tipo). Created backend/models/task_type.py (TaskType enum), backend/storage/task_repository.py (500+ líneas, 8 funciones), tools/migrate_jobs_to_tasks.py. Deprecated job_repository.py + session_chunks_schema.py (wrappers con backward compat). Updated workers: transcription_tasks.py, diarization_tasks.py. Migration: 58 sessions, 37 migrated, 0 errors. Tests: backend/tests/test_task_repository.py (13 tests, 100% pass). UTC fix: 23+ files (datetime.now(timezone.utc)). Schema: /sessions/{id}/tasks/TRANSCRIPTION|DIARIZATION|SOAP_GENERATION|EMOTION_ANALYSIS|ENCRYPTION. Docs: CLAUDE.md actualizado con nueva estructura.
 
 Nota: Este kernel es guía operativa mínima; las bitácoras y reportes viven en la conversación salvo docs permanentes.

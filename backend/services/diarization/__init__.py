@@ -23,6 +23,6 @@ Created: 2025-11-05
 
 from __future__ import annotations
 
-from backend.services.diarization.service import DiarizationService
+from backend.services.diarization.diarization_service import DiarizationService
 
 __all__ = ["DiarizationService"]

@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import pathlib
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Dict, Optional, Tuple
 
 import h5py
@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 
 def now_utc() -> datetime:
     """Python 3.9 compatible UTC now."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass

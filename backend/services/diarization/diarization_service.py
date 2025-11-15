@@ -16,22 +16,22 @@ Refactored: 2025-11-05 (separated from transcription)
 
 from __future__ import annotations
 
+import time
+from datetime import UTC, datetime
+from typing import Any, Optional
+
 from backend.logger import get_logger
 from backend.services.diarization.jobs import create_job, get_job, update_job
+from backend.services.diarization.legacy.ollama_classifier import (
+    classify_speaker,
+    improve_text,
+    is_ollama_available,
+)
 from backend.services.diarization.models import (
     DiarizationJob,
     DiarizationResult,
     DiarizationSegment,
 )
-from backend.services.diarization.ollama import (
-    classify_speaker,
-    improve_text,
-    is_ollama_available,
-)
-
-import time
-from datetime import timezone, datetime
-from typing import Any, Optional
 
 logger = get_logger(__name__)
 
@@ -159,7 +159,7 @@ class DiarizationService:
             language=language,
             segments=merged_segments,
             processing_time_sec=processing_time,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
         )
 
         logger.info(
@@ -209,6 +209,108 @@ class DiarizationService:
 
         logger.info("SEGMENTS_MERGED", original=len(segments), merged=len(merged))
         return merged
+
+    def diarize_full_text(
+        self,
+        session_id: str,
+        full_text: str,
+        audio_file_path: str,
+        audio_file_hash: str,
+        duration_sec: float,
+        chunks: list[dict[str, Any]] | None = None,
+        webspeech_final: list[dict[str, Any]] | None = None,
+        language: str = "es",
+    ) -> DiarizationResult:
+        """Diarize full transcription text using Qwen LLM with triple vision.
+
+        Uses Qwen with THREE sources for intelligent diarization:
+        1. chunks - Timestamped chunks (may have mixed speakers in one chunk)
+        2. full_transcription - Complete clean text
+        3. webspeech_final - Instant transcriptions (useful for natural pauses)
+
+        This allows Qwen to segment WITHIN chunks when speaker changes mid-chunk.
+
+        Args:
+            session_id: Session identifier
+            full_text: Complete transcription text
+            audio_file_path: Path to audio file
+            audio_file_hash: SHA256 hash
+            duration_sec: Total duration
+            chunks: Timestamped chunks (optional)
+            webspeech_final: WebSpeech instant transcriptions (optional)
+            language: Language code
+
+        Returns:
+            DiarizationResult with speaker-classified segments
+        """
+        start_time = time.time()
+
+        logger.info(
+            "DIARIZATION_FULL_TEXT_START",
+            session_id=session_id,
+            text_length=len(full_text),
+            chunk_count=len(chunks) if chunks else 0,
+            webspeech_count=len(webspeech_final) if webspeech_final else 0,
+            language=language,
+        )
+
+        if not is_ollama_available():
+            logger.warning("OLLAMA_UNAVAILABLE_FALLBACK", session_id=session_id)
+            # Fallback: return single segment as DESCONOCIDO
+            return DiarizationResult(
+                session_id=session_id,
+                audio_file_path=str(audio_file_path),
+                audio_file_hash=audio_file_hash,
+                duration_sec=duration_sec,
+                language=language,
+                segments=[
+                    DiarizationSegment(
+                        start_time=0.0,
+                        end_time=duration_sec,
+                        speaker="DESCONOCIDO",
+                        text=full_text,
+                    )
+                ],
+                processing_time_sec=time.time() - start_time,
+                created_at=datetime.now(UTC).isoformat(),
+            )
+
+        # Detect language from first chunk (using Ollama/Qwen)
+        from backend.services.diarization.llm_diarizer import (
+            detect_language,
+            diarize_with_claude,
+        )
+
+        if chunks and chunks[0].get("transcript"):
+            detected_language = detect_language(chunks[0]["transcript"])
+            logger.info("LANGUAGE_AUTO_DETECTED", from_first_chunk=True, language=detected_language)
+            language = detected_language  # Override param with detected language
+
+        # Call Claude to diarize with TRIPLE VISION
+        segments = diarize_with_claude(full_text, chunks, webspeech_final, language)
+
+        processing_time = time.time() - start_time
+
+        result = DiarizationResult(
+            session_id=session_id,
+            audio_file_path=str(audio_file_path),
+            audio_file_hash=audio_file_hash,
+            duration_sec=duration_sec,
+            language=language,
+            segments=segments,
+            processing_time_sec=processing_time,
+            created_at=datetime.now(UTC).isoformat(),
+            model_llm="claude-sonnet-4-5-20250929",  # Using ClaudeAdapter default
+        )
+
+        logger.info(
+            "DIARIZATION_FULL_TEXT_COMPLETE",
+            session_id=session_id,
+            segment_count=len(segments),
+            processing_time=processing_time,
+        )
+
+        return result
 
     def create_job(self, session_id: str, audio_file_path: str, audio_file_size: int) -> str:
         """Create a diarization job.

@@ -30,8 +30,8 @@ from pydantic import BaseModel, Field
 
 from backend.fi_event_store import EventStore  # type: ignore[import] EventStore
 from backend.logger import get_logger
-from backend.providers.adapters_redux import ReduxAdapter, validate_redux_action
-from backend.providers.fi_consult_models import Consultation
+from backend.providers.adapters import ReduxAdapter, validate_redux_action
+from backend.providers.models import Consultation
 
 logger = get_logger(__name__)
 

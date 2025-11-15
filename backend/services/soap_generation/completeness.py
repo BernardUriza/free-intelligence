@@ -6,7 +6,7 @@ based on presence of key clinical sections.
 
 from __future__ import annotations
 
-from backend.providers.fi_consult_models import Analisis, Objetivo, Plan, Subjetivo
+from backend.providers.models import Analisis, Objetivo, Plan, Subjetivo
 
 __all__ = ["CompletenessCalculator"]
 

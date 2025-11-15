@@ -22,7 +22,10 @@ Created: 2025-11-14
 from __future__ import annotations
 
 import secrets
+import subprocess
+import tempfile
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
@@ -30,8 +33,15 @@ from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
 from backend.models import EncryptionMetadata, JobType, Session, TranscriptionJob
+from backend.models.task_type import TaskType
 from backend.repositories import job_repository
 from backend.repositories.session_repository import SessionRepository
+from backend.storage.task_repository import (
+    add_full_audio,
+    add_full_transcription,
+    add_webspeech_transcripts,
+    get_task_chunks,
+)
 
 logger = get_logger(__name__)
 
@@ -167,19 +177,163 @@ async def finalize_session(
         session.total_chunks = transcription_job.total_chunks
         session.finalize(encryption_metadata)
 
-        # Save to HDF5 (with 3 transcription sources)
+        # Save session to HDF5
         session_data = session.to_dict()
-        session_data["transcription_sources"] = {
-            "webspeech_final": request.transcription_sources.webspeech_final,
-            "transcription_per_chunks": request.transcription_sources.transcription_per_chunks,
-            "full_transcription": request.transcription_sources.full_transcription,
-        }
         session_repo.create(
             {
                 "session_id": session_id,
                 "metadata": session_data,
             }
         )
+
+        # Save 3 transcription sources to TRANSCRIPTION task (NEW schema)
+        try:
+            # 1. WebSpeech instant previews
+            if request.transcription_sources.webspeech_final:
+                add_webspeech_transcripts(
+                    session_id=session_id,
+                    transcripts=request.transcription_sources.webspeech_final,
+                    task_type=TaskType.TRANSCRIPTION,
+                )
+                logger.info(
+                    "WEBSPEECH_SAVED",
+                    session_id=session_id,
+                    count=len(request.transcription_sources.webspeech_final),
+                )
+
+            # 2. Full concatenated transcription
+            if request.transcription_sources.full_transcription:
+                add_full_transcription(
+                    session_id=session_id,
+                    full_text=request.transcription_sources.full_transcription,
+                    task_type=TaskType.TRANSCRIPTION,
+                )
+                logger.info(
+                    "FULL_TRANSCRIPTION_SAVED",
+                    session_id=session_id,
+                    length=len(request.transcription_sources.full_transcription),
+                )
+
+            # 3. Per-chunk transcripts already saved by worker (chunks/ directory)
+
+            # 4. Concatenate audio chunks into full_audio.webm (backend concatenation)
+            try:
+                import h5py
+
+                # Read all chunks with audio from HDF5
+                chunks_with_audio = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+
+                if chunks_with_audio:
+                    # Create temp directory for audio extraction
+                    temp_dir = Path(tempfile.mkdtemp(prefix="audio_concat_"))
+                    audio_files = []
+
+                    # Extract audio from each chunk
+                    with h5py.File(
+                        Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5", "r"
+                    ) as f:
+                        for chunk in sorted(chunks_with_audio, key=lambda x: x["chunk_idx"]):
+                            chunk_idx = chunk["chunk_idx"]
+                            chunk_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/chunks/chunk_{chunk_idx}"
+
+                            if chunk_path in f:
+                                chunk_group = f[chunk_path]
+
+                                # Check if audio.webm exists
+                                if "audio.webm" in chunk_group:
+                                    audio_bytes = chunk_group["audio.webm"][()]
+
+                                    # Save to temp file
+                                    temp_audio = temp_dir / f"chunk_{chunk_idx:03d}.webm"
+                                    temp_audio.write_bytes(audio_bytes)
+                                    audio_files.append(temp_audio)
+
+                    if audio_files:
+                        # Create ffmpeg concat file list
+                        concat_list = temp_dir / "concat_list.txt"
+                        with open(concat_list, "w") as f:
+                            for audio_file in audio_files:
+                                f.write(f"file '{audio_file}'\n")
+
+                        # Concatenate using ffmpeg
+                        output_file = temp_dir / "full_audio.webm"
+                        ffmpeg_cmd = [
+                            "ffmpeg",
+                            "-f",
+                            "concat",
+                            "-safe",
+                            "0",
+                            "-i",
+                            str(concat_list),
+                            "-c",
+                            "copy",
+                            str(output_file),
+                            "-loglevel",
+                            "error",
+                            "-y",
+                        ]
+
+                        subprocess.run(ffmpeg_cmd, check=True, timeout=60)
+
+                        # Read concatenated audio
+                        full_audio_bytes = output_file.read_bytes()
+
+                        # Save to HDF5
+                        add_full_audio(
+                            session_id=session_id,
+                            audio_bytes=full_audio_bytes,
+                            filename="full_audio.webm",
+                            task_type=TaskType.TRANSCRIPTION,
+                        )
+
+                        logger.info(
+                            "FULL_AUDIO_CONCATENATED",
+                            session_id=session_id,
+                            chunks_concatenated=len(audio_files),
+                            size_bytes=len(full_audio_bytes),
+                        )
+
+                        # Cleanup temp files
+                        import shutil
+
+                        shutil.rmtree(temp_dir)
+                    else:
+                        logger.warning(
+                            "NO_AUDIO_CHUNKS_FOUND",
+                            session_id=session_id,
+                            reason="Chunks exist but have no audio.webm files",
+                        )
+                else:
+                    logger.warning(
+                        "NO_CHUNKS_FOR_CONCATENATION",
+                        session_id=session_id,
+                    )
+
+            except Exception as concat_err:
+                logger.error(
+                    "AUDIO_CONCATENATION_FAILED",
+                    session_id=session_id,
+                    error=str(concat_err),
+                    exc_info=True,
+                )
+                # Don't fail finalization if concatenation fails
+
+            logger.info(
+                "3_SOURCES_SAVED",
+                session_id=session_id,
+                webspeech_count=len(request.transcription_sources.webspeech_final),
+                chunks_count=len(request.transcription_sources.transcription_per_chunks),
+                full_length=len(request.transcription_sources.full_transcription),
+            )
+
+        except ValueError as e:
+            logger.error(
+                "TRANSCRIPTION_SOURCES_SAVE_FAILED",
+                session_id=session_id,
+                error=str(e),
+            )
+            # Don't fail the entire finalization if sources save fails
+            # The session is still finalized, just missing the 3 sources
 
         logger.info(
             "SESSION_FINALIZED",
