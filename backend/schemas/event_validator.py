@@ -232,7 +232,7 @@ def validate_events_in_code(file_path: str) -> list[dict]:
     content = Path(file_path).read_text()
 
     # Pattern to match logger calls: logger.info("EVENT_NAME", ...)
-    pattern = r'logger\.(info|warning|error|debug|critical)\s*\(\s*["\']([A-Z_a-z0-9]+)["\']'
+    pattern = r'logger\.(Union[info, warning, error]|Union[debug, critical])\s*\(\s*["\']([A-Z_a-z0-9]+)["\']'
     matches = re.findall(pattern, content)
 
     results = []

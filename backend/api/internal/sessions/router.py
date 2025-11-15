@@ -25,7 +25,7 @@ Endpoints:
 - PATCH /api/sessions/{id} -> update session
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import uuid4
 
@@ -67,7 +67,7 @@ class SessionResponse(BaseModel):
     updated_at: str
     last_active: str
     interaction_count: int
-    status: str  # new|active|complete
+    status: str  # Union[new, active, complete]
     is_persisted: bool
     owner_hash: str
     thread_id: Optional[str] = None
@@ -86,14 +86,14 @@ class CreateSessionRequest(BaseModel):
     """Create session request"""
 
     owner_hash: str = Field(..., min_length=1)
-    status: str = Field(default="new", pattern="^(new|active|complete)$")
+    status: str = Field(default="new", pattern="^(Union[new, active, complete])$")
     thread_id: Optional[str] = None
 
 
 class UpdateSessionRequest(BaseModel):
     """Update session request (partial)"""
 
-    status: Optional[str] = Field(None, pattern="^(new|active|complete)$")
+    status: Optional[str] = Field(None, pattern="^(Union[new, active, complete])$")
     last_active: Optional[str] = None
     interaction_count: Optional[int] = Field(None, ge=0)
 
@@ -250,7 +250,7 @@ async def create_session(request: CreateSessionRequest):
         )
 
         # Map service response to API response schema
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         return SessionResponse(
             id=session["session_id"],
             created_at=now,
@@ -292,7 +292,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
     - session_id: Session ID (ULID)
 
     Body (all optional):
-    - status: New status (new|active|complete)
+    - status: New status (Union[new, active, complete])
     - last_active: New last_active timestamp (ISO 8601)
     - interaction_count: New interaction count
 
@@ -312,7 +312,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
         if last_active is None and (
             request.status is not None or request.interaction_count is not None
         ):
-            last_active = datetime.now(timezone.utc).isoformat().replace("+00:00", "") + "Z"
+            last_active = datetime.now(UTC).isoformat().replace("+00:00", "") + "Z"
 
         # Delegate to service for update (handles validation)
         success = session_service.update_session(

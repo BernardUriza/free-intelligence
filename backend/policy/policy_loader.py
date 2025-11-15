@@ -9,13 +9,13 @@ Provides unified interface for accessing LLM policies, export policies, audit po
 Philosophy: Policy-driven configuration for provider-agnostic LLM routing.
 """
 
-import yaml
-
-from backend.logger import get_logger
-
 import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+import yaml
+
+from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -250,7 +250,7 @@ class PolicyLoader:
 
 
 # Singleton instance with thread-safe double-checked locking
-_policy_loader: PolicyLoader | None = None
+_policy_loader: Optional[PolicyLoader] = None
 _policy_loader_lock = threading.Lock()
 
 

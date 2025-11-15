@@ -29,7 +29,7 @@ AUDIT_ROOT = Path(os.getenv("AUDIT_ROOT", "storage/audit"))
 AUDIT_SCHEMA = pa.schema(
     [
         ("event_id", pa.string()),
-        ("timestamp", pa.timestamp("us", tz="UTC")),
+        ("timestamp", pa.timestamp("us", tz="timezone.utc")),
         ("action", pa.string()),
         ("user_id", pa.string()),
         ("resource", pa.string()),

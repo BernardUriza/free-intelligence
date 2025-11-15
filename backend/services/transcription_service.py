@@ -165,11 +165,15 @@ class TranscriptionService:
         )
 
         # 5. Dispatch Celery worker (with REFERENCES ONLY, no large audio blobs!)
-        from backend.workers.transcription_tasks import transcribe_chunk_task
+        # Use Deepgram instead of Whisper for faster, cloud-based transcription
+        from backend.workers.deepgram_transcription_task import (
+            deepgram_transcribe_chunk,
+        )
 
-        task = transcribe_chunk_task.delay(  # type: ignore[attr-defined]
+        task = deepgram_transcribe_chunk.delay(  # type: ignore[attr-defined]
             session_id=session_id,
             chunk_number=chunk_number,
+            language="es",  # Default to Spanish; can be made configurable
             # IMPORTANT: Only send references, not audio_bytes!
             # Audio is already in HDF5, worker will read from there
         )

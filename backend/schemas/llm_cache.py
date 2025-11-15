@@ -10,19 +10,19 @@ Created: 2025-10-29
 Card: FI-CORE-FEAT-001
 
 Features:
-- SHA-256 hash keys (provider|model|prompt|system|params)
+- SHA-256 hash keys (Union[provider, model, prompt]|Union[system, params])
 - TTL: 30 minutes default
 - Disk storage: /data/llm_cache/
 - JSON serialization
 """
-
-from backend.logger import get_logger
 
 import hashlib
 import json
 import time
 from pathlib import Path
 from typing import Any, Dict
+
+from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -31,7 +31,7 @@ class LLMCache:
     """
     Disk-based cache for LLM responses.
 
-    Key format: sha256(provider|model|prompt|system|params)
+    Key format: sha256(Union[provider, model, prompt]|Union[system, params])
     Storage: /data/llm_cache/{hash}.json
     TTL: 30 minutes (configurable)
     """
@@ -62,7 +62,7 @@ class LLMCache:
         model: str,
         prompt: str,
         system: str = "",
-        params: dict[str, Any | None] | None = None,
+        params: dict[str, Optional[Any]] | None = None,
     ) -> str:
         """
         Compute SHA-256 hash key for cache entry.
@@ -87,8 +87,8 @@ class LLMCache:
         model: str,
         prompt: str,
         system: str = "",
-        params: dict[str, Any | None] | None = None,
-    ) -> dict[str, Any | None] | None:
+        params: dict[str, Optional[Any]] | None = None,
+    ) -> dict[str, Optional[Any]] | None:
         """
         Get cached response if available and not expired.
 
@@ -152,7 +152,7 @@ class LLMCache:
         prompt: str,
         response: Dict[str, Any],
         system: str = "",
-        params: dict[str, Any | None] | None = None,
+        params: dict[str, Optional[Any]] | None = None,
     ) -> str:
         """
         Store response in cache.
@@ -289,7 +289,7 @@ class LLMCache:
 
 
 # Global cache instance (singleton)
-_cache_instance: LLMCache | None = None
+_cache_instance: Optional[LLMCache] = None
 
 
 def get_cache(ttl_minutes: int = 30) -> LLMCache:

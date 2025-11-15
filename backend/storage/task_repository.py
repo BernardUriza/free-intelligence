@@ -52,7 +52,7 @@ CORPUS_PATH = Path(__file__).parent.parent.parent / "storage" / "corpus.h5"
 
 def ensure_task_exists(
     session_id: str,
-    task_type: TaskType | str,
+    task_type: Union[TaskType, str],
     allow_existing: bool = False,
 ) -> str:
     """Ensure task group exists for session.
@@ -135,7 +135,7 @@ def ensure_task_exists(
     return task_path
 
 
-def task_exists(session_id: str, task_type: TaskType | str) -> bool:
+def task_exists(session_id: str, task_type: Union[TaskType, str]) -> bool:
     """Check if task exists for session.
 
     Args:
@@ -192,7 +192,7 @@ def list_session_tasks(session_id: str) -> list[str]:
 
 def update_task_metadata(
     session_id: str,
-    task_type: TaskType | str,
+    task_type: Union[TaskType, str],
     metadata: dict[str, Any],
 ) -> None:
     """Update job metadata for a task.
@@ -253,7 +253,7 @@ def update_task_metadata(
     )
 
 
-def get_task_metadata(session_id: str, task_type: TaskType | str) -> Optional[dict[str, Any]]:
+def get_task_metadata(session_id: str, task_type: Union[TaskType, str]) -> Optional[dict[str, Any]]:
     """Get job metadata for a task.
 
     Args:
@@ -298,7 +298,7 @@ def get_task_metadata(session_id: str, task_type: TaskType | str) -> Optional[di
 
 def append_chunk_to_task(
     session_id: str,
-    task_type: TaskType | str,
+    task_type: Union[TaskType, str],
     chunk_idx: int,
     transcript: str,
     audio_hash: str,
@@ -398,7 +398,7 @@ def append_chunk_to_task(
     return chunk_path
 
 
-def get_task_chunks(session_id: str, task_type: TaskType | str) -> list[dict[str, Any]]:
+def get_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> list[dict[str, Any]]:
     """Get all chunks for a task.
 
     Args:
@@ -461,7 +461,7 @@ def get_task_chunks(session_id: str, task_type: TaskType | str) -> list[dict[str
         return []
 
 
-def get_task_transcript(session_id: str, task_type: TaskType | str) -> str:
+def get_task_transcript(session_id: str, task_type: Union[TaskType, str]) -> str:
     """Get full transcript for task (all chunks concatenated).
 
     Args:
@@ -904,6 +904,90 @@ def get_chunk_audio_bytes(
             error=str(e),
         )
         return None
+
+
+def update_chunk_dataset(
+    session_id: str,
+    task_type: Union[TaskType, str],
+    chunk_idx: int,
+    field: str,
+    value: Union[str, float, int],
+) -> bool:
+    """Update a single field in a chunk dataset.
+
+    Args:
+        session_id: Session identifier
+        task_type: Type of task
+        chunk_idx: Chunk index
+        field: Field name (transcript, confidence, duration, language, etc.)
+        value: New value for the field
+
+    Returns:
+        True if successful, False otherwise
+    """
+    if not task_exists(session_id, task_type):
+        logger.warning("TASK_NOT_EXISTS", session_id=session_id, task_type=str(task_type))
+        return False
+
+    task_type_str = task_type.value if isinstance(task_type, TaskType) else task_type
+    chunk_path = f"/sessions/{session_id}/tasks/{task_type_str}/chunks/chunk_{chunk_idx}"
+
+    try:
+        with h5py.File(CORPUS_PATH, "a") as f:
+            if chunk_path not in f:  # type: ignore[operator]
+                logger.warning(
+                    "CHUNK_NOT_FOUND",
+                    session_id=session_id,
+                    task_type=task_type_str,
+                    chunk_idx=chunk_idx,
+                )
+                return False
+
+            chunk_group = f[chunk_path]  # type: ignore[index]
+
+            # Delete existing dataset if present
+            if field in chunk_group:  # type: ignore[operator]
+                del chunk_group[field]  # type: ignore[index]
+
+            # Create new dataset with appropriate dtype
+            if isinstance(value, str):
+                chunk_group.create_dataset(  # type: ignore[union-attr]
+                    field,
+                    data=value,
+                    dtype=h5py.string_dtype(encoding="utf-8"),
+                )
+            elif isinstance(value, float):
+                chunk_group.create_dataset(field, data=value, dtype="float64")  # type: ignore[union-attr]
+            elif isinstance(value, int):
+                chunk_group.create_dataset(field, data=value, dtype="int32")  # type: ignore[union-attr]
+            else:
+                # Try to convert to string
+                chunk_group.create_dataset(  # type: ignore[union-attr]
+                    field,
+                    data=str(value),
+                    dtype=h5py.string_dtype(encoding="utf-8"),
+                )
+
+            logger.info(
+                "CHUNK_DATASET_UPDATED",
+                session_id=session_id,
+                task_type=task_type_str,
+                chunk_idx=chunk_idx,
+                field=field,
+                value=str(value)[:100],  # Log first 100 chars
+            )
+            return True
+
+    except Exception as e:
+        logger.error(
+            "UPDATE_CHUNK_DATASET_FAILED",
+            session_id=session_id,
+            task_type=task_type_str,
+            chunk_idx=chunk_idx,
+            field=field,
+            error=str(e),
+        )
+        return False
 
 
 def save_diarization_segments(

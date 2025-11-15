@@ -13,8 +13,8 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from backend.services.kpis_aggregator import get_kpis_aggregator
 from backend.logger import get_logger
+from backend.services.kpis_aggregator import get_kpis_aggregator
 
 logger = get_logger(__name__)
 
@@ -23,8 +23,8 @@ router = APIRouter()
 
 @router.get("")
 async def get_kpis(
-    window: str = Query("5m", description="Time window: 1m|5m|15m|1h|24h"),
-    view: str = Query("summary", description="View: summary|chips|timeseries"),
+    window: str = Query("5m", description="Time window: Union[1m, 5m, 15m]|Union[1h, 24h]"),
+    view: str = Query("summary", description="View: Union[summary, chips, timeseries]"),
     route: Optional[str] = Query(None, description="Filter by route (e.g., /api/sessions)"),
     provider: Optional[str] = Query(None, description="Filter by provider (e.g., anthropic)"),
 ):

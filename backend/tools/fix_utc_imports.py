@@ -52,7 +52,7 @@ def fix_utc_import(file_path: Path) -> bool:
                     return True
 
         # Pattern 3: No datetime import at all (add after __future__ imports)
-        if not re.search(r"import datetime|from datetime", content):
+        if not re.search(r"import Union[datetime, from] datetime", content):
             # Find last __future__ import or first import
             lines = content.split("\n")
             insert_idx = 0
@@ -105,7 +105,7 @@ def main():
             files_to_fix[file_path].append(error)
 
     print(f"\n{'='*60}")
-    print(f"🔧 Fixing UTC Import Errors")
+    print("🔧 Fixing UTC Import Errors")
     print(f"{'='*60}")
     print(f"Files to fix: {len(files_to_fix)}")
 
@@ -125,13 +125,13 @@ def main():
 
     # Summary
     print(f"\n{'='*60}")
-    print(f"📊 Summary")
+    print("📊 Summary")
     print(f"{'='*60}")
     print(f"✅ Fixed: {len(fixed)}")
     print(f"❌ Failed: {len(failed)}")
 
     if failed:
-        print(f"\nFailed files:")
+        print("\nFailed files:")
         for f in failed:
             print(f"  - {f}")
 

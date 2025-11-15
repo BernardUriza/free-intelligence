@@ -33,7 +33,7 @@ class ChunkMetadata:
     """
 
     chunk_number: int
-    status: str  # pending | processing | completed | failed
+    status: str  # Union[pending, processing, completed] | failed
     audio_size_bytes: int
     audio_hash: Optional[str] = None
     transcript: Optional[str] = None

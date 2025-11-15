@@ -157,7 +157,7 @@ class TechnicalDebtAuditor:
                 content = f.read()
 
             # Look for @router patterns without try/except in body
-            pattern = r"@router\.(get|post|put|delete)\([^)]*\)\s*(?:async\s+)?def\s+(\w+)\([^)]*\):[^:]*?(?=@router|def\s+\w+|$)"
+            pattern = r"@router\.(Union[get, post, put]|delete)\([^)]*\)\s*(?:async\s+)?def\s+(\w+)\([^)]*\):[^:]*?(?=@Union[router, def]\s+\w+|$)"
             for match in re.finditer(pattern, content, re.DOTALL):
                 func_body = match.group(0)
                 if "try:" not in func_body and "async def" in func_body:

@@ -39,8 +39,8 @@ class LLMClient:
     def __init__(
         self,
         provider: str = "claude",
-        prompt_builder: OllamaPromptBuilder | None = None,
-        response_parser: OllamaResponseParser | None = None,
+        prompt_builder: Optional[OllamaPromptBuilder] = None,
+        response_parser: Optional[OllamaResponseParser] = None,
     ):
         """Initialize LLM client.
 

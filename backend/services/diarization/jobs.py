@@ -102,7 +102,7 @@ def update_job(
     Args:
         job_id: Job identifier
         session_id: Optional session identifier (for faster lookup)
-        status: New status (pending | in_progress | completed | failed)
+        status: New status (Union[pending, in_progress, completed] | failed)
         progress_percent: Progress percentage (0-100)
         processed_chunks: Number of chunks processed
         total_chunks: Total number of chunks

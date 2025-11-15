@@ -11,15 +11,15 @@ Clean Code Principles:
 
 from __future__ import annotations
 
-import h5py
-
-from backend.logger import get_logger
-
 from abc import ABC, abstractmethod
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Generic, Optional, TypeVar
+
+import h5py
+
+from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -37,7 +37,7 @@ class BaseRepository(ABC, Generic[T]):
     - Consistent interface for all repositories
     """
 
-    def __init__(self, h5_file_path: str | Path) -> None:
+    def __init__(self, h5_file_path: Union[str, Path]) -> None:
         """Initialize repository with HDF5 file path.
 
         Args:
@@ -101,7 +101,7 @@ class BaseRepository(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def read(self, entity_id: str) -> T | None:
+    def read(self, entity_id: str) -> Optional[T]:
         """Read entity from repository.
 
         Args:

@@ -24,7 +24,7 @@ class DiarizationSegment:
 
     start_time: float  # Seconds in audio
     end_time: float  # Seconds in audio
-    speaker: str  # PACIENTE | MEDICO | DESCONOCIDO
+    speaker: str  # Union[PACIENTE, MEDICO, DESCONOCIDO]
     text: str  # Transcribed text (raw from Whisper)
     improved_text: Optional[str] = None  # After LLM improvement (ortografía, gramática)
     confidence: Optional[float] = None  # Optional confidence score from LLM

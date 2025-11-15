@@ -35,7 +35,7 @@ class AuditRepository(BaseRepository):
 
     AUDIT_LOGS_GROUP = "audit_logs"
 
-    def __init__(self, h5_file_path: str | Path) -> None:
+    def __init__(self, h5_file_path: Union[str, Path]) -> None:
         """Initialize audit repository."""
         super().__init__(h5_file_path)
         self._ensure_structure()
