@@ -1,21 +1,27 @@
-"""Celery tasks for audio transcription.
+"""Celery tasks for audio transcription (DEPRECATED - kept for reference only).
 
-WORKER layer:
+⚠️  DEPRECATED (2025-11-15):
+  - Celery has been removed from the architecture
+  - Use backend/workers/sync_workers.py instead for transcription
+  - This file is archived in docs/archive/deprecated-docker-redis for reference
+
+LEGACY WORKER layer:
 - Processes audio chunks with Whisper ASR
 - Writes to task-based HDF5 (tasks/TRANSCRIPTION/)
 - Updates task metadata with progress
 
-Architecture:
+Architecture (LEGACY):
   PUBLIC → INTERNAL → WORKER (this file)
 
 Migration notes:
   - NOW USES: backend.storage.task_repository (NEW task-based API)
   - DEPRECATED: backend.repositories.job_repository
   - DEPRECATED: backend.storage.session_chunks_schema
+  - DEPRECATED: Celery tasks (moved to sync workers in 2025-11-15)
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-14
-Updated: 2025-11-14 (task-based refactor)
+Deprecated: 2025-11-15 (Migrated to synchronous ThreadPoolExecutor-based workers)
 Card: Architecture refactor - task-based HDF5
 """
 

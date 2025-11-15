@@ -293,7 +293,46 @@ trello quick-start FI-STRIDE-SESION-04
 
 ⸻
 
+🪦 DEPRECATED & ARCHIVED (2025-11-15 - Avada Kedabra al Docker/Redis)
+
+	ARQUITECTURA VIEJA (ELIMINADA):
+	├─ ❌ Docker Celery Queue + Redis Broker
+	├─ ❌ docker/Dockerfile.backend, Dockerfile.celery
+	├─ ❌ docker/docker-compose.full.yml
+	├─ ❌ backend/workers/celery_app.py, backend/app/celery.py
+	├─ ❌ @celery_app.task decorators en transcription_tasks.py, diarization_tasks.py
+	└─ ❌ Flower monitoring (5555)
+
+	NUEVA ARQUITECTURA (ACTIVA):
+	├─ ✅ ThreadPoolExecutor (4 workers para transcripción, 2 para diarización)
+	├─ ✅ backend/workers/sync_workers.py (funciones sincrónicas)
+	├─ ✅ HDF5-backed status tracking (sin Redis)
+	├─ ✅ Same API response (202 Accepted + polling)
+	├─ ✅ make dev-all → Backend LOCAL + Frontend LOCAL
+	└─ ✅ Sin Docker, sin Redis, sin overhead IPC
+
+	DÓNDE ENCONTRAR CÓDIGO VIEJO:
+	├─ 📦 docs/archive/deprecated-docker-redis/
+	│  ├─ Dockerfile.backend, Dockerfile.celery
+	│  ├─ docker-compose.full.yml, docker-compose.celery.yml, docker-compose.demo.yml
+	│  ├─ celery_app.py, app/celery.py
+	│  └─ (para referencia histórica solamente)
+	├─ 📝 backend/workers/transcription_tasks.py (deprecated pero en lugar, marked ⚠️)
+	├─ 📝 backend/workers/diarization_tasks.py (deprecated pero en lugar, marked ⚠️)
+	└─ ✅ backend/workers/sync_workers.py (NUEVO - usa ThreadPoolExecutor)
+
+	POR QUÉ EL CAMBIO:
+	├─ ✨ Complejidad: 5 procesos Docker → 2 procesos locales
+	├─ ✨ Dev mode: make dev-all (todo en un comando)
+	├─ ✨ Debugging: Logs en un solo lugar
+	├─ ✨ Performance: Sin overhead de IPC (Redis/Celery)
+	├─ ✨ Cost: Sin Docker maintenance
+	└─ ✨ MVP ready: Tuesday demo (demo-ready)
+
+⸻
+
 📝 Bitácora (highlights, append‑only)
+	•	Avada Kedabra: Docker/Redis Exorcism (2025-11-15) ✅: Removed Celery + Redis completely from architecture. Archived 8 Dockerfiles/docker-compose files to docs/archive/deprecated-docker-redis/. Created ThreadPoolExecutor-based sync_workers.py (4 transcription workers, 2 diarization workers). Updated dev-all.sh to run Backend + Frontend locally (no Docker). Same 202 Accepted + polling API, but now simpler, faster, and demo-ready. Marked transcription_tasks.py and diarization_tasks.py as deprecated but kept for reference. Tuesday demo: `make dev-all` - that's it.
 	•	Deepgram STT Integration (2025-11-15) ✅: Replaced Whisper offline with cloud-based Deepgram API for instant transcription (1-2s vs 10-30s). Created backend/services/deepgram_service.py (async API client), backend/workers/deepgram_transcription_task.py (Celery task), added aiohttp to requirements.txt. Updated TranscriptionService to dispatch deepgram_transcribe_chunk instead of transcribe_chunk_task. Benefits: no GPU needed, $0.0043/min, 50k free minutes/month. Setup: export DEEPGRAM_API_KEY=... (get from console.deepgram.com). See DEEPGRAM_SETUP.md for full configuration.
 	•	Python 3.9 Type Annotation Fix (2025-11-15) ✅: Fixed 29 files with Python 3.10+ union syntax (float | None) incompatible with Python 3.9. All files already had from __future__ import annotations, but FastAPI was evaluating types at route registration. Converted all | unions to Optional[]/Union[] syntax. Backend now loads without TypeError.
 	•	Chunk Polling Root Cause Analysis (2025-11-15) ✅: Identified why polling stayed "pending": Celery worker received tasks but never executed them (received ✅ but no "started" log). Audio was stored in HDF5 correctly, but worker wasn't processing. Root cause: Whisper worker had issues; migrated to Deepgram instead.

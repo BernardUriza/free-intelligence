@@ -1,9 +1,14 @@
-"""Celery tasks for diarization (speaker separation + text improvement).
+"""Celery tasks for diarization (DEPRECATED - kept for reference only).
 
-Tasks:
+⚠️  DEPRECATED (2025-11-15):
+  - Celery has been removed from the architecture
+  - Use backend/workers/sync_workers.py instead for diarization
+  - This file is archived in docs/archive/deprecated-docker-redis for reference
+
+Legacy Tasks:
 - diarize_session_task: Process session with provider-agnostic diarization (Triple Vision)
 
-Architecture:
+Architecture (LEGACY):
   PUBLIC/INTERNAL → dispatch task → WORKER (this file) → DiarizationProvider
 
 Diarization Strategy:
@@ -14,7 +19,7 @@ Diarization Strategy:
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-14
-Updated: 2025-11-15 (Made provider-agnostic, added audio provider option)
+Deprecated: 2025-11-15 (Migrated to synchronous ThreadPoolExecutor-based workers)
 """
 
 from __future__ import annotations

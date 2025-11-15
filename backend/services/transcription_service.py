@@ -188,11 +188,11 @@ class TranscriptionService:
             chunk_number=chunk_number,
         )
 
-        # 6. Return result
+        # 6. Return result (use session_id as job identifier, no Celery task.id)
         return ChunkProcessingResult(
             session_id=session_id,
             chunk_number=chunk_number,
-            task_id=task.id,
+            task_id=session_id,  # Use session_id since we use ThreadPoolExecutor now
             status="pending",
             total_chunks=metadata["total_chunks"],
             processed_chunks=metadata.get("processed_chunks", 0),
