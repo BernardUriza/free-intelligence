@@ -766,7 +766,9 @@ def create_empty_chunk(
             data=datetime.now(UTC).isoformat(),
             dtype=h5py.string_dtype(encoding="utf-8"),
         )
-        chunk_group.create_dataset("status", data="pending", dtype=h5py.string_dtype(encoding="utf-8"))  # type: ignore[union-attr]
+        chunk_group.create_dataset(
+            "status", data="pending", dtype=h5py.string_dtype(encoding="utf-8")
+        )  # type: ignore[union-attr]
 
         logger.info(
             "EMPTY_CHUNK_CREATED",
