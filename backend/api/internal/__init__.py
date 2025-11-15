@@ -1,54 +1,35 @@
-"""Internal API endpoints (localhost-only).
+"""Internal API endpoints (localhost-only, AURITY-only).
 
 Atomic resources accessible only from localhost (no CORS).
 In production, restricted by InternalOnlyMiddleware.
 
-Structure:
-- athletes/         → Athlete management
-- coaches/          → Coach management
-- sessions/         → Session CRUD + athlete sessions + designs
-- diarization/      → Audio diarization
-- transcribe/       → Transcription
+AURITY-ONLY endpoints:
+- sessions/         → Session CRUD + finalize + checkpoint
+- transcribe/       → Transcription (Whisper ASR)
 - triage/           → Triage intake
 - kpis/             → KPI aggregation
-- library/          → Consultation library
-- fi_diag/          → System diagnostics
 - audit/            → Audit logs
-- evidence/         → Evidence packs
-- timeline_verify/  → Timeline verification
 - exports/          → Export utilities
+
+Removed (FI-STRIDE deprecated):
+- athletes/ (deleted 2025-11-14)
+- coaches/ (deleted 2025-11-14)
+- diarization/ (deleted 2025-11-14)
+- evidence/ (deleted 2025-11-14)
+- fi_diag/ (deleted 2025-11-14)
+- library/ (deleted 2025-11-14)
+- timeline_verify/ (deleted 2025-11-14)
 """
 
 from __future__ import annotations
 
-from . import (
-    athletes,
-    audit,
-    coaches,
-    # diarization,  # Temporarily disabled - needs refactor for diarization/service.py
-    evidence,
-    exports,
-    fi_diag,
-    kpis,
-    library,
-    sessions,
-    timeline_verify,
-    transcribe,
-    triage,
-)
+from . import audit, exports, kpis, sessions, transcribe, triage
 
 __all__ = [
-    "athletes",
-    "coaches",
     "sessions",
-    # "diarization",  # Temporarily disabled
     "transcribe",
     "triage",
     "kpis",
-    "library",
-    "fi_diag",
     "audit",
-    "evidence",
-    "timeline_verify",
     "exports",
 ]
