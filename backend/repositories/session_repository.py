@@ -41,7 +41,7 @@ class SessionRepository(BaseRepository):
     SESSIONS_GROUP = "sessions"
     METADATA_GROUP = "metadata"
 
-    def __init__(self, h5_file_path: str | Path) -> None:
+    def __init__(self, h5_file_path: Union[str, Path]) -> None:
         """Initialize session repository."""
         super().__init__(h5_file_path)
         self._ensure_structure()
@@ -62,7 +62,7 @@ class SessionRepository(BaseRepository):
     # ============================================================================
 
     @staticmethod
-    def _serialize_value(value: Any) -> str | int | float | bool:
+    def _serialize_value(value: Any) -> Union[str, int, float] | bool:
         """Serialize Python value to HDF5-compatible type.
 
         HDF5 attrs support: str, int, float, bool, bytes, numpy arrays
@@ -159,7 +159,7 @@ class SessionRepository(BaseRepository):
     # Public CRUD Methods
     # ============================================================================
 
-    def create(self, entity: dict[str, Any | None], **kwargs: Any) -> str:
+    def create(self, entity: dict[str, Optional[Any]], **kwargs: Any) -> str:
         """Create new session.
 
         Args:
@@ -246,7 +246,7 @@ class SessionRepository(BaseRepository):
     def update(
         self,
         entity_id: str,
-        entity: dict[str, Any | None],
+        entity: dict[str, Optional[Any]],
     ) -> bool:
         """Update session status and metadata.
 

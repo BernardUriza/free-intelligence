@@ -62,7 +62,7 @@ class JobStatusResponse(BaseModel):
     """Response for job status polling."""
 
     session_id: str
-    status: str = Field(..., description="pending | in_progress | completed | failed")
+    status: str = Field(..., description="Union[pending, in_progress, completed] | failed")
     total_chunks: int
     processed_chunks: int
     progress_percent: int

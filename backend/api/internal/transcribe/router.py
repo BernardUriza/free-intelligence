@@ -62,7 +62,7 @@ class TranscriptionJobResponse(BaseModel):
 
     session_id: str
     job_id: str
-    status: str = Field(..., description="pending | in_progress | completed | failed")
+    status: str = Field(..., description="Union[pending, in_progress, completed] | failed")
     total_chunks: int
     processed_chunks: int
     progress_percent: int

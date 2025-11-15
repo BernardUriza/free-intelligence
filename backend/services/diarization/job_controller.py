@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 
 def now_utc() -> datetime:
-    """Python 3.9 compatible UTC now."""
+    """Python 3.9 compatible timezone.utc now."""
     return datetime.now(UTC)
 
 

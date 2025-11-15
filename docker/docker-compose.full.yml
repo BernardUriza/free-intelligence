@@ -40,6 +40,8 @@ services:
       redis:
         condition: service_healthy
     environment:
+      # Deepgram (Primary STT Provider)
+      - DEEPGRAM_API_KEY=1458d348587ba229dbd33e254f9fe9c534978b1f
       # Redis
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -50,9 +52,9 @@ services:
       - AURITY_AUDIO_ROOT=/app/storage/audio
       - AURITY_ENABLE_WEBM_GRAFT=true
       - HDF5_USE_FILE_LOCKING=FALSE
-      # Whisper
+      # Whisper (Fallback)
       - WHISPER_MODEL_SIZE=small
-      - AURITY_ASR_PROVIDER=whisper
+      - AURITY_ASR_PROVIDER=deepgram
       # Python
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
@@ -77,23 +79,31 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.celery
     container_name: fi-celery-worker
-    command: celery -A backend.workers.celery_app worker --loglevel=info --queues=asr,celery --concurrency=2 --max-tasks-per-child=100
+    command: celery -A backend.workers.celery_app worker --loglevel=info --pool=solo --queues=asr,celery
     depends_on:
       redis:
         condition: service_healthy
       backend:
         condition: service_started
     environment:
+      # Deepgram (Primary STT Provider)
+      - DEEPGRAM_API_KEY=1458d348587ba229dbd33e254f9fe9c534978b1f
+      # Redis
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB_BROKER=0
       - REDIS_DB_BACKEND=1
+      # Python
       - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      # Storage
       - AURITY_CORPUS_H5=/app/storage/corpus.h5
       - AURITY_AUDIO_ROOT=/app/storage/audio
       - AURITY_ENABLE_WEBM_GRAFT=true
       - HDF5_USE_FILE_LOCKING=FALSE
+      # Whisper (Fallback)
       - WHISPER_MODEL_SIZE=small
+      - AURITY_ASR_PROVIDER=deepgram
     volumes:
       - ../backend:/app/backend
       - ../packages:/app/packages

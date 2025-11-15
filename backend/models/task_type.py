@@ -6,7 +6,7 @@ Philosophy:
   - Task ≠ Job: Task is purpose, Job is execution metadata
 
 Task lifecycle:
-  PENDING → IN_PROGRESS → COMPLETED | FAILED
+  PENDING → IN_PROGRESS → Union[COMPLETED, FAILED]
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-14

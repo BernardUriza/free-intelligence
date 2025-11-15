@@ -17,6 +17,10 @@ Refactored: 2025-11-05 (consolidated whisper_utils)
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 from backend.logger import get_logger
 from backend.services.transcription.whisper import (
     CPU_THREADS,
@@ -31,10 +35,6 @@ from packages.fi_common.storage.audio_storage import (
     save_audio_file,
     validate_session_id,
 )
-
-import os
-from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 logger = get_logger(__name__)
 
@@ -101,7 +101,7 @@ class TranscriptionService:
           - Singleton Whisper model instance (lazy-loaded)
           - Whisper availability flag
         """
-        self._whisper_model_instance: Any | None = None
+        self._whisper_model_instance: Optional[Any] = None
         self._whisper_available = _WHISPER_AVAILABLE
         logger.info(
             "TranscriptionService initialized",
@@ -112,7 +112,7 @@ class TranscriptionService:
     # Whisper Model Management (Internal)
     # ─────────────────────────────────────────────────────────────────────
 
-    def _get_whisper_model(self) -> Any | None:
+    def _get_whisper_model(self) -> Optional[Any]:
         """Get singleton WhisperModel instance (lazy loading).
 
         Returns:

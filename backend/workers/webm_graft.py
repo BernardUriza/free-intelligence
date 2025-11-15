@@ -72,7 +72,7 @@ def _candidate_chunk0_paths(sess_dir: Path) -> list[Path]:
     return [sess_dir / n for n in names]
 
 
-def wait_for_chunk0(sess_dir: Path, timeout: float = 3.0) -> Path | None:
+def wait_for_chunk0(sess_dir: Path, timeout: float = 3.0) -> Optional[Path]:
     """
     Wait for chunk 0 to be available (race condition killer).
 

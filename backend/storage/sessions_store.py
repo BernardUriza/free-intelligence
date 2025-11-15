@@ -21,7 +21,7 @@ Session schema:
     "updated_at": "2025-10-29T21:35:00Z",
     "last_active": "2025-10-29T21:35:00Z",
     "interaction_count": 5,
-    "status": "active",  # new|active|complete
+    "status": "active",  # Union[new, active, complete]
     "is_persisted": true,
     "owner_hash": "sha256:abc...",
     "thread_id": "thread_xyz"  # nullable
@@ -36,7 +36,7 @@ import random
 # ULID generation (simple implementation)
 import time
 from dataclasses import asdict, dataclass
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -62,7 +62,7 @@ class Session:
     updated_at: str  # ISO 8601
     last_active: str  # ISO 8601
     interaction_count: int
-    status: str  # new|active|complete
+    status: str  # Union[new, active, complete]
     is_persisted: bool
     owner_hash: str
     thread_id: Optional[str] = None
@@ -144,7 +144,7 @@ class SessionsStore:
         Returns:
             Created Session instance
         """
-        now = datetime.now(timezone.utc).isoformat() + "Z"
+        now = datetime.now(UTC).isoformat() + "Z"
         session = Session(
             id=generate_ulid(),
             created_at=now,
@@ -276,7 +276,7 @@ class SessionsStore:
             return None
 
         # Create updated session
-        now = datetime.now(timezone.utc).isoformat() + "Z"
+        now = datetime.now(UTC).isoformat() + "Z"
         updated = Session(
             id=current.id,
             created_at=current.created_at,

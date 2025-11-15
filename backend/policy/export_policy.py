@@ -36,8 +36,8 @@ Manifest Schema:
         "exported_by": "owner_hash prefix o user_id",
         "data_source": "HDF5 group exportado (/interactions/)",
         "data_hash": "SHA256 de datos exportados",
-        "format": "markdown | json | hdf5 | csv",
-        "purpose": "personal_review | backup | migration | analysis",
+        "format": "Union[markdown, json, hdf5] | csv",
+        "purpose": "Union[personal_review, backup, migration] | analysis",
         "retention_days": int (opcional),
         "includes_pii": bool,
         "metadata": dict (opcional)

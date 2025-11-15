@@ -298,7 +298,7 @@ def print_timeline_summary(timeline: Timeline):
         print(f"\n[{i}] {event.event_type.value.upper()}")
         print(f"    {event.what}")
         print(f"    Who: {event.who}")
-        print(f"    When: {event.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        print(f"    When: {event.timestamp.strftime('%Y-%m-%d %H:%M:%S timezone.utc')}")
         print(f"    Redaction: {event.redaction_policy.value}")
         print(f"    Hash: {event.content_hash[:16]}...")
 

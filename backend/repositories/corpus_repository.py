@@ -39,7 +39,7 @@ class CorpusRepository(BaseRepository):
     CHUNKS_GROUP = "chunks"
     METADATA_GROUP = "metadata"
 
-    def __init__(self, h5_file_path: str | Path) -> None:
+    def __init__(self, h5_file_path: Union[str, Path]) -> None:
         """Initialize corpus repository.
 
         Args:
@@ -64,7 +64,7 @@ class CorpusRepository(BaseRepository):
         self,
         document_id: str,
         content: str,
-        metadata: dict[str, Any | None] | None = None,
+        metadata: dict[str, Optional[Any]] | None = None,
     ) -> str:
         """Create new corpus document.
 
@@ -116,7 +116,7 @@ class CorpusRepository(BaseRepository):
             self._log_operation("create", document_id, status="failed", error=str(e))
             raise
 
-    def read(self, document_id: str) -> dict[str, Any | None] | None:  # type: ignore[override]
+    def read(self, document_id: str) -> dict[str, Optional[Any]] | None:  # type: ignore[override]
         """Read corpus document.
 
         Args:
@@ -148,7 +148,7 @@ class CorpusRepository(BaseRepository):
             return None
 
     def update(  # type: ignore[override]
-        self, document_id: str, content: str, metadata: dict[str, Any | None] | None = None
+        self, document_id: str, content: str, metadata: dict[str, Optional[Any]] | None = None
     ) -> bool:
         """Update corpus document (enforces append-only by creating new version).
 

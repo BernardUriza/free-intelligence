@@ -81,7 +81,7 @@ def classify_speaker(
         context_after: Next segment text (optional context for classification)
 
     Returns:
-        Speaker label: PACIENTE | MEDICO | DESCONOCIDO
+        Speaker label: Union[PACIENTE, MEDICO, DESCONOCIDO]
     """
     # Early exit if LLM classification is disabled
     if not FI_ENRICHMENT or not ENABLE_LLM_CLASSIFICATION:
