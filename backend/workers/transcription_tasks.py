@@ -160,6 +160,13 @@ def transcribe_chunk_task(
         )
 
         # 5. STT Transcription via selected provider
+        logger.info(
+            "ABOUT_TO_IMPORT_STT_PROVIDER",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            provider=stt_provider,
+        )
+
         from backend.providers.stt import get_stt_provider
 
         logger.info(
@@ -170,7 +177,18 @@ def transcribe_chunk_task(
         )
 
         try:
+            logger.debug(
+                "ABOUT_TO_GET_PROVIDER_INSTANCE",
+                session_id=session_id,
+                provider=stt_provider,
+            )
             provider = get_stt_provider(stt_provider)
+            logger.debug(
+                "PROVIDER_INSTANCE_CREATED",
+                session_id=session_id,
+                provider=stt_provider,
+                provider_type=type(provider).__name__,
+            )
         except ValueError as e:
             logger.error(
                 "STT_PROVIDER_INVALID",
