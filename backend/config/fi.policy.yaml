@@ -5,6 +5,50 @@
 # Version: 0.1.0
 # Created: 2025-11-14
 
+# ===== Diarization (Speaker Identification) Configuration =====
+diarization:
+  # Primary provider for speaker identification
+  primary_provider: pyannote
+
+  # Fallback providers in order (local → cloud)
+  fallback_providers:
+    - deepgram
+    - aws_transcribe
+    - google_speech
+
+  # Provider-specific configurations
+  providers:
+    # Pyannote - Local speaker diarization (free, offline)
+    pyannote:
+      model: "pyannote/speaker-diarization-3.1"
+      device: cpu  # cpu or cuda
+      timeout_seconds: 120
+      # No credentials needed - uses HuggingFace models
+
+    # Deepgram - Cloud speaker diarization (fast, low cost)
+    deepgram:
+      model: "nova-2"
+      timeout_seconds: 30
+      # Credentials from environment:
+      # - DEEPGRAM_API_KEY: your-api-key
+
+    # AWS Transcribe - Cloud speaker diarization (high accuracy)
+    aws_transcribe:
+      region: "us-east-1"
+      timeout_seconds: 300
+      # Credentials from environment:
+      # - AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+
+    # Google Speech-to-Text - Cloud speaker diarization (multilingual)
+    google_speech:
+      language_code: "es-ES"
+      timeout_seconds: 60
+      # Credentials from environment:
+      # - GOOGLE_APPLICATION_CREDENTIALS: path/to/credentials.json
+
+  # For medical consultations: identify doctor vs patient
+  expected_num_speakers: 2
+
 # ===== STT Provider Configuration =====
 stt:
   # Primary provider for transcription

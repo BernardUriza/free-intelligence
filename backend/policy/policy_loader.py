@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Free Intelligence - Policy Loader
 
@@ -9,9 +7,11 @@ Provides unified interface for accessing LLM policies, export policies, audit po
 Philosophy: Policy-driven configuration for provider-agnostic LLM routing.
 """
 
+from __future__ import annotations
+
 import threading
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import yaml
 
@@ -42,7 +42,7 @@ class PolicyLoader:
             policy_path = str(project_root / "config" / "fi.policy.yaml")
 
         self.policy_path = Path(policy_path)
-        self.policy: Dict[str, Any] | None = None
+        self.policy: dict[str, Any] | None = None
         self.logger = get_logger(self.__class__.__name__)
 
     def load(self) -> dict[str, Any]:
@@ -89,7 +89,7 @@ class PolicyLoader:
             self.logger.error("POLICY_VALIDATION_FAILED", error=str(e))
             raise
 
-    def _validate_policy(self, policy: Dict[str, Any]) -> None:
+    def _validate_policy(self, policy: dict[str, Any]) -> None:
         """
         Validate policy schema and required fields.
 
@@ -100,10 +100,13 @@ class PolicyLoader:
             PolicyValidationError: If validation fails
         """
         # Check top-level sections
-        required_sections = ["stt", "llm", "export", "audit", "metadata"]
+        required_sections = ["diarization", "stt", "llm", "export", "audit", "metadata"]
         for section in required_sections:
             if section not in policy:
                 raise PolicyValidationError(f"Missing required section: {section}")
+
+        # Validate diarization section
+        self._validate_diarization_section(policy["diarization"])
 
         # Validate STT section
         self._validate_stt_section(policy["stt"])
@@ -122,7 +125,31 @@ class PolicyLoader:
 
         self.logger.info("POLICY_VALIDATION_PASSED")
 
-    def _validate_stt_section(self, stt: Dict[str, Any]) -> None:
+    def _validate_diarization_section(self, diarization: dict[str, Any]) -> None:
+        """Validate diarization policy section"""
+        required_fields = ["primary_provider", "fallback_providers", "providers"]
+        for field in required_fields:
+            if field not in diarization:
+                raise PolicyValidationError(f"Missing required diarization field: {field}")
+
+        # Validate primary_provider is in providers
+        primary = diarization["primary_provider"]
+        if primary not in diarization["providers"]:
+            raise PolicyValidationError(
+                f"primary_provider '{primary}' not found in diarization providers configuration"
+            )
+
+        # Validate all fallback_providers are in providers
+        if not isinstance(diarization["fallback_providers"], list):
+            raise PolicyValidationError("diarization.fallback_providers must be a list")
+
+        for fallback in diarization["fallback_providers"]:
+            if fallback not in diarization["providers"]:
+                raise PolicyValidationError(
+                    f"fallback_provider '{fallback}' not found in diarization providers configuration"
+                )
+
+    def _validate_stt_section(self, stt: dict[str, Any]) -> None:
         """Validate STT policy section"""
         required_fields = ["primary_provider", "fallback_providers", "providers"]
         for field in required_fields:
@@ -146,7 +173,7 @@ class PolicyLoader:
                     f"fallback_provider '{fallback}' not found in STT providers configuration"
                 )
 
-    def _validate_llm_section(self, llm: Dict[str, Any]) -> None:
+    def _validate_llm_section(self, llm: dict[str, Any]) -> None:
         """Validate LLM policy section"""
         required_fields = ["primary_provider", "fallback_provider", "providers"]
         for field in required_fields:
@@ -183,7 +210,7 @@ class PolicyLoader:
                         "Each fallback_rule must have 'condition' and 'action'"
                     )
 
-    def _validate_export_section(self, export: Dict[str, Any]) -> None:
+    def _validate_export_section(self, export: dict[str, Any]) -> None:
         """Validate export policy section"""
         required_fields = ["require_manifest", "compute_sha256", "allowed_formats"]
         for field in required_fields:
@@ -194,19 +221,62 @@ class PolicyLoader:
         if not isinstance(export["allowed_formats"], list):
             raise PolicyValidationError("export.allowed_formats must be a list")
 
-    def _validate_audit_section(self, audit: Dict[str, Any]) -> None:
+    def _validate_audit_section(self, audit: dict[str, Any]) -> None:
         """Validate audit policy section"""
         required_fields = ["log_all_operations", "retention_days", "hash_payloads", "hash_results"]
         for field in required_fields:
             if field not in audit:
                 raise PolicyValidationError(f"Missing required audit field: {field}")
 
-    def _validate_metadata_section(self, metadata: Dict[str, Any]) -> None:
+    def _validate_metadata_section(self, metadata: dict[str, Any]) -> None:
         """Validate metadata section"""
         required_fields = ["version", "last_updated", "owner"]
         for field in required_fields:
             if field not in metadata:
                 raise PolicyValidationError(f"Missing required metadata field: {field}")
+
+    def get_diarization_config(self) -> dict[str, Any]:
+        """
+        Get diarization configuration section.
+
+        Returns:
+            Dict with diarization configuration
+
+        Raises:
+            RuntimeError: If policy not loaded
+        """
+        if self.policy is None:
+            raise RuntimeError("Policy not loaded. Call load() first.")
+        return self.policy.get("diarization", {})
+
+    def get_primary_diarization_provider(self) -> str:
+        """Get primary diarization provider name"""
+        return self.get_diarization_config()["primary_provider"]
+
+    def get_fallback_diarization_providers(self) -> list[str]:
+        """Get fallback diarization providers in order"""
+        return self.get_diarization_config()["fallback_providers"]
+
+    def get_diarization_provider_config(self, provider_name: str) -> dict[str, Any]:
+        """
+        Get configuration for specific diarization provider.
+
+        Args:
+            provider_name: Provider name (e.g., "pyannote", "deepgram")
+
+        Returns:
+            Dict with provider configuration
+
+        Raises:
+            KeyError: If provider not found
+        """
+        diarization_config = self.get_diarization_config()
+        providers = diarization_config["providers"]
+
+        if provider_name not in providers:
+            raise KeyError(f"Diarization provider '{provider_name}' not found in policy")
+
+        return providers[provider_name]
 
     def get_stt_config(self) -> dict[str, Any]:
         """
