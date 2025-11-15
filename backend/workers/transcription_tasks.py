@@ -189,6 +189,14 @@ def transcribe_chunk_task(
             # Cloud providers (Azure, Deepgram) work with webm/mp3
             audio_input_path = audio_path
 
+        logger.info(
+            "STT_TRANSCRIPTION_STARTING",
+            session_id=session_id,
+            chunk_number=chunk_number,
+            provider=stt_provider,
+            audio_path=str(audio_input_path),
+        )
+
         try:
             stt_response = provider.transcribe(str(audio_input_path), language=None)
 
@@ -196,6 +204,12 @@ def transcribe_chunk_task(
             duration = stt_response.duration
             language = stt_response.language
             confidence = stt_response.confidence
+
+            logger.info(
+                "STT_TRANSCRIPTION_SUCCESS",
+                session_id=session_id,
+                chunk_number=chunk_number,
+            )
 
             logger.info(
                 "STT_TRANSCRIPTION_DONE",
@@ -210,11 +224,14 @@ def transcribe_chunk_task(
             )
         except Exception as e:
             logger.error(
-                "STT_TRANSCRIPTION_FAILED",
+                "STT_TRANSCRIPTION_CALL_FAILED",
                 session_id=session_id,
                 chunk_number=chunk_number,
                 provider=stt_provider,
-                error=str(e),
+                error_type=type(e).__name__,
+                error_message=str(e),
+                audio_path=str(audio_input_path),
+                exc_info=True,
             )
             raise
 
@@ -336,8 +353,10 @@ def transcribe_chunk_task(
             task_id=self.request.id,
             session_id=session_id,
             chunk_number=chunk_number,
-            error=str(e),
+            error_type=type(e).__name__,
+            error_message=str(e),
             latency_ms=latency_ms,
+            exc_info=True,
         )
 
         # Update task metadata with error
