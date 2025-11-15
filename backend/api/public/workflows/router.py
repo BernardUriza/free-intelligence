@@ -28,7 +28,7 @@ Refactored: 2025-11-14 (Clean Architecture with Service Layer)
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
@@ -372,4 +372,222 @@ async def get_session_chunks_api(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get chunks: {e!s}",
+        ) from e
+
+
+# ============================================================================
+# Session Finalization & Diarization Workflow
+# ============================================================================
+
+
+class TranscriptionSourcesModel(BaseModel):
+    """3 separate transcription sources for diarization."""
+
+    webspeech_final: list[str] = Field(
+        default_factory=list, description="WebSpeech instant previews"
+    )
+    transcription_per_chunks: list[dict] = Field(
+        default_factory=list, description="Whisper per-chunk transcripts"
+    )
+    full_transcription: str = Field(default="", description="Concatenated full text")
+
+
+class FinalizeSessionRequest(BaseModel):
+    """Request to finalize session and start diarization."""
+
+    transcription_sources: TranscriptionSourcesModel = Field(
+        default_factory=TranscriptionSourcesModel,
+        description="3 separate transcription sources",
+    )
+
+
+class FinalizeSessionResponse(BaseModel):
+    """Response for session finalization."""
+
+    session_id: str = Field(..., description="Session identifier")
+    status: str = Field(..., description="finalized")
+    encrypted_at: str = Field(..., description="ISO timestamp")
+    diarization_job_id: str = Field(..., description="Celery task ID for diarization")
+    message: str = Field(..., description="Human-readable message")
+
+
+@router.post(
+    "/sessions/{session_id}/finalize",
+    response_model=FinalizeSessionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["workflows-sessions"],
+)
+async def finalize_session_workflow(
+    session_id: str, request: FinalizeSessionRequest
+) -> FinalizeSessionResponse:
+    """Finalize session: encrypt + dispatch diarization workflow (PUBLIC orchestrator).
+
+    Flow:
+    1. Call INTERNAL /sessions/{session_id}/finalize endpoint
+    2. Return diarization job ID to frontend
+    3. Frontend polls /diarization/jobs/{job_id} for status
+
+    PUBLIC layer: Pure orchestrator - delegates to INTERNAL endpoint
+
+    Args:
+        session_id: Session UUID
+        request: FinalizeSessionRequest with 3 transcription sources
+
+    Returns:
+        FinalizeSessionResponse with diarization job ID (202 Accepted)
+
+    Raises:
+        404: Session not found or no TRANSCRIPTION task
+        400: Transcription not completed yet
+        500: Encryption or storage failed
+    """
+    import httpx
+
+    from backend.logger import get_logger
+
+    logger = get_logger(__name__)
+
+    try:
+        logger.info(
+            "FINALIZE_SESSION_WORKFLOW_STARTED",
+            session_id=session_id,
+            sources_count=len(request.transcription_sources.webspeech_final),
+        )
+
+        # Call internal finalize endpoint (must be running on same port)
+        internal_url = f"http://localhost:7001/internal/sessions/{session_id}/finalize"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                internal_url,
+                json=request.model_dump(),
+                headers={"Content-Type": "application/json"},
+            )
+
+        if response.status_code != 202:
+            error_detail = response.text
+            logger.error(
+                "INTERNAL_FINALIZE_FAILED",
+                session_id=session_id,
+                status_code=response.status_code,
+                error=error_detail,
+            )
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Internal finalize failed: {error_detail}",
+            )
+
+        # Parse response from internal endpoint
+        result = response.json()
+
+        logger.info(
+            "FINALIZE_SESSION_WORKFLOW_SUCCESS",
+            session_id=session_id,
+            diarization_job_id=result.get("diarization_job_id"),
+        )
+
+        return FinalizeSessionResponse(**result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "FINALIZE_SESSION_WORKFLOW_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to finalize session: {e!s}",
+        ) from e
+
+
+# ============================================================================
+# Diarization Job Status Polling
+# ============================================================================
+
+
+class DiarizationStatusResponse(BaseModel):
+    """Diarization job status for frontend polling."""
+
+    job_id: str = Field(..., description="Celery task ID")
+    session_id: str = Field(..., description="Session identifier")
+    status: str = Field(..., description="pending, processing, completed, failed")
+    progress: int = Field(default=0, description="Progress percentage (0-100)")
+    segment_count: int = Field(default=0, description="Number of diarized segments")
+    transcription_sources: Optional[dict[str, Any]] = Field(
+        default=None, description="Triple vision transcription sources"
+    )
+    error: Optional[str] = Field(default=None, description="Error message if failed")
+
+
+@router.get(
+    "/diarization/jobs/{job_id}",
+    response_model=DiarizationStatusResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["workflows-diarization"],
+)
+async def get_diarization_status_workflow(job_id: str) -> DiarizationStatusResponse:
+    """Poll diarization job status (PUBLIC orchestrator).
+
+    Frontend polls this every 2 seconds to update the diarization progress modal.
+
+    Flow:
+    1. Delegates to INTERNAL /diarization/jobs/{job_id} endpoint
+    2. Returns combined Celery + HDF5 status
+
+    Args:
+        job_id: Celery task ID (returned from finalize endpoint)
+
+    Returns:
+        DiarizationStatusResponse with current status and progress
+    """
+    import httpx
+
+    from backend.logger import get_logger
+
+    logger = get_logger(__name__)
+
+    try:
+        # Delegate to internal endpoint
+        internal_url = f"http://localhost:7001/internal/diarization/jobs/{job_id}"
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(internal_url)
+
+        if response.status_code != 200:
+            logger.error(
+                "DIARIZATION_STATUS_FAILED",
+                job_id=job_id,
+                status_code=response.status_code,
+            )
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Failed to get diarization status: {response.text}",
+            )
+
+        # Parse and return
+        result = response.json()
+        logger.info(
+            "DIARIZATION_STATUS_POLLED",
+            job_id=job_id,
+            status=result.get("status"),
+            progress=result.get("progress"),
+        )
+
+        return DiarizationStatusResponse(**result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "DIARIZATION_STATUS_WORKFLOW_FAILED",
+            job_id=job_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get diarization status: {e!s}",
         ) from e
