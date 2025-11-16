@@ -38,11 +38,13 @@ def transcribe_chunk_worker(
     Returns:
         WorkerResult with transcript, duration, language, confidence
     """
+    # Initialize variables for exception handler type checking
+    import time
+
+    balancer = None
+    start_time = time.time()  # Track resolution time
+
     try:
-        import time
-
-        start_time = time.time()  # Track resolution time
-
         # Get load balancer and select provider adaptively if not specified
         balancer = get_stt_load_balancer()
         if stt_provider is None:
@@ -184,9 +186,7 @@ def transcribe_chunk_worker(
     except Exception as e:
         # Record performance failure if we got far enough to select a provider
         try:
-            if "balancer" in locals() and "stt_provider" in locals() and "start_time" in locals():
-                import time
-
+            if balancer is not None and stt_provider is not None:
                 resolution_time = time.time() - start_time
                 balancer.record_performance(
                     provider=stt_provider,
