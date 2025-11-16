@@ -8,6 +8,7 @@ Created: 2025-11-16
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 from pathlib import Path
@@ -26,7 +27,7 @@ logger = get_logger(__name__)
 CORPUS_PATH = Path(__file__).parent.parent / "storage" / "corpus.h5"
 
 
-def transcribe_missing_chunks(session_id: str) -> None:
+async def transcribe_missing_chunks(session_id: str) -> None:
     """Transcribe chunks with audio but empty transcript."""
     logger.info("TRANSCRIBE_MISSING_START", session_id=session_id)
 
@@ -76,8 +77,8 @@ def transcribe_missing_chunks(session_id: str) -> None:
             )
 
             try:
-                # Call Deepgram STT
-                result = deepgram.transcribe_sync(audio_bytes)
+                # Call Deepgram STT (async)
+                result = await deepgram.transcribe(audio_bytes)
                 transcript_text = result.get("text", "")
 
                 if not transcript_text:
@@ -145,4 +146,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     session_id = sys.argv[1]
-    transcribe_missing_chunks(session_id)
+    asyncio.run(transcribe_missing_chunks(session_id))

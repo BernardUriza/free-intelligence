@@ -10,9 +10,9 @@ not business logic or policy enforcement.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 from uuid import uuid4
 
 from backend.logger import get_logger
@@ -76,7 +76,7 @@ class AuditRepository(BaseRepository):
                 log_group = logs_group.create_group(log_id)  # type: ignore[attr-defined]
 
                 # Store log data - ensure timestamp is ISO string
-                timestamp_raw = entity.get("timestamp", datetime.now(timezone.utc))
+                timestamp_raw = entity.get("timestamp", datetime.now(UTC))
                 timestamp_str = (
                     timestamp_raw.isoformat()
                     if isinstance(timestamp_raw, datetime)

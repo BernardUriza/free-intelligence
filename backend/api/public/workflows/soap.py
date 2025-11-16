@@ -74,7 +74,7 @@ class AssistantResponse(BaseModel):
     status_code=status.HTTP_200_OK,
 )
 async def get_soap_workflow(session_id: str) -> dict:
-    """Get SOAP note data (PUBLIC endpoint).
+    """Get SOAP note data - generates if not exists (PUBLIC endpoint).
 
     Args:
         session_id: Session UUID
@@ -83,29 +83,40 @@ async def get_soap_workflow(session_id: str) -> dict:
         SOAP data with subjective, objective, assessment, plan
 
     Raises:
-        404: SOAP data not found
-        500: Failed to load SOAP data
+        500: Failed to load or generate SOAP data
     """
     from backend.storage.task_repository import get_soap_data
 
     try:
         logger.info("SOAP_GET_STARTED", session_id=session_id)
 
-        soap_data = get_soap_data(session_id)
+        # Try to get existing SOAP data
+        try:
+            soap_data = get_soap_data(session_id)
+            logger.info("SOAP_GET_SUCCESS", session_id=session_id)
+            return {
+                "session_id": session_id,
+                "soap_note": soap_data,
+            }
+        except ValueError:
+            # SOAP doesn't exist - generate it using service layer
+            logger.info("SOAP_NOT_FOUND_GENERATING", session_id=session_id)
 
-        logger.info("SOAP_GET_SUCCESS", session_id=session_id)
+            from backend.workers.tasks.soap_worker import generate_soap_worker
 
-        return {
-            "session_id": session_id,
-            "soap": soap_data,
-        }
+            # Call worker synchronously (service layer)
+            generate_soap_worker(session_id)
 
-    except ValueError as e:
-        logger.error("SOAP_NOT_FOUND", session_id=session_id, error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
+            # Get generated SOAP
+            soap_data = get_soap_data(session_id)
+
+            logger.info("SOAP_GENERATED_SUCCESS", session_id=session_id)
+
+            return {
+                "session_id": session_id,
+                "soap_note": soap_data,
+            }
+
     except Exception as e:
         logger.error(
             "SOAP_GET_FAILED",
@@ -266,6 +277,7 @@ async def soap_assistant_workflow(
         400: Invalid command or SOAP data
         500: LLM processing failed
     """
+    response_text = ""  # Initialize to avoid unbound error in exception handlers
     try:
         logger.info(
             "ASSISTANT_COMMAND_START",
@@ -407,7 +419,7 @@ Now process this command and respond ONLY with valid JSON (no markdown, no expla
             "ASSISTANT_JSON_PARSE_ERROR",
             session_id=session_id,
             error=str(e),
-            response_text=response_text[:500] if "response_text" in locals() else "N/A",
+            response_text=response_text[:500] if response_text else "N/A",
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

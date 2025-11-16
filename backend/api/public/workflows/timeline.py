@@ -100,18 +100,24 @@ async def list_sessions(
             try:
                 # Get transcription metadata
                 metadata = task_repository.get_task_metadata(session_id, "TRANSCRIPTION")
-                chunk_count = metadata.get("chunk_count", 0) if metadata else 0
 
-                # Get first chunk preview
+                # Get chunks to calculate real chunk count
+                chunk_count = 0
                 preview = ""
-                if chunk_count > 0:
-                    try:
-                        chunks = task_repository.get_task_chunks(session_id, "TRANSCRIPTION")
-                        if chunks:
-                            transcript = chunks[0].get("transcript", "")
-                            preview = transcript[:200] if transcript else ""
-                    except Exception:
-                        pass
+                try:
+                    chunks = task_repository.get_task_chunks(session_id, "TRANSCRIPTION")
+                    chunk_count = len(chunks) if chunks else 0
+
+                    # Get first chunk preview
+                    if chunks and len(chunks) > 0:
+                        transcript = chunks[0].get("transcript", "")
+                        preview = transcript[:200] if transcript else ""
+                except Exception as chunk_error:
+                    logger.warning(
+                        "TIMELINE_CHUNK_FETCH_ERROR",
+                        session_id=session_id,
+                        error=str(chunk_error),
+                    )
 
                 # Count tasks
                 task_counts: dict[str, int] = {}
