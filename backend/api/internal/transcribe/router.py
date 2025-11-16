@@ -151,19 +151,22 @@ async def upload_chunk(
             total_chunks=metadata["total_chunks"],
         )
 
-        # 4. Determine STT provider (from request or policy)
-        from backend.policy.policy_loader import get_policy_loader
-
-        if not stt_provider:
-            policy_loader = get_policy_loader()
-            stt_provider = policy_loader.get_primary_stt_provider()
-
-        logger.info(
-            "STT_PROVIDER_SELECTED",
-            session_id=session_id,
-            chunk_number=chunk_number,
-            provider=stt_provider,
-        )
+        # 4. Determine STT provider (adaptive if not specified)
+        # If stt_provider is None, the worker will use adaptive load balancing
+        if stt_provider:
+            logger.info(
+                "STT_PROVIDER_EXPLICIT",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                provider=stt_provider,
+            )
+        else:
+            logger.info(
+                "STT_PROVIDER_ADAPTIVE",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                message="Using adaptive load balancing for provider selection",
+            )
 
         # 5. Dispatch sync worker (worker writes to HDF5)
         from concurrent.futures import ThreadPoolExecutor

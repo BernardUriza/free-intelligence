@@ -16,6 +16,7 @@ from backend.storage.task_repository import (
     update_chunk_dataset,
     update_task_metadata,
 )
+from backend.utils.stt_load_balancer import get_stt_load_balancer
 from backend.workers.tasks.base_worker import WorkerResult, measure_time
 
 logger = get_logger(__name__)
@@ -25,14 +26,14 @@ logger = get_logger(__name__)
 def transcribe_chunk_worker(
     session_id: str,
     chunk_number: int,
-    stt_provider: str = "deepgram",
+    stt_provider: str | None = None,
 ) -> dict[str, Any]:
     """Synchronous transcription of audio chunk.
 
     Args:
         session_id: Session identifier
         chunk_number: Chunk index
-        stt_provider: Provider name (deepgram, azure_whisper)
+        stt_provider: Provider name (deepgram, azure_whisper). If None, uses adaptive selection.
 
     Returns:
         WorkerResult with transcript, duration, language, confidence
@@ -41,6 +42,17 @@ def transcribe_chunk_worker(
         import time
 
         start_time = time.time()  # Track resolution time
+
+        # Get load balancer and select provider adaptively if not specified
+        balancer = get_stt_load_balancer()
+        if stt_provider is None:
+            stt_provider = balancer.select_provider(chunk_number=chunk_number, session_id=session_id)
+            logger.info(
+                "ADAPTIVE_PROVIDER_SELECTED",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                provider=stt_provider,
+            )
 
         logger.info(
             "TRANSCRIBE_CHUNK_START",
@@ -145,6 +157,14 @@ def transcribe_chunk_worker(
             },
         )
 
+        # Record performance metrics for adaptive load balancing
+        balancer.record_performance(
+            provider=stt_provider,
+            resolution_time=resolution_time,
+            retry_attempts=result.get("retry_attempts", 0),
+            failed=False,
+        )
+
         logger.info(
             "TRANSCRIBE_CHUNK_SUCCESS",
             session_id=session_id,
@@ -152,6 +172,7 @@ def transcribe_chunk_worker(
             processed=f"{processed}/{total}",
             provider=stt_provider,
             duration_seconds=result.get("duration", 0.0),
+            resolution_time=resolution_time,
         )
 
         return WorkerResult(
@@ -161,6 +182,21 @@ def transcribe_chunk_worker(
         )
 
     except Exception as e:
+        # Record performance failure if we got far enough to select a provider
+        try:
+            if "balancer" in locals() and "stt_provider" in locals() and "start_time" in locals():
+                import time
+
+                resolution_time = time.time() - start_time
+                balancer.record_performance(
+                    provider=stt_provider,
+                    resolution_time=resolution_time,
+                    retry_attempts=0,
+                    failed=True,
+                )
+        except Exception:
+            pass  # Don't let performance tracking errors hide the original error
+
         logger.error(
             "TRANSCRIBE_CHUNK_FAILED",
             session_id=session_id,
