@@ -1,0 +1,166 @@
+DIÁLOGO MÉDICO - CONSULTA DE CONTROL
+==========================================
+Duración aproximada: 8-10 minutos
+Paciente: María González (45 años, sexo femenino)
+Doctor: Dr. Ramírez (Medicina Interna)
+
+[INICIO DE CONSULTA]
+
+Doctor: Buenos días, señora González. ¿Cómo se encuentra el día de hoy?
+
+Paciente: Buenos días, doctor. Pues mire, vengo porque desde hace como una semana he tenido unos dolores de cabeza muy fuertes que no se me quitan con nada.
+
+Doctor: Entiendo. Cuénteme más sobre estos dolores de cabeza. ¿En qué parte de la cabeza los siente?
+
+Paciente: Aquí en las sienes, doctor. A veces siento como si me apretaran la cabeza. Y también me duele un poco la nuca.
+
+Doctor: Ya veo. ¿Con qué frecuencia se presentan estos dolores?
+
+Paciente: Pues casi todos los días, doctor. Empiezan como a media mañana y se van quitando en la tarde, pero luego regresan en la noche.
+
+Doctor: ¿Ha notado si algo en particular los provoca? ¿Alguna actividad, alimento, o situación?
+
+Paciente: Mmm, ahora que lo menciona, sí he estado muy estresada en el trabajo últimamente. Tengo mucho trabajo acumulado y no he dormido bien.
+
+Doctor: Ajá, el estrés puede ser un factor importante. ¿Cuántas horas está durmiendo por noche?
+
+Paciente: Como unas cinco o seis horas, doctor. A veces menos porque me desvelo trabajando.
+
+Doctor: Entiendo. Y estos dolores de cabeza, ¿vienen acompañados de náuseas, vómito, o visión borrosa?
+
+Paciente: No, doctor. Solo el dolor. Bueno, a veces sí me dan ganas de vomitar cuando el dolor es muy fuerte, pero nunca he vomitado.
+
+Doctor: De acuerdo. ¿Ha tomado algo para el dolor?
+
+Paciente: Sí, doctor. Me he tomado paracetamol de 500 miligramos, pero como que ya no me hace nada. El dolor sigue igual.
+
+Doctor: ¿Con qué frecuencia está tomando el paracetamol?
+
+Paciente: Pues como tres o cuatro veces al día, doctor. Cuando ya no aguanto el dolor.
+
+Doctor: Ya veo. Ahora, cuénteme sobre sus antecedentes médicos. ¿Padece usted de alguna enfermedad crónica?
+
+Paciente: Sí, doctor. Tengo diabetes desde hace como ocho años. Y también tengo presión alta.
+
+Doctor: Perfecto. ¿Qué medicamentos está tomando actualmente para esas condiciones?
+
+Paciente: Tomo metformina de 850 miligramos, dos veces al día. Y para la presión tomo losartán de 50 miligramos en las mañanas.
+
+Doctor: Muy bien. ¿Ha sido constante con sus medicamentos? ¿Los toma todos los días?
+
+Paciente: Sí, doctor. Bueno, a veces se me olvida el de la noche cuando llego muy cansada del trabajo.
+
+Doctor: Entiendo. Es muy importante que sea constante con sus medicamentos, señora González. ¿Tiene alguna alergia conocida a medicamentos?
+
+Paciente: No, doctor. Ninguna alergia que yo sepa.
+
+Doctor: Perfecto. Ahora déjeme revisarla. Por favor, siéntese derecha y respire normal.
+
+[PAUSA BREVE - EXAMEN FÍSICO]
+
+Doctor: Su presión arterial está en 145 sobre 92. Está un poco alta. ¿Cuándo fue la última vez que se checó la presión?
+
+Paciente: Hace como dos meses, doctor. En ese entonces estaba bien.
+
+Doctor: Ya veo. Voy a revisarle la cabeza y el cuello. Dígame si le duele cuando presiono aquí.
+
+Paciente: Ay sí, ahí sí me duele un poco, doctor.
+
+Doctor: De acuerdo. No hay datos de alarma en la exploración física. Sus reflejos están normales y no hay rigidez de nuca.
+
+Doctor: Señora González, basándome en sus síntomas y lo que me ha comentado, estos dolores de cabeza parecen ser cefaleas tensionales, muy probablemente relacionadas con el estrés y la falta de sueño. Sin embargo, también me preocupa que su presión arterial esté elevada.
+
+Paciente: ¿Y eso es grave, doctor?
+
+Doctor: Las cefaleas tensionales no son graves en sí mismas, pero la hipertensión sí requiere control. Voy a hacer algunos ajustes en su tratamiento.
+
+Doctor: Primero, voy a cambiarle el losartán a 100 miligramos para controlar mejor su presión. Seguirá tomándolo una vez al día en las mañanas.
+
+Paciente: Ajá, doctor.
+
+Doctor: Para el dolor de cabeza, en lugar del paracetamol, le voy a recetar naproxeno de 250 miligramos. Tome uno cada 12 horas solo cuando tenga dolor, pero no más de tres días seguidos.
+
+Paciente: ¿Y el de la diabetes sigue igual, doctor?
+
+Doctor: Sí, la metformina sigue igual por ahora. Pero es muy importante que sea constante con todas sus medicinas. Póngase una alarma en su celular si es necesario para recordar las tomas.
+
+Paciente: Sí, doctor. Eso voy a hacer.
+
+Doctor: Además del tratamiento, quiero que siga estas recomendaciones: Primero, trate de dormir al menos 7 u 8 horas diarias. El sueño es fundamental.
+
+Paciente: Sí, doctor. Voy a intentarlo.
+
+Doctor: Segundo, necesita manejar el estrés. Puede hacer ejercicios de respiración, meditación, o salir a caminar 30 minutos al día. El ejercicio ayuda mucho con la presión y con el estrés.
+
+Paciente: Ay doctor, es que con el trabajo casi no tengo tiempo.
+
+Doctor: Lo entiendo, pero tiene que hacer tiempo para su salud. Si no se cuida ahora, después las complicaciones van a ser mayores. ¿De acuerdo?
+
+Paciente: Tiene razón, doctor. Voy a hacerle caso.
+
+Doctor: Muy bien. También vamos a pedirle algunos estudios de laboratorio para ver cómo están sus niveles de azúcar y verificar que todo esté bien.
+
+Doctor: Le voy a pedir una biometría hemática completa, química sanguínea de 6 elementos, y hemoglobina glucosilada para ver el control de su diabetes en los últimos tres meses.
+
+Paciente: ¿Tengo que ir en ayunas, doctor?
+
+Doctor: Sí, por favor. Necesita un ayuno de al menos 8 horas. Solo puede tomar agua. Intente hacerse los estudios esta semana.
+
+Paciente: Sí, doctor. Mañana mismo voy.
+
+Doctor: Perfecto. Quiero que regrese a consulta en dos semanas con los resultados de los estudios para evaluar cómo va su presión y los dolores de cabeza.
+
+Paciente: ¿Y si me siguen los dolores de cabeza, doctor?
+
+Doctor: Si los dolores continúan igual o empeoran a pesar del tratamiento, o si presenta vómito persistente, visión borrosa, o debilidad en alguna parte del cuerpo, quiero que venga inmediatamente o acuda a urgencias. Esos serían datos de alarma.
+
+Paciente: Entendido, doctor. Muchas gracias.
+
+Doctor: De nada. Recuerde: tome sus medicamentos a sus horas, duerma bien, maneje el estrés, y hágase los estudios. Nos vemos en dos semanas.
+
+Paciente: Sí, doctor. Hasta luego.
+
+Doctor: Que esté bien, señora González. Hasta luego.
+
+[FIN DE CONSULTA]
+
+==========================================
+RESUMEN CLÍNICO ESPERADO (SOAP):
+==========================================
+
+SUBJETIVO:
+- Motivo de consulta: Cefalea de 1 semana de evolución
+- Características: Dolor bilateral en sienes y nuca, tipo opresivo
+- Frecuencia: Diaria (mañana y noche)
+- Factores desencadenantes: Estrés laboral, privación de sueño (5-6h/noche)
+- Tratamiento previo: Paracetamol 500mg sin mejoría
+- Antecedentes: Diabetes Mellitus tipo 2 (8 años), Hipertensión Arterial
+- Medicamentos actuales: Metformina 850mg c/12h, Losartán 50mg c/24h
+- Apego irregular al tratamiento (olvida dosis nocturnas)
+
+OBJETIVO:
+- Signos vitales: TA 145/92 mmHg
+- Exploración física: Sin datos de alarma neurológica
+- Reflejos normales, sin rigidez de nuca
+- Dolor a la palpación en región temporal
+
+ANÁLISIS:
+- Diagnóstico principal: Cefalea tensional
+- Diagnóstico secundario: Hipertensión Arterial descontrolada
+- Diabetes Mellitus tipo 2 en tratamiento
+
+PLAN:
+- Medicamentos:
+  * Losartán 100mg VO c/24h (incremento de dosis)
+  * Naproxeno 250mg VO c/12h PRN (máx 3 días)
+  * Continuar Metformina 850mg c/12h
+- Estudios de laboratorio:
+  * Biometría hemática completa
+  * Química sanguínea (6 elementos)
+  * Hemoglobina glucosilada (HbA1c)
+- Medidas no farmacológicas:
+  * Higiene del sueño (7-8h/noche)
+  * Manejo de estrés (ejercicios de respiración, meditación)
+  * Ejercicio: caminata 30min/día
+- Seguimiento: Cita control en 2 semanas con resultados de laboratorio
+- Signos de alarma: Vómito persistente, visión borrosa, debilidad focal → Acudir a urgencias

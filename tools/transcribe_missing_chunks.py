@@ -79,17 +79,62 @@ async def transcribe_missing_chunks(session_id: str) -> None:
             try:
                 # Call Deepgram STT (async)
                 result = await deepgram.transcribe(audio_bytes)
-                transcript_text = result.get("text", "")
+                # TranscriptionResult is a dataclass, not a dict
+                transcript_text = result.transcript
 
-                if not transcript_text:
+                # If empty, try Azure Whisper as fallback
+                if not transcript_text or len(transcript_text.strip()) == 0:
                     logger.warning(
-                        "EMPTY_TRANSCRIPT",
+                        "EMPTY_TRANSCRIPT_TRYING_AZURE",
                         session_id=session_id,
                         chunk_idx=chunk_idx,
+                        message="Deepgram returned empty - trying Azure Whisper fallback",
                     )
-                    continue
 
-                # Update HDF5 with transcript
+                    try:
+                        # Try Azure Whisper
+                        from backend.providers.stt import get_stt_provider
+                        import tempfile
+
+                        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
+                            tmp.write(audio_bytes)
+                            tmp_path = tmp.name
+
+                        try:
+                            azure = get_stt_provider("azure_whisper")
+                            azure_result = azure.transcribe(tmp_path, language="es")
+
+                            if azure_result.text and len(azure_result.text.strip()) > 0:
+                                logger.info(
+                                    "AZURE_FALLBACK_SUCCESS",
+                                    session_id=session_id,
+                                    chunk_idx=chunk_idx,
+                                    transcript_length=len(azure_result.text),
+                                    message="Azure detected speech where Deepgram failed",
+                                )
+                                transcript_text = azure_result.text
+                            else:
+                                logger.info(
+                                    "CONFIRMED_SILENCE",
+                                    session_id=session_id,
+                                    chunk_idx=chunk_idx,
+                                    message="Both Deepgram and Azure confirmed: no speech detected",
+                                )
+                                transcript_text = ""
+                        finally:
+                            if os.path.exists(tmp_path):
+                                os.unlink(tmp_path)
+
+                    except Exception as azure_error:
+                        logger.error(
+                            "AZURE_FALLBACK_FAILED",
+                            session_id=session_id,
+                            chunk_idx=chunk_idx,
+                            error=str(azure_error),
+                        )
+                        transcript_text = ""  # Use empty if Azure fails
+
+                # Update HDF5 with transcript (even if empty)
                 chunk_grp["transcript"][()] = transcript_text.encode("utf-8")
 
                 logger.info(
