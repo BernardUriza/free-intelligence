@@ -30,7 +30,16 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -412,20 +421,109 @@ class FinalizeSessionResponse(BaseModel):
 
 
 @router.post(
+    "/sessions/{session_id}/diarization",
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["workflows-sessions"],
+)
+async def diarize_session_workflow(
+    session_id: str,
+) -> dict:
+    """Dispatch diarization worker (PUBLIC orchestrator).
+
+    Flow:
+    1. Create DIARIZATION task in HDF5
+    2. Dispatch diarization worker in ThreadPoolExecutor (fire-and-forget)
+    3. Frontend polls /sessions/{session_id}/monitor for status
+
+    PUBLIC layer: Pure orchestrator - dispatches background task
+
+    Args:
+        session_id: Session UUID
+
+    Returns:
+        dict with job_id and status (202 Accepted)
+
+    Raises:
+        404: Session not found or no TRANSCRIPTION task
+        400: Transcription not completed yet
+        500: Worker dispatch failed
+    """
+    from backend.logger import get_logger
+    from backend.models.task_type import TaskType
+    from backend.storage.task_repository import ensure_task_exists
+    from backend.workers.executor_pool import spawn_worker
+    from backend.workers.tasks.diarization_worker import diarize_session_worker
+
+    logger = get_logger(__name__)
+
+    try:
+        logger.info(
+            "DIARIZATION_WORKFLOW_STARTED",
+            session_id=session_id,
+        )
+
+        # 1. Create DIARIZATION task BEFORE dispatching worker
+        ensure_task_exists(
+            session_id=session_id,
+            task_type=TaskType.DIARIZATION,
+            allow_existing=True,
+        )
+        logger.info(
+            "DIARIZATION_TASK_CREATED",
+            session_id=session_id,
+        )
+
+        # 2. Dispatch worker using ThreadPoolExecutor (fire-and-forget)
+        spawn_worker(diarize_session_worker, session_id=session_id)
+        job_id = session_id  # Use session_id as job identifier
+
+        logger.info(
+            "DIARIZATION_DISPATCHED",
+            session_id=session_id,
+            job_id=job_id,
+        )
+
+        # 3. Return 202 Accepted
+        return {
+            "session_id": session_id,
+            "job_id": job_id,
+            "status": "dispatched",
+            "message": f"Diarization running in background (job {job_id}). Poll /sessions/{session_id}/monitor for progress.",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "DIARIZATION_WORKFLOW_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to dispatch diarization: {e!s}",
+        ) from e
+
+
+@router.post(
     "/sessions/{session_id}/finalize",
     response_model=FinalizeSessionResponse,
     status_code=status.HTTP_202_ACCEPTED,
     tags=["workflows-sessions"],
 )
 async def finalize_session_workflow(
-    session_id: str, request: FinalizeSessionRequest
+    session_id: str,
+    request: FinalizeSessionRequest,
 ) -> FinalizeSessionResponse:
-    """Finalize session: encrypt + dispatch diarization workflow (PUBLIC orchestrator).
+    """Finalize session: encrypt audio (PUBLIC orchestrator).
+
+    NOTE: This endpoint should only be called AFTER SOAP generation is complete.
 
     Flow:
     1. Call the INTERNAL finalize function DIRECTLY (no HTTP call)
-    2. Return diarization job ID to frontend
-    3. Frontend polls /diarization/jobs/{job_id} for status
+    2. Encrypt session audio
+    3. Return finalized status
 
     PUBLIC layer: Pure orchestrator - calls internal function directly
 
@@ -434,7 +532,7 @@ async def finalize_session_workflow(
         request: FinalizeSessionRequest with 3 transcription sources
 
     Returns:
-        FinalizeSessionResponse with diarization job ID (202 Accepted)
+        FinalizeSessionResponse with encrypted_at timestamp (202 Accepted)
 
     Raises:
         404: Session not found or no TRANSCRIPTION task
@@ -458,13 +556,9 @@ async def finalize_session_workflow(
         # Call internal finalize function DIRECTLY (no HTTP call - avoids middleware)
         result = await internal_finalize(session_id, request)
 
-        # result is a Pydantic model (FinalizeSessionResponse from internal endpoint)
-        diarization_job_id = result.diarization_job_id if hasattr(result, 'diarization_job_id') else result.get('diarization_job_id') if isinstance(result, dict) else None
-
         logger.info(
             "FINALIZE_SESSION_WORKFLOW_SUCCESS",
             session_id=session_id,
-            diarization_job_id=diarization_job_id,
         )
 
         # Convert Pydantic model to dict if needed
@@ -486,6 +580,357 @@ async def finalize_session_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to finalize session: {e!s}",
+        ) from e
+
+
+# ============================================================================
+# Task Monitor (Real-time progress with colors)
+# ============================================================================
+
+
+@router.get("/sessions/{session_id}/monitor", status_code=status.HTTP_200_OK)
+async def monitor_session_progress(session_id: str, request: Request) -> dict:
+    """Monitor session progress with colorized ASCII output OR JSON data.
+
+    Content Negotiation:
+    - Accept: application/json → Returns structured JSON data (for frontend polling)
+    - Accept: text/plain (or default) → Returns colorized ASCII display (for curl/terminal)
+
+    Args:
+        session_id: Session UUID
+        request: FastAPI Request (to check Accept header)
+
+    Returns:
+        dict with either JSON data or ASCII display based on Accept header
+    """
+    from backend.models.task_type import TaskType
+    from backend.storage.task_repository import get_task_metadata
+
+    # Check Accept header for content negotiation
+    accept_header = request.headers.get("accept", "")
+    wants_json = "application/json" in accept_header
+
+    try:
+        from datetime import datetime
+
+        from backend.storage.task_repository import count_task_chunks
+
+        # Collect structured data (used for both JSON and ASCII)
+        transcription_data = {
+            "status": "not_started",
+            "progress": 0,
+            "chunks_processed": 0,
+            "chunks_total": 0,
+        }
+        diarization_data = {
+            "status": "not_started",
+            "progress": 0,
+            "segment_count": 0,
+            "provider": "unknown",
+        }
+        soap_data = {"status": "not_started"}
+
+        # === TRANSCRIPTION ===
+        try:
+            transcription_meta = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+            total, processed = count_task_chunks(session_id, TaskType.TRANSCRIPTION)
+            progress = int((processed / total) * 100) if total > 0 else 0
+            status_val = transcription_meta.get(
+                "status", "in_progress" if processed > 0 else "pending"
+            )
+            if processed == total and total > 0:
+                status_val = "completed"
+
+            transcription_data = {
+                "status": status_val,
+                "progress": progress,
+                "chunks_processed": processed,
+                "chunks_total": total,
+                "estimated_seconds_remaining": transcription_meta.get(
+                    "estimated_seconds_remaining", 0
+                ),
+                "provider": transcription_meta.get("provider", "unknown"),
+            }
+        except ValueError:
+            pass  # Keep default not_started
+
+        # === DIARIZATION ===
+        try:
+            diarization_meta = get_task_metadata(session_id, TaskType.DIARIZATION) or {}
+            status_val = diarization_meta.get("status", "pending")
+            segment_count = diarization_meta.get("segment_count", 0)
+            provider = diarization_meta.get("provider", "unknown")
+            progress_percent = diarization_meta.get("progress_percent", 0)
+            created_at = diarization_meta.get("created_at", "")
+            updated_at = diarization_meta.get("updated_at", "")
+
+            # Calculate elapsed time
+            elapsed_seconds = 0
+            if created_at and updated_at:
+                try:
+                    created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                    updated = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                    elapsed_seconds = (updated - created).total_seconds()
+                except Exception:
+                    pass
+
+            # Fix: If completed, ensure progress is 100%
+            if status_val == "completed" and progress_percent == 0:
+                progress_percent = 100
+
+            diarization_data = {
+                "status": status_val,
+                "progress": progress_percent,
+                "segment_count": segment_count,
+                "provider": provider,
+                "elapsed_seconds": elapsed_seconds,
+                "created_at": created_at,
+            }
+        except ValueError:
+            pass  # Keep default not_started
+
+        # === SOAP GENERATION ===
+        try:
+            soap_meta = get_task_metadata(session_id, TaskType.SOAP_GENERATION) or {}
+            soap_data = {"status": soap_meta.get("status", "pending")}
+        except ValueError:
+            pass  # Keep default not_started
+
+        # === RETURN JSON (for frontend polling) ===
+        if wants_json:
+            return {
+                "session_id": session_id,
+                "status": diarization_data["status"],  # Overall status = diarization status
+                "progress": diarization_data["progress"],
+                "segment_count": diarization_data["segment_count"],
+                "error": None,
+                "transcription_sources": None,  # Placeholder (frontend expects this)
+                "transcription": transcription_data,
+                "diarization": diarization_data,
+                "soap": soap_data,
+            }
+
+        # === RETURN ASCII (for terminal/curl) ===
+        RESET = "\033[0m"
+        BOLD = "\033[1m"
+        GREEN = "\033[92m"
+        YELLOW = "\033[93m"
+        BLUE = "\033[94m"
+        CYAN = "\033[96m"
+        RED = "\033[91m"
+
+        output_lines = []
+        output_lines.append(f"\n{BOLD}{CYAN}{'='*60}{RESET}")
+        output_lines.append(f"{BOLD}{CYAN}  Session Monitor: {session_id}{RESET}")
+        output_lines.append(f"{BOLD}{CYAN}{'='*60}{RESET}\n")
+
+        # TRANSCRIPTION ASCII
+        status_val = transcription_data["status"]
+        progress = transcription_data["progress"]
+        processed = transcription_data["chunks_processed"]
+        total = transcription_data["chunks_total"]
+
+        if status_val == "not_started":
+            output_lines.append(f"{BOLD}🎙️  TRANSCRIPTION:{RESET} {RED}NOT STARTED{RESET}\n")
+        else:
+            status_color = (
+                GREEN
+                if status_val == "completed"
+                else YELLOW
+                if status_val == "in_progress"
+                else BLUE
+            )
+            bar_width = 30
+            filled = int((progress / 100) * bar_width)
+            bar = f"[{GREEN}{'█' * filled}{RESET}{'░' * (bar_width - filled)}]"
+
+            output_lines.append(f"{BOLD}🎙️  TRANSCRIPTION:{RESET}")
+            output_lines.append(f"   Status: {status_color}{status_val.upper()}{RESET}")
+            output_lines.append(f"   Progress: {bar} {BOLD}{progress}%{RESET}")
+            output_lines.append(f"   Chunks: {BOLD}{processed}/{total}{RESET} completed")
+            output_lines.append("")
+
+        # DIARIZATION ASCII
+        status_val = diarization_data["status"]
+        segment_count = diarization_data["segment_count"]
+        provider = diarization_data["provider"]
+        progress_percent = diarization_data["progress"]
+        elapsed_seconds = diarization_data.get("elapsed_seconds", 0)
+
+        if status_val == "not_started":
+            output_lines.append(f"{BOLD}👥 DIARIZATION:{RESET} {RED}NOT STARTED{RESET}\n")
+        else:
+            status_color = (
+                GREEN
+                if status_val == "completed"
+                else YELLOW
+                if status_val == "in_progress"
+                else BLUE
+            )
+            elapsed_str = (
+                f"{elapsed_seconds / 60:.1f}m"
+                if elapsed_seconds >= 60
+                else f"{elapsed_seconds:.0f}s"
+            )
+
+            progress_bar = ""
+            if status_val == "in_progress" and progress_percent > 0:
+                bar_width = 20
+                filled = int((progress_percent / 100) * bar_width)
+                progress_bar = (
+                    f" {GREEN}{'█' * filled}{RESET}{'░' * (bar_width - filled)} {progress_percent}%"
+                )
+
+            output_lines.append(f"{BOLD}👥 DIARIZATION:{RESET}")
+            output_lines.append(
+                f"   Status: {status_color}{status_val.upper()}{RESET}{progress_bar}"
+            )
+            output_lines.append(f"   Provider: {BOLD}{provider}{RESET}")
+            output_lines.append(f"   Segments: {BOLD}{segment_count}{RESET}")
+            if elapsed_seconds > 0:
+                output_lines.append(f"   Duration: {BOLD}{elapsed_str}{RESET}")
+            output_lines.append("")
+
+        # SOAP ASCII
+        status_val = soap_data["status"]
+        if status_val == "not_started":
+            output_lines.append(f"{BOLD}📋 SOAP GENERATION:{RESET} {RED}NOT STARTED{RESET}\n")
+        else:
+            status_color = (
+                GREEN
+                if status_val == "completed"
+                else YELLOW
+                if status_val == "in_progress"
+                else BLUE
+            )
+            output_lines.append(f"{BOLD}📋 SOAP GENERATION:{RESET}")
+            output_lines.append(f"   Status: {status_color}{status_val.upper()}{RESET}")
+            output_lines.append("")
+
+        output_lines.append(f"{BOLD}{CYAN}{'='*60}{RESET}\n")
+        ascii_output = "\n".join(output_lines)
+
+        return {
+            "session_id": session_id,
+            "ascii_display": ascii_output,
+            "plain_text": ascii_output.replace(RESET, "")
+            .replace(BOLD, "")
+            .replace(GREEN, "")
+            .replace(YELLOW, "")
+            .replace(BLUE, "")
+            .replace(CYAN, "")
+            .replace(RED, ""),
+        }
+
+    except Exception as e:
+        logger.error("MONITOR_SESSION_FAILED", session_id=session_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to monitor session: {e!s}",
+        ) from e
+
+
+# ============================================================================
+# Checkpoint (Incremental Audio Concatenation on PAUSE)
+# ============================================================================
+
+
+class CheckpointRequest(BaseModel):
+    """Request for session checkpoint."""
+
+    last_chunk_idx: int = Field(..., description="Last chunk index to include in checkpoint")
+
+
+class CheckpointResponse(BaseModel):
+    """Response for session checkpoint."""
+
+    session_id: str = Field(..., description="Session identifier")
+    checkpoint_at: str = Field(..., description="ISO timestamp")
+    chunks_concatenated: int = Field(..., description="Number of chunks added")
+    full_audio_size: int = Field(..., description="Total size of full_audio.webm in bytes")
+    message: str = Field(..., description="Human-readable message")
+
+
+@router.post(
+    "/sessions/{session_id}/checkpoint",
+    response_model=CheckpointResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["workflows-sessions"],
+)
+async def checkpoint_session_workflow(
+    session_id: str, request: CheckpointRequest
+) -> CheckpointResponse:
+    """Create checkpoint: incrementally concatenate audio chunks (PUBLIC orchestrator).
+
+    Called by frontend on each PAUSE. Concatenates audio chunks since last
+    checkpoint and appends to full_audio.webm (append-only).
+
+    Flow:
+    1. Get last checkpoint index from task metadata
+    2. Concatenate chunks from last_checkpoint+1 to request.last_chunk_idx
+    3. Append to existing full_audio.webm (or create if first checkpoint)
+    4. Update task metadata with new checkpoint
+    5. Launch full_transcription task
+    6. Return status
+
+    Benefits:
+    - Incremental concatenation (not just at end)
+    - Resilient (audio saved even if session interrupted)
+    - Distributed workload (small batches per pause)
+
+    Args:
+        session_id: Session UUID
+        request: CheckpointRequest with last_chunk_idx
+
+    Returns:
+        CheckpointResponse with concatenation status
+
+    Raises:
+        404: Session/task not found
+        400: Invalid checkpoint index
+        500: Concatenation failed
+    """
+    from backend.api.internal.sessions.checkpoint import (
+        checkpoint_session as internal_checkpoint,
+    )
+
+    try:
+        logger.info(
+            "CHECKPOINT_WORKFLOW_STARTED",
+            session_id=session_id,
+            last_chunk_idx=request.last_chunk_idx,
+        )
+
+        # Call internal checkpoint function DIRECTLY (no HTTP call - avoids middleware)
+        result = await internal_checkpoint(session_id, request)
+
+        logger.info(
+            "CHECKPOINT_WORKFLOW_SUCCESS",
+            session_id=session_id,
+            chunks_concatenated=result.chunks_concatenated
+            if hasattr(result, "chunks_concatenated")
+            else result.get("chunks_concatenated"),
+        )
+
+        # Convert Pydantic model to dict if needed
+        if isinstance(result, dict):
+            return CheckpointResponse(**result)
+        else:
+            # Already a CheckpointResponse
+            return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "CHECKPOINT_WORKFLOW_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to checkpoint session: {e!s}",
         ) from e
 
 
@@ -556,4 +1001,103 @@ async def get_diarization_status_workflow(job_id: str) -> DiarizationStatusRespo
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get diarization status: {e!s}",
+        ) from e
+
+
+# ============================================================================
+# Diarization Segments (PUBLIC - Get results)
+# ============================================================================
+
+
+@router.get(
+    "/sessions/{session_id}/diarization/segments",
+    status_code=status.HTTP_200_OK,
+    tags=["workflows-diarization"],
+)
+async def get_diarization_segments_workflow(session_id: str) -> dict:
+    """Get diarization segments (PUBLIC orchestrator).
+
+    Returns the speaker-separated segments from completed diarization task.
+
+    Flow:
+    1. Check DIARIZATION task status (must be completed)
+    2. Load segments from HDF5
+    3. Return segments with speaker labels, text, timestamps
+
+    Args:
+        session_id: Session UUID
+
+    Returns:
+        dict with session_id, segments list, metadata
+
+    Raises:
+        404: Session not found or diarization not completed
+        500: Failed to load segments
+    """
+    from backend.models.task_type import TaskType
+    from backend.storage.task_repository import (
+        get_diarization_segments,
+        get_task_metadata,
+    )
+
+    try:
+        logger.info(
+            "DIARIZATION_SEGMENTS_GET_STARTED",
+            session_id=session_id,
+        )
+
+        # Check diarization task status
+        metadata = get_task_metadata(session_id, TaskType.DIARIZATION)
+        if not metadata:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Diarization task not found for session {session_id}",
+            )
+
+        task_status = metadata.get("status", "pending")
+        if task_status != "completed":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Diarization not completed yet (status: {task_status})",
+            )
+
+        # Load segments from HDF5
+        segments = get_diarization_segments(session_id)
+
+        logger.info(
+            "DIARIZATION_SEGMENTS_GET_SUCCESS",
+            session_id=session_id,
+            segment_count=len(segments),
+        )
+
+        return {
+            "session_id": session_id,
+            "segments": segments,
+            "segment_count": len(segments),
+            "provider": metadata.get("provider", "unknown"),
+            "completed_at": metadata.get("completed_at", ""),
+        }
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        logger.error(
+            "DIARIZATION_SEGMENTS_NOT_FOUND",
+            session_id=session_id,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except Exception as e:
+        logger.error(
+            "DIARIZATION_SEGMENTS_GET_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get diarization segments: {e!s}",
         ) from e

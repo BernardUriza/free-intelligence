@@ -55,6 +55,7 @@ TZ: America/Mexico_City
 	1️⃣  PUBLIC (/api/workflows/*) = ÚNICO PUNTO DE ENTRADA VÁLIDO
 	    ├─ ✅ POST /api/workflows/aurity/stream → Upload chunk
 	    ├─ ✅ GET /api/workflows/aurity/jobs/{session_id} → Get status
+	    ├─ ✅ GET /api/workflows/aurity/sessions/{session_id}/monitor → Real-time progress monitor (ASCII + colors)
 	    ├─ ✅ GET /api/workflows/aurity/result/{session_id} → Get result
 	    ├─ Orquestadores PUROS (coordinan flujos)
 	    ├─ Llaman /internal/* solo INTERNAMENTE (no visible al frontend)
@@ -74,26 +75,60 @@ TZ: America/Mexico_City
 	    ├─ Frontend polls con job_id para status
 	    └─ No se llaman directamente
 
-	FLUJO CORRECTO:
-	  frontend → POST /api/workflows/aurity/stream (PUBLIC)
-             ↓
-          router PUBLIC (recibe chunk)
-             ↓
-          llama internamente a /api/internal/transcribe/chunks (INVISIBLE)
-             ↓
-          HDF5 append + Celery dispatch
-             ↓
-          return 202 Accepted
-             ↓
-          frontend → GET /api/workflows/aurity/jobs/{session_id} (PUBLIC)
-             ↓
-          worker procesa
-             ↓
-          frontend obtiene status actualizado
+	FLUJO COMPLETO (NUEVO 2025-11-15 - Refactored Workflow):
+	  1️⃣  UPLOAD CHUNKS
+	      frontend → POST /api/workflows/aurity/stream (PUBLIC)
+	         ↓
+	      router PUBLIC (recibe chunk)
+	         ↓
+	      llama internamente a /api/internal/transcribe/chunks (INVISIBLE)
+	         ↓
+	      HDF5 append + Worker dispatch
+	         ↓
+	      return 202 Accepted
+
+	  2️⃣  CHECKPOINT (after chunk 6, concatena audio)
+	      frontend → POST /api/workflows/aurity/sessions/{session_id}/checkpoint (PUBLIC)
+	         ↓
+	      llama internamente a /api/internal/sessions/checkpoint (INVISIBLE)
+	         ↓
+	      Concatena chunks 0-6 con ffmpeg, guarda full_audio.mp3
+	         ↓
+	      return 202 Accepted
+
+	  3️⃣  DIARIZATION (separado de finalize - NUEVO)
+	      frontend → POST /api/workflows/aurity/sessions/{session_id}/diarization (PUBLIC)
+	         ↓
+	      Crea DIARIZATION task en HDF5
+	         ↓
+	      Dispatch diarization worker (Azure GPT-4)
+	         ↓
+	      return 202 Accepted {"job_id": session_id}
+	         ↓
+	      frontend → GET /api/workflows/aurity/sessions/{session_id}/monitor (polling)
+
+	  4️⃣  SOAP GENERATION (TBD - future endpoint)
+	      frontend → POST /api/workflows/aurity/sessions/{session_id}/soap (PUBLIC)
+	         ↓
+	      LLM extrae SOAP notes
+	         ↓
+	      return 202 Accepted
+
+	  5️⃣  FINALIZE (SOLO después de SOAP - NUEVO)
+	      frontend → POST /api/workflows/aurity/sessions/{session_id}/finalize (PUBLIC)
+	         ↓
+	      llama internamente a /api/internal/sessions/finalize (INVISIBLE)
+	         ↓
+	      Encripta session (AES-GCM-256), marca FINALIZED
+	         ↓
+	      return 202 Accepted {"status": "finalized", "encrypted_at": "..."}
 
 	EJEMPLOS CORTOS:
 	  ✅ curl -X POST http://localhost:7001/api/workflows/aurity/stream ...
-	  ✅ curl -X GET http://localhost:7001/api/workflows/aurity/jobs/SESSION_ID
+	  ✅ curl -X POST http://localhost:7001/api/workflows/aurity/sessions/SESSION_ID/checkpoint
+	  ✅ curl -X POST http://localhost:7001/api/workflows/aurity/sessions/SESSION_ID/diarization (NUEVO)
+	  ✅ curl -X POST http://localhost:7001/api/workflows/aurity/sessions/SESSION_ID/finalize (solo después de SOAP)
+	  ✅ curl -X GET http://localhost:7001/api/workflows/aurity/sessions/SESSION_ID/monitor (MONITOR - ver progreso)
 	  ❌ curl -X POST http://localhost:7001/internal/api/transcribe/chunks ... (PROHIBIDO)
 	  ❌ curl -X GET http://localhost:7001/internal/api/... (PROHIBIDO)
 	  ❌ curl -X GET http://localhost:7001/api/internal/... (PROHIBIDO)

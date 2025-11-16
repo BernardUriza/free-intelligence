@@ -3,7 +3,7 @@
 Provides real-time status of diarization jobs for frontend polling.
 
 Reads metadata from HDF5 DIARIZATION task to show:
-- Current status (pending, processing, completed, failed)
+- Current status (pending, in_progress, completed, failed)
 - Progress percentage
 - Segment count
 - Transcription sources (triple vision)
@@ -38,7 +38,7 @@ class DiarizationStatusResponse(BaseModel):
 
     job_id: str = Field(..., description="Celery task ID")
     session_id: str = Field(..., description="Session identifier")
-    status: str = Field(..., description="pending, processing, completed, failed")
+    status: str = Field(..., description="pending, in_progress, completed, failed")
     progress: int = Field(default=0, description="Progress percentage (0-100)")
     segment_count: int = Field(default=0, description="Number of diarized segments")
     transcription_sources: Optional[dict[str, Any]] = Field(

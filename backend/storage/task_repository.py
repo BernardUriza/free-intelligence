@@ -30,7 +30,8 @@ Card: Architecture refactor - task-based HDF5
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+import threading
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -43,6 +44,10 @@ logger = get_logger(__name__)
 
 # HDF5 corpus path
 CORPUS_PATH = Path(__file__).parent.parent.parent / "storage" / "corpus.h5"
+
+# Global lock for HDF5 file access (HDF5 is not thread-safe for concurrent writes)
+# Using RLock to allow same thread to acquire lock multiple times
+_h5_lock = threading.RLock()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -73,66 +78,67 @@ def ensure_task_exists(
 
     CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    with h5py.File(CORPUS_PATH, "a") as f:
-        # Check if task already exists
-        if task_path in f:  # type: ignore[operator]
-            if not allow_existing:
-                raise ValueError(
-                    f"Task {task_type_str} already exists for session {session_id}. "
-                    f"Each task type can appear AT MOST ONCE per session."
+    with _h5_lock:  # Lock H5 file to prevent concurrent write errors
+        with h5py.File(CORPUS_PATH, "a") as f:
+            # Check if task already exists
+            if task_path in f:  # type: ignore[operator]
+                if not allow_existing:
+                    raise ValueError(
+                        f"Task {task_type_str} already exists for session {session_id}. "
+                        f"Each task type can appear AT MOST ONCE per session."
+                    )
+                logger.info(
+                    "TASK_ALREADY_EXISTS",
+                    session_id=session_id,
+                    task_type=task_type_str,
+                    path=task_path,
                 )
+                return task_path
+
+            # Create session group if not exists
+            if "sessions" not in f:  # type: ignore[operator]
+                f.create_group("sessions")  # type: ignore[attr-defined]
+
+            if f"/sessions/{session_id}" not in f:  # type: ignore[operator]
+                f["sessions"].create_group(session_id)  # type: ignore[index]
+
+            session_group = f[f"/sessions/{session_id}"]  # type: ignore[index]
+
+            # Create tasks group if not exists
+            if "tasks" not in session_group:  # type: ignore[operator]
+                session_group.create_group("tasks")  # type: ignore[index]
+
+            tasks_group = session_group["tasks"]  # type: ignore[index]
+
+            # Create task group
+            task_group = tasks_group.create_group(task_type_str)  # type: ignore[attr-defined]
+
+            # Initialize job_metadata with default values
+            default_metadata = {
+                "job_id": None,
+                "status": TaskStatus.PENDING.value,
+                "created_at": datetime.now(UTC).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
+                "progress_percent": 0,
+                "total_chunks": 0,
+                "processed_chunks": 0,
+            }
+
+            metadata_json = json.dumps(default_metadata)
+            task_group.create_dataset(  # type: ignore[attr-defined]
+                "job_metadata",
+                data=metadata_json,
+                dtype=h5py.string_dtype(encoding="utf-8"),
+            )
+
             logger.info(
-                "TASK_ALREADY_EXISTS",
+                "TASK_CREATED",
                 session_id=session_id,
                 task_type=task_type_str,
                 path=task_path,
             )
-            return task_path
 
-        # Create session group if not exists
-        if "sessions" not in f:  # type: ignore[operator]
-            f.create_group("sessions")  # type: ignore[attr-defined]
-
-        if f"/sessions/{session_id}" not in f:  # type: ignore[operator]
-            f["sessions"].create_group(session_id)  # type: ignore[index]
-
-        session_group = f[f"/sessions/{session_id}"]  # type: ignore[index]
-
-        # Create tasks group if not exists
-        if "tasks" not in session_group:  # type: ignore[operator]
-            session_group.create_group("tasks")  # type: ignore[index]
-
-        tasks_group = session_group["tasks"]  # type: ignore[index]
-
-        # Create task group
-        task_group = tasks_group.create_group(task_type_str)  # type: ignore[attr-defined]
-
-        # Initialize job_metadata with default values
-        default_metadata = {
-            "job_id": None,
-            "status": TaskStatus.PENDING.value,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-            "progress_percent": 0,
-            "total_chunks": 0,
-            "processed_chunks": 0,
-        }
-
-        metadata_json = json.dumps(default_metadata)
-        task_group.create_dataset(  # type: ignore[attr-defined]
-            "job_metadata",
-            data=metadata_json,
-            dtype=h5py.string_dtype(encoding="utf-8"),
-        )
-
-        logger.info(
-            "TASK_CREATED",
-            session_id=session_id,
-            task_type=task_type_str,
-            path=task_path,
-        )
-
-    return task_path
+        return task_path
 
 
 def task_exists(session_id: str, task_type: Union[TaskType, str]) -> bool:
@@ -229,7 +235,7 @@ def update_task_metadata(
 
         # Merge with new metadata
         existing_metadata.update(metadata)
-        existing_metadata["updated_at"] = datetime.now(timezone.utc).isoformat()
+        existing_metadata["updated_at"] = datetime.now(UTC).isoformat()
 
         # Write back
         metadata_json = json.dumps(existing_metadata)
@@ -337,7 +343,7 @@ def append_chunk_to_task(
 
     task_path = f"/sessions/{session_id}/tasks/{task_type_str}"
     chunk_path = f"{task_path}/chunks/chunk_{chunk_idx}"
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
 
     with h5py.File(CORPUS_PATH, "a") as f:
         task_group = f[task_path]  # type: ignore[index]
@@ -396,6 +402,53 @@ def append_chunk_to_task(
     )
 
     return chunk_path
+
+
+def count_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> tuple[int, int]:
+    """Count total chunks and processed chunks (fast, no data reading).
+
+    Args:
+        session_id: Session identifier
+        task_type: Type of task
+
+    Returns:
+        Tuple of (total_chunks, processed_chunks) where:
+        - total_chunks: expected total from metadata
+        - processed_chunks: actual chunks written to HDF5
+    """
+    if not task_exists(session_id, task_type):
+        return (0, 0)
+
+    task_type_str = task_type.value if isinstance(task_type, TaskType) else task_type
+
+    try:
+        # Get expected total from metadata
+        metadata = get_task_metadata(session_id, task_type_str) or {}
+        expected_total = metadata.get("total_chunks", 0)
+
+        # Count actual chunks in HDF5 (fast: just count group keys)
+        chunks_path = f"/sessions/{session_id}/tasks/{task_type_str}/chunks"
+
+        with h5py.File(CORPUS_PATH, "r") as f:
+            if chunks_path not in f:  # type: ignore[operator]
+                # Task exists but no chunks yet
+                return (expected_total, 0)
+
+            chunks_group = f[chunks_path]  # type: ignore[index]
+            processed = len(chunks_group.keys())  # type: ignore[union-attr]
+
+            # OPTIMIZATION: Chunks are only created when processed (append-only)
+            # So we just count keys, no need to read datasets
+            return (expected_total, processed)
+
+    except Exception as e:
+        logger.error(
+            "COUNT_CHUNKS_FAILED",
+            session_id=session_id,
+            task_type=task_type_str,
+            error=str(e),
+        )
+        return (0, 0)
 
 
 def get_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> list[dict[str, Any]]:
@@ -763,7 +816,7 @@ def create_empty_chunk(
         chunk_group.create_dataset("audio_quality", data=0.0, dtype="float32")  # type: ignore[union-attr]
         chunk_group.create_dataset(  # type: ignore[union-attr]
             "created_at",
-            data=datetime.now(timezone.utc).isoformat(),
+            data=datetime.now(UTC).isoformat(),
             dtype=h5py.string_dtype(encoding="utf-8"),
         )
         chunk_group.create_dataset(
@@ -1026,8 +1079,8 @@ def save_diarization_segments(
         for i, segment in enumerate(segments):
             seg_group = segments_group.create_group(f"segment_{i}")
 
-            # Save segment attributes
-            seg_group.create_dataset("speaker", data=segment.speaker.encode("utf-8"))
+            # Save segment attributes (Speaker is a dataclass, extract speaker_id string)
+            seg_group.create_dataset("speaker", data=segment.speaker.speaker_id.encode("utf-8"))
             seg_group.create_dataset("text", data=segment.text.encode("utf-8"))
             seg_group.create_dataset("start_time", data=segment.start_time)
             seg_group.create_dataset("end_time", data=segment.end_time)
@@ -1050,3 +1103,68 @@ def save_diarization_segments(
     )
 
     return segments_path
+
+
+def get_diarization_segments(
+    session_id: str,
+    task_type: TaskType = TaskType.DIARIZATION,
+) -> list[dict[str, Any]]:
+    """Get diarization segments from HDF5.
+
+    Args:
+        session_id: Session identifier
+        task_type: Task type (default DIARIZATION)
+
+    Returns:
+        List of segment dictionaries with speaker, text, times, etc.
+
+    Raises:
+        ValueError: If task or segments not found
+    """
+    if not CORPUS_PATH.exists():
+        raise ValueError(f"Corpus file not found: {CORPUS_PATH}")
+
+    with h5py.File(CORPUS_PATH, "r") as f:
+        task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+
+        if task_path not in f:  # type: ignore[operator]
+            raise ValueError(f"Task {task_type.value} not found for session {session_id}")
+
+        task_group = f[task_path]  # type: ignore[index]
+
+        if "segments" not in task_group:  # type: ignore[operator]
+            raise ValueError(f"No segments found for session {session_id}")
+
+        segments_group = task_group["segments"]  # type: ignore[index]
+        segments = []
+
+        # Read all segments in order
+        segment_keys = sorted(segments_group.keys(), key=lambda x: int(x.split("_")[1]))
+
+        for seg_key in segment_keys:
+            seg_group = segments_group[seg_key]  # type: ignore[index]
+
+            segment = {
+                "speaker": seg_group["speaker"][()].decode("utf-8"),  # type: ignore[index]
+                "text": seg_group["text"][()].decode("utf-8"),  # type: ignore[index]
+                "start_time": float(seg_group["start_time"][()]),  # type: ignore[index]
+                "end_time": float(seg_group["end_time"][()]),  # type: ignore[index]
+            }
+
+            # Optional fields
+            if "confidence" in seg_group:  # type: ignore[operator]
+                segment["confidence"] = float(seg_group["confidence"][()])  # type: ignore[index]
+
+            if "improved_text" in seg_group:  # type: ignore[operator]
+                segment["improved_text"] = seg_group["improved_text"][()].decode("utf-8")  # type: ignore[index]
+
+            segments.append(segment)
+
+    logger.info(
+        "DIARIZATION_SEGMENTS_LOADED",
+        session_id=session_id,
+        task_type=task_type.value,
+        segment_count=len(segments),
+    )
+
+    return segments
