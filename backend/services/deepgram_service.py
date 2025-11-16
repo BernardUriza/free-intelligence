@@ -111,11 +111,11 @@ class DeepgramService:
         params = {
             "model": model,
             "language": language,
-            "detect_language": False,
-            "punctuate": True,
-            "diarize": False,  # Can enable for speaker separation if needed
-            "smart_format": True,
-            "filler_words": False,
+            "detect_language": "false",  # Must be string, not bool
+            "punctuate": "true",
+            "diarize": "false",  # Can enable for speaker separation if needed
+            "smart_format": "true",
+            "filler_words": "false",
         }
 
         headers = {

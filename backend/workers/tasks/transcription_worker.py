@@ -152,7 +152,12 @@ def transcribe_chunk_worker(
 
 
 def _transcribe_audio(audio_bytes: bytes, provider_name: str) -> dict[str, Any]:
-    """Transcribe audio bytes using STT provider.
+    """Transcribe audio bytes using STT provider with fallback.
+
+    Strategy:
+    1. Try primary provider (Deepgram)
+    2. If transcript is empty (0 chars), try fallback provider (Azure Whisper)
+    3. If both return empty, it's confirmed silence
 
     Args:
         audio_bytes: Audio data
@@ -166,8 +171,50 @@ def _transcribe_audio(audio_bytes: bytes, provider_name: str) -> dict[str, Any]:
         tmp_path = tmp.name
 
     try:
+        # Try primary provider
         provider = get_stt_provider(provider_name)
         response = provider.transcribe(tmp_path, language="es")
+
+        # If empty transcript, try fallback provider
+        if not response.text or len(response.text.strip()) == 0:
+            fallback_provider = "azure_whisper" if provider_name == "deepgram" else "deepgram"
+
+            logger.warning(
+                "EMPTY_TRANSCRIPT_TRYING_FALLBACK",
+                primary_provider=provider_name,
+                fallback_provider=fallback_provider,
+                message="Primary provider returned empty transcript - trying fallback",
+            )
+
+            try:
+                fallback = get_stt_provider(fallback_provider)
+                fallback_response = fallback.transcribe(tmp_path, language="es")
+
+                if fallback_response.text and len(fallback_response.text.strip()) > 0:
+                    # Fallback succeeded - use its result
+                    logger.info(
+                        "FALLBACK_TRANSCRIPTION_SUCCESS",
+                        fallback_provider=fallback_provider,
+                        transcript_length=len(fallback_response.text),
+                        message="Fallback provider detected speech where primary failed",
+                    )
+                    response = fallback_response
+                    provider_name = fallback_provider
+                else:
+                    # Both providers return empty - confirmed silence
+                    logger.info(
+                        "CONFIRMED_SILENCE",
+                        primary_provider=provider_name,
+                        fallback_provider=fallback_provider,
+                        message="Both providers confirmed: chunk contains no speech",
+                    )
+            except Exception as fallback_error:
+                logger.error(
+                    "FALLBACK_TRANSCRIPTION_FAILED",
+                    fallback_provider=fallback_provider,
+                    error=str(fallback_error),
+                    message="Fallback failed - using primary empty result",
+                )
 
         return {
             "transcript": response.text,
