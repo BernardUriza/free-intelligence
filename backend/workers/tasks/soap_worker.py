@@ -10,8 +10,11 @@ from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.policy.policy_loader import get_policy_loader
 from backend.storage.task_repository import (
+    create_order,
     get_diarization_segments,
+    get_orders,
     get_task_chunks,
+    save_soap_data,
     task_exists,
     update_task_metadata,
 )
@@ -149,15 +152,91 @@ def generate_soap_worker(
 
         elapsed_time = time.time() - start_time
 
-        # Save SOAP note to HDF5 (store in task metadata for now)
-        # TODO: Create dedicated SOAP note storage in task chunks
+        # Save SOAP note to HDF5 using save_soap_data()
+        save_soap_data(session_id, soap_data, TaskType.SOAP_GENERATION)
+
+        # AUTO-CREATE ORDERS from SOAP.plan (medications + studies)
+        orders_created = 0
+        plan = soap_data.get("plan", {})
+
+        # Get existing orders to avoid duplicates
+        existing_orders = get_orders(session_id)
+        existing_descriptions = {order.get("description") for order in existing_orders}
+
+        # Create medication orders
+        medications = plan.get("medications", [])
+        if isinstance(medications, list):
+            for med in medications:
+                if isinstance(med, dict):
+                    desc = f"{med.get('name', '')} {med.get('dose', '')}".strip()
+                    if desc and desc not in existing_descriptions:
+                        create_order(
+                            session_id,
+                            {
+                                "type": "medication",
+                                "description": desc,
+                                "details": f"{med.get('frequency', '')} - {med.get('duration', '')}",
+                                "source": "soap",
+                            },
+                        )
+                        orders_created += 1
+                        logger.info(
+                            "ORDER_CREATED_FROM_SOAP",
+                            session_id=session_id,
+                            type="medication",
+                            description=desc,
+                        )
+
+        # Create lab/imaging orders
+        studies = plan.get("studies", [])
+        if isinstance(studies, list):
+            for study in studies:
+                if isinstance(study, str) and study not in existing_descriptions:
+                    # Determine type based on keywords
+                    study_lower = study.lower()
+                    if any(
+                        kw in study_lower
+                        for kw in ["biometria", "quimica", "sangre", "laboratorio"]
+                    ):
+                        order_type = "lab"
+                    elif any(
+                        kw in study_lower
+                        for kw in ["rayos", "radiografia", "tac", "resonancia", "rx"]
+                    ):
+                        order_type = "imaging"
+                    else:
+                        order_type = "lab"
+
+                    create_order(
+                        session_id,
+                        {
+                            "type": order_type,
+                            "description": study,
+                            "details": "",
+                            "source": "soap",
+                        },
+                    )
+                    orders_created += 1
+                    logger.info(
+                        "ORDER_CREATED_FROM_SOAP",
+                        session_id=session_id,
+                        type=order_type,
+                        description=study,
+                    )
+
+        logger.info(
+            "SOAP_ORDERS_AUTO_CREATED",
+            session_id=session_id,
+            orders_created=orders_created,
+        )
+
+        # Update metadata with completion status
         update_task_metadata(
             session_id,
             TaskType.SOAP_GENERATION,
             {
                 "status": TaskStatus.COMPLETED,
                 "provider": soap_provider,
-                "soap_note": soap_data,
                 "progress_percent": 100,
                 "completed_at": datetime.now(UTC).isoformat(),
                 "duration_seconds": round(elapsed_time, 2),
@@ -172,7 +251,7 @@ def generate_soap_worker(
             provider=soap_provider,
         )
 
-        return WorkerResult(session_id=session_id, result=result)
+        return WorkerResult(session_id=session_id, result=result).to_dict()
 
     except Exception as e:
         logger.error(

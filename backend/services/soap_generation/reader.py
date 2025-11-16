@@ -8,6 +8,8 @@ Refactored: 2025-11-14 (Clean Architecture - Repository Pattern)
 
 from __future__ import annotations
 
+from typing import Optional
+
 from backend.logger import get_logger
 from backend.repositories.soap_repository import (
     SoapRepository,

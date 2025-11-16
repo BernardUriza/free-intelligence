@@ -261,6 +261,9 @@ class AzureWhisperProvider(STTProvider):
                         error_text = await resp.text()
                         raise Exception(f"Azure API error {resp.status}: {error_text}")
 
+        # If we reach here, all retries exhausted without success
+        raise Exception(f"Azure API transcription failed after {max_retries + 1} attempts")
+
     def get_provider_name(self) -> str:
         return "azure_whisper"
 

@@ -6,7 +6,7 @@ Supports any LLM provider configured in fi.policy.yaml.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from backend.logger import get_logger
 from backend.providers.llm import llm_generate

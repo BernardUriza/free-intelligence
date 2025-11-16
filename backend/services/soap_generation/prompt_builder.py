@@ -7,7 +7,7 @@ Supports loading from external files for better testability and maintainability.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from backend.logger import get_logger
 
@@ -22,7 +22,7 @@ class OllamaPromptBuilder:
     Loads system prompts from external template files and formats user prompts.
     """
 
-    def __init__(self, prompt_dir: Union[Path, Optional][str] = None):
+    def __init__(self, prompt_dir: Optional[Union[Path, str]] = None):
         """Initialize prompt builder.
 
         Args:

@@ -11,10 +11,11 @@ Provides a unified interface for LLM interactions, supporting multiple providers
 Philosophy: Provider-agnostic design. No vendor lock-in.
 """
 
+import asyncio
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -210,7 +211,7 @@ class ClaudeProvider(LLMProvider):
             temperature=temperature,
         )
 
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             self.logger.info("📡 [CLAUDE] Calling anthropic.client.messages.create()...")
@@ -226,7 +227,7 @@ class ClaudeProvider(LLMProvider):
 
             self.logger.info("✅ [CLAUDE] API response received successfully")
 
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             # Extract response content
             content = message.content[0].text if message.content else ""  # type: ignore[attr-defined]
@@ -372,7 +373,7 @@ class OllamaProvider(LLMProvider):
             base_url=self.base_url,
         )
 
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             # Call Ollama API
@@ -385,7 +386,7 @@ class OllamaProvider(LLMProvider):
                 },
             )
 
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             # Extract response
             content = response["message"]["content"]
@@ -549,7 +550,7 @@ class AzureOpenAIProvider(LLMProvider):
             temperature=temperature,
         )
 
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             # Use asyncio to call async function from sync context
@@ -563,7 +564,7 @@ class AzureOpenAIProvider(LLMProvider):
                 )
             )
 
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             self.logger.info(
                 "✅ [AZURE] GENERATE_COMPLETED",
