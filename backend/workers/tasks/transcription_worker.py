@@ -91,6 +91,13 @@ def transcribe_chunk_worker(
             "duration",
             result.get("duration", 0.0),
         )
+        update_chunk_dataset(
+            session_id,
+            TaskType.TRANSCRIPTION,
+            chunk_number,
+            "provider",
+            stt_provider,
+        )
 
         # Update metadata
         actual_chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
@@ -123,6 +130,8 @@ def transcribe_chunk_worker(
             session_id=session_id,
             chunk_number=chunk_number,
             processed=f"{processed}/{total}",
+            provider=stt_provider,
+            duration_seconds=result.get("duration", 0.0),
         )
 
         return WorkerResult(
