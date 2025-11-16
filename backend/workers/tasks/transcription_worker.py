@@ -10,10 +10,10 @@ from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.providers.stt import get_stt_provider
 from backend.storage.task_repository import (
+    batch_update_chunk_datasets,
     get_chunk_audio_bytes,
     get_task_chunks,
     get_task_metadata,
-    update_chunk_dataset,
     update_task_metadata,
 )
 from backend.utils.stt_load_balancer import get_stt_load_balancer
@@ -48,7 +48,9 @@ def transcribe_chunk_worker(
         # Get load balancer and select provider adaptively if not specified
         balancer = get_stt_load_balancer()
         if stt_provider is None:
-            stt_provider = balancer.select_provider(chunk_number=chunk_number, session_id=session_id)
+            stt_provider = balancer.select_provider(
+                chunk_number=chunk_number, session_id=session_id
+            )
             logger.info(
                 "ADAPTIVE_PROVIDER_SELECTED",
                 session_id=session_id,
@@ -81,57 +83,36 @@ def transcribe_chunk_worker(
         result = _transcribe_audio(audio_bytes, stt_provider)
         resolution_time = time.time() - start_time
 
-        # Save transcript
-        update_chunk_dataset(
-            session_id,
-            TaskType.TRANSCRIPTION,
-            chunk_number,
-            "transcript",
-            result.get("transcript", ""),
+        # ATOMIC BATCH UPDATE: Write all chunk fields in one transaction with retry
+        # This fixes the HDF5 SWMR race condition where concurrent readers blocked writes
+        success = batch_update_chunk_datasets(
+            session_id=session_id,
+            task_type=TaskType.TRANSCRIPTION,
+            chunk_idx=chunk_number,
+            updates={
+                "transcript": result.get("transcript", ""),
+                "language": result.get("language", "es"),
+                "confidence": result.get("confidence", 0.0),
+                "duration": result.get("duration", 0.0),
+                "provider": stt_provider,
+                "resolution_time_seconds": resolution_time,
+                "retry_attempts": result.get("retry_attempts", 0),
+            },
+            max_retries=5,
+            initial_backoff=0.1,
         )
-        update_chunk_dataset(
-            session_id,
-            TaskType.TRANSCRIPTION,
-            chunk_number,
-            "language",
-            result.get("language", "es"),
-        )
-        update_chunk_dataset(
-            session_id,
-            TaskType.TRANSCRIPTION,
-            chunk_number,
-            "confidence",
-            result.get("confidence", 0.0),
-        )
-        update_chunk_dataset(
-            session_id,
-            TaskType.TRANSCRIPTION,
-            chunk_number,
-            "duration",
-            result.get("duration", 0.0),
-        )
-        update_chunk_dataset(
-            session_id,
-            TaskType.TRANSCRIPTION,
-            chunk_number,
-            "provider",
-            stt_provider,
-        )
-        # NEW: Save transcription metrics
-        update_chunk_dataset(
-            session_id,
-            TaskType.TRANSCRIPTION,
-            chunk_number,
-            "resolution_time_seconds",
-            resolution_time,
-        )
-        update_chunk_dataset(
-            session_id,
-            TaskType.TRANSCRIPTION,
-            chunk_number,
-            "retry_attempts",
-            result.get("retry_attempts", 0),
-        )
+
+        if not success:
+            # Batch update failed after retries - CRITICAL ERROR
+            logger.error(
+                "BATCH_UPDATE_FAILED_AFTER_RETRIES",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                message="Transcription succeeded but failed to save to HDF5 - data loss!",
+            )
+            raise RuntimeError(
+                f"Failed to save transcription results for chunk {chunk_number} after retries"
+            )
 
         # Update metadata
         actual_chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
