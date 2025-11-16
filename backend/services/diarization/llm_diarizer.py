@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
+from typing import Any, Optional
 
 import requests
 
@@ -82,7 +82,7 @@ Language:"""
 
         if response.status_code == 200:
             result = response.json()
-            lang = result.get("response", "").strip().lower()
+            lang = str(result.get("response", "")).strip().lower()
             if lang in ["es", "en"]:
                 logger.info("LANGUAGE_DETECTED", language=lang, method="ollama")
                 return lang
@@ -120,9 +120,6 @@ def diarize_with_claude(
     Returns:
         List of DiarizationSegment objects
     """
-    # Calculate optimal num_ctx based on text length
-    num_ctx = calculate_num_ctx(len(full_text))
-
     logger.info(
         "🎯 [DIARIZATION] Starting Claude diarization",
         text_length=len(full_text),
@@ -195,7 +192,7 @@ def _build_prompt(
     Prompt is ALWAYS in English, regardless of content language.
     """
     # Build triple vision JSON
-    triple_vision = {"full_transcription": full_text}
+    triple_vision: dict[str, Any] = {"full_transcription": full_text}
 
     if chunks:
         # Format chunks with timestamps + first words (temporal anchors)
@@ -229,32 +226,42 @@ def _build_prompt(
 
     triple_vision_json = json.dumps(triple_vision, ensure_ascii=False, indent=2)
 
-    # Language-specific note
-    lang_note = "in Spanish" if content_language == "es" else "in English"
+    # Language-specific note and example
+    if content_language == "es":
+        lang_note = "in Spanish"
+        example_input = "hola buenas tardes maria cómo ves a todos que tenías la semana pasada mucho mejor doctor pero ahora tengo la voz ronca"
+        example_output = """{{
+  "segments": [
+    {{"speaker": "MEDICO", "text": "Hola, buenas tardes María. ¿Cómo ves a todos que tenías la semana pasada?"}},
+    {{"speaker": "PACIENTE", "text": "Mucho mejor, doctor, pero ahora tengo la voz ronca."}}
+  ]
+}}"""
+    else:
+        lang_note = "in English"
+        example_input = "come in miss bellamy yes hi can you tell me why you're here today i have a terrible headache"
+        example_output = """{{
+  "segments": [
+    {{"speaker": "MEDICO", "text": "Come in. Miss Bellamy?"}},
+    {{"speaker": "PACIENTE", "text": "Yes."}},
+    {{"speaker": "MEDICO", "text": "Hi. Can you tell me why you're here today?"}},
+    {{"speaker": "PACIENTE", "text": "I have a terrible headache."}}
+  ]
+}}"""
 
     # Few-shot example based on DiarizationLM research (prompt ALWAYS in English)
-    return f"""You are a medical assistant expert in speaker classification. Your task is to IDENTIFY who is speaking in each conversation turn.
+    return f"""You are a medical assistant expert in speaker classification and medical transcription normalization. Your task is to IDENTIFY who is speaking in each conversation turn AND properly format the text with correct punctuation and capitalization.
 
 NOTE: The transcript content is {lang_note}, but you must classify speakers using the labels "MEDICO" and "PACIENTE" regardless.
 
 APPROACH (based on DiarizationLM 2024 research):
 Instead of segmenting from scratch, use chunks_timestamps as TEMPORAL REFERENCE to know which words occur at which approximate time.
 
-EXPECTED FORMAT EXAMPLE:
-Input:
-  full_transcription: "Come in. Miss Bellamy? Yes. Hi. Can you tell me why you're here today? I have a terrible headache."
-  chunks_timestamps: [{{"time": "0.0-15.0s", "starts_with": "Come in. Miss Bellamy? Yes..."}}]
+EXPECTED FORMAT EXAMPLE ({lang_note}):
+Input (raw transcription without punctuation):
+  full_transcription: "{example_input}"
 
-Correct output:
-{{
-  "segments": [
-    {{"speaker": "MEDICO", "text": "Come in. Miss Bellamy?"}},
-    {{"speaker": "PACIENTE", "text": "Yes."}},
-    {{"speaker": "MEDICO", "text": "Hi."}},
-    {{"speaker": "MEDICO", "text": "Can you tell me why you're here today?"}},
-    {{"speaker": "PACIENTE", "text": "I have a terrible headache."}}
-  ]
-}}
+Correct output (with proper punctuation and capitalization):
+{example_output}
 
 INSTRUCTIONS:
 1. USE chunks_timestamps to know WHICH WORDS occur at WHICH TIME (first words of each chunk give you temporal anchor)
@@ -263,7 +270,12 @@ INSTRUCTIONS:
    - MEDICO: Doctor/health professional (asks medical questions, gives diagnosis)
    - PACIENTE: Patient (describes symptoms, answers questions)
 4. Create ONE segment per EACH turn (don't group multiple turns together)
-5. RESPECT exact text (don't modify words)
+5. NORMALIZE text for medical documentation:
+   - Add proper capitalization (first word of sentence, proper nouns, medical terms)
+   - Add punctuation (periods, commas, question marks, exclamation marks)
+   - Fix obvious spelling/grammar errors
+   - Preserve medical terminology accuracy
+   - Keep the original meaning and words (don't paraphrase or change medical content)
 
 INPUT DATA:
 {triple_vision_json}
