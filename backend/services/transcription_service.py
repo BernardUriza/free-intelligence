@@ -187,12 +187,13 @@ class TranscriptionService:
         )
 
         # 5. Dispatch worker to background (fire-and-forget)
-        import os
-
+        from backend.utils.stt_load_balancer import get_stt_load_balancer
         from backend.workers.executor_pool import spawn_worker
         from backend.workers.sync_workers import transcribe_chunk_worker
 
-        stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "deepgram")
+        # Use load balancer to select provider intelligently
+        load_balancer = get_stt_load_balancer()
+        stt_provider = load_balancer.select_provider(chunk_number=chunk_number)
 
         spawn_worker(
             transcribe_chunk_worker,
