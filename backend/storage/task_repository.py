@@ -357,6 +357,10 @@ def append_chunk_to_task(
     timestamp_end: float,
     confidence: float = 0.95,
     audio_quality: float = 0.85,
+    provider: str = "deepgram",
+    polling_attempts: int = 0,
+    resolution_time_seconds: float = 0.0,
+    retry_attempts: int = 0,
 ) -> str:
     """Append transcription chunk to task.
 
@@ -372,6 +376,10 @@ def append_chunk_to_task(
         timestamp_end: End time (seconds)
         confidence: Transcription confidence (0-1)
         audio_quality: Audio quality score (0-1)
+        provider: STT provider used (deepgram, azure_whisper)
+        polling_attempts: Number of polling attempts until completion
+        resolution_time_seconds: Time from upload to completion (seconds)
+        retry_attempts: Number of retries before success
 
     Returns:
         HDF5 path to chunk
@@ -434,6 +442,17 @@ def append_chunk_to_task(
                 data=created_at,
                 dtype=h5py.string_dtype(encoding="utf-8"),
             )
+            # NEW: Transcription metrics
+            chunk_group.create_dataset(  # type: ignore[attr-defined]
+                "provider",
+                data=provider,
+                dtype=h5py.string_dtype(encoding="utf-8"),
+            )
+            chunk_group.create_dataset("polling_attempts", data=polling_attempts, dtype="int32")  # type: ignore[attr-defined]
+            chunk_group.create_dataset(
+                "resolution_time_seconds", data=resolution_time_seconds, dtype="float32"
+            )  # type: ignore[attr-defined]
+            chunk_group.create_dataset("retry_attempts", data=retry_attempts, dtype="int32")  # type: ignore[attr-defined]
 
         logger.info(
             "CHUNK_APPENDED_TO_TASK",
@@ -443,6 +462,10 @@ def append_chunk_to_task(
             chunk_path=chunk_path,
             transcript_length=len(transcript),
             duration=duration,
+            provider=provider,
+            polling_attempts=polling_attempts,
+            resolution_time_seconds=resolution_time_seconds,
+            retry_attempts=retry_attempts,
         )
 
     return chunk_path
@@ -527,6 +550,26 @@ def get_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> list[di
                 # Determine status based on transcript presence
                 status = "completed" if transcript else "pending"
 
+                # Read metrics (with fallback for older chunks)
+                provider = (
+                    chunk_group["provider"][()].decode("utf-8")
+                    if "provider" in chunk_group
+                    else "unknown"
+                )  # type: ignore[index, operator]
+                polling_attempts = (
+                    int(chunk_group["polling_attempts"][()])
+                    if "polling_attempts" in chunk_group
+                    else 0
+                )  # type: ignore[index, operator]
+                resolution_time_seconds = (
+                    float(chunk_group["resolution_time_seconds"][()])
+                    if "resolution_time_seconds" in chunk_group
+                    else 0.0
+                )  # type: ignore[index, operator]
+                retry_attempts = (
+                    int(chunk_group["retry_attempts"][()]) if "retry_attempts" in chunk_group else 0
+                )  # type: ignore[index, operator]
+
                 chunks.append(
                     {
                         "chunk_idx": chunk_idx,
@@ -541,6 +584,12 @@ def get_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> list[di
                         "confidence": float(chunk_group["confidence"][()]),  # type: ignore[index]
                         "audio_quality": float(chunk_group["audio_quality"][()]),  # type: ignore[index]
                         "created_at": chunk_group["created_at"][()].decode("utf-8"),  # type: ignore[index]
+                        # NEW: Transcription metrics
+                        "provider": provider,
+                        "polling_attempts": polling_attempts,
+                        "resolution_time_seconds": resolution_time_seconds,
+                        "retry_attempts": retry_attempts,
+                        # Legacy fields
                         "audio_size_bytes": None,  # Not stored in new schema
                         "error_message": None,  # Not stored in new schema
                     }

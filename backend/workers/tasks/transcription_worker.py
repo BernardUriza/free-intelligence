@@ -38,6 +38,10 @@ def transcribe_chunk_worker(
         WorkerResult with transcript, duration, language, confidence
     """
     try:
+        import time
+
+        start_time = time.time()  # Track resolution time
+
         logger.info(
             "TRANSCRIBE_CHUNK_START",
             session_id=session_id,
@@ -59,8 +63,9 @@ def transcribe_chunk_worker(
         if not audio_bytes:
             raise ValueError(f"No audio for chunk {chunk_number}")
 
-        # Transcribe
+        # Transcribe (returns result + retry_attempts)
         result = _transcribe_audio(audio_bytes, stt_provider)
+        resolution_time = time.time() - start_time
 
         # Save transcript
         update_chunk_dataset(
@@ -97,6 +102,21 @@ def transcribe_chunk_worker(
             chunk_number,
             "provider",
             stt_provider,
+        )
+        # NEW: Save transcription metrics
+        update_chunk_dataset(
+            session_id,
+            TaskType.TRANSCRIPTION,
+            chunk_number,
+            "resolution_time_seconds",
+            resolution_time,
+        )
+        update_chunk_dataset(
+            session_id,
+            TaskType.TRANSCRIPTION,
+            chunk_number,
+            "retry_attempts",
+            result.get("retry_attempts", 0),
         )
 
         # Update metadata
@@ -164,8 +184,10 @@ def _transcribe_audio(audio_bytes: bytes, provider_name: str) -> dict[str, Any]:
         provider_name: Provider to use
 
     Returns:
-        Transcription result
+        Transcription result with retry_attempts (0 = no fallback, 1 = fallback used)
     """
+    retry_attempts = 0  # Track if fallback was used
+
     with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
         tmp.write(audio_bytes)
         tmp_path = tmp.name
@@ -177,6 +199,7 @@ def _transcribe_audio(audio_bytes: bytes, provider_name: str) -> dict[str, Any]:
 
         # If empty transcript, try fallback provider
         if not response.text or len(response.text.strip()) == 0:
+            retry_attempts = 1  # Fallback attempt
             fallback_provider = "azure_whisper" if provider_name == "deepgram" else "deepgram"
 
             logger.warning(
@@ -223,6 +246,7 @@ def _transcribe_audio(audio_bytes: bytes, provider_name: str) -> dict[str, Any]:
             "duration": response.duration,
             "segments": response.segments,
             "provider": response.provider,
+            "retry_attempts": retry_attempts,  # NEW: Track fallback usage
         }
     finally:
         if os.path.exists(tmp_path):
