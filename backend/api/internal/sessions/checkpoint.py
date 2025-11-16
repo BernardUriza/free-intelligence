@@ -23,7 +23,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, status
@@ -131,18 +131,61 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
         chunks_concatenated = 0
 
         with h5py.File(CORPUS_PATH, "r") as f:
-            for chunk_idx in range(last_checkpoint_idx + 1, request.last_chunk_idx + 1):
-                chunk_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/chunks/chunk_{chunk_idx}"
+            # Get all chunk keys from HDF5 (don't assume sequential from 0)
+            chunks_group_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/chunks"
 
-                if chunk_path in f:
+            if chunks_group_path not in f:
+                logger.warning(
+                    "NO_CHUNKS_GROUP",
+                    session_id=session_id,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"No chunks found for session {session_id}",
+                )
+
+            chunks_group = f[chunks_group_path]
+
+            # Extract chunk numbers and sort them
+            chunk_numbers = []
+            for key in chunks_group.keys():
+                if key.startswith("chunk_"):
+                    try:
+                        chunk_num = int(key.split("_")[1])
+                        chunk_numbers.append(chunk_num)
+                    except (ValueError, IndexError):
+                        logger.warning("INVALID_CHUNK_KEY", key=key)
+                        continue
+
+            chunk_numbers.sort()
+
+            logger.info(
+                "CHECKPOINT_CHUNK_DISCOVERY",
+                session_id=session_id,
+                available_chunks=chunk_numbers,
+                last_checkpoint=last_checkpoint_idx,
+                requested_checkpoint=request.last_chunk_idx,
+            )
+
+            # Filter chunks in checkpoint range
+            for chunk_idx in chunk_numbers:
+                if last_checkpoint_idx < chunk_idx <= request.last_chunk_idx:
+                    chunk_path = (
+                        f"/sessions/{session_id}/tasks/TRANSCRIPTION/chunks/chunk_{chunk_idx}"
+                    )
                     chunk_group = f[chunk_path]
 
                     # Check if audio exists and is not empty
                     if "audio.webm" in chunk_group:
                         audio_data = chunk_group["audio.webm"][()]
-                        audio_bytes = (
-                            bytes(audio_data) if hasattr(audio_data, "__iter__") else audio_data
-                        )
+
+                        # Convert numpy array to bytes properly
+                        if hasattr(audio_data, "tobytes"):
+                            audio_bytes = audio_data.tobytes()
+                        elif isinstance(audio_data, bytes):
+                            audio_bytes = audio_data
+                        else:
+                            audio_bytes = bytes(audio_data)
 
                         # Skip empty audio files
                         if len(audio_bytes) == 0:
@@ -164,12 +207,6 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
                             session_id=session_id,
                             chunk_idx=chunk_idx,
                         )
-                else:
-                    logger.warning(
-                        "CHUNK_NOT_FOUND",
-                        session_id=session_id,
-                        chunk_idx=chunk_idx,
-                    )
 
         if not audio_files:
             logger.warning(
@@ -179,7 +216,7 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
             )
             return CheckpointResponse(
                 session_id=session_id,
-                checkpoint_at=datetime.now(timezone.utc).isoformat(),
+                checkpoint_at=datetime.now(UTC).isoformat(),
                 chunks_concatenated=0,
                 full_audio_size=0,
                 message="No new chunks to concatenate",
@@ -190,7 +227,16 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
         with h5py.File(CORPUS_PATH, "r") as f:
             full_audio_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/full_audio.webm"
             if full_audio_path in f:
-                existing_audio_bytes = f[full_audio_path][()]
+                existing_audio_data = f[full_audio_path][()]
+
+                # Convert numpy array to bytes properly
+                if hasattr(existing_audio_data, "tobytes"):
+                    existing_audio_bytes = existing_audio_data.tobytes()
+                elif isinstance(existing_audio_data, bytes):
+                    existing_audio_bytes = existing_audio_data
+                else:
+                    existing_audio_bytes = bytes(existing_audio_data)
+
                 logger.info(
                     "EXISTING_AUDIO_FOUND",
                     session_id=session_id,
@@ -249,21 +295,11 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
 
         # 6. Update task metadata with new checkpoint
         task_metadata["last_checkpoint_idx"] = request.last_chunk_idx
-        task_metadata["last_checkpoint_at"] = datetime.now(timezone.utc).isoformat()
+        task_metadata["last_checkpoint_at"] = datetime.now(UTC).isoformat()
         update_task_metadata(session_id, TaskType.TRANSCRIPTION, task_metadata)
 
         # Cleanup temp files
         shutil.rmtree(temp_dir)
-
-        # 7. Launch full_transcription task (transcribe complete audio)
-        import os
-
-        from backend.workers.transcription_tasks import transcribe_full_audio_task
-
-        stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "deepgram")
-        full_transcription_task = transcribe_full_audio_task.delay(
-            session_id=session_id, stt_provider=stt_provider
-        )
 
         logger.info(
             "CHECKPOINT_COMPLETED",
@@ -271,15 +307,14 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
             chunks_concatenated=chunks_concatenated,
             full_audio_size=len(full_audio_bytes),
             checkpoint_idx=request.last_chunk_idx,
-            full_transcription_task_id=full_transcription_task.id,
         )
 
         return CheckpointResponse(
             session_id=session_id,
-            checkpoint_at=datetime.now(timezone.utc).isoformat(),
+            checkpoint_at=datetime.now(UTC).isoformat(),
             chunks_concatenated=chunks_concatenated,
             full_audio_size=len(full_audio_bytes),
-            message=f"Checkpoint created: {chunks_concatenated} chunks + full_transcription task {full_transcription_task.id}",
+            message=f"Checkpoint created: {chunks_concatenated} chunks concatenated, {len(full_audio_bytes):,} bytes total",
         )
 
     except HTTPException:

@@ -8,16 +8,29 @@
 # ===== Diarization (Speaker Identification) Configuration =====
 diarization:
   # Primary provider for speaker identification
-  primary_provider: azure_gpt4  # Azure GPT-4 text-based diarization (2025-11-15)
+  primary_provider: azure_gpt4  # Azure GPT-4 text-based diarization (high accuracy)
 
   # Fallback providers in order (local → cloud)
   fallback_providers:
+    - azure_gpt4
     - deepgram
     - aws_transcribe
     - google_speech
 
   # Provider-specific configurations
   providers:
+    # Azure GPT-4 - Text-based diarization (high accuracy, medical context)
+    azure_gpt4:
+      model: gpt-4o
+      deployment: gpt-4o
+      api_version: "2024-02-15-preview"
+      timeout_seconds: 60
+      max_tokens: 4096
+      temperature: 0.3
+      # Credentials from environment:
+      # - AZURE_OPENAI_ENDPOINT: https://resource.openai.azure.com/
+      # - AZURE_OPENAI_KEY: your-api-key
+
     # Pyannote - Local speaker diarization (free, offline)
     pyannote:
       model: "pyannote/speaker-diarization-3.1"
@@ -52,7 +65,7 @@ diarization:
 # ===== STT Provider Configuration =====
 stt:
   # Primary provider for transcription
-  primary_provider: azure_whisper
+  primary_provider: deepgram  # CHANGED: Deepgram (fast, 1-2s) instead of Azure Whisper (slow, 10-30s)
 
   # Fallback providers in order (cloud only)
   fallback_providers:

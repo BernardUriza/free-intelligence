@@ -57,15 +57,19 @@ class TranscriptionService:
         timestamp_start: Optional[float] = None,
         timestamp_end: Optional[float] = None,
     ) -> ChunkProcessingResult:
-        """Process audio chunk for transcription.
+        """Process audio chunk for transcription (ASYNC pattern).
 
-        Business logic:
+        Business logic (FAST path - returns in ~100ms):
         1. Validate input
         2. Ensure TRANSCRIPTION task exists
-        3. Store audio in HDF5 (NOT in Celery message!)
-        4. Update metadata
-        5. Dispatch Celery worker (with references only)
-        6. Return processing result
+        3. Store audio in HDF5 immediately (append-only)
+        4. Dispatch worker to ThreadPoolExecutor (background transcription)
+        5. Return 202 Accepted immediately
+
+        Worker executes independently:
+        - Transcribes audio (10-15s with Deepgram/Whisper)
+        - Updates HDF5 with transcript + metadata
+        - No blocking of HTTP request
 
         Args:
             session_id: Session UUID
@@ -75,7 +79,7 @@ class TranscriptionService:
             timestamp_end: Optional chunk end time
 
         Returns:
-            ChunkProcessingResult with task info
+            ChunkProcessingResult with task info (status='pending')
 
         Raises:
             ValueError: If audio is empty or invalid
@@ -121,103 +125,90 @@ class TranscriptionService:
             session_id=session_id,
         )
 
-        # 3. Transcribe FIRST (append-only: everything happens before HDF5 write)
+        # 3. Save audio to HDF5 IMMEDIATELY (fast path - no transcription yet)
         import hashlib
-        import os
-        import tempfile
 
         from backend.models.task_type import CHUNK_DURATION_SECONDS
-        from backend.providers.stt import get_stt_provider
-        from backend.storage.task_repository import append_chunk_to_task
+        from backend.storage.task_repository import (
+            add_audio_to_chunk,
+            append_chunk_to_task,
+            update_task_metadata,
+        )
 
-        stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "deepgram")
+        audio_hash = hashlib.sha256(audio_bytes).hexdigest()
+
+        # Calculate timestamps
+        timestamp_start = chunk_number * CHUNK_DURATION_SECONDS
+        timestamp_end = timestamp_start + CHUNK_DURATION_SECONDS
+
+        # Append chunk with placeholder transcript (worker will update later)
+        append_chunk_to_task(
+            session_id=session_id,
+            task_type=TaskType.TRANSCRIPTION,
+            chunk_idx=chunk_number,
+            transcript="",  # Empty - worker will fill this
+            audio_hash=audio_hash,
+            duration=0.0,  # Worker will update
+            language="es",
+            timestamp_start=timestamp_start,
+            timestamp_end=timestamp_end,
+            confidence=0.0,  # Worker will update
+            audio_quality=0.9,
+        )
+
+        # Save audio bytes to HDF5 (colocated with chunk)
+        add_audio_to_chunk(
+            session_id=session_id,
+            task_type=TaskType.TRANSCRIPTION,
+            chunk_idx=chunk_number,
+            audio_bytes=audio_bytes,
+        )
 
         logger.info(
-            "STARTING_TRANSCRIPTION",
+            "AUDIO_SAVED_TO_HDF5",
             session_id=session_id,
             chunk_number=chunk_number,
-            provider=stt_provider,
             audio_size=audio_size,
         )
 
-        # Save audio to temp file for STT provider
-        # Try to detect format from magic bytes (fallback to .webm)
-        audio_hash = hashlib.sha256(audio_bytes).hexdigest()
-        if audio_bytes[:3] == b"ID3" or audio_bytes[:2] == b"\xff\xfb":
-            suffix = ".mp3"
-        elif audio_bytes[:4] == b"RIFF":
-            suffix = ".wav"
-        elif audio_bytes[:4] == b"\x1a\x45\xdf\xa3":
-            suffix = ".webm"
-        else:
-            suffix = ".webm"  # Default for browser MediaRecorder
+        # 4. Update task metadata (track total chunks)
+        metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+        total_chunks = max(metadata.get("total_chunks", 0), chunk_number + 1)
+        processed_chunks = metadata.get("processed_chunks", 0)
 
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            tmp.write(audio_bytes)
-            tmp_path = tmp.name
+        update_task_metadata(
+            session_id,
+            TaskType.TRANSCRIPTION,
+            {
+                "total_chunks": total_chunks,
+                "processed_chunks": processed_chunks,
+                "status": "in_progress" if processed_chunks > 0 else "pending",
+            },
+        )
 
-        try:
-            # Transcribe with configured provider (Deepgram, Azure Whisper, etc.)
-            provider = get_stt_provider(stt_provider)
-            stt_response = provider.transcribe(tmp_path, language="es")
+        # 5. Dispatch worker to background (fire-and-forget)
+        import os
 
-            logger.info(
-                "TRANSCRIPTION_COMPLETE",
-                session_id=session_id,
-                chunk_number=chunk_number,
-                transcript_length=len(stt_response.text),
-                latency_ms=stt_response.latency_ms,
-            )
+        from backend.workers.executor_pool import spawn_worker
+        from backend.workers.sync_workers import transcribe_chunk_worker
 
-            # Calculate timestamps
-            timestamp_start = chunk_number * CHUNK_DURATION_SECONDS
-            timestamp_end = timestamp_start + stt_response.duration
+        stt_provider = os.environ.get("AURITY_ASR_PROVIDER", "deepgram")
 
-            # 4. NOW save everything to HDF5 in one append-only operation
-            append_chunk_to_task(
-                session_id=session_id,
-                task_type=TaskType.TRANSCRIPTION,
-                chunk_idx=chunk_number,
-                transcript=stt_response.text,
-                audio_hash=audio_hash,
-                duration=stt_response.duration,
-                language=stt_response.language,
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end,
-                confidence=stt_response.confidence,
-                audio_quality=0.9,  # Default
-            )
-
-            # Also save the audio file to HDF5 (colocated with transcript)
-            from backend.storage.task_repository import add_audio_to_chunk
-
-            add_audio_to_chunk(
-                session_id=session_id,
-                task_type=TaskType.TRANSCRIPTION,
-                chunk_idx=chunk_number,
-                audio_bytes=audio_bytes,
-            )
-
-            logger.info(
-                "CHUNK_SAVED_TO_HDF5",
-                session_id=session_id,
-                chunk_number=chunk_number,
-                transcript_length=len(stt_response.text),
-            )
-
-        finally:
-            # Cleanup temp file
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
+        spawn_worker(
+            transcribe_chunk_worker,
+            session_id=session_id,
+            chunk_number=chunk_number,
+            stt_provider=stt_provider,
+        )
 
         logger.info(
-            "WORKER_SPAWNED",
+            "WORKER_DISPATCHED",
             session_id=session_id,
             chunk_number=chunk_number,
             provider=stt_provider,
         )
 
-        # 6. Get updated metadata and return result
+        # 6. Return result IMMEDIATELY (202 Accepted pattern)
         metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
         elapsed = time.time() - start_time
         result = ChunkProcessingResult(
@@ -230,13 +221,13 @@ class TranscriptionService:
         )
 
         logger.info(
-            "CHUNK_PROCESSING_COMPLETED",
+            "CHUNK_ACCEPTED",
             session_id=session_id,
             chunk_number=chunk_number,
             total_chunks=result.total_chunks,
-            processed_chunks=result.processed_chunks,
-            duration_seconds=elapsed,
-            status=result.status,
+            duration_ms=int(elapsed * 1000),
+            status="pending",
+            note="Worker dispatched - transcription will complete asynchronously",
         )
 
         return result

@@ -5,11 +5,13 @@ Finalizes a session (recording stopped):
 2. Saves 3 transcription sources to HDF5 (WebSpeech, Chunks, Full)
 3. Encrypts session data (AES-GCM-256)
 4. Marks session as FINALIZED (immutable)
-5. Dispatches sync worker for diarization
-6. Returns 202 Accepted (diarization will run in background thread)
+5. Returns 202 Accepted
+
+NOTE: This should only be called AFTER SOAP generation is complete.
+      Diarization is now a separate endpoint: /sessions/{id}/diarization
 
 Architecture:
-  PUBLIC → INTERNAL (this file) → WORKER (sync diarization_worker)
+  PUBLIC → INTERNAL (this file)
 
 Storage (Task-based schema):
   /sessions/{session_id}/tasks/TRANSCRIPTION/
@@ -20,7 +22,7 @@ Storage (Task-based schema):
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-14
-Updated: 2025-11-14 (Migrated from TranscriptionJob to task-based schema)
+Updated: 2025-11-15 (Separated diarization to its own endpoint)
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ from __future__ import annotations
 import secrets
 import subprocess
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -89,7 +91,9 @@ class FinalizeSessionResponse(BaseModel):
     session_id: str = Field(..., description="Session identifier")
     status: str = Field(..., description="finalized")
     encrypted_at: str = Field(..., description="ISO timestamp")
-    diarization_job_id: str = Field(..., description="Celery task ID for diarization")
+    diarization_job_id: str | None = Field(
+        None, description="Deprecated - use /diarization endpoint instead"
+    )
     message: str = Field(..., description="Human-readable message")
 
 
@@ -104,24 +108,26 @@ class FinalizeSessionResponse(BaseModel):
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def finalize_session(
-    session_id: str, request: FinalizeSessionRequest = FinalizeSessionRequest()
+    session_id: str,
+    request: FinalizeSessionRequest = FinalizeSessionRequest(),
 ) -> FinalizeSessionResponse:
-    """Finalize session: save 3 sources + encrypt + dispatch diarization.
+    """Finalize session: save 3 sources + encrypt audio.
+
+    NOTE: This should only be called AFTER SOAP generation is complete.
 
     Flow:
     1. Verify TRANSCRIPTION task exists and all chunks completed
     2. Save 3 transcription sources to HDF5 (WebSpeech, Chunks, Full)
     3. Generate encryption key + IV
     4. Create Session model + mark FINALIZED
-    5. Dispatch Celery task for diarization
-    6. Return 202 Accepted
+    5. Return 202 Accepted
 
     Args:
         session_id: Session UUID
         request: FinalizeSessionRequest with 3 transcription sources
 
     Returns:
-        FinalizeSessionResponse with diarization job ID
+        FinalizeSessionResponse with encrypted_at timestamp
 
     Raises:
         404: Session not found or no TRANSCRIPTION task
@@ -168,7 +174,7 @@ async def finalize_session(
         # 2. Generate encryption metadata (AES-GCM-256)
         encryption_key_id = f"key-{session_id[:8]}"  # Key identifier for rotation
         encryption_iv = secrets.token_hex(12)  # 96-bit IV for GCM
-        encrypted_at = datetime.now(timezone.utc).isoformat()
+        encrypted_at = datetime.now(UTC).isoformat()
 
         encryption_metadata = EncryptionMetadata(
             algorithm="AES-GCM-256",
@@ -370,28 +376,13 @@ async def finalize_session(
             recording_duration=session.recording_duration,
         )
 
-        # 4. Dispatch sync worker for diarization in background thread
-        from concurrent.futures import ThreadPoolExecutor
-
-        from backend.workers.sync_workers import diarize_session_worker
-
-        executor = ThreadPoolExecutor(max_workers=2)
-        future = executor.submit(diarize_session_worker, session_id=session_id)
-        diarization_job_id = session_id  # Use session_id as job identifier
-
-        logger.info(
-            "DIARIZATION_DISPATCHED",
-            session_id=session_id,
-            job_id=diarization_job_id,
-        )
-
-        # 5. Return 202 Accepted
+        # 4. Return 202 Accepted (no diarization dispatch - that's a separate endpoint now)
         return FinalizeSessionResponse(
             session_id=session_id,
             status="finalized",
             encrypted_at=encrypted_at,
-            diarization_job_id=diarization_job_id,
-            message=f"Session finalized. Diarization running in background (job {diarization_job_id}).",
+            diarization_job_id=None,  # Not dispatched here anymore
+            message="Session finalized and encrypted. Ready for SOAP generation.",
         )
 
     except HTTPException:

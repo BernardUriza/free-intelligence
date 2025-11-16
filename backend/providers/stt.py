@@ -179,6 +179,11 @@ class AzureWhisperProvider(STTProvider):
 
         import aiohttp
 
+        # Rate limit: Azure Whisper allows 3 requests per minute
+        from backend.utils.rate_limiter import azure_whisper_rate_limiter
+
+        azure_whisper_rate_limiter.wait_if_needed()
+
         url = f"{self.endpoint}openai/deployments/whisper/audio/transcriptions?api-version={self.api_version}"
 
         headers = {"api-key": self.api_key}
