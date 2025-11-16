@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -1137,6 +1138,153 @@ def update_chunk_dataset(
             error=str(e),
         )
         return False
+
+
+def batch_update_chunk_datasets(
+    session_id: str,
+    task_type: Union[TaskType, str],
+    chunk_idx: int,
+    updates: dict[str, Union[str, float, int]],
+    max_retries: int = 5,
+    initial_backoff: float = 0.1,
+) -> bool:
+    """Atomically update multiple chunk fields with exponential backoff retry.
+
+    This solves the SWMR race condition where concurrent readers block writes.
+    All fields are updated in a single transaction to maintain consistency.
+
+    Args:
+        session_id: Session identifier
+        task_type: Type of task
+        chunk_idx: Chunk index
+        updates: Dict of field_name -> value to update
+        max_retries: Maximum retry attempts (default 5)
+        initial_backoff: Initial backoff time in seconds (default 0.1s)
+
+    Returns:
+        True if all updates succeeded, False otherwise
+
+    Example:
+        batch_update_chunk_datasets(
+            session_id="abc123",
+            task_type=TaskType.TRANSCRIPTION,
+            chunk_idx=6,
+            updates={
+                "transcript": "Hello world",
+                "language": "es",
+                "confidence": 0.95,
+                "duration": 7.5,
+                "provider": "deepgram",
+            }
+        )
+    """
+    if not task_exists(session_id, task_type):
+        logger.warning("TASK_NOT_EXISTS", session_id=session_id, task_type=str(task_type))
+        return False
+
+    task_type_str = task_type.value if isinstance(task_type, TaskType) else task_type
+    chunk_path = f"/sessions/{session_id}/tasks/{task_type_str}/chunks/chunk_{chunk_idx}"
+
+    for attempt in range(max_retries):
+        try:
+            with _h5_lock:  # Lock H5 file to prevent concurrent access errors
+                with h5py.File(CORPUS_PATH, "a") as f:
+                    if chunk_path not in f:  # type: ignore[operator]
+                        logger.warning(
+                            "CHUNK_NOT_FOUND",
+                            session_id=session_id,
+                            task_type=task_type_str,
+                            chunk_idx=chunk_idx,
+                        )
+                        return False
+
+                    chunk_group = f[chunk_path]  # type: ignore[index]
+
+                    # Update all fields atomically
+                    for field, value in updates.items():
+                        # Delete existing dataset if present
+                        if field in chunk_group:  # type: ignore[operator]
+                            del chunk_group[field]  # type: ignore[index]
+
+                        # Create new dataset with appropriate dtype
+                        if isinstance(value, str):
+                            chunk_group.create_dataset(  # type: ignore[union-attr]
+                                field,
+                                data=value,
+                                dtype=h5py.string_dtype(encoding="utf-8"),
+                            )
+                        elif isinstance(value, float):
+                            chunk_group.create_dataset(field, data=value, dtype="float64")  # type: ignore[union-attr]
+                        elif isinstance(value, int):
+                            chunk_group.create_dataset(field, data=value, dtype="int32")  # type: ignore[union-attr]
+                        else:
+                            # Try to convert to string
+                            chunk_group.create_dataset(  # type: ignore[union-attr]
+                                field,
+                                data=str(value),
+                                dtype=h5py.string_dtype(encoding="utf-8"),
+                            )
+
+                    logger.info(
+                        "BATCH_CHUNK_UPDATE_SUCCESS",
+                        session_id=session_id,
+                        task_type=task_type_str,
+                        chunk_idx=chunk_idx,
+                        fields=list(updates.keys()),
+                        attempt=attempt + 1,
+                    )
+                    return True
+
+        except (OSError, BlockingIOError) as e:
+            # HDF5 lock conflict - retry with exponential backoff
+            backoff = initial_backoff * (2**attempt)
+            if "already open" in str(e) or "Unable to synchronously open" in str(e):
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        "HDF5_LOCK_CONFLICT_RETRY",
+                        session_id=session_id,
+                        chunk_idx=chunk_idx,
+                        attempt=attempt + 1,
+                        max_retries=max_retries,
+                        backoff_ms=int(backoff * 1000),
+                        error=str(e)[:200],
+                    )
+                    time.sleep(backoff)
+                    continue
+                else:
+                    logger.error(
+                        "HDF5_LOCK_CONFLICT_MAX_RETRIES",
+                        session_id=session_id,
+                        chunk_idx=chunk_idx,
+                        max_retries=max_retries,
+                        error=str(e),
+                    )
+                    return False
+            else:
+                # Not a lock error, don't retry
+                logger.error(
+                    "BATCH_CHUNK_UPDATE_FAILED",
+                    session_id=session_id,
+                    task_type=task_type_str,
+                    chunk_idx=chunk_idx,
+                    fields=list(updates.keys()),
+                    error=str(e),
+                )
+                return False
+
+        except Exception as e:
+            logger.error(
+                "BATCH_CHUNK_UPDATE_UNEXPECTED_ERROR",
+                session_id=session_id,
+                task_type=task_type_str,
+                chunk_idx=chunk_idx,
+                fields=list(updates.keys()),
+                error=str(e),
+            )
+            return False
+
+    # Should never reach here
+    return False
 
 
 def save_diarization_segments(
