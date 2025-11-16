@@ -15,6 +15,7 @@ import requests
 from backend.logger import get_logger
 from backend.providers.llm import llm_generate
 from backend.services.diarization.models import DiarizationSegment
+from backend.utils.text_normalizer import normalize_medical_segment
 
 logger = get_logger(__name__)
 
@@ -271,11 +272,20 @@ INSTRUCTIONS:
    - PACIENTE: Patient (describes symptoms, answers questions)
 4. Create ONE segment per EACH turn (don't group multiple turns together)
 5. NORMALIZE text for medical documentation:
-   - Add proper capitalization (first word of sentence, proper nouns, medical terms)
+   - Add proper capitalization:
+     * ALWAYS capitalize first word of each segment
+     * Capitalize after periods (. ), question marks (? ), exclamation marks (! )
+     * Capitalize proper nouns (María, José, Dr. García)
+     * Use LOWERCASE for common articles/prepositions mid-sentence (el, la, de, en, con)
    - Add punctuation (periods, commas, question marks, exclamation marks)
    - Fix obvious spelling/grammar errors
    - Preserve medical terminology accuracy
    - Keep the original meaning and words (don't paraphrase or change medical content)
+
+CAPITALIZATION EXAMPLES (CRITICAL):
+❌ Wrong: "hola buenos días" → ✅ Correct: "Hola, buenos días."
+❌ Wrong: "el dolor Es fuerte" → ✅ Correct: "El dolor es fuerte."
+❌ Wrong: "muy bien Doctor" → ✅ Correct: "Muy bien, doctor."
 
 INPUT DATA:
 {triple_vision_json}
@@ -321,6 +331,9 @@ def _parse_response(response_text: str, original_text: str) -> list[DiarizationS
 
             if not text:
                 continue
+
+            # Apply post-processing normalization (capitalization fix)
+            text = normalize_medical_segment(text)
 
             # Estimate duration based on text length (rough heuristic)
             # Assume ~150 words per minute, ~5 chars per word = 750 chars/min = 12.5 chars/sec
