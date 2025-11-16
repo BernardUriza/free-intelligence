@@ -52,6 +52,7 @@ class DiarizationSegment:
     speaker: Speaker  # Who is speaking
     confidence: float  # 0-1, confidence in speaker assignment
     text: Optional[str] = None  # Transcript (if available)
+    improved_text: Optional[str] = None  # GPT-4 enhanced text (grammar, punctuation, medical terms)
     duration: float = 0.0  # end_time - start_time
 
 
@@ -524,8 +525,10 @@ class AzureGPT4Provider(DiarizationProvider):
         audio_path: Optional[Union[str, Path]] = None,
         transcript: Optional[str] = None,
         num_speakers: int = 2,
+        chunks: Optional[list[dict[str, Any]]] = None,
+        webspeech_final: Optional[list[str]] = None,
     ) -> DiarizationResponse:
-        """Text-based diarization using Azure GPT-4"""
+        """Text-based diarization using Azure GPT-4 with TRIPLE VISION timeline inference"""
         import json
         import time
 
@@ -536,29 +539,77 @@ class AzureGPT4Provider(DiarizationProvider):
 
         start_time = time.time()
 
-        # Prompt for diarization
+        # Build webspeech section (if available)
+        webspeech_section = ""
+        if webspeech_final:
+            webspeech_section = "\n\nWEBSPEECH FINAL (captura instantánea, más completa):\n"
+            for i, text in enumerate(webspeech_final):
+                webspeech_section += f"[{i}] {text}\n"
+
+        # Build chunks timeline for prompt (if available)
+        chunks_timeline = ""
+        if chunks:
+            chunks_timeline = "\n\nCHUNKS TIMELINE (con timestamps REALES del ASR):\n"
+            for chunk in chunks:
+                chunk_idx = chunk.get("chunk_idx", chunk.get("idx", "?"))
+                ts_start = chunk.get("timestamp_start", 0.0)
+                ts_end = chunk.get("timestamp_end", 0.0)
+                chunk_text = chunk.get("transcript", "")
+                chunks_timeline += (
+                    f'Chunk {chunk_idx}: [{ts_start:.1f}s → {ts_end:.1f}s] "{chunk_text[:80]}..."\n'
+                )
+
+        # Prompt for diarization with TRIPLE VISION (full text + webspeech + chunks with timestamps)
         prompt = f"""Eres un asistente médico experto en identificar speakers en transcripciones de consultas médicas.
 
-TRANSCRIPT:
+TRIPLE VISION - 3 FUENTES DE TRANSCRIPCIÓN:
+
+1. TRANSCRIPT COMPLETO (texto limpio):
 {transcript}
+{webspeech_section}
+{chunks_timeline}
 
 TASK: Identifica quién dijo qué en la transcripción. En una consulta médica típica hay 2 speakers:
 - Doctor/Doctora (hace preguntas médicas, examina, diagnostica)
 - Paciente (describe síntomas, responde preguntas)
 
 IMPORTANTE:
-- Divide el texto en segmentos
+- Divide el texto en segmentos naturales (cambios de speaker)
 - Asigna cada segmento a "Doctor" o "Paciente"
-- Mantén el texto exacto de cada segmento
-- Estima timestamps relativos si no los tienes
+- USA LOS TIMESTAMPS REALES de los chunks para ubicar cada segmento en el timeline
+- Infiere la ubicación temporal comparando el texto del segmento con los chunks
+- Para cada segmento, genera DOS versiones del texto:
+  * "text": Texto original exacto de la transcripción (sin cambios)
+  * "improved_text": Versión mejorada con gramática correcta, puntuación, acentos, capitalización y terminología médica apropiada
 
 OUTPUT FORMAT (JSON):
 {{
   "segments": [
-    {{"speaker": "Doctor", "text": "...", "start": 0.0, "end": 5.0}},
-    {{"speaker": "Paciente", "text": "...", "start": 5.0, "end": 10.0}}
+    {{
+      "speaker": "Doctor",
+      "text": "hola maria pasa",
+      "improved_text": "Hola María, pasa.",
+      "chunk_idx": 0,
+      "start": 0.0,
+      "end": 13.0
+    }},
+    {{
+      "speaker": "Paciente",
+      "text": "...",
+      "improved_text": "...",
+      "chunk_idx": 1,
+      "start": 13.0,
+      "end": 26.0
+    }}
   ]
 }}
+
+REGLAS:
+- "text": Mantén el texto EXACTO de la transcripción original (no lo cambies)
+- "improved_text": Mejora gramática, puntuación, acentos, capitalización, términos médicos
+- "chunk_idx": Índice del chunk donde aparece el segmento (infiere comparando textos)
+- "start" y "end": Usa los timestamps del chunk correspondiente
+- Si un segmento abarca múltiples chunks, usa el rango completo
 
 Responde SOLO con el JSON, sin explicaciones adicionales."""
 
@@ -608,6 +659,7 @@ Responde SOLO con el JSON, sin explicaciones adicionales."""
                     speaker=speakers_dict[speaker_id],
                     confidence=0.95,
                     text=seg["text"],
+                    improved_text=seg.get("improved_text"),  # GPT-4 enhanced text
                     duration=seg.get("end", current_time + 5.0) - seg.get("start", current_time),
                 )
                 segments.append(segment)

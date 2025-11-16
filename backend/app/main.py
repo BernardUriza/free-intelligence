@@ -64,9 +64,11 @@ def create_app() -> FastAPI:
     # Include all API routers (lazy load to avoid circular imports)
     try:
         from backend.api import internal, public
+        from backend.api.public.workflows import timeline
 
         # PUBLIC API (CORS enabled, orchestrators)
         public_app.include_router(public.workflows.router)  # AURITY orchestrator
+        public_app.include_router(timeline.router)  # Timeline/sessions listing
         public_app.include_router(public.system.router, prefix="/system", tags=["system"])
 
         # INTERNAL API (atomic resources, AURITY-only)

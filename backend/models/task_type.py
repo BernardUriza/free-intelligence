@@ -40,6 +40,9 @@ class TaskType(str, Enum):
     SOAP_GENERATION = "SOAP_GENERATION"
     """SOAP note generation from transcript."""
 
+    ORDERS = "ORDERS"
+    """Medical orders (medications, lab tests, imaging, follow-up)."""
+
     EMOTION_ANALYSIS = "EMOTION_ANALYSIS"
     """Emotional analysis of audio/text."""
 
