@@ -53,12 +53,82 @@ def diarize_session_worker(
             diarization_config = policy_loader.get_diarization_config()
             diarization_provider = diarization_config.get("primary_provider", "azure_gpt4")
 
-        # Get transcription
+        # Get transcription sources (Triple Vision: webspeech > full_text > chunks)
         chunks_data = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
         if not chunks_data:
             raise ValueError(f"No TRANSCRIPTION chunks for {session_id}")
 
-        full_text = " ".join(chunk.get("transcript", "") for chunk in chunks_data)
+        # Try to load webspeech_final from HDF5 (most complete source)
+        webspeech_final = None
+        full_text = None
+
+        import json
+
+        import h5py
+
+        from backend.storage.task_repository import CORPUS_PATH
+
+        try:
+            with h5py.File(CORPUS_PATH, "r") as f:
+                # Load webspeech_final (priority source)
+                webspeech_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/webspeech_final"
+                if webspeech_path in f:
+                    webspeech_data = f[webspeech_path][()]
+                    webspeech_json = bytes(webspeech_data).decode("utf-8")
+                    webspeech_final = json.loads(webspeech_json)
+                    logger.info(
+                        "WEBSPEECH_LOADED",
+                        session_id=session_id,
+                        count=len(webspeech_final),
+                    )
+                else:
+                    logger.warning(
+                        "WEBSPEECH_NOT_FOUND",
+                        session_id=session_id,
+                        hint="Frontend may not have sent webspeech_final",
+                    )
+
+                # Load full_transcription (fallback)
+                full_text_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/full_transcription"
+                if full_text_path in f:
+                    full_text_data = f[full_text_path][()]
+                    full_text = bytes(full_text_data).decode("utf-8")
+                    logger.info(
+                        "FULL_TRANSCRIPTION_LOADED",
+                        session_id=session_id,
+                        length=len(full_text),
+                    )
+        except Exception as e:
+            logger.warning(
+                "TRIPLE_VISION_LOAD_FAILED",
+                session_id=session_id,
+                error=str(e),
+            )
+
+        # Use best available source (priority: webspeech > full_text > chunks)
+        if webspeech_final:
+            full_text = " ".join(webspeech_final)
+            logger.info(
+                "USING_WEBSPEECH_SOURCE",
+                session_id=session_id,
+                count=len(webspeech_final),
+                text_length=len(full_text),
+            )
+        elif full_text:
+            logger.info(
+                "USING_FULL_TRANSCRIPTION_SOURCE",
+                session_id=session_id,
+                text_length=len(full_text),
+            )
+        else:
+            # Fallback: build from chunks
+            full_text = " ".join(chunk.get("transcript", "") for chunk in chunks_data)
+            logger.info(
+                "USING_CHUNKS_FALLBACK",
+                session_id=session_id,
+                chunk_count=len(chunks_data),
+                text_length=len(full_text),
+            )
 
         # Estimate duration based on text length (empirical: ~0.3s per 100 words)
         word_count = len(full_text.split())
@@ -94,12 +164,14 @@ def diarize_session_worker(
             },
         )
 
-        # Diarize (this is the slow part - Azure API call)
+        # Diarize with TRIPLE VISION (this is the slow part - Azure API call)
         provider = get_diarization_provider(diarization_provider)
         response = provider.diarize(
             audio_path=None,
             transcript=full_text,
             num_speakers=2,
+            chunks=chunks_data,  # Pass chunks with real timestamps
+            webspeech_final=webspeech_final,  # Pass webspeech for completeness
         )
 
         # Update progress: 80% (diarization complete, processing results)

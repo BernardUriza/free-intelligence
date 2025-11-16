@@ -72,11 +72,11 @@ class STTLoadBalancer:
         """
         available = []
 
-        # Check Azure Whisper
-        if os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_OPENAI_KEY"):
-            available.append("azure_whisper")
+        # ❌ TEMPORARY: Azure Whisper disabled - fails silently with duration=0.0
+        # if os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_OPENAI_KEY"):
+        #     available.append("azure_whisper")
 
-        # Check Deepgram
+        # Check Deepgram (ONLY provider for now)
         if os.getenv("DEEPGRAM_API_KEY"):
             available.append("deepgram")
 

@@ -162,7 +162,7 @@ def diarize_with_claude(
 
         # Parse JSON response
         logger.info("🔍 [DIARIZATION] Parsing JSON response...")
-        segments = _parse_response(generated_text, full_text)
+        segments = _parse_response(generated_text, full_text, chunks)
 
         logger.info(
             "✅ [DIARIZATION] SUCCESS - Diarization complete",
@@ -233,8 +233,8 @@ def _build_prompt(
         example_input = "hola buenas tardes maria cómo ves a todos que tenías la semana pasada mucho mejor doctor pero ahora tengo la voz ronca"
         example_output = """{{
   "segments": [
-    {{"speaker": "MEDICO", "text": "Hola, buenas tardes María. ¿Cómo ves a todos que tenías la semana pasada?"}},
-    {{"speaker": "PACIENTE", "text": "Mucho mejor, doctor, pero ahora tengo la voz ronca."}}
+    {{"speaker": "MEDICO", "text": "Hola, buenas tardes María. ¿Cómo ves a todos que tenías la semana pasada?", "timestamp_start": 0.0, "timestamp_end": 5.2}},
+    {{"speaker": "PACIENTE", "text": "Mucho mejor, doctor, pero ahora tengo la voz ronca.", "timestamp_start": 5.2, "timestamp_end": 9.8}}
   ]
 }}"""
     else:
@@ -242,10 +242,10 @@ def _build_prompt(
         example_input = "come in miss bellamy yes hi can you tell me why you're here today i have a terrible headache"
         example_output = """{{
   "segments": [
-    {{"speaker": "MEDICO", "text": "Come in. Miss Bellamy?"}},
-    {{"speaker": "PACIENTE", "text": "Yes."}},
-    {{"speaker": "MEDICO", "text": "Hi. Can you tell me why you're here today?"}},
-    {{"speaker": "PACIENTE", "text": "I have a terrible headache."}}
+    {{"speaker": "MEDICO", "text": "Come in. Miss Bellamy?", "timestamp_start": 0.0, "timestamp_end": 2.1}},
+    {{"speaker": "PACIENTE", "text": "Yes.", "timestamp_start": 2.1, "timestamp_end": 2.5}},
+    {{"speaker": "MEDICO", "text": "Hi. Can you tell me why you're here today?", "timestamp_start": 2.5, "timestamp_end": 5.0}},
+    {{"speaker": "PACIENTE", "text": "I have a terrible headache.", "timestamp_start": 5.0, "timestamp_end": 7.2}}
   ]
 }}"""
 
@@ -261,8 +261,11 @@ EXPECTED FORMAT EXAMPLE ({lang_note}):
 Input (raw transcription without punctuation):
   full_transcription: "{example_input}"
 
-Correct output (with proper punctuation and capitalization):
+Correct output (with proper punctuation, capitalization, AND timestamps):
 {example_output}
+
+IMPORTANT: You MUST include timestamp_start and timestamp_end for each segment based on the chunks_timestamps data.
+Use the chunk timestamps to estimate when each speaker turn occurs in the audio.
 
 INSTRUCTIONS:
 1. USE chunks_timestamps to know WHICH WORDS occur at WHICH TIME (first words of each chunk give you temporal anchor)
@@ -293,15 +296,20 @@ INPUT DATA:
 RESPOND ONLY WITH THE JSON (no explanations):"""
 
 
-def _parse_response(response_text: str, original_text: str) -> list[DiarizationSegment]:
-    """Parse Qwen's JSON response into DiarizationSegments.
+def _parse_response(
+    response_text: str,
+    original_text: str,
+    chunks: Optional[list[dict[str, Any]]] = None,
+) -> list[DiarizationSegment]:
+    """Parse Qwen's JSON response into DiarizationSegments with accurate timestamps.
 
     Args:
         response_text: Qwen's generated text (should be JSON)
         original_text: Original transcript (for fallback)
+        chunks: List of chunks with real timestamps (for accurate timing)
 
     Returns:
-        List of DiarizationSegment objects
+        List of DiarizationSegment objects with accurate timestamps
     """
     try:
         # Extract JSON from response (Qwen might add extra text)
@@ -321,9 +329,15 @@ def _parse_response(response_text: str, original_text: str) -> list[DiarizationS
             logger.warning("EMPTY_SEGMENTS", data=data)
             return _fallback_segments(original_text)
 
-        # Convert to DiarizationSegment objects
+        # Calculate total audio duration from chunks (for validation)
+        total_duration = 0.0
+        if chunks:
+            total_duration = max(chunk.get("timestamp_end", 0) for chunk in chunks)
+            logger.info(f"📏 [DIARIZATION] Total audio duration from chunks: {total_duration:.1f}s")
+
+        # Convert to DiarizationSegment objects using LLM-provided timestamps
         segments = []
-        cumulative_time = 0.0
+        cumulative_time = 0.0  # For fallback only
 
         for seg_data in segments_data:
             speaker = seg_data.get("speaker", "DESCONOCIDO").upper()
@@ -335,23 +349,50 @@ def _parse_response(response_text: str, original_text: str) -> list[DiarizationS
             # Apply post-processing normalization (capitalization fix)
             text = normalize_medical_segment(text)
 
-            # Estimate duration based on text length (rough heuristic)
-            # Assume ~150 words per minute, ~5 chars per word = 750 chars/min = 12.5 chars/sec
-            duration = len(text) / 12.5
-            start_time = cumulative_time
-            end_time = start_time + duration
+            # TRY to get timestamps from LLM response (GPT-4 has the power!)
+            start_time = seg_data.get("timestamp_start")
+            end_time = seg_data.get("timestamp_end")
+
+            # Fallback: if LLM didn't provide timestamps, calculate proportionally
+            if start_time is None or end_time is None:
+                logger.warning(
+                    "LLM_MISSING_TIMESTAMPS",
+                    segment_idx=len(segments),
+                    falling_back=True,
+                )
+                # Calculate total text length for proportional distribution
+                total_text_length = sum(len(s.get("text", "")) for s in segments_data)
+
+                if chunks and total_duration > 0 and total_text_length > 0:
+                    # Proportional distribution based on actual audio duration
+                    text_ratio = len(text) / total_text_length
+                    duration = total_duration * text_ratio
+                else:
+                    # Last resort: rough heuristic
+                    duration = len(text) / 12.5
+
+                start_time = cumulative_time
+                end_time = start_time + duration
+                cumulative_time = end_time
 
             segment = DiarizationSegment(
-                start_time=start_time,
-                end_time=end_time,
+                start_time=float(start_time),
+                end_time=float(end_time),
                 speaker=speaker,
                 text=text,
             )
             segments.append(segment)
 
-            cumulative_time = end_time
-
-        logger.info("SEGMENTS_PARSED", count=len(segments))
+        final_duration = segments[-1].end_time if segments else 0.0
+        logger.info(
+            "SEGMENTS_PARSED",
+            count=len(segments),
+            final_timestamp=f"{final_duration:.1f}s",
+            chunks_duration=f"{total_duration:.1f}s" if chunks else "N/A",
+            timestamp_source="LLM"
+            if segments and segments[0].start_time is not None
+            else "fallback",
+        )
         return segments
 
     except json.JSONDecodeError as e:

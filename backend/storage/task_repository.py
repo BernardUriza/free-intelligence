@@ -1168,3 +1168,380 @@ def get_diarization_segments(
     )
 
     return segments
+
+
+def update_diarization_segment_text(
+    session_id: str,
+    segment_index: int,
+    new_text: str,
+    task_type: TaskType = TaskType.DIARIZATION,
+) -> dict[str, Any]:
+    """Update text of a specific diarization segment.
+
+    Args:
+        session_id: Session identifier
+        segment_index: Index of segment to update (0-based)
+        new_text: New text content for the segment
+        task_type: Task type (default DIARIZATION)
+
+    Returns:
+        Updated segment dictionary
+
+    Raises:
+        ValueError: If session, task, or segment not found
+    """
+    if not CORPUS_PATH.exists():
+        raise ValueError(f"Corpus file not found: {CORPUS_PATH}")
+
+    with h5py.File(CORPUS_PATH, "a") as f:
+        task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+
+        if task_path not in f:  # type: ignore[operator]
+            raise ValueError(f"Task {task_type.value} not found for session {session_id}")
+
+        task_group = f[task_path]  # type: ignore[index]
+
+        if "segments" not in task_group:  # type: ignore[operator]
+            raise ValueError(f"No segments found for session {session_id}")
+
+        segments_group = task_group["segments"]  # type: ignore[index]
+        segment_key = f"segment_{segment_index}"
+
+        if segment_key not in segments_group:  # type: ignore[operator]
+            raise ValueError(f"Segment {segment_index} not found for session {session_id}")
+
+        seg_group = segments_group[segment_key]  # type: ignore[index]
+
+        # Delete old text dataset
+        if "text" in seg_group:  # type: ignore[operator]
+            del seg_group["text"]  # type: ignore[index]
+
+        # Create new text dataset with updated value
+        seg_group.create_dataset("text", data=new_text.encode("utf-8"))  # type: ignore[union-attr]
+
+        # Read back the updated segment to return
+        segment = {
+            "speaker": seg_group["speaker"][()].decode("utf-8"),  # type: ignore[index]
+            "text": new_text,
+            "start_time": float(seg_group["start_time"][()]),  # type: ignore[index]
+            "end_time": float(seg_group["end_time"][()]),  # type: ignore[index]
+        }
+
+        # Optional fields
+        if "confidence" in seg_group:  # type: ignore[operator]
+            segment["confidence"] = float(seg_group["confidence"][()])  # type: ignore[index]
+
+        if "improved_text" in seg_group:  # type: ignore[operator]
+            segment["improved_text"] = seg_group["improved_text"][()].decode("utf-8")  # type: ignore[index]
+
+    logger.info(
+        "DIARIZATION_SEGMENT_UPDATED",
+        session_id=session_id,
+        segment_index=segment_index,
+        text_length=len(new_text),
+    )
+
+    return segment
+
+
+# ============================================================================
+# SOAP CRUD Operations
+# ============================================================================
+
+
+def save_soap_data(
+    session_id: str,
+    soap_data: dict[str, Any],
+    task_type: TaskType = TaskType.SOAP_GENERATION,
+) -> str:
+    """Save SOAP data to HDF5.
+
+    Args:
+        session_id: Session identifier
+        soap_data: SOAP note data (subjective, objective, assessment, plan)
+        task_type: Task type (default SOAP_GENERATION)
+
+    Returns:
+        HDF5 path to SOAP data
+    """
+    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    with _h5_lock:
+        with h5py.File(CORPUS_PATH, "a") as f:
+            task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+
+            # Create task if doesn't exist
+            if task_path not in f:  # type: ignore[operator]
+                f.create_group(task_path)  # type: ignore[union-attr]
+
+            task_group = f[task_path]  # type: ignore[index]
+
+            # Save SOAP data as JSON
+            soap_json = json.dumps(soap_data)
+
+            # Delete existing if present
+            if "soap_data" in task_group:  # type: ignore[operator]
+                del task_group["soap_data"]  # type: ignore[index]
+
+            task_group.create_dataset(  # type: ignore[union-attr]
+                "soap_data", data=soap_json.encode("utf-8")
+            )
+
+            # Save version to history (audit trail)
+            if "version_history" not in task_group:  # type: ignore[operator]
+                task_group.create_group("version_history")  # type: ignore[union-attr]
+
+            history_group = task_group["version_history"]  # type: ignore[index]
+            version_key = f"v_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            history_group.create_dataset(  # type: ignore[union-attr]
+                version_key, data=soap_json.encode("utf-8")
+            )
+
+            logger.info(
+                "SOAP_DATA_SAVED",
+                session_id=session_id,
+                task_type=task_type.value,
+                version=version_key,
+            )
+
+    return f"{task_path}/soap_data"
+
+
+def get_soap_data(
+    session_id: str,
+    task_type: TaskType = TaskType.SOAP_GENERATION,
+) -> dict[str, Any]:
+    """Get SOAP data from HDF5.
+
+    Args:
+        session_id: Session identifier
+        task_type: Task type (default SOAP_GENERATION)
+
+    Returns:
+        SOAP data dictionary
+
+    Raises:
+        ValueError: If task or SOAP data not found
+    """
+    if not CORPUS_PATH.exists():
+        raise ValueError(f"Corpus file not found: {CORPUS_PATH}")
+
+    with h5py.File(CORPUS_PATH, "r") as f:
+        task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+
+        if task_path not in f:  # type: ignore[operator]
+            raise ValueError(f"Task {task_type.value} not found for session {session_id}")
+
+        task_group = f[task_path]  # type: ignore[index]
+
+        if "soap_data" not in task_group:  # type: ignore[operator]
+            raise ValueError(f"No SOAP data found for session {session_id}")
+
+        soap_json = task_group["soap_data"][()].decode("utf-8")  # type: ignore[index]
+        soap_data = json.loads(soap_json)
+
+    logger.info(
+        "SOAP_DATA_LOADED",
+        session_id=session_id,
+        task_type=task_type.value,
+    )
+
+    return soap_data
+
+
+# ============================================================================
+# ORDERS CRUD Operations
+# ============================================================================
+
+
+def create_order(
+    session_id: str,
+    order: dict[str, Any],
+    task_type: TaskType = TaskType.ORDERS,
+) -> str:
+    """Create a new medical order.
+
+    Args:
+        session_id: Session identifier
+        order: Order data {type, description, details}
+        task_type: Task type (default ORDERS)
+
+    Returns:
+        Order ID
+    """
+    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    order_id = f"order_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S_%f')}"
+
+    with _h5_lock:
+        with h5py.File(CORPUS_PATH, "a") as f:
+            task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+
+            # Create task if doesn't exist
+            if task_path not in f:  # type: ignore[operator]
+                f.create_group(task_path)  # type: ignore[union-attr]
+
+            task_group = f[task_path]  # type: ignore[index]
+
+            # Create orders group if doesn't exist
+            if "orders" not in task_group:  # type: ignore[operator]
+                task_group.create_group("orders")  # type: ignore[union-attr]
+
+            orders_group = task_group["orders"]  # type: ignore[index]
+
+            # Save order as JSON
+            order_data = {
+                "id": order_id,
+                "created_at": datetime.now(UTC).isoformat(),
+                **order,
+            }
+            order_json = json.dumps(order_data)
+            orders_group.create_dataset(order_id, data=order_json.encode("utf-8"))  # type: ignore[union-attr]
+
+            logger.info(
+                "ORDER_CREATED",
+                session_id=session_id,
+                order_id=order_id,
+                order_type=order.get("type"),
+            )
+
+    return order_id
+
+
+def get_orders(
+    session_id: str,
+    task_type: TaskType = TaskType.ORDERS,
+) -> list[dict[str, Any]]:
+    """Get all orders for a session.
+
+    Args:
+        session_id: Session identifier
+        task_type: Task type (default ORDERS)
+
+    Returns:
+        List of order dictionaries
+    """
+    if not CORPUS_PATH.exists():
+        raise ValueError(f"Corpus file not found: {CORPUS_PATH}")
+
+    with h5py.File(CORPUS_PATH, "r") as f:
+        task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+
+        if task_path not in f:  # type: ignore[operator]
+            # No orders task yet, return empty list
+            return []
+
+        task_group = f[task_path]  # type: ignore[index]
+
+        if "orders" not in task_group:  # type: ignore[operator]
+            return []
+
+        orders_group = task_group["orders"]  # type: ignore[index]
+        orders = []
+
+        for order_key in orders_group.keys():
+            order_json = orders_group[order_key][()].decode("utf-8")  # type: ignore[index]
+            order_data = json.loads(order_json)
+            orders.append(order_data)
+
+    logger.info(
+        "ORDERS_LOADED",
+        session_id=session_id,
+        order_count=len(orders),
+    )
+
+    return orders
+
+
+def update_order(
+    session_id: str,
+    order_id: str,
+    order: dict[str, Any],
+    task_type: TaskType = TaskType.ORDERS,
+) -> None:
+    """Update an existing order.
+
+    Args:
+        session_id: Session identifier
+        order_id: Order ID
+        order: Updated order data
+        task_type: Task type (default ORDERS)
+
+    Raises:
+        ValueError: If order not found
+    """
+    with _h5_lock:
+        with h5py.File(CORPUS_PATH, "a") as f:
+            task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+
+            if task_path not in f:  # type: ignore[operator]
+                raise ValueError(f"No orders found for session {session_id}")
+
+            task_group = f[task_path]  # type: ignore[index]
+
+            if "orders" not in task_group:  # type: ignore[operator]
+                raise ValueError(f"No orders found for session {session_id}")
+
+            orders_group = task_group["orders"]  # type: ignore[index]
+
+            if order_id not in orders_group:  # type: ignore[operator]
+                raise ValueError(f"Order {order_id} not found")
+
+            # Update order
+            order_data = {
+                "id": order_id,
+                "updated_at": datetime.now(UTC).isoformat(),
+                **order,
+            }
+            order_json = json.dumps(order_data)
+
+            # Delete and recreate (HDF5 doesn't support in-place update)
+            del orders_group[order_id]  # type: ignore[index]
+            orders_group.create_dataset(order_id, data=order_json.encode("utf-8"))  # type: ignore[union-attr]
+
+            logger.info(
+                "ORDER_UPDATED",
+                session_id=session_id,
+                order_id=order_id,
+            )
+
+
+def delete_order(
+    session_id: str,
+    order_id: str,
+    task_type: TaskType = TaskType.ORDERS,
+) -> None:
+    """Delete an order.
+
+    Args:
+        session_id: Session identifier
+        order_id: Order ID
+        task_type: Task type (default ORDERS)
+
+    Raises:
+        ValueError: If order not found
+    """
+    with _h5_lock:
+        with h5py.File(CORPUS_PATH, "a") as f:
+            task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+
+            if task_path not in f:  # type: ignore[operator]
+                raise ValueError(f"No orders found for session {session_id}")
+
+            task_group = f[task_path]  # type: ignore[index]
+
+            if "orders" not in task_group:  # type: ignore[operator]
+                raise ValueError(f"No orders found for session {session_id}")
+
+            orders_group = task_group["orders"]  # type: ignore[index]
+
+            if order_id not in orders_group:  # type: ignore[operator]
+                raise ValueError(f"Order {order_id} not found")
+
+            del orders_group[order_id]  # type: ignore[index]
+
+            logger.info(
+                "ORDER_DELETED",
+                session_id=session_id,
+                order_id=order_id,
+            )
