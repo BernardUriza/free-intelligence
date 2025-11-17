@@ -13,6 +13,7 @@ Refactored: 2025-11-14 (Pruned unused endpoints)
 from __future__ import annotations
 
 import os
+from datetime import UTC
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -28,11 +29,94 @@ def create_app() -> FastAPI:
     Returns:
         FastAPI: Configured application instance
     """
+    # Enhanced documentation
+    description = """
+## 🏥 Free Intelligence - Medical AI Platform
+
+### 🤖 **AI-Powered Medical Assistant**
+Process natural language commands to update medical records using Claude AI.
+
+### 🔑 **Key Features:**
+- **AI Assistant** - Natural language processing with Claude
+- **Audio Transcription** - Azure Whisper / Deepgram speech-to-text
+- **SOAP Notes** - Structured medical documentation
+- **HDF5 Storage** - Append-only data persistence
+
+### 📚 **Main Endpoints:**
+
+#### **AI Assistant** 🤖
+```
+POST /api/workflows/aurity/sessions/{session_id}/assistant
+```
+Send natural language commands like:
+- "agrega que el paciente tiene diabetes tipo 2"
+- "incluir alergia a penicilina"
+- "nota: paciente hipertenso controlado"
+
+#### **SOAP Notes** 📝
+```
+GET  /api/workflows/aurity/sessions/{session_id}/soap
+PUT  /api/workflows/aurity/sessions/{session_id}/soap
+```
+
+#### **Audio Transcription** 🎤
+```
+POST /api/workflows/aurity/stream
+GET  /api/workflows/aurity/jobs/{session_id}
+```
+
+#### **Sessions** 📊
+```
+GET  /api/workflows/aurity/sessions
+POST /api/workflows/aurity/sessions/{session_id}/finalize
+```
+
+### 🔐 **Configuration**
+Requires environment variables:
+- `CLAUDE_API_KEY` - Anthropic Claude API
+- `AZURE_OPENAI_KEY` - Azure Whisper transcription
+
+### 📖 **Quick Start**
+1. Check health: `GET /health`
+2. View all endpoints: `GET /`
+3. Try the AI assistant with the example above
+"""
+
+    # Tags for better organization
+    tags_metadata = [
+        {
+            "name": "AI Assistant",
+            "description": "Natural language medical assistant powered by Claude AI",
+        },
+        {
+            "name": "SOAP Notes",
+            "description": "Manage medical SOAP (Subjective, Objective, Assessment, Plan) notes",
+        },
+        {
+            "name": "Transcription",
+            "description": "Audio to text transcription using Azure Whisper",
+        },
+        {
+            "name": "Sessions",
+            "description": "Medical consultation session management",
+        },
+        {
+            "name": "System",
+            "description": "System health and monitoring",
+        },
+    ]
+
     # Main app (no global CORS, uses sub-apps)
     app = FastAPI(
         title="Free Intelligence",
-        description="Advanced Universal Reliable Intelligence for Telemedicine Yield",
+        description=description,
         version="0.1.0",
+        openapi_tags=tags_metadata,
+        swagger_ui_parameters={
+            "defaultModelsExpandDepth": -1,
+            "docExpansion": "list",
+            "filter": True,
+        },
     )
 
     # Sub-app: Public API (orchestrators, CORS enabled)
@@ -109,7 +193,7 @@ def create_app() -> FastAPI:
         Well-designed root endpoint that acts as a directory for the API,
         providing essential information for developers discovering the service.
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         environment = os.getenv("ENVIRONMENT", "development")
 
@@ -120,7 +204,7 @@ def create_app() -> FastAPI:
                 "description": "Advanced Universal Reliable Intelligence for Telemedicine Yield",
                 "version": "0.1.0",
                 "environment": environment,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
             "status": {
                 "operational": True,
@@ -166,6 +250,63 @@ def create_app() -> FastAPI:
             "contact": {
                 "repository": "https://github.com/BernardUriza/free-intelligence",
                 "owner": "Bernard Uriza Orozco",
+            },
+            "examples": {
+                "ai_assistant": {
+                    "description": "Natural language SOAP modification",
+                    "method": "POST",
+                    "endpoint": "/api/workflows/aurity/sessions/{session_id}/assistant",
+                    "body": {
+                        "command": "agrega que el paciente tiene diabetes tipo 2 y es alérgico a penicilina",
+                        "current_soap": {
+                            "subjective": "Paciente refiere mareos frecuentes",
+                            "objective": "PA: 140/90, Glucosa: 180 mg/dl",
+                            "assessment": "Hipertensión arterial",
+                            "plan": {
+                                "medications": ["Metformina 850mg c/12h"],
+                                "studies": ["Hemoglobina glucosilada"],
+                            },
+                        },
+                    },
+                    "expected_response": {
+                        "updates": {
+                            "pastMedicalHistory": "add_item:Diabetes mellitus tipo 2",
+                            "allergies": "add_item:Penicilina",
+                        },
+                        "explanation": "Agregados diabetes tipo 2 y alergia a penicilina",
+                        "success": True,
+                    },
+                },
+                "get_soap": {
+                    "description": "Retrieve SOAP note for a session",
+                    "method": "GET",
+                    "endpoint": "/api/workflows/aurity/sessions/{session_id}/soap",
+                    "expected_response": {
+                        "session_id": "test_001",
+                        "soap_note": {
+                            "subjective": "...",
+                            "objective": "...",
+                            "assessment": "...",
+                            "plan": {},
+                        },
+                    },
+                },
+                "transcribe_audio": {
+                    "description": "Upload audio chunk for transcription",
+                    "method": "POST",
+                    "endpoint": "/api/workflows/aurity/stream",
+                    "body": "FormData with session_id, chunk_number, and audio file",
+                    "expected_response": {
+                        "status": "accepted",
+                        "job_id": "session_id",
+                        "message": "Audio chunk received",
+                    },
+                },
+            },
+            "quick_test": {
+                "claude_ai": 'curl -X POST http://104.131.175.65:7001/api/workflows/aurity/sessions/test/assistant -H \'Content-Type: application/json\' -d \'{"command":"test","current_soap":{}}\'',
+                "health": "curl http://104.131.175.65:7001/health",
+                "sessions": "curl http://104.131.175.65:7001/api/workflows/aurity/sessions",
             },
         }
 
