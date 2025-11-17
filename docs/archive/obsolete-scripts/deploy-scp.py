@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Deploy static frontend via SCP"""
-import paramiko
 import os
 import time
 
-HOST = '104.131.175.65'
-USER = 'root'
-PASSWORD = 'FreeIntel2024DO!'
-LOCAL_OUT_DIR = '/Users/bernardurizaorozco/Documents/free-intelligence/apps/aurity/out'
-REMOTE_DIR = '/opt/free-intelligence/apps/aurity'
+import paramiko
+
+HOST = "104.131.175.65"
+USER = "root"
+PASSWORD = "FreeIntel2024DO!"
+LOCAL_OUT_DIR = "/Users/bernardurizaorozco/Documents/free-intelligence/apps/aurity/out"
+REMOTE_DIR = "/opt/free-intelligence/apps/aurity"
 
 print("🔐 Connecting to server...")
 
@@ -24,7 +25,7 @@ for attempt in range(max_retries):
     except Exception as e:
         print(f"⚠️  Attempt {attempt + 1} failed: {e}")
         if attempt < max_retries - 1:
-            print(f"   Retrying in 30 seconds...")
+            print("   Retrying in 30 seconds...")
             time.sleep(30)
         else:
             print("❌ Could not connect to server")
@@ -33,17 +34,19 @@ for attempt in range(max_retries):
 try:
     # Kill any running builds
     print("\n🛑 Stopping any running builds...")
-    stdin, stdout, stderr = client.exec_command('pkill -f "pnpm build" || pkill -f "next build" || true')
+    stdin, stdout, stderr = client.exec_command(
+        'pkill -f "pnpm build" || pkill -f "next build" || true'
+    )
     stdout.channel.recv_exit_status()
 
     # Create remote directory if needed
-    print(f"\n📁 Preparing remote directory...")
-    stdin, stdout, stderr = client.exec_command(f'mkdir -p {REMOTE_DIR}/out')
+    print("\n📁 Preparing remote directory...")
+    stdin, stdout, stderr = client.exec_command(f"mkdir -p {REMOTE_DIR}/out")
     stdout.channel.recv_exit_status()
 
     # Clear existing out directory
-    print(f"🧹 Clearing old build...")
-    stdin, stdout, stderr = client.exec_command(f'rm -rf {REMOTE_DIR}/out/*')
+    print("🧹 Clearing old build...")
+    stdin, stdout, stderr = client.exec_command(f"rm -rf {REMOTE_DIR}/out/*")
     stdout.channel.recv_exit_status()
 
     # Upload files using SFTP
@@ -53,7 +56,7 @@ try:
     def upload_dir(local_dir, remote_dir):
         for item in os.listdir(local_dir):
             local_path = os.path.join(local_dir, item)
-            remote_path = os.path.join(remote_dir, item).replace('\\', '/')
+            remote_path = os.path.join(remote_dir, item).replace("\\", "/")
 
             if os.path.isfile(local_path):
                 print(f"   📄 {item}")
@@ -65,13 +68,13 @@ try:
                     pass  # Directory might exist
                 upload_dir(local_path, remote_path)
 
-    upload_dir(LOCAL_OUT_DIR, f'{REMOTE_DIR}/out')
+    upload_dir(LOCAL_OUT_DIR, f"{REMOTE_DIR}/out")
     sftp.close()
     print("✅ Upload complete!")
 
     # Verify upload
     print("\n🔍 Verifying upload...")
-    stdin, stdout, stderr = client.exec_command(f'ls -lah {REMOTE_DIR}/out/ | head -20')
+    stdin, stdout, stderr = client.exec_command(f"ls -lah {REMOTE_DIR}/out/ | head -20")
     print(stdout.read().decode())
 
     # Configure Nginx
@@ -97,15 +100,19 @@ try:
     }
 }"""
 
-    stdin, stdout, stderr = client.exec_command(f"echo '{nginx_config}' > /etc/nginx/sites-available/aurity")
+    stdin, stdout, stderr = client.exec_command(
+        f"echo '{nginx_config}' > /etc/nginx/sites-available/aurity"
+    )
     stdout.channel.recv_exit_status()
 
     # Enable site
-    stdin, stdout, stderr = client.exec_command("""
+    stdin, stdout, stderr = client.exec_command(
+        """
         ln -sf /etc/nginx/sites-available/aurity /etc/nginx/sites-enabled/aurity
         rm -f /etc/nginx/sites-enabled/default
         nginx -t && systemctl reload nginx
-    """)
+    """
+    )
     exit_code = stdout.channel.recv_exit_status()
 
     if exit_code == 0:
@@ -118,7 +125,9 @@ try:
     print("\n🧪 Testing deployment...")
     time.sleep(2)
 
-    stdin, stdout, stderr = client.exec_command("curl -s -o /dev/null -w '%{http_code}' http://localhost/")
+    stdin, stdout, stderr = client.exec_command(
+        "curl -s -o /dev/null -w '%{http_code}' http://localhost/"
+    )
     http_code = stdout.read().decode().strip()
 
     print(f"   HTTP Status: {http_code}")
@@ -132,7 +141,7 @@ try:
         print()
 
         # Get HTML preview
-        stdin, stdout, stderr = client.exec_command(f"curl -s http://localhost/ | head -50")
+        stdin, stdout, stderr = client.exec_command("curl -s http://localhost/ | head -50")
         preview = stdout.read().decode()
         print("📄 Landing page preview:")
         print("=" * 60)

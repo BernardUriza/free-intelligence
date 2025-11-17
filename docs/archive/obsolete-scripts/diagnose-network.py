@@ -2,9 +2,9 @@
 """Diagnose network and firewall issues"""
 import paramiko
 
-HOST = '104.131.175.65'
-USER = 'root'
-PASSWORD = 'FreeIntel2024DO!'
+HOST = "104.131.175.65"
+USER = "root"
+PASSWORD = "FreeIntel2024DO!"
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -15,18 +15,18 @@ try:
 
     # Check if Nginx is running
     print("1️⃣ Nginx Status:")
-    stdin, stdout, stderr = client.exec_command('systemctl status nginx | head -10')
+    stdin, stdout, stderr = client.exec_command("systemctl status nginx | head -10")
     print(stdout.read().decode())
 
     # Check what's listening on port 80
     print("\n2️⃣ Port 80 Listeners:")
-    stdin, stdout, stderr = client.exec_command('netstat -tlnp | grep :80')
+    stdin, stdout, stderr = client.exec_command("netstat -tlnp | grep :80")
     output = stdout.read().decode()
     print(output if output else "❌ Nothing listening on port 80!")
 
     # Check firewall status (ufw)
     print("\n3️⃣ UFW Firewall Status:")
-    stdin, stdout, stderr = client.exec_command('ufw status verbose')
+    stdin, stdout, stderr = client.exec_command("ufw status verbose")
     print(stdout.read().decode())
 
     # Check iptables
@@ -36,7 +36,7 @@ try:
 
     # Test local curl
     print("\n5️⃣ Local Curl Test:")
-    stdin, stdout, stderr = client.exec_command('curl -I http://localhost/ 2>&1 | head -5')
+    stdin, stdout, stderr = client.exec_command("curl -I http://localhost/ 2>&1 | head -5")
     print(stdout.read().decode())
 
     # Check Nginx config

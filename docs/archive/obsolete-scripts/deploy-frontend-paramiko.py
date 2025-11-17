@@ -4,14 +4,16 @@
 Deploys Aurity frontend to Droplet + Nginx
 """
 
-import paramiko
 import sys
 import time
 
+import paramiko
+
 # Server config
-HOST = '104.131.175.65'
-USER = 'root'
-PASSWORD = 'FreeIntel2024DO!'
+HOST = "104.131.175.65"
+USER = "root"
+PASSWORD = "FreeIntel2024DO!"
+
 
 def run_command(client, command, description):
     """Execute command and print output"""
@@ -33,6 +35,7 @@ def run_command(client, command, description):
         print(f"   ⚠️  {error[:200]}")
 
     return exit_status == 0, output, error
+
 
 def deploy_frontend():
     """Deploy Aurity frontend to DigitalOcean"""
@@ -56,22 +59,14 @@ def deploy_frontend():
         success, output, _ = run_command(
             client,
             "node --version || (curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs)",
-            "Check/Install Node.js 20"
+            "Check/Install Node.js 20",
         )
 
         # Install pnpm
-        run_command(
-            client,
-            "command -v pnpm || npm install -g pnpm",
-            "Check/Install pnpm"
-        )
+        run_command(client, "command -v pnpm || npm install -g pnpm", "Check/Install pnpm")
 
         # Install Nginx
-        run_command(
-            client,
-            "command -v nginx || apt-get install -y nginx",
-            "Check/Install Nginx"
-        )
+        run_command(client, "command -v nginx || apt-get install -y nginx", "Check/Install Nginx")
 
         # Step 2: Clone/Update repo
         print("\n📥 Step 2: Cloning/Updating repository...")
@@ -84,14 +79,14 @@ def deploy_frontend():
                 git clone https://github.com/BernardUriza/free-intelligence.git /opt/free-intelligence
             fi
             """,
-            "Clone/Pull repository"
+            "Clone/Pull repository",
         )
 
         # Update submodules
         run_command(
             client,
             "cd /opt/free-intelligence && git submodule update --init --recursive",
-            "Update submodules (aurity)"
+            "Update submodules (aurity)",
         )
 
         # Step 3: Build frontend
@@ -99,20 +94,20 @@ def deploy_frontend():
         run_command(
             client,
             "cd /opt/free-intelligence/apps/aurity && pnpm install --no-frozen-lockfile",
-            "Install frontend dependencies"
+            "Install frontend dependencies",
         )
 
         # Use static config for build
         run_command(
             client,
             "cd /opt/free-intelligence/apps/aurity && cp next.config.static.js next.config.js",
-            "Apply static export config"
+            "Apply static export config",
         )
 
         run_command(
             client,
             "cd /opt/free-intelligence/apps/aurity && pnpm build",
-            "Build frontend (this may take 2-3 minutes)"
+            "Build frontend (this may take 2-3 minutes)",
         )
 
         # Step 4: Configure Nginx
@@ -171,29 +166,21 @@ server {
         run_command(
             client,
             f"cat > /etc/nginx/sites-available/aurity << 'EOF'\n{nginx_config}\nEOF",
-            "Create Nginx config"
+            "Create Nginx config",
         )
 
         # Enable site
         run_command(
             client,
             "ln -sf /etc/nginx/sites-available/aurity /etc/nginx/sites-enabled/aurity",
-            "Enable site"
+            "Enable site",
         )
 
         # Remove default site
-        run_command(
-            client,
-            "rm -f /etc/nginx/sites-enabled/default",
-            "Remove default site"
-        )
+        run_command(client, "rm -f /etc/nginx/sites-enabled/default", "Remove default site")
 
         # Test Nginx config
-        success, output, error = run_command(
-            client,
-            "nginx -t",
-            "Test Nginx configuration"
-        )
+        success, output, error = run_command(client, "nginx -t", "Test Nginx configuration")
 
         if not success:
             print("❌ Nginx config test failed!")
@@ -201,11 +188,7 @@ server {
             return False
 
         # Reload Nginx
-        run_command(
-            client,
-            "systemctl reload nginx",
-            "Reload Nginx"
-        )
+        run_command(client, "systemctl reload nginx", "Reload Nginx")
 
         # Step 5: Test deployment
         print("\n🧪 Step 5: Testing deployment...")
@@ -217,7 +200,7 @@ server {
         success, output, _ = run_command(
             client,
             "curl -s -o /dev/null -w '%{http_code}' http://localhost/",
-            "Test landing page (local)"
+            "Test landing page (local)",
         )
 
         if "200" in output:
@@ -225,32 +208,33 @@ server {
             print("║         ✅ DEPLOYMENT SUCCESSFUL!          ║")
             print("╚════════════════════════════════════════════╝")
             print()
-            print(f"🌐 Your frontend is live at:")
+            print("🌐 Your frontend is live at:")
             print(f"   http://{HOST}")
             print()
             print("📋 Testing from outside the server...")
 
             # Now test from local machine
             import subprocess
+
             try:
                 result = subprocess.run(
-                    ['curl', '-s', '-I', f'http://{HOST}/'],
+                    ["curl", "-s", "-I", f"http://{HOST}/"],
                     capture_output=True,
                     text=True,
-                    timeout=10
+                    timeout=10,
                 )
 
-                if '200 OK' in result.stdout:
+                if "200 OK" in result.stdout:
                     print("✅ Landing page accessible from outside!")
-                    print(f"\n🎉 Frontend deployed successfully!")
+                    print("\n🎉 Frontend deployed successfully!")
                     print(f"   URL: http://{HOST}")
 
                     # Get preview
                     print("\n📄 Landing page preview:")
                     result = subprocess.run(
-                        ['curl', '-s', f'http://{HOST}/', '--max-time', '5'],
+                        ["curl", "-s", f"http://{HOST}/", "--max-time", "5"],
                         capture_output=True,
-                        text=True
+                        text=True,
                     )
                     preview = result.stdout[:500]
                     print(f"   {preview}...")
@@ -271,7 +255,9 @@ server {
 
             # Debug
             print("\n🔍 Debugging...")
-            run_command(client, "ls -lah /opt/free-intelligence/apps/aurity/out/", "Check build output")
+            run_command(
+                client, "ls -lah /opt/free-intelligence/apps/aurity/out/", "Check build output"
+            )
             run_command(client, "systemctl status nginx | head -20", "Nginx status")
             run_command(client, "tail -20 /var/log/nginx/error.log", "Nginx error log")
 
@@ -280,11 +266,13 @@ server {
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
     finally:
         client.close()
+
 
 if __name__ == "__main__":
     success = deploy_frontend()

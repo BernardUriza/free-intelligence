@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Run build with long timeout and check progress"""
-import paramiko
 import time
 
-HOST = '104.131.175.65'
-USER = 'root'
-PASSWORD = 'FreeIntel2024DO!'
+import paramiko
+
+HOST = "104.131.175.65"
+USER = "root"
+PASSWORD = "FreeIntel2024DO!"
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -16,7 +17,9 @@ try:
 
     # Clean previous build
     print("\n🧹 Cleaning previous build...")
-    stdin, stdout, stderr = client.exec_command('cd /opt/free-intelligence/apps/aurity && rm -rf .next out')
+    stdin, stdout, stderr = client.exec_command(
+        "cd /opt/free-intelligence/apps/aurity && rm -rf .next out"
+    )
     stdout.channel.recv_exit_status()
 
     # Run build without Turbopack and with verbose output
@@ -25,14 +28,14 @@ try:
 
     # Start build in background
     stdin, stdout, stderr = client.exec_command(
-        '''
+        """
         cd /opt/free-intelligence/apps/aurity
         export NODE_ENV=production
         export NEXT_PUBLIC_API_URL=http://104.131.175.65:7001
         nohup pnpm build > /tmp/aurity-build.log 2>&1 &
         echo $!
-        ''',
-        timeout=10
+        """,
+        timeout=10,
     )
 
     pid = stdout.read().decode().strip()
@@ -45,11 +48,13 @@ try:
         print(f"\n⏱️  {(i+1) * 30}s elapsed, checking status...")
 
         # Check if process still running
-        stdin, stdout, stderr = client.exec_command(f'ps -p {pid} > /dev/null && echo "running" || echo "finished"')
+        stdin, stdout, stderr = client.exec_command(
+            f'ps -p {pid} > /dev/null && echo "running" || echo "finished"'
+        )
         status = stdout.read().decode().strip()
 
         # Show last 20 lines of log
-        stdin, stdout, stderr = client.exec_command('tail -20 /tmp/aurity-build.log')
+        stdin, stdout, stderr = client.exec_command("tail -20 /tmp/aurity-build.log")
         log = stdout.read().decode()
         print("📋 Build log (last 20 lines):")
         print(log)
@@ -60,11 +65,15 @@ try:
 
     # Check final status
     print("\n🔍 Checking build output...")
-    stdin, stdout, stderr = client.exec_command('ls -lah /opt/free-intelligence/apps/aurity/out/ 2>&1')
+    stdin, stdout, stderr = client.exec_command(
+        "ls -lah /opt/free-intelligence/apps/aurity/out/ 2>&1"
+    )
     print(stdout.read().decode())
 
     # Check for index.html
-    stdin, stdout, stderr = client.exec_command('find /opt/free-intelligence/apps/aurity/out -name "*.html" 2>&1 | head -10')
+    stdin, stdout, stderr = client.exec_command(
+        'find /opt/free-intelligence/apps/aurity/out -name "*.html" 2>&1 | head -10'
+    )
     html_files = stdout.read().decode()
     print("\n📄 HTML files generated:")
     print(html_files if html_files else "None found")
@@ -72,7 +81,7 @@ try:
     # Show full log if build failed
     if not html_files:
         print("\n❌ No HTML files found. Full build log:")
-        stdin, stdout, stderr = client.exec_command('cat /tmp/aurity-build.log')
+        stdin, stdout, stderr = client.exec_command("cat /tmp/aurity-build.log")
         print(stdout.read().decode())
 
 finally:
