@@ -102,6 +102,22 @@ def create_app() -> FastAPI:
 
         traceback.print_exc()
 
+    @app.get("/")
+    async def root() -> dict[str, str]:
+        """Root endpoint - API information."""
+        return {
+            "name": "Free Intelligence API",
+            "version": "0.1.0",
+            "description": "Advanced Universal Reliable Intelligence for Telemedicine Yield",
+            "endpoints": {
+                "health": "/health",
+                "public_api": "/api",
+                "internal_api": "/internal",
+                "static": "/static",
+            },
+            "docs": "/docs",
+        }
+
     @app.get("/health")
     async def health_check() -> dict[str, str]:
         """Health check endpoint."""
