@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
-
-from backend.utils.text_normalizer import normalize_capitalization, normalize_medical_segment
+from backend.utils.text_normalizer import (
+    normalize_capitalization,
+    normalize_medical_segment,
+)
 
 
 class TestNormalizeCapitalization:

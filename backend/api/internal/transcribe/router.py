@@ -19,7 +19,7 @@ Card: Architecture unification
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
@@ -175,7 +175,7 @@ async def upload_chunk(
 
         # Run transcription in background thread to avoid blocking
         executor = ThreadPoolExecutor(max_workers=4)
-        future = executor.submit(
+        _future = executor.submit(  # Intentionally unused - fire and forget
             transcribe_chunk_worker,
             session_id=session_id,
             chunk_number=chunk_number,
@@ -265,8 +265,8 @@ async def get_transcription_job(session_id: str) -> TranscriptionJobResponse:
             processed_chunks=processed_chunks,
             progress_percent=progress_percent,
             chunks=chunks,  # type: ignore[arg-type]
-            created_at=metadata.get("created_at", datetime.now(timezone.utc).isoformat()),
-            updated_at=metadata.get("updated_at", datetime.now(timezone.utc).isoformat()),
+            created_at=metadata.get("created_at", datetime.now(UTC).isoformat()),
+            updated_at=metadata.get("updated_at", datetime.now(UTC).isoformat()),
         )
 
     except HTTPException:

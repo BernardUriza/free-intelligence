@@ -94,7 +94,9 @@ class SystemHealthService:
         try:
             import requests
 
-            from backend.services.diarization.ollama import OLLAMA_BASE_URL
+            # DEPRECATED: Use direct Ollama URL instead
+            # from backend.services.diarization.ollama import OLLAMA_BASE_URL
+            OLLAMA_BASE_URL = "http://localhost:11434"  # Hardcoded for health check
 
             response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=0.8)
 

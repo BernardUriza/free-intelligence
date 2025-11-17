@@ -21,13 +21,22 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Any
+
+# DEPRECATED: Legacy service module removed
+# from backend.services.diarization.service import DiarizationService
+from typing import TYPE_CHECKING, Any
 
 from backend.logger import get_logger
 from backend.services.diarization.jobs import get_job, update_job
 from backend.services.diarization.models import DiarizationSegment
-from backend.services.diarization.service import DiarizationService
 from backend.services.transcription.service import TranscriptionService
+
+if TYPE_CHECKING:
+    # Import only for type checking to avoid runtime errors
+    class DiarizationService:  # type: ignore[no-redef]
+        """Placeholder for deprecated DiarizationService"""
+
+        pass
 
 logger = get_logger(__name__)
 

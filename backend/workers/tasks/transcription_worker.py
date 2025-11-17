@@ -162,7 +162,7 @@ def transcribe_chunk_worker(
             session_id=session_id,
             result=result,
             chunk_number=chunk_number,
-        )
+        ).to_dict()
 
     except Exception as e:
         # Record performance failure if we got far enough to select a provider

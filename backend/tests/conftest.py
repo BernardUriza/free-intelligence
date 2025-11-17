@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import tempfile
 from collections.abc import Generator
+from datetime import UTC
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import pytest
 
@@ -183,7 +184,7 @@ def audit_entry_factory():
             "user_id": user_id,
             "resource": resource,
             "result": result,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     return _create_audit_entry

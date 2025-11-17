@@ -20,7 +20,7 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from backend.logger import get_logger
 

@@ -9,17 +9,20 @@ Created: 2025-11-09
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Dict
 
 from backend.app.audit.sink import write_audit_event
-from backend.app.celery import celery_app
+
+# DEPRECATED: Celery removed in 2025-11-15
+# from backend.app.celery import celery_app
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-@celery_app.task(name="audit.log_event", bind=True)
+# DEPRECATED: Celery decorator removed (2025-11-15)
+# @celery_app.task(name="audit.log_event", bind=True)
 def log_audit_event(
     self: Any,
     action: str,
@@ -64,7 +67,8 @@ def log_audit_event(
         raise
 
 
-@celery_app.task(name="example.async_operation", bind=True)
+# DEPRECATED: Celery decorator removed (2025-11-15)
+# @celery_app.task(name="example.async_operation", bind=True)
 def example_async_operation(self: Any, data: Dict[str, Any]) -> dict[str, Any]:
     """Example async task template.
 
@@ -78,7 +82,7 @@ def example_async_operation(self: Any, data: Dict[str, Any]) -> dict[str, Any]:
     logger.info("ASYNC_OPERATION_STARTED", task_id=self.request.id, data=data)
 
     # Placeholder for actual work
-    result = {"processed_at": datetime.now(timezone.utc).isoformat(), "status": "SUCCESS"}
+    result = {"processed_at": datetime.now(UTC).isoformat(), "status": "SUCCESS"}
 
     logger.info("ASYNC_OPERATION_COMPLETED", task_id=self.request.id, result=result)
     return result

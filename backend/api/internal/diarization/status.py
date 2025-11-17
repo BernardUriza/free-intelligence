@@ -121,7 +121,7 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
                     sources = {}
 
                     # Check for webspeech_final
-                    if "webspeech_final" in trans_group:
+                    if "webspeech_final" in trans_group:  # type: ignore[operator]
                         import json
 
                         ws_data = trans_group["webspeech_final"][()]
@@ -129,12 +129,12 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
                         sources["webspeech_final"] = json.loads(ws_json)
 
                     # Check for full_transcription
-                    if "full_transcription" in trans_group:
+                    if "full_transcription" in trans_group:  # type: ignore[operator]
                         full_data = trans_group["full_transcription"][()]
                         sources["full_transcription"] = bytes(full_data).decode("utf-8")
 
                     # Count chunks
-                    if "chunks" in trans_group:
+                    if "chunks" in trans_group:  # type: ignore[operator]
                         sources["transcription_per_chunks"] = list(trans_group["chunks"].keys())
 
                     if sources:
