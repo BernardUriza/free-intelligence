@@ -284,6 +284,92 @@ pm2 start ecosystem.config.js  # Deploy NAS (PM2)
 docker compose -f docker-compose.ollama.yml up -d  # Ollama only
 docker compose -f docker-compose.asr.yml up -d     # ASR worker only
 
+# 🚀 CI/CD PIPELINE (GitHub Actions + DigitalOcean)
+
+## Production Deployment
+SERVER_IP=104.131.175.65
+SSH_KEY=~/.ssh/id_ed25519_do
+
+# Manual deploy via SSH
+ssh -i $SSH_KEY root@$SERVER_IP "cd /opt/free-intelligence && git pull && systemctl restart fi-backend"
+
+# Deploy with Paramiko (Python automation)
+python3 deploy/paramiko_deploy.py
+
+## 🐍 PARAMIKO AUTOMATION FOR DIGITALOCEAN
+
+# Quick connect and execute commands
+python3 << 'EOF'
+import paramiko
+client = paramiko.SSHClient()
+client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+client.connect('104.131.175.65', username='root', password='FreeIntel2024DO!', look_for_keys=False)
+
+# Check server status
+stdin, stdout, stderr = client.exec_command('docker ps')
+print(stdout.read().decode())
+
+# Start backend if not running
+stdin, stdout, stderr = client.exec_command('''
+if ! docker ps | grep -q fi-backend; then
+    cd /opt/free-intelligence
+    docker run -d --name fi-backend -p 7001:7001 --env-file .env fi-backend:latest || \
+    docker run -d --name fi-backend -p 7001:7001 fi-backend:latest
+fi
+curl -s http://localhost:7001/api/health || echo "Starting..."
+''')
+print(stdout.read().decode())
+client.close()
+EOF
+
+# Common Paramiko operations for DigitalOcean
+# 1. Check Docker images: client.exec_command('docker images')
+# 2. View logs: client.exec_command('docker logs fi-backend --tail 50')
+# 3. Restart: client.exec_command('docker restart fi-backend')
+# 4. Stop: client.exec_command('docker stop fi-backend && docker rm fi-backend')
+# 5. Build: client.exec_command('cd /opt/free-intelligence && docker build -t fi-backend .')
+
+## 📝 TROUBLESHOOTING DIGITALOCEAN
+
+# If server returns 404 on root but is accessible:
+# - Normal behavior if no root handler defined
+# - Check specific endpoints: /api/health, /api/*, /docs
+
+# If ModuleNotFoundError: No module named 'packages':
+# - Copy missing packages folder to Docker image
+# - Update Dockerfile: COPY packages/ ./packages/
+# - Or install as pip package
+
+# Test connectivity:
+curl -v http://104.131.175.65:7001/       # Should connect (may return 404)
+curl http://104.131.175.65:7001/docs      # FastAPI docs (if enabled)
+curl http://104.131.175.65:7001/api/health # Health endpoint
+
+# Server is RUNNING when:
+# - curl connects successfully (even if 404)
+# - docker ps shows container UP
+# - Uvicorn logs show "running on http://0.0.0.0:7001"
+
+# DigitalOcean Infrastructure
+pulumi up --stack dev                 # Deploy infrastructure
+pulumi destroy --stack dev             # Teardown (careful!)
+pulumi stack output                    # View outputs (IPs, URLs)
+
+## GitHub Actions Workflow (.github/workflows/deploy.yml)
+# Triggers on: push to main, PR merge
+# Steps: Test → Build → Deploy to DigitalOcean
+# Secrets needed: DIGITALOCEAN_TOKEN, SSH_PRIVATE_KEY
+
+## Docker Build Optimization
+docker build -t fi-backend:latest .                     # Build locally
+docker tag fi-backend:latest registry.digitalocean.com/fi-registry/backend:latest
+docker push registry.digitalocean.com/fi-registry/backend:latest
+
+## Monitoring & Health
+curl http://104.131.175.65:7001/api/health             # Health check
+ssh root@$SERVER_IP "docker logs fi-backend --tail 50" # View logs
+ssh root@$SERVER_IP "docker stats --no-stream"        # Resource usage
+
 # 📋 TRELLO CLI v2.2.0 - WITH CLAUDE AI ANALYSIS ⭐
 BOARD_ID=68fbfeeb7f8614df2eb61e42
 

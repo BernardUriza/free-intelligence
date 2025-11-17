@@ -1,0 +1,94 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+eggs
+.eggs
+lib
+lib64
+parts
+sdist
+var
+wheels
+pip-wheel-metadata
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.hypothesis
+
+# Virtual environments
+venv
+env
+ENV
+.venv
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project specific
+*.log
+*.sqlite
+*.db
+*.h5
+storage/*.mp3
+storage/*.wav
+storage/corpus.h5
+storage/diarization.h5
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Tests
+tests
+backend/tests
+*.test.py
+*_test.py
+
+# CI/CD
+.github
+deploy
+pulumi-do
+terraform-do
+cdk
+scripts
+
+# Node (if any)
+node_modules
+.npm
+.yarn
+
+# Notebooks
+*.ipynb
+.ipynb_checkpoints
+
+# Temporary
+tmp
+temp
+*.tmp
+*.bak
+*.backup
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+!Dockerfile.optimized
