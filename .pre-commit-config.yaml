@@ -11,10 +11,12 @@ repos:
         args: [--fix, --exit-zero]
         name: "ruff: Fix common issues"
         stages: [pre-commit]
+        exclude: ^docs/archive/
 
       - id: ruff-format
         name: "ruff: Format code"
         stages: [pre-commit]
+        exclude: ^docs/archive/
 
   # MyPy type checking (strict mode for healthcare)
   - repo: https://github.com/pre-commit/mirrors-mypy
@@ -32,6 +34,7 @@ repos:
           - --warn-unused-ignores
         name: "mypy: Type checking (strict)"
         stages: [pre-commit]
+        exclude: ^docs/archive/
 
   # Security scanning
   - repo: https://github.com/PyCQA/bandit
@@ -41,7 +44,7 @@ repos:
         args: [-c, .bandit, -r]
         name: "bandit: Security audit"
         stages: [pre-commit]
-        exclude: ^(tests/|scripts/)
+        exclude: ^(tests/|scripts/|docs/archive/)
 
   # YAML validation
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -81,6 +84,7 @@ repos:
         name: "isort: Sort imports"
         args: [--profile=black]
         stages: [pre-commit]
+        exclude: ^docs/archive/
 
 default_stages: [pre-commit]
 fail_fast: false
