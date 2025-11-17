@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import json
 import time
 from datetime import UTC, datetime
 from typing import Any
+
+import h5py
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.diarization import get_diarization_provider
 from backend.storage.task_repository import (
+    CORPUS_PATH,
     get_task_chunks,
     save_diarization_segments,
     task_exists,
@@ -61,12 +65,6 @@ def diarize_session_worker(
         # Try to load webspeech_final from HDF5 (most complete source)
         webspeech_final = None
         full_text = None
-
-        import json
-
-        import h5py
-
-        from backend.storage.task_repository import CORPUS_PATH
 
         try:
             with h5py.File(CORPUS_PATH, "r") as f:
@@ -166,12 +164,13 @@ def diarize_session_worker(
 
         # Diarize with TRIPLE VISION (this is the slow part - Azure API call)
         provider = get_diarization_provider(diarization_provider)
+        # Type ignore: AzureGPT4Provider extends base with additional optional params
         response = provider.diarize(
             audio_path=None,
-            transcript=full_text,
+            transcript=full_text,  # type: ignore[call-arg]
             num_speakers=2,
-            chunks=chunks_data,  # Pass chunks with real timestamps
-            webspeech_final=webspeech_final,  # Pass webspeech for completeness
+            chunks=chunks_data,  # type: ignore[call-arg]
+            webspeech_final=webspeech_final,  # type: ignore[call-arg]
         )
 
         # Update progress: 80% (diarization complete, processing results)
@@ -220,7 +219,7 @@ def diarize_session_worker(
             duration_seconds=round(elapsed_time, 2),
         )
 
-        return WorkerResult(session_id=session_id, result=result)
+        return WorkerResult(session_id=session_id, result=result).to_dict()
 
     except Exception as e:
         logger.error(

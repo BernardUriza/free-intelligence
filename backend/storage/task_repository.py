@@ -554,22 +554,22 @@ def get_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> list[di
                 # Read metrics (with fallback for older chunks)
                 provider = (
                     chunk_group["provider"][()].decode("utf-8")
-                    if "provider" in chunk_group
+                    if "provider" in chunk_group  # type: ignore[operator]
                     else "unknown"
-                )  # type: ignore[index, operator]
+                )  # type: ignore[index]
                 polling_attempts = (
                     int(chunk_group["polling_attempts"][()])
-                    if "polling_attempts" in chunk_group
+                    if "polling_attempts" in chunk_group  # type: ignore[operator]
                     else 0
-                )  # type: ignore[index, operator]
+                )  # type: ignore[index]
                 resolution_time_seconds = (
                     float(chunk_group["resolution_time_seconds"][()])
-                    if "resolution_time_seconds" in chunk_group
+                    if "resolution_time_seconds" in chunk_group  # type: ignore[operator]
                     else 0.0
-                )  # type: ignore[index, operator]
+                )  # type: ignore[index]
                 retry_attempts = (
-                    int(chunk_group["retry_attempts"][()]) if "retry_attempts" in chunk_group else 0
-                )  # type: ignore[index, operator]
+                    int(chunk_group["retry_attempts"][()]) if "retry_attempts" in chunk_group else 0  # type: ignore[operator]
+                )  # type: ignore[index]
 
                 chunks.append(
                     {

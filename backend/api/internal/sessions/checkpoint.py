@@ -176,7 +176,7 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
                     chunk_group = f[chunk_path]
 
                     # Check if audio exists and is not empty
-                    if "audio.webm" in chunk_group:
+                    if "audio.webm" in chunk_group:  # type: ignore[operator]
                         audio_data = chunk_group["audio.webm"][()]
 
                         # Convert numpy array to bytes properly

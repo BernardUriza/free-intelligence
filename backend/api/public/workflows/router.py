@@ -38,7 +38,14 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 # Import sub-routers (modular architecture following SOLIS pattern)
-from backend.api.public.workflows import orders, sessions, soap, timeline, transcription
+from backend.api.public.workflows import (
+    orders,
+    sessions,
+    sessions_list,
+    soap,
+    timeline,
+    transcription,
+)
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
@@ -65,8 +72,11 @@ router.include_router(orders.router, tags=["workflows-orders"])
 # TIMELINE: Session history and summaries
 router.include_router(timeline.router, tags=["workflows-timeline"])
 
+# SESSIONS LIST: Lightweight direct HDF5 read (alternative to Timeline)
+router.include_router(sessions_list.router, tags=["workflows-sessions-list"])
+
 logger.info(
     "WORKFLOWS_ROUTER_INITIALIZED",
-    modules=["transcription", "sessions", "soap", "orders", "timeline"],
+    modules=["transcription", "sessions", "soap", "orders", "timeline", "sessions_list"],
     pattern="SOLIS",
 )

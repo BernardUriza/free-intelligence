@@ -520,7 +520,7 @@ class AzureGPT4Provider(DiarizationProvider):
 
         self.logger.info("AZURE_GPT4_DIARIZATION_PROVIDER_INITIALIZED")
 
-    def diarize(
+    def diarize(  # type: ignore[override]  # Text-based provider has different signature than audio-based providers
         self,
         audio_path: Optional[Union[str, Path]] = None,
         transcript: Optional[str] = None,

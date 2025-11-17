@@ -33,6 +33,7 @@ from __future__ import annotations
 import shutil
 import time
 from pathlib import Path
+from typing import Optional
 
 EBML_MAGIC = b"\x1A\x45\xDF\xA3"
 EBML_CLUSTER_ID = b"\x1F\x43\xB6\x75"  # "Cluster"

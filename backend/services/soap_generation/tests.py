@@ -21,23 +21,30 @@ from backend.providers.models import Analisis, Objetivo, Plan, Subjetivo
 
 from .completeness import CompletenessCalculator
 from .defaults import get_default_soap_structure
-from .ollama_client import OllamaClient, OllamaExtractionError
+from .llm_client import LLMClient, SOAPExtractionError
 from .reader import TranscriptionReader, TranscriptionReadError
 from .soap_builder import SOAPBuilder
+
+# Alias for backward compatibility with tests
+OllamaClient = LLMClient
+OllamaExtractionError = SOAPExtractionError
 
 
 class TestTranscriptionReader:
     """Tests for HDF5 transcription reading."""
 
     def test_default_initialization(self) -> None:
-        """Test reader initializes with default path."""
+        """Test reader initializes with default repository."""
         reader = TranscriptionReader()
-        assert reader.h5_path == "storage/diarization.h5"
+        assert reader.repository is not None
 
     def test_custom_initialization(self) -> None:
-        """Test reader initializes with custom path."""
-        reader = TranscriptionReader(h5_path="/custom/path.h5")
-        assert reader.h5_path == "/custom/path.h5"
+        """Test reader initializes with custom repository."""
+        from backend.repositories.soap_repository import SoapRepository
+
+        mock_repo = Mock(spec=SoapRepository)
+        reader = TranscriptionReader(repository=mock_repo)
+        assert reader.repository is mock_repo
 
     @patch("backend.services.soap_generation.reader.h5py.File")
     def test_read_valid_chunks(self, mock_h5file: MagicMock) -> None:
@@ -81,14 +88,12 @@ class TestOllamaClient:
 
     def test_initialization(self) -> None:
         """Test client initializes with correct settings."""
-        client = OllamaClient(
-            base_url="http://localhost:11434",
-            model="mistral",
-            timeout=120,
+        client = LLMClient(
+            provider="claude",
         )
-        assert client.base_url == "http://localhost:11434"
-        assert client.model == "mistral"
-        assert client.timeout == 120
+        assert client.provider == "claude"
+        assert client.prompt_builder is not None
+        assert client.response_parser is not None
 
     def test_system_prompt(self) -> None:
         """Test system prompt generation."""

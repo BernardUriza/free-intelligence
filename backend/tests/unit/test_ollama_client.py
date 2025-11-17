@@ -10,9 +10,11 @@ from unittest.mock import Mock
 
 import pytest
 
-from backend.services.soap_generation.ollama_client import (
-    OllamaClient,
-    OllamaExtractionError,
+from backend.services.soap_generation.llm_client import (
+    LLMClient as OllamaClient,  # Alias for backward compat
+)
+from backend.services.soap_generation.llm_client import (
+    SOAPExtractionError as OllamaExtractionError,
 )
 from backend.services.soap_generation.prompt_builder import OllamaPromptBuilder
 from backend.services.soap_generation.response_parser import OllamaResponseParser
@@ -322,15 +324,16 @@ class TestOllamaClient:
 
     def test_client_with_custom_params(self) -> None:
         """Test client initialization with custom parameters."""
-        client = OllamaClient(
-            base_url="http://custom:11434",
-            model="custom-model",
-            timeout=300,
+        # DEPRECATED: Old API (base_url, model, timeout) no longer exists in LLMClient
+        client = OllamaClient(  # type: ignore[call-arg]
+            base_url="http://custom:11434",  # type: ignore[call-arg]
+            model="custom-model",  # type: ignore[call-arg]
+            timeout=300,  # type: ignore[call-arg]
         )
 
-        assert client.base_url == "http://custom:11434"
-        assert client.model == "custom-model"
-        assert client.timeout == 300
+        assert client.base_url == "http://custom:11434"  # type: ignore[attr-defined]
+        assert client.model == "custom-model"  # type: ignore[attr-defined]
+        assert client.timeout == 300  # type: ignore[attr-defined]
 
     def test_client_with_dependency_injection(self) -> None:
         """Test client with injected dependencies."""
@@ -338,13 +341,14 @@ class TestOllamaClient:
         mock_builder = Mock(spec=OllamaPromptBuilder)
         mock_parser = Mock(spec=OllamaResponseParser)
 
+        # DEPRECATED: http_client parameter no longer exists in LLMClient
         client = OllamaClient(
-            http_client=mock_http,
+            http_client=mock_http,  # type: ignore[call-arg]
             prompt_builder=mock_builder,
             response_parser=mock_parser,
         )
 
-        assert client.http_client is mock_http
+        assert client.http_client is mock_http  # type: ignore[attr-defined]
         assert client.prompt_builder is mock_builder
         assert client.response_parser is mock_parser
 
@@ -364,8 +368,9 @@ class TestOllamaClient:
         mock_builder.load_system_prompt.return_value = "System prompt"
         mock_builder.build_user_prompt.return_value = "User prompt"
 
+        # DEPRECATED: http_client parameter no longer exists in LLMClient
         client = OllamaClient(
-            http_client=mock_http,
+            http_client=mock_http,  # type: ignore[call-arg]
             prompt_builder=mock_builder,
         )
 
@@ -388,8 +393,9 @@ class TestOllamaClient:
         mock_builder.load_system_prompt.return_value = "System"
         mock_builder.build_user_prompt.return_value = "User"
 
+        # DEPRECATED: http_client parameter no longer exists in LLMClient
         client = OllamaClient(
-            http_client=mock_http,
+            http_client=mock_http,  # type: ignore[call-arg]
             prompt_builder=mock_builder,
         )
 
@@ -409,8 +415,9 @@ class TestOllamaClient:
         mock_builder.load_system_prompt.return_value = "System"
         mock_builder.build_user_prompt.return_value = "User"
 
+        # DEPRECATED: http_client parameter no longer exists in LLMClient
         client = OllamaClient(
-            http_client=mock_http,
+            http_client=mock_http,  # type: ignore[call-arg]
             prompt_builder=mock_builder,
         )
 
@@ -451,8 +458,9 @@ class TestOllamaClient:
         mock_builder.load_system_prompt.return_value = "System"
         mock_builder.build_user_prompt.return_value = "User"
 
+        # DEPRECATED: http_client parameter no longer exists in LLMClient
         client = OllamaClient(
-            http_client=mock_http,
+            http_client=mock_http,  # type: ignore[call-arg]
             prompt_builder=mock_builder,
         )
 

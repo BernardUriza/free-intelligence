@@ -1,0 +1,3 @@
+name: free-intelligence-do
+description: DigitalOcean infrastructure with Pulumi (CDK-style!)
+runtime: python

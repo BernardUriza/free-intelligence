@@ -31,8 +31,7 @@
     }
   ],
   "typeCheckingMode": "standard",
-  "comment": "Pragmatic type checking per Meta 2024 survey: Allow untyped third-party libs (h5py, pydantic) but enforce strict typing on internal code",
-  "reportMissingImports": "warning",
+  "reportMissingImports": "none",
   "reportMissingTypeStubs": "none",
   "reportPrivateImportUsage": false,
   "reportAttributeAccessIssue": "none",

@@ -5,11 +5,15 @@ Critical test: Verify JSON serialization/deserialization works correctly.
 Before refactor: metadata dicts were stored as JSON strings but not deserialized on read
 After refactor: metadata dicts are properly serialized AND deserialized
 
+NOTE: This test intentionally accesses protected methods (_serialize_value, _deserialize_value)
+to verify internal serialization logic. Type warnings suppressed with # type: ignore.
+
 Card: FIX - SessionRepository JSON serialization bug
 Author: Bernard Uriza Orozco
 Date: 2025-11-14
 """
 
+# pyright: reportPrivateUsage=false
 from __future__ import annotations
 
 import tempfile

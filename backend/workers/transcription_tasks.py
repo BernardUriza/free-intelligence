@@ -43,12 +43,15 @@ from backend.storage.task_repository import (
     get_task_metadata,
     update_task_metadata,
 )
-from backend.workers.celery_app import celery_app
+
+# DEPRECATED: Celery removed in 2025-11-15
+# from backend.workers.celery_app import celery_app
 
 logger = get_logger(__name__)
 
 
-@celery_app.task(name="transcribe_chunk", bind=True, max_retries=3)
+# DEPRECATED: Celery decorator removed (2025-11-15)
+# @celery_app.task(name="transcribe_chunk", bind=True, max_retries=3)
 def transcribe_chunk_task(
     self,
     session_id: str,
@@ -405,7 +408,8 @@ def transcribe_chunk_task(
         raise
 
 
-@celery_app.task(name="transcribe_full_audio", bind=True, max_retries=3)
+# DEPRECATED: Celery decorator removed (2025-11-15)
+# @celery_app.task(name="transcribe_full_audio", bind=True, max_retries=3)
 def transcribe_full_audio_task(
     self,
     session_id: str,
@@ -522,11 +526,7 @@ def transcribe_full_audio_task(
 
         add_full_transcription(
             session_id=session_id,
-            transcript=transcript,
-            confidence=confidence,
-            duration=duration,
-            language=language,
-            audio_hash=audio_hash,
+            full_text=transcript,
             task_type=TaskType.TRANSCRIPTION,
         )
 

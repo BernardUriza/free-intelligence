@@ -1,0 +1,137 @@
+#!/bin/bash
+# AWS EC2 Deployment Script for Free Intelligence
+# Run this after setting up your EC2 instance
+
+set -e
+
+echo "🚀 Free Intelligence - AWS EC2 Deployment Script"
+echo "================================================"
+
+# Configuration
+INSTANCE_IP="${1:-}"
+KEY_PATH="${2:-~/.ssh/aws-fi-key.pem}"
+GITHUB_REPO="https://github.com/yourusername/free-intelligence.git"
+
+if [ -z "$INSTANCE_IP" ]; then
+    echo "❌ Usage: ./deploy-aws-ec2.sh <EC2_INSTANCE_IP> [KEY_PATH]"
+    exit 1
+fi
+
+echo "📦 Step 1: Preparing deployment package..."
+# Create deployment tarball (excluding heavy files)
+tar -czf fi-deploy.tar.gz \
+    --exclude='*.pyc' \
+    --exclude='__pycache__' \
+    --exclude='.git' \
+    --exclude='node_modules' \
+    --exclude='.next' \
+    --exclude='storage/*.h5' \
+    backend/ scripts/ requirements.txt Dockerfile.aws
+
+echo "📤 Step 2: Uploading to EC2..."
+scp -i "$KEY_PATH" fi-deploy.tar.gz ubuntu@$INSTANCE_IP:/home/ubuntu/
+
+echo "🔧 Step 3: Setting up EC2 instance..."
+ssh -i "$KEY_PATH" ubuntu@$INSTANCE_IP << 'ENDSSH'
+    set -e
+
+    # Update system
+    echo "Updating system packages..."
+    sudo apt-get update
+    sudo apt-get upgrade -y
+
+    # Install Docker
+    if ! command -v docker &> /dev/null; then
+        echo "Installing Docker..."
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sudo sh get-docker.sh
+        sudo usermod -aG docker ubuntu
+        rm get-docker.sh
+    fi
+
+    # Install docker-compose
+    if ! command -v docker-compose &> /dev/null; then
+        echo "Installing docker-compose..."
+        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+    fi
+
+    # Extract deployment package
+    echo "Extracting deployment package..."
+    mkdir -p /home/ubuntu/free-intelligence
+    cd /home/ubuntu/free-intelligence
+    tar -xzf /home/ubuntu/fi-deploy.tar.gz
+
+    # Setup persistent storage
+    echo "Setting up persistent storage..."
+    mkdir -p storage/audio logs
+
+    # Create .env file
+    echo "Creating environment file..."
+    cat > .env << 'EOF'
+# AWS EC2 Production Environment
+NODE_ENV=production
+PORT=7001
+
+# API Keys (add your keys here)
+DEEPGRAM_API_KEY=
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+
+# Storage
+STORAGE_PATH=/home/ubuntu/free-intelligence/storage
+HDF5_PATH=/home/ubuntu/free-intelligence/storage/corpus.h5
+
+# CORS
+ALLOWED_ORIGINS=http://localhost:9000,https://yourdomain.com
+EOF
+
+    # Build and run with Docker
+    echo "Building Docker image..."
+    docker build -f Dockerfile.aws -t fi-backend:latest .
+
+    # Stop existing container if running
+    docker stop fi-backend 2>/dev/null || true
+    docker rm fi-backend 2>/dev/null || true
+
+    # Run new container
+    echo "Starting application..."
+    docker run -d \
+        --name fi-backend \
+        --restart unless-stopped \
+        -p 7001:7001 \
+        -v $(pwd)/storage:/app/storage \
+        -v $(pwd)/logs:/app/logs \
+        --env-file .env \
+        fi-backend:latest
+
+    # Check status
+    sleep 5
+    if docker ps | grep -q fi-backend; then
+        echo "✅ Application is running!"
+        docker logs fi-backend --tail 20
+    else
+        echo "❌ Failed to start application"
+        docker logs fi-backend
+        exit 1
+    fi
+ENDSSH
+
+echo "✅ Step 4: Verifying deployment..."
+sleep 3
+curl -s "http://$INSTANCE_IP:7001/api/health" && echo ""
+
+echo ""
+echo "🎉 Deployment complete!"
+echo "================================================"
+echo "Backend URL: http://$INSTANCE_IP:7001"
+echo "Health check: http://$INSTANCE_IP:7001/api/health"
+echo ""
+echo "Next steps:"
+echo "1. Update frontend .env with: NEXT_PUBLIC_BACKEND_URL=http://$INSTANCE_IP:7001"
+echo "2. Configure security group to allow port 7001"
+echo "3. Set up HTTPS with AWS ALB or nginx"
+echo "4. Configure your domain name (optional)"
+
+# Cleanup
+rm -f fi-deploy.tar.gz
