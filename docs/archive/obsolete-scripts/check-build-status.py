@@ -2,9 +2,9 @@
 """Check build status on DigitalOcean"""
 import paramiko
 
-HOST = '104.131.175.65'
-USER = 'root'
-PASSWORD = 'FreeIntel2024DO!'
+HOST = "104.131.175.65"
+USER = "root"
+PASSWORD = "FreeIntel2024DO!"
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -14,7 +14,9 @@ try:
     print("✅ Connected!")
 
     # Check if out/ directory exists
-    stdin, stdout, stderr = client.exec_command('ls -lah /opt/free-intelligence/apps/aurity/out/ 2>&1')
+    stdin, stdout, stderr = client.exec_command(
+        "ls -lah /opt/free-intelligence/apps/aurity/out/ 2>&1"
+    )
     out_check = stdout.read().decode()
     print("\n📁 Build Output Directory:")
     print(out_check[:500])
@@ -22,8 +24,7 @@ try:
     # Try to build again
     print("\n🏗️ Running build...")
     stdin, stdout, stderr = client.exec_command(
-        'cd /opt/free-intelligence/apps/aurity && timeout 180 pnpm build 2>&1',
-        timeout=200
+        "cd /opt/free-intelligence/apps/aurity && timeout 180 pnpm build 2>&1", timeout=200
     )
 
     # Wait for command
@@ -36,7 +37,9 @@ try:
         print("\n✅ Build completed successfully!")
 
         # Check output again
-        stdin, stdout, stderr = client.exec_command('ls -lah /opt/free-intelligence/apps/aurity/out/')
+        stdin, stdout, stderr = client.exec_command(
+            "ls -lah /opt/free-intelligence/apps/aurity/out/"
+        )
         print("\n📁 Build output:")
         print(stdout.read().decode())
     else:

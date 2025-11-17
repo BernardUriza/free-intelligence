@@ -4,14 +4,16 @@
 Fixes server issues and deploys Aurity frontend
 """
 
-import paramiko
 import sys
 import time
 
+import paramiko
+
 # Server config
-HOST = '104.131.175.65'
-USER = 'root'
-PASSWORD = 'FreeIntel2024DO!'
+HOST = "104.131.175.65"
+USER = "root"
+PASSWORD = "FreeIntel2024DO!"
+
 
 def run_command(client, command, description, timeout=300):
     """Execute command and print output"""
@@ -26,14 +28,15 @@ def run_command(client, command, description, timeout=300):
     error = stderr.read().decode()
 
     if output and len(output) > 10:
-        preview = output[:300].replace('\n', ' ')
+        preview = output[:300].replace("\n", " ")
         print(f"   ✓ {preview}...")
 
     if error and "WARNING" not in error.upper() and exit_status != 0:
-        preview = error[:200].replace('\n', ' ')
+        preview = error[:200].replace("\n", " ")
         print(f"   ⚠️  {preview}...")
 
     return exit_status == 0, output, error
+
 
 def deploy_frontend():
     """Deploy Aurity frontend to DigitalOcean"""
@@ -58,7 +61,7 @@ def deploy_frontend():
             client,
             "dpkg --configure -a && apt-get update",
             "Fix dpkg and update packages",
-            timeout=120
+            timeout=120,
         )
 
         # Step 1: Install Node.js
@@ -73,7 +76,7 @@ def deploy_frontend():
             node --version
             """,
             "Install Node.js",
-            timeout=180
+            timeout=180,
         )
 
         if "v20" not in output and "v18" not in output and "v16" not in output:
@@ -83,10 +86,7 @@ def deploy_frontend():
         # Install pnpm
         print("\n📦 Installing pnpm...")
         run_command(
-            client,
-            "npm install -g pnpm && pnpm --version",
-            "Install pnpm globally",
-            timeout=60
+            client, "npm install -g pnpm && pnpm --version", "Install pnpm globally", timeout=60
         )
 
         # Install Nginx
@@ -95,7 +95,7 @@ def deploy_frontend():
             client,
             "apt-get install -y nginx && systemctl enable nginx && systemctl start nginx",
             "Install and start Nginx",
-            timeout=120
+            timeout=120,
         )
 
         # Step 2: Clone/Update repo
@@ -108,7 +108,7 @@ def deploy_frontend():
             git submodule update --init --recursive
             """,
             "Pull latest code and submodules",
-            timeout=60
+            timeout=60,
         )
 
         # Step 3: Build frontend
@@ -122,7 +122,7 @@ def deploy_frontend():
             export NEXT_PUBLIC_API_URL=http://104.131.175.65:7001
             echo "NEXT_PUBLIC_API_URL=http://104.131.175.65:7001" > .env.production
             """,
-            "Set environment variables"
+            "Set environment variables",
         )
 
         # Install dependencies from monorepo root
@@ -131,7 +131,7 @@ def deploy_frontend():
             client,
             "cd /opt/free-intelligence && pnpm install --frozen-lockfile --shamefully-hoist",
             "Install all workspace dependencies (hoisted)",
-            timeout=600
+            timeout=600,
         )
 
         if not success:
@@ -140,7 +140,7 @@ def deploy_frontend():
                 client,
                 "cd /opt/free-intelligence && pnpm install --shamefully-hoist",
                 "Install dependencies (hoisted, no frozen lockfile)",
-                timeout=600
+                timeout=600,
             )
 
         # Also install in aurity directory to ensure node_modules exists there
@@ -149,7 +149,7 @@ def deploy_frontend():
             client,
             "cd /opt/free-intelligence/apps/aurity && pnpm install",
             "Install aurity dependencies locally",
-            timeout=600
+            timeout=600,
         )
 
         # Verify dependencies installed (check root node_modules in monorepo)
@@ -169,7 +169,7 @@ def deploy_frontend():
                 exit 1
             fi
             """,
-            "Verify Next.js installation"
+            "Verify Next.js installation",
         )
 
         if not success:
@@ -180,7 +180,7 @@ def deploy_frontend():
         run_command(
             client,
             "cd /opt/free-intelligence/apps/aurity && cp next.config.static.js next.config.js",
-            "Apply static export config"
+            "Apply static export config",
         )
 
         # Build with full output
@@ -194,7 +194,7 @@ def deploy_frontend():
             pnpm build
             """,
             "Build frontend (static export)",
-            timeout=600
+            timeout=600,
         )
 
         if not success:
@@ -202,7 +202,9 @@ def deploy_frontend():
             print("Output:", output[:500])
             print("Error:", error[:500])
             # Try to get more debug info
-            run_command(client, "ls -lah /opt/free-intelligence/apps/aurity/", "Check app directory")
+            run_command(
+                client, "ls -lah /opt/free-intelligence/apps/aurity/", "Check app directory"
+            )
             run_command(client, "which next", "Check next binary")
             return False
 
@@ -210,7 +212,7 @@ def deploy_frontend():
         success, output, _ = run_command(
             client,
             "ls -lah /opt/free-intelligence/apps/aurity/out/ | head -10",
-            "Verify build output"
+            "Verify build output",
         )
 
         if "index.html" not in output:
@@ -219,7 +221,7 @@ def deploy_frontend():
             run_command(
                 client,
                 "cd /opt/free-intelligence/apps/aurity && ln -sf .next out",
-                "Symlink .next to out"
+                "Symlink .next to out",
             )
 
         # Step 4: Configure Nginx
@@ -250,7 +252,7 @@ def deploy_frontend():
         run_command(
             client,
             f"echo '{nginx_config}' > /etc/nginx/sites-available/aurity",
-            "Write Nginx config"
+            "Write Nginx config",
         )
 
         # Enable site
@@ -260,14 +262,12 @@ def deploy_frontend():
             ln -sf /etc/nginx/sites-available/aurity /etc/nginx/sites-enabled/aurity
             rm -f /etc/nginx/sites-enabled/default
             """,
-            "Enable site and remove default"
+            "Enable site and remove default",
         )
 
         # Test and reload
         success, output, error = run_command(
-            client,
-            "nginx -t && systemctl reload nginx",
-            "Test and reload Nginx"
+            client, "nginx -t && systemctl reload nginx", "Test and reload Nginx"
         )
 
         if not success:
@@ -281,9 +281,7 @@ def deploy_frontend():
 
         # Test locally on server
         success, output, _ = run_command(
-            client,
-            "curl -s -o /dev/null -w '%{http_code}' http://localhost/",
-            "Test localhost"
+            client, "curl -s -o /dev/null -w '%{http_code}' http://localhost/", "Test localhost"
         )
 
         print(f"\n   Server response: {output.strip()}")
@@ -297,15 +295,16 @@ def deploy_frontend():
             # Test from external
             print("🌐 Testing external access...")
             import subprocess
+
             try:
                 result = subprocess.run(
-                    ['curl', '-s', '-I', f'http://{HOST}/', '--max-time', '10'],
+                    ["curl", "-s", "-I", f"http://{HOST}/", "--max-time", "10"],
                     capture_output=True,
                     text=True,
-                    timeout=15
+                    timeout=15,
                 )
 
-                if '200 OK' in result.stdout:
+                if "200 OK" in result.stdout:
                     print("✅ Landing page is accessible!")
                     print()
                     print(f"🎉 Frontend URL: http://{HOST}/")
@@ -313,13 +312,13 @@ def deploy_frontend():
 
                     # Get HTML preview
                     result = subprocess.run(
-                        ['curl', '-s', f'http://{HOST}/', '--max-time', '10'],
+                        ["curl", "-s", f"http://{HOST}/", "--max-time", "10"],
                         capture_output=True,
                         text=True,
-                        timeout=15
+                        timeout=15,
                     )
 
-                    if '<html' in result.stdout.lower():
+                    if "<html" in result.stdout.lower():
                         print("📄 Landing page HTML preview:")
                         print("=" * 60)
                         preview = result.stdout[:800]
@@ -348,11 +347,13 @@ def deploy_frontend():
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
     finally:
         client.close()
+
 
 if __name__ == "__main__":
     success = deploy_frontend()
