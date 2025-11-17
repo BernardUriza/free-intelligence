@@ -122,7 +122,8 @@ Requires environment variables:
     # Sub-app: Public API (orchestrators, CORS enabled)
     public_app = FastAPI(title="Public API")
     allowed_origins = os.getenv(
-        "ALLOWED_ORIGINS", "http://localhost:9000,http://localhost:9050"
+        "ALLOWED_ORIGINS",
+        "http://localhost:9000,http://localhost:9050,http://104.131.175.65,https://fi-aurity.duckdns.org",
     ).split(",")
     public_app.add_middleware(
         CORSMiddleware,
