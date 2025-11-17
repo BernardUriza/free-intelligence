@@ -12,6 +12,12 @@ from typing import Any, Optional
 
 import requests
 
+from backend.constants import (
+    CLAUDE_TIMEOUT_SEC,
+    DEFAULT_OLLAMA_MODEL,
+    OLLAMA_API_GENERATE_ENDPOINT,
+    OLLAMA_BASE_URL as DEFAULT_OLLAMA_BASE_URL,
+)
 from backend.logger import get_logger
 from backend.providers.llm import llm_generate
 from backend.services.diarization.models import DiarizationSegment
@@ -19,12 +25,9 @@ from backend.utils.text_normalizer import normalize_medical_segment
 
 logger = get_logger(__name__)
 
-# Ollama for language detection
-OLLAMA_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("LLM_MODEL", "qwen2.5:7b-instruct-q4_0")
-
-# Claude for diarization (demo mode) - using existing adapter
-CLAUDE_TIMEOUT_SEC = 60.0  # Claude is faster than Qwen
+# Ollama configuration (allow env override)
+OLLAMA_BASE_URL = os.getenv("LLM_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
+OLLAMA_MODEL = os.getenv("LLM_MODEL", DEFAULT_OLLAMA_MODEL)
 
 
 def calculate_num_ctx(text_length: int) -> int:
@@ -70,7 +73,7 @@ Text: {first_chunk_text[:200]}
 Language:"""
 
         response = requests.post(
-            f"{OLLAMA_BASE_URL}/api/generate",
+            f"{OLLAMA_BASE_URL}{OLLAMA_API_GENERATE_ENDPOINT}",
             json={
                 "model": OLLAMA_MODEL,
                 "prompt": prompt,

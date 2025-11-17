@@ -14,6 +14,7 @@ Created: 2025-10-28
 import jsonschema
 import yaml
 
+from backend.constants import DEFAULT_OLLAMA_MODEL, LLMProvider
 from backend.logger import get_logger
 
 import hashlib
@@ -127,8 +128,8 @@ class PresetLoader:
                 version=data["version"],
                 description=data["description"],
                 # LLM
-                provider=llm_config.get("provider", "ollama"),
-                model=llm_config.get("model", "qwen2.5:7b-instruct-q4_0"),
+                provider=llm_config.get("provider", LLMProvider.OLLAMA),
+                model=llm_config.get("model", DEFAULT_OLLAMA_MODEL),
                 temperature=llm_config.get("temperature", 0.7),
                 max_tokens=llm_config.get("max_tokens", 2048),
                 stream=llm_config.get("stream", False),
