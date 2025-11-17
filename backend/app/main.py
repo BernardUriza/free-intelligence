@@ -103,19 +103,70 @@ def create_app() -> FastAPI:
         traceback.print_exc()
 
     @app.get("/")
-    async def root() -> dict[str, str]:
-        """Root endpoint - API information."""
+    async def root() -> dict:
+        """Root endpoint - API discovery and system information.
+
+        Well-designed root endpoint that acts as a directory for the API,
+        providing essential information for developers discovering the service.
+        """
+        from datetime import datetime, timezone
+
+        environment = os.getenv("ENVIRONMENT", "development")
+
         return {
-            "name": "Free Intelligence API",
-            "version": "0.1.0",
-            "description": "Advanced Universal Reliable Intelligence for Telemedicine Yield",
-            "endpoints": {
+            "service": {
+                "name": "Free Intelligence",
+                "codename": "AURITY",
+                "description": "Advanced Universal Reliable Intelligence for Telemedicine Yield",
+                "version": "0.1.0",
+                "environment": environment,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+            "status": {
+                "operational": True,
+                "message": "All systems operational",
+            },
+            "api": {
+                "public": {
+                    "base_url": "/api",
+                    "description": "Public orchestration endpoints (CORS enabled)",
+                    "endpoints": {
+                        "workflows": "/api/workflows/aurity/*",
+                        "sessions": "/api/workflows/aurity/sessions/*",
+                        "timeline": "/api/sessions/*",
+                        "system": "/api/system/*",
+                    },
+                },
+                "internal": {
+                    "base_url": "/internal",
+                    "description": "Internal atomic resources (localhost-only in production)",
+                    "note": "⚠️ Direct access blocked by InternalOnlyMiddleware in production",
+                    "endpoints": {
+                        "audit": "/internal/audit/*",
+                        "diarization": "/internal/diarization/*",
+                        "exports": "/internal/exports/*",
+                        "kpis": "/internal/kpis/*",
+                        "sessions": "/internal/sessions/*",
+                        "transcribe": "/internal/transcribe/*",
+                        "triage": "/internal/triage/*",
+                    },
+                },
+            },
+            "resources": {
                 "health": "/health",
-                "public_api": "/api",
-                "internal_api": "/internal",
+                "docs": "/docs",
+                "openapi": "/openapi.json",
                 "static": "/static",
             },
-            "docs": "/docs",
+            "architecture": {
+                "pattern": "Layered API (Public Orchestrators + Internal Resources)",
+                "philosophy": "LAN-only, append-only HDF5, zero-cloud runtime",
+                "security": "RBAC + PolicyEnforcer + InternalOnlyMiddleware",
+            },
+            "contact": {
+                "repository": "https://github.com/BernardUriza/free-intelligence",
+                "owner": "Bernard Uriza Orozco",
+            },
         }
 
     @app.get("/health")
