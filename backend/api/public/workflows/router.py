@@ -58,22 +58,22 @@ router = APIRouter(prefix="/workflows/aurity", tags=["workflows-aurity"])
 # ============================================================================
 
 # TRANSCRIPTION: Audio streaming and job status
-router.include_router(transcription.router, tags=["workflows-transcription"])
+router.include_router(transcription.router, tags=["Transcription"])
 
 # SESSIONS: Lifecycle management (diarization, SOAP, finalization, monitoring)
-router.include_router(sessions.router, tags=["workflows-sessions"])
+router.include_router(sessions.router, tags=["Sessions"])
 
 # SOAP: Clinical notes CRUD + AI assistant
-router.include_router(soap.router, tags=["workflows-soap"])
+router.include_router(soap.router, tags=["SOAP Notes", "AI Assistant"])
 
 # ORDERS: Medical orders CRUD
-router.include_router(orders.router, tags=["workflows-orders"])
+router.include_router(orders.router, tags=["SOAP Notes"])
 
 # TIMELINE: Session history and summaries
-router.include_router(timeline.router, tags=["workflows-timeline"])
+router.include_router(timeline.router, tags=["Sessions"])
 
 # SESSIONS LIST: Lightweight direct HDF5 read (alternative to Timeline)
-router.include_router(sessions_list.router, tags=["workflows-sessions-list"])
+router.include_router(sessions_list.router, tags=["Sessions"])
 
 logger.info(
     "WORKFLOWS_ROUTER_INITIALIZED",

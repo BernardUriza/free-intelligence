@@ -153,7 +153,7 @@ Requires environment variables:
         # PUBLIC API (CORS enabled, orchestrators)
         public_app.include_router(public.workflows.router)  # AURITY orchestrator
         public_app.include_router(timeline.router)  # Timeline/sessions listing
-        public_app.include_router(public.system.router, prefix="/system", tags=["system"])
+        public_app.include_router(public.system.router, prefix="/system", tags=["System"])
 
         # INTERNAL API (atomic resources, AURITY-only)
         internal_app.include_router(internal.audit.router, prefix="/audit", tags=["audit"])
