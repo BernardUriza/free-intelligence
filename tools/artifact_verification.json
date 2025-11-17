@@ -1,49 +1,43 @@
 {
   "timestamp": "2025-10-29T00:00:00Z",
   "total": 12,
-  "valid": 10,
+  "valid": 4,
   "results": [
     {
-      "status": "VALID",
+      "status": "MISSING",
       "card_id": "FI-EVAL-001",
       "artifact": "eval/prompts.csv",
-      "size_kb": 5.97,
-      "message": "\u2705 Artifact valid and executable"
+      "message": "Artifact not found: eval/prompts.csv"
     },
     {
-      "status": "VALID",
+      "status": "MISSING",
       "card_id": "FI-EVAL-002",
       "artifact": "eval/metrics.schema.json",
-      "size_kb": 3.17,
-      "message": "\u2705 Artifact valid and executable"
+      "message": "Artifact not found: eval/metrics.schema.json"
     },
     {
-      "status": "VALID",
+      "status": "MISSING",
       "card_id": "FI-EVAL-003",
       "artifact": "eval/run_eval.py",
-      "size_kb": 21.13,
-      "message": "\u2705 Artifact valid and executable"
+      "message": "Artifact not found: eval/run_eval.py"
     },
     {
-      "status": "VALID",
+      "status": "MISSING",
       "card_id": "FI-EVAL-004",
       "artifact": "eval/Makefile",
-      "size_kb": 4.11,
-      "message": "\u2705 Artifact valid and executable"
+      "message": "Artifact not found: eval/Makefile"
     },
     {
-      "status": "VALID",
+      "status": "MISSING",
       "card_id": "FI-OBS-RES-001",
       "artifact": "observability/error_budgets.yaml",
-      "size_kb": 2.04,
-      "message": "\u2705 Artifact valid and executable"
+      "message": "Artifact not found: observability/error_budgets.yaml"
     },
     {
-      "status": "VALID",
+      "status": "MISSING",
       "card_id": "FI-OBS-002",
       "artifact": "observability/alerts.prom",
-      "size_kb": 3.71,
-      "message": "\u2705 Artifact valid and executable"
+      "message": "Artifact not found: observability/alerts.prom"
     },
     {
       "status": "VALID",
