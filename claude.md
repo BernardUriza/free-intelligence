@@ -1,480 +1,266 @@
-Free Intelligence · Kernel Context (Ultra‑Compact v0.5)
+# Free Intelligence · Kernel Context (v0.6)
 
-AURITY = Advanced Universal Reliable Intelligence for Telemedicine Yield (computational contract, not branding)
-
-FI-STRIDE Hackathon 2025 (20-Card Sprint, Full Compliance):
-	• KATNISS (Oficial): Keeper Artificial Trainer Nurturing Intelligence Sportive Spark
-	  └─ Integrado en FI-STRIDE-SESION-05 (post-sesión: Ollama analysis + motivation)
-	• Arquitectura: Kernel Artificial Token Neural Intelligence System Serverless
-	  └─ PWA (9050) + Ollama local + IndexedDB + Offline-first
-	• 20 FI-STRIDE Cards (Sprint backlog):
-	  ├─ QA-01 (Philosophy): PWA + Dead-Drop Relay (TDD) ✅ [Moved to Philosophy]
-	  ├─ PWA-BASE-01 (Testing): Shell PWA, routing, a11y ✅ [IMPLEMENTADO]
-	  ├─ ONBOARDING-02 (Testing): Consentimiento accesible ✅ [IMPLEMENTADO: AthleteFlow]
-	  ├─ T21-PACK-03 (Testing): Plugin T21 - UI pack
-	  ├─ SESION-04/05 (Testing): Sesión viva + check-in emocional + KATNISS
-	  ├─ OFFLINE-06 (Sprint): Biblioteca ejercicios
-	  ├─ OFFLINE-07 (Sprint): Modo offline - cola/reintentos
-	  ├─ PRIVACIDAD-08 (Sprint): Panel privacidad
-	  ├─ DASHBOARD-09/14 (Sprint): Coach dashboard + KPIs
-	  ├─ CRYPTO-15/16 (Sprint): AES-GCM + Dead-Drop Relay
-	  ├─ RELAY-17 (Sprint): Relay NAS - WORM lógico
-	  ├─ INFRA-18 (Sprint): CI/CD + Netlify deploy
-	  └─ POLISH-19/20 (Sprint): i18n + Plan B
+**AURITY** = Advanced Universal Reliable Intelligence for Telemedicine Yield
 
 Owner: Bernard Uriza Orozco
-Version: 0.1.0 (Fase 1)
-Updated: 2025‑11‑06
+Version: 0.1.0 (Production Deployed)
+Updated: 2025-11-17
 TZ: America/Mexico_City
 
-⸻
+---
 
-🗣️ Comunicación
-	•	NO_MD=1 — Prohibido crear/editar .md > 150 líneas (excepto README.md, claude.md).
-	•	Responder en chat: bullets técnicos (10–15 líneas), sin fluff.
-	•	Crear archivo solo si es documentación permanente → artefacto ejecutable (YAML/JSON/Python/test).
-	•	Estilo: preciso, citar rutas/commits cuando aplique.
+## 🌐 Production Deployment
 
-⚠️ Reglas Críticas
-	•	session_id único session_YYYYMMDD_HHMMSS.
-	•	HDF5 (storage/corpus.h5) = fuente de verdad: append‑only; sin mutaciones.
-	•	Archivar antes de responder; auditoría obligatoria en acciones sensibles (export/verify/delete/search).
-	•	LAN‑only, sin dependencias cloud en runtime.
+**Live URL**: https://fi-aurity.duckdns.org/
+**Backend API**: https://fi-aurity.duckdns.org/api/
+**SSL**: Let's Encrypt (auto-renews)
+**DNS**: DuckDNS (fi-aurity.duckdns.org → 104.131.175.65)
 
-🏗️ Arquitectura Layering (CRÍTICO - NO CONFUNDIR)
+### Architecture
+```
+Browser (HTTPS:443) → Nginx (SSL termination) → {
+  ├─ Static Frontend (Next.js)
+  └─ /api/* → Backend (FastAPI:7001)
+}
+```
 
-	⚠️⚠️⚠️ REGLA ABSOLUTA ⚠️⚠️⚠️
-	🚫 /internal/* ESTÁ COMPLETAMENTE PROHIBIDO
-	   NO llames /internal/* NUNCA desde curl, frontend, o pruebas
-	   InternalOnlyMiddleware rechazará con 403 Forbidden
-	   Si encuentras /internal/* en una URL = ERROR CRÍTICO
-	⚠️⚠️⚠️
+### CORS Configuration
+Backend allows: `http://localhost:9000`, `http://localhost:9050`, `https://fi-aurity.duckdns.org`
+Location: `backend/app/main.py` (line 125)
 
-	CAPAS VÁLIDAS:
+---
 
-	1️⃣  PUBLIC (/api/workflows/*) = ÚNICO PUNTO DE ENTRADA VÁLIDO
-	    ├─ ✅ POST /api/workflows/aurity/stream → Upload chunk
-	    ├─ ✅ GET /api/workflows/aurity/jobs/{session_id} → Get status
-	    ├─ ✅ GET /api/workflows/aurity/sessions/{session_id}/monitor → Real-time progress monitor (ASCII + colors)
-	    ├─ ✅ GET /api/workflows/aurity/result/{session_id} → Get result
-	    ├─ Orquestadores PUROS (coordinan flujos)
-	    ├─ Llaman /internal/* solo INTERNAMENTE (no visible al frontend)
-	    └─ ÚNICOS endpoints para usar desde curl/frontend/tests
+## 🏗️ Architecture Layering (CRITICAL)
 
-	2️⃣  INTERNAL (/api/internal/*) = PROHIBIDO ACCESO DIRECTO
-	    ├─ 🚫 /api/internal/transcribe/chunks
-	    ├─ 🚫 /api/internal/transcribe/jobs/{id}
-	    ├─ 🚫 /api/internal/diarization/...
-	    ├─ 🚫 /api/internal/sessions/...
-	    ├─ Solo para uso INTERNO: PUBLIC router → INTERNAL router
-	    ├─ Middleware InternalOnlyMiddleware bloqueará acceso directo
-	    └─ Si ves /internal en una URL = CONFUSIÓN/BUG
+### ⚠️ REGLA ABSOLUTA
+🚫 `/internal/*` is **COMPLETELY PROHIBITED** for external access
+- Frontend/curl NEVER call `/internal/*` directly
+- InternalOnlyMiddleware returns 403 Forbidden
+- If you see `/internal/*` in a URL = **ERROR**
 
-	3️⃣  WORKERS (background) = Celery tasks
-	    ├─ Procesan jobs asincronamente
-	    ├─ Frontend polls con job_id para status
-	    └─ No se llaman directamente
+### Valid Layers
 
-	FLUJO COMPLETO (NUEVO 2025-11-15 - Refactored Workflow):
-	  1️⃣  UPLOAD CHUNKS
-	      frontend → POST /api/workflows/aurity/stream (PUBLIC)
-	         ↓
-	      router PUBLIC (recibe chunk)
-	         ↓
-	      llama internamente a /api/internal/transcribe/chunks (INVISIBLE)
-	         ↓
-	      HDF5 append + Worker dispatch
-	         ↓
-	      return 202 Accepted
+**1️⃣ PUBLIC** (`/api/workflows/*`) = ONLY VALID ENTRY POINT
+```
+✅ POST   /api/workflows/aurity/stream                    # Upload chunk
+✅ GET    /api/workflows/aurity/sessions/{id}/monitor    # Real-time progress
+✅ POST   /api/workflows/aurity/sessions/{id}/checkpoint # Concatenate audio
+✅ POST   /api/workflows/aurity/sessions/{id}/diarization # Start diarization
+✅ POST   /api/workflows/aurity/sessions/{id}/soap       # Generate SOAP notes
+✅ POST   /api/workflows/aurity/sessions/{id}/finalize   # Encrypt & finalize
+```
 
-	  2️⃣  CHECKPOINT (after chunk 6, concatena audio)
-	      frontend → POST /api/workflows/aurity/sessions/{session_id}/checkpoint (PUBLIC)
-	         ↓
-	      llama internamente a /api/internal/sessions/checkpoint (INVISIBLE)
-	         ↓
-	      Concatena chunks 0-6 con ffmpeg, guarda full_audio.mp3
-	         ↓
-	      return 202 Accepted
+**2️⃣ INTERNAL** (`/api/internal/*`) = FORBIDDEN DIRECT ACCESS
+- Only called internally by PUBLIC routers
+- Middleware blocks all external requests
+- Contains atomic resource operations
 
-	  3️⃣  DIARIZATION (separado de finalize - NUEVO)
-	      frontend → POST /api/workflows/aurity/sessions/{session_id}/diarization (PUBLIC)
-	         ↓
-	      Crea DIARIZATION task en HDF5
-	         ↓
-	      Dispatch diarization worker (Azure GPT-4)
-	         ↓
-	      return 202 Accepted {"job_id": session_id}
-	         ↓
-	      frontend → GET /api/workflows/aurity/sessions/{session_id}/monitor (polling)
+**3️⃣ WORKERS** (ThreadPoolExecutor)
+- 4 workers for transcription
+- 2 workers for diarization
+- No Docker, no Redis, no Celery (removed 2025-11-15)
 
-	  4️⃣  SOAP GENERATION (TBD - future endpoint)
-	      frontend → POST /api/workflows/aurity/sessions/{session_id}/soap (PUBLIC)
-	         ↓
-	      LLM extrae SOAP notes
-	         ↓
-	      return 202 Accepted
+---
 
-	  5️⃣  FINALIZE (SOLO después de SOAP - NUEVO)
-	      frontend → POST /api/workflows/aurity/sessions/{session_id}/finalize (PUBLIC)
-	         ↓
-	      llama internamente a /api/internal/sessions/finalize (INVISIBLE)
-	         ↓
-	      Encripta session (AES-GCM-256), marca FINALIZED
-	         ↓
-	      return 202 Accepted {"status": "finalized", "encrypted_at": "..."}
+## 🚀 Quick Start
 
-	EJEMPLOS CORTOS:
-	  ✅ curl -X POST http://localhost:7001/api/workflows/aurity/stream ...
-	  ✅ curl -X POST http://localhost:7001/api/workflows/aurity/sessions/SESSION_ID/checkpoint
-	  ✅ curl -X POST http://localhost:7001/api/workflows/aurity/sessions/SESSION_ID/diarization (NUEVO)
-	  ✅ curl -X POST http://localhost:7001/api/workflows/aurity/sessions/SESSION_ID/finalize (solo después de SOAP)
-	  ✅ curl -X GET http://localhost:7001/api/workflows/aurity/sessions/SESSION_ID/monitor (MONITOR - ver progreso)
-	  ❌ curl -X POST http://localhost:7001/internal/api/transcribe/chunks ... (PROHIBIDO)
-	  ❌ curl -X GET http://localhost:7001/internal/api/... (PROHIBIDO)
-	  ❌ curl -X GET http://localhost:7001/api/internal/... (PROHIBIDO)
+### Development
+```bash
+make dev-all    # Backend (7001) + Frontend (9000) in one command
+make test       # Run pytest suite
+make type-check # Pyright type checking
+```
 
-♻️ Workflow Innegociable
-	•	Nunca dejar ⚙️ In Progress vacío.
-	1.	Si queda vacío → mover de inmediato la siguiente card prioritaria (P0>P1>P2).
-	2.	Registrar movimiento en bitácora.
+### Production Deployment
+```bash
+# Frontend (rebuild + deploy)
+cd apps/aurity && pnpm build
+python3 scripts/deploy-scp.py
 
-🧱 Arquitectura (App Mapping)
+# Backend (update + restart)
+python3 scripts/deploy-backend-cors-fix.py
 
+# Complete HTTPS deployment
+python3 scripts/setup-https-letsencrypt.py
+```
+
+---
+
+## 📂 Core Structure
+
+```
 free-intelligence/
-  🔧 backend/ (Python 3.11+, FastAPI port 7001)
-    API Routes (backend/api/*):
-      ├─ diarization.py     [POST /upload, GET /jobs/{id}, /result, /export, /soap, /restart]
-      ├─ transcribe.py      [Transcription endpoints]
-      ├─ triage.py          [Triage intake flow]
-      ├─ audit.py           [Audit logs API]
-      ├─ sessions.py        [Session mgmt]
-      ├─ timeline_verify.py [Timeline verification]
-      └─ kpis.py            [KPIs aggregation]
-    Core Services:
-      ├─ diarization_service.py      [Main diarization logic]
-      ├─ diarization_jobs.py         [Job state management]
-      ├─ diarization_worker_lowprio.py [Background worker + CPU scheduler]
-      ├─ diarization_service_v2.py   [Parallel optimization]
-      ├─ whisper_service.py          [Whisper model wrapper]
-      ├─ fi_consult_service.py       [LLM consultation + routing]
-      ├─ services/soap_generation_service.py [SOAP extraction]
-      └─ services/diarization_job_service.py [Job control (restart/cancel)]
-    Infrastructure:
-      ├─ llm_middleware.py           [Main app + LLM routing]
-      ├─ main.py                     [Entry point (uses llm_middleware)]
-      ├─ corpus_ops.py               [HDF5 append operations]
-      ├─ corpus_schema.py            [Schema definitions]
-      ├─ policy_enforcer.py          [Security policies]
-      ├─ logger.py & logger_structured.py
-      └─ config_loader.py
+├─ backend/                          # FastAPI (Python 3.11+)
+│  ├─ app/main.py                    # Entry point + CORS config
+│  ├─ api/public/workflows/          # PUBLIC endpoints
+│  ├─ api/internal/                  # INTERNAL endpoints (blocked)
+│  ├─ workers/sync_workers.py        # ThreadPoolExecutor workers
+│  └─ storage/task_repository.py     # HDF5 operations
+│
+├─ apps/aurity/                      # Next.js 16 (Static Export)
+│  ├─ .env.production                # NEXT_PUBLIC_BACKEND_URL
+│  ├─ next.config.static.js          # output: 'export'
+│  └─ out/                           # Built static files
+│
+├─ storage/
+│  └─ corpus.h5                      # HDF5 (append-only)
+│     └─ /sessions/{id}/tasks/{TASK_TYPE}/
+│        ├─ chunks/                  # Data chunks
+│        └─ metadata                 # Job metadata
+│
+└─ scripts/
+   ├─ deploy-scp.py                  # Deploy frontend via SCP
+   ├─ deploy-backend-cors-fix.py     # Deploy backend
+   ├─ setup-https-letsencrypt.py     # Setup SSL certificate
+   └─ deploy-https-complete.py       # Full deployment
+```
 
-  📁 storage/
-    ├─ corpus.h5              [Main corpus HDF5 (append-only)]
-    │   ├─ /interactions/     [LLM interactions]
-    │   ├─ /embeddings/       [Vector embeddings]
-    │   └─ /sessions/{session_id}/tasks/  [Task-based architecture (2025-11-14)]
-    ├─ diarization.h5         [DEPRECATED - migrated to corpus.h5]
-    └─ audio/                 [Session audio files]
+### HDF5 Task Types
+- **TRANSCRIPTION**: Whisper/Deepgram ASR (load-balanced)
+- **DIARIZATION**: Speaker classification (Azure GPT-4)
+- **SOAP_GENERATION**: Clinical notes extraction
+- **EMOTION_ANALYSIS**: Patient emotion detection
+- **ENCRYPTION**: AES-GCM-256 encryption
 
-  📦 HDF5 Task-Based Schema (Refactored 2025-11-14):
-    Philosophy:
-      - 1 Session = 1 consulta médica con catálogo único de tasks
-      - 1 Task Type máximo por session (no duplicados)
-      - Cada task contiene: chunks/ (data) + metadata (JSON)
+---
 
-    Structure:
-      /sessions/{session_id}/tasks/{TASK_TYPE}/
-        ├─ chunks/          [Task-specific data chunks]
-        │   └─ chunk_{idx}/ [Individual chunk with typed datasets]
-        └─ metadata         [Job execution metadata: status, progress, etc.]
+## 🔧 Configuration
 
-    Task Types (backend/models/task_type.py):
-      - TRANSCRIPTION    : Whisper ASR transcription
-      - DIARIZATION      : Speaker classification + text improvement
-      - SOAP_GENERATION  : Clinical notes extraction
-      - EMOTION_ANALYSIS : Patient emotion detection
-      - ENCRYPTION       : AES-GCM audio encryption
+### Environment Variables
+```bash
+# Backend
+ALLOWED_ORIGINS="http://localhost:9000,...,https://fi-aurity.duckdns.org"
+DEEPGRAM_API_KEY="..."  # STT service
 
-    TRANSCRIPTION Chunk Schema:
-      /sessions/{session_id}/tasks/TRANSCRIPTION/chunks/chunk_{idx}/
-        ├─ transcript       : utf-8 string (h5py.string_dtype)
-        ├─ audio_hash       : utf-8 string (SHA256)
-        ├─ duration         : float64 (seconds)
-        ├─ language         : utf-8 string (es, en)
-        ├─ timestamp_start  : float64 (seconds from start)
-        ├─ timestamp_end    : float64 (seconds from start)
-        ├─ confidence       : float64 (0-1, Whisper confidence)
-        ├─ audio_quality    : float64 (0-1, heuristic quality)
-        └─ created_at       : utf-8 string (ISO 8601)
+# Frontend (.env.production)
+NEXT_PUBLIC_BACKEND_URL=https://fi-aurity.duckdns.org
+NEXT_PUBLIC_API_BASE=https://fi-aurity.duckdns.org
+```
 
-    API:
-      - backend/storage/task_repository.py (NEW, production)
-      - backend/storage/session_chunks_schema.py (DEPRECATED, backward compat)
-      - backend/repositories/job_repository.py (DEPRECATED, backward compat)
+### Nginx Config (`/etc/nginx/sites-enabled/aurity`)
+```nginx
+server {
+    listen 443 ssl;
+    server_name fi-aurity.duckdns.org;
 
-    Migration:
-      - tools/migrate_jobs_to_tasks.py (58 sessions migrated ✅)
-      - Old schemas (jobs/, production/) still readable via compat layer
+    ssl_certificate /etc/letsencrypt/live/fi-aurity.duckdns.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/fi-aurity.duckdns.org/privkey.pem;
 
-  🎨 apps/aurity/ (Next.js/React port 9000)
-    ├─ pages/dashboard        [Main UI]
-    ├─ pages/triage           [Intake flow]
-    └─ components/            [Reusable React components]
+    root /opt/free-intelligence/apps/aurity/out;
 
-  🧪 tests/ & backend/tests/  [pytest test suite]
+    location /api/ {
+        proxy_pass http://localhost:7001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 
-  📜 scripts/
-    ├─ restart_diarization_job.py      [Manual job restart]
-    ├─ process_remaining_chunks.py     [Chunk completion]
-    └─ sprint-close.sh                 [Sprint utilities]
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
 
-Stack: FastAPI · h5py · structlog · Next.js/React · Tailwind · Ollama/Claude
+---
 
-✅ Estado Snapshot
-	•	Config, Logger, Esquema HDF5, Corpus Ops, Identity, Append‑only, Mutation/LLM policies, Audit/Export operativos (tests OK).
-	•	Bitácora activa (append‑only).
-	•	Timeline API (9002) implementada y testeada.
+## 🔒 Security & Performance
 
-🏷️ Convenciones
-	•	IDs: session_YYYYMMDD_HHMMSS, interaction_id=UUIDv4, model_id="claude-3-5-sonnet-20241022".
-	•	Trello: FI-[AREA]-[TYPE]-[NUM]: Título (prioridad por labels, no en título).
-	•	Commits: Conventional Commits + Task ID.
+### STT Load Balancing (2025-11-15)
+Round-robin between Azure Whisper (3 RPM) and Deepgram (unlimited)
+- **Performance**: 52s/chunk → 2.1s/chunk (25x faster)
+- **Cost**: Deepgram $0.0043/min, 50k free minutes/month
 
-🔐 Secrets
-	•	En variables de entorno; nunca en repo ni Trello.
-	•	config.yml referencia ${VAR} (sin valores directos).
+### HTTPS Requirements
+- Microphone access requires HTTPS (browser security policy)
+- getUserMedia API blocked over HTTP (except localhost)
+- WebSpeech API requires secure context
 
-✅ Definition of Done (DoD)
-	•	AC cumplidos · tests básicos OK · logs/instrumentación · artefacto ejecutable verificado · commit con Task ID.
-	•	Verificación: python3 tools/verify_artifact.py.
+### Data Sovereignty
+- HDF5 append-only (no mutations)
+- All PHI encrypted with AES-GCM-256
+- LAN-only backend (no cloud dependencies)
 
-🗓️ Sprints
-	•	4 sprints × 4 días (16 días).
-	•	Labels: Sprint (S1–S4) + Prioridad (P0/P1/P2) + Área.
+---
 
-🧰 Comandos Esenciales
+## 📝 Recent Changes
 
-# 🚀 ARRANCAR SERVICIOS (DevOps-Optimized)
-make dev-all                   # Un solo comando → Backend + Frontend
-                               # Backend: http://localhost:7001
-                               # Frontend: http://localhost:9000
-                               # Auto-reload · Ctrl+C detiene todo
+**2025-11-17**: Production HTTPS deployment complete
+- DuckDNS domain: fi-aurity.duckdns.org
+- Let's Encrypt SSL certificate (auto-renewal)
+- Nginx reverse proxy for API
+- CORS configured for production origin
 
-# 📋 MODO MANUAL (terminales separadas)
-make run                       # Terminal 1: Backend API (puerto 7001)
-pnpm dev                       # Terminal 2: Frontend (puerto 9000)
+**2025-11-15**: Docker/Redis/Celery removed
+- ThreadPoolExecutor replaces Celery queue
+- No Docker overhead, simpler dev environment
+- HDF5-backed status tracking (no Redis)
+- `make dev-all` runs everything locally
 
-# 🧪 TESTING
-make test                      # pytest backend/tests
-pnpm test                      # tests frontend
+**2025-11-15**: STT Load Balancer
+- Intelligent round-robin (Azure Whisper ↔ Deepgram)
+- 25x faster transcription
+- Auto-detection of available providers
 
-# 🔍 TYPE CHECKING (Pylance/Pyright CLI)
-make type-check                # Quick check (2 sec) - Pyright solo
-make type-check-all            # Completo (15 sec) - Pyright + Mypy + Ruff
-make type-check-batch          # Export JSON + batch report
-make type-check-export         # Export para Claude Code batch fixing
+**2025-11-14**: HDF5 Task-Based Architecture
+- Migrated from jobs/ to tasks/{TASK_TYPE}/
+- 58 sessions migrated successfully
+- Cleaner schema, better scalability
 
-# 🏗️ BUILD & DEPLOY
-pnpm build                     # Build producción (Turborepo)
-pm2 start ecosystem.config.js  # Deploy NAS (PM2)
+---
 
-# 🖥️ NAS DEPLOYMENT (DS923+)
-./scripts/validate-nas-deployment.sh  # Validate artifacts (7 checks)
-./scripts/deploy-ds923.sh             # Automated deploy: Ollama + ASR worker
-docker compose -f docker-compose.ollama.yml up -d  # Ollama only
-docker compose -f docker-compose.asr.yml up -d     # ASR worker only
+## 🧰 Essential Commands
 
-# 🚀 CI/CD PIPELINE (GitHub Actions + DigitalOcean)
+```bash
+# Development
+make dev-all                # Start everything (recommended)
+make run                    # Backend only
+pnpm dev                    # Frontend only (from apps/aurity)
 
-## Production Deployment
-SERVER_IP=104.131.175.65
-SSH_KEY=~/.ssh/id_ed25519_do
+# Testing
+make test                   # Backend tests
+pnpm test                   # Frontend tests
+make type-check             # Quick type check (2s)
+make type-check-all         # Complete check (15s)
 
-# Manual deploy via SSH
-ssh -i $SSH_KEY root@$SERVER_IP "cd /opt/free-intelligence && git pull && systemctl restart fi-backend"
+# Production
+pnpm build                  # Build static frontend
+python3 scripts/deploy-https-complete.py  # Full deployment
 
-# Deploy with Paramiko (Python automation)
-python3 deploy/paramiko_deploy.py
+# Trello CLI v2.2.0
+trello quick-start <card_id>   # Move to In Progress
+trello quick-test <card_id>    # Move to Testing
+trello quick-done <card_id>    # Move to Done
+```
 
-## 🐍 PARAMIKO AUTOMATION FOR DIGITALOCEAN
+---
 
-# Quick connect and execute commands
-python3 << 'EOF'
-import paramiko
-client = paramiko.SSHClient()
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-client.connect('104.131.175.65', username='root', password='FreeIntel2024DO!', look_for_keys=False)
+## 🪦 Deprecated (Archived)
 
-# Check server status
-stdin, stdout, stderr = client.exec_command('docker ps')
-print(stdout.read().decode())
+**Docker/Celery/Redis** (removed 2025-11-15)
+- Location: `docs/archive/deprecated-docker-redis/`
+- Replaced by: ThreadPoolExecutor + HDF5 status tracking
+- Files: `backend/workers/transcription_tasks.py`, `diarization_tasks.py` (marked deprecated)
 
-# Start backend if not running
-stdin, stdout, stderr = client.exec_command('''
-if ! docker ps | grep -q fi-backend; then
-    cd /opt/free-intelligence
-    docker run -d --name fi-backend -p 7001:7001 --env-file .env fi-backend:latest || \
-    docker run -d --name fi-backend -p 7001:7001 fi-backend:latest
-fi
-curl -s http://localhost:7001/api/health || echo "Starting..."
-''')
-print(stdout.read().decode())
-client.close()
-EOF
+**Old HDF5 Schema** (migrated 2025-11-14)
+- `/jobs/`, `/production/` → `/sessions/{id}/tasks/{TASK_TYPE}/`
+- Backward compatibility maintained via wrapper layer
 
-# Common Paramiko operations for DigitalOcean
-# 1. Check Docker images: client.exec_command('docker images')
-# 2. View logs: client.exec_command('docker logs fi-backend --tail 50')
-# 3. Restart: client.exec_command('docker restart fi-backend')
-# 4. Stop: client.exec_command('docker stop fi-backend && docker rm fi-backend')
-# 5. Build: client.exec_command('cd /opt/free-intelligence && docker build -t fi-backend .')
+---
 
-## 📝 TROUBLESHOOTING DIGITALOCEAN
+## 🎯 Communication Guidelines
 
-# If server returns 404 on root but is accessible:
-# - Normal behavior if no root handler defined
-# - Check specific endpoints: /api/health, /api/*, /docs
+- **NO_MD=1**: No markdown files > 150 lines (except README.md, CLAUDE.md)
+- Respond in chat: technical bullets (10-15 lines), no fluff
+- Create files only for permanent documentation → executable artifacts
+- Style: precise, cite paths/commits when applicable
 
-# If ModuleNotFoundError: No module named 'packages':
-# - Copy missing packages folder to Docker image
-# - Update Dockerfile: COPY packages/ ./packages/
-# - Or install as pip package
+---
 
-# Test connectivity:
-curl -v http://104.131.175.65:7001/       # Should connect (may return 404)
-curl http://104.131.175.65:7001/docs      # FastAPI docs (if enabled)
-curl http://104.131.175.65:7001/api/health # Health endpoint
+## 🏷️ Conventions
 
-# Server is RUNNING when:
-# - curl connects successfully (even if 404)
-# - docker ps shows container UP
-# - Uvicorn logs show "running on http://0.0.0.0:7001"
+- **Session IDs**: `session_YYYYMMDD_HHMMSS`
+- **Commits**: Conventional Commits + Task ID
+- **Trello**: `FI-[AREA]-[TYPE]-[NUM]: Title` (priority via labels)
 
-# DigitalOcean Infrastructure
-pulumi up --stack dev                 # Deploy infrastructure
-pulumi destroy --stack dev             # Teardown (careful!)
-pulumi stack output                    # View outputs (IPs, URLs)
+---
 
-## GitHub Actions Workflow (.github/workflows/deploy.yml)
-# Triggers on: push to main, PR merge
-# Steps: Test → Build → Deploy to DigitalOcean
-# Secrets needed: DIGITALOCEAN_TOKEN, SSH_PRIVATE_KEY
-
-## Docker Build Optimization
-docker build -t fi-backend:latest .                     # Build locally
-docker tag fi-backend:latest registry.digitalocean.com/fi-registry/backend:latest
-docker push registry.digitalocean.com/fi-registry/backend:latest
-
-## Monitoring & Health
-curl http://104.131.175.65:7001/api/health             # Health check
-ssh root@$SERVER_IP "docker logs fi-backend --tail 50" # View logs
-ssh root@$SERVER_IP "docker stats --no-stream"        # Resource usage
-
-# 📋 TRELLO CLI v2.2.0 - WITH CLAUDE AI ANALYSIS ⭐
-BOARD_ID=68fbfeeb7f8614df2eb61e42
-
-## Discovery Commands (START HERE)
-trello help-json                        # All commands in JSON
-trello board-overview $BOARD_ID         # Complete board structure
-trello board-ids $BOARD_ID              # Quick ID reference
-trello search-cards $BOARD_ID "query"   # Search across board
-
-## CARD MOVEMENTS WITH INTELLIGENT ANALYSIS (NEW IN v2.2)
-trello move-card <card_id> <list_id>    # Move card (includes Claude AI context)
-trello quick-start <card_id>            # Start work (auto-finds In Progress + analysis)
-trello quick-test <card_id>             # Move to Testing (auto-finds Testing + analysis)
-trello quick-done <card_id>             # Move to Done (auto-finds Done + analysis)
-
-## WORKFLOW: Each movement includes Claude AI analysis
-# Example:
-trello quick-start FI-STRIDE-SESION-04
-# Output:
-# ✅ Card moved to '⚙️ In Progress'
-# 💡 CLAUDE AI ANALYSIS: [Contextual intelligence about the work]
-
-🔬 Type Checking Automation (Pylance/Pyright)
-	•	CLI Tool: python3 tools/detect_type_errors.py backend/ (auto-detección)
-	•	Baseline: 821 errors + 57 warnings, 57 files (mostly h5py + attribute access issues)
-	•	Top Issues: reportAttributeAccessIssue (362), reportIndexIssue (253), reportArgumentType (155)
-	•	Top Files: audit_logs.py (152), fi_exporter.py (136), search.py (105), corpus_ops.py (102)
-	•	Strategy: Pyright (2 sec) → Export JSON → Batch fix con Claude Code
-	•	Config: pyrightconfig.json (standard mode, strict type checking)
-	•	Docs: docs/TYPE_CHECKING_QUICKSTART.md (profesional workflow)
-	•	Commands: make type-check (quick) | make type-check-all (15s) | make type-check-export (JSON)
-	•	Next: Remediate critical errors (reportArgumentType, reportAssignmentType) → CI/CD enforcement
-
-🔗 Referencias Rápidas
-	•	Backend: backend/*
-	•	Corpus HDF5: storage/corpus.h5
-	•	Policies: config/*.yaml (ejecutables)
-	•	Observability: observability/*
-	•	Evaluation: eval/ (prompts.csv, run_eval.py, Makefile)
-	•	Archive: docs/archive/ (MDs > 150 líneas)
-	•	Type Checking: tools/detect_type_errors.py, docs/TYPE_CHECKING_QUICKSTART.md
-
-⸻
-
-🪦 DEPRECATED & ARCHIVED (2025-11-15 - Avada Kedabra al Docker/Redis)
-
-	ARQUITECTURA VIEJA (ELIMINADA):
-	├─ ❌ Docker Celery Queue + Redis Broker
-	├─ ❌ docker/Dockerfile.backend, Dockerfile.celery
-	├─ ❌ docker/docker-compose.full.yml
-	├─ ❌ backend/workers/celery_app.py, backend/app/celery.py
-	├─ ❌ @celery_app.task decorators en transcription_tasks.py, diarization_tasks.py
-	└─ ❌ Flower monitoring (5555)
-
-	NUEVA ARQUITECTURA (ACTIVA):
-	├─ ✅ ThreadPoolExecutor (4 workers para transcripción, 2 para diarización)
-	├─ ✅ backend/workers/sync_workers.py (funciones sincrónicas)
-	├─ ✅ HDF5-backed status tracking (sin Redis)
-	├─ ✅ Same API response (202 Accepted + polling)
-	├─ ✅ make dev-all → Backend LOCAL + Frontend LOCAL
-	└─ ✅ Sin Docker, sin Redis, sin overhead IPC
-
-	DÓNDE ENCONTRAR CÓDIGO VIEJO:
-	├─ 📦 docs/archive/deprecated-docker-redis/
-	│  ├─ Dockerfile.backend, Dockerfile.celery
-	│  ├─ docker-compose.full.yml, docker-compose.celery.yml, docker-compose.demo.yml
-	│  ├─ celery_app.py, app/celery.py
-	│  └─ (para referencia histórica solamente)
-	├─ 📝 backend/workers/transcription_tasks.py (deprecated pero en lugar, marked ⚠️)
-	├─ 📝 backend/workers/diarization_tasks.py (deprecated pero en lugar, marked ⚠️)
-	└─ ✅ backend/workers/sync_workers.py (NUEVO - usa ThreadPoolExecutor)
-
-	POR QUÉ EL CAMBIO:
-	├─ ✨ Complejidad: 5 procesos Docker → 2 procesos locales
-	├─ ✨ Dev mode: make dev-all (todo en un comando)
-	├─ ✨ Debugging: Logs en un solo lugar
-	├─ ✨ Performance: Sin overhead de IPC (Redis/Celery)
-	├─ ✨ Cost: Sin Docker maintenance
-	└─ ✨ MVP ready: Tuesday demo (demo-ready)
-
-⸻
-
-📝 Bitácora (highlights, append‑only)
-	•	Avada Kedabra: Docker/Redis Exorcism (2025-11-15) ✅: Removed Celery + Redis completely from architecture. Archived 8 Dockerfiles/docker-compose files to docs/archive/deprecated-docker-redis/. Created ThreadPoolExecutor-based sync_workers.py (4 transcription workers, 2 diarization workers). Updated dev-all.sh to run Backend + Frontend locally (no Docker). Same 202 Accepted + polling API, but now simpler, faster, and demo-ready. Marked transcription_tasks.py and diarization_tasks.py as deprecated but kept for reference. Tuesday demo: `make dev-all` - that's it.
-	•	Deepgram STT Integration (2025-11-15) ✅: Replaced Whisper offline with cloud-based Deepgram API for instant transcription (1-2s vs 10-30s). Created backend/services/deepgram_service.py (async API client), backend/workers/deepgram_transcription_task.py (Celery task), added aiohttp to requirements.txt. Updated TranscriptionService to dispatch deepgram_transcribe_chunk instead of transcribe_chunk_task. Benefits: no GPU needed, $0.0043/min, 50k free minutes/month. Setup: export DEEPGRAM_API_KEY=... (get from console.deepgram.com). See DEEPGRAM_SETUP.md for full configuration.
-	•	Python 3.9 Type Annotation Fix (2025-11-15) ✅: Fixed 29 files with Python 3.10+ union syntax (float | None) incompatible with Python 3.9. All files already had from __future__ import annotations, but FastAPI was evaluating types at route registration. Converted all | unions to Optional[]/Union[] syntax. Backend now loads without TypeError.
-	•	Chunk Polling Root Cause Analysis (2025-11-15) ✅: Identified why polling stayed "pending": Celery worker received tasks but never executed them (received ✅ but no "started" log). Audio was stored in HDF5 correctly, but worker wasn't processing. Root cause: Whisper worker had issues; migrated to Deepgram instead.
-	•	Tailwind/PostCSS Monorepo Fix (2025-11-04) ✅: Fixed "Unexpected character '@' en globals.css" error in apps/aurity (Next 14, Turborepo/pnpm). Created tailwind.config.ts (content paths, darkMode), updated globals.css to contain only @tailwind directives, removed duplicate tailwind.css import from layout.tsx, added postcss.config.js en root for workspace compatibility. Rule: Each app in monorepo must have local postcss.config.js + tailwind.config.ts; shared packages export pre-compiled CSS (no @tailwind directives).
-	•	Diarization Job Restoration (2025-11-05) ✅: Cancelled job f2667c96-105b-42c7-b385-2e20417a7fff restarted from chunk 24 (85%→100%), SOAP generated, both scripts created (restart_diarization_job.py, process_remaining_chunks.py). Fixed corpus_ops.py syntax errors (paréntesis faltantes), registered diarization router in llm_middleware.
-	•	DevOps Strategy Complete ✅: make dev-all (script unificado), PM2 NAS deployment, DEVOPS_STRATEGY.md creado.
-	•	Policy Integration + Dashboard KPIs ✅: enforcement end‑to‑end; KPIs UI y API listas.
-	•	LOCK‑DONE: cards requieren evidencia QA + verify_artifact; rollback automático si falta.
-	•	NO_MD activada: MDs >150 líneas a docs/archive/; artefactos ejecutables creados.
-	•	Sessions API + CORS ✅: backend 7001; .env.local apunta a 7001.
-	•	Triage API ✅: /api/triage/intake + manifest + audit.
-	•	Timeline API Integration (UI) ✅: timeout/retry/cache; p95 < 300ms.
-	•	Interaction Viewer ✅: split view, export JSON/MD, toggle "no spoilers".
-	•	Security Fix Pack v1 ✅: egress allowlist exacto, DI para PolicyEnforcer, tests de bypass.
-	•	KPIs API ✅: agregador in‑memory, p95 2ms, chips/timeseries.
-	•	NAS Deploy (Turborepo + PM2): scripts/productión sin cloud.
-	•	NAS DS923+ Deployment Stack ✅: Ollama (11434) + ASR worker (faster-whisper INT8), scripts automatizados, validation 7/7.
-	•	Type Checking Automation ✅: pyright CLI integration, tools/detect_type_errors.py, make type-check* commands, JSON export para batch fixing con Claude Code (821 errors baseline → remediation plan ready).
-	•	Python 3.9 Compatibility + Datetime Fix ✅: from __future__ imports (82 files), datetime.utcnow() → datetime.now(timezone.utc) (22 files), h5py type ignore (13 files).
-	•	Chunk Transcription Layering (AUR-PROMPT-4.2) ✅: PUBLIC → INTERNAL → WORKER arquitectura implementada. PUBLIC /consult/stream (pure orchestrator, NO Services), INTERNAL /transcribe/chunks (job creation + 202), Worker transcribe_chunk_task (ffmpeg + ASR + HDF5 append). HDF5 schema /sessions/{session_id}/chunks/chunk_{idx} con typed dtypes (NO object). Tests: backend/tests/test_chunk_layering.py. Docs: CLAUDE.md actualizado.
-	•	HDF5 Task-Based Architecture Refactor (2025-11-14) ✅: Migración completa de jobs/+production/ a tasks/{TASK_TYPE}/. Filosofía: 1 Session = 1 consulta médica con catálogo único de tasks (max 1 por tipo). Created backend/models/task_type.py (TaskType enum), backend/storage/task_repository.py (500+ líneas, 8 funciones), tools/migrate_jobs_to_tasks.py. Deprecated job_repository.py + session_chunks_schema.py (wrappers con backward compat). Updated workers: transcription_tasks.py, diarization_tasks.py. Migration: 58 sessions, 37 migrated, 0 errors. Tests: backend/tests/test_task_repository.py (13 tests, 100% pass). UTC fix: 23+ files (datetime.now(timezone.utc)). Schema: /sessions/{id}/tasks/TRANSCRIPTION|DIARIZATION|SOAP_GENERATION|EMOTION_ANALYSIS|ENCRYPTION. Docs: CLAUDE.md actualizado con nueva estructura.
-	•	STT Load Balancing (2025-11-15) ✅: Intelligent round-robin load balancer to avoid Azure Whisper rate limits (3 RPM). Created backend/utils/stt_load_balancer.py (singleton balancer with auto-detection of available providers). Strategy: chunk_number % num_providers → Chunk 0→Azure, 1→Deepgram, 2→Azure, 3→Deepgram. Performance improvement: 52s/chunk → 2.1s/chunk avg (12.6x faster). Updated TranscriptionService to use balancer, worker to track provider in HDF5. Files: stt_load_balancer.py, test_stt_load_balancer.py, docs/STT_LOAD_BALANCING.md. Features: thread-safe, deterministic routing, fallback support, provider tracking in HDF5 metadata.
-
-Nota: Este kernel es guía operativa mínima; las bitácoras y reportes viven en la conversación salvo docs permanentes.
+Stack: **FastAPI** · **h5py** · **structlog** · **Next.js 16** · **Tailwind** · **Deepgram** · **Azure Whisper**
