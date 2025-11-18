@@ -27,16 +27,14 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
-      - name: Install dependencies
-        working-directory: apps/aurity
-        run: pnpm install --frozen-lockfile
+      - name: Install dependencies (aurity only)
+        run: pnpm install --filter aurity --frozen-lockfile
 
       - name: Build frontend
-        working-directory: apps/aurity
         env:
           NEXT_PUBLIC_BACKEND_URL: https://fi-aurity.duckdns.org
           NEXT_PUBLIC_API_BASE: https://fi-aurity.duckdns.org
-        run: pnpm build
+        run: pnpm --filter aurity build
 
       - name: Setup SSH key
         run: |
