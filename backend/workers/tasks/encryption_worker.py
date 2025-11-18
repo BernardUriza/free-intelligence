@@ -58,12 +58,16 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 # Import structlog logger for consistent logging
 try:
     from backend.logger import get_logger
+    from backend.models.task_type import TaskStatus, TaskType
+    from backend.storage.task_repository import update_task_metadata
+    HAS_BACKEND_IMPORTS = True
 except ImportError:
     # Fallback for CLI execution outside backend context
     import logging
     logging.basicConfig(level=logging.INFO)
     def get_logger(name: str):
         return logging.getLogger(name)
+    HAS_BACKEND_IMPORTS = False
 
 # ═══════════════════════════════════════════════════════════════════
 # Configuration & Constants
@@ -706,6 +710,21 @@ def encrypt_session_worker(
             },
         )
 
+        # Update task metadata: IN_PROGRESS
+        if HAS_BACKEND_IMPORTS:
+            try:
+                update_task_metadata(
+                    session_id,
+                    TaskType.ENCRYPTION,
+                    {
+                        "status": TaskStatus.IN_PROGRESS,
+                        "progress_percent": 10,
+                        "started_at": datetime.now(UTC).isoformat(),
+                    },
+                )
+            except Exception:
+                pass  # Don't fail encryption if metadata update fails
+
         # Verify H5 file exists
         if not Path(h5_path).exists():
             raise FileNotFoundError(f"HDF5 file not found: {h5_path}")
@@ -802,6 +821,25 @@ def encrypt_session_worker(
             },
         )
 
+        # Update task metadata: COMPLETED
+        if HAS_BACKEND_IMPORTS:
+            try:
+                update_task_metadata(
+                    session_id,
+                    TaskType.ENCRYPTION,
+                    {
+                        "status": TaskStatus.COMPLETED,
+                        "progress_percent": 100,
+                        "completed_at": datetime.now(UTC).isoformat(),
+                        "encrypted_paths": result["encrypted_paths"],
+                        "total_bytes": result["total_bytes"],
+                        "dek_id": dek_id,
+                        "duration_seconds": round(duration, 3),
+                    },
+                )
+            except Exception:
+                pass  # Don't fail encryption if metadata update fails
+
         return WorkerResult(
             session_id=session_id,
             status="SUCCESS",
@@ -827,6 +865,24 @@ def encrypt_session_worker(
             },
             exc_info=True,
         )
+
+        # Update task metadata: FAILED
+        if HAS_BACKEND_IMPORTS:
+            try:
+                update_task_metadata(
+                    session_id,
+                    TaskType.ENCRYPTION,
+                    {
+                        "status": TaskStatus.FAILED,
+                        "progress_percent": 0,
+                        "failed_at": datetime.now(UTC).isoformat(),
+                        "error": error_msg,
+                        "duration_seconds": round(duration, 3),
+                    },
+                )
+            except Exception:
+                pass  # Don't fail if metadata update fails
+
         return WorkerResult(
             session_id=session_id,
             status="FAILED",

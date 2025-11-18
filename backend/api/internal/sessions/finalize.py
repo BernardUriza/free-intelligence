@@ -438,7 +438,8 @@ async def finalize_session(
         # 4. Enqueue encryption worker asynchronously (NON-BLOCKING)
         # Fire-and-forget pattern: session returns 202 immediately
         # Encryption executes in background ThreadPoolExecutor
-        h5_path = str(Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5")
+        from backend.storage.task_repository import CORPUS_PATH
+        h5_path = str(CORPUS_PATH)
 
         # Get idempotency key from ENCRYPTION task
         encryption_task_id = f"encrypt:{session_id}"
