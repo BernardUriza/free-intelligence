@@ -1,35 +1,17 @@
 """
-⚠️ DEPRECATED - DO NOT USE ⚠️
+Free-Intelligence Assistant Workflow - AURITY
 
-This file violates AURITY architecture principles.
+Conversational endpoints for Free-Intelligence AI persona.
 
-PROBLEM:
-- Endpoint exposed at /api/assistant/* (wrong - no app specification)
-- Should be under /api/workflows/aurity/assistant/* to be AURITY-specific
+Architecture:
+  PUBLIC (this file) → InternalLLMClient → /internal/llm/* → PersonaManager → llm_generate
 
-CORRECT LOCATION:
-- File: backend/api/public/workflows/assistant.py
-- Endpoint: /api/workflows/aurity/assistant/introduction
-- Endpoint: /api/workflows/aurity/assistant/chat
+Endpoints:
+- POST /workflows/aurity/assistant/introduction - Onboarding presentation
+- POST /workflows/aurity/assistant/chat - General conversation
 
-MIGRATION:
-- All assistant endpoints moved to workflows/assistant.py
-- This file kept for reference only
-- Will be deleted after confirming frontend migration
-
+Author: Bernard Uriza Orozco
 Created: 2025-11-18
-Deprecated: 2025-11-18 (same day - architectural violation)
-Replacement: backend/api/public/workflows/assistant.py
-
---- ORIGINAL DOCSTRING ---
-Free-Intelligence Assistant API - Public Endpoints
-
-Endpoints conversacionales para Free-Intelligence, la IA residente del sistema.
-
-Characteristics:
-- Obsessive with clinical details
-- Sharp empathy (direct, no corporate fluff)
-- Focused on data sovereignty (physician owns the data)
 """
 
 from typing import Optional
@@ -41,7 +23,7 @@ from backend.clients import get_llm_client
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
-router = APIRouter(tags=["assistant"])
+router = APIRouter()
 
 
 # ============================================================================
@@ -66,8 +48,27 @@ class IntroductionResponse(BaseModel):
         default="onboarding_guide",
         description="Persona used for this response",
     )
-    tokens_used: int = Field(default=0, description="Tokens consumed in this interaction")
+    tokens_used: int = Field(
+        default=0, description="Tokens consumed in this interaction"
+    )
     latency_ms: int = Field(default=0, description="Response latency in milliseconds")
+
+
+class ChatRequest(BaseModel):
+    """General chat request."""
+
+    message: str = Field(..., description="User's message")
+    context: Optional[dict] = Field(None, description="Optional context")
+    session_id: Optional[str] = Field(None, description="Session ID for audit trail")
+
+
+class ChatResponse(BaseModel):
+    """Chat response."""
+
+    message: str = Field(..., description="Free-Intelligence's response")
+    persona: str = Field(default="general_assistant")
+    tokens_used: int = Field(default=0)
+    latency_ms: int = Field(default=0)
 
 
 # ============================================================================
@@ -170,21 +171,15 @@ async def get_introduction(request: IntroductionRequest) -> IntroductionResponse
         ) from e
 
 
-@router.post("/assistant/chat")
-async def chat_with_assistant(
-    message: str,
-    context: Optional[dict] = None,
-    session_id: Optional[str] = None,
-):
+@router.post("/assistant/chat", response_model=ChatResponse)
+async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
     """General chat endpoint for Free-Intelligence conversations.
 
     This is a general-purpose endpoint for conversational interactions
     with Free-Intelligence outside of specific workflows.
 
     Args:
-        message: User's message
-        context: Optional context dict
-        session_id: Optional session ID for audit trail
+        request: Message and optional context
 
     Returns:
         Free-Intelligence's response
@@ -195,35 +190,40 @@ async def chat_with_assistant(
     try:
         logger.info(
             "ASSISTANT_CHAT_START",
-            message_length=len(message),
-            has_context=context is not None,
-            session_id=session_id,
+            message_length=len(request.message),
+            has_context=request.context is not None,
+            session_id=request.session_id,
         )
 
         llm_client = get_llm_client()
 
         result = await llm_client.chat(
             persona="general_assistant",
-            message=message,
-            context=context,
-            session_id=session_id,
+            message=request.message,
+            context=request.context,
+            session_id=request.session_id,
         )
 
         logger.info(
             "ASSISTANT_CHAT_SUCCESS",
             tokens=result.get("tokens_used", 0),
             latency=result.get("latency_ms", 0),
-            session_id=session_id,
+            session_id=request.session_id,
         )
 
-        return result
+        return ChatResponse(
+            message=result["response"],
+            persona=result["persona"],
+            tokens_used=result.get("tokens_used", 0),
+            latency_ms=result.get("latency_ms", 0),
+        )
 
     except Exception as e:
         logger.error(
             "ASSISTANT_CHAT_FAILED",
             error=str(e),
             error_type=type(e).__name__,
-            session_id=session_id,
+            session_id=request.session_id,
             exc_info=True,
         )
         raise HTTPException(

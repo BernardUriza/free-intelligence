@@ -18,6 +18,7 @@ Refactored: 2025-11-15 (SOLIS modular architecture)
 from __future__ import annotations
 
 from backend.api.public.workflows import (
+    assistant,
     evidence,
     kpis,
     orders,
@@ -37,4 +38,5 @@ __all__ = [
     "timeline",
     "evidence",
     "kpis",
+    "assistant",
 ]
