@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Health Trivia Questions Configuration",
+  "description": "Configurable trivia questions for waiting room TV display",
+  "version": "1.0.0",
+  "questions": [
+    {
+      "id": "hydration-001",
+      "question": "¿Cuántos vasos de agua se recomienda beber al día para un adulto promedio?",
+      "options": [
+        "4-5 vasos",
+        "6-7 vasos",
+        "8-10 vasos",
+        "12-15 vasos"
+      ],
+      "correct": 2,
+      "explanation": "Se recomienda beber entre 8 y 10 vasos de agua al día (aproximadamente 2 litros) para mantener una hidratación adecuada.",
+      "difficulty": "easy",
+      "category": "hydration",
+      "tags": ["agua", "hidratación", "nutrición"]
+    },
+    {
+      "id": "exercise-001",
+      "question": "¿Cuántos minutos de ejercicio moderado se recomiendan por semana para adultos?",
+      "options": [
+        "30 minutos",
+        "75 minutos",
+        "150 minutos",
+        "300 minutos"
+      ],
+      "correct": 2,
+      "explanation": "La OMS recomienda al menos 150 minutos de actividad física aeróbica moderada por semana para adultos.",
+      "difficulty": "medium",
+      "category": "exercise",
+      "tags": ["ejercicio", "actividad física", "OMS"]
+    },
+    {
+      "id": "sleep-001",
+      "question": "¿Cuántas horas de sueño necesita un adulto saludable por noche?",
+      "options": [
+        "4-5 horas",
+        "6-7 horas",
+        "7-9 horas",
+        "10-12 horas"
+      ],
+      "correct": 2,
+      "explanation": "Los adultos necesitan entre 7 y 9 horas de sueño por noche para una salud óptima, según la National Sleep Foundation.",
+      "difficulty": "easy",
+      "category": "sleep",
+      "tags": ["sueño", "descanso", "salud mental"]
+    },
+    {
+      "id": "handwashing-001",
+      "question": "¿Cuánto tiempo mínimo debes lavarte las manos para eliminar gérmenes efectivamente?",
+      "options": [
+        "5 segundos",
+        "10 segundos",
+        "20 segundos",
+        "60 segundos"
+      ],
+      "correct": 2,
+      "explanation": "Lavarse las manos durante al menos 20 segundos con agua y jabón es crucial para eliminar gérmenes de manera efectiva.",
+      "difficulty": "easy",
+      "category": "hygiene",
+      "tags": ["higiene", "prevención", "gérmenes"]
+    },
+    {
+      "id": "fruits-001",
+      "question": "¿Cuántas porciones de frutas y verduras se recomiendan consumir al día?",
+      "options": [
+        "1-2 porciones",
+        "3-4 porciones",
+        "5 o más porciones",
+        "No hay recomendación específica"
+      ],
+      "correct": 2,
+      "explanation": "Se recomienda consumir al menos 5 porciones de frutas y verduras al día para obtener vitaminas, minerales y fibra esenciales.",
+      "difficulty": "medium",
+      "category": "nutrition",
+      "tags": ["nutrición", "frutas", "verduras"]
+    }
+  ]
+}

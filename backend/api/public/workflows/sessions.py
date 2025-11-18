@@ -63,12 +63,21 @@ class FinalizeSessionRequest(BaseModel):
 
 
 class FinalizeSessionResponse(BaseModel):
-    """Response for session finalization."""
+    """Response for session finalization (202 Accepted).
+
+    Returns immediately with encryption queued asynchronously.
+    """
 
     session_id: str = Field(..., description="Session identifier")
-    status: str = Field(..., description="finalized")
-    encrypted_at: str = Field(..., description="ISO timestamp")
-    diarization_job_id: str = Field(..., description="Celery task ID for diarization")
+    status: str = Field(..., description="ACCEPTED (session finalized, encryption queued)")
+    finalized_at: str = Field(..., description="ISO timestamp of finalization")
+    encryption_status: str = Field(..., description="PENDING | QUEUED | ENQUEUE_FAILED")
+    encryption_task_id: str | None = Field(
+        None, description="ENCRYPTION task idempotency key (for tracking)"
+    )
+    diarization_job_id: str | None = Field(
+        None, description="Deprecated - use /diarization endpoint instead"
+    )
     message: str = Field(..., description="Human-readable message")
 
 
