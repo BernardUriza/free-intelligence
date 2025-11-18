@@ -82,8 +82,16 @@ GCM_TAG_SIZE_BYTES: Final[int] = 16  # 128 bits authentication tag
 CRYPTO_SCHEMA_VERSION: Final[str] = "v1"
 CRYPTO_BASE_PATH: Final[str] = f"/crypto/{CRYPTO_SCHEMA_VERSION}"
 
-# Default encryption targets (datasets to encrypt)
-DEFAULT_TARGETS: Final[list[str]] = [
+# Default encryption targets (template patterns for task-based schema)
+# These will be formatted with session_id at runtime
+DEFAULT_TARGET_PATTERNS: Final[list[str]] = [
+    # Task-based schema (NEW - since 2025-11-14)
+    "/sessions/{session_id}/tasks/TRANSCRIPTION/full_audio.webm",
+    "/sessions/{session_id}/tasks/TRANSCRIPTION/webspeech_final",
+    "/sessions/{session_id}/tasks/TRANSCRIPTION/full_transcription",
+    "/sessions/{session_id}/tasks/DIARIZATION/segments",
+    "/sessions/{session_id}/tasks/SOAP_GENERATION/soap_note",
+    # Legacy schema (OLD - kept for backward compatibility)
     "/audio/full_audio",
     "/audio/raw",
     "/transcriptions",
@@ -552,7 +560,7 @@ def encrypt_session_hdf5(
         h5_path: Path to HDF5 file
         aesgcm: AESGCM cipher instance with DEK
         dek_id: DEK identifier
-        targets: List of dataset paths to encrypt (default: DEFAULT_TARGETS)
+        targets: List of dataset paths to encrypt (default: formatted DEFAULT_TARGET_PATTERNS)
 
     Returns:
         Dictionary with:
@@ -569,7 +577,11 @@ def encrypt_session_hdf5(
         - AAD binding: "{session_id}:{path}"
         - SHA-256 checksum for integrity verification
     """
-    targets = targets or DEFAULT_TARGETS
+    # Note: targets should already be formatted by caller (encrypt_session_worker)
+    # If called directly, will use absolute paths as-is
+    if targets is None:
+        targets = []
+
     manifest: list[EncryptionManifestEntry] = []
     total_bytes = 0
 
@@ -701,12 +713,16 @@ def encrypt_session_worker(
     error_msg: str | None = None
 
     try:
+        # Format target patterns with session_id (for task-based schema)
+        if targets is None:
+            targets = [pattern.format(session_id=session_id) for pattern in DEFAULT_TARGET_PATTERNS]
+
         logger.info(
             "encryption_start",
             extra={
                 "session_id": session_id,
                 "h5_path": h5_path,
-                "targets_count": len(targets) if targets else len(DEFAULT_TARGETS),
+                "targets_count": len(targets),
             },
         )
 
