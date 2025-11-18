@@ -134,6 +134,9 @@ async def get_introduction(request: IntroductionRequest) -> IntroductionResponse
                 "and how you help with clinical documentation while respecting data sovereignty."
             )
 
+        # Extract doctor_id from context (Auth0 user.sub) if available
+        doctor_id = context.get("doctor_id") if context else None
+
         # Call internal LLM endpoint via HTTP client
         llm_client = get_llm_client()
 
@@ -142,6 +145,8 @@ async def get_introduction(request: IntroductionRequest) -> IntroductionResponse
             message=message,
             context=context if context else None,
             session_id=None,  # No session context for onboarding
+            doctor_id=doctor_id,  # Pass doctor_id for memory
+            use_memory=doctor_id is not None,  # Enable memory if doctor_id present
         )
 
         logger.info(
@@ -178,8 +183,10 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
     This is a general-purpose endpoint for conversational interactions
     with Free-Intelligence outside of specific workflows.
 
+    Enables infinite memory when doctor_id is provided in context.
+
     Args:
-        request: Message and optional context
+        request: Message and optional context (context.doctor_id enables memory)
 
     Returns:
         Free-Intelligence's response
@@ -188,11 +195,18 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
         500: If internal LLM call fails
     """
     try:
+        # Extract doctor_id from context (Auth0 user.sub)
+        doctor_id = None
+        if request.context and "doctor_id" in request.context:
+            doctor_id = request.context["doctor_id"]
+
         logger.info(
             "ASSISTANT_CHAT_START",
             message_length=len(request.message),
             has_context=request.context is not None,
             session_id=request.session_id,
+            doctor_id=doctor_id,
+            memory_enabled=doctor_id is not None,
         )
 
         llm_client = get_llm_client()
@@ -202,6 +216,8 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
             message=request.message,
             context=request.context,
             session_id=request.session_id,
+            doctor_id=doctor_id,  # Pass doctor_id for memory
+            use_memory=doctor_id is not None,  # Auto-enable memory if doctor_id present
         )
 
         logger.info(
