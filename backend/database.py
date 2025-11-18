@@ -14,11 +14,15 @@ import os
 from collections.abc import Generator
 from contextlib import contextmanager
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.logger import get_logger
 from backend.models.db_models import Base
+
+# Load .env file BEFORE reading environment variables
+load_dotenv()
 
 logger = get_logger(__name__)
 

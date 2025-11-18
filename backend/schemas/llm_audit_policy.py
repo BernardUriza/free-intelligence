@@ -84,6 +84,11 @@ def require_audit_log(func: Callable) -> Callable:
             # DEBE llamar append_audit_log() antes de retornar
             ...
 
+        @require_audit_log
+        async def async_call_claude(prompt: str) -> str:
+            # Async functions are also supported
+            ...
+
     Raises:
         LLMAuditViolation: Si la función no tiene audit logging
 
@@ -92,19 +97,37 @@ def require_audit_log(func: Callable) -> Callable:
         - Fase 2: Runtime validation (verificar que se llamó append_audit_log)
         - Por ahora solo sirve para detección estática
     """
+    import asyncio
 
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        # Marker para detección estática
-        # TODO(FI-CORE-FEAT-004-P2): Runtime validation de append_audit_log
-        logger.info("LLM_FUNCTION_CALLED", function=func.__name__, module=func.__module__)
-        return func(*args, **kwargs)
+    # Check if function is async
+    if asyncio.iscoroutinefunction(func):
 
-    # Marcar wrapper para detección
-    wrapper.__llm_audit_required__ = True  # type: ignore[attr-defined]
-    wrapper.__wrapped_function__ = func.__name__  # type: ignore[attr-defined]
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            # Marker para detección estática
+            # TODO(FI-CORE-FEAT-004-P2): Runtime validation de append_audit_log
+            logger.info("LLM_FUNCTION_CALLED", function=func.__name__, module=func.__module__)
+            return await func(*args, **kwargs)
 
-    return wrapper
+        # Marcar wrapper para detección
+        async_wrapper.__llm_audit_required__ = True  # type: ignore[attr-defined]
+        async_wrapper.__wrapped_function__ = func.__name__  # type: ignore[attr-defined]
+
+        return async_wrapper
+    else:
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # Marker para detección estática
+            # TODO(FI-CORE-FEAT-004-P2): Runtime validation de append_audit_log
+            logger.info("LLM_FUNCTION_CALLED", function=func.__name__, module=func.__module__)
+            return func(*args, **kwargs)
+
+        # Marcar wrapper para detección
+        wrapper.__llm_audit_required__ = True  # type: ignore[attr-defined]
+        wrapper.__wrapped_function__ = func.__name__  # type: ignore[attr-defined]
+
+        return wrapper
 
 
 # ============================================================================

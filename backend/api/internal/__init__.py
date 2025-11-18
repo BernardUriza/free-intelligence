@@ -11,6 +11,7 @@ AURITY-ONLY endpoints:
 - kpis/             → KPI aggregation
 - audit/            → Audit logs
 - exports/          → Export utilities
+- llm/              → Ultra observable LLM layer (chat, structured extraction)
 
 Removed (FI-STRIDE deprecated):
 - athletes/ (deleted 2025-11-14)
@@ -23,7 +24,7 @@ Removed (FI-STRIDE deprecated):
 
 from __future__ import annotations
 
-from . import audit, diarization, exports, kpis, sessions, transcribe, triage
+from . import audit, diarization, exports, kpis, llm, sessions, transcribe, triage
 
 __all__ = [
     "sessions",
@@ -33,4 +34,5 @@ __all__ = [
     "kpis",
     "audit",
     "exports",
+    "llm",
 ]

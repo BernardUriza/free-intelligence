@@ -121,8 +121,29 @@ async def get_audit_logs(
             user_id=user,
         )
 
-        # Convert dicts to AuditLogEntry objects
-        logs: list[AuditLogEntry] = [AuditLogEntry(**log) for log in logs_data if log]
+        # Transform internal schema to public API schema
+        logs: list[AuditLogEntry] = []
+        for log_data in logs_data:
+            if not log_data:
+                continue
+
+            # Map internal fields to public API fields
+            try:
+                public_log = AuditLogEntry(
+                    audit_id=log_data.get("log_id", ""),
+                    timestamp=log_data.get("timestamp", ""),
+                    operation=log_data.get("action", ""),
+                    user_id=log_data.get("user_id", ""),
+                    endpoint=log_data.get("resource", ""),
+                    payload_hash="",  # Not stored in simple schema
+                    result_hash="",   # Not stored in simple schema
+                    status=log_data.get("result", "").upper(),  # SUCCESS/FAILED
+                    metadata=str(log_data.get("details", {})),
+                )
+                logs.append(public_log)
+            except Exception as validation_error:
+                logger.warning("AUDIT_LOG_TRANSFORM_FAILED", error=str(validation_error), log_data=log_data)
+                continue
 
         logger.info(
             "AUDIT_LOGS_RETRIEVED",

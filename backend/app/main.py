@@ -165,7 +165,16 @@ Requires environment variables:
     # Include all API routers (lazy load to avoid circular imports)
     try:
         from backend.api import internal, public
-        from backend.api.public import audit, patients, providers
+
+        # Import TTS router
+        from backend.api.public import (
+            assistant,
+            audit,
+            patients,
+            policy,
+            providers,
+            tts,
+        )
         from backend.api.public.workflows import timeline
         from backend.auth.auth0_router import (
             router as auth_router,  # HIPAA G-003 (Auth0)
@@ -180,7 +189,10 @@ Requires environment variables:
         public_app.include_router(
             audit.router, prefix="/audit", tags=["Audit"]
         )  # Audit logs (FI-UI-FEAT-206)
+        public_app.include_router(policy.router)  # Policy viewer (FI-UI-FEAT-204)
         public_app.include_router(public.system.router, prefix="/system", tags=["System"])
+        public_app.include_router(tts.router)  # Text-to-Speech (Azure OpenAI)
+        public_app.include_router(assistant.router)  # Free-Intelligence Assistant (AI persona)
 
         # INTERNAL API (atomic resources, AURITY-only)
         internal_app.include_router(internal.audit.router, prefix="/audit", tags=["audit"])
@@ -200,6 +212,9 @@ Requires environment variables:
         internal_app.include_router(
             internal.transcribe.router, prefix="/transcribe", tags=["transcribe"]
         )
+        internal_app.include_router(
+            internal.llm.router
+        )  # Ultra observable LLM layer (prefix already in router)
 
         # Mount sub-apps
         app.mount("/api", public_app)
@@ -261,6 +276,7 @@ Requires environment variables:
                         "timeline": "/api/sessions/*",
                         "audit": "/api/audit/*",
                         "system": "/api/system/*",
+                        "assistant": "/api/assistant/*",
                     },
                 },
                 "internal": {
@@ -275,6 +291,7 @@ Requires environment variables:
                         "sessions": "/internal/sessions/*",
                         "transcribe": "/internal/transcribe/*",
                         "triage": "/internal/triage/*",
+                        "llm": "/internal/llm/*",
                     },
                 },
             },

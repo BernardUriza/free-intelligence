@@ -14,14 +14,13 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+from backend.clients import get_llm_client
 from backend.logger import get_logger
-from backend.providers.llm import llm_generate
 
 logger = get_logger(__name__)
 
@@ -265,6 +264,9 @@ async def soap_assistant_workflow(
 ) -> AssistantResponse:
     """Process natural language command to modify SOAP data (PUBLIC orchestrator).
 
+    REFACTORED: Now uses InternalLLMClient → /internal/llm/structured-extract
+    for ultra observability of all LLM interactions.
+
     Uses LLM to parse natural language commands and return structured SOAP updates.
     Supports commands like:
     - "agrega que la paciente tiene diabetes"
@@ -282,7 +284,6 @@ async def soap_assistant_workflow(
         400: Invalid command or SOAP data
         500: LLM processing failed
     """
-    response_text = ""  # Initialize to avoid unbound error in exception handlers
     try:
         logger.info(
             "ASSISTANT_COMMAND_START",
@@ -290,145 +291,87 @@ async def soap_assistant_workflow(
             command=request.command,
         )
 
-        # Build prompt for LLM
-        prompt = f"""You are a medical SOAP notes assistant. Parse the user's natural language command and return structured updates to the SOAP data.
+        # Build context with current SOAP + instruction examples
+        context = {
+            "current_soap": request.current_soap,
+            "soap_sections": {
+                "hpi": "History of Present Illness (narrative)",
+                "pastMedicalHistory": "Past medical conditions (array of strings)",
+                "allergies": "Known allergies (array of strings)",
+                "medications": "Current medications (array of objects: name, dosage, frequency)",
+                "diagnosticTests": "Lab/imaging orders (array of strings)",
+                "physicalExam": "Physical examination findings",
+                "primaryDiagnosis": "Main diagnosis (object with code and description)",
+                "differentialDiagnoses": "Alternative diagnoses (array)",
+                "followUp": "Follow-up instructions",
+            },
+            "operations": {
+                "append": "Add text to existing content",
+                "replace": "Replace entire content",
+                "add_item": "Add single item to array",
+                "add_items": "Add multiple items to array (JSON array format)",
+            },
+            "examples": [
+                {
+                    "command": "agrega que la paciente tiene diabetes",
+                    "updates": {
+                        "pastMedicalHistory": "add_item:Diabetes mellitus",
+                        "hpi": "append:\\n\\n• Diabetes mellitus (antecedente no mencionado en consulta actual)",
+                    },
+                    "explanation": "He agregado diabetes mellitus al historial médico pasado y como nota en el historial de enfermedad actual.",
+                },
+                {
+                    "command": "agregar alergia a penicilina",
+                    "updates": {"allergies": "add_item:Penicilina"},
+                    "explanation": "He agregado penicilina a la lista de alergias conocidas.",
+                },
+                {
+                    "command": "receta sertralina 50mg al día para depresión",
+                    "updates": {
+                        "medications": 'add_item:{"name": "Sertralina", "dosage": "50mg", "frequency": "1 vez al día"}',
+                        "pastMedicalHistory": "add_item:Depresión",
+                        "hpi": "append:\\n\\n• Depresión (se inicia tratamiento farmacológico)",
+                    },
+                    "explanation": "He agregado sertralina 50mg al día a los medicamentos recetados, depresión al historial médico pasado, y una nota en HPI.",
+                },
+            ],
+        }
 
-Current SOAP data:
-{request.current_soap}
+        # Define expected output schema
+        output_schema = {
+            "updates": "dict[str, str] - Dictionary of SOAP field updates (field_name: operation:content)",
+            "explanation": "str - Human-readable explanation of changes made",
+        }
 
-User command: "{request.command}"
+        # Call internal LLM endpoint via HTTP client (ultra observable)
+        llm_client = get_llm_client()
 
-Your task:
-1. Understand what medical information the user wants to add/modify
-2. Determine which SOAP section(s) should be updated
-3. Return structured updates in JSON format
-
-SOAP sections available:
-- hpi: History of Present Illness (narrative)
-- pastMedicalHistory: Past medical conditions (array of strings)
-- allergies: Known allergies (array of strings)
-- medications: Current medications (array of objects with fields: name, dosage, frequency)
-- diagnosticTests: Lab/imaging orders (array of strings like "Biometría Hemática Completa", "Radiografía de Tórax")
-- physicalExam: Physical examination findings
-- primaryDiagnosis: Main diagnosis (object with code and description)
-- differentialDiagnoses: Alternative diagnoses (array)
-- followUp: Follow-up instructions
-
-Operations:
-- "append:text" - Add text to existing content
-- "replace:text" - Replace entire content
-- "add_item:text" - Add single item to array
-- "add_items:[item1,item2,...]" - Add multiple items to array (for strings, use JSON array; for objects, use array of JSON objects)
-
-Examples:
-
-Command: "agrega que la paciente tiene diabetes"
-Response:
-{{
-  "updates": {{
-    "pastMedicalHistory": "add_item:Diabetes mellitus",
-    "hpi": "append:\\n\\n• Diabetes mellitus (antecedente no mencionado en consulta actual)"
-  }},
-  "explanation": "He agregado diabetes mellitus al historial médico pasado y como nota en el historial de enfermedad actual."
-}}
-
-Command: "agregar alergia a penicilina"
-Response:
-{{
-  "updates": {{
-    "allergies": "add_item:Penicilina"
-  }},
-  "explanation": "He agregado penicilina a la lista de alergias conocidas."
-}}
-
-Command: "receta sertralina 50mg al día para depresión"
-Response:
-{{
-  "updates": {{
-    "medications": "add_item:{{\\"name\\": \\"Sertralina\\", \\"dosage\\": \\"50mg\\", \\"frequency\\": \\"1 vez al día\\"}}",
-    "pastMedicalHistory": "add_item:Depresión",
-    "hpi": "append:\\n\\n• Depresión (se inicia tratamiento farmacológico)"
-  }},
-  "explanation": "He agregado sertralina 50mg al día a los medicamentos recetados, depresión al historial médico pasado, y una nota en HPI."
-}}
-
-Command: "agrega hipertensión, diabetes tipo 2 y receta losartán 50mg c/12h y metformina 850mg c/8h"
-Response:
-{{
-  "updates": {{
-    "pastMedicalHistory": "add_items:[\\"Hipertensión arterial\\",\\"Diabetes mellitus tipo 2\\"]",
-    "medications": "add_items:[{{\\"name\\":\\"Losartán\\",\\"dosage\\":\\"50mg\\",\\"frequency\\":\\"cada 12 horas\\"}},{{\\"name\\":\\"Metformina\\",\\"dosage\\":\\"850mg\\",\\"frequency\\":\\"cada 8 horas\\"}}]",
-    "hpi": "append:\\n\\n• Hipertensión arterial y Diabetes tipo 2 (se inicia tratamiento)"
-  }},
-  "explanation": "He agregado hipertensión arterial y diabetes tipo 2 al historial médico, y dos medicamentos (losartán y metformina)."
-}}
-
-Command: "solicita biometría hemática completa, química sanguínea y radiografía de tórax"
-Response:
-{{
-  "updates": {{
-    "diagnosticTests": "add_items:[\\"Biometría Hemática Completa\\",\\"Química Sanguínea\\",\\"Radiografía de Tórax\\"]"
-  }},
-  "explanation": "He agregado tres órdenes médicas: biometría hemática completa, química sanguínea y radiografía de tórax."
-}}
-
-Now process this command and respond ONLY with valid JSON (no markdown, no explanations outside JSON):
-"""
-
-        # Call LLM
-        logger.info("ASSISTANT_LLM_CALL")
-        response = llm_generate(
-            prompt,
-            max_tokens=2048,
-            temperature=0.3,
+        result = await llm_client.structured_extract(
+            persona="soap_editor",
+            command=request.command,
+            context=context,
+            output_schema=output_schema,
+            session_id=session_id,
         )
 
-        response_text = response.content.strip()
-
-        logger.debug(
-            "ASSISTANT_LLM_RESPONSE",
-            response_length=len(response_text),
-            response_preview=response_text[:200],
-        )
-
-        # Parse JSON response
-        # Extract JSON from response (handle markdown code blocks)
-        json_start = response_text.find("{")
-        json_end = response_text.rfind("}") + 1
-
-        if json_start == -1 or json_end == 0:
-            raise ValueError("No JSON found in LLM response")
-
-        json_str = response_text[json_start:json_end]
-        parsed_response = json.loads(json_str)
-
-        # Validate response structure
-        if "updates" not in parsed_response or "explanation" not in parsed_response:
-            raise ValueError("Invalid response structure from LLM")
+        # Extract data from structured response
+        updates = result["data"].get("updates", {})
+        explanation = result["data"].get("explanation", "Updates applied successfully")
 
         logger.info(
             "ASSISTANT_COMMAND_SUCCESS",
             session_id=session_id,
-            num_updates=len(parsed_response["updates"]),
+            num_updates=len(updates),
+            tokens=result.get("tokens_used", 0),
+            latency=result.get("latency_ms", 0),
         )
 
         return AssistantResponse(
-            updates=parsed_response["updates"],
-            explanation=parsed_response["explanation"],
+            updates=updates,
+            explanation=explanation,
             success=True,
         )
 
-    except json.JSONDecodeError as e:
-        logger.error(
-            "ASSISTANT_JSON_PARSE_ERROR",
-            session_id=session_id,
-            error=str(e),
-            response_text=response_text[:500] if response_text else "N/A",
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to parse LLM response as JSON: {e!s}",
-        ) from e
     except HTTPException:
         raise
     except Exception as e:
