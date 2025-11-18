@@ -20,6 +20,13 @@ aiohttp>=3.9.0                  # Async HTTP client for Deepgram API
 httpx>=0.25.0                   # Async HTTP client for inter-service calls
 
 # ============================================================================
+# Authentication & Security (HIPAA G-003)
+# ============================================================================
+python-jose[cryptography]>=3.3.0  # JWT token encoding/decoding
+passlib[bcrypt]>=1.7.4           # Password hashing for user credentials
+requests>=2.31.0                 # HTTP client for Auth0 JWKS fetch
+
+# ============================================================================
 # LLM Providers
 # ============================================================================
 anthropic==0.71.0               # Claude API client
@@ -75,6 +82,13 @@ filelock>=3.12.0                # File locking for HDF5 concurrent writes
 # Audit & Analytics
 # ============================================================================
 pyarrow>=14.0.0                 # Parquet file support for audit logs
+
+# ============================================================================
+# Database (FI-DATA-DB-001)
+# ============================================================================
+sqlalchemy>=2.0.0               # SQL ORM for PostgreSQL
+psycopg2-binary>=2.9.9          # PostgreSQL adapter for Python
+alembic>=1.13.0                 # Database migration tool
 
 # ============================================================================
 # Diarization Low-Priority Worker (FI-RELIABILITY-IMPL-004)

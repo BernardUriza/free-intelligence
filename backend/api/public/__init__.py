@@ -5,6 +5,9 @@ Orchestrators and public-facing endpoints accessible via CORS.
 AURITY-ONLY endpoints:
 - workflows/      → Aurity orchestrator (end-to-end workflows, includes timeline)
 - system/         → Health checks
+- patients/       → Patient CRUD (FI-DATA-DB-001)
+- providers/      → Provider CRUD (FI-DATA-DB-001)
+- audit/          → Audit logs (read-only, FI-UI-FEAT-206)
 
 Removed (FI-STRIDE deprecated):
 - katniss/ (deleted 2025-11-14)
@@ -15,6 +18,6 @@ Removed (FI-STRIDE deprecated):
 
 from __future__ import annotations
 
-from . import system, workflows
+from . import audit, patients, providers, system, workflows
 
-__all__ = ["workflows", "system"]
+__all__ = ["workflows", "system", "patients", "providers", "audit"]

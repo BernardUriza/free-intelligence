@@ -1,0 +1,47 @@
+{
+  "pack_id": "pack_1763427839_1",
+  "created_at": "2025-11-18T01:03:59.473999+00:00Z",
+  "session_id": null,
+  "consulta": "¿Cuál es el motivo principal de consulta del paciente y qué preocupaciones adicionales expresa?",
+  "response": "**Consulta**: ¿Cuál es el motivo principal de consulta del paciente y qué preocupaciones adicionales expresa?\n\n**Evidencia encontrada**:\n\n\n**Transcripcion Audio**:\n  - Paciente refiere dolor de cabeza como síntoma principal. Expresa preocupación por cobertura de seguro médico tras cambio reciente de empresa aseguradora. [1]\n\n**Referencias**:\n  [1] Documento: audio_te... (Confianza: 95%)\n  [2] Documento: audio_te... (Confianza: 85%)\n  [3] Documento: audio_te... (Confianza: 85%)\n  [4] Documento: audio_te... (Confianza: 85%)\n\n*Nota: Esta respuesta contiene únicamente evidencia extraída de los documentos. No constituye un diagnóstico médico.*",
+  "sources": [
+    {
+      "source_id": "audio_test_policy_120s_chunk0",
+      "tipo_doc": "transcripcion_audio",
+      "fecha": "2025-11-17T19:03:59.473895",
+      "paciente_id": "52167ffe00d48992",
+      "hallazgo": "Paciente refiere dolor de cabeza como síntoma principal. Expresa preocupación por cobertura de seguro médico tras cambio reciente de empresa aseguradora.",
+      "severidad": "leve"
+    }
+  ],
+  "citations": [
+    {
+      "citation_id": 1,
+      "source_id": "audio_test_policy_120s_chunk0",
+      "text": "Paciente refiere dolor de cabeza como síntoma principal. Expresa preocupación por cobertura de seguro médico tras cambio reciente de empresa aseguradora.",
+      "confidence": 0.95
+    },
+    {
+      "citation_id": 2,
+      "source_id": "audio_test_policy_120s_chunk0",
+      "text": "Con sus siguientes asignaturas, no estaba posible tener una presupuesta y una supuesta asignatura sobre toda la drogada, Naciendo en la África ese año",
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 3,
+      "source_id": "audio_test_policy_120s_chunk0",
+      "text": "¿Hay nada más además de tu dolor de cabeza que quieras abordar hoy en el programa clínico? No, solo eso, excepto que estoy preocupada, Recientemente cambié las empresas de insurrección y no estoy segu",
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 4,
+      "source_id": "audio_test_policy_120s_chunk0",
+      "text": "¿De acuerdo? ¿Hay nada más? Porque lo que podemos hacer es, mientras estamos hablando y estoy haciendo tu historia y física, Tendré a mi secretaria de oficina a ver el plan de insurrección que tienes,",
+      "confidence": 0.85
+    }
+  ],
+  "source_hashes": [
+    "8b623fb6ad8f6c339216e391f653eb079ddf6d123d4aa4d95aa6a8eea0800c12"
+  ],
+  "policy_snapshot_id": "v1.0"
+}

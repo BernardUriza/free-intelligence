@@ -37,6 +37,10 @@ class SessionListItem(BaseModel):
     chunk_count: int = Field(default=0, description="Number of transcription chunks")
     duration_seconds: float = Field(default=0.0, description="Total duration")
     preview: str = Field(default="", description="First chunk preview (max 200 chars)")
+    patient_name: str = Field(
+        default="Paciente", description="Patient name (extracted from dialogue or default)"
+    )
+    doctor_name: str = Field(default="", description="Doctor name (extracted from dialogue)")
 
 
 class SessionsListResponse(BaseModel):
@@ -184,6 +188,69 @@ async def list_sessions(
                                         error=str(e),
                                     )
 
+                    # Extract patient and doctor names from session metadata or diarization
+                    patient_name = "Paciente"
+                    doctor_name = ""
+
+                    # First, try to get from session attributes (preferred)
+                    if hasattr(session_group, "attrs"):
+                        patient_name = session_group.attrs.get("patient_name", "Paciente")
+                        if not doctor_name and "doctor_name" in session_group.attrs:
+                            doctor_name = session_group.attrs.get("doctor_name", "")
+
+                    # Fallback: extract from diarization dialogue
+                    if has_diarization and (patient_name == "Paciente" or not doctor_name):
+                        try:
+                            diar_task = tasks["DIARIZATION"]
+                            if "segments" in diar_task:  # type: ignore[operator]
+                                segments = diar_task["segments"]
+
+                                # Check first few segments for doctor name
+                                for seg_key in list(segments.keys())[:5]:  # Check first 5 segments
+                                    segment = segments[seg_key]
+                                    if "text" in segment:  # type: ignore[operator]
+                                        text_ds = segment["text"]
+                                        if isinstance(text_ds, h5py.Dataset):
+                                            text = text_ds[()].decode("utf-8").lower()
+
+                                            # Look for "doctor [name]" or "doctora [name]" or "soy el doctor [name]"
+                                            import re
+
+                                            # Try multiple patterns (most specific first)
+                                            patterns = [
+                                                r"(?:soy el|mi nombre es|me llamo)\s+doctor[a]?\s+([A-Za-zÁÉÍÓÚáéíóúÑñ]+)",
+                                                r"doctor[a]?\s+([A-Za-zÁÉÍÓÚáéíóúÑñ]{3,})",  # At least 3 chars to avoid "Lo"
+                                            ]
+
+                                            for pattern in patterns:
+                                                doctor_match = re.search(
+                                                    pattern, text, re.IGNORECASE
+                                                )
+                                                if doctor_match:
+                                                    name = doctor_match.group(1).capitalize()
+                                                    # Filter out common words that aren't names
+                                                    if name.lower() not in [
+                                                        "que",
+                                                        "como",
+                                                        "por",
+                                                        "con",
+                                                        "para",
+                                                        "los",
+                                                        "las",
+                                                        "del",
+                                                        "una",
+                                                        "uno",
+                                                    ]:
+                                                        doctor_name = name
+                                                        break
+
+                                            if doctor_name:
+                                                break
+                        except Exception as e:
+                            logger.warning(
+                                "SKIP_NAME_EXTRACTION", session_id=session_id, error=str(e)
+                            )
+
                     sessions_list.append(
                         SessionListItem(
                             session_id=session_id,
@@ -194,6 +261,8 @@ async def list_sessions(
                             chunk_count=chunk_count,
                             duration_seconds=duration_seconds,
                             preview=preview,
+                            patient_name=patient_name,
+                            doctor_name=doctor_name,
                         )
                     )
 

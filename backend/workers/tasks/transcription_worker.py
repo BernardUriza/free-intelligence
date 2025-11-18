@@ -45,39 +45,43 @@ def transcribe_chunk_worker(
     start_time = time.time()  # Track resolution time
 
     try:
-        # Get load balancer and select provider adaptively if not specified
+        # Get metadata first (read-only operation)
+        task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {
+            "total_chunks": 1,
+            "processed_chunks": 0,
+        }
+
+        # Read audio BEFORE selecting provider (needed for size-based routing)
+        audio_bytes = get_chunk_audio_bytes(session_id, TaskType.TRANSCRIPTION, chunk_number)
+        if not audio_bytes:
+            raise ValueError(f"No audio for chunk {chunk_number}")
+
+        # Get policy-driven load balancer and select provider based on file size
         balancer = get_stt_load_balancer()
         if stt_provider is None:
-            stt_provider = balancer.select_provider(
-                chunk_number=chunk_number, session_id=session_id
+            # Pass audio size for policy-based selection
+            stt_provider, decision_reason = balancer.select_provider_for_file(
+                audio_size_bytes=len(audio_bytes), chunk_number=chunk_number, session_id=session_id
             )
             logger.info(
-                "ADAPTIVE_PROVIDER_SELECTED",
+                "POLICY_BASED_PROVIDER_SELECTED",
                 session_id=session_id,
                 chunk_number=chunk_number,
                 provider=stt_provider,
+                decision_reason=decision_reason,
+                audio_size_mb=len(audio_bytes) / (1024 * 1024),
             )
+        else:
+            # Provider was forced by caller
+            decision_reason = "forced_by_caller"
 
         logger.info(
             "TRANSCRIBE_CHUNK_START",
             session_id=session_id,
             chunk_number=chunk_number,
             provider=stt_provider,
+            audio_size_mb=len(audio_bytes) / (1024 * 1024),
         )
-
-        # DON'T ensure_task_exists here - it causes HDF5 race condition
-        # Task was already created by Service layer before worker dispatch
-
-        # Get metadata (read-only operation)
-        task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {
-            "total_chunks": 1,
-            "processed_chunks": 0,
-        }
-
-        # Read audio
-        audio_bytes = get_chunk_audio_bytes(session_id, TaskType.TRANSCRIPTION, chunk_number)
-        if not audio_bytes:
-            raise ValueError(f"No audio for chunk {chunk_number}")
 
         # Transcribe (returns result + retry_attempts)
         result = _transcribe_audio(audio_bytes, stt_provider)
@@ -210,24 +214,51 @@ def _transcribe_audio(audio_bytes: bytes, provider_name: str) -> dict[str, Any]:
         tmp_path = tmp.name
 
     try:
-        # Try primary provider
-        provider = get_stt_provider(provider_name)
+        # Get policy configuration for provider
+        balancer = get_stt_load_balancer()
+        provider_config = balancer.policy.get("stt", {}).get("providers", {}).get(provider_name, {})
+
+        # Try primary provider with policy configuration
+        provider = get_stt_provider(provider_name, config=provider_config)
         response = provider.transcribe(tmp_path, language="es")
 
-        # If empty transcript, try fallback provider
+        # If empty transcript, check policy for fallback
         if not response.text or len(response.text.strip()) == 0:
+            # Get policy-driven fallback provider
+            fallback_provider = balancer.get_fallback_for_empty(provider_name)
+
+            if not fallback_provider:
+                logger.info(
+                    "NO_FALLBACK_FOR_EMPTY",
+                    provider=provider_name,
+                    message="No fallback configured - accepting empty transcript",
+                )
+                # Return empty result without retry
+                return {
+                    "transcript": response.text,
+                    "language": response.language,
+                    "confidence": response.confidence,
+                    "duration": response.duration,
+                    "segments": response.segments,
+                    "provider": response.provider,
+                    "retry_attempts": 0,
+                }
+
             retry_attempts = 1  # Fallback attempt
-            fallback_provider = "azure_whisper" if provider_name == "deepgram" else "deepgram"
 
             logger.warning(
                 "EMPTY_TRANSCRIPT_TRYING_FALLBACK",
                 primary_provider=provider_name,
                 fallback_provider=fallback_provider,
-                message="Primary provider returned empty transcript - trying fallback",
+                message="Primary provider returned empty transcript - trying policy-based fallback",
             )
 
             try:
-                fallback = get_stt_provider(fallback_provider)
+                # Get fallback provider config from policy
+                fallback_config = (
+                    balancer.policy.get("stt", {}).get("providers", {}).get(fallback_provider, {})
+                )
+                fallback = get_stt_provider(fallback_provider, config=fallback_config)
                 fallback_response = fallback.transcribe(tmp_path, language="es")
 
                 if fallback_response.text and len(fallback_response.text.strip()) > 0:

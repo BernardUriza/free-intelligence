@@ -20,10 +20,12 @@ Card: Clean Architecture Refactor
 
 from __future__ import annotations
 
+from backend.services.audit_service import AuditService
 from backend.services.session_service import SessionService
 from backend.services.transcription_service import TranscriptionService
 
 __all__ = [
+    "AuditService",
     "TranscriptionService",
     "SessionService",
 ]

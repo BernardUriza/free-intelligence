@@ -191,9 +191,13 @@ class TranscriptionService:
         from backend.workers.executor_pool import spawn_worker
         from backend.workers.sync_workers import transcribe_chunk_worker
 
-        # Use load balancer to select provider intelligently
+        # Use load balancer to select provider intelligently (policy-driven)
         load_balancer = get_stt_load_balancer()
-        stt_provider = load_balancer.select_provider(chunk_number=chunk_number)
+        stt_provider, decision_reason = load_balancer.select_provider_for_file(
+            audio_size_bytes=len(audio_bytes),
+            chunk_number=chunk_number,
+            session_id=session_id,
+        )
 
         spawn_worker(
             transcribe_chunk_worker,
@@ -207,6 +211,8 @@ class TranscriptionService:
             session_id=session_id,
             chunk_number=chunk_number,
             provider=stt_provider,
+            decision_reason=decision_reason,
+            audio_size_mb=len(audio_bytes) / (1024 * 1024),
         )
 
         # 6. Return result IMMEDIATELY (202 Accepted pattern)

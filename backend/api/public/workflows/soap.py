@@ -102,7 +102,12 @@ async def get_soap_workflow(session_id: str) -> dict:
             # SOAP doesn't exist - generate it using service layer
             logger.info("SOAP_NOT_FOUND_GENERATING", session_id=session_id)
 
+            from backend.models.task_type import TaskType
+            from backend.storage.task_repository import ensure_task_exists
             from backend.workers.tasks.soap_worker import generate_soap_worker
+
+            # Ensure SOAP_GENERATION task exists before calling worker
+            ensure_task_exists(session_id, TaskType.SOAP_GENERATION, allow_existing=True)
 
             # Call worker synchronously (service layer)
             generate_soap_worker(session_id)
@@ -371,10 +376,9 @@ Now process this command and respond ONLY with valid JSON (no markdown, no expla
 """
 
         # Call LLM
-        logger.info("ASSISTANT_LLM_CALL", provider="claude")
+        logger.info("ASSISTANT_LLM_CALL")
         response = llm_generate(
             prompt,
-            provider="claude",
             max_tokens=2048,
             temperature=0.3,
         )

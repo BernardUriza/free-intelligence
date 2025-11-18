@@ -85,6 +85,10 @@ Requires environment variables:
     # Tags for better organization
     tags_metadata = [
         {
+            "name": "authentication",
+            "description": "JWT authentication and RBAC for HIPAA compliance (G-003)",
+        },
+        {
             "name": "AI Assistant",
             "description": "Natural language medical assistant powered by Claude AI",
         },
@@ -99,6 +103,18 @@ Requires environment variables:
         {
             "name": "Sessions",
             "description": "Medical consultation session management",
+        },
+        {
+            "name": "Patients",
+            "description": "Patient demographic and identity records (PostgreSQL)",
+        },
+        {
+            "name": "Providers",
+            "description": "Healthcare provider credentials and specialty information (PostgreSQL)",
+        },
+        {
+            "name": "Audit",
+            "description": "Read-only audit logs for HIPAA compliance (FI-UI-FEAT-206)",
         },
         {
             "name": "System",
@@ -149,11 +165,21 @@ Requires environment variables:
     # Include all API routers (lazy load to avoid circular imports)
     try:
         from backend.api import internal, public
+        from backend.api.public import audit, patients, providers
         from backend.api.public.workflows import timeline
+        from backend.auth.auth0_router import (
+            router as auth_router,  # HIPAA G-003 (Auth0)
+        )
 
         # PUBLIC API (CORS enabled, orchestrators)
+        public_app.include_router(auth_router)  # Auth0 Authentication (HIPAA G-003)
         public_app.include_router(public.workflows.router)  # AURITY orchestrator
         public_app.include_router(timeline.router)  # Timeline/sessions listing
+        public_app.include_router(patients.router)  # Patient CRUD (FI-DATA-DB-001)
+        public_app.include_router(providers.router)  # Provider CRUD (FI-DATA-DB-001)
+        public_app.include_router(
+            audit.router, prefix="/audit", tags=["Audit"]
+        )  # Audit logs (FI-UI-FEAT-206)
         public_app.include_router(public.system.router, prefix="/system", tags=["System"])
 
         # INTERNAL API (atomic resources, AURITY-only)
@@ -187,6 +213,20 @@ Requires environment variables:
 
         traceback.print_exc()
 
+    @app.on_event("startup")
+    async def startup_event():
+        """Initialize database on app startup."""
+        from backend.database import init_db
+        from backend.logger import get_logger
+
+        logger = get_logger(__name__)
+        try:
+            init_db()
+            logger.info("DATABASE_INITIALIZED", status="success")
+        except Exception as e:
+            logger.error("DATABASE_INIT_FAILED", error=str(e))
+            # Don't fail startup - continue with other services
+
     @app.get("/")
     async def root() -> dict:
         """Root endpoint - API discovery and system information.
@@ -219,6 +259,7 @@ Requires environment variables:
                         "workflows": "/api/workflows/aurity/*",
                         "sessions": "/api/workflows/aurity/sessions/*",
                         "timeline": "/api/sessions/*",
+                        "audit": "/api/audit/*",
                         "system": "/api/system/*",
                     },
                 },

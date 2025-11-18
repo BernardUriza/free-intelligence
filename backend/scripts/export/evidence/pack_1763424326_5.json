@@ -1,0 +1,352 @@
+{
+  "pack_id": "pack_1763424326_5",
+  "created_at": "2025-11-18T00:05:26.958379+00:00Z",
+  "session_id": "session_example_20251117",
+  "sources": [
+    {
+      "source_id": "lab_20251115_001",
+      "tipo_doc": "lab_result",
+      "fecha": "2025-11-15",
+      "paciente_id": "PAT2025FI001_HASH",
+      "hallazgo": "Glucosa en ayunas: 145 mg/dL (elevada); HbA1c: 7.8% (elevada)",
+      "severidad": "moderado",
+      "raw_text": "\n        LABORATORIO CLÍNICO CENTRAL\n        Fecha: 2025-11-15\n        Paciente ID: PAT2025FI001\n\n        PANEL METABÓLICO COMPLETO:\n        - Glucosa en ayunas: 145 mg/dL (Ref: 70-100) **ELEVADO**\n        - Hemoglobina A1c: 7.8% (Ref: <5.7%) **ELEVADO**\n        - Creatinina: 0.9 mg/dL (Ref: 0.7-1.3) NORMAL\n        - BUN: 18 mg/dL (Ref: 7-20) NORMAL\n        - Colesterol total: 235 mg/dL (Ref: <200) **ELEVADO**\n        - HDL: 42 mg/dL (Ref: >40) NORMAL\n        - LDL: 158 mg/dL (Ref: <100) **ELEVADO**\n        - Triglicéridos: 175 mg/dL (Ref: <150) **ELEVADO**\n\n        Interpretación: Valores consistentes con diabetes mellitus tipo 2\n        y dislipidemia. Se recomienda control médico.\n        ",
+      "citations": [
+        {
+          "citation_id": 1,
+          "source_id": "lab_20251115_001",
+          "text": "Glucosa en ayunas: 145 mg/dL (elevada); HbA1c: 7.8% (elevada)",
+          "page_number": null,
+          "confidence": 0.95
+        },
+        {
+          "citation_id": 2,
+          "source_id": "lab_20251115_001",
+          "text": "LABORATORIO CLÍNICO CENTRAL\n        Fecha: 2025-11-15\n        Paciente ID: PAT2025FI001\n\n        PANEL METABÓLICO COMPLETO:\n        - Glucosa en ayunas: 145 mg/dL (Ref: 70-100) **ELEVADO**\n        - H",
+          "page_number": null,
+          "confidence": 0.85
+        },
+        {
+          "citation_id": 3,
+          "source_id": "lab_20251115_001",
+          "text": "7%) **ELEVADO**\n        - Creatinina: 0",
+          "page_number": null,
+          "confidence": 0.85
+        }
+      ]
+    },
+    {
+      "source_id": "clinic_20251116_002",
+      "tipo_doc": "clinical_note",
+      "fecha": "2025-11-16",
+      "paciente_id": "PAT2025FI001_HASH",
+      "hallazgo": "Presión arterial: 148/92 mmHg; IMC: 31.2 kg/m2 (obesidad grado I)",
+      "severidad": "moderado",
+      "raw_text": "\n        NOTA DE EVOLUCIÓN CLÍNICA\n        Fecha: 2025-11-16\n        Servicio: Medicina Interna\n\n        SIGNOS VITALES:\n        - PA: 148/92 mmHg (elevada)\n        - FC: 82 lpm\n        - FR: 18 rpm\n        - Temp: 36.8°C\n        - Peso: 92 kg\n        - Talla: 1.72 m\n        - IMC: 31.2 kg/m2 (obesidad grado I)\n\n        SUBJETIVO:\n        Paciente refiere poliuria y polidipsia de 3 meses de evolución.\n        Fatiga frecuente. Visión borrosa ocasional. Niega dolor torácico.\n\n        OBJETIVO:\n        Paciente consciente, orientado. Mucosas semihidratadas.\n        Cardiopulmonar sin alteraciones agudas. Abdomen globoso.\n        Acantosis nigricans en cuello.\n\n        EVALUACIÓN:\n        1. Diabetes mellitus tipo 2 descontrolada\n        2. Hipertensión arterial estadio 2\n        3. Obesidad grado I\n        4. Dislipidemia mixta\n        ",
+      "citations": [
+        {
+          "citation_id": 4,
+          "source_id": "clinic_20251116_002",
+          "text": "Presión arterial: 148/92 mmHg; IMC: 31.2 kg/m2 (obesidad grado I)",
+          "page_number": null,
+          "confidence": 0.95
+        },
+        {
+          "citation_id": 5,
+          "source_id": "clinic_20251116_002",
+          "text": "NOTA DE EVOLUCIÓN CLÍNICA\n        Fecha: 2025-11-16\n        Servicio: Medicina Interna\n\n        SIGNOS VITALES:\n        - PA: 148/92 mmHg (elevada)\n        - FC: 82 lpm\n        - FR: 18 rpm\n        - ",
+          "page_number": null,
+          "confidence": 0.85
+        },
+        {
+          "citation_id": 6,
+          "source_id": "clinic_20251116_002",
+          "text": "8°C\n        - Peso: 92 kg\n        - Talla: 1",
+          "page_number": null,
+          "confidence": 0.85
+        },
+        {
+          "citation_id": 7,
+          "source_id": "clinic_20251116_002",
+          "text": "72 m\n        - IMC: 31",
+          "page_number": null,
+          "confidence": 0.85
+        }
+      ]
+    },
+    {
+      "source_id": "lab_20251015_003",
+      "tipo_doc": "lab_result",
+      "fecha": "2025-10-15",
+      "paciente_id": "PAT2025FI001_HASH",
+      "hallazgo": "Glucosa en ayunas: 132 mg/dL (elevada); HbA1c: 7.2% (elevada)",
+      "severidad": "moderado",
+      "raw_text": "\n        LABORATORIO CLÍNICO CENTRAL\n        Fecha: 2025-10-15\n\n        RESULTADOS PREVIOS (hace 1 mes):\n        - Glucosa en ayunas: 132 mg/dL **ELEVADO**\n        - Hemoglobina A1c: 7.2% **ELEVADO**\n        - Creatinina: 0.8 mg/dL NORMAL\n        - Microalbuminuria: 28 mg/g (Ref: <30) NORMAL-ALTO\n\n        Nota: Valores muestran progresión en comparación con\n        estudios de hace 3 meses. Requiere ajuste terapéutico.\n        ",
+      "citations": [
+        {
+          "citation_id": 8,
+          "source_id": "lab_20251015_003",
+          "text": "Glucosa en ayunas: 132 mg/dL (elevada); HbA1c: 7.2% (elevada)",
+          "page_number": null,
+          "confidence": 0.95
+        },
+        {
+          "citation_id": 9,
+          "source_id": "lab_20251015_003",
+          "text": "LABORATORIO CLÍNICO CENTRAL\n        Fecha: 2025-10-15\n\n        RESULTADOS PREVIOS (hace 1 mes):\n        - Glucosa en ayunas: 132 mg/dL **ELEVADO**\n        - Hemoglobina A1c: 7",
+          "page_number": null,
+          "confidence": 0.85
+        },
+        {
+          "citation_id": 10,
+          "source_id": "lab_20251015_003",
+          "text": "2% **ELEVADO**\n        - Creatinina: 0",
+          "page_number": null,
+          "confidence": 0.85
+        },
+        {
+          "citation_id": 11,
+          "source_id": "lab_20251015_003",
+          "text": "8 mg/dL NORMAL\n        - Microalbuminuria: 28 mg/g (Ref: <30) NORMAL-ALTO\n\n        Nota: Valores muestran progresión en comparación con\n        estudios de hace 3 meses",
+          "page_number": null,
+          "confidence": 0.85
+        }
+      ]
+    },
+    {
+      "source_id": "rx_20251116_004",
+      "tipo_doc": "prescription",
+      "fecha": "2025-11-16",
+      "paciente_id": "PAT2025FI001_HASH",
+      "hallazgo": "Metformina 850mg c/12h; Lisinopril 10mg c/24h; Atorvastatina 20mg c/24h",
+      "severidad": null,
+      "raw_text": "\n        RECETA MÉDICA\n        Fecha: 2025-11-16\n\n        PRESCRIPCIÓN:\n        1. Metformina 850 mg\n           Tomar 1 tableta cada 12 horas con alimentos\n           Cantidad: 60 tabletas (30 días)\n\n        2. Lisinopril 10 mg\n           Tomar 1 tableta cada 24 horas por la mañana\n           Cantidad: 30 tabletas (30 días)\n\n        3. Atorvastatina 20 mg\n           Tomar 1 tableta cada 24 horas por la noche\n           Cantidad: 30 tabletas (30 días)\n\n        INDICACIONES:\n        - Dieta baja en carbohidratos simples\n        - Ejercicio aeróbico 30 min/día, 5 días/semana\n        - Monitoreo de glucosa capilar 2 veces/semana\n        - Control en 1 mes con nuevos laboratorios\n        ",
+      "citations": [
+        {
+          "citation_id": 12,
+          "source_id": "rx_20251116_004",
+          "text": "Metformina 850mg c/12h; Lisinopril 10mg c/24h; Atorvastatina 20mg c/24h",
+          "page_number": null,
+          "confidence": 0.95
+        },
+        {
+          "citation_id": 13,
+          "source_id": "rx_20251116_004",
+          "text": "RECETA MÉDICA\n        Fecha: 2025-11-16\n\n        PRESCRIPCIÓN:\n        1",
+          "page_number": null,
+          "confidence": 0.85
+        },
+        {
+          "citation_id": 14,
+          "source_id": "rx_20251116_004",
+          "text": "Metformina 850 mg\n           Tomar 1 tableta cada 12 horas con alimentos\n           Cantidad: 60 tabletas (30 días)\n\n        2",
+          "page_number": null,
+          "confidence": 0.85
+        },
+        {
+          "citation_id": 15,
+          "source_id": "rx_20251116_004",
+          "text": "Lisinopril 10 mg\n           Tomar 1 tableta cada 24 horas por la mañana\n           Cantidad: 30 tabletas (30 días)\n\n        3",
+          "page_number": null,
+          "confidence": 0.85
+        }
+      ]
+    },
+    {
+      "source_id": "img_20251114_005",
+      "tipo_doc": "imaging",
+      "fecha": "2025-11-14",
+      "paciente_id": "PAT2025FI001_HASH",
+      "hallazgo": "Radiografía de tórax: Cardiomegalia leve; sin infiltrados pulmonares",
+      "severidad": "leve",
+      "raw_text": "\n        INFORME RADIOLÓGICO\n        Fecha: 2025-11-14\n        Estudio: Radiografía de Tórax PA y Lateral\n\n        TÉCNICA:\n        Proyecciones posteroanterior y lateral de tórax.\n\n        HALLAZGOS:\n        - Índice cardiotorácico: 0.54 (cardiomegalia leve)\n        - Campos pulmonares: Sin infiltrados ni consolidaciones\n        - Senos costofrénicos: Libres\n        - Mediastino: Centrado, sin ensanchamiento\n        - Estructuras óseas: Sin alteraciones\n\n        IMPRESIÓN:\n        1. Cardiomegalia leve, probablemente relacionada con\n           hipertensión arterial sistémica\n        2. No evidencia de proceso agudo pulmonar\n        3. No derrame pleural\n\n        Correlacionar con clínica y ecocardiograma si está indicado.\n        ",
+      "citations": [
+        {
+          "citation_id": 16,
+          "source_id": "img_20251114_005",
+          "text": "Radiografía de tórax: Cardiomegalia leve; sin infiltrados pulmonares",
+          "page_number": null,
+          "confidence": 0.95
+        },
+        {
+          "citation_id": 17,
+          "source_id": "img_20251114_005",
+          "text": "INFORME RADIOLÓGICO\n        Fecha: 2025-11-14\n        Estudio: Radiografía de Tórax PA y Lateral\n\n        TÉCNICA:\n        Proyecciones posteroanterior y lateral de tórax",
+          "page_number": null,
+          "confidence": 0.85
+        },
+        {
+          "citation_id": 18,
+          "source_id": "img_20251114_005",
+          "text": "HALLAZGOS:\n        - Índice cardiotorácico: 0",
+          "page_number": null,
+          "confidence": 0.85
+        },
+        {
+          "citation_id": 19,
+          "source_id": "img_20251114_005",
+          "text": "54 (cardiomegalia leve)\n        - Campos pulmonares: Sin infiltrados ni consolidaciones\n        - Senos costofrénicos: Libres\n        - Mediastino: Centrado, sin ensanchamiento\n        - Estructuras ó",
+          "page_number": null,
+          "confidence": 0.85
+        }
+      ]
+    }
+  ],
+  "source_hashes": [
+    "a8f9bc8aa140c805b57c12da1b879bbfd153fe08e42166bec0d4179c51dc58f9",
+    "9c23c569d42f827ee26531c07cc7413c77d56a126683368b59af4312f3539fdf",
+    "6eaf83b5307c73af817ca93749395cea32785de3d8c0bd4427f6ace53c407032",
+    "daa39a38e3870b779c5226731f19fe1f942af432aef088cac6e653bf2b25f418",
+    "6b6ac9cc8bdd1fcdc03cfaccd0df8c7bee5e6ae05793092542680916124ba8a0"
+  ],
+  "policy_snapshot_id": "v1.0_2025",
+  "metadata": {
+    "source_count": 5,
+    "document_types": [
+      "clinical_note",
+      "imaging",
+      "prescription",
+      "lab_result"
+    ],
+    "hash_algorithm": "sha256",
+    "total_citations": 19,
+    "extraction_confidence": 0.8763157894736842
+  },
+  "consulta": "¿Cuál es el estado metabólico actual del paciente y qué tratamiento está recibiendo?",
+  "citations": [
+    {
+      "citation_id": 1,
+      "source_id": "lab_20251115_001",
+      "text": "Glucosa en ayunas: 145 mg/dL (elevada); HbA1c: 7.8% (elevada)",
+      "page_number": null,
+      "confidence": 0.95
+    },
+    {
+      "citation_id": 2,
+      "source_id": "lab_20251115_001",
+      "text": "LABORATORIO CLÍNICO CENTRAL\n        Fecha: 2025-11-15\n        Paciente ID: PAT2025FI001\n\n        PANEL METABÓLICO COMPLETO:\n        - Glucosa en ayunas: 145 mg/dL (Ref: 70-100) **ELEVADO**\n        - H",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 3,
+      "source_id": "lab_20251115_001",
+      "text": "7%) **ELEVADO**\n        - Creatinina: 0",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 4,
+      "source_id": "clinic_20251116_002",
+      "text": "Presión arterial: 148/92 mmHg; IMC: 31.2 kg/m2 (obesidad grado I)",
+      "page_number": null,
+      "confidence": 0.95
+    },
+    {
+      "citation_id": 5,
+      "source_id": "clinic_20251116_002",
+      "text": "NOTA DE EVOLUCIÓN CLÍNICA\n        Fecha: 2025-11-16\n        Servicio: Medicina Interna\n\n        SIGNOS VITALES:\n        - PA: 148/92 mmHg (elevada)\n        - FC: 82 lpm\n        - FR: 18 rpm\n        - ",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 6,
+      "source_id": "clinic_20251116_002",
+      "text": "8°C\n        - Peso: 92 kg\n        - Talla: 1",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 7,
+      "source_id": "clinic_20251116_002",
+      "text": "72 m\n        - IMC: 31",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 8,
+      "source_id": "lab_20251015_003",
+      "text": "Glucosa en ayunas: 132 mg/dL (elevada); HbA1c: 7.2% (elevada)",
+      "page_number": null,
+      "confidence": 0.95
+    },
+    {
+      "citation_id": 9,
+      "source_id": "lab_20251015_003",
+      "text": "LABORATORIO CLÍNICO CENTRAL\n        Fecha: 2025-10-15\n\n        RESULTADOS PREVIOS (hace 1 mes):\n        - Glucosa en ayunas: 132 mg/dL **ELEVADO**\n        - Hemoglobina A1c: 7",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 10,
+      "source_id": "lab_20251015_003",
+      "text": "2% **ELEVADO**\n        - Creatinina: 0",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 11,
+      "source_id": "lab_20251015_003",
+      "text": "8 mg/dL NORMAL\n        - Microalbuminuria: 28 mg/g (Ref: <30) NORMAL-ALTO\n\n        Nota: Valores muestran progresión en comparación con\n        estudios de hace 3 meses",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 12,
+      "source_id": "rx_20251116_004",
+      "text": "Metformina 850mg c/12h; Lisinopril 10mg c/24h; Atorvastatina 20mg c/24h",
+      "page_number": null,
+      "confidence": 0.95
+    },
+    {
+      "citation_id": 13,
+      "source_id": "rx_20251116_004",
+      "text": "RECETA MÉDICA\n        Fecha: 2025-11-16\n\n        PRESCRIPCIÓN:\n        1",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 14,
+      "source_id": "rx_20251116_004",
+      "text": "Metformina 850 mg\n           Tomar 1 tableta cada 12 horas con alimentos\n           Cantidad: 60 tabletas (30 días)\n\n        2",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 15,
+      "source_id": "rx_20251116_004",
+      "text": "Lisinopril 10 mg\n           Tomar 1 tableta cada 24 horas por la mañana\n           Cantidad: 30 tabletas (30 días)\n\n        3",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 16,
+      "source_id": "img_20251114_005",
+      "text": "Radiografía de tórax: Cardiomegalia leve; sin infiltrados pulmonares",
+      "page_number": null,
+      "confidence": 0.95
+    },
+    {
+      "citation_id": 17,
+      "source_id": "img_20251114_005",
+      "text": "INFORME RADIOLÓGICO\n        Fecha: 2025-11-14\n        Estudio: Radiografía de Tórax PA y Lateral\n\n        TÉCNICA:\n        Proyecciones posteroanterior y lateral de tórax",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 18,
+      "source_id": "img_20251114_005",
+      "text": "HALLAZGOS:\n        - Índice cardiotorácico: 0",
+      "page_number": null,
+      "confidence": 0.85
+    },
+    {
+      "citation_id": 19,
+      "source_id": "img_20251114_005",
+      "text": "54 (cardiomegalia leve)\n        - Campos pulmonares: Sin infiltrados ni consolidaciones\n        - Senos costofrénicos: Libres\n        - Mediastino: Centrado, sin ensanchamiento\n        - Estructuras ó",
+      "page_number": null,
+      "confidence": 0.85
+    }
+  ],
+  "response": "**Consulta**: ¿Cuál es el estado metabólico actual del paciente y qué tratamiento está recibiendo?\n\n**Evidencia encontrada**:\n\n\n**Lab Result**:\n  - Glucosa en ayunas: 145 mg/dL (elevada); HbA1c: 7.8% (elevada) [1]\n  - Glucosa en ayunas: 132 mg/dL (elevada); HbA1c: 7.2% (elevada) [8]\n\n**Clinical Note**:\n  - Presión arterial: 148/92 mmHg; IMC: 31.2 kg/m2 (obesidad grado I) [4]\n\n**Prescription**:\n  - Metformina 850mg c/12h; Lisinopril 10mg c/24h; Atorvastatina 20mg c/24h [12]\n\n**Imaging**:\n  - Radiografía de tórax: Cardiomegalia leve; sin infiltrados pulmonares [16]\n\n**Referencias**:\n  [1] Documento: lab_2025... (Confianza: 95%)\n  [2] Documento: lab_2025... (Confianza: 85%)\n  [3] Documento: lab_2025... (Confianza: 85%)\n  [4] Documento: clinic_2... (Confianza: 95%)\n  [5] Documento: clinic_2... (Confianza: 85%)\n  [6] Documento: clinic_2... (Confianza: 85%)\n  [7] Documento: clinic_2... (Confianza: 85%)\n  [8] Documento: lab_2025... (Confianza: 95%)\n  [9] Documento: lab_2025... (Confianza: 85%)\n  [10] Documento: lab_2025... (Confianza: 85%)\n  [11] Documento: lab_2025... (Confianza: 85%)\n  [12] Documento: rx_20251... (Confianza: 95%)\n  [13] Documento: rx_20251... (Confianza: 85%)\n  [14] Documento: rx_20251... (Confianza: 85%)\n  [15] Documento: rx_20251... (Confianza: 85%)\n  [16] Documento: img_2025... (Confianza: 95%)\n  [17] Documento: img_2025... (Confianza: 85%)\n  [18] Documento: img_2025... (Confianza: 85%)\n  [19] Documento: img_2025... (Confianza: 85%)\n\n*Nota: Esta respuesta contiene únicamente evidencia extraída de los documentos. No constituye un diagnóstico médico.*"
+}
