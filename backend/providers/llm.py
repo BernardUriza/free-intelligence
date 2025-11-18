@@ -553,16 +553,35 @@ class AzureOpenAIProvider(LLMProvider):
         start_time = datetime.now(UTC)
 
         try:
-            # Use asyncio to call async function from sync context
-            response = asyncio.run(
-                self._generate_async(
-                    prompt=prompt,
-                    model=model,
-                    deployment=deployment,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
+            # Check if we're already in an async context
+            try:
+                _ = asyncio.get_running_loop()
+                # We're already in an event loop, so we need to run in a thread
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    response = executor.submit(
+                        lambda: asyncio.run(
+                            self._generate_async(
+                                prompt=prompt,
+                                model=model,
+                                deployment=deployment,
+                                max_tokens=max_tokens,
+                                temperature=temperature,
+                            )
+                        )
+                    ).result()
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run()
+                response = asyncio.run(
+                    self._generate_async(
+                        prompt=prompt,
+                        model=model,
+                        deployment=deployment,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                    )
                 )
-            )
 
             latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 

@@ -97,10 +97,10 @@ stt:
 # ===== LLM Provider Configuration =====
 llm:
   # Primary provider for production workloads
-  primary_provider: claude
+  primary_provider: azure  # CHANGED: Azure GPT-4o (faster, 2-5s vs Claude 18s)
 
   # Fallback provider if primary fails
-  fallback_provider: ollama
+  fallback_provider: claude
 
   # Offline-first mode (prefer local inference)
   enable_offline: false  # Set to true when NAS deployment is ready

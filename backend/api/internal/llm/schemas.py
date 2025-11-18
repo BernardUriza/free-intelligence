@@ -25,6 +25,14 @@ class ChatRequest(BaseModel):
         description="Contexto adicional (patient_id, session_id, soap_data, etc.)",
     )
     session_id: Optional[str] = Field(default=None, description="Session ID para audit logging")
+    doctor_id: Optional[str] = Field(
+        default=None,
+        description="Doctor ID para memoria conversacional (required for memory)",
+    )
+    use_memory: bool = Field(
+        default=False,
+        description="Enable conversation memory (requires doctor_id)",
+    )
 
 
 class ChatResponse(BaseModel):
