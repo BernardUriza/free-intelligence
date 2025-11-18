@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Daily Health Tips Configuration",
+  "description": "Configurable health tips organized by category",
+  "version": "1.0.0",
+  "tips": {
+    "nutrition": [
+      {
+        "id": "nutrition-fiber-001",
+        "tip": "Incluir alimentos ricos en fibra como avena, frutas y verduras ayuda a mejorar la digestión y mantener niveles saludables de colesterol.",
+        "icon": "🥗",
+        "source": "American Heart Association",
+        "tags": ["fibra", "digestión", "colesterol"]
+      },
+      {
+        "id": "nutrition-colors-001",
+        "tip": "Una dieta balanceada con frutas y verduras de colores variados proporciona vitaminas y antioxidantes esenciales para fortalecer el sistema inmune.",
+        "icon": "🌈",
+        "source": "WHO",
+        "tags": ["frutas", "verduras", "antioxidantes"]
+      },
+      {
+        "id": "nutrition-omega3-001",
+        "tip": "Los ácidos grasos Omega-3 presentes en pescados como el salmón y las nueces ayudan a reducir la inflamación y mejorar la salud cerebral.",
+        "icon": "🐟",
+        "source": "Harvard Medical School",
+        "tags": ["omega-3", "cerebro", "inflamación"]
+      }
+    ],
+    "exercise": [
+      {
+        "id": "exercise-walking-001",
+        "tip": "30 minutos de caminata diaria pueden reducir el riesgo de enfermedades cardíacas hasta en un 50% y mejorar el estado de ánimo.",
+        "icon": "🚶",
+        "source": "American Heart Association",
+        "tags": ["caminar", "corazón", "ejercicio moderado"]
+      },
+      {
+        "id": "exercise-strength-001",
+        "tip": "El entrenamiento de fuerza 2-3 veces por semana ayuda a mantener la masa muscular, mejorar el metabolismo y fortalecer los huesos.",
+        "icon": "💪",
+        "source": "CDC",
+        "tags": ["fuerza", "músculos", "metabolismo"]
+      },
+      {
+        "id": "exercise-stretching-001",
+        "tip": "Estirar durante 5-10 minutos al día mejora la flexibilidad, reduce el riesgo de lesiones y alivia la tensión muscular.",
+        "icon": "🧘",
+        "source": "Mayo Clinic",
+        "tags": ["estiramiento", "flexibilidad", "prevención"]
+      }
+    ],
+    "mental_health": [
+      {
+        "id": "mental-sleep-001",
+        "tip": "Dormir 7-8 horas por noche mejora la memoria, fortalece el sistema inmune y reduce significativamente el estrés y la ansiedad.",
+        "icon": "😴",
+        "source": "National Sleep Foundation",
+        "tags": ["sueño", "memoria", "estrés"]
+      },
+      {
+        "id": "mental-meditation-001",
+        "tip": "La meditación diaria de solo 10 minutos puede reducir la ansiedad, mejorar la concentración y aumentar la sensación de bienestar.",
+        "icon": "🧘‍♀️",
+        "source": "Harvard Health",
+        "tags": ["meditación", "mindfulness", "ansiedad"]
+      },
+      {
+        "id": "mental-social-001",
+        "tip": "Mantener conexiones sociales significativas reduce el riesgo de depresión y mejora la longevidad y calidad de vida.",
+        "icon": "👥",
+        "source": "Stanford Medicine",
+        "tags": ["social", "depresión", "longevidad"]
+      }
+    ],
+    "prevention": [
+      {
+        "id": "prevention-hygiene-001",
+        "tip": "Lavarse las manos durante al menos 20 segundos con agua y jabón es una de las formas más efectivas de prevenir infecciones.",
+        "icon": "🧼",
+        "source": "CDC",
+        "tags": ["higiene", "prevención", "infecciones"]
+      },
+      {
+        "id": "prevention-sunscreen-001",
+        "tip": "Usar protector solar SPF 30+ diariamente reduce el riesgo de cáncer de piel y previene el envejecimiento prematuro.",
+        "icon": "☀️",
+        "source": "American Academy of Dermatology",
+        "tags": ["protección solar", "piel", "prevención"]
+      },
+      {
+        "id": "prevention-checkups-001",
+        "tip": "Los chequeos médicos regulares permiten detectar problemas de salud tempranamente cuando son más tratables y prevenir complicaciones.",
+        "icon": "🩺",
+        "source": "WHO",
+        "tags": ["chequeos", "prevención", "detección temprana"]
+      }
+    ]
+  },
+  "rotation_strategy": "random_by_category",
+  "refresh_interval_hours": 24
+}

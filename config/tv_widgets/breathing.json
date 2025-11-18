@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Breathing Exercise Configuration",
+  "description": "Configurable breathing exercise patterns for anxiety reduction",
+  "version": "1.0.0",
+  "exercises": [
+    {
+      "id": "box-breathing",
+      "name": "Respiración en Caja",
+      "description": "Técnica utilizada por Navy SEALs para mantener la calma bajo presión",
+      "pattern": [
+        {
+          "phase": "inhale",
+          "duration": 4,
+          "label": "Inhala profundamente",
+          "icon": "↑",
+          "color": "cyan"
+        },
+        {
+          "phase": "hold",
+          "duration": 4,
+          "label": "Sostén la respiración",
+          "icon": "⏸",
+          "color": "purple"
+        },
+        {
+          "phase": "exhale",
+          "duration": 4,
+          "label": "Exhala lentamente",
+          "icon": "↓",
+          "color": "orange"
+        },
+        {
+          "phase": "hold",
+          "duration": 4,
+          "label": "Sostén vacío",
+          "icon": "⏸",
+          "color": "purple"
+        }
+      ],
+      "total_duration": 16,
+      "benefits": [
+        "Reduce ansiedad",
+        "Mejora concentración",
+        "Disminuye ritmo cardíaco"
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "4-7-8-breathing",
+      "name": "Respiración 4-7-8",
+      "description": "Técnica del Dr. Andrew Weil para relajación profunda y mejor sueño",
+      "pattern": [
+        {
+          "phase": "inhale",
+          "duration": 4,
+          "label": "Inhala profundamente",
+          "icon": "↑",
+          "color": "cyan"
+        },
+        {
+          "phase": "hold",
+          "duration": 7,
+          "label": "Sostén la respiración",
+          "icon": "⏸",
+          "color": "purple"
+        },
+        {
+          "phase": "exhale",
+          "duration": 8,
+          "label": "Exhala completamente",
+          "icon": "↓",
+          "color": "orange"
+        }
+      ],
+      "total_duration": 19,
+      "benefits": [
+        "Induce relajación profunda",
+        "Ayuda a conciliar el sueño",
+        "Reduce presión arterial"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "coherent-breathing",
+      "name": "Respiración Coherente",
+      "description": "5 respiraciones por minuto para máxima variabilidad cardíaca",
+      "pattern": [
+        {
+          "phase": "inhale",
+          "duration": 6,
+          "label": "Inhala suavemente",
+          "icon": "↑",
+          "color": "cyan"
+        },
+        {
+          "phase": "exhale",
+          "duration": 6,
+          "label": "Exhala suavemente",
+          "icon": "↓",
+          "color": "orange"
+        }
+      ],
+      "total_duration": 12,
+      "benefits": [
+        "Optimiza variabilidad cardíaca",
+        "Equilibra sistema nervioso",
+        "Mejora salud cardiovascular"
+      ],
+      "difficulty": "beginner"
+    }
+  ],
+  "default_exercise": "4-7-8-breathing"
+}

@@ -40,6 +40,7 @@ from fastapi import APIRouter
 # Import sub-routers (modular architecture following SOLIS pattern)
 from backend.api.public.workflows import (
     assistant,
+    clinic_media,
     evidence,
     kpis,
     orders,
@@ -48,6 +49,9 @@ from backend.api.public.workflows import (
     soap,
     timeline,
     transcription,
+    tv_content_seeds,
+    waiting_room,
+    widget_configs,
 )
 from backend.logger import get_logger
 
@@ -87,6 +91,18 @@ router.include_router(kpis.router, tags=["KPIs"])
 # ASSISTANT: Free-Intelligence AI persona (onboarding, chat)
 router.include_router(assistant.router, tags=["AI Assistant"])
 
+# WAITING ROOM: Dynamic content generation for TV displays
+router.include_router(waiting_room.router, prefix="/waiting-room", tags=["Waiting Room"])
+
+# CLINIC MEDIA: Multimedia upload for TV displays
+router.include_router(clinic_media.router, tags=["Clinic Media"])
+
+# TV CONTENT SEEDS: FI default content management (editable seeds)
+router.include_router(tv_content_seeds.router, tags=["TV Content"])
+
+# WIDGET CONFIGS: Configurable widget data (trivia, breathing, tips)
+router.include_router(widget_configs.router, tags=["Widget Configs"])
+
 logger.info(
     "WORKFLOWS_ROUTER_INITIALIZED",
     modules=[
@@ -98,6 +114,10 @@ logger.info(
         "sessions_list",
         "kpis",
         "assistant",
+        "waiting_room",
+        "clinic_media",
+        "tv_content_seeds",
+        "widget_configs",
     ],
     pattern="SOLIS",
 )

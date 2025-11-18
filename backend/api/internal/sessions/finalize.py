@@ -215,6 +215,9 @@ async def finalize_session(
 
         # 2. Initialize ENCRYPTION task (metadata only - actual encryption happens after SOAP)
         # This creates the task entry in HDF5 for tracking
+        from backend.storage.task_repository import ensure_task_exists
+
+        ensure_task_exists(session_id, TaskType.ENCRYPTION, allow_existing=True)
         update_task_metadata(
             session_id,
             TaskType.ENCRYPTION,
