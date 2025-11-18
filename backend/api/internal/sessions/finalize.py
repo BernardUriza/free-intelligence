@@ -39,7 +39,7 @@ from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
 from backend.models import EncryptionMetadata, Session
-from backend.models.task_type import TaskType
+from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.session_repository import SessionRepository
 from backend.storage.task_repository import (
     add_full_audio,
@@ -47,7 +47,9 @@ from backend.storage.task_repository import (
     add_webspeech_transcripts,
     get_task_chunks,
     get_task_metadata,
+    update_task_metadata,
 )
+from backend.workers.tasks.encryption_worker import encrypt_session_worker
 
 logger = get_logger(__name__)
 
@@ -171,9 +173,22 @@ async def finalize_session(
             completed_chunks=completed_chunks,
         )
 
-        # 2. Generate encryption metadata (AES-GCM-256)
-        encryption_key_id = f"key-{session_id[:8]}"  # Key identifier for rotation
-        encryption_iv = secrets.token_hex(12)  # 96-bit IV for GCM
+        # 2. Initialize ENCRYPTION task (metadata only - actual encryption happens after SOAP)
+        # This creates the task entry in HDF5 for tracking
+        update_task_metadata(
+            session_id,
+            TaskType.ENCRYPTION,
+            {
+                "status": TaskStatus.PENDING,
+                "progress_percent": 0,
+                "queued_at": datetime.now(UTC).isoformat(),
+                "note": "Encryption will execute after SOAP generation completes",
+            },
+        )
+
+        # Placeholder encryption metadata for Session model (legacy)
+        encryption_key_id = f"pending-{session_id[:8]}"
+        encryption_iv = "pending"
         encrypted_at = datetime.now(UTC).isoformat()
 
         encryption_metadata = EncryptionMetadata(
@@ -185,9 +200,10 @@ async def finalize_session(
         )
 
         logger.info(
-            "ENCRYPTION_METADATA_CREATED",
+            "ENCRYPTION_TASK_INITIALIZED",
             session_id=session_id,
-            key_id=encryption_key_id,
+            status="PENDING",
+            note="Actual encryption deferred until after SOAP",
         )
 
         # 3. Create Session model + mark FINALIZED
@@ -376,7 +392,60 @@ async def finalize_session(
             recording_duration=session.recording_duration,
         )
 
-        # 4. Return 202 Accepted (no diarization dispatch - that's a separate endpoint now)
+        # 4. Execute encryption worker (AFTER all data is saved)
+        # NOTE: Encryption happens BEFORE SOAP in production flow
+        # This is called here for backward compatibility with existing sessions
+        # New flow: /soap endpoint calls encrypt_session_worker after SOAP generation
+        try:
+            h5_path = str(
+                Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5"
+            )
+
+            logger.info(
+                "ENCRYPTION_WORKER_START",
+                session_id=session_id,
+                h5_path=h5_path,
+            )
+
+            encryption_result = encrypt_session_worker(
+                session_id=session_id,
+                h5_path=h5_path,
+                targets=None,  # Use default targets from worker
+            )
+
+            if encryption_result.status == "SUCCESS":
+                logger.info(
+                    "ENCRYPTION_WORKER_SUCCESS",
+                    session_id=session_id,
+                    dek_id=encryption_result.result.get("dek_id"),
+                    encrypted_paths=encryption_result.result.get("encrypted_paths"),
+                    total_bytes=encryption_result.result.get("total_bytes"),
+                    duration=encryption_result.duration_seconds,
+                )
+
+                # Update Session model with real encryption metadata
+                encryption_metadata.key_id = encryption_result.result.get("dek_id", encryption_key_id)
+                encrypted_at = encryption_result.result.get("encrypted_at", encrypted_at)
+            else:
+                logger.error(
+                    "ENCRYPTION_WORKER_FAILED",
+                    session_id=session_id,
+                    error=encryption_result.error,
+                    duration=encryption_result.duration_seconds,
+                )
+                # Don't fail finalization if encryption fails
+                # Session is still finalized, just not encrypted
+
+        except Exception as enc_err:
+            logger.error(
+                "ENCRYPTION_WORKER_EXCEPTION",
+                session_id=session_id,
+                error=str(enc_err),
+                exc_info=True,
+            )
+            # Don't fail finalization if encryption fails
+
+        # 5. Return 202 Accepted (no diarization dispatch - that's a separate endpoint now)
         return FinalizeSessionResponse(
             session_id=session_id,
             status="finalized",
