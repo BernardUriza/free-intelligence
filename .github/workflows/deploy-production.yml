@@ -1,0 +1,139 @@
+name: Deploy to Production (Digital Ocean)
+
+on:
+  push:
+    branches:
+      - prod
+  workflow_dispatch:  # Allow manual triggers
+
+env:
+  DROPLET_HOST: 104.131.175.65
+  DROPLET_USER: root
+  PROJECT_PATH: /opt/free-intelligence
+
+jobs:
+  deploy-frontend:
+    name: Deploy Frontend (Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        working-directory: apps/aurity
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: apps/aurity
+        env:
+          NEXT_PUBLIC_BACKEND_URL: https://fi-aurity.duckdns.org
+          NEXT_PUBLIC_API_BASE: https://fi-aurity.duckdns.org
+        run: pnpm build
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DO_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519_do
+          chmod 600 ~/.ssh/id_ed25519_do
+          ssh-keyscan -H $DROPLET_HOST >> ~/.ssh/known_hosts
+
+      - name: Deploy to Digital Ocean
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no" \
+            apps/aurity/out/ \
+            $DROPLET_USER@$DROPLET_HOST:$PROJECT_PATH/apps/aurity/out/
+
+      - name: Reload Nginx
+        run: |
+          ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
+            $DROPLET_USER@$DROPLET_HOST \
+            "nginx -t && systemctl reload nginx"
+
+  deploy-backend:
+    name: Deploy Backend (Docker)
+    runs-on: ubuntu-latest
+    needs: deploy-frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DO_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519_do
+          chmod 600 ~/.ssh/id_ed25519_do
+          ssh-keyscan -H $DROPLET_HOST >> ~/.ssh/known_hosts
+
+      - name: Sync backend code
+        run: |
+          rsync -avz --delete \
+            --exclude 'storage/' \
+            --exclude 'export/' \
+            --exclude '__pycache__/' \
+            --exclude '*.pyc' \
+            --exclude '.env*' \
+            -e "ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no" \
+            backend/ \
+            $DROPLET_USER@$DROPLET_HOST:$PROJECT_PATH/backend/
+
+      - name: Sync project files
+        run: |
+          rsync -avz \
+            -e "ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no" \
+            Dockerfile.optimized requirements.txt policy.yaml \
+            $DROPLET_USER@$DROPLET_HOST:$PROJECT_PATH/
+
+      - name: Rebuild and restart backend
+        run: |
+          ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
+            $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
+          cd $PROJECT_PATH
+
+          echo "🐳 Building new Docker image..."
+          docker build -f Dockerfile.optimized -t fi-backend:latest .
+
+          echo "🛑 Stopping old container..."
+          docker stop fi-backend || true
+          docker rm fi-backend || true
+
+          echo "🚀 Starting new container..."
+          docker run -d \
+            --name fi-backend \
+            --env-file /opt/free-intelligence/.env \
+            -p 7001:7001 \
+            -v /opt/free-intelligence/storage:/app/storage \
+            fi-backend:latest
+
+          echo "✅ Backend deployed successfully"
+          docker logs fi-backend --tail 10
+          ENDSSH
+
+  verify-deployment:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    steps:
+      - name: Check health endpoint
+        run: |
+          sleep 10  # Wait for backend to start
+          curl -f https://fi-aurity.duckdns.org/health || exit 1
+
+      - name: Check API endpoint
+        run: |
+          curl -f https://fi-aurity.duckdns.org/api/workflows/aurity/sessions || exit 1
+
+      - name: Send success notification
+        if: success()
+        run: |
+          echo "✅ Deployment to production successful!"
+          echo "Frontend: https://fi-aurity.duckdns.org"
+          echo "Backend: https://fi-aurity.duckdns.org/api/"

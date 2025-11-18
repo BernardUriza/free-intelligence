@@ -114,12 +114,12 @@ init_storage() {
         echo -e "   ${YELLOW}Initializing HDF5 corpus...${NC}"
         python3.14 -c "
 import h5py
-with h5py.File('$PROJECT_ROOT/storage/corpus.h5', 'w') as f:
+with h5py.File('$PROJECT_ROOT/storage/corpus.h5', 'w', libver='latest') as f:
     f.create_group('sessions')
     f.attrs['version'] = '1.0'
-print('HDF5 initialized')
+print('HDF5 initialized with SWMR support (superblock v3)')
 " > /dev/null 2>&1 || true
-        echo -e "   ${GREEN}✓${NC} HDF5 corpus created"
+        echo -e "   ${GREEN}✓${NC} HDF5 corpus created (SWMR-compatible)"
     fi
 
     echo ""
