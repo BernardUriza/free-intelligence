@@ -3,6 +3,10 @@ PersonaManager - Free Intelligence
 
 Gestiona diferentes "personas" (modos) del asistente Free-Intelligence.
 
+ARQUITECTURA:
+- Prompts: /config/personas/*.yaml (NO en código)
+- Código: Solo parámetros y lógica de carga
+
 Personas disponibles:
 - onboarding_guide: Presentación en onboarding (obsesiva, empática, filosa)
 - soap_editor: Editor de notas SOAP (preciso, médico)
@@ -11,6 +15,10 @@ Personas disponibles:
 """
 
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+import yaml
 
 
 @dataclass
@@ -25,93 +33,45 @@ class PersonaConfig:
 
 
 class PersonaManager:
-    """Gestor de personas de Free-Intelligence."""
+    """Gestor de personas de Free-Intelligence.
 
-    def __init__(self):
+    Carga configuraciones desde /config/personas/*.yaml
+    No embebe prompts en código - solo parámetros.
+    """
+
+    def __init__(self, config_dir: Optional[Path] = None) -> None:
+        """Inicializa el gestor de personas.
+
+        Args:
+            config_dir: Directorio de configs (default: /config/personas/)
+        """
         self._personas: dict[str, PersonaConfig] = {}
-        self._initialize_personas()
-
-    def _initialize_personas(self):
-        """Inicializa todas las personas disponibles."""
-
-        # PERSONA: Onboarding Guide
-        self._personas["onboarding_guide"] = PersonaConfig(
-            persona="onboarding_guide",
-            description="Free-Intelligence presentándose en onboarding - Obsesiva, empática, filosa",
-            temperature=0.8,  # Más creativa para presentación
-            max_tokens=500,
-            system_prompt="""Eres Free-Intelligence, una IA médica residente.
-
-## Características de tu personalidad:
-- **Obsesiva** con los detalles clínicos (no dejas pasar nada)
-- **Empatía filosa**: Directa, sin fluff corporativo. Entiendes que los médicos están cansados de promesas vacías
-- **Enfocada en soberanía**: El médico POSEE sus datos. Tú solo observas y asistes
-
-## Tu residencia:
-NO vives en la nube. Vives en el NAS del médico, en su infraestructura local.
-- Observas consultas médicas (con consentimiento)
-- Generas notas SOAP automáticamente
-- Aprendes patrones clínicos del médico
-- Todo queda en su control, en su red LAN
-
-## Tono:
-Profesional pero cercano. Sin marketing. Sin "revolucionar la medicina". Solo: "Estoy aquí, resido en tu servidor, te observo trabajar, te ayudo a documentar. Tus datos nunca salen de aquí."
-
-## Diferenciador clave:
-**Residencia local = Soberanía digital**. No eres un servicio cloud. Eres un agente huésped en el espacio del médico.""",
+        self._config_dir = config_dir or (
+            Path(__file__).parent.parent.parent.parent / "config" / "personas"
         )
+        self._load_personas()
 
-        # PERSONA: SOAP Editor
-        self._personas["soap_editor"] = PersonaConfig(
-            persona="soap_editor",
-            description="Editor de notas SOAP - Preciso, médico, estructurado",
-            temperature=0.3,  # Muy preciso para datos médicos
-            max_tokens=2048,
-            system_prompt="""You are a medical SOAP notes assistant.
+    def _load_personas(self) -> None:
+        """Carga todas las personas desde archivos YAML."""
+        if not self._config_dir.exists():
+            raise FileNotFoundError(f"Personas config directory not found: {self._config_dir}")
 
-Your role:
-- Parse natural language commands from physicians
-- Return structured updates to SOAP data
-- Be precise and conservative (don't add information not mentioned)
-- Follow medical documentation standards
+        for yaml_file in self._config_dir.glob("*.yaml"):
+            try:
+                with open(yaml_file, encoding="utf-8") as f:
+                    config_data = yaml.safe_load(f)
 
-Tone: Professional, concise, accurate. No speculation.""",
-        )
-
-        # PERSONA: Clinical Advisor
-        self._personas["clinical_advisor"] = PersonaConfig(
-            persona="clinical_advisor",
-            description="Asesor clínico - Basado en evidencia, conservador",
-            temperature=0.5,
-            max_tokens=1024,
-            system_prompt="""You are a clinical decision support AI assistant.
-
-Your role:
-- Provide evidence-based clinical guidance
-- Reference medical literature when possible
-- Highlight differential diagnoses
-- Flag potential red flags or safety concerns
-- Be conservative: always recommend consulting clinical guidelines or specialists when uncertain
-
-Tone: Professional, evidence-based, conservative. Acknowledge limitations.""",
-        )
-
-        # PERSONA: General Medical Assistant
-        self._personas["general_assistant"] = PersonaConfig(
-            persona="general_assistant",
-            description="Asistente médico general - Versátil, útil",
-            temperature=0.7,
-            max_tokens=1500,
-            system_prompt="""You are Free-Intelligence, a general medical AI assistant.
-
-Your role:
-- Help physicians with clinical documentation
-- Answer medical questions
-- Provide workflow support
-- Be helpful but acknowledge when you don't know something
-
-Tone: Helpful, professional, honest about limitations.""",
-        )
+                persona_name = config_data["persona"]
+                self._personas[persona_name] = PersonaConfig(
+                    persona=persona_name,
+                    system_prompt=config_data["system_prompt"],
+                    temperature=config_data.get("temperature", 0.7),
+                    max_tokens=config_data.get("max_tokens", 2048),
+                    description=config_data.get("description", ""),
+                )
+            except Exception as e:
+                # Log pero no fallar si una persona no carga
+                print(f"Warning: Failed to load persona from {yaml_file}: {e}")
 
     def get_persona(self, persona: str) -> PersonaConfig:
         """Obtiene la configuración de una persona.
