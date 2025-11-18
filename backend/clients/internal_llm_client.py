@@ -41,6 +41,8 @@ class InternalLLMClient:
         message: str,
         context: Optional[dict[str, Any]] = None,
         session_id: Optional[str] = None,
+        doctor_id: Optional[str] = None,
+        use_memory: bool = False,
     ) -> dict:
         """Conversación con Free-Intelligence.
 
@@ -49,6 +51,8 @@ class InternalLLMClient:
             message: Mensaje del usuario
             context: Contexto adicional (patient_id, session_id, etc.)
             session_id: Session ID para audit
+            doctor_id: Doctor ID para memoria conversacional
+            use_memory: Enable conversation memory (requires doctor_id)
 
         Returns:
             {
@@ -81,6 +85,8 @@ class InternalLLMClient:
                     "message": message,
                     "context": context,
                     "session_id": session_id,
+                    "doctor_id": doctor_id,
+                    "use_memory": use_memory,
                 },
             )
 
