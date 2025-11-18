@@ -168,7 +168,6 @@ Requires environment variables:
 
         # Import TTS router
         from backend.api.public import (
-            assistant,
             audit,
             patients,
             policy,
@@ -192,7 +191,7 @@ Requires environment variables:
         public_app.include_router(policy.router)  # Policy viewer (FI-UI-FEAT-204)
         public_app.include_router(public.system.router, prefix="/system", tags=["System"])
         public_app.include_router(tts.router)  # Text-to-Speech (Azure OpenAI)
-        public_app.include_router(assistant.router)  # Free-Intelligence Assistant (AI persona)
+        # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 
         # INTERNAL API (atomic resources, AURITY-only)
         internal_app.include_router(internal.audit.router, prefix="/audit", tags=["audit"])
@@ -273,10 +272,10 @@ Requires environment variables:
                     "endpoints": {
                         "workflows": "/api/workflows/aurity/*",
                         "sessions": "/api/workflows/aurity/sessions/*",
+                        "assistant": "/api/workflows/aurity/assistant/*",
                         "timeline": "/api/sessions/*",
                         "audit": "/api/audit/*",
                         "system": "/api/system/*",
-                        "assistant": "/api/assistant/*",
                     },
                 },
                 "internal": {

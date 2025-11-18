@@ -39,6 +39,7 @@ from fastapi import APIRouter
 
 # Import sub-routers (modular architecture following SOLIS pattern)
 from backend.api.public.workflows import (
+    assistant,
     evidence,
     kpis,
     orders,
@@ -83,8 +84,20 @@ router.include_router(sessions_list.router, tags=["Sessions"])
 # KPIs: System metrics and performance dashboard
 router.include_router(kpis.router, tags=["KPIs"])
 
+# ASSISTANT: Free-Intelligence AI persona (onboarding, chat)
+router.include_router(assistant.router, tags=["AI Assistant"])
+
 logger.info(
     "WORKFLOWS_ROUTER_INITIALIZED",
-    modules=["transcription", "sessions", "soap", "orders", "timeline", "sessions_list", "kpis"],
+    modules=[
+        "transcription",
+        "sessions",
+        "soap",
+        "orders",
+        "timeline",
+        "sessions_list",
+        "kpis",
+        "assistant",
+    ],
     pattern="SOLIS",
 )
