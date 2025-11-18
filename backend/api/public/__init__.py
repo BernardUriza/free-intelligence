@@ -8,6 +8,7 @@ AURITY-ONLY endpoints:
 - patients/       → Patient CRUD (FI-DATA-DB-001)
 - providers/      → Provider CRUD (FI-DATA-DB-001)
 - audit/          → Audit logs (read-only, FI-UI-FEAT-206)
+- assistant/      → Free-Intelligence AI assistant (persona-based conversations)
 
 Removed (FI-STRIDE deprecated):
 - katniss/ (deleted 2025-11-14)
@@ -18,6 +19,6 @@ Removed (FI-STRIDE deprecated):
 
 from __future__ import annotations
 
-from . import audit, patients, providers, system, workflows
+from . import assistant, audit, patients, providers, system, workflows
 
-__all__ = ["workflows", "system", "patients", "providers", "audit"]
+__all__ = ["workflows", "system", "patients", "providers", "audit", "assistant"]
