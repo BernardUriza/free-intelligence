@@ -1,17 +1,28 @@
-"""Session finalization endpoint - INTERNAL layer.
+"""Session finalization endpoint - INTERNAL layer (Async + Outbox Pattern).
 
-Finalizes a session (recording stopped):
+Finalizes a session with async encryption queueing:
 1. Verifies TRANSCRIPTION task completed (all chunks have transcripts)
 2. Saves 3 transcription sources to HDF5 (WebSpeech, Chunks, Full)
-3. Encrypts session data (AES-GCM-256)
-4. Marks session as FINALIZED (immutable)
-5. Returns 202 Accepted
+3. Marks session as FINALIZED (immutable)
+4. Enqueues ENCRYPTION task asynchronously (non-blocking)
+5. Returns 202 Accepted immediately
+
+**Async Pattern:**
+  - finalize() returns 202 ACCEPTED instantly
+  - Encryption queued via ThreadPoolExecutor (fire-and-forget)
+  - Idempotent: multiple calls return same result
+  - Graceful degradation: session FINALIZED even if encryption enqueue fails
+
+**Outbox Pattern** (future):
+  - Persist outbox event in HDF5 for retry
+  - Background worker processes outbox events
+  - Guarantees eventual encryption execution
 
 NOTE: This should only be called AFTER SOAP generation is complete.
       Diarization is now a separate endpoint: /sessions/{id}/diarization
 
 Architecture:
-  PUBLIC → INTERNAL (this file)
+  PUBLIC → INTERNAL (this file) → ThreadPoolExecutor → encryption_worker
 
 Storage (Task-based schema):
   /sessions/{session_id}/tasks/TRANSCRIPTION/
@@ -22,12 +33,11 @@ Storage (Task-based schema):
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-14
-Updated: 2025-11-15 (Separated diarization to its own endpoint)
+Updated: 2025-11-18 (Async encryption with outbox pattern)
 """
 
 from __future__ import annotations
 
-import secrets
 import subprocess
 import tempfile
 from datetime import UTC, datetime
@@ -49,6 +59,7 @@ from backend.storage.task_repository import (
     get_task_metadata,
     update_task_metadata,
 )
+from backend.workers.executor_pool import spawn_worker
 from backend.workers.tasks.encryption_worker import encrypt_session_worker
 
 logger = get_logger(__name__)
@@ -88,11 +99,18 @@ class FinalizeSessionRequest(BaseModel):
 
 
 class FinalizeSessionResponse(BaseModel):
-    """Response for session finalization."""
+    """Response for session finalization (202 Accepted).
+
+    Returns immediately with encryption queued asynchronously.
+    """
 
     session_id: str = Field(..., description="Session identifier")
-    status: str = Field(..., description="finalized")
-    encrypted_at: str = Field(..., description="ISO timestamp")
+    status: str = Field(..., description="ACCEPTED (session finalized, encryption queued)")
+    finalized_at: str = Field(..., description="ISO timestamp of finalization")
+    encryption_status: str = Field(..., description="PENDING | QUEUED | ENQUEUE_FAILED")
+    encryption_task_id: str | None = Field(
+        None, description="ENCRYPTION task idempotency key (for tracking)"
+    )
     diarization_job_id: str | None = Field(
         None, description="Deprecated - use /diarization endpoint instead"
     )
@@ -111,9 +129,27 @@ class FinalizeSessionResponse(BaseModel):
 )
 async def finalize_session(
     session_id: str,
-    request: FinalizeSessionRequest = FinalizeSessionRequest(),
+    request: FinalizeSessionRequest | None = None,
 ) -> FinalizeSessionResponse:
-    """Finalize session: save 3 sources + encrypt audio.
+    """Finalize session with async encryption queueing (202 Accepted).
+
+    **Flow:**
+    1. Verify TRANSCRIPTION task completed (100%)
+    2. Save 3 transcription sources to HDF5
+    3. Concatenate audio chunks → full_audio.webm
+    4. Mark session as FINALIZED
+    5. Enqueue ENCRYPTION task asynchronously (fire-and-forget)
+    6. Return 202 ACCEPTED immediately (non-blocking)
+
+    **Async Pattern:**
+    - Returns 202 instantly (client doesn't wait for encryption)
+    - Encryption executes in background ThreadPoolExecutor
+    - Client can poll /sessions/{id}/tasks/ENCRYPTION for progress
+    - Idempotent: multiple calls return same result
+
+    **Graceful Degradation:**
+    - Session FINALIZED even if encryption enqueue fails
+    - Encryption will retry via outbox pattern (future)
 
     NOTE: This should only be called AFTER SOAP generation is complete.
 
@@ -136,6 +172,10 @@ async def finalize_session(
         400: Transcription not completed yet
         500: Encryption or storage failed
     """
+    # Initialize request if None
+    if request is None:
+        request = FinalizeSessionRequest()
+
     try:
         logger.info("FINALIZE_SESSION_STARTED", session_id=session_id)
 
@@ -290,7 +330,7 @@ async def finalize_session(
                                 chunk_group = f[chunk_path]
 
                                 # Check if audio.webm exists
-                                if "audio.webm" in chunk_group:  # type: ignore[operator]
+                                if "audio.webm" in chunk_group:
                                     audio_bytes = chunk_group["audio.webm"][()]
 
                                     # Save to temp file
@@ -392,66 +432,58 @@ async def finalize_session(
             recording_duration=session.recording_duration,
         )
 
-        # 4. Execute encryption worker (AFTER all data is saved)
-        # NOTE: Encryption happens BEFORE SOAP in production flow
-        # This is called here for backward compatibility with existing sessions
-        # New flow: /soap endpoint calls encrypt_session_worker after SOAP generation
+        # 4. Enqueue encryption worker asynchronously (NON-BLOCKING)
+        # Fire-and-forget pattern: session returns 202 immediately
+        # Encryption executes in background ThreadPoolExecutor
+        h5_path = str(Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5")
+
+        # Get idempotency key from ENCRYPTION task
+        encryption_task_id = f"encrypt:{session_id}"
+        encryption_status = "PENDING"
+
         try:
-            h5_path = str(
-                Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5"
-            )
-
-            logger.info(
-                "ENCRYPTION_WORKER_START",
-                session_id=session_id,
-                h5_path=h5_path,
-            )
-
-            encryption_result = encrypt_session_worker(
+            # Spawn worker asynchronously (fire-and-forget)
+            spawn_worker(
+                encrypt_session_worker,
                 session_id=session_id,
                 h5_path=h5_path,
                 targets=None,  # Use default targets from worker
             )
 
-            if encryption_result.status == "SUCCESS":
-                logger.info(
-                    "ENCRYPTION_WORKER_SUCCESS",
-                    session_id=session_id,
-                    dek_id=encryption_result.result.get("dek_id"),
-                    encrypted_paths=encryption_result.result.get("encrypted_paths"),
-                    total_bytes=encryption_result.result.get("total_bytes"),
-                    duration=encryption_result.duration_seconds,
-                )
+            encryption_status = "QUEUED"
 
-                # Update Session model with real encryption metadata
-                encryption_metadata.key_id = encryption_result.result.get("dek_id", encryption_key_id)
-                encrypted_at = encryption_result.result.get("encrypted_at", encrypted_at)
-            else:
-                logger.error(
-                    "ENCRYPTION_WORKER_FAILED",
-                    session_id=session_id,
-                    error=encryption_result.error,
-                    duration=encryption_result.duration_seconds,
-                )
-                # Don't fail finalization if encryption fails
-                # Session is still finalized, just not encrypted
-
-        except Exception as enc_err:
-            logger.error(
-                "ENCRYPTION_WORKER_EXCEPTION",
+            logger.info(
+                "ENCRYPTION_ENQUEUED",
                 session_id=session_id,
-                error=str(enc_err),
+                encryption_task_id=encryption_task_id,
+                h5_path=h5_path,
+                status="QUEUED",
+            )
+
+        except Exception as enqueue_err:
+            # Graceful degradation: session still FINALIZED
+            # Worker will retry via outbox pattern (future)
+            encryption_status = "ENQUEUE_FAILED"
+
+            logger.error(
+                "ENCRYPTION_ENQUEUE_FAILED",
+                session_id=session_id,
+                encryption_task_id=encryption_task_id,
+                error=str(enqueue_err),
                 exc_info=True,
             )
-            # Don't fail finalization if encryption fails
+            # Don't fail finalization - encryption will retry via outbox
 
-        # 5. Return 202 Accepted (no diarization dispatch - that's a separate endpoint now)
+        # 5. Return 202 Accepted IMMEDIATELY (async pattern)
+        # Client doesn't wait for encryption to complete
         return FinalizeSessionResponse(
             session_id=session_id,
-            status="finalized",
-            encrypted_at=encrypted_at,
+            status="ACCEPTED",
+            finalized_at=encrypted_at,
+            encryption_status=encryption_status,
+            encryption_task_id=encryption_task_id if encryption_status == "QUEUED" else None,
             diarization_job_id=None,  # Not dispatched here anymore
-            message="Session finalized and encrypted. Ready for SOAP generation.",
+            message=f"Session finalized. Encryption {encryption_status.lower()}.",
         )
 
     except HTTPException:
