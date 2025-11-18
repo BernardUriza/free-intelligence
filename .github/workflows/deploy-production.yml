@@ -43,6 +43,12 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519_do
           ssh-keyscan -H $DROPLET_HOST >> ~/.ssh/known_hosts
 
+      - name: List build output (debug)
+        run: |
+          echo "📁 Checking build output location..."
+          find . -name "out" -type d 2>/dev/null | head -5
+          ls -la apps/aurity/ || echo "apps/aurity/ not found"
+
       - name: Deploy to Digital Ocean
         run: |
           rsync -avz --delete \
