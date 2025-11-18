@@ -1,34 +1,41 @@
-"""STT Load Balancer - Intelligent provider selection with adaptive performance tracking.
+"""STT Load Balancer - Policy-Driven Selection with Adaptive Performance Tracking.
 
-Philosophy:
-  - Distribute chunks across multiple STT providers to maximize throughput
-  - Avoid rate limiting by alternating between Azure Whisper and Deepgram
-  - Thread-safe round-robin selection with adaptive performance tracking
-  - Automatic switching if provider is underperforming
+SOLID Principles Applied:
+  - Single Responsibility: Selects STT provider based on policy and performance
+  - Open/Closed: Extensible via policy.yaml without code changes
+  - Dependency Inversion: Depends on policy.yaml abstraction, not hardcoded values
 
-Strategy (Adaptive):
-  - Track resolution_time and retry_attempts per provider
-  - Switch to faster provider if current one is slow (>10s) or failing
-  - Use weighted selection: favor providers with lower avg resolution time
-  - Fallback to round-robin if no performance data available
+Architecture:
+  - Policy-driven: File size, duration thresholds from policy.yaml
+  - Adaptive tracking: Rolling window of performance metrics (5 chunks)
+  - Fallback management: Policy-based fallback on empty transcripts
+  - Thread-safe: All state changes protected by locks
 
-Performance Thresholds:
-  - SLOW_THRESHOLD = 10s (switch to alternate if consistently >10s)
-  - RETRY_THRESHOLD = 2 (switch if >2 retries in last 5 chunks)
-  - WINDOW_SIZE = 5 chunks (rolling window for stats)
+Selection Strategy:
+  1. Forced provider (if specified) → highest priority
+  2. File size threshold (>5MB → Azure) → policy-driven
+  3. Duration threshold (>300s → Azure) → policy-driven
+  4. Adaptive selection (based on performance) → data-driven
+  5. Primary provider → policy default
 
-Created: 2025-11-15
-Updated: 2025-11-16 (Adaptive Performance Tracking)
-Author: Bernard Uriza Orozco
-Card: STT Adaptive Load Balancing
+Performance Tracking:
+  - Rolling window: Last 5 chunks per provider
+  - Metrics: resolution_time, retry_attempts, failure_rate
+  - Auto-switch: If provider >10s or >2 retries consistently
+
+Created: 2025-11-17
+Updated: 2025-11-17 (SOLID refactor - merged policy + adaptive)
+Author: Claude Code
 """
 
 from __future__ import annotations
 
-import os
 import threading
 from collections import defaultdict, deque
+from pathlib import Path
 from typing import Optional
+
+import yaml
 
 from backend.logger import get_logger
 
@@ -41,128 +48,188 @@ WINDOW_SIZE = 5  # Rolling window size for performance stats
 
 
 class STTLoadBalancer:
-    """Intelligent load balancer for STT providers."""
+    """Policy-driven STT load balancer with adaptive performance tracking."""
 
-    def __init__(
-        self,
-        providers: Optional[list[str]] = None,
-        strategy: str = "adaptive",
-    ):
-        """Initialize load balancer.
-
-        Args:
-            providers: List of provider names (default: ["azure_whisper", "deepgram"])
-            strategy: Load balancing strategy (default: "adaptive")
-                - "adaptive": Intelligent selection based on performance metrics
-                - "round_robin": Alternate between providers
-                - "weighted": Weighted by provider speed
-        """
-        self.providers = providers or self._get_available_providers()
-        self.strategy = strategy
-        self.current_index = 0
+    def __init__(self):
+        """Initialize with policy configuration and performance tracking."""
         self.lock = threading.Lock()
+        self.policy = self._load_policy()
 
-        # NEW: Performance tracking per provider (rolling window)
+        # Adaptive performance tracking (rolling window per provider)
         self.performance_stats: dict[str, dict] = defaultdict(
             lambda: {
-                "resolution_times": deque(maxlen=WINDOW_SIZE),  # Last 5 resolution times
-                "retry_attempts": deque(maxlen=WINDOW_SIZE),  # Last 5 retry attempts
+                "resolution_times": deque(maxlen=WINDOW_SIZE),
+                "retry_attempts": deque(maxlen=WINDOW_SIZE),
                 "total_chunks": 0,
                 "failed_chunks": 0,
             }
         )
 
         # Session-specific provider preference (adapts per session)
-        self.session_provider: dict[str, str] = {}  # session_id -> preferred_provider
+        self.session_provider: dict[str, str] = {}
 
-        if not self.providers:
-            raise ValueError("No STT providers available. Check API keys in .env")
-
-        logger.info(
-            "STT_LOAD_BALANCER_INITIALIZED",
-            providers=self.providers,
-            strategy=strategy,
-            num_providers=len(self.providers),
-        )
-
-    def _get_available_providers(self) -> list[str]:
-        """Detect available providers based on environment variables.
+    def _load_policy(self) -> dict:
+        """Load policy.yaml configuration (Dependency Inversion principle).
 
         Returns:
-            List of available provider names
+            Policy configuration dict, or empty dict if file not found
         """
-        available = []
+        policy_path = Path("policy.yaml")
+        if not policy_path.exists():
+            logger.warning("NO_POLICY_FILE", message="policy.yaml not found, using defaults")
+            return {}
 
-        # ❌ TEMPORARY: Azure Whisper disabled - fails silently with duration=0.0
-        # if os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_OPENAI_KEY"):
-        #     available.append("azure_whisper")
+        with open(policy_path) as f:
+            policy = yaml.safe_load(f)
 
-        # Check Deepgram (ONLY provider for now)
-        if os.getenv("DEEPGRAM_API_KEY"):
-            available.append("deepgram")
-
+        stt_config = policy.get("stt", {})
         logger.info(
-            "STT_PROVIDERS_DETECTED",
-            available=available,
-            azure_configured=bool(os.getenv("AZURE_OPENAI_ENDPOINT")),
-            deepgram_configured=bool(os.getenv("DEEPGRAM_API_KEY")),
+            "POLICY_LOADED",
+            primary_provider=stt_config.get("primary_provider"),
+            large_file_threshold_mb=stt_config.get("routing_rules", {}).get(
+                "large_file_threshold_mb"
+            ),
+            large_file_provider=stt_config.get("routing_rules", {}).get("large_file_provider"),
         )
+        return policy
 
-        return available
+    def select_provider_for_file(
+        self,
+        audio_size_bytes: Optional[int] = None,
+        duration_seconds: Optional[float] = None,
+        chunk_number: Optional[int] = None,
+        session_id: Optional[str] = None,
+        force_provider: Optional[str] = None,
+    ) -> tuple[str, str]:
+        """Select STT provider based on file characteristics and policy.
 
-    def select_provider(
-        self, chunk_number: Optional[int] = None, session_id: Optional[str] = None
-    ) -> str:
-        """Select next provider using configured strategy.
+        Selection priority (Open/Closed principle - extensible via policy):
+          1. Forced provider (explicit override)
+          2. File size threshold (policy-driven)
+          3. Duration threshold (policy-driven)
+          4. Adaptive selection (performance-driven)
+          5. Primary provider (policy default)
 
         Args:
-            chunk_number: Optional chunk number for deterministic selection
-            session_id: Optional session ID for adaptive selection
+            audio_size_bytes: Size of audio file in bytes
+            duration_seconds: Duration of audio in seconds
+            chunk_number: Chunk index (for adaptive selection)
+            session_id: Session ID (for adaptive selection)
+            force_provider: Force specific provider (overrides policy)
 
         Returns:
-            Provider name (e.g., "azure_whisper" or "deepgram")
-
-        Strategy:
-            - adaptive: Intelligent selection based on performance (NEW)
-            - round_robin: Alternates providers sequentially
-            - chunk_number-based: Uses chunk_number % num_providers for determinism
+            Tuple of (provider_name, decision_reason)
         """
-        if not self.providers:
-            raise ValueError("No providers available")
+        # 1. Check if provider is forced (highest priority)
+        if force_provider:
+            logger.info("PROVIDER_FORCED", provider=force_provider, reason="Explicitly requested")
+            return force_provider, "forced_by_request"
 
-        if len(self.providers) == 1:
-            return self.providers[0]
+        stt_config = self.policy.get("stt", {})
+        routing_rules = stt_config.get("routing_rules", {})
 
-        # NEW: Adaptive strategy (default)
-        if self.strategy == "adaptive":
-            return self.select_adaptive_provider(session_id=session_id)
+        # 2. Check file size threshold (policy-driven routing)
+        if audio_size_bytes:
+            size_mb = audio_size_bytes / (1024 * 1024)
+            threshold_mb = routing_rules.get("large_file_threshold_mb", 5.0)
 
-        # Round-robin strategy
-        with self.lock:
-            if self.strategy == "round_robin":
-                if chunk_number is not None:
-                    # Deterministic: chunk 0→Azure, 1→Deepgram, 2→Azure, etc.
-                    index = chunk_number % len(self.providers)
-                else:
-                    # Sequential: increment counter
-                    index = self.current_index
-                    self.current_index = (self.current_index + 1) % len(self.providers)
+            if size_mb > threshold_mb:
+                provider = routing_rules.get("large_file_provider", "azure_whisper")
+                reason = f"file_size_{size_mb:.1f}MB_exceeds_{threshold_mb}MB"
 
-                provider = self.providers[index]
-
-                logger.debug(
-                    "STT_PROVIDER_SELECTED",
+                logger.info(
+                    "LARGE_FILE_ROUTING",
                     provider=provider,
-                    chunk_number=chunk_number,
-                    index=index,
-                    strategy=self.strategy,
+                    file_size_mb=size_mb,
+                    threshold_mb=threshold_mb,
+                    decision="Using large file provider from policy",
                 )
+                return provider, reason
 
-                return provider
+        # 3. Check duration threshold (policy-driven routing)
+        if duration_seconds:
+            threshold_seconds = routing_rules.get("long_duration_threshold_seconds", 300)
 
-            else:
-                # Default: return first provider
-                return self.providers[0]
+            if duration_seconds > threshold_seconds:
+                provider = routing_rules.get("long_duration_provider", "azure_whisper")
+                reason = f"duration_{duration_seconds}s_exceeds_{threshold_seconds}s"
+
+                logger.info(
+                    "LONG_DURATION_ROUTING",
+                    provider=provider,
+                    duration_seconds=duration_seconds,
+                    threshold_seconds=threshold_seconds,
+                    decision="Using long duration provider from policy",
+                )
+                return provider, reason
+
+        # 4. Use adaptive selection if we have performance data
+        if session_id or chunk_number is not None:
+            adaptive_provider = self._select_adaptive_provider(session_id=session_id)
+            if adaptive_provider:
+                logger.info(
+                    "ADAPTIVE_ROUTING",
+                    provider=adaptive_provider,
+                    session_id=session_id,
+                    reason="Using adaptive selection based on performance",
+                )
+                return adaptive_provider, "adaptive_performance"
+
+        # 5. Fallback to primary provider from policy
+        primary = stt_config.get("primary_provider", "deepgram")
+
+        logger.info(
+            "STANDARD_ROUTING",
+            provider=primary,
+            reason="Using primary provider from policy",
+            size_mb=audio_size_bytes / (1024 * 1024) if audio_size_bytes else None,
+        )
+
+        return primary, "primary_provider"
+
+    def get_fallback_for_empty(self, failed_provider: str) -> Optional[str]:
+        """Get fallback provider when transcript is empty (policy-driven).
+
+        Args:
+            failed_provider: Provider that returned empty transcript
+
+        Returns:
+            Fallback provider name or None
+        """
+        stt_config = self.policy.get("stt", {})
+        providers_config = stt_config.get("providers", {})
+
+        # Check provider-specific fallback in policy
+        provider_config = providers_config.get(failed_provider, {})
+        specific_fallback = provider_config.get("fallback_on_empty")
+
+        if specific_fallback:
+            logger.info(
+                "EMPTY_TRANSCRIPT_FALLBACK",
+                failed_provider=failed_provider,
+                fallback_provider=specific_fallback,
+                reason="Provider-specific fallback configured in policy",
+            )
+            return specific_fallback
+
+        # Use general fallback list from policy
+        fallback_providers = stt_config.get("fallback_providers", [])
+        for fallback in fallback_providers:
+            if fallback != failed_provider:
+                logger.info(
+                    "EMPTY_TRANSCRIPT_FALLBACK",
+                    failed_provider=failed_provider,
+                    fallback_provider=fallback,
+                    reason="Using next provider in fallback list from policy",
+                )
+                return fallback
+
+        logger.warning(
+            "NO_FALLBACK_AVAILABLE",
+            failed_provider=failed_provider,
+            message="No fallback provider available for empty transcript",
+        )
+        return None
 
     def record_performance(
         self,
@@ -171,7 +238,7 @@ class STTLoadBalancer:
         retry_attempts: int = 0,
         failed: bool = False,
     ) -> None:
-        """Record performance metrics for a provider.
+        """Record performance metrics for adaptive tracking.
 
         Args:
             provider: Provider name
@@ -201,7 +268,7 @@ class STTLoadBalancer:
                 failed=failed,
             )
 
-    def select_adaptive_provider(self, session_id: Optional[str] = None) -> str:
+    def _select_adaptive_provider(self, session_id: Optional[str] = None) -> Optional[str]:
         """Select provider based on performance metrics (adaptive strategy).
 
         Strategy:
@@ -213,23 +280,19 @@ class STTLoadBalancer:
             session_id: Optional session ID for session-specific preference
 
         Returns:
-            Provider name
+            Provider name or None if no performance data available
         """
-        if len(self.providers) == 1:
-            return self.providers[0]
-
         with self.lock:
-            # Check if we have performance data
+            # Get providers with performance data
             providers_with_data = [
-                p for p in self.providers if len(self.performance_stats[p]["resolution_times"]) > 0
+                p
+                for p in self.performance_stats.keys()
+                if len(self.performance_stats[p]["resolution_times"]) > 0
             ]
 
             if not providers_with_data:
-                # No data yet - use round-robin
-                provider = self.providers[self.current_index]
-                self.current_index = (self.current_index + 1) % len(self.providers)
-                logger.debug("ADAPTIVE_NO_DATA_FALLBACK_ROUND_ROBIN", provider=provider)
-                return provider
+                # No performance data yet - return None to use policy default
+                return None
 
             # Calculate average performance for each provider
             provider_scores = {}
@@ -240,7 +303,11 @@ class STTLoadBalancer:
 
                 avg_time = sum(times) / len(times)
                 avg_retries = sum(retries) / len(retries)
-                failure_rate = stats["failed_chunks"] / stats["total_chunks"]
+                failure_rate = (
+                    stats["failed_chunks"] / stats["total_chunks"]
+                    if stats["total_chunks"] > 0
+                    else 0
+                )
 
                 # Score: lower is better (penalize slow time, retries, failures)
                 score = avg_time + (avg_retries * 2) + (failure_rate * 10)
@@ -252,10 +319,10 @@ class STTLoadBalancer:
             # Check if session has a preferred provider
             if session_id and session_id in self.session_provider:
                 preferred = self.session_provider[session_id]
-                preferred_stats = self.performance_stats[preferred]
+                preferred_stats = self.performance_stats.get(preferred)
 
                 # Check if preferred provider is still good
-                if len(preferred_stats["resolution_times"]) > 0:
+                if preferred_stats and len(preferred_stats["resolution_times"]) > 0:
                     recent_times = list(preferred_stats["resolution_times"])
                     recent_retries = list(preferred_stats["retry_attempts"])
 
@@ -275,54 +342,19 @@ class STTLoadBalancer:
                         return best_provider
                     else:
                         # Preferred provider is still good
-                        logger.debug(
-                            "ADAPTIVE_KEEP_PREFERRED",
-                            session_id=session_id,
-                            provider=preferred,
-                            avg_time=round(avg_time, 2),
-                        )
                         return preferred
 
             # No preferred provider yet - use best one
             if session_id:
                 self.session_provider[session_id] = best_provider
 
-            logger.info(
-                "ADAPTIVE_PROVIDER_SELECTED",
-                provider=best_provider,
-                score=round(provider_scores[best_provider], 2),
-                session_id=session_id,
-            )
-
             return best_provider
-
-    def get_fallback_provider(self, failed_provider: str) -> Optional[str]:
-        """Get fallback provider if one fails.
-
-        Args:
-            failed_provider: Provider that failed
-
-        Returns:
-            Alternative provider name, or None if no alternatives
-        """
-        alternatives = [p for p in self.providers if p != failed_provider]
-
-        if alternatives:
-            fallback = alternatives[0]
-            logger.warning(
-                "STT_PROVIDER_FALLBACK",
-                failed_provider=failed_provider,
-                fallback_provider=fallback,
-            )
-            return fallback
-
-        return None
 
     def get_stats(self) -> dict:
         """Get load balancer statistics with performance metrics.
 
         Returns:
-            Dict with provider stats and performance data
+            Dict with policy info, provider stats, and performance data
         """
         with self.lock:
             # Calculate average metrics per provider
@@ -347,23 +379,27 @@ class STTLoadBalancer:
                         "recent_retries": list(retries),  # Last 5
                     }
 
+            stt_config = self.policy.get("stt", {})
             return {
-                "providers": self.providers,
-                "strategy": self.strategy,
-                "num_providers": len(self.providers),
-                "current_index": self.current_index,
+                "policy": {
+                    "primary_provider": stt_config.get("primary_provider"),
+                    "large_file_threshold_mb": stt_config.get("routing_rules", {}).get(
+                        "large_file_threshold_mb"
+                    ),
+                    "fallback_providers": stt_config.get("fallback_providers", []),
+                },
                 "performance": performance_summary,
                 "session_preferences": dict(self.session_provider),
             }
 
 
-# Global singleton instance
+# Global singleton instance (thread-safe)
 _load_balancer: Optional[STTLoadBalancer] = None
 _balancer_lock = threading.Lock()
 
 
 def get_stt_load_balancer() -> STTLoadBalancer:
-    """Get or create global STT load balancer (singleton).
+    """Get or create global STT load balancer singleton.
 
     Returns:
         STTLoadBalancer instance

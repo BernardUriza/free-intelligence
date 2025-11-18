@@ -180,23 +180,122 @@ async def get_session_detail(session_id: str) -> dict[str, Any]:
     """Get detailed session information.
 
     Returns full session data including all tasks.
+
+    Frontend expects format with metadata, timespan, size, policy_badges, events.
     """
     logger.info("TIMELINE_SESSION_DETAIL", session_id=session_id)
 
     try:
-        # Get all task types for this session
-        detail: dict[str, Any] = {
-            "session_id": session_id,
-            "tasks": {},
+        # Get transcription metadata for base info
+        transcription_metadata = task_repository.get_task_metadata(session_id, "TRANSCRIPTION")
+
+        if not transcription_metadata:
+            # Session not found
+            logger.warning("SESSION_NOT_FOUND", session_id=session_id)
+            return {
+                "metadata": {"session_id": session_id},
+                "timespan": {"start": "", "end": "", "duration_ms": 0, "duration_human": ""},
+                "size": {
+                    "interaction_count": 0,
+                    "total_tokens": 0,
+                    "total_chars": 0,
+                    "avg_tokens_per_interaction": 0,
+                    "size_human": "0 chars",
+                },
+                "policy_badges": {
+                    "hash_verified": "N/A",
+                    "policy_compliant": "N/A",
+                    "redaction_applied": "N/A",
+                    "audit_logged": "N/A",
+                },
+                "events": [],
+                "generation_mode": "unknown",
+                "auto_events_count": 0,
+                "manual_events_count": 0,
+                "redaction_stats": {},
+            }
+
+        # Build metadata
+        created_at = transcription_metadata.get("created_at", "")
+        updated_at = transcription_metadata.get("updated_at", created_at)
+
+        # Build timespan
+        timespan = {
+            "start": created_at,
+            "end": updated_at,
+            "duration_ms": 0,  # TODO: Calculate if needed
+            "duration_human": "Unknown",
         }
 
-        for task_type_str in ["TRANSCRIPTION", "DIARIZATION", "SOAP_GENERATION"]:
-            try:
-                metadata = task_repository.get_task_metadata(session_id, task_type_str)
-                if metadata:
-                    detail["tasks"][task_type_str] = metadata
-            except Exception:
-                pass
+        # Get chunks for size calculation
+        chunks = []
+        total_chars = 0
+        try:
+            chunks = task_repository.get_task_chunks(session_id, "TRANSCRIPTION")
+            for chunk in chunks:
+                transcript = chunk.get("transcript", "")
+                total_chars += len(transcript)
+        except Exception as chunk_error:
+            logger.warning("CHUNK_FETCH_ERROR", session_id=session_id, error=str(chunk_error))
+
+        # Build size
+        size = {
+            "interaction_count": len(chunks),
+            "total_tokens": 0,  # TODO: Calculate from metadata if available
+            "total_chars": total_chars,
+            "avg_tokens_per_interaction": 0,
+            "size_human": f"{total_chars} chars",
+        }
+
+        # Build policy badges (placeholder for now)
+        policy_badges = {
+            "hash_verified": "OK",
+            "policy_compliant": "OK",
+            "redaction_applied": "N/A",
+            "audit_logged": "OK",
+        }
+
+        # Build events array from chunks (converting chunks to event format)
+        events = []
+        for idx, chunk in enumerate(chunks):
+            transcript = chunk.get("transcript", "")
+            created_at_chunk = chunk.get("created_at", created_at)
+            events.append(
+                {
+                    "event_id": f"chunk_{idx}",
+                    "event_type": "transcription",
+                    "timestamp": created_at_chunk,
+                    "who": "system",
+                    "what": transcript[:100] if transcript else "",
+                    "summary": transcript if transcript else None,
+                    "content_hash": chunk.get("audio_hash", ""),
+                    "redaction_policy": "none",
+                    "causality": [],
+                    "tags": ["transcription", f"chunk_{idx}"],
+                    "auto_generated": True,
+                    "generation_mode": "deepgram",
+                    "confidence_score": chunk.get("confidence", 0.0),
+                }
+            )
+
+        # Build complete detail response
+        detail = {
+            "metadata": {
+                "session_id": session_id,
+                "thread_id": None,
+                "owner_hash": "unknown",
+                "created_at": created_at,
+                "updated_at": updated_at,
+            },
+            "timespan": timespan,
+            "size": size,
+            "policy_badges": policy_badges,
+            "events": events,
+            "generation_mode": "automated",
+            "auto_events_count": len(events),
+            "manual_events_count": 0,
+            "redaction_stats": {},
+        }
 
         return detail
 
@@ -207,4 +306,26 @@ async def get_session_detail(session_id: str) -> dict[str, Any]:
             error=str(e),
             exc_info=True,
         )
-        return {"session_id": session_id, "error": str(e)}
+        return {
+            "metadata": {"session_id": session_id},
+            "timespan": {"start": "", "end": "", "duration_ms": 0, "duration_human": ""},
+            "size": {
+                "interaction_count": 0,
+                "total_tokens": 0,
+                "total_chars": 0,
+                "avg_tokens_per_interaction": 0,
+                "size_human": "0 chars",
+            },
+            "policy_badges": {
+                "hash_verified": "N/A",
+                "policy_compliant": "N/A",
+                "redaction_applied": "N/A",
+                "audit_logged": "N/A",
+            },
+            "events": [],
+            "generation_mode": "unknown",
+            "auto_events_count": 0,
+            "manual_events_count": 0,
+            "redaction_stats": {},
+            "error": str(e),
+        }

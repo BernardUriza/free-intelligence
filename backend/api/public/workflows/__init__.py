@@ -17,7 +17,15 @@ Refactored: 2025-11-15 (SOLIS modular architecture)
 
 from __future__ import annotations
 
-from backend.api.public.workflows import orders, sessions, soap, timeline, transcription
+from backend.api.public.workflows import (
+    evidence,
+    kpis,
+    orders,
+    sessions,
+    soap,
+    timeline,
+    transcription,
+)
 from backend.api.public.workflows.router import router
 
 __all__ = [
@@ -27,4 +35,6 @@ __all__ = [
     "soap",
     "orders",
     "timeline",
+    "evidence",
+    "kpis",
 ]

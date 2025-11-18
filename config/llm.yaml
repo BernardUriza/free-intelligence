@@ -3,7 +3,7 @@
 # Card: FI-CORE-FEAT-001
 
 # Default provider for LLM operations
-provider_default: ollama
+provider_default: azure
 
 # Ollama provider configuration (local-only)
 ollama:

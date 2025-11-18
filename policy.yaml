@@ -1,0 +1,104 @@
+# Free Intelligence - Provider Policy Configuration
+# Single Source of Truth for Provider Selection
+# Created: 2025-11-17
+
+version: "1.0"
+description: "Policy-driven provider selection with size-based routing"
+
+# STT Provider Configuration
+stt:
+  # Primary provider for standard chunks
+  primary_provider: "deepgram"
+
+  # Fallback providers in priority order
+  fallback_providers:
+    - "azure_whisper"
+
+  # Size-based routing rules
+  routing_rules:
+    # Large files go to Azure Whisper (better for long audio)
+    large_file_threshold_mb: 5.0  # Files > 5MB use Azure
+    large_file_provider: "azure_whisper"
+
+    # Duration-based routing (if duration is known)
+    long_duration_threshold_seconds: 300  # Audio > 5 min uses Azure
+    long_duration_provider: "azure_whisper"
+
+  # Provider-specific configurations
+  providers:
+    azure_whisper:
+      enabled: true
+      timeout_seconds: 120  # Longer timeout for large files
+      api_version: "2024-02-15-preview"
+      deployment: "whisper"
+      max_file_size_mb: 25  # Azure limit
+      retry_on_empty: true
+
+    deepgram:
+      enabled: true
+      timeout_seconds: 30
+      model: "nova-2"
+      language: "es"
+      max_file_size_mb: 10
+      retry_on_empty: true
+      fallback_on_empty: "azure_whisper"  # Explicit fallback
+
+  # Automatic retry configuration
+  retry_policy:
+    max_retries: 2
+    retry_on_empty_transcript: true
+    retry_with_different_provider: true
+    log_all_attempts: true
+
+# Diarization Provider Configuration
+diarization:
+  primary_provider: "azure_gpt4"
+  fallback_providers:
+    - "ollama"
+
+  providers:
+    azure_gpt4:
+      enabled: true
+      deployment: "gpt-4"
+      temperature: 0.3
+      max_tokens: 4000
+
+    ollama:
+      enabled: true
+      model: "qwen2.5:7b-instruct-q4_0"
+      base_url: "http://localhost:11434"
+
+# LLM Provider Configuration
+llm:
+  primary_provider: "claude"
+  fallback_provider: "ollama"
+
+  providers:
+    claude:
+      model: "claude-3-5-sonnet-20241022"
+      max_tokens: 4096
+      temperature: 0.3
+
+    ollama:
+      model: "qwen2.5:7b-instruct-q4_0"
+      base_url: "http://localhost:11434"
+      timeout_seconds: 30
+
+  budgets:
+    max_cost_per_day: 100.0
+    max_requests_per_hour: 1000
+
+# Logging Configuration
+logging:
+  log_provider_selection: true
+  log_fallback_attempts: true
+  log_file_size_routing: true
+  log_empty_transcripts: true
+  include_decision_reason: true
+
+# Export Configuration
+export:
+  require_manifest: false
+  compute_sha256: true
+  allowed_formats: ["json", "csv", "h5"]
+  preserve_provider_info: true  # Keep record of which provider was used

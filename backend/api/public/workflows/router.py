@@ -39,6 +39,8 @@ from fastapi import APIRouter
 
 # Import sub-routers (modular architecture following SOLIS pattern)
 from backend.api.public.workflows import (
+    evidence,
+    kpis,
     orders,
     sessions,
     sessions_list,
@@ -69,14 +71,20 @@ router.include_router(soap.router, tags=["SOAP Notes", "AI Assistant"])
 # ORDERS: Medical orders CRUD
 router.include_router(orders.router, tags=["SOAP Notes"])
 
+# EVIDENCE: Evidence packs CRUD
+router.include_router(evidence.router, tags=["Evidence Packs"])
+
 # TIMELINE: Session history and summaries
 router.include_router(timeline.router, tags=["Sessions"])
 
 # SESSIONS LIST: Lightweight direct HDF5 read (alternative to Timeline)
 router.include_router(sessions_list.router, tags=["Sessions"])
 
+# KPIs: System metrics and performance dashboard
+router.include_router(kpis.router, tags=["KPIs"])
+
 logger.info(
     "WORKFLOWS_ROUTER_INITIALIZED",
-    modules=["transcription", "sessions", "soap", "orders", "timeline", "sessions_list"],
+    modules=["transcription", "sessions", "soap", "orders", "timeline", "sessions_list", "kpis"],
     pattern="SOLIS",
 )

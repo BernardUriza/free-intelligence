@@ -4,24 +4,28 @@
 # File: config/extract/clinical_min.yaml
 # Card: FI-DATA-RES-021
 # Created: 2025-10-30
+# Updated: 2025-11-17
 
 version: "1.0"
-description: "Minimum clinical fields for evidence pack extraction"
+description: "Minimum clinical fields for evidence pack extraction with citation support"
 
 # Required fields for clinical evidence
 required_fields:
+  - consulta         # Clinical question being addressed
   - source_id        # Unique identifier for source document
   - tipo_doc         # Document type (cita_medica, lab_result, imaging, prescription)
   - fecha            # Document date (ISO-8601)
   - paciente_id      # Patient identifier (hashed for privacy)
+  - hallazgo         # Clinical finding or observation
 
 # Optional clinical fields
 optional_fields:
-  - hallazgo         # Clinical finding
   - severidad        # Severity level (leve, moderado, severo, crítico)
-  - diagnostico      # Diagnosis
   - tratamiento      # Treatment prescribed
   - notas            # Additional clinical notes
+  - citation_text    # Exact text from source for citation
+  - page_number      # Page reference for citation
+  - confidence       # Confidence score (0-1) for extraction
 
 # Document types supported
 document_types:
@@ -64,3 +68,23 @@ extraction:
     enabled: true
     fields_to_redact: [paciente_id, notas]
     redaction_char: "*"
+
+# Evidence Pack configuration
+evidence_pack:
+  # Output format for evidence packs
+  format: "json"
+
+  # Include SHA256 hashes for all source documents
+  include_hashes: true
+
+  # Citation style (numeric: [1], [2], etc.)
+  citation_style: "numeric"
+
+  # Template mode for Q&A (deterministic, no diagnosis)
+  template_mode: "answer-with-citations-only"
+
+  # Export path pattern
+  export_path: "/export/evidence/{id}.json"
+
+  # Policy snapshot inclusion
+  include_policy_snapshot: true

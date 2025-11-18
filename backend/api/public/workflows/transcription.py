@@ -70,6 +70,10 @@ async def stream_chunk(
     audio: UploadFile = File(...),  # noqa: B008
     timestamp_start: Optional[float] = Form(None),
     timestamp_end: Optional[float] = Form(None),
+    patient_name: Optional[str] = Form(None),
+    patient_age: Optional[str] = Form(None),
+    patient_id: Optional[str] = Form(None),
+    chief_complaint: Optional[str] = Form(None),
     service: TranscriptionService = Depends(get_transcription_service),
 ) -> StreamChunkResponse:
     """Upload audio chunk for transcription (orchestrator).
@@ -96,6 +100,43 @@ async def stream_chunk(
     """
     try:
         audio_bytes = await audio.read()
+
+        # Save patient info to session metadata (first chunk only)
+        if chunk_number == 0 and any([patient_name, patient_age, patient_id, chief_complaint]):
+            import h5py
+
+            from backend.storage.task_repository import CORPUS_PATH
+
+            logger.info(
+                "PATIENT_INFO_RECEIVED",
+                session_id=session_id,
+                patient_name=patient_name,
+                has_age=bool(patient_age),
+                has_id=bool(patient_id),
+                has_complaint=bool(chief_complaint),
+            )
+
+            # Save to HDF5 session attributes
+            CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with h5py.File(CORPUS_PATH, "a") as f:
+                session_path = f"/sessions/{session_id}"
+                if session_path not in f:  # type: ignore[operator]
+                    session_group = f.create_group(session_path)  # type: ignore[union-attr]
+                else:
+                    session_group = f[session_path]  # type: ignore[index]
+
+                # Save patient metadata as session attributes
+                if patient_name:
+                    session_group.attrs["patient_name"] = patient_name
+                if patient_age:
+                    session_group.attrs["patient_age"] = patient_age
+                if patient_id:
+                    session_group.attrs["patient_id"] = patient_id
+                if chief_complaint:
+                    session_group.attrs["chief_complaint"] = chief_complaint
+
+            logger.info("PATIENT_INFO_SAVED", session_id=session_id)
+
         result = await service.process_chunk(
             session_id=session_id,
             chunk_number=chunk_number,
