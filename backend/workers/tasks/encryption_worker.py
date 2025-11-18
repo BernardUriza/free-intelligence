@@ -43,7 +43,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
-import logging
 import os
 import sys
 import time
@@ -55,6 +54,16 @@ from typing import Any, Final
 import h5py
 import numpy as np
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+# Import structlog logger for consistent logging
+try:
+    from backend.logger import get_logger
+except ImportError:
+    # Fallback for CLI execution outside backend context
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    def get_logger(name: str):
+        return logging.getLogger(name)
 
 # ═══════════════════════════════════════════════════════════════════
 # Configuration & Constants
@@ -79,13 +88,8 @@ DEFAULT_TARGETS: Final[list[str]] = [
     "/soap",
 ]
 
-# JSON logging configuration
-logging.basicConfig(
-    level=logging.INFO,
-    format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","extra":%(extra)s}',
-    datefmt="%Y-%m-%dT%H:%M:%S%z",
-)
-logger = logging.getLogger("encryption_worker")
+# Logger instance (structlog for consistency with backend)
+logger = get_logger("encryption_worker")
 
 
 # ═══════════════════════════════════════════════════════════════════
