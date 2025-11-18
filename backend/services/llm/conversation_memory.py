@@ -384,8 +384,9 @@ class ConversationMemoryManager:
 
         # 1. Get recent context (last N from current session)
         if session_id:
-            # Filter by session
-            session_mask = session_ids == session_id
+            # Filter by session (ensure arrays are at least 1D)
+            session_ids_array = np.atleast_1d(session_ids)
+            session_mask = session_ids_array == session_id
             session_indices = np.where(session_mask)[0]
 
             if len(session_indices) > 0:
@@ -393,7 +394,7 @@ class ConversationMemoryManager:
                 recent_indices = session_indices[-self.recent_buffer_size :]
                 recent = [
                     Interaction(
-                        session_id=session_ids[idx],
+                        session_id=session_ids_array[idx],
                         interaction_idx=int(idx),
                         timestamp=int(timestamps[idx]),
                         role=roles[idx],
