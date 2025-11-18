@@ -549,6 +549,20 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
         except ValueError:
             pass  # Keep default not_started
 
+        # === ENCRYPTION ===
+        encryption_data = {"status": "not_started", "progress": 0}
+        try:
+            encryption_meta = get_task_metadata(session_id, TaskType.ENCRYPTION) or {}
+            encryption_status = encryption_meta.get("status", "pending")
+            encryption_progress = encryption_meta.get("progress_percent", 0)
+            encryption_data = {
+                "status": encryption_status,
+                "progress": encryption_progress,
+                "queued_at": encryption_meta.get("queued_at", ""),
+            }
+        except ValueError:
+            pass  # Keep default not_started
+
         # === RETURN JSON (for frontend polling) ===
         if wants_json:
             return {
@@ -561,6 +575,7 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
                 "transcription": transcription_data,
                 "diarization": diarization_data,
                 "soap": soap_data,
+                "encryption": encryption_data,
             }
 
         # === RETURN ASCII (for terminal/curl) ===
@@ -658,6 +673,25 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
             )
             output_lines.append(f"{bold}📋 SOAP GENERATION:{reset}")
             output_lines.append(f"   Status: {status_color}{status_val.upper()}{reset}")
+            output_lines.append("")
+
+        # ENCRYPTION ASCII
+        status_val = encryption_data["status"]
+        if status_val == "not_started":
+            output_lines.append(f"{bold}🔐 ENCRYPTION:{reset} {red}NOT STARTED{reset}\n")
+        else:
+            status_color = (
+                green
+                if status_val == "completed"
+                else yellow
+                if status_val == "in_progress"
+                else blue
+            )
+            progress_val = cast(int, encryption_data["progress"])
+            output_lines.append(f"{bold}🔐 ENCRYPTION:{reset}")
+            output_lines.append(f"   Status: {status_color}{status_val.upper()}{reset}")
+            if progress_val > 0:
+                output_lines.append(f"   Progress: {bold}{progress_val}%{reset}")
             output_lines.append("")
 
         output_lines.append(f"{bold}{cyan}{'='*60}{reset}\n")
