@@ -213,6 +213,51 @@ async def finalize_session(
             completed_chunks=completed_chunks,
         )
 
+        # 1.5. Verify REQUIRED tasks are completed before encryption
+        # Required tasks: TRANSCRIPTION (already verified), DIARIZATION, SOAP_GENERATION
+        required_tasks = {
+            TaskType.DIARIZATION: "Diarization (speaker identification) must be completed",
+            TaskType.SOAP_GENERATION: "SOAP note generation must be completed",
+        }
+
+        missing_tasks = []
+        incomplete_tasks = []
+
+        for task_type, description in required_tasks.items():
+            try:
+                task_meta = get_task_metadata(session_id, task_type)
+                if not task_meta:
+                    missing_tasks.append(f"{task_type}: {description}")
+                    continue
+
+                task_status = task_meta.get("status", "pending")
+                if task_status != TaskStatus.COMPLETED:
+                    incomplete_tasks.append(
+                        f"{task_type}: status={task_status} (expected: completed)"
+                    )
+            except ValueError:
+                # Task doesn't exist
+                missing_tasks.append(f"{task_type}: {description}")
+
+        # Raise error if any required tasks are missing or incomplete
+        if missing_tasks or incomplete_tasks:
+            error_details = []
+            if missing_tasks:
+                error_details.append("Missing tasks: " + ", ".join(missing_tasks))
+            if incomplete_tasks:
+                error_details.append("Incomplete tasks: " + ", ".join(incomplete_tasks))
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot finalize session - required tasks not completed. {' | '.join(error_details)}",
+            )
+
+        logger.info(
+            "REQUIRED_TASKS_VERIFIED",
+            session_id=session_id,
+            tasks_verified=list(required_tasks.keys()),
+        )
+
         # 2. Initialize ENCRYPTION task (metadata only - actual encryption happens after SOAP)
         # This creates the task entry in HDF5 for tracking
         from backend.storage.task_repository import ensure_task_exists
@@ -439,6 +484,7 @@ async def finalize_session(
         # Fire-and-forget pattern: session returns 202 immediately
         # Encryption executes in background ThreadPoolExecutor
         from backend.storage.task_repository import CORPUS_PATH
+
         h5_path = str(CORPUS_PATH)
 
         # Get idempotency key from ENCRYPTION task
