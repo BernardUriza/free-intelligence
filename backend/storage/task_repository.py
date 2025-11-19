@@ -503,10 +503,27 @@ def count_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> tuple
                 return (expected_total, 0)
 
             chunks_group = f[chunks_path]  # type: ignore[index]
-            processed = len(chunks_group.keys())  # type: ignore[union-attr]
 
-            # OPTIMIZATION: Chunks are only created when processed (append-only)
-            # So we just count keys, no need to read datasets
+            # Count chunks that have VALID transcripts (non-empty)
+            # Fix: Cannot trust chunk existence alone - must verify transcript content
+            processed = 0
+            for chunk_key in chunks_group.keys():  # type: ignore[union-attr]
+                chunk_group = chunks_group[chunk_key]  # type: ignore[index]
+
+                # Check if transcript exists and is non-empty
+                if "transcript" in chunk_group:  # type: ignore[operator]
+                    transcript_data = chunk_group["transcript"][()]  # type: ignore[index]
+
+                    # Handle both string and bytes
+                    if isinstance(transcript_data, bytes):
+                        transcript_text = transcript_data.decode("utf-8", errors="ignore")
+                    else:
+                        transcript_text = str(transcript_data)
+
+                    # Only count if transcript has actual content
+                    if transcript_text and transcript_text.strip():
+                        processed += 1
+
             return (expected_total, processed)
 
     except Exception as e:
