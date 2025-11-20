@@ -165,20 +165,14 @@ Requires environment variables:
     # Include all API routers (lazy load to avoid circular imports)
     try:
         from backend.api import internal, public
+        from backend.api.internal.admin import users_router  # Admin user management
 
         # Import TTS router
-        from backend.api.public import (
-            audit,
-            patients,
-            policy,
-            providers,
-            tts,
-        )
+        from backend.api.public import audit, patients, policy, providers, tts
         from backend.api.public.workflows import timeline
         from backend.auth.auth0_router import (
             router as auth_router,  # HIPAA G-003 (Auth0)
         )
-        from backend.api.internal.admin import users_router  # Admin user management
 
         # PUBLIC API (CORS enabled, orchestrators)
         public_app.include_router(auth_router)  # Auth0 Authentication (HIPAA G-003)

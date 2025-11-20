@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import h5py
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -68,12 +67,12 @@ async def stream_chunk(
     session_id: str = Form(...),
     chunk_number: int = Form(...),
     audio: UploadFile = File(...),  # noqa: B008
-    timestamp_start: Optional[float] = Form(None),
-    timestamp_end: Optional[float] = Form(None),
-    patient_name: Optional[str] = Form(None),
-    patient_age: Optional[str] = Form(None),
-    patient_id: Optional[str] = Form(None),
-    chief_complaint: Optional[str] = Form(None),
+    timestamp_start: float | None = Form(None),
+    timestamp_end: float | None = Form(None),
+    patient_name: str | None = Form(None),
+    patient_age: str | None = Form(None),
+    patient_id: str | None = Form(None),
+    chief_complaint: str | None = Form(None),
     service: TranscriptionService = Depends(get_transcription_service),
 ) -> StreamChunkResponse:
     """Upload audio chunk for transcription (orchestrator).
@@ -212,7 +211,7 @@ async def get_job_status(
 async def end_session(
     session_id: str = Form(...),
     full_audio: UploadFile = File(...),  # noqa: B008
-    webspeech_final: Optional[str] = Form(None),  # JSON string of webspeech transcripts
+    webspeech_final: str | None = Form(None),  # JSON string of webspeech transcripts
 ) -> dict:
     """End session and save full audio file + webspeech transcripts.
 

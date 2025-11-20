@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, TypeVar, Union
 
 import h5py
 
@@ -101,7 +101,7 @@ class BaseRepository(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def read(self, entity_id: str) -> Optional[T]:
+    def read(self, entity_id: str) -> T | None:
         """Read entity from repository.
 
         Args:
@@ -148,7 +148,7 @@ class BaseRepository(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def list_all(self, limit: Optional[int] = None) -> list[T]:
+    def list_all(self, limit: int | None = None) -> list[T]:
         """List all entities in repository.
 
         Args:
@@ -165,9 +165,9 @@ class BaseRepository(ABC, Generic[T]):
     def _log_operation(
         self,
         operation: str,
-        entity_id: Optional[str] = None,
+        entity_id: str | None = None,
         status: str = "success",
-        error: Optional[str] = None,
+        error: str | None = None,
     ) -> None:
         """Log repository operation for audit trail.
 

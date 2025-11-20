@@ -47,44 +47,44 @@ def normalize_capitalization(text: str) -> str:
     # Step 2: Capitalize after sentence endings (. ! ?)
     # Matches: ". word" → ". Word" and "? word" → "? Word"
     # Also handle "? ¿word" → "? ¿Word" (Spanish questions after periods)
-    text = re.sub(r'([.!?]\s+)(¿?)([a-záéíóúñü])', lambda m: m.group(1) + m.group(2) + m.group(3).upper(), text)
+    text = re.sub(
+        r"([.!?]\s+)(¿?)([a-záéíóúñü])",
+        lambda m: m.group(1) + m.group(2) + m.group(3).upper(),
+        text,
+    )
 
     # Step 3: Fix common mid-sentence capitalization errors
     # "El " → "el " (when not at start of sentence)
     # But preserve after sentence endings and at start of text
     common_words = {
-        r'\bEl\b': 'el',
-        r'\bLa\b': 'la',
-        r'\bLos\b': 'los',
-        r'\bLas\b': 'las',
-        r'\bUn\b': 'un',
-        r'\bUna\b': 'una',
-        r'\bDe\b': 'de',
-        r'\bEn\b': 'en',
-        r'\bCon\b': 'con',
-        r'\bPor\b': 'por',
-        r'\bPara\b': 'para',
-        r'\bEs\b': 'es',
-        r'\bEspero\b': 'espero',
-        r'\bQue\b': 'que',
-        r'\bDisfrute\b': 'disfrute',
+        r"\bEl\b": "el",
+        r"\bLa\b": "la",
+        r"\bLos\b": "los",
+        r"\bLas\b": "las",
+        r"\bUn\b": "un",
+        r"\bUna\b": "una",
+        r"\bDe\b": "de",
+        r"\bEn\b": "en",
+        r"\bCon\b": "con",
+        r"\bPor\b": "por",
+        r"\bPara\b": "para",
+        r"\bEs\b": "es",
+        r"\bEspero\b": "espero",
+        r"\bQue\b": "que",
+        r"\bDisfrute\b": "disfrute",
     }
 
     for pattern, replacement in common_words.items():
         # Only replace if NOT at start of sentence (after . ! ?) or start of string
         # Use negative lookbehind to avoid replacing after sentence endings or at position 0
-        text = re.sub(
-            rf'(?<!^)(?<![.!?]\s)({pattern})',
-            replacement,
-            text
-        )
+        text = re.sub(rf"(?<!^)(?<![.!?]\s)({pattern})", replacement, text)
 
     # Step 4: Lowercase "doctor" when not a proper noun (e.g., "gracias Doctor" → "gracias doctor")
     # But preserve "Doctor García" (followed by capital letter)
-    text = re.sub(r'\bDoctor(?!\s+[A-ZÁÉÍÓÚÑ])', 'doctor', text)
+    text = re.sub(r"\bDoctor(?!\s+[A-ZÁÉÍÓÚÑ])", "doctor", text)
 
     # Step 5: Fix double spaces created by previous operations
-    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r"\s+", " ", text)
 
     return text.strip()
 
@@ -104,7 +104,7 @@ def normalize_medical_segment(segment_text: str) -> str:
     normalized = normalize_capitalization(segment_text)
 
     # Ensure text ends with punctuation
-    if normalized and not normalized[-1] in '.!?':
-        normalized += '.'
+    if normalized and normalized[-1] not in ".!?":
+        normalized += "."
 
     return normalized

@@ -17,7 +17,7 @@ import uuid
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import h5py
 
@@ -95,7 +95,7 @@ class BufferedHDF5Writer:
         response: str,
         model: str,
         tokens: int,
-        timestamp: Optional[str] = None,
+        timestamp: str | None = None,
     ) -> str:
         """
         Write interaction to buffer (non-blocking).
@@ -197,9 +197,10 @@ class BufferedHDF5Writer:
                     self._rotate_corpus()
 
             # Atomic write: all-or-nothing
-            with AppendOnlyPolicy(str(self.corpus_path)), h5py.File(
-                str(self.corpus_path), "a"
-            ) as f:
+            with (
+                AppendOnlyPolicy(str(self.corpus_path)),
+                h5py.File(str(self.corpus_path), "a") as f,
+            ):
                 interactions = f["interactions"]
 
                 # Current size
@@ -389,8 +390,8 @@ if __name__ == "__main__":
     for i in range(3):
         interaction_id = writer.write_interaction(
             session_id="session_demo",
-            prompt=f"Test prompt {i+1}",
-            response=f"Test response {i+1}",
+            prompt=f"Test prompt {i + 1}",
+            response=f"Test response {i + 1}",
             model="claude-3-5-sonnet-20241022",
             tokens=50,
         )

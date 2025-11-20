@@ -13,7 +13,6 @@ FI-DATA-FEAT-004
 import hashlib
 import uuid
 from pathlib import Path
-from typing import Optional
 
 import h5py
 
@@ -35,7 +34,7 @@ def generate_corpus_id() -> str:
     return str(uuid.uuid4())
 
 
-def generate_owner_hash(owner_identifier: str, salt: Optional[str] = None) -> str:
+def generate_owner_hash(owner_identifier: str, salt: str | None = None) -> str:
     """
     Generate SHA256 hash of owner identifier.
 
@@ -72,8 +71,8 @@ def generate_owner_hash(owner_identifier: str, salt: Optional[str] = None) -> st
 def add_corpus_identity(
     corpus_path: str,
     owner_identifier: str,
-    corpus_id: Optional[str] = None,
-    salt: Optional[str] = None,
+    corpus_id: str | None = None,
+    salt: str | None = None,
 ) -> tuple[str, str]:
     """
     Add corpus_id and owner_hash to existing corpus.
@@ -144,7 +143,7 @@ def add_corpus_identity(
 
 
 def verify_corpus_ownership(
-    corpus_path: str, owner_identifier: str, salt: Optional[str] = None
+    corpus_path: str, owner_identifier: str, salt: str | None = None
 ) -> bool:
     """
     Verify ownership of a corpus by comparing owner_hash.
@@ -203,7 +202,7 @@ def verify_corpus_ownership(
         return False
 
 
-def get_corpus_identity(corpus_path: str) -> Optional[dict]:
+def get_corpus_identity(corpus_path: str) -> dict | None:
     """
     Retrieve corpus identity information.
 

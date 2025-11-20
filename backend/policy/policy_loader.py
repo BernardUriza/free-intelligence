@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -29,7 +29,7 @@ class PolicyValidationError(Exception):
 class PolicyLoader:
     """Loads and validates fi.policy.yaml"""
 
-    def __init__(self, policy_path: Optional[str] = None):
+    def __init__(self, policy_path: str | None = None):
         """
         Initialize policy loader.
 
@@ -390,11 +390,11 @@ class PolicyLoader:
 
 
 # Singleton instance with thread-safe double-checked locking
-_policy_loader: Optional[PolicyLoader] = None
+_policy_loader: PolicyLoader | None = None
 _policy_loader_lock = threading.Lock()
 
 
-def get_policy_loader(policy_path: Optional[str] = None) -> PolicyLoader:
+def get_policy_loader(policy_path: str | None = None) -> PolicyLoader:
     """
     Get singleton PolicyLoader instance (thread-safe).
 
@@ -430,7 +430,7 @@ def get_policy_loader(policy_path: Optional[str] = None) -> PolicyLoader:
     return _policy_loader
 
 
-def reload_policy(policy_path: Optional[str] = None) -> PolicyLoader:
+def reload_policy(policy_path: str | None = None) -> PolicyLoader:
     """
     Force reload of policy (useful for testing or configuration changes).
 

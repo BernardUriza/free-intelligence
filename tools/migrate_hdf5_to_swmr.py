@@ -11,14 +11,17 @@ Created: 2025-11-16
 
 from __future__ import annotations
 
-import h5py
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import h5py
+
 
 def copy_attrs(src_obj, dst_obj):
     """Copy all attributes from source to destination object."""
     for key, val in src_obj.attrs.items():
         dst_obj.attrs[key] = val
+
 
 def copy_dataset(src_dataset, dst_group, name):
     """Copy a dataset from source to destination group."""
@@ -30,7 +33,7 @@ def copy_dataset(src_dataset, dst_group, name):
             dtype=src_dataset.dtype,
             chunks=src_dataset.chunks,
             compression=src_dataset.compression,
-            compression_opts=src_dataset.compression_opts
+            compression_opts=src_dataset.compression_opts,
         )
 
         # Copy attributes
@@ -40,6 +43,7 @@ def copy_dataset(src_dataset, dst_group, name):
     except (OSError, RuntimeError) as e:
         print(f"    ⚠️  SKIPPED (corrupted): {name} - {e}")
         return None
+
 
 def copy_group_recursive(src_group, dst_group, path="/"):
     """Recursively copy a group and all its contents."""
@@ -63,6 +67,7 @@ def copy_group_recursive(src_group, dst_group, path="/"):
             print(f"  Dataset: {item_path} ({item.dtype}, shape={item.shape})")
             copy_dataset(item, dst_group, name)
 
+
 def migrate_corpus():
     """Main migration function."""
     old_path = Path("storage/corpus.h5.old")
@@ -76,13 +81,13 @@ def migrate_corpus():
     print(f"📦 Old file: {old_path} ({old_path.stat().st_size / 1024 / 1024:.1f} MB)")
 
     # Open old file (read-only)
-    with h5py.File(old_path, 'r') as old_file:
+    with h5py.File(old_path, "r") as old_file:
         print(f"📖 Opened old file (libver={old_file.libver})")
         print(f"   Root groups: {list(old_file.keys())}")
 
         # Create new file with SWMR support
-        with h5py.File(temp_path, 'w', libver='latest') as new_file:
-            print(f"📝 Created new file with libver='latest'")
+        with h5py.File(temp_path, "w", libver="latest") as new_file:
+            print("📝 Created new file with libver='latest'")
 
             # Copy all root-level groups recursively
             for name, item in old_file.items():
@@ -97,19 +102,20 @@ def migrate_corpus():
             # Copy root attributes
             copy_attrs(old_file, new_file)
 
-            print(f"\n✅ Migration complete!")
+            print("\n✅ Migration complete!")
             print(f"   New file: {temp_path} ({temp_path.stat().st_size / 1024 / 1024:.1f} MB)")
 
     # Rename files
-    print(f"\n🔄 Renaming files...")
+    print("\n🔄 Renaming files...")
     new_path.rename(Path("storage/corpus.h5.pre-migration"))
     temp_path.rename(new_path)
     print(f"✅ Renamed {temp_path} → {new_path}")
 
-    print(f"\n🎉 Migration complete! Old sessions should now be accessible.")
-    print(f"   Backups:")
-    print(f"     - corpus.h5.old (original old file)")
-    print(f"     - corpus.h5.pre-migration (empty new file)")
+    print("\n🎉 Migration complete! Old sessions should now be accessible.")
+    print("   Backups:")
+    print("     - corpus.h5.old (original old file)")
+    print("     - corpus.h5.pre-migration (empty new file)")
+
 
 if __name__ == "__main__":
     migrate_corpus()

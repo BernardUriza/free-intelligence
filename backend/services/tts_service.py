@@ -11,7 +11,7 @@ Created: 2025-11-17
 """
 
 import os
-from typing import Literal, Optional
+from typing import Literal
 
 import httpx
 import structlog
@@ -124,7 +124,7 @@ class TTSService:
 
 
 # Global singleton instance
-_tts_service: Optional[TTSService] = None
+_tts_service: TTSService | None = None
 
 
 def get_tts_service() -> TTSService:

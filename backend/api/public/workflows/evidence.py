@@ -140,11 +140,11 @@ async def generate_evidence_pack_from_session(session_id: str) -> dict:
 
     # Create source from SOAP
     soap_text = f"""
-Chief Complaint: {soap_data.get('subjective', {}).get('chief_complaint', 'N/A')}
-History: {soap_data.get('subjective', {}).get('history_present_illness', 'N/A')}
-Physical Exam: {soap_data.get('objective', {}).get('physical_exam', 'N/A')}
-Assessment: {soap_data.get('assessment', {}).get('primary_diagnosis', 'N/A')}
-Plan: {soap_data.get('plan', {}).get('treatment', 'N/A')}
+Chief Complaint: {soap_data.get("subjective", {}).get("chief_complaint", "N/A")}
+History: {soap_data.get("subjective", {}).get("history_present_illness", "N/A")}
+Physical Exam: {soap_data.get("objective", {}).get("physical_exam", "N/A")}
+Assessment: {soap_data.get("assessment", {}).get("primary_diagnosis", "N/A")}
+Plan: {soap_data.get("plan", {}).get("treatment", "N/A")}
     """.strip()
 
     sources.append(

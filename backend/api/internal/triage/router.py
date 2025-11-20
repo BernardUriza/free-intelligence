@@ -8,14 +8,14 @@ Created: 2025-11-08
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any, Dict, Literal, Union
+
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, constr, field_validator
 
 from backend.container import get_container
 from backend.logger import get_logger
-
-from datetime import datetime
-from typing import Any, Dict, Literal, Optional, Union
 
 logger = get_logger(__name__)
 
@@ -31,12 +31,12 @@ class IntakePayload(BaseModel):
 
     reason: constr(min_length=3)  # type: ignore
     symptoms: Union[str, list[str]] = []
-    audioTranscription: Optional[str] = None
+    audioTranscription: str | None = None
     metadata: Dict[str, Any] = {}
 
     @field_validator("audioTranscription")
     @classmethod
-    def validate_transcription_length(cls, v: Optional[str]) -> Optional[str]:
+    def validate_transcription_length(cls, v: str | None) -> str | None:
         """Limit audioTranscription to 32k chars"""
         if v and len(v) > 32_000:
             raise ValueError("audioTranscription exceeds 32k character limit")

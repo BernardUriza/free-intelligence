@@ -10,7 +10,7 @@ from typing import List
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-__all__ = ["SubjectiveData", "ObjectiveData", "AssessmentData", "PlanData", "SOAPNote"]
+__all__ = ["AssessmentData", "ObjectiveData", "PlanData", "SOAPNote", "SubjectiveData"]
 
 
 class SubjectiveData(BaseModel):

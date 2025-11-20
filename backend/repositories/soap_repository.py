@@ -110,11 +110,13 @@ class SoapRepository:
                         text = text.decode("utf-8")
 
                     if isinstance(text, str) and text.strip():
-                        chunks.append({
-                            "index": i,
-                            "text": text.strip(),
-                            "timestamp": row.get("timestamp", 0.0),
-                        })
+                        chunks.append(
+                            {
+                                "index": i,
+                                "text": text.strip(),
+                                "timestamp": row.get("timestamp", 0.0),
+                            }
+                        )
 
                 logger.info(
                     "CHUNKS_FETCHED",

@@ -20,7 +20,7 @@ Card: Architecture unification
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from backend.models.job import Job, JobStatus, JobType
 
@@ -35,16 +35,16 @@ class ChunkMetadata:
     chunk_number: int
     status: str  # Union[pending, processing, completed] | failed
     audio_size_bytes: int
-    audio_hash: Optional[str] = None
-    transcript: Optional[str] = None
-    duration: Optional[float] = None
-    language: Optional[str] = None
-    confidence: Optional[float] = None  # 0-1 (normalized avg_logprob)
-    audio_quality: Optional[float] = None  # 0-1 (heuristic: words/second)
-    timestamp_start: Optional[float] = None
-    timestamp_end: Optional[float] = None
-    created_at: Optional[str] = None
-    error_message: Optional[str] = None
+    audio_hash: str | None = None
+    transcript: str | None = None
+    duration: float | None = None
+    language: str | None = None
+    confidence: float | None = None  # 0-1 (normalized avg_logprob)
+    audio_quality: float | None = None  # 0-1 (heuristic: words/second)
+    timestamp_start: float | None = None
+    timestamp_end: float | None = None
+    created_at: str | None = None
+    error_message: str | None = None
 
 
 @dataclass
@@ -66,8 +66,8 @@ class TranscriptionJob(Job):
     chunks: list[ChunkMetadata] = field(default_factory=list)
     total_chunks: int = 0
     processed_chunks: int = 0
-    audio_file_path: Optional[str] = None
-    audio_duration: Optional[float] = None
+    audio_file_path: str | None = None
+    audio_duration: float | None = None
     primary_language: str = "es"  # Default to Spanish
 
     def __post_init__(self):
@@ -199,7 +199,7 @@ class TranscriptionJob(Job):
             self.chunks[chunk_idx].status = "failed"
             self.chunks[chunk_idx].error_message = error_message
 
-    def get_chunk(self, chunk_number: int) -> Optional[ChunkMetadata]:
+    def get_chunk(self, chunk_number: int) -> ChunkMetadata | None:
         """Get chunk metadata by number.
 
         Args:

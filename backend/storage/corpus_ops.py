@@ -13,7 +13,6 @@ FI-DATA-OPS (Test/Demo)
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import h5py
 import numpy as np
@@ -26,7 +25,7 @@ def append_interaction(
     response: str,
     model: str,
     tokens: int,
-    timestamp: Optional[str] = None,
+    timestamp: str | None = None,
 ) -> str:
     """
     Append interaction to corpus.
@@ -174,7 +173,7 @@ def append_interaction_with_embedding(
     response: str,
     model: str,
     tokens: int,
-    timestamp: Optional[str] = None,
+    timestamp: str | None = None,
     auto_embed: bool = True,
 ) -> str:
     """

@@ -17,10 +17,9 @@ Author: Bernard Uriza
 Created: 2025-11-20
 """
 
-from fastapi import APIRouter, HTTPException, status, Depends, Header
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
 import structlog
+from fastapi import APIRouter, Depends, Header, HTTPException, status
+from pydantic import BaseModel, EmailStr, Field
 
 from backend.services.auth0_management import get_auth0_service
 
@@ -33,8 +32,10 @@ router = APIRouter(prefix="/admin/users", tags=["admin"])
 # REQUEST/RESPONSE MODELS
 # ============================================================================
 
+
 class UserListResponse(BaseModel):
     """Response for list users endpoint"""
+
     users: list[dict]
     total: int
     page: int
@@ -43,28 +44,32 @@ class UserListResponse(BaseModel):
 
 class CreateUserRequest(BaseModel):
     """Request to create new user"""
+
     email: EmailStr
-    name: Optional[str] = None
-    password: Optional[str] = None
+    name: str | None = None
+    password: str | None = None
     roles: list[str] = Field(default_factory=list)
     send_verification_email: bool = True
 
 
 class UpdateUserRequest(BaseModel):
     """Request to update user"""
-    name: Optional[str] = None
-    email: Optional[EmailStr] = None
-    email_verified: Optional[bool] = None
-    user_metadata: Optional[dict] = None
+
+    name: str | None = None
+    email: EmailStr | None = None
+    email_verified: bool | None = None
+    user_metadata: dict | None = None
 
 
 class BlockUserRequest(BaseModel):
     """Request to block/unblock user"""
+
     blocked: bool
 
 
 class UpdateRolesRequest(BaseModel):
     """Request to update user roles"""
+
     roles: list[str]
 
 
@@ -72,9 +77,8 @@ class UpdateRolesRequest(BaseModel):
 # RBAC DEPENDENCY
 # ============================================================================
 
-async def require_superadmin(
-    authorization: str = Header(None)
-) -> dict:
+
+async def require_superadmin(authorization: str = Header(None)) -> dict:
     """
     Verify user has SUPERADMIN role via JWT token.
 
@@ -148,11 +152,12 @@ async def require_superadmin(
 # USER CRUD ENDPOINTS
 # ============================================================================
 
+
 @router.get("", response_model=UserListResponse)
 async def list_users(
     page: int = 0,
     per_page: int = 50,
-    search: Optional[str] = None,
+    search: str | None = None,
     admin: dict = Depends(require_superadmin),
 ):
     """
@@ -204,7 +209,7 @@ async def list_users(
         logger.error("LIST_USERS_FAILED", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list users: {str(e)}",
+            detail=f"Failed to list users: {e!s}",
         )
 
 
@@ -239,7 +244,7 @@ async def get_user(
         logger.error("GET_USER_FAILED", user_id=user_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User not found: {str(e)}",
+            detail=f"User not found: {e!s}",
         )
 
 
@@ -322,7 +327,7 @@ async def create_user(
         logger.error("CREATE_USER_FAILED", email=request.email, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create user: {str(e)}",
+            detail=f"Failed to create user: {e!s}",
         )
 
 
@@ -384,7 +389,7 @@ async def update_user(
         logger.error("UPDATE_USER_FAILED", user_id=user_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update user: {str(e)}",
+            detail=f"Failed to update user: {e!s}",
         )
 
 
@@ -418,13 +423,14 @@ async def delete_user(
         logger.error("DELETE_USER_FAILED", user_id=user_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete user: {str(e)}",
+            detail=f"Failed to delete user: {e!s}",
         )
 
 
 # ============================================================================
 # USER STATUS ENDPOINTS
 # ============================================================================
+
 
 @router.put("/{user_id}/block")
 async def block_user(
@@ -461,13 +467,14 @@ async def block_user(
         logger.error("BLOCK_USER_FAILED", user_id=user_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to block/unblock user: {str(e)}",
+            detail=f"Failed to block/unblock user: {e!s}",
         )
 
 
 # ============================================================================
 # ROLE MANAGEMENT ENDPOINTS
 # ============================================================================
+
 
 @router.put("/{user_id}/roles")
 async def update_user_roles(
@@ -500,9 +507,7 @@ async def update_user_roles(
 
         # Find role IDs for requested role names
         requested_role_ids = {
-            role_id_map[role_name]
-            for role_name in request.roles
-            if role_name in role_id_map
+            role_id_map[role_name] for role_name in request.roles if role_name in role_id_map
         }
 
         # Calculate roles to add and remove
@@ -537,7 +542,7 @@ async def update_user_roles(
         logger.error("UPDATE_ROLES_FAILED", user_id=user_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update user roles: {str(e)}",
+            detail=f"Failed to update user roles: {e!s}",
         )
 
 
@@ -561,5 +566,5 @@ async def list_available_roles(
         logger.error("LIST_ROLES_FAILED", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list roles: {str(e)}",
+            detail=f"Failed to list roles: {e!s}",
         )

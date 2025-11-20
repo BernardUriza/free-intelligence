@@ -23,7 +23,7 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import yaml
 
@@ -35,7 +35,7 @@ class Citation:
     citation_id: int  # Numeric ID for citation (e.g., [1], [2])
     source_id: str  # Source document ID
     text: str  # Exact text being cited
-    page_number: Optional[int] = None  # Page reference if available
+    page_number: int | None = None  # Page reference if available
     confidence: float = 1.0  # Confidence score for extraction
 
 
@@ -47,10 +47,10 @@ class ClinicalSource:
     tipo_doc: str  # Document type
     fecha: str  # ISO-8601 date
     paciente_id: str  # Patient ID (hashed)
-    hallazgo: Optional[str] = None  # Clinical finding
-    severidad: Optional[str] = None  # Severity
-    raw_text: Optional[str] = None  # Original text
-    citations: Optional[List[Citation]] = None  # Associated citations
+    hallazgo: str | None = None  # Clinical finding
+    severidad: str | None = None  # Severity
+    raw_text: str | None = None  # Original text
+    citations: List[Citation] | None = None  # Associated citations
 
 
 @dataclass
@@ -59,20 +59,20 @@ class EvidencePack:
 
     pack_id: str  # Unique pack identifier
     created_at: str  # ISO-8601 timestamp
-    session_id: Optional[str]  # Associated session
+    session_id: str | None  # Associated session
     sources: List[ClinicalSource]  # Clinical sources
     source_hashes: List[str]  # SHA256 of each source
     policy_snapshot_id: str  # Policy version at creation
     metadata: Dict  # Additional metadata
-    citations: Optional[List[Citation]] = None  # All citations in pack
-    consulta: Optional[str] = None  # Clinical question being answered
-    response: Optional[str] = None  # Generated response with citations only
+    citations: List[Citation] | None = None  # All citations in pack
+    consulta: str | None = None  # Clinical question being answered
+    response: str | None = None  # Generated response with citations only
 
 
 class EvidencePackBuilder:
     """Builder for creating evidence packs"""
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         """
         Initialize evidence pack builder.
 
@@ -86,7 +86,7 @@ class EvidencePackBuilder:
         self.sources: List[ClinicalSource] = []
         self.citations: List[Citation] = []
         self.citation_counter: int = 1
-        self.consulta: Optional[str] = None
+        self.consulta: str | None = None
 
     def _load_config(self, path: Path) -> dict:
         """Load extraction configuration"""
@@ -245,7 +245,7 @@ class EvidencePackBuilder:
 
         return "\n".join(response_parts)
 
-    def build(self, session_id: Optional[str] = None, policy_version: str = "v1.0") -> EvidencePack:
+    def build(self, session_id: str | None = None, policy_version: str = "v1.0") -> EvidencePack:
         """
         Build evidence pack from sources.
 
@@ -367,7 +367,7 @@ class EvidencePackBuilder:
 
 
 def create_evidence_pack_from_sources(
-    sources: list[dict], session_id: Optional[str] = None
+    sources: list[dict], session_id: str | None = None
 ) -> EvidencePack:
     """
     Convenience function to create evidence pack from source dictionaries.

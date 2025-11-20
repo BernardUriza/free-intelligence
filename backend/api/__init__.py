@@ -12,4 +12,4 @@ from __future__ import annotations
 
 from . import internal, public
 
-__all__ = ["public", "internal"]
+__all__ = ["internal", "public"]

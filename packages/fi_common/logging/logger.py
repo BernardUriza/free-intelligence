@@ -14,7 +14,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -22,9 +22,9 @@ import structlog
 
 def get_logger(
     name: str = "free-intelligence",
-    log_level: Optional[str] = None,
+    log_level: str | None = None,
     timezone: str = "America/Mexico_City",
-    log_file: Optional[str] = None,
+    log_file: str | None = None,
 ) -> structlog.BoundLogger:
     """
     Get configured structured logger with timezone-aware timestamps.
@@ -54,7 +54,7 @@ def get_logger(
             config = load_config()
             log_level = config["system"]["log_level"]
         except (FileNotFoundError, KeyError, ImportError) as e:
-            print(f"CONFIG_LOAD_FAILED: {str(e)}, using default log_level=INFO", file=sys.stderr)
+            print(f"CONFIG_LOAD_FAILED: {e!s}, using default log_level=INFO", file=sys.stderr)
             log_level = "INFO"  # Safe default
 
     # Convert string level to logging constant
@@ -96,7 +96,7 @@ def get_logger(
     return structlog.get_logger(name)
 
 
-def init_logger_from_config(config_path: Optional[str] = None) -> structlog.BoundLogger:
+def init_logger_from_config(config_path: str | None = None) -> structlog.BoundLogger:
     """
     Initialize logger using configuration from config.yml.
 
@@ -127,7 +127,7 @@ def init_logger_from_config(config_path: Optional[str] = None) -> structlog.Boun
         )
     except (FileNotFoundError, KeyError, ValueError, ImportError) as e:
         # Fallback to defaults if config loading fails
-        print(f"CONFIG_LOAD_FAILED_FALLBACK: {str(e)}", file=sys.stderr)
+        print(f"CONFIG_LOAD_FAILED_FALLBACK: {e!s}", file=sys.stderr)
         fallback_logger = get_logger(log_level="INFO")
         fallback_logger.warning("config_load_failed", error=str(e))
         return fallback_logger

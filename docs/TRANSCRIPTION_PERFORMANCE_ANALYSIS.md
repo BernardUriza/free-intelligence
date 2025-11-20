@@ -1,8 +1,8 @@
 # Transcription Pipeline Performance Analysis
 ## Free Intelligence Audio Processing & Diarization
 
-**Analysis Date:** 2025-10-31  
-**Codebase Version:** 0.1.0 (Fase 1)  
+**Analysis Date:** 2025-10-31
+**Codebase Version:** 0.1.0 (Fase 1)
 **Scope:** Current transcription/diarization implementations, performance bottlenecks, optimization opportunities
 
 ---

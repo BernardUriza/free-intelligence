@@ -11,9 +11,9 @@ Clean Code Principles:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Generic, List, Optional, TypeVar
+from typing import Any, Generic, List, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -49,12 +49,12 @@ class APIResponse(BaseModel, Generic[T]):
 
     status: StatusCode = Field(description="Response status (success, error, etc.)")
     code: int = Field(description="HTTP status code")
-    data: Optional[T] = Field(default=None, description="Response payload")
-    message: Optional[str] = Field(default=None, description="Status message")
+    data: T | None = Field(default=None, description="Response payload")
+    message: str | None = Field(default=None, description="Status message")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Response timestamp"
+        default_factory=lambda: datetime.now(UTC), description="Response timestamp"
     )
-    request_id: Optional[str] = Field(default=None, description="Request tracking ID")
+    request_id: str | None = Field(default=None, description="Request tracking ID")
 
 
 class ErrorDetail(BaseModel):
@@ -62,7 +62,7 @@ class ErrorDetail(BaseModel):
 
     field: str = Field(description="Field that caused error")
     error: str = Field(description="Error message")
-    value: Optional[Any] = Field(default=None, description="Invalid value")
+    value: Any | None = Field(default=None, description="Invalid value")
 
 
 class ValidationErrorResponse(BaseModel):
@@ -72,8 +72,8 @@ class ValidationErrorResponse(BaseModel):
     code: int = Field(default=422)
     message: str = Field(description="Validation failed")
     errors: list[ErrorDetail] = Field(description="List of validation errors")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    request_id: Optional[str] = Field(default=None)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    request_id: str | None = Field(default=None)
 
 
 class PaginationMeta(BaseModel):
@@ -92,8 +92,8 @@ class PaginatedResponse(BaseModel, Generic[T]):
     code: int = Field(default=200)
     data: list[T] = Field(description="List of items")
     meta: PaginationMeta = Field(description="Pagination metadata")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    request_id: Optional[str] = Field(default=None)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    request_id: str | None = Field(default=None)
 
 
 # Document-related responses
@@ -102,11 +102,11 @@ class PaginatedResponse(BaseModel, Generic[T]):
 class DocumentMetadata(BaseModel):
     """Document metadata."""
 
-    source: Optional[str] = Field(default=None)
+    source: str | None = Field(default=None)
     tags: List[str] = Field(default_factory=list)
     content_length: int = Field(description="Content size in bytes")
-    created_at: Optional[str] = Field(default=None)
-    updated_at: Optional[str] = Field(default=None)
+    created_at: str | None = Field(default=None)
+    updated_at: str | None = Field(default=None)
 
 
 class DocumentResponse(BaseModel):
@@ -133,9 +133,9 @@ class SessionResponse(BaseModel):
 
     session_id: str = Field(description="Unique session ID")
     status: str = Field(description="Session status")
-    user_id: Optional[str] = Field(default=None)
-    created_at: Optional[str] = Field(default=None)
-    updated_at: Optional[str] = Field(default=None)
+    user_id: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+    updated_at: str | None = Field(default=None)
 
 
 # Audit-related responses
@@ -150,7 +150,7 @@ class AuditLogResponse(BaseModel):
     user_id: str = Field(description="User who performed action")
     resource: str = Field(description="Resource affected")
     result: str = Field(description="Result status")
-    details: Optional[dict[str, Any]] = Field(default=None, description="Additional context")
+    details: dict[str, Any] | None = Field(default=None, description="Additional context")
 
 
 # Helper functions for building responses
@@ -160,7 +160,7 @@ def success_response(
     data: Any = None,
     message: str = "Operation successful",
     code: int = 200,
-    request_id: Optional[str] = None,
+    request_id: str | None = None,
 ) -> APIResponse:
     """Build a success response.
 
@@ -186,7 +186,7 @@ def error_response(
     message: str,
     code: int = 400,
     status: StatusCode = StatusCode.ERROR,
-    request_id: Optional[str] = None,
+    request_id: str | None = None,
 ) -> APIResponse:
     """Build an error response.
 
@@ -210,7 +210,7 @@ def error_response(
 def validation_error_response(
     errors: list[dict[str, Any]],
     message: str = "Validation failed",
-    request_id: Optional[str] = None,
+    request_id: str | None = None,
 ) -> ValidationErrorResponse:
     """Build a validation error response.
 
@@ -243,7 +243,7 @@ def paginated_response(
     total: int,
     limit: int = 20,
     offset: int = 0,
-    request_id: Optional[str] = None,
+    request_id: str | None = None,
 ) -> PaginatedResponse:
     """Build a paginated list response.
 

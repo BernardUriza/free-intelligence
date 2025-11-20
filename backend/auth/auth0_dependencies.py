@@ -7,6 +7,7 @@ Created: 2025-11-17
 FastAPI dependency injection for Auth0 authentication.
 Use Depends(get_current_user_auth0) to protect endpoints.
 """
+
 from __future__ import annotations
 
 import structlog
@@ -37,7 +38,7 @@ logger = structlog.get_logger()
 
 
 async def get_current_user_auth0(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> User:
     """
     FastAPI dependency: Validate Auth0 token and return current user.
@@ -120,7 +121,7 @@ async def get_current_user_auth0(
 
 
 async def get_current_active_user_auth0(
-    current_user: User = Depends(get_current_user_auth0)
+    current_user: User = Depends(get_current_user_auth0),
 ) -> User:
     """
     FastAPI dependency: Get current user and ensure account is active.

@@ -7,7 +7,7 @@ handling type conversions and validation.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from pydantic import ValidationError
 
@@ -29,7 +29,7 @@ from backend.providers.models import (
     UrgenciaTriaje,
 )
 
-__all__ = ["SOAPBuilder", "SOAPBuildError"]
+__all__ = ["SOAPBuildError", "SOAPBuilder"]
 
 logger = get_logger(__name__)
 
@@ -308,7 +308,7 @@ class SOAPBuilder:
         )
 
     @staticmethod
-    def _to_int(val: Any) -> Optional[int]:
+    def _to_int(val: Any) -> int | None:
         """Convert value to int or None."""
         if val is None or val == "":
             return None
@@ -318,7 +318,7 @@ class SOAPBuilder:
             return None
 
     @staticmethod
-    def _to_float(val: Any) -> Optional[float]:
+    def _to_float(val: Any) -> float | None:
         """Convert value to float or None."""
         if val is None or val == "":
             return None

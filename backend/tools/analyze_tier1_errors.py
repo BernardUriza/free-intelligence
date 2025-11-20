@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Analyze and extract Tier 1 critical type errors."""
+
 from __future__ import annotations
 
 import json
@@ -39,9 +40,9 @@ def analyze_tier1_errors():
         by_file[file_path].append(error)
 
     # Print summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("🔍 Tier 1 Critical Errors Analysis")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Total Tier 1 Errors: {len(tier1_errors)}")
     print("\nBy Rule:")
     for rule, errors in sorted(by_rule.items(), key=lambda x: len(x[1]), reverse=True):
@@ -70,9 +71,9 @@ def analyze_tier1_errors():
     print(f"\n✅ Exported to: {output_path}")
 
     # Show first 5 errors of each type
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("📋 Sample Errors (first 5 of each type):")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     for rule in tier1_rules:
         errors = by_rule.get(rule, [])

@@ -132,7 +132,7 @@ pnpm dev  # http://localhost:9000/diarization
 ### Expected Behavior
 
 1. **Upload**: Job created instantly (status `pending`)
-2. **Processing**: 
+2. **Processing**:
    - Progress bar moves cada 1.5s
    - Chunks aparecen uno por uno
    - `in_progress` badge visible
@@ -233,4 +233,3 @@ GET /api/diarization/jobs/{job_id}
 ## License
 
 MIT
-

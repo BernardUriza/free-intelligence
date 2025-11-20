@@ -20,7 +20,7 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from backend.logger import get_logger
 
@@ -62,7 +62,7 @@ class LLMCache:
         model: str,
         prompt: str,
         system: str = "",
-        params: dict[str, Optional[Any]] | None = None,
+        params: dict[str, Any | None] | None = None,
     ) -> str:
         """
         Compute SHA-256 hash key for cache entry.
@@ -87,8 +87,8 @@ class LLMCache:
         model: str,
         prompt: str,
         system: str = "",
-        params: dict[str, Optional[Any]] | None = None,
-    ) -> dict[str, Optional[Any]] | None:
+        params: dict[str, Any | None] | None = None,
+    ) -> dict[str, Any | None] | None:
         """
         Get cached response if available and not expired.
 
@@ -152,7 +152,7 @@ class LLMCache:
         prompt: str,
         response: Dict[str, Any],
         system: str = "",
-        params: dict[str, Optional[Any]] | None = None,
+        params: dict[str, Any | None] | None = None,
     ) -> str:
         """
         Store response in cache.
@@ -289,7 +289,7 @@ class LLMCache:
 
 
 # Global cache instance (singleton)
-_cache_instance: Optional[LLMCache] = None
+_cache_instance: LLMCache | None = None
 
 
 def get_cache(ttl_minutes: int = 30) -> LLMCache:

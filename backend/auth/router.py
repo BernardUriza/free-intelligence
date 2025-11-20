@@ -6,6 +6,7 @@ Created: 2025-11-17
 
 FastAPI router for authentication endpoints (login, refresh, logout).
 """
+
 from __future__ import annotations
 
 from datetime import timedelta

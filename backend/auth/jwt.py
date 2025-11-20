@@ -7,11 +7,11 @@ Created: 2025-11-17
 JWT token encoding, decoding, and validation.
 HIPAA Reference: 45 CFR §164.312(d) - Person or Entity Authentication
 """
+
 from __future__ import annotations
 
 import os
 from datetime import UTC, datetime, timedelta
-from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -73,7 +73,7 @@ def get_password_hash(password: str) -> str:
 # ============================================================================
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """
     Create a JWT access token.
 
@@ -129,7 +129,7 @@ def create_refresh_token(data: dict) -> str:
 # ============================================================================
 
 
-def decode_token(token: str) -> Optional[TokenData]:
+def decode_token(token: str) -> TokenData | None:
     """
     Decode and validate a JWT token.
 
@@ -199,7 +199,7 @@ def verify_token_type(token: str, expected_type: str) -> bool:
 # ============================================================================
 
 
-def authenticate_user(fake_db: dict, username: str, password: str) -> Optional[User]:
+def authenticate_user(fake_db: dict, username: str, password: str) -> User | None:
     """
     Authenticate a user with username and password.
 

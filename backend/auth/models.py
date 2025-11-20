@@ -6,11 +6,12 @@ Created: 2025-11-17
 
 User, role, and token models for JWT authentication and RBAC.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel, Field
 
@@ -95,9 +96,9 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     """Data extracted from JWT token."""
 
-    user_id: Optional[str] = None
-    username: Optional[str] = None
-    role: Optional[UserRole] = None
+    user_id: str | None = None
+    username: str | None = None
+    role: UserRole | None = None
     scopes: List[str] = Field(default_factory=list)
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 CONFIG_DIR = Path(__file__).parent
 
@@ -33,7 +33,7 @@ class MockDataLoader:
         return data.get("coaches", [])
 
     @staticmethod
-    def get_coach(coach_id: str) -> Optional[dict[str, Any]]:
+    def get_coach(coach_id: str) -> dict[str, Any] | None:
         """Obtiene un coach por ID."""
         coaches = MockDataLoader.get_coaches()
         return next((c for c in coaches if c["id"] == coach_id), None)
@@ -45,7 +45,7 @@ class MockDataLoader:
         return data.get("athletes", [])
 
     @staticmethod
-    def get_athlete(athlete_id: str) -> Optional[dict[str, Any]]:
+    def get_athlete(athlete_id: str) -> dict[str, Any] | None:
         """Obtiene un athlete por ID."""
         athletes = MockDataLoader.get_athletes()
         return next((a for a in athletes if a["id"] == athlete_id), None)
@@ -63,7 +63,7 @@ class MockDataLoader:
         return data.get("sessions", [])
 
     @staticmethod
-    def get_session(session_id: str) -> Optional[dict[str, Any]]:
+    def get_session(session_id: str) -> dict[str, Any] | None:
         """Obtiene una session por ID."""
         sessions = MockDataLoader.get_sessions()
         return next((s for s in sessions if s["id"] == session_id), None)
@@ -85,7 +85,5 @@ class MockDataLoader:
         """Obtiene sesiones recientes de un coach."""
         sessions = MockDataLoader.get_sessions_by_coach(coach_id)
         # Sort by createdAt descending
-        sorted_sessions = sorted(
-            sessions, key=lambda x: x.get("createdAt", ""), reverse=True
-        )
+        sorted_sessions = sorted(sessions, key=lambda x: x.get("createdAt", ""), reverse=True)
         return sorted_sessions[:limit]

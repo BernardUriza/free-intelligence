@@ -16,8 +16,8 @@ from .corpus_repository import CorpusRepository
 from .session_repository import SessionRepository
 
 __all__ = [
+    "AuditRepository",
     "BaseRepository",
     "CorpusRepository",
     "SessionRepository",
-    "AuditRepository",
 ]

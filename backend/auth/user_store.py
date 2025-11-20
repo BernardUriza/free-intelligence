@@ -7,10 +7,11 @@ Created: 2025-11-17
 In-memory user database for MVP demonstration.
 In production, replace with PostgreSQL/MySQL/etc.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Dict, Optional
+from typing import Dict
 from uuid import uuid4
 
 from backend.auth.jwt import get_password_hash
@@ -73,7 +74,7 @@ def create_user(
     return user
 
 
-def get_user_by_id(user_id: str) -> Optional[User]:
+def get_user_by_id(user_id: str) -> User | None:
     """
     Get user by user_id.
 
@@ -86,7 +87,7 @@ def get_user_by_id(user_id: str) -> Optional[User]:
     return USERS_DB.get(user_id)
 
 
-def get_user_by_username(username: str) -> Optional[User]:
+def get_user_by_username(username: str) -> User | None:
     """
     Get user by username.
 

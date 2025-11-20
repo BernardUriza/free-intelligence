@@ -20,7 +20,7 @@ import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from backend.logger import get_logger
 
@@ -178,8 +178,8 @@ class MetricsCollector:
         self._cleanup_old_metrics()
 
     def get_latency_metrics(
-        self, provider: Optional[str] = None, window_hours: Optional[int] = None
-    ) -> Optional[LatencyMetrics]:
+        self, provider: str | None = None, window_hours: int | None = None
+    ) -> LatencyMetrics | None:
         """
         Calculate latency percentiles.
 
@@ -211,7 +211,7 @@ class MetricsCollector:
             count=count,
         )
 
-    def get_cost_metrics(self, window_hours: Optional[int] = None) -> CostMetrics:
+    def get_cost_metrics(self, window_hours: int | None = None) -> CostMetrics:
         """
         Calculate cost metrics.
 
@@ -244,7 +244,7 @@ class MetricsCollector:
         )
 
     def get_cache_metrics(
-        self, provider: Optional[str] = None, window_hours: Optional[int] = None
+        self, provider: str | None = None, window_hours: int | None = None
     ) -> CacheMetrics:
         """
         Calculate cache hit rate.
@@ -270,7 +270,7 @@ class MetricsCollector:
 
         return CacheMetrics(hit_rate=hit_rate, hits=hits, misses=misses, total_requests=total)
 
-    def get_provider_distribution(self, window_hours: Optional[int] = None) -> dict[str, int]:
+    def get_provider_distribution(self, window_hours: int | None = None) -> dict[str, int]:
         """
         Get request count by provider.
 
@@ -292,8 +292,8 @@ class MetricsCollector:
     def _filter_metrics(
         self,
         metrics: list[MetricPoint],
-        provider: Optional[str] = None,
-        window_hours: Optional[int] = None,
+        provider: str | None = None,
+        window_hours: int | None = None,
     ) -> list[MetricPoint]:
         """Filter metrics by provider and time window"""
         result = metrics
@@ -363,7 +363,7 @@ class MetricsCollector:
 
 
 # Global metrics collector instance
-_metrics_collector: Optional[MetricsCollector] = None
+_metrics_collector: MetricsCollector | None = None
 
 
 def get_metrics_collector() -> MetricsCollector:
@@ -418,7 +418,7 @@ def main():
             print(f"    {provider}: ${cost:.6f}")
 
         print("\n🔄 Cache:")
-        print(f"  Hit Rate: {summary['cache']['hit_rate']*100:.1f}%")
+        print(f"  Hit Rate: {summary['cache']['hit_rate'] * 100:.1f}%")
         print(f"  Hits: {summary['cache']['hits']}")
         print(f"  Misses: {summary['cache']['misses']}")
 

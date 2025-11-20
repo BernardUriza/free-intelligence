@@ -14,7 +14,6 @@ import sys
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 import httpx
 
@@ -69,7 +68,7 @@ class TranscriptionStatus:
 # ============================================================================
 
 
-def wait_for_session_id_file(timeout_seconds: int = 300) -> Optional[str]:
+def wait_for_session_id_file(timeout_seconds: int = 300) -> str | None:
     """Wait for session_id file to exist and read it.
 
     Args:
@@ -94,7 +93,7 @@ def wait_for_session_id_file(timeout_seconds: int = 300) -> Optional[str]:
     return None
 
 
-def get_transcription_status(session_id: str) -> Optional[TranscriptionStatus]:
+def get_transcription_status(session_id: str) -> TranscriptionStatus | None:
     """Fetch transcription job status.
 
     Args:
@@ -128,7 +127,7 @@ def format_timestamp() -> str:
     return datetime.now(UTC).strftime("%H:%M:%S")
 
 
-def poll_until_complete(session_id: str) -> Optional[TranscriptionStatus]:
+def poll_until_complete(session_id: str) -> TranscriptionStatus | None:
     """Poll transcription status every 15 seconds.
 
     Args:
@@ -184,7 +183,7 @@ def poll_until_complete(session_id: str) -> Optional[TranscriptionStatus]:
     return get_transcription_status(session_id)
 
 
-def print_final_report(status: Optional[TranscriptionStatus], elapsed_seconds: float) -> None:
+def print_final_report(status: TranscriptionStatus | None, elapsed_seconds: float) -> None:
     """Print final report.
 
     Args:

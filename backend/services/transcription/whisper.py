@@ -17,7 +17,7 @@ Created: 2025-10-30
 
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from backend.logger import get_logger
 
@@ -43,7 +43,7 @@ CPU_THREADS = int(os.getenv("ASR_CPU_THREADS", "3"))
 NUM_WORKERS = int(os.getenv("ASR_NUM_WORKERS", "1"))
 
 # Global singleton instance
-_whisper_model_instance: Optional[Any] = None
+_whisper_model_instance: Any | None = None
 _whisper_available: bool = False
 
 # Check if faster-whisper is available
@@ -73,7 +73,7 @@ def is_whisper_available() -> bool:
     return _whisper_available
 
 
-def get_whisper_model() -> Optional[Any]:
+def get_whisper_model() -> Any | None:
     """
     Get singleton WhisperModel instance (lazy loading).
 
@@ -101,9 +101,9 @@ def get_whisper_model() -> Optional[Any]:
                 message="First transcription will be slow (~10-30s for model load)",
             )
 
-            assert (
-                WhisperModel is not None
-            ), "WhisperModel should be available when _whisper_available is True"
+            assert WhisperModel is not None, (
+                "WhisperModel should be available when _whisper_available is True"
+            )
             _whisper_model_instance = WhisperModel(
                 WHISPER_MODEL_SIZE,
                 device=WHISPER_DEVICE,
@@ -132,7 +132,7 @@ def get_whisper_model() -> Optional[Any]:
 
 def transcribe_audio(
     audio_path: Path,
-    language: Optional[str] = None,
+    language: str | None = None,
     vad_filter: bool = True,
 ) -> dict[str, Any]:
     """

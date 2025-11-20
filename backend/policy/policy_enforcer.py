@@ -11,7 +11,7 @@ Provides guard functions for sovereignty, privacy, cost, and feature flags
 import hashlib
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 class PolicyViolation(Exception):
     """Raised when a policy rule is violated"""
 
-    def __init__(self, rule: str, message: str, metadata: dict[str, Optional[Any]] = None):
+    def __init__(self, rule: str, message: str, metadata: dict[str, Any | None] = None):
         self.rule = rule
         self.message = message
         self.metadata = metadata or {}
@@ -103,7 +103,7 @@ class PolicyEnforcer:
 
     # === Sovereignty Guards ===
 
-    def check_egress(self, url: str, run_id: Optional[str] = None) -> None:
+    def check_egress(self, url: str, run_id: str | None = None) -> None:
         """
         Check if external egress is allowed
 
@@ -219,7 +219,7 @@ class PolicyEnforcer:
 
     # === Cost Guards ===
 
-    def check_cost(self, cents: int, run_id: Optional[str] = None) -> None:
+    def check_cost(self, cents: int, run_id: str | None = None) -> None:
         """
         Check if cost exceeds monthly budget
 
@@ -291,7 +291,7 @@ class PolicyEnforcer:
 
         return value if value is not None else default
 
-    def log_violation(self, rule: str, metadata: dict[str, Optional[Any]] = None):
+    def log_violation(self, rule: str, metadata: dict[str, Any | None] = None):
         """
         Log policy violation for audit trail
 
@@ -304,7 +304,7 @@ class PolicyEnforcer:
 
 
 # Global singleton instance
-_policy_enforcer: Optional[PolicyEnforcer] = None
+_policy_enforcer: PolicyEnforcer | None = None
 
 
 def get_policy_enforcer() -> PolicyEnforcer:
@@ -325,12 +325,12 @@ def get_policy_enforcer() -> PolicyEnforcer:
 # Convenience functions for direct import
 
 
-def check_egress(url: str, run_id: Optional[str] = None):
+def check_egress(url: str, run_id: str | None = None):
     """Check if external egress is allowed (raises PolicyViolation if denied)"""
     return get_policy_enforcer().check_egress(url, run_id)
 
 
-def check_cost(cents: int, run_id: Optional[str] = None):
+def check_cost(cents: int, run_id: str | None = None):
     """Check if cost exceeds budget (raises PolicyViolation if exceeded)"""
     return get_policy_enforcer().check_cost(cents, run_id)
 

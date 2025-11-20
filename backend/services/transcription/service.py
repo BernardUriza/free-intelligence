@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from backend.logger import get_logger
 from backend.services.transcription.whisper import (
@@ -101,7 +101,7 @@ class TranscriptionService:
           - Singleton Whisper model instance (lazy-loaded)
           - Whisper availability flag
         """
-        self._whisper_model_instance: Optional[Any] = None
+        self._whisper_model_instance: Any | None = None
         self._whisper_available = _WHISPER_AVAILABLE
         logger.info(
             "TranscriptionService initialized",
@@ -112,7 +112,7 @@ class TranscriptionService:
     # Whisper Model Management (Internal)
     # ─────────────────────────────────────────────────────────────────────
 
-    def _get_whisper_model(self) -> Optional[Any]:
+    def _get_whisper_model(self) -> Any | None:
         """Get singleton WhisperModel instance (lazy loading).
 
         Returns:
@@ -240,7 +240,7 @@ class TranscriptionService:
     def _transcribe_with_whisper(
         self,
         audio_path: Path,
-        language: Optional[str] = None,
+        language: str | None = None,
         vad_filter: bool = True,
     ) -> dict[str, Any]:
         """Transcribe audio file using internal Whisper model.
@@ -448,7 +448,7 @@ class TranscriptionService:
     def transcribe(
         self,
         audio_path: Path,
-        language: Optional[str] = None,
+        language: str | None = None,
         vad_filter: bool = True,
     ) -> dict[str, Any]:
         """Transcribe audio file using Whisper.

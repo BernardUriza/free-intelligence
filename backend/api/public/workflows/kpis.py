@@ -8,8 +8,6 @@ Created: 2025-11-17
 
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.logger import get_logger
@@ -24,8 +22,8 @@ router = APIRouter(prefix="/kpis", tags=["kpis"])
 async def get_kpis(
     window: str = Query("5m", description="Time window: Union[1m, 5m, 15m]|Union[1h, 24h]"),
     view: str = Query("summary", description="View: Union[summary, chips, timeseries]"),
-    route: Optional[str] = Query(None, description="Filter by route (e.g., /api/sessions)"),
-    provider: Optional[str] = Query(None, description="Filter by provider (e.g., anthropic)"),
+    route: str | None = Query(None, description="Filter by route (e.g., /api/sessions)"),
+    provider: str | None = Query(None, description="Filter by provider (e.g., anthropic)"),
 ):
     """
     Get KPIs metrics (PUBLIC endpoint for dashboard).

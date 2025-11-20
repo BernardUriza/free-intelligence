@@ -76,7 +76,7 @@
       "status": "VALID",
       "card_id": "FI-GOV-TOOL-001",
       "artifact": "tools/verify_artifact.py",
-      "size_kb": 4.71,
+      "size_kb": 4.68,
       "message": "\u2705 Artifact valid and executable"
     }
   ]

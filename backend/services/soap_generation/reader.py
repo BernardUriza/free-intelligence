@@ -8,15 +8,13 @@ Refactored: 2025-11-14 (Clean Architecture - Repository Pattern)
 
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.logger import get_logger
 from backend.repositories.soap_repository import (
     SoapRepository,
     TranscriptionNotFoundError,
 )
 
-__all__ = ["TranscriptionReader", "TranscriptionReadError"]
+__all__ = ["TranscriptionReadError", "TranscriptionReader"]
 
 logger = get_logger(__name__)
 
@@ -33,7 +31,7 @@ class TranscriptionReader:
     NO direct HDF5 access - uses SoapRepository abstraction.
     """
 
-    def __init__(self, repository: Optional[SoapRepository] = None):
+    def __init__(self, repository: SoapRepository | None = None):
         """Initialize transcription reader.
 
         Args:

@@ -12,9 +12,9 @@ Sprint: SPR-2025W44
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import yaml  # type: ignore[import-untyped]
 
@@ -98,9 +98,9 @@ class EventCandidate:
     timestamp: datetime
     who: str  # Actor
     raw_content: str  # Original content (will be hashed)
-    session_id: Optional[str] = None
-    manifest_ref: Optional[str] = None
-    artifact_id: Optional[str] = None  # For causality (same artifact)
+    session_id: str | None = None
+    manifest_ref: str | None = None
+    artifact_id: str | None = None  # For causality (same artifact)
     sensitive: bool = False  # If true, no content preview
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -133,7 +133,7 @@ class AutoTimelineGenerator:
     5. Fallback to manual+assist if LLM fails (timeout >8s)
     """
 
-    def __init__(self, config: Optional[dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         Initialize auto-timeline generator.
 
@@ -341,7 +341,7 @@ Requirements:
 Summary:"""
 
         try:
-            start_time = datetime.now(timezone.utc)
+            start_time = datetime.now(UTC)
 
             # Use llm_router unified interface (provider from config)
             provider = self.auto_config.get("provider", "ollama")
@@ -352,7 +352,7 @@ Summary:"""
                 temperature=0.5,
             )
 
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             summary = response.content.strip()
 
@@ -520,7 +520,7 @@ if __name__ == "__main__":
     generator = AutoTimelineGenerator(config=config)
 
     # Create event candidates
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     candidates = [
         EventCandidate(  # type: ignore[call-arg]

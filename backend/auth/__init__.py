@@ -19,6 +19,7 @@ Usage:
     async def protected_endpoint(user: User = Depends(get_current_user_auth0)):
         return {"user": user.username, "role": user.role}
 """
+
 from backend.auth.auth0_dependencies import (
     get_current_user_auth0,
     require_admin_auth0,
@@ -28,11 +29,11 @@ from backend.auth.auth0_router import router as auth_router
 from backend.auth.models import Permission, User, UserRole
 
 __all__ = [
+    "Permission",
     "User",
     "UserRole",
-    "Permission",
+    "auth_router",
     "get_current_user_auth0",
     "require_admin_auth0",
     "require_medico_auth0",
-    "auth_router",
 ]

@@ -64,7 +64,11 @@ except ImportError:
     pass
 
 # Re-export sessions_store functions and classes
-from packages.fi_common.storage.sessions_store import Session, SessionsStore, generate_ulid
+from packages.fi_common.storage.sessions_store import (
+    Session,
+    SessionsStore,
+    generate_ulid,
+)
 
 __all__ = [
     # audio_storage

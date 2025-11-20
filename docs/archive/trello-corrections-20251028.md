@@ -51,7 +51,7 @@
 ### Board IDs (board-ids)
 - **Total listas**: 19 (6 activas, 13 archivadas)
 - **Total cards**: 130 (antes de correcciones)
-- **Listas activas verificadas**: 
+- **Listas activas verificadas**:
   - 🚀 Sprint: 69010044491450e027066a23 (ahora 7 cards)
   - 📥 Backlog: 690100441851396c1cb143a6 (53 cards)
   - ⚙️ In Progress: 68fc0116e8a27f8caaec894d (ahora 0 cards - vacío ⚠️)

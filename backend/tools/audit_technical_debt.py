@@ -14,7 +14,6 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -22,7 +21,7 @@ class Issue:
     severity: str  # CRITICAL, HIGH, MEDIUM, LOW
     category: str
     file: str
-    line: Optional[int]
+    line: int | None
     message: str
     count: int = 1
 

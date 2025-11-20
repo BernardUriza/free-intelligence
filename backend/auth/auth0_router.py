@@ -8,6 +8,7 @@ FastAPI router for Auth0 authentication endpoints.
 NOTE: Auth0 handles login/logout (not the backend).
 This router provides user info and configuration endpoints.
 """
+
 from __future__ import annotations
 
 import structlog

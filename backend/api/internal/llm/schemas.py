@@ -2,7 +2,7 @@
 Pydantic schemas para Internal LLM API
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -20,12 +20,12 @@ class ChatRequest(BaseModel):
         examples=["onboarding_guide", "clinical_advisor", "soap_editor"],
     )
     message: str = Field(..., min_length=1, max_length=5000)
-    context: Optional[dict[str, Any]] = Field(
+    context: dict[str, Any] | None = Field(
         default=None,
         description="Contexto adicional (patient_id, session_id, soap_data, etc.)",
     )
-    session_id: Optional[str] = Field(default=None, description="Session ID para audit logging")
-    doctor_id: Optional[str] = Field(
+    session_id: str | None = Field(default=None, description="Session ID para audit logging")
+    doctor_id: str | None = Field(
         default=None,
         description="Doctor ID para memoria conversacional (required for memory)",
     )
@@ -62,7 +62,7 @@ class StructuredRequest(BaseModel):
     command: str = Field(..., min_length=1, description="Comando en lenguaje natural")
     context: dict[str, Any] = Field(..., description="Contexto necesario (ej: current_soap)")
     output_schema: dict[str, str] = Field(..., description="Schema esperado del JSON de salida")
-    session_id: Optional[str] = Field(default=None, description="Session ID para audit")
+    session_id: str | None = Field(default=None, description="Session ID para audit")
 
 
 class StructuredResponse(BaseModel):

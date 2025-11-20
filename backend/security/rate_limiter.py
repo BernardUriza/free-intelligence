@@ -21,7 +21,8 @@ Philosophy (Axiom 1 - Materia = Glitch):
 
 from collections import defaultdict
 from time import time
-from typing import Dict, Any
+from typing import Any, Dict
+
 import structlog
 
 logger = structlog.get_logger()

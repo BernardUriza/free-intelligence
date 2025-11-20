@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Encryption worker - AES-GCM-256 for HDF5 session data (Production-Grade).
 
 **Arquitectura:**
@@ -58,14 +57,20 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 # Import structlog logger for consistent logging
 try:
     from backend.logger import get_logger  # type: ignore[assignment]
-    from backend.models.task_type import TaskStatus, TaskType  # type: ignore[assignment]
+    from backend.models.task_type import (  # type: ignore[assignment]
+        TaskStatus,
+        TaskType,
+    )
     from backend.storage.task_repository import update_task_metadata
+
     HAS_BACKEND_IMPORTS = True
 except ImportError:
     # Fallback for CLI execution outside backend context
     import logging
     from typing import Any
+
     logging.basicConfig(level=logging.INFO)
+
     def get_logger(name: str):  # type: ignore[misc,assignment]
         return logging.getLogger(name)
 
@@ -615,7 +620,7 @@ def encrypt_session_hdf5(
             iv = os.urandom(IV_SIZE_BYTES)
 
             # Additional Authenticated Data (binds ciphertext to session + path)
-            aad = f"{session_id}:{path}".encode("utf-8")
+            aad = f"{session_id}:{path}".encode()
 
             # Encrypt (ciphertext includes 16-byte GCM tag)
             ciphertext = aesgcm.encrypt(iv, plain, aad)

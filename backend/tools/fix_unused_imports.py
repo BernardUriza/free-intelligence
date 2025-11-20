@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Fix unused import errors."""
+
 from __future__ import annotations
 
 import json
@@ -31,9 +32,9 @@ def main():
     """List unused imports for manual review."""
     errors = get_unused_imports()
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("🔍 Unused Import Errors")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Total: {len(errors)}\n")
 
     # Group by file

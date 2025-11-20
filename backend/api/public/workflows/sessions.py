@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import tempfile
 from datetime import UTC, datetime
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import h5py
 from fastapi import APIRouter, HTTPException, Request, status
@@ -105,10 +105,10 @@ class DiarizationStatusResponse(BaseModel):
     status: str = Field(..., description="pending, processing, completed, failed")
     progress: int = Field(default=0, description="Progress percentage (0-100)")
     segment_count: int = Field(default=0, description="Number of diarized segments")
-    transcription_sources: Optional[dict[str, Any]] = Field(
+    transcription_sources: dict[str, Any] | None = Field(
         default=None, description="Triple vision transcription sources"
     )
-    error: Optional[str] = Field(default=None, description="Error message if failed")
+    error: str | None = Field(default=None, description="Error message if failed")
 
 
 class UpdateSegmentRequest(BaseModel):
@@ -588,9 +588,9 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
         red = "\033[91m"
 
         output_lines = []
-        output_lines.append(f"\n{bold}{cyan}{'='*60}{reset}")
+        output_lines.append(f"\n{bold}{cyan}{'=' * 60}{reset}")
         output_lines.append(f"{bold}{cyan}  Session Monitor: {session_id}{reset}")
-        output_lines.append(f"{bold}{cyan}{'='*60}{reset}\n")
+        output_lines.append(f"{bold}{cyan}{'=' * 60}{reset}\n")
 
         # TRANSCRIPTION ASCII
         status_val = transcription_data["status"]
@@ -694,7 +694,7 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
                 output_lines.append(f"   Progress: {bold}{progress_val}%{reset}")
             output_lines.append("")
 
-        output_lines.append(f"{bold}{cyan}{'='*60}{reset}\n")
+        output_lines.append(f"{bold}{cyan}{'=' * 60}{reset}\n")
         ascii_output = "\n".join(output_lines)
 
         return {

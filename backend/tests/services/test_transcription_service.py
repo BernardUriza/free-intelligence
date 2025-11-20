@@ -200,18 +200,20 @@ class TestAudioConversion:
 
     def test_convert_to_wav_exception(self, transcription_service: TranscriptionService) -> None:
         """Test exception handling during conversion."""
-        with patch.object(
-            transcription_service,
-            "_convert_audio_to_wav",
-            side_effect=Exception("ffmpeg not found"),
+        with (
+            patch.object(
+                transcription_service,
+                "_convert_audio_to_wav",
+                side_effect=Exception("ffmpeg not found"),
+            ),
+            tempfile.TemporaryDirectory() as tmpdir,
         ):
-            with tempfile.TemporaryDirectory() as tmpdir:
-                input_path = Path(tmpdir) / "input.mp3"
-                output_path = Path(tmpdir) / "output.wav"
+            input_path = Path(tmpdir) / "input.mp3"
+            output_path = Path(tmpdir) / "output.wav"
 
-                result = transcription_service.convert_to_wav(input_path, output_path)
+            result = transcription_service.convert_to_wav(input_path, output_path)
 
-                assert result is False
+            assert result is False
 
 
 class TestTranscription:
@@ -223,8 +225,9 @@ class TestTranscription:
     ) -> None:
         """Test successful transcription (mocked internally)."""
         # Mock the internal Whisper model
-        with patch.object(transcription_service, "_get_whisper_model") as mock_model, patch.object(
-            transcription_service, "_is_whisper_available", return_value=True
+        with (
+            patch.object(transcription_service, "_get_whisper_model") as mock_model,
+            patch.object(transcription_service, "_is_whisper_available", return_value=True),
         ):
             # Create mock segments and info
             mock_segment = type(
@@ -283,8 +286,9 @@ class TestTranscription:
         transcription_service: TranscriptionService,
     ) -> None:
         """Test transcription with auto-detected language."""
-        with patch.object(transcription_service, "_get_whisper_model") as mock_model, patch.object(
-            transcription_service, "_is_whisper_available", return_value=True
+        with (
+            patch.object(transcription_service, "_get_whisper_model") as mock_model,
+            patch.object(transcription_service, "_is_whisper_available", return_value=True),
         ):
             mock_segment = type(
                 "Segment",
@@ -324,8 +328,9 @@ class TestTranscription:
         transcription_service: TranscriptionService,
     ) -> None:
         """Test handling of transcription failures (FileNotFoundError)."""
-        with patch.object(transcription_service, "_get_whisper_model") as mock_model, patch.object(
-            transcription_service, "_is_whisper_available", return_value=True
+        with (
+            patch.object(transcription_service, "_get_whisper_model") as mock_model,
+            patch.object(transcription_service, "_is_whisper_available", return_value=True),
         ):
             # Make transcribe raise FileNotFoundError (simulating missing file)
             mock_model.return_value.transcribe.side_effect = FileNotFoundError("File not found")
@@ -349,13 +354,12 @@ class TestProcessTranscription:
     ) -> None:
         """Test complete transcription workflow (orchestration)."""
         # Mock all the internal methods
-        with patch.object(
-            transcription_service, "_transcribe_with_whisper"
-        ) as mock_transcribe, patch.object(
-            transcription_service, "_convert_audio_to_wav", return_value=True
-        ), patch.object(
-            transcription_service, "_is_whisper_available", return_value=True
-        ), patch.object(transcription_service, "save_audio_file") as mock_save:
+        with (
+            patch.object(transcription_service, "_transcribe_with_whisper") as mock_transcribe,
+            patch.object(transcription_service, "_convert_audio_to_wav", return_value=True),
+            patch.object(transcription_service, "_is_whisper_available", return_value=True),
+            patch.object(transcription_service, "save_audio_file") as mock_save,
+        ):
             # Setup mocks
             mock_save.return_value = {
                 "file_path": f"audio/{valid_session_id}/1234567890.webm",

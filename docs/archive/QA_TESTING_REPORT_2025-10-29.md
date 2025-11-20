@@ -474,4 +474,3 @@ Result: 21/21 PASSED
 - HistoryPage: `/apps/aurity/app/history/page.tsx`
 - MarkdownViewer: `/apps/aurity/aurity/modules/fi-viewer/components/MarkdownViewer.tsx`
 - MetadataPanel: `/apps/aurity/aurity/modules/fi-viewer/components/MetadataPanel.tsx`
-

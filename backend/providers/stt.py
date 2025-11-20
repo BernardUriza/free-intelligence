@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 from dotenv import load_dotenv
 
@@ -43,21 +43,19 @@ class STTResponse:
     duration: float  # Audio duration in seconds
     confidence: float  # Overall confidence (0-1)
     provider: str  # Provider name
-    latency_ms: Optional[float] = None
-    metadata: Optional[dict[str, Any]] = None
+    latency_ms: float | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class STTProvider(ABC):
     """Abstract base class for STT providers"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         self.config: dict[str, Any] = config or {}
         self.logger = get_logger(self.__class__.__name__)
 
     @abstractmethod
-    def transcribe(
-        self, audio_path: Union[str, Path], language: Optional[str] = None
-    ) -> STTResponse:
+    def transcribe(self, audio_path: Union[str, Path], language: str | None = None) -> STTResponse:
         """
         Transcribe audio file.
 
@@ -79,7 +77,7 @@ class STTProvider(ABC):
 class AzureWhisperProvider(STTProvider):
     """Azure Whisper STT provider (cloud-based, faster)"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         self.api_key = os.getenv("AZURE_OPENAI_KEY")
@@ -97,9 +95,7 @@ class AzureWhisperProvider(STTProvider):
             endpoint=self.endpoint,
         )
 
-    def transcribe(
-        self, audio_path: Union[str, Path], language: Optional[str] = None
-    ) -> STTResponse:
+    def transcribe(self, audio_path: Union[str, Path], language: str | None = None) -> STTResponse:
         """Transcribe using Azure Whisper API"""
         import asyncio
         import time
@@ -172,7 +168,7 @@ class AzureWhisperProvider(STTProvider):
             raise
 
     async def _transcribe_async(
-        self, audio_bytes: bytes, language: Optional[str] = None
+        self, audio_bytes: bytes, language: str | None = None
     ) -> dict[str, Any]:
         """Async call to Azure Whisper API with exponential backoff retry"""
         import asyncio
@@ -271,7 +267,7 @@ class AzureWhisperProvider(STTProvider):
 class DeepgramProvider(STTProvider):
     """Deepgram STT provider (cloud-based, very fast)"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.api_key = os.getenv("DEEPGRAM_API_KEY")
 
@@ -282,9 +278,7 @@ class DeepgramProvider(STTProvider):
 
         self.logger.info("DEEPGRAM_PROVIDER_INITIALIZED")
 
-    def transcribe(
-        self, audio_path: Union[str, Path], language: Optional[str] = None
-    ) -> STTResponse:
+    def transcribe(self, audio_path: Union[str, Path], language: str | None = None) -> STTResponse:
         """Transcribe using Deepgram API"""
         import time
 
@@ -414,7 +408,7 @@ class DeepgramProvider(STTProvider):
         return "deepgram"
 
 
-def get_stt_provider(provider_name: str, config: Optional[dict[str, Any]] = None) -> STTProvider:
+def get_stt_provider(provider_name: str, config: dict[str, Any] | None = None) -> STTProvider:
     """
     Factory function to get STT provider instance.
 
@@ -436,7 +430,7 @@ def get_stt_provider(provider_name: str, config: Optional[dict[str, Any]] = None
     provider_class = provider_map.get(provider_name.lower())
     if not provider_class:
         raise ValueError(
-            f"Unknown STT provider: {provider_name}. " f"Supported: {list(provider_map.keys())}"
+            f"Unknown STT provider: {provider_name}. Supported: {list(provider_map.keys())}"
         )
 
     return provider_class(config)

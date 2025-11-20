@@ -5,7 +5,7 @@ Defines request/response models for session export functionality.
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -65,7 +65,7 @@ class VerifyResult(BaseModel):
 
     target: str
     ok: bool
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class VerifyResponse(BaseModel):

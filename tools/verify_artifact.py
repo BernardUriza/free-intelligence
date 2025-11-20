@@ -3,10 +3,10 @@
 Free Intelligence — Artifact Verifier
 Verifies that cards have corresponding executable artifacts (not MDs)
 """
+
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 # Artifact registry: card_id -> expected artifact path
 ARTIFACT_REGISTRY = {
@@ -80,7 +80,7 @@ def verify_artifact(card_id: str, artifact_path: str, base_path: Path) -> dict:
     }
 
 
-def verify_all(base_path: Optional[Path] = None) -> list[dict]:
+def verify_all(base_path: Path | None = None) -> list[dict]:
     """Verify all registered artifacts."""
     if base_path is None:
         base_path = Path(__file__).parent.parent

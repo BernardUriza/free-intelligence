@@ -14,7 +14,7 @@ Ventajas:
 - Testeable: Fácil mockear en tests
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -39,9 +39,9 @@ class InternalLLMClient:
         self,
         persona: str,
         message: str,
-        context: Optional[dict[str, Any]] = None,
-        session_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
+        context: dict[str, Any] | None = None,
+        session_id: str | None = None,
+        doctor_id: str | None = None,
         use_memory: bool = False,
     ) -> dict:
         """Conversación con Free-Intelligence.
@@ -128,7 +128,7 @@ class InternalLLMClient:
         command: str,
         context: dict[str, Any],
         output_schema: dict[str, str],
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> dict:
         """Extracción estructurada (JSON) via LLM.
 
@@ -224,7 +224,7 @@ class InternalLLMClient:
 # Singleton instance
 # ============================================================================
 
-_llm_client: Optional[InternalLLMClient] = None
+_llm_client: InternalLLMClient | None = None
 
 
 def get_llm_client() -> InternalLLMClient:

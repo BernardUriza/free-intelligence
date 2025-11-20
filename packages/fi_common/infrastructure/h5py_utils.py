@@ -11,7 +11,7 @@ Card: FI-TECH-DEBT-005
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 import h5py
 
@@ -92,7 +92,7 @@ def get_h5_string(group: h5py.Group | h5py.Dataset, field: str, index: int) -> s
 
 def get_h5_value(
     group: h5py.Group | h5py.Dataset,
-    field: Optional[str],
+    field: str | None,
     index: int,
     dtype: type,
 ) -> Any:

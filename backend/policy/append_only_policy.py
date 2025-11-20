@@ -11,7 +11,7 @@ FI-DATA-FEAT-005
 """
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import h5py
 
@@ -148,7 +148,7 @@ class AppendOnlyPolicy:
 
 
 def verify_append_only_operation(
-    corpus_path: str, operation_name: str, group_name: str, dataset_name: Optional[str] = None
+    corpus_path: str, operation_name: str, group_name: str, dataset_name: str | None = None
 ) -> dict[str, Any]:
     """
     Verify an operation is append-only compliant.

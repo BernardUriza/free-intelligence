@@ -23,9 +23,9 @@ Date: 2025-11-20
 
 import os
 import sys
-import json
-import requests
 from pathlib import Path
+
+import requests
 from dotenv import load_dotenv
 
 # Load credentials from .claude/auth0_actions.env
@@ -216,7 +216,7 @@ def main():
     print()
 
     # Bind to Login flow
-    print(f"🔗 Configurando Login flow...")
+    print("🔗 Configurando Login flow...")
     bindings = manager.update_trigger_bindings(TRIGGER_ID, action["id"])
 
     print()
@@ -246,5 +246,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

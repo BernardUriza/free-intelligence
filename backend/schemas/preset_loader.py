@@ -11,18 +11,18 @@ File: backend/preset_loader.py
 Created: 2025-10-28
 """
 
-import jsonschema
-import yaml
-
-from backend.constants import DEFAULT_OLLAMA_MODEL, LLMProvider
-from backend.logger import get_logger
-
 import hashlib
 import json
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
+import jsonschema
+import yaml
+
+from backend.constants import DEFAULT_OLLAMA_MODEL, LLMProvider
+from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -46,7 +46,7 @@ class PresetConfig:
     system_prompt: str
 
     # Validation
-    output_schema_path: Optional[str]
+    output_schema_path: str | None
     validation_enabled: bool
     validation_strict: bool
 
@@ -278,7 +278,7 @@ class PresetLoader:
 
 
 # Global preset loader instance
-_preset_loader: Optional[PresetLoader] = None
+_preset_loader: PresetLoader | None = None
 
 
 def get_preset_loader() -> PresetLoader:

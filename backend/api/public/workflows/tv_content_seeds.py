@@ -22,7 +22,7 @@ Created: 2025-11-18
 import json
 import time
 from pathlib import Path
-from typing import Any, List, Literal, Optional
+from typing import Any, List, Literal
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -60,7 +60,7 @@ class TVContentSeed(BaseModel):
     duration: int = Field(default=15000, description="Display duration in milliseconds")
 
     # Widget-specific fields
-    widget_type: Optional[
+    widget_type: (
         Literal[
             "weather",
             "trivia",
@@ -71,8 +71,9 @@ class TVContentSeed(BaseModel):
             "clinic_video",
             "clinic_message",
         ]
-    ] = Field(None, description="Widget type if type='widget'")
-    widget_data: Optional[dict[str, Any]] = Field(None, description="Widget-specific data (JSON)")
+        | None
+    ) = Field(None, description="Widget type if type='widget'")
+    widget_data: dict[str, Any] | None = Field(None, description="Widget-specific data (JSON)")
 
     # Seed management
     is_system_default: bool = Field(
@@ -82,7 +83,7 @@ class TVContentSeed(BaseModel):
     display_order: int = Field(default=0, description="Display order (0-indexed)")
 
     # Metadata
-    clinic_id: Optional[str] = Field(None, description="Clinic ID (None = global seed)")
+    clinic_id: str | None = Field(None, description="Clinic ID (None = global seed)")
     created_at: int = Field(
         default_factory=lambda: int(time.time() * 1000),
         description="Creation timestamp (ms)",
@@ -105,7 +106,7 @@ class SeedMetadata(BaseModel):
 
     clinic_id: str
     disabled_seeds: List[str] = Field(default_factory=list, description="List of disabled seed IDs")
-    custom_order: Optional[List[str]] = Field(
+    custom_order: List[str] | None = Field(
         default=None, description="Custom display order (content_ids)"
     )
 
@@ -122,7 +123,7 @@ def save_seed(seed: TVContentSeed) -> None:
         json.dump(seed.model_dump(), f, indent=2, ensure_ascii=False)
 
 
-def load_seed(content_id: str) -> Optional[TVContentSeed]:
+def load_seed(content_id: str) -> TVContentSeed | None:
     """Load TV content seed from JSON file."""
     seed_file = SEEDS_STORAGE_PATH / f"{content_id}.json"
     if not seed_file.exists():
@@ -202,7 +203,7 @@ def save_seed_metadata(metadata: SeedMetadata) -> None:
     """,
 )
 async def list_tv_content(
-    clinic_id: Optional[str] = None,
+    clinic_id: str | None = None,
     active_only: bool = True,
     include_doctor_media: bool = True,
 ) -> TVContentListResponse:

@@ -17,7 +17,6 @@ import os
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
@@ -29,7 +28,7 @@ from backend.logger import get_logger
 logger = get_logger(__name__)
 
 
-def generate_key_from_password(password: str, salt: Optional[bytes] = None) -> tuple[bytes, bytes]:
+def generate_key_from_password(password: str, salt: bytes | None = None) -> tuple[bytes, bytes]:
     """
     Generate encryption key from password using PBKDF2.
 
@@ -284,7 +283,7 @@ def create_backup(
     return str(backup_path), metadata
 
 
-def restore_backup(backup_path: str, output_path: str, password: Optional[str] = None) -> str:
+def restore_backup(backup_path: str, output_path: str, password: str | None = None) -> str:
     """
     Restore corpus from backup.
 
@@ -348,7 +347,7 @@ def restore_backup(backup_path: str, output_path: str, password: Optional[str] =
     return restored_hash
 
 
-def verify_backup(backup_path: str, password: Optional[str] = None) -> bool:
+def verify_backup(backup_path: str, password: str | None = None) -> bool:
     """
     Verify backup integrity.
 

@@ -3,6 +3,7 @@
 Pre-commit hook: Reject large markdown files (>150 lines)
 Exceptions: README.md, claude.md, files in docs/archive/
 """
+
 import sys
 from pathlib import Path
 

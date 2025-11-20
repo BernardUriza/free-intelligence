@@ -11,7 +11,7 @@ Card: FI-DATA-DB-001
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -37,16 +37,16 @@ class PatientCreate(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100, description="First name(s)")
     apellido: str = Field(..., min_length=1, max_length=100, description="Last name(s)")
     fecha_nacimiento: datetime = Field(..., description="Date of birth (ISO 8601)")
-    curp: Optional[str] = Field(None, min_length=18, max_length=18, description="CURP (18 chars)")
+    curp: str | None = Field(None, min_length=18, max_length=18, description="CURP (18 chars)")
 
 
 class PatientUpdate(BaseModel):
     """Schema for updating patient data."""
 
-    nombre: Optional[str] = Field(None, min_length=1, max_length=100)
-    apellido: Optional[str] = Field(None, min_length=1, max_length=100)
-    fecha_nacimiento: Optional[datetime] = None
-    curp: Optional[str] = Field(None, min_length=18, max_length=18)
+    nombre: str | None = Field(None, min_length=1, max_length=100)
+    apellido: str | None = Field(None, min_length=1, max_length=100)
+    fecha_nacimiento: datetime | None = None
+    curp: str | None = Field(None, min_length=18, max_length=18)
 
 
 class PatientResponse(BaseModel):
@@ -56,7 +56,7 @@ class PatientResponse(BaseModel):
     nombre: str
     apellido: str
     fecha_nacimiento: str
-    curp: Optional[str]
+    curp: str | None
     created_at: str
     updated_at: str
 
@@ -114,7 +114,7 @@ def create_patient(patient: PatientCreate, db: Session = Depends(get_db_dependen
 
 @router.get("/", response_model=List[PatientResponse])
 def list_patients(
-    search: Optional[str] = Query(None, description="Search by nombre or apellido"),
+    search: str | None = Query(None, description="Search by nombre or apellido"),
     limit: int = Query(50, ge=1, le=100, description="Maximum results"),
     offset: int = Query(0, ge=0, description="Skip N results"),
     db: Session = Depends(get_db_dependency),

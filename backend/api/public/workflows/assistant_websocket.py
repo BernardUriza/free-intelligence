@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Dict, Set
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from backend.logger import get_logger
@@ -109,10 +109,7 @@ class ConnectionManager:
         return {
             "total_doctors": len(self.connections),
             "total_connections": sum(len(conns) for conns in self.connections.values()),
-            "doctors": {
-                doctor_id: len(conns)
-                for doctor_id, conns in self.connections.items()
-            },
+            "doctors": {doctor_id: len(conns) for doctor_id, conns in self.connections.items()},
         }
 
 
@@ -166,11 +163,13 @@ async def websocket_endpoint(
 
     try:
         # Send initial connection confirmation
-        await websocket.send_json({
-            "type": "connected",
-            "doctor_id": doctor_id,
-            "message": "WebSocket connected successfully",
-        })
+        await websocket.send_json(
+            {
+                "type": "connected",
+                "doctor_id": doctor_id,
+                "message": "WebSocket connected successfully",
+            }
+        )
 
         # Keep connection alive (ping/pong)
         while True:

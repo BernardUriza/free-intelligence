@@ -30,13 +30,13 @@ from backend.api.public.workflows import (
 from backend.api.public.workflows.router import router
 
 __all__ = [
-    "router",
-    "transcription",
-    "sessions",
-    "soap",
-    "orders",
-    "timeline",
+    "assistant",
     "evidence",
     "kpis",
-    "assistant",
+    "orders",
+    "router",
+    "sessions",
+    "soap",
+    "timeline",
+    "transcription",
 ]

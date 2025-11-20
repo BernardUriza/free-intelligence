@@ -11,4 +11,4 @@ warnings.warn(
 )
 
 # Re-export for compatibility
-from backend.services.restart_diarization_job import *  # noqa: F401, F403
+from backend.services.restart_diarization_job import *  # noqa: F403

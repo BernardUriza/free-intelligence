@@ -10,10 +10,10 @@ import hashlib
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-UTC = timezone.utc
+UTC = UTC
 
 
 def main():
@@ -83,7 +83,7 @@ def main():
     print(f"✅ Manifest created: {manifest_path}")
     print(f"   Git SHA: {git_sha}")
     print(f"   Policy digest: {policy_digest[:16]}...")
-    print(f"   Tests: {test_count} passed ({tests_passed and '✅' or '❌'})")
+    print(f"   Tests: {test_count} passed ({(tests_passed and '✅') or '❌'})")
 
     sys.exit(0 if tests_passed else 1)
 
