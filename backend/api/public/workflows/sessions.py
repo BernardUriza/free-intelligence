@@ -1,21 +1,21 @@
-"""Session Management Workflow Endpoints - Diarization, Finalization, Checkpoint, Monitoring.
+"""Session Management Workflow Endpoints - SOLID Refactored.
 
-PUBLIC layer endpoints for session lifecycle:
-- POST /sessions/{session_id}/diarization → Dispatch diarization worker
-- POST /sessions/{session_id}/soap → Dispatch SOAP generation worker
-- POST /sessions/{session_id}/finalize → Finalize and encrypt session
-- POST /sessions/{session_id}/checkpoint → Incremental audio concatenation
-- GET /sessions/{session_id}/monitor → Real-time progress monitor
-- GET /diarization/jobs/{job_id} → Poll diarization status
-- GET /sessions/{session_id}/diarization/segments → Get diarization results
-- PATCH /sessions/{session_id}/diarization/segments/{idx} → Update segment text
-- GET /sessions/{session_id}/audio → Serve full audio file
+PUBLIC layer endpoints for session lifecycle (REFACTORED):
+- Uses WorkflowOrchestrator service for workflow dispatch
+- Models extracted to models/session_models.py
+- Business logic in services/ layer
+
+SOLID Principles Applied:
+- Single Responsibility: Each service has one job
+- Dependency Inversion: Endpoints depend on abstractions (services), not implementations
+- Open/Closed: Adding workflows doesn't require changing endpoint code
 
 Architecture:
-  PUBLIC (this file) → SERVICE/INTERNAL → REPOSITORY → HDF5
+  PUBLIC (this file) → SERVICES → REPOSITORY → HDF5
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-15 (Refactored from monolithic router)
+SOLID Refactor: 2025-11-20
 """
 
 from __future__ import annotations
@@ -27,94 +27,21 @@ from typing import Any, cast
 import h5py
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
 
+from backend.api.public.workflows.models import (
+    CheckpointRequest,
+    CheckpointResponse,
+    DiarizationStatusResponse,
+    FinalizeSessionRequest,
+    FinalizeSessionResponse,
+    TranscriptionSourcesModel,
+    UpdateSegmentRequest,
+)
 from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
 router = APIRouter()
-
-
-# ============================================================================
-# Request/Response Models
-# ============================================================================
-
-
-class TranscriptionSourcesModel(BaseModel):
-    """3 separate transcription sources for diarization."""
-
-    webspeech_final: list[str] = Field(
-        default_factory=list, description="WebSpeech instant previews"
-    )
-    transcription_per_chunks: list[dict] = Field(
-        default_factory=list, description="Whisper per-chunk transcripts"
-    )
-    full_transcription: str = Field(default="", description="Concatenated full text")
-
-
-class FinalizeSessionRequest(BaseModel):
-    """Request to finalize session and start diarization."""
-
-    transcription_sources: TranscriptionSourcesModel = Field(
-        default_factory=TranscriptionSourcesModel,
-        description="3 separate transcription sources",
-    )
-
-
-class FinalizeSessionResponse(BaseModel):
-    """Response for session finalization (202 Accepted).
-
-    Returns immediately with encryption queued asynchronously.
-    """
-
-    session_id: str = Field(..., description="Session identifier")
-    status: str = Field(..., description="ACCEPTED (session finalized, encryption queued)")
-    finalized_at: str = Field(..., description="ISO timestamp of finalization")
-    encryption_status: str = Field(..., description="PENDING | QUEUED | ENQUEUE_FAILED")
-    encryption_task_id: str | None = Field(
-        None, description="ENCRYPTION task idempotency key (for tracking)"
-    )
-    diarization_job_id: str | None = Field(
-        None, description="Deprecated - use /diarization endpoint instead"
-    )
-    message: str = Field(..., description="Human-readable message")
-
-
-class CheckpointRequest(BaseModel):
-    """Request for session checkpoint."""
-
-    last_chunk_idx: int = Field(..., description="Last chunk index to include in checkpoint")
-
-
-class CheckpointResponse(BaseModel):
-    """Response for session checkpoint."""
-
-    session_id: str = Field(..., description="Session identifier")
-    checkpoint_at: str = Field(..., description="ISO timestamp")
-    chunks_concatenated: int = Field(..., description="Number of chunks added")
-    full_audio_size: int = Field(..., description="Total size of full_audio.webm in bytes")
-    message: str = Field(..., description="Human-readable message")
-
-
-class DiarizationStatusResponse(BaseModel):
-    """Diarization job status for frontend polling."""
-
-    job_id: str = Field(..., description="Celery task ID")
-    session_id: str = Field(..., description="Session identifier")
-    status: str = Field(..., description="pending, processing, completed, failed")
-    progress: int = Field(default=0, description="Progress percentage (0-100)")
-    segment_count: int = Field(default=0, description="Number of diarized segments")
-    transcription_sources: dict[str, Any] | None = Field(
-        default=None, description="Triple vision transcription sources"
-    )
-    error: str | None = Field(default=None, description="Error message if failed")
-
-
-class UpdateSegmentRequest(BaseModel):
-    """Request body for updating segment text."""
-
-    text: str = Field(..., min_length=1, description="New text content for the segment")
 
 
 # ============================================================================
@@ -131,12 +58,11 @@ async def diarize_session_workflow(
 ) -> dict:
     """Dispatch diarization worker (PUBLIC orchestrator).
 
-    Flow:
-    1. Create DIARIZATION task in HDF5
-    2. Dispatch diarization worker in ThreadPoolExecutor (fire-and-forget)
-    3. Frontend polls /sessions/{session_id}/monitor for status
+    SOLID Refactored: Uses WorkflowOrchestrator service (Single Responsibility).
 
-    PUBLIC layer: Pure orchestrator - dispatches background task
+    Flow:
+    1. Delegate to WorkflowOrchestrator
+    2. Return standardized response
 
     Args:
         session_id: Session UUID
@@ -145,49 +71,13 @@ async def diarize_session_workflow(
         dict with job_id and status (202 Accepted)
 
     Raises:
-        404: Session not found or no TRANSCRIPTION task
-        400: Transcription not completed yet
         500: Worker dispatch failed
     """
-    from backend.models.task_type import TaskType
-    from backend.storage.task_repository import ensure_task_exists
-    from backend.workers.executor_pool import spawn_worker
-    from backend.workers.tasks.diarization_worker import diarize_session_worker
+    from backend.api.public.workflows.services import get_workflow_orchestrator
 
     try:
-        logger.info(
-            "DIARIZATION_WORKFLOW_STARTED",
-            session_id=session_id,
-        )
-
-        # 1. Create DIARIZATION task BEFORE dispatching worker
-        ensure_task_exists(
-            session_id=session_id,
-            task_type=TaskType.DIARIZATION,
-            allow_existing=True,
-        )
-        logger.info(
-            "DIARIZATION_TASK_CREATED",
-            session_id=session_id,
-        )
-
-        # 2. Dispatch worker using ThreadPoolExecutor (fire-and-forget)
-        spawn_worker(diarize_session_worker, session_id=session_id)
-        job_id = session_id  # Use session_id as job identifier
-
-        logger.info(
-            "DIARIZATION_DISPATCHED",
-            session_id=session_id,
-            job_id=job_id,
-        )
-
-        # 3. Return 202 Accepted
-        return {
-            "session_id": session_id,
-            "job_id": job_id,
-            "status": "dispatched",
-            "message": f"Diarization running in background (job {job_id}). Poll /sessions/{session_id}/monitor for progress.",
-        }
+        orchestrator = get_workflow_orchestrator()
+        return orchestrator.dispatch_diarization(session_id)
 
     except HTTPException:
         raise
@@ -213,12 +103,7 @@ async def generate_soap_workflow(
 ) -> dict:
     """Dispatch SOAP generation worker (PUBLIC orchestrator).
 
-    Flow:
-    1. Create SOAP_GENERATION task in HDF5
-    2. Dispatch SOAP worker in ThreadPoolExecutor (fire-and-forget)
-    3. Frontend polls /sessions/{session_id}/monitor for status
-
-    PUBLIC layer: Pure orchestrator - dispatches background task
+    SOLID Refactored: Uses WorkflowOrchestrator service (Single Responsibility).
 
     Args:
         session_id: Session UUID
@@ -227,49 +112,13 @@ async def generate_soap_workflow(
         dict with job_id and status (202 Accepted)
 
     Raises:
-        404: Session not found or no DIARIZATION task
-        400: Diarization not completed yet
         500: Worker dispatch failed
     """
-    from backend.models.task_type import TaskType
-    from backend.storage.task_repository import ensure_task_exists
-    from backend.workers.executor_pool import spawn_worker
-    from backend.workers.tasks.soap_worker import generate_soap_worker
+    from backend.api.public.workflows.services import get_workflow_orchestrator
 
     try:
-        logger.info(
-            "SOAP_WORKFLOW_STARTED",
-            session_id=session_id,
-        )
-
-        # 1. Create SOAP_GENERATION task BEFORE dispatching worker
-        ensure_task_exists(
-            session_id=session_id,
-            task_type=TaskType.SOAP_GENERATION,
-            allow_existing=True,
-        )
-        logger.info(
-            "SOAP_TASK_CREATED",
-            session_id=session_id,
-        )
-
-        # 2. Dispatch worker using ThreadPoolExecutor (fire-and-forget)
-        spawn_worker(generate_soap_worker, session_id=session_id)
-        job_id = session_id  # Use session_id as job identifier
-
-        logger.info(
-            "SOAP_DISPATCHED",
-            session_id=session_id,
-            job_id=job_id,
-        )
-
-        # 3. Return 202 Accepted
-        return {
-            "session_id": session_id,
-            "job_id": job_id,
-            "status": "dispatched",
-            "message": f"SOAP generation running in background (job {job_id}). Poll /sessions/{session_id}/monitor for progress.",
-        }
+        orchestrator = get_workflow_orchestrator()
+        return orchestrator.dispatch_soap_generation(session_id)
 
     except HTTPException:
         raise
@@ -295,12 +144,7 @@ async def analyze_emotion_workflow(
 ) -> dict:
     """Dispatch emotion analysis worker (PUBLIC orchestrator).
 
-    Flow:
-    1. Create EMOTION_ANALYSIS task in HDF5
-    2. Dispatch emotion worker in ThreadPoolExecutor (fire-and-forget)
-    3. Frontend polls /sessions/{session_id}/monitor for status
-
-    PUBLIC layer: Pure orchestrator - dispatches background task
+    SOLID Refactored: Uses WorkflowOrchestrator service (Single Responsibility).
 
     Args:
         session_id: Session UUID
@@ -309,49 +153,13 @@ async def analyze_emotion_workflow(
         dict with job_id and status (202 Accepted)
 
     Raises:
-        404: Session not found or no DIARIZATION task
-        400: Diarization not completed yet
         500: Worker dispatch failed
     """
-    from backend.models.task_type import TaskType
-    from backend.storage.task_repository import ensure_task_exists
-    from backend.workers.executor_pool import spawn_worker
-    from backend.workers.tasks.emotion_worker import analyze_emotion_worker
+    from backend.api.public.workflows.services import get_workflow_orchestrator
 
     try:
-        logger.info(
-            "EMOTION_WORKFLOW_STARTED",
-            session_id=session_id,
-        )
-
-        # 1. Create EMOTION_ANALYSIS task BEFORE dispatching worker
-        ensure_task_exists(
-            session_id=session_id,
-            task_type=TaskType.EMOTION_ANALYSIS,
-            allow_existing=True,
-        )
-        logger.info(
-            "EMOTION_TASK_CREATED",
-            session_id=session_id,
-        )
-
-        # 2. Dispatch worker using ThreadPoolExecutor (fire-and-forget)
-        spawn_worker(analyze_emotion_worker, session_id=session_id)
-        job_id = session_id  # Use session_id as job identifier
-
-        logger.info(
-            "EMOTION_DISPATCHED",
-            session_id=session_id,
-            job_id=job_id,
-        )
-
-        # 3. Return 202 Accepted
-        return {
-            "session_id": session_id,
-            "job_id": job_id,
-            "status": "dispatched",
-            "message": f"Emotion analysis running in background (job {job_id}). Poll /sessions/{session_id}/monitor for progress.",
-        }
+        orchestrator = get_workflow_orchestrator()
+        return orchestrator.dispatch_emotion_analysis(session_id)
 
     except HTTPException:
         raise
