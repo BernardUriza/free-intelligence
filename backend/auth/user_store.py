@@ -10,7 +10,7 @@ In production, replace with PostgreSQL/MySQL/etc.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from typing import Dict
 from uuid import uuid4
 

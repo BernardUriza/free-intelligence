@@ -11,7 +11,7 @@ HIPAA Reference: 45 CFR §164.312(d) - Person or Entity Authentication
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime, timedelta
+from backend.compat import UTC, datetime, timedelta
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext

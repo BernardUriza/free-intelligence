@@ -8,7 +8,7 @@ Provee ultra observabilidad con parsing JSON robusto.
 import hashlib
 import json
 import time
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 

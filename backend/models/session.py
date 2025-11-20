@@ -20,7 +20,7 @@ Created: 2025-11-14
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from enum import Enum
 from typing import Any
 

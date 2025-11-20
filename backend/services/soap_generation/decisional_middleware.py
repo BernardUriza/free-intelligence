@@ -20,7 +20,7 @@ Pattern: Redux Middleware + Chain of Responsibility
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from typing import Any
 
 from backend.logger import get_logger

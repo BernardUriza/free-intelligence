@@ -8,7 +8,7 @@ Reorganized: 2025-11-08 (moved from backend/api/system.py)
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from typing import Any, Dict
 
 from fastapi import APIRouter

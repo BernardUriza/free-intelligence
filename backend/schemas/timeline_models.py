@@ -13,7 +13,7 @@ Sprint: SPR-2025W44
 
 import hashlib
 import uuid
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from enum import Enum
 from typing import Any, List
 

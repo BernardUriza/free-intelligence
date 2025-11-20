@@ -21,7 +21,7 @@ SOLID Refactor: 2025-11-20
 from __future__ import annotations
 
 import tempfile
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from typing import Any, cast
 
 import h5py

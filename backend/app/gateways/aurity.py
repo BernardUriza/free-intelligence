@@ -21,7 +21,7 @@ File: backend/aurity_gateway.py
 Created: 2025-10-28
 """
 
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect

@@ -23,7 +23,7 @@ Created: 2025-10-30
 import hashlib
 import json
 import os
-from datetime import UTC, datetime, timedelta
+from backend.compat import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import UUID

@@ -33,7 +33,7 @@ Usage:
 
 import hashlib
 import json
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict
 

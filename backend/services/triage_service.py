@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict
 from uuid import uuid4

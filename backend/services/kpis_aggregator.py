@@ -19,7 +19,7 @@ import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 
 from backend.logger import get_logger
 
