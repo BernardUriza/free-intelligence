@@ -4,6 +4,7 @@ This module provides compatibility for features that differ between Python versi
 """
 import sys
 import datetime
+from datetime import timedelta
 
 # Python 3.11+ has datetime.UTC, Python 3.10 needs datetime.timezone.utc
 if sys.version_info >= (3, 11):
@@ -12,4 +13,4 @@ else:
     from datetime import timezone
     UTC = timezone.utc
 
-__all__ = ["UTC", "datetime"]
+__all__ = ["UTC", "datetime", "timedelta"]
