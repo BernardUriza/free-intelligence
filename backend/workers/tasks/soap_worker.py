@@ -110,28 +110,33 @@ def generate_soap_worker(
             },
         )
 
-        # Generate SOAP note using service
-        # TODO: Update SOAPGenerationService to accept transcript directly
-        # For now, we'll need to refactor the service or create a wrapper
+        # Generate SOAP note using DecisionalMiddleware (intelligent orchestration)
+        from backend.services.soap_generation.decisional_middleware import (
+            get_decisional_middleware,
+        )
 
-        # Temporary: Create a simple SOAP extraction inline
-        # This should be replaced with proper service integration
-        from backend.services.soap_generation.llm_client import LLMClient
+        middleware = get_decisional_middleware()
 
-        llm_client = LLMClient(provider=soap_provider)
-
-        # Update progress: 50% (LLM processing)
+        # Update progress: 50% (analyzing complexity & orchestrating)
         update_task_metadata(
             session_id,
             TaskType.SOAP_GENERATION,
             {
                 "progress_percent": 50,
-                "status_message": "LLM processing medical transcript...",
+                "status_message": "Analyzing case complexity and orchestrating SOAP generation...",
             },
         )
 
-        # Extract SOAP data
-        soap_data = llm_client.extract_soap(full_text)
+        # Process through decisional middleware
+        # This will intelligently decide: simple vs complex generation
+        orchestration_result = middleware.process(
+            transcript=full_text,
+            segments=segments if segments else None,
+            session_metadata={"session_id": session_id, "provider": soap_provider},
+        )
+
+        # Extract SOAP data from orchestration result
+        soap_data = orchestration_result.soap_note
 
         # Update progress: 80% (processing results)
         update_task_metadata(
@@ -148,6 +153,11 @@ def generate_soap_worker(
             "provider": soap_provider,
             "word_count": word_count,
             "text_length": len(full_text),
+            # Orchestration metadata
+            "orchestration_strategy": orchestration_result.strategy_used,
+            "personas_invoked": orchestration_result.personas_invoked,
+            "confidence_score": orchestration_result.confidence_score,
+            "doctor_context_requested": orchestration_result.doctor_context_requested,
         }
 
         elapsed_time = time.time() - start_time
@@ -230,7 +240,7 @@ def generate_soap_worker(
             orders_created=orders_created,
         )
 
-        # Update metadata with completion status
+        # Update metadata with completion status (including orchestration details)
         update_task_metadata(
             session_id,
             TaskType.SOAP_GENERATION,
@@ -241,6 +251,11 @@ def generate_soap_worker(
                 "completed_at": datetime.now(UTC).isoformat(),
                 "duration_seconds": round(elapsed_time, 2),
                 "status_message": "SOAP note generated successfully",
+                # Decisional middleware metadata
+                "orchestration_strategy": orchestration_result.strategy_used,
+                "personas_invoked": orchestration_result.personas_invoked,
+                "confidence_score": orchestration_result.confidence_score,
+                "doctor_context_requested": orchestration_result.doctor_context_requested,
             },
         )
 
