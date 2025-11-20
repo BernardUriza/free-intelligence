@@ -237,6 +237,80 @@ class TranscriptionService:
 
         return result
 
+    async def transcribe_audio_sync(
+        self,
+        audio_bytes: bytes,
+    ) -> dict:
+        """Synchronous audio transcription (for chat mode - blocking).
+
+        NOTE: This is a BLOCKING operation (10-15s). Only use for chat mode.
+        Medical mode should use process_chunk() with workers instead.
+
+        Args:
+            audio_bytes: Raw audio data
+
+        Returns:
+            dict with keys:
+                - text: Transcription text
+                - provider: STT provider used (deepgram, azure_whisper)
+                - confidence: Confidence score (0.0-1.0)
+                - duration: Audio duration in seconds
+                - language: Detected language
+        """
+        import os
+        import tempfile
+
+        from backend.providers.stt import get_stt_provider
+        from backend.utils.stt_load_balancer import get_stt_load_balancer
+
+        # Get load balancer and select provider
+        balancer = get_stt_load_balancer()
+        provider_name, decision_reason = balancer.select_provider_for_file(
+            audio_size_bytes=len(audio_bytes),
+            chunk_number=0,  # Chat doesn't use chunk numbers for routing
+            session_id="chat",  # Placeholder
+        )
+
+        logger.info(
+            "SYNC_TRANSCRIPTION_START",
+            provider=provider_name,
+            audio_size_kb=len(audio_bytes) / 1024,
+            decision_reason=decision_reason,
+        )
+
+        # Write audio to temp file
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+            tmp.write(audio_bytes)
+            tmp_path = tmp.name
+
+        try:
+            # Get provider config from policy
+            provider_config = balancer.policy.get("stt", {}).get("providers", {}).get(provider_name, {})
+
+            # Transcribe
+            provider = get_stt_provider(provider_name, config=provider_config)
+            response = provider.transcribe(tmp_path, language="es")
+
+            logger.info(
+                "SYNC_TRANSCRIPTION_SUCCESS",
+                provider=provider_name,
+                transcript_length=len(response.text),
+                confidence=response.confidence,
+            )
+
+            return {
+                "text": response.text,
+                "provider": response.provider,
+                "confidence": response.confidence,
+                "duration": response.duration,
+                "language": response.language,
+            }
+
+        finally:
+            # Cleanup temp file
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
     async def get_transcription_status(
         self,
         session_id: str,

@@ -94,11 +94,15 @@ class LLMClient:
             )
 
             # Use llm_generate from llm_router (supports all providers)
+            # Get temperature and max_tokens from preset (if available)
+            temperature = self.prompt_builder.get_temperature()
+            max_tokens = self.prompt_builder.get_max_tokens()
+
             response = llm_generate(
                 full_prompt,
                 provider=self.provider,
-                max_tokens=4096,  # SOAP notes can be long
-                temperature=0.3,  # Balanced: structured but not too rigid
+                max_tokens=max_tokens,
+                temperature=temperature,  # From preset or default (0.3)
             )
 
             response_text = response.content.strip()

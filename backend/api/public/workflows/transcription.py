@@ -67,6 +67,7 @@ async def stream_chunk(
     session_id: str = Form(...),
     chunk_number: int = Form(...),
     audio: UploadFile = File(...),  # noqa: B008
+    mode: str = Form("medical"),  # NEW: "medical" | "chat" (default: medical for backward compat)
     timestamp_start: float | None = Form(None),
     timestamp_end: float | None = Form(None),
     patient_name: str | None = Form(None),
@@ -75,88 +76,99 @@ async def stream_chunk(
     chief_complaint: str | None = Form(None),
     service: TranscriptionService = Depends(get_transcription_service),
 ) -> StreamChunkResponse:
-    """Upload audio chunk for transcription (orchestrator).
+    """Upload audio chunk for transcription (mode-agnostic with Strategy Pattern).
 
-    PUBLIC layer: Uses Service layer for business logic
+    REFACTORED (2025-11-20): Uses ChunkHandler abstraction for medical/chat workflows.
+
+    PUBLIC layer: Uses ChunkHandler + TranscriptionService for business logic
 
     Args:
-        session_id: Session UUID
+        session_id: Session UUID (medical) or user-scoped ID (chat)
         chunk_number: Sequential chunk (0, 1, 2, ...)
         audio: Audio blob (WebM/WAV/MP3)
-        timestamp_start: Optional chunk start time
-        timestamp_end: Optional chunk end time
+        mode: Workflow mode - "medical" (default) | "chat"
+        timestamp_start: Optional chunk start time (medical only)
+        timestamp_end: Optional chunk end time (medical only)
+        patient_name: Patient name (medical only, first chunk)
+        patient_age: Patient age (medical only, first chunk)
+        patient_id: Patient ID (medical only, first chunk)
+        chief_complaint: Chief complaint (medical only, first chunk)
         service: Injected TranscriptionService
 
     Returns:
         StreamChunkResponse with session_id for polling
 
-    Frontend:
+    Medical workflow:
         ```typescript
         const session_id = uuidv4()  // Create once
-        await POST('/stream', {session_id, chunk_number: 0, audio})
-        await pollUntilComplete(session_id)  // Session-based
+        await POST('/stream', {session_id, chunk_number: 0, audio, mode: 'medical'})
+        await pollUntilComplete(session_id)
+        ```
+
+    Chat workflow:
+        ```typescript
+        const session_id = `chat_${user.sub}`  // User-scoped
+        await POST('/stream', {session_id, chunk_number: 0, audio, mode: 'chat'})
+        // Transcript available immediately (no polling)
         ```
     """
     try:
+        # 1. Get handler based on mode (Strategy Pattern)
+        from backend.services.chunk_handler_factory import get_chunk_handler
+
+        handler = get_chunk_handler(mode)
+
+        # 2. Initialize session (first chunk only)
+        if chunk_number == 0:
+            metadata = {}
+            if patient_name:
+                metadata["patient_name"] = patient_name
+            if patient_age:
+                metadata["patient_age"] = patient_age
+            if patient_id:
+                metadata["patient_id"] = patient_id
+            if chief_complaint:
+                metadata["chief_complaint"] = chief_complaint
+
+            await handler.initialize_session(session_id, metadata if metadata else None)
+
+        # 3. Transcribe audio (SHARED LOGIC - STT load balancer)
         audio_bytes = await audio.read()
+        transcript_result = await service.transcribe_audio(audio_bytes)
 
-        # Save patient info to session metadata (first chunk only)
-        if chunk_number == 0 and any([patient_name, patient_age, patient_id, chief_complaint]):
-            import h5py
-
-            from backend.storage.task_repository import CORPUS_PATH
-
-            logger.info(
-                "PATIENT_INFO_RECEIVED",
-                session_id=session_id,
-                patient_name=patient_name,
-                has_age=bool(patient_age),
-                has_id=bool(patient_id),
-                has_complaint=bool(chief_complaint),
-            )
-
-            # Save to HDF5 session attributes
-            CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
-            with h5py.File(CORPUS_PATH, "a") as f:
-                session_path = f"/sessions/{session_id}"
-                if session_path not in f:  # type: ignore[operator]
-                    session_group = f.create_group(session_path)  # type: ignore[union-attr]
-                else:
-                    session_group = f[session_path]  # type: ignore[index]
-
-                # Save patient metadata as session attributes
-                if patient_name:
-                    session_group.attrs["patient_name"] = patient_name
-                if patient_age:
-                    session_group.attrs["patient_age"] = patient_age
-                if patient_id:
-                    session_group.attrs["patient_id"] = patient_id
-                if chief_complaint:
-                    session_group.attrs["chief_complaint"] = chief_complaint
-
-            logger.info("PATIENT_INFO_SAVED", session_id=session_id)
-
-        result = await service.process_chunk(
+        # 4. Save chunk (strategy-specific: HDF5 vs in-memory)
+        await handler.save_chunk(
             session_id=session_id,
             chunk_number=chunk_number,
             audio_bytes=audio_bytes,
-            timestamp_start=timestamp_start,
-            timestamp_end=timestamp_end,
+            transcript=transcript_result.get("text", ""),
+            metadata={
+                "provider": transcript_result.get("provider", "unknown"),
+                "confidence": transcript_result.get("confidence", 0.0),
+                "timestamp": timestamp_start or 0.0,
+                "timestamp_start": timestamp_start or 0.0,
+                "timestamp_end": timestamp_end or 0.0,
+                "duration": transcript_result.get("duration", 0.0),
+                "language": transcript_result.get("language", "es-MX"),
+            },
         )
 
+        # 5. Get status for response
+        status_dict = await handler.get_session_status(session_id)
+
         return StreamChunkResponse(
-            session_id=result.session_id,
-            chunk_number=result.chunk_number,
-            status=result.status,
-            total_chunks=result.total_chunks,
-            processed_chunks=result.processed_chunks,
+            session_id=session_id,
+            chunk_number=chunk_number,
+            status=status_dict["status"],
+            total_chunks=status_dict["total_chunks"],
+            processed_chunks=status_dict["processed_chunks"],
         )
 
     except ValueError as e:
-        logger.error("VALIDATION_ERROR", session_id=session_id, error=str(e))
+        logger.error("VALIDATION_ERROR", session_id=session_id, mode=mode, error=str(e))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
-        logger.error("CHUNK_UPLOAD_FAILED", session_id=session_id, error=str(e))
+        logger.error("CHUNK_UPLOAD_FAILED", session_id=session_id, mode=mode, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process chunk: {e!s}",
@@ -168,20 +180,27 @@ async def get_job_status(
     session_id: str,
     service: TranscriptionService = Depends(get_transcription_service),
 ) -> JobStatusResponse:
-    """Poll transcription job status (orchestrator).
+    """Poll transcription job status (mode-agnostic with Strategy Pattern).
 
-    PUBLIC layer: Uses Service layer for business logic
+    REFACTORED (2025-11-20): Uses ChunkHandler abstraction for medical/chat workflows.
+
+    PUBLIC layer: Uses ChunkHandler for business logic
 
     Args:
-        session_id: Session UUID
-        service: Injected TranscriptionService
+        session_id: Session UUID (medical) or user-scoped ID (chat)
+        service: Injected TranscriptionService (unused - kept for backward compat)
 
     Returns:
         JobStatusResponse with all chunks
 
+    Mode detection:
+        - session_id starts with "chat_" → chat mode
+        - otherwise → medical mode
+
     Frontend Polling:
         ```typescript
-        async function pollJob(session_id: string, maxTime = 30000) {
+        // Medical (needs polling for worker completion)
+        async function pollMedicalJob(session_id: string, maxTime = 30000) {
           const start = Date.now()
           while (Date.now() - start < maxTime) {
             const {status, chunks} = await get(`/jobs/${session_id}`)
@@ -190,11 +209,23 @@ async def get_job_status(
             await sleep(500)  // Poll every 500ms
           }
         }
+
+        // Chat (immediate completion, no polling needed)
+        const {status, chunks} = await get(`/jobs/chat_user_123`)
+        // status is always 'completed'
         ```
     """
     try:
-        result = await service.get_transcription_status(session_id)
-        return JobStatusResponse(**result)
+        # Detect mode from session_id prefix
+        mode = "chat" if session_id.startswith("chat_") else "medical"
+
+        # Get handler and delegate
+        from backend.services.chunk_handler_factory import get_chunk_handler
+
+        handler = get_chunk_handler(mode)
+        status_dict = await handler.get_session_status(session_id)
+
+        return JobStatusResponse(**status_dict)
 
     except ValueError as e:
         logger.error("SESSION_NOT_FOUND", session_id=session_id, error=str(e))

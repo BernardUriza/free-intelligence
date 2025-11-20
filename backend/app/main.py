@@ -139,7 +139,7 @@ Requires environment variables:
     public_app = FastAPI(title="Public API")
     allowed_origins = os.getenv(
         "ALLOWED_ORIGINS",
-        "http://localhost:9000,http://localhost:9050,http://104.131.175.65,https://fi-aurity.duckdns.org",
+        "http://localhost:9000,http://localhost:9050,http://104.131.175.65,https://fi-aurity.duckdns.org,https://app.aurity.io",
     ).split(",")
     public_app.add_middleware(
         CORSMiddleware,

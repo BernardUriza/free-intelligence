@@ -287,6 +287,88 @@ async def generate_soap_workflow(
 
 
 @router.post(
+    "/sessions/{session_id}/emotion",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def analyze_emotion_workflow(
+    session_id: str,
+) -> dict:
+    """Dispatch emotion analysis worker (PUBLIC orchestrator).
+
+    Flow:
+    1. Create EMOTION_ANALYSIS task in HDF5
+    2. Dispatch emotion worker in ThreadPoolExecutor (fire-and-forget)
+    3. Frontend polls /sessions/{session_id}/monitor for status
+
+    PUBLIC layer: Pure orchestrator - dispatches background task
+
+    Args:
+        session_id: Session UUID
+
+    Returns:
+        dict with job_id and status (202 Accepted)
+
+    Raises:
+        404: Session not found or no DIARIZATION task
+        400: Diarization not completed yet
+        500: Worker dispatch failed
+    """
+    from backend.models.task_type import TaskType
+    from backend.storage.task_repository import ensure_task_exists
+    from backend.workers.executor_pool import spawn_worker
+    from backend.workers.tasks.emotion_worker import analyze_emotion_worker
+
+    try:
+        logger.info(
+            "EMOTION_WORKFLOW_STARTED",
+            session_id=session_id,
+        )
+
+        # 1. Create EMOTION_ANALYSIS task BEFORE dispatching worker
+        ensure_task_exists(
+            session_id=session_id,
+            task_type=TaskType.EMOTION_ANALYSIS,
+            allow_existing=True,
+        )
+        logger.info(
+            "EMOTION_TASK_CREATED",
+            session_id=session_id,
+        )
+
+        # 2. Dispatch worker using ThreadPoolExecutor (fire-and-forget)
+        spawn_worker(analyze_emotion_worker, session_id=session_id)
+        job_id = session_id  # Use session_id as job identifier
+
+        logger.info(
+            "EMOTION_DISPATCHED",
+            session_id=session_id,
+            job_id=job_id,
+        )
+
+        # 3. Return 202 Accepted
+        return {
+            "session_id": session_id,
+            "job_id": job_id,
+            "status": "dispatched",
+            "message": f"Emotion analysis running in background (job {job_id}). Poll /sessions/{session_id}/monitor for progress.",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "EMOTION_WORKFLOW_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to dispatch emotion analysis: {e!s}",
+        ) from e
+
+
+@router.post(
     "/sessions/{session_id}/finalize",
     response_model=FinalizeSessionResponse,
     status_code=status.HTTP_202_ACCEPTED,
