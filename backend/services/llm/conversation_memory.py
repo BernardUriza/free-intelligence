@@ -366,20 +366,20 @@ class ConversationMemoryManager:
             # Decode bytes as UTF-8 explicitly (h5py stores as bytes)
             session_ids = [
                 s.decode("utf-8") if isinstance(s, bytes) else str(s)
-                for s in f["/metadata/session_ids"][:]
+                for s in f["/metadata/session_ids"][:]  # type: ignore[union-attr]
             ]
             timestamps = f["/metadata/timestamps"][:]
             roles = [
                 r.decode("utf-8") if isinstance(r, bytes) else str(r)
-                for r in f["/metadata/roles"][:]
+                for r in f["/metadata/roles"][:]  # type: ignore[union-attr]
             ]
             content = [
                 c.decode("utf-8") if isinstance(c, bytes) else str(c)
-                for c in f["/metadata/content"][:]
+                for c in f["/metadata/content"][:]  # type: ignore[union-attr]
             ]
             personas = [
                 p.decode("utf-8") if isinstance(p, bytes) else str(p)
-                for p in f["/metadata/personas"][:]
+                for p in f["/metadata/personas"][:]  # type: ignore[union-attr]
             ]
 
         # 1. Get recent context (last N from current session)
@@ -428,7 +428,7 @@ class ConversationMemoryManager:
 
         # Compute cosine similarity (vectorized)
         # scores = embeddings @ query / (||embeddings|| * ||query||)
-        norms = np.linalg.norm(embeddings, axis=1)
+        norms = np.linalg.norm(embeddings, axis=1)  # type: ignore[call-overload]
         query_norm = np.linalg.norm(query_embedding)
         similarities = embeddings @ query_embedding / (norms * query_norm)
 
@@ -565,6 +565,105 @@ class ConversationMemoryManager:
                 "newest_timestamp": newest_ts,
                 "memory_index_exists": True,
                 "doctor_id": self.doctor_id,
+            }
+
+    def get_paginated_history(
+        self,
+        offset: int = 0,
+        limit: int = 50,
+        session_id: Optional[str] = None,
+    ) -> dict:
+        """Get paginated conversation history (chronological order).
+
+        For infinite scroll implementation in UI.
+
+        Args:
+            offset: Number of interactions to skip (from newest)
+            limit: Max interactions to return
+            session_id: Optional session filter
+
+        Returns:
+            Dict with:
+            - interactions: List of Interaction objects
+            - total: Total count
+            - has_more: Boolean indicating if more messages exist
+
+        Example:
+            >>> # Get latest 50 messages
+            >>> page1 = memory.get_paginated_history(offset=0, limit=50)
+            >>> # Get next 50 (older messages)
+            >>> page2 = memory.get_paginated_history(offset=50, limit=50)
+        """
+        if not self.memory_path.exists():
+            return {
+                "interactions": [],
+                "total": 0,
+                "has_more": False,
+            }
+
+        with h5py.File(self.memory_path, "r") as f:
+            total = f["/embeddings/vectors"].shape[0]
+
+            if total == 0:
+                return {
+                    "interactions": [],
+                    "total": 0,
+                    "has_more": False,
+                }
+
+            # Load all metadata (decoded)
+            session_ids = [
+                s.decode("utf-8") if isinstance(s, bytes) else str(s)
+                for s in f["/metadata/session_ids"][:]  # type: ignore[union-attr]
+            ]
+            timestamps = f["/metadata/timestamps"][:]
+            roles = [
+                r.decode("utf-8") if isinstance(r, bytes) else str(r)
+                for r in f["/metadata/roles"][:]  # type: ignore[union-attr]
+            ]
+            content = [
+                c.decode("utf-8") if isinstance(c, bytes) else str(c)
+                for c in f["/metadata/content"][:]  # type: ignore[union-attr]
+            ]
+            personas = [
+                p.decode("utf-8") if isinstance(p, bytes) else str(p)
+                for p in f["/metadata/personas"][:]  # type: ignore[union-attr]
+            ]
+            embeddings = f["/embeddings/vectors"][:]
+
+            # Filter by session if specified
+            if session_id:
+                session_mask = np.array(session_ids) == session_id
+                indices = np.where(session_mask)[0]
+            else:
+                indices = np.arange(total)
+
+            # Sort by timestamp (newest first for pagination)
+            sorted_indices = indices[np.argsort(timestamps[indices])[::-1]]
+
+            # Apply offset and limit
+            paginated_indices = sorted_indices[offset : offset + limit]
+
+            # Build interaction objects
+            interactions = [
+                Interaction(
+                    session_id=session_ids[idx],
+                    interaction_idx=int(idx),
+                    timestamp=int(timestamps[idx]),
+                    role=roles[idx],
+                    content=content[idx],
+                    embedding=embeddings[idx],
+                    persona=personas[idx] if personas[idx] else None,
+                )
+                for idx in paginated_indices
+            ]
+
+            has_more = (offset + limit) < len(sorted_indices)
+
+            return {
+                "interactions": interactions,
+                "total": len(sorted_indices),
+                "has_more": has_more,
             }
 
 

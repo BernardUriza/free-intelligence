@@ -106,7 +106,7 @@ class SeedMetadata(BaseModel):
     clinic_id: str
     disabled_seeds: List[str] = Field(default_factory=list, description="List of disabled seed IDs")
     custom_order: Optional[List[str]] = Field(
-        None, description="Custom display order (content_ids)"
+        default=None, description="Custom display order (content_ids)"
     )
 
 

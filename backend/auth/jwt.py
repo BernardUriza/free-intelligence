@@ -145,13 +145,18 @@ def decode_token(token: str) -> Optional[TokenData]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
-        user_id: str = payload.get("sub")
-        username: str = payload.get("username")
-        role_str: str = payload.get("role")
+        user_id = payload.get("sub")
+        username = payload.get("username")
+        role_str = payload.get("role")
         scopes: list = payload.get("scopes", [])
 
         if user_id is None or username is None:
             return None
+
+        # Type assertions after None check
+        user_id = str(user_id)
+        username = str(username)
+        role_str = str(role_str) if role_str else None
 
         # Parse role enum
         try:

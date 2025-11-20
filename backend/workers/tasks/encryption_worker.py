@@ -66,7 +66,7 @@ except ImportError:
     import logging
     from typing import Any
     logging.basicConfig(level=logging.INFO)
-    def get_logger(name: str):  # type: ignore[misc]
+    def get_logger(name: str):  # type: ignore[misc,assignment]
         return logging.getLogger(name)
 
     # Stub definitions for type checking
@@ -81,7 +81,7 @@ except ImportError:
     def update_task_metadata(session_id: str, task_type: Any, metadata: dict) -> None:  # type: ignore[misc]
         pass
 
-    HAS_BACKEND_IMPORTS = False
+    HAS_BACKEND_IMPORTS = False  # type: ignore[assignment]
 
 # ═══════════════════════════════════════════════════════════════════
 # Configuration & Constants
