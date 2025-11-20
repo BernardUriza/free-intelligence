@@ -16,7 +16,6 @@ Personas disponibles:
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -39,7 +38,7 @@ class PersonaManager:
     No embebe prompts en código - solo parámetros.
     """
 
-    def __init__(self, config_dir: Optional[Path] = None) -> None:
+    def __init__(self, config_dir: Path | None = None) -> None:
         """Inicializa el gestor de personas.
 
         Args:
@@ -99,3 +98,34 @@ class PersonaManager:
         """Obtiene la descripción de una persona."""
         config = self.get_persona(persona)
         return config.description
+
+    def build_system_prompt(self, persona: str, context: dict | None = None) -> str:
+        """Construye el system prompt ajustado por contexto (response_mode, etc).
+
+        Args:
+            persona: Nombre de la persona
+            context: Contexto del usuario (response_mode, doctor_name, etc.)
+
+        Returns:
+            System prompt modificado según el contexto
+        """
+        config = self.get_persona(persona)
+        base_prompt = config.system_prompt
+
+        # Ajustar según response_mode
+        context = context or {}
+        mode = context.get("response_mode", "explanatory")
+
+        instruction_map = {
+            "concise": "Responde de manera breve y directa (máximo 3-4 oraciones).",
+            "explanatory": "Responde de manera detallada y educativa.",
+        }
+
+        # Fallback a explanatory si el modo es desconocido
+        instruction = instruction_map.get(mode, instruction_map["explanatory"])
+
+        # Idempotencia: no duplicar la instrucción si ya existe
+        if instruction not in base_prompt:
+            base_prompt = f"{base_prompt}\n\n{instruction}"
+
+        return base_prompt

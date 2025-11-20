@@ -8,19 +8,22 @@ Architecture:
 
 Endpoints:
 - POST /workflows/aurity/assistant/introduction - Onboarding presentation
-- POST /workflows/aurity/assistant/chat - General conversation
+- POST /workflows/aurity/assistant/chat - General conversation (Auth0 required for memory)
+- POST /workflows/aurity/assistant/public-chat - Public anonymous chat (rate-limited)
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-18
 """
 
+import os
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from backend.clients import get_llm_client
 from backend.logger import get_logger
+from backend.security.rate_limiter import ip_rate_limiter, session_rate_limiter
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -245,4 +248,163 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Chat with assistant failed: {e!s}",
+        ) from e
+
+
+# ============================================================================
+# PUBLIC CHAT (Anonymous, Rate-Limited, Ephemeral)
+# ============================================================================
+
+
+class PublicChatResponse(ChatResponse):
+    """Extended response for public chat with rate-limit info."""
+
+    remaining_requests: int = Field(
+        ..., description="Remaining requests before rate limit"
+    )
+    retry_after: Optional[int] = Field(
+        None, description="Seconds to wait if rate limited"
+    )
+
+
+@router.post("/assistant/public-chat", response_model=PublicChatResponse)
+async def public_chat(
+    request_body: ChatRequest, http_request: Request
+) -> PublicChatResponse:
+    """
+    Public anonymous chat endpoint with rate-limiting.
+
+    Architecture:
+        - NO Auth0 required (doctor_id always None)
+        - Rate-limit: 20 req/min per IP, 10 req/min per session
+        - NO persistent memory (ephemeral conversation)
+        - Kill-switch support via KILL_SWITCH_PUBLIC_CHAT env var
+
+    Constraints:
+        - IP rate-limit: 20 requests/min, burst 5
+        - Session rate-limit: 10 requests/min, burst 3
+        - No message count limit (handled client-side for UX)
+        - No TTL storage (uses localStorage client-side)
+
+    Args:
+        request_body: Chat request (message, context, session_id)
+        http_request: FastAPI Request object (for IP extraction)
+
+    Returns:
+        ChatResponse with remaining_requests and retry_after
+
+    Raises:
+        503: If kill-switch is active
+        429: If rate limit exceeded
+        500: If internal LLM call fails
+
+    Example:
+        >>> # Frontend (no Auth0)
+        >>> response = await fetch("/api/workflows/aurity/assistant/public-chat", {
+        ...     method: "POST",
+        ...     body: JSON.stringify({ message: "¿Qué es AURITY?" })
+        ... })
+        >>> console.log(response.remaining_requests)  # 19 (if 20 rpm limit)
+    """
+    # 1. Kill-switch check (priority: fail fast without consuming resources)
+    if os.getenv("KILL_SWITCH_PUBLIC_CHAT", "false").lower() == "true":
+        logger.warning("PUBLIC_CHAT_KILL_SWITCH_ACTIVE")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Public chat is temporarily unavailable. Please try again later.",
+            headers={"Retry-After": "60"},
+        )
+
+    # 2. Rate-limit: IP-based (prevent abuse from single IP)
+    client_ip = (
+        http_request.client.host if http_request.client else "unknown"
+    )
+
+    if not ip_rate_limiter.allow(client_ip):
+        retry_after = ip_rate_limiter.get_retry_after(client_ip)
+
+        logger.warning(
+            "PUBLIC_CHAT_IP_RATE_LIMITED",
+            ip=client_ip,
+            retry_after=retry_after,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Rate limit exceeded for IP {client_ip}. Retry after {retry_after}s.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    # 3. Rate-limit: Session-based (prevent spam within session)
+    session_id = request_body.session_id or "anonymous"
+
+    if not session_rate_limiter.allow(session_id):
+        retry_after = session_rate_limiter.get_retry_after(session_id)
+
+        logger.warning(
+            "PUBLIC_CHAT_SESSION_RATE_LIMITED",
+            session_id=session_id,
+            retry_after=retry_after,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many requests for this session. Retry after {retry_after}s.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    # 4. Call LLM (reuse exact logic from /assistant/chat but doctor_id=None)
+    try:
+        logger.info(
+            "PUBLIC_CHAT_START",
+            message_length=len(request_body.message),
+            session_id=session_id,
+            client_ip=client_ip,
+            memory_enabled=False,  # Always false for public
+        )
+
+        llm_client = get_llm_client()
+
+        result = await llm_client.chat(
+            persona="general_assistant",
+            message=request_body.message,
+            context=request_body.context or {},
+            session_id=session_id,
+            doctor_id=None,  # NO doctor_id → NO persistent memory
+            use_memory=False,  # Explicitly disable memory
+        )
+
+        # Calculate remaining requests (for X-RateLimit-Remaining header)
+        remaining_ip = ip_rate_limiter.get_remaining(client_ip)
+        remaining_session = session_rate_limiter.get_remaining(session_id)
+        remaining = min(remaining_ip, remaining_session)
+
+        logger.info(
+            "PUBLIC_CHAT_SUCCESS",
+            tokens=result.get("tokens_used", 0),
+            latency=result.get("latency_ms", 0),
+            session_id=session_id,
+            remaining_requests=remaining,
+        )
+
+        return PublicChatResponse(
+            message=result["response"],
+            persona=result["persona"],
+            tokens_used=result.get("tokens_used", 0),
+            latency_ms=result.get("latency_ms", 0),
+            remaining_requests=remaining,
+            retry_after=None,
+        )
+
+    except Exception as e:
+        logger.error(
+            "PUBLIC_CHAT_FAILED",
+            error=str(e),
+            error_type=type(e).__name__,
+            session_id=session_id,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Public chat failed: {e!s}",
         ) from e

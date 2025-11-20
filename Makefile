@@ -27,15 +27,15 @@ setup: install init-corpus ## Full monorepo setup (install + init)
 	@echo "   - Frontend: apps/aurity (submodule)"
 
 install: ## Install all dependencies
-	pip install -e .
+	python3.14 -m pip install -e . --break-system-packages
 	@echo "✅ Dependencies installed"
 
 install-dev: ## Install dependencies + dev tools
-	pip install -e ".[dev]"
+	python3.14 -m pip install -e ".[dev]" --break-system-packages
 	@echo "✅ Dev dependencies installed"
 
 check-deps: ## Check if all dependencies are installed
-	@python3 -c "import h5py; import structlog; import fastapi; import anthropic; import ollama" && echo "✅ All dependencies OK" || echo "❌ Missing dependencies - run 'make install'"
+	@python3.14 -c "import h5py; import structlog; import fastapi; import anthropic; import ollama" && echo "✅ All dependencies OK" || echo "❌ Missing dependencies - run 'make install'"
 
 # ============================================================================
 # Initialization
@@ -45,7 +45,7 @@ init-corpus: ## Initialize HDF5 corpus (if not exists)
 	@if [ ! -f storage/corpus.h5 ]; then \
 		echo "📂 Initializing corpus..."; \
 		mkdir -p storage; \
-		python3 backend/corpus_schema.py init bernard.uriza@example.com; \
+		python3.14 backend/corpus_schema.py init bernard.uriza@example.com; \
 		echo "✅ Corpus initialized"; \
 	else \
 		echo "ℹ️  Corpus already exists at storage/corpus.h5"; \
@@ -63,14 +63,14 @@ run: init-corpus ## Run FI Consult Service (port 7001)
 	@echo "   Health check: http://localhost:7001/health"
 	@echo "   Press Ctrl+C to stop"
 	@echo ""
-	PYTHONPATH=. python3 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 --reload
+	PYTHONPATH=. python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 --reload
 
 run-gateway: init-corpus ## Run AURITY Gateway (port 7002)
 	@echo "🚀 Starting AURITY Gateway on http://localhost:7002"
 	@echo "   Health check: http://localhost:7002/health"
 	@echo "   Press Ctrl+C to stop"
 	@echo ""
-	PYTHONPATH=. python3 -m uvicorn backend.aurity_gateway:app --host 0.0.0.0 --port 7002 --reload
+	PYTHONPATH=. python3.14 -m uvicorn backend.aurity_gateway:app --host 0.0.0.0 --port 7002 --reload
 
 run-both: init-corpus ## Run both services (requires tmux or separate terminals)
 	@echo "🚀 Starting both services..."
@@ -87,11 +87,11 @@ run-both: init-corpus ## Run both services (requires tmux or separate terminals)
 
 test: ## Run all tests
 	@echo "🧪 Running tests..."
-	python3 -m pytest backend/tests/ -v --tb=short
+	python3.14 -m pytest backend/tests/ -v --tb=short
 
 test-cov: ## Run tests with coverage
 	@echo "🧪 Running tests with coverage..."
-	python3 -m pytest backend/tests/ -v --cov=backend --cov-report=html --cov-report=term
+	python3.14 -m pytest backend/tests/ -v --cov=backend --cov-report=html --cov-report=term
 
 test-scenario-1: ## Run QA Scenario 1 (green path)
 	@echo "🧪 Running Scenario 1: Green Path"
@@ -142,12 +142,12 @@ type-check-all: ## Run all type checkers (Pyright + Mypy + Ruff)
 type-check-export: ## Export type errors as JSON for Claude Code
 	@echo "📤 Exporting type errors..."
 	@command -v pyright >/dev/null 2>&1 || (echo "Installing pyright..." && npm install -g pyright)
-	python3 tools/detect_type_errors.py backend/ --export
+	python3.14 tools/detect_type_errors.py backend/ --export
 	@echo "✅ Results saved to ops/type_check_results/results.json"
 
 type-check-batch: ## Detect and report all type errors (comprehensive)
 	@echo "🔍 Running batch type detection..."
-	python3 tools/detect_type_errors.py backend/ --all --export
+	python3.14 tools/detect_type_errors.py backend/ --all --export
 
 # ============================================================================
 # Cleanup
@@ -181,11 +181,11 @@ health-check: ## Check service health
 
 corpus-stats: ## Show corpus statistics
 	@echo "📊 Corpus Statistics"
-	@python3 backend/fi_event_store.py stats
+	@python3.14 backend/fi_event_store.py stats
 
 audit-logs: ## Show recent audit logs
 	@echo "📜 Recent Audit Logs"
-	@python3 backend/audit_logs.py show
+	@python3.14 backend/audit_logs.py show
 
 trello-status: ## Show Trello sprint status
 	@echo "📋 Trello Sprint Status"
@@ -199,7 +199,7 @@ info: ## Show project information
 	@echo "Free Intelligence - Project Info"
 	@echo "================================="
 	@echo "Version:     0.3.0"
-	@echo "Python:      $(shell python3 --version)"
+	@echo "Python:      $(shell python3.14 --version)"
 	@echo "Node:        $(shell node --version 2>/dev/null || echo 'not installed')"
 	@echo "Directory:   $(PWD)"
 	@echo "Corpus:      storage/corpus.h5 $(shell [ -f storage/corpus.h5 ] && echo '✅' || echo '❌')"
@@ -306,7 +306,7 @@ llm-test: ## Run LLM tests (pytest)
 llm-call: ## Example CLI call to endpoint
 	@echo "📞 Example LLM call (Ollama qwen2:7b)..."
 	@echo "   Prompt: 'What is 2+2?'"
-	@python3 tools/fi_llm.py --provider ollama --model qwen2:7b --prompt "What is 2+2?" --json
+	@python3.14 tools/fi_llm.py --provider ollama --model qwen2:7b --prompt "What is 2+2?" --json
 
 
 # ============================================================================
@@ -321,12 +321,12 @@ policy-test: ## Run policy enforcement tests
 policy-report: ## Generate QA documentation and manifest
 	@echo "📄 Generating policy QA report..."
 	@mkdir -p docs/qa eval/results
-	@python3 tools/generate_policy_manifest.py
+	@python3.14 tools/generate_policy_manifest.py
 	@echo "✅ Policy report generated"
 
 policy-verify: ## Verify policy artifacts and hashes
 	@echo "🔍 Verifying policy artifacts..."
-	@python3 tools/verify_policy.py
+	@python3.14 tools/verify_policy.py
 
 policy-all: policy-test policy-report policy-verify ## Run full policy workflow
 	@echo ""
@@ -335,7 +335,7 @@ policy-all: policy-test policy-report policy-verify ## Run full policy workflow
 	@echo "=============================================="
 	@echo ""
 	@echo "Summary:"
-	@cat eval/results/policy_manifest.json | python3 -m json.tool
+	@cat eval/results/policy_manifest.json | python3.14 -m json.tool
 	@echo ""
 	@echo "Artifacts:"
 	@echo "  - config/fi.policy.yaml (sovereignty, privacy, cost)"
