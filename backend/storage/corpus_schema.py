@@ -200,7 +200,7 @@ def init_corpus(
             file_path=str(path),
             groups=CorpusSchema.REQUIRED_GROUPS,
             corpus_id=corpus_id,
-            owner_hash=owner_hash[:16] + "...",  # Log only prefix
+            owner_hash=str(owner_hash)[:16] + "...",  # type: ignore[operator]  # Log only prefix
         )
         return True
 
