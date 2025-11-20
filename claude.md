@@ -1,10 +1,10 @@
-# Free Intelligence · Kernel Context (v0.6)
+# Free Intelligence · Kernel Context (v0.7)
 
 **AURITY** = Advanced Universal Reliable Intelligence for Telemedicine Yield
 
 Owner: Bernard Uriza Orozco
 Version: 0.1.0 (Production Deployed)
-Updated: 2025-11-17
+Updated: 2025-11-20
 TZ: America/Mexico_City
 
 ---
@@ -122,6 +122,29 @@ free-intelligence/
 - **EMOTION_ANALYSIS**: Patient emotion detection
 - **ENCRYPTION**: AES-GCM-256 encryption
 
+### Frontend Components (Key)
+
+**Chat Widget** (`components/chat/`)
+- **Architecture**: Modular design with 8+ sub-components
+- **Modes**: `normal`, `expanded`, `minimized`, `fullscreen`
+- **Features**:
+  - Infinite scroll (load older messages)
+  - Auto-scroll to bottom (100ms delay for DOM render)
+  - Response modes: `explanatory` vs `concise`
+  - Persistent storage per Auth0 user (`fi_chat_widget_{user.sub}`)
+- **Config**: `config/chat.config.ts`, `config/chat-messages.config.ts`
+- **UX Pattern**: Expand button hides when expanded, Minimize2 restores to normal
+
+**User Management** (`components/admin/UserManagement.tsx`)
+- **Route**: `/admin/users` (requires `FI-superadmin` role)
+- **Features**: List users, assign roles, block/unblock, create users
+- **Backend**: `/internal/admin/users` (JWT + role verification)
+
+**GlobalPolicyBanner** (`components/policy/GlobalPolicyBanner.tsx`)
+- **Display**: "100% Local • HIPAA Ready • Append-Only" principles
+- **Behavior**: Auto-dismiss after 5s with fade-out transition
+- **Reset**: Reappears on each page navigation (local state)
+
 ---
 
 ## 🔧 Configuration
@@ -181,7 +204,57 @@ Round-robin between Azure Whisper (3 RPM) and Deepgram (unlimited)
 
 ---
 
+## 🔐 Auth0 RBAC (Role-Based Access Control)
+
+### Configuration
+- **Domain**: dev-1r4daup7ofj7q6gn.us.auth0.com
+- **Audience**: https://api.fi-aurity.duckdns.org
+- **Custom Claim**: `https://aurity.app/roles` (JWT token)
+- **Action**: "Add Roles to Token" (Post-Login flow)
+
+### Roles
+- **FI-superadmin**: Full system access for user management and configuration
+- **FI-admin**: Administrative access (future)
+
+### User Management
+**Location**: `/admin/users` (requires `FI-superadmin` role)
+- List all Auth0 users
+- Assign/remove roles
+- Block/unblock users
+- Create new users
+
+**Backend Endpoint**: `/internal/admin/users`
+- **Protection**: JWT verification + role check
+- **Implementation**: `backend/api/internal/admin/users.py`
+- **JWT Verifier**: `backend/auth/jwt_verifier.py`
+
+### Scripts
+```bash
+# Assign superadmin role to user
+python3 scripts/assign_superadmin_role.py <email>
+
+# Link two Auth0 accounts (same email)
+python3 scripts/link_auth0_accounts.py
+```
+
+### Important Notes
+- **Token refresh required**: After role assignment, user must logout and login again
+- **Account linking**: Consolidates multiple login methods (Google OAuth + Email/Password) into single account
+- **Development mode**: InternalOnlyMiddleware allows all requests in dev environment
+
+---
+
 ## 📝 Recent Changes
+
+**2025-11-20**: Frontend UX improvements + Auth0 RBAC completion
+- Auth0 RBAC fully configured (FI-superadmin role)
+- User Management page functional at `/admin/users`
+- Fixed Turbopack cache coherency issues (nuclear cache clear required)
+- Corrected module import paths (absolute `@/` paths for cross-directory imports)
+- Chat Widget: expand button hides when expanded, Minimize2 restores to normal
+- GlobalPolicyBanner: auto-dismiss after 5s with smooth fade-out
+- Chat Widget: auto-scroll to bottom with smooth animation (100ms delay for DOM render)
+- Scripts: `assign_superadmin_role.py`, `link_auth0_accounts.py`
 
 **2025-11-17**: Production HTTPS deployment complete
 - DuckDNS domain: fi-aurity.duckdns.org
@@ -204,6 +277,79 @@ Round-robin between Azure Whisper (3 RPM) and Deepgram (unlimited)
 - Migrated from jobs/ to tasks/{TASK_TYPE}/
 - 58 sessions migrated successfully
 - Cleaner schema, better scalability
+
+---
+
+## 🔧 Troubleshooting
+
+### Turbopack Cache Issues
+**Symptom**: "Module not found" errors despite files existing on disk, or stale imports showing in errors
+
+**Solution**: Nuclear cache clear
+```bash
+# Kill Next.js server
+pkill -f "next dev"
+
+# Clear ALL caches
+cd apps/aurity
+rm -rf .next .turbo node_modules/.cache .swc
+find . -name '*.tsbuildinfo' -delete
+
+# Restart
+pnpm dev
+```
+
+**Root cause**: Turbopack's aggressive caching can persist stale module resolutions across file edits. The bundler reads from cache instead of actual files.
+
+### Module Import Errors
+**Pattern**: `Can't resolve './Component'` when file exists
+
+**Solution**: Use absolute imports for cross-directory dependencies
+```typescript
+// ❌ BAD: Relative import across directories
+import { UserDisplay } from './UserDisplay'  // From components/layout/
+
+// ✅ GOOD: Absolute import
+import { UserDisplay } from '@/components/auth/UserDisplay'
+```
+
+**Rule of thumb**:
+- Same directory: relative `./Component`
+- Different directory: absolute `@/path/to/Component`
+
+### Auth0 403 Forbidden (User Management)
+**Symptom**: HTTP 403 when accessing `/admin/users`
+
+**Diagnosis**:
+1. Check JWT token has roles: `jwt.io` → paste token → verify `https://aurity.app/roles` contains `FI-superadmin`
+2. Check backend logs: `event='SUPERADMIN_ACCESS_DENIED'` means role missing
+
+**Solution**:
+```bash
+# Assign role
+python3 scripts/assign_superadmin_role.py <email>
+
+# User must logout and login again for new token
+```
+
+### Chat Widget Not Scrolling
+**Symptom**: Messages appear but don't auto-scroll to bottom
+
+**Solution**: Auto-scroll must use component's internal `ref`, not `getElementById` from parent
+- ✅ Implemented in `ChatWidgetMessages.tsx` using `scrollContainerRef`
+- ❌ Don't use `document.getElementById()` from `ChatWidget.tsx`
+
+### Port Already in Use
+```bash
+# Find process using port 9000
+lsof -ti:9000
+
+# Kill it
+kill -9 $(lsof -ti:9000)
+
+# Or use pkill
+pkill -f "next dev"
+```
 
 ---
 
@@ -263,4 +409,38 @@ trello quick-done <card_id>    # Move to Done
 
 ---
 
-Stack: **FastAPI** · **h5py** · **structlog** · **Next.js 16** · **Tailwind** · **Deepgram** · **Azure Whisper**
+## 💡 Development Best Practices
+
+### Import Patterns
+```typescript
+// ✅ CORRECT: Absolute imports for cross-directory
+import { UserDisplay } from '@/components/auth/UserDisplay'
+import { ChatConfig } from '@/config/chat.config'
+
+// ✅ CORRECT: Relative imports within same directory
+import { ChatEmptyState } from './ChatEmptyState'
+import { ChatMessageList } from './ChatMessageList'
+
+// ❌ WRONG: Relative import across directories
+import { UserDisplay } from '../auth/UserDisplay'  // Fragile, breaks on refactor
+```
+
+### Component Patterns
+- **Refs over getElementById**: Use React refs for DOM access within components
+- **State colocation**: Keep state close to where it's used (avoid prop drilling)
+- **Config files**: Centralize configuration in `/config` directory
+- **Modular components**: Break down large components into focused sub-components
+
+### Cache Management
+- **After large refactors**: Nuclear cache clear (`.next`, `.turbo`, `.swc`)
+- **After dependency updates**: `pnpm install` + cache clear
+- **Persistent errors**: Check browser console for client-side errors vs server logs
+
+### Auth0 Patterns
+- **Token refresh**: Always logout/login after role changes
+- **Custom claims**: Use namespaced claims (`https://aurity.app/roles`)
+- **Actions**: Deploy Actions via dashboard, verify in Auth0 logs
+
+---
+
+Stack: **FastAPI** · **h5py** · **structlog** · **Next.js 16 (Turbopack)** · **Tailwind** · **Auth0** · **Deepgram** · **Azure Whisper**
