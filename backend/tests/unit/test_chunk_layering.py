@@ -2,6 +2,7 @@
 
 Card: AUR-PROMPT-4.2
 Purpose: Validate architectural layering compliance
+Status: DEPRECATED - Celery/Redis architecture removed 2025-11-15
 
 Tests:
 - INTERNAL endpoint creates job and returns 202
@@ -9,8 +10,17 @@ Tests:
 - Worker task transcribes + appends to HDF5
 - Job status polling returns result
 
+DEPRECATED: These tests validate the old Celery/Redis-based task queue
+architecture that was removed in favor of ThreadPoolExecutor + HDF5 status
+tracking (see CLAUDE.md 2025-11-15 changes).
+
+Missing imports:
+- backend.workers.tasks.transcribe_chunk_task
+- backend.api.internal.transcribe.router.create_transcribe_chunk_job
+
 File: backend/tests/test_chunk_layering.py
 Created: 2025-11-09
+Updated: 2025-11-20 (Marked deprecated)
 """
 
 from __future__ import annotations
@@ -20,6 +30,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+
+# Skip all tests - old Celery/Redis architecture removed
+pytestmark = pytest.mark.skip(reason="Celery/Redis architecture removed 2025-11-15 - replaced by ThreadPoolExecutor")
 
 
 @pytest.fixture
