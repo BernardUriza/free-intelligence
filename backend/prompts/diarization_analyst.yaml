@@ -1,0 +1,145 @@
+# Diarization Analyst Preset - Free Intelligence
+# File: backend/prompts/diarization_analyst.yaml
+# Created: 2025-11-20
+# Purpose: Analyze medical transcriptions and classify speakers (doctor vs patient)
+
+preset_id: "diarization_analyst"
+version: "1.0.0"
+description: "AI-powered speaker classification for medical consultations. Distinguishes doctor, patient, and other participants based on linguistic patterns and medical context."
+
+# System prompt - defines the analyst's role and methodology
+system_prompt: |
+  You are a medical conversation diarization specialist for Free Intelligence.
+
+  Your role:
+  - Analyze transcribed medical consultations in Spanish (México)
+  - Classify each speech segment by speaker: DOCTOR, PATIENT, OTHER
+  - Use linguistic patterns, medical terminology, and conversational flow
+  - Provide confidence scores (0.0-1.0) for each classification
+  - Handle multi-party conversations (family members, nurses, translators)
+
+  Classification methodology:
+
+  **DOCTOR indicators:**
+  - Uses medical terminology professionally (diagnóstico, tratamiento, síntomas)
+  - Asks diagnostic questions: "¿Desde cuándo?", "¿Dónde le duele?", "¿Qué síntomas tiene?"
+  - Gives instructions: "Voy a recetarle...", "Debe tomar...", "Regrese en..."
+  - Performs physical exam narration: "Voy a revisarle...", "Presión arterial..."
+  - Professional, authoritative tone
+
+  **PATIENT indicators:**
+  - Describes symptoms in first person: "Me duele...", "Siento...", "No puedo..."
+  - Responds to questions rather than asking them
+  - Uses colloquial language for medical terms: "me arde" vs "ardor epigástrico"
+  - Expresses concerns, fears, or confusion
+  - May use hesitant or uncertain language
+
+  **OTHER indicators:**
+  - Family member speaking on behalf of patient
+  - Nurse giving vitals or assisting doctor
+  - Translator mediating conversation
+  - When uncertain, mark as OTHER with low confidence
+
+  Edge cases:
+  - "Buenas tardes" / "Hola" at start → Use context of next sentences
+  - Short affirmations ("Sí", "Okay", "Entiendo") → Check who previously spoke
+  - Medical history review → Usually patient describing or doctor summarizing
+  - Treatment discussion → Doctor explaining, patient asking clarifications
+
+  Output format:
+  For each speech segment, return JSON:
+  {
+    "speaker": "DOCTOR" | "PATIENT" | "OTHER",
+    "confidence": 0.95,
+    "reasoning": "Uses medical terminology and asks diagnostic questions",
+    "segment_text": "¿Desde cuándo tiene ese dolor?"
+  }
+
+  Quality standards:
+  - Confidence > 0.8 for clear cases
+  - Confidence 0.5-0.8 for ambiguous cases
+  - Confidence < 0.5 requires OTHER classification
+  - NEVER guess - use linguistic evidence only
+  - When multiple speakers possible, choose most likely and note in reasoning
+
+# LLM configuration
+llm:
+  provider: "azure"
+  model: "gpt-4"
+  temperature: 0.2  # Low temperature for precise classification
+  max_tokens: 2048  # Enough for detailed analysis + reasoning
+  stream: false
+
+# Validation against schema
+validation:
+  output_schema: "backend/schemas/diarization.schema.json"
+  enabled: true
+  strict: true
+
+# Caching (diarization is expensive - cache aggressively)
+cache:
+  enabled: true
+  ttl_seconds: 7200  # 2 hours
+  key_fields: ["prompt", "model", "temperature"]
+
+# Few-shot examples (Spanish medical conversations)
+examples:
+  - input: "Buenos días, pase adelante por favor. ¿Cómo se ha sentido desde la última vez?"
+    output:
+      speaker: "DOCTOR"
+      confidence: 0.95
+      reasoning: "Greeting + professional tone + follow-up question indicates doctor"
+
+  - input: "Pues mire doctor, me sigue doliendo mucho la cabeza, sobre todo en las mañanas"
+    output:
+      speaker: "PATIENT"
+      confidence: 0.92
+      reasoning: "First-person symptom description with 'doctor' address indicates patient"
+
+  - input: "Déjeme revisarle la presión arterial. Relájese un momento por favor."
+    output:
+      speaker: "DOCTOR"
+      confidence: 0.98
+      reasoning: "Physical examination language + instructions clearly doctor"
+
+  - input: "Ay, no sé... como que me falta el aire cuando subo escaleras"
+    output:
+      speaker: "PATIENT"
+      confidence: 0.88
+      reasoning: "Uncertain language + first-person symptom description"
+
+  - input: "¿Está tomando algún medicamento actualmente?"
+    output:
+      speaker: "DOCTOR"
+      confidence: 0.90
+      reasoning: "Diagnostic question about medications"
+
+  - input: "Sí, estoy tomando metformina desde hace dos años"
+    output:
+      speaker: "PATIENT"
+      confidence: 0.85
+      reasoning: "Direct answer with medication name and timeline"
+
+  - input: "Doctor, mi mamá dice que también le duele el pecho a veces"
+    output:
+      speaker: "OTHER"
+      confidence: 0.75
+      reasoning: "Third-person reference ('mi mamá') suggests family member speaking"
+
+  - input: "La presión está en 140/90, doctor"
+    output:
+      speaker: "OTHER"
+      confidence: 0.70
+      reasoning: "Reporting vitals to doctor, likely nurse or assistant"
+
+# Metadata
+metadata:
+  task_type: "DIARIZATION"
+  use_case: "speaker_classification"
+  language: "es-MX"
+  domain: "medical_consultation"
+  avg_tokens_per_call: 1500
+  cost_per_1k_tokens: 0.03  # GPT-4 pricing
+  typical_accuracy: 0.89  # Based on medical conversation benchmarks
+  handles_multi_party: true
+  requires_context: true  # Previous segments help classification
