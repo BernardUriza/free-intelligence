@@ -10,6 +10,8 @@ Voices: alloy, echo, fable, onyx, nova, shimmer
 Created: 2025-11-17
 """
 
+from __future__ import annotations
+
 import os
 from typing import Literal
 

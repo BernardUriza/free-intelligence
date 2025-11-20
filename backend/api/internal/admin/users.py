@@ -17,6 +17,8 @@ Author: Bernard Uriza
 Created: 2025-11-20
 """
 
+from __future__ import annotations
+
 import structlog
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field

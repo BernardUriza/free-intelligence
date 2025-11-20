@@ -15,6 +15,8 @@ Author: Bernard Uriza Orozco
 Created: 2025-11-18
 """
 
+from __future__ import annotations
+
 import os
 
 from fastapi import APIRouter, HTTPException, Request, status

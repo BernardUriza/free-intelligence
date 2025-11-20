@@ -11,6 +11,8 @@ Usage:
     python scripts/run_chaos_drill.py network_partition --port 7001 --duration 20 --yes
 """
 
+from __future__ import annotations
+
 import argparse
 import fcntl
 import json
