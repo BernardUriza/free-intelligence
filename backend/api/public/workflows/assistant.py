@@ -253,11 +253,17 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
 
 # ============================================================================
 # PUBLIC CHAT (Anonymous, Rate-Limited, Ephemeral)
+# ⚠️ DEPRECATED: Use /assistant/chat instead (handles both authenticated + anonymous)
+# This endpoint will be removed in a future version.
 # ============================================================================
 
 
 class PublicChatResponse(ChatResponse):
-    """Extended response for public chat with rate-limit info."""
+    """Extended response for public chat with rate-limit info.
+
+    DEPRECATED: Use /assistant/chat instead. This endpoint remains for backward
+    compatibility but will be removed in a future version.
+    """
 
     remaining_requests: int = Field(
         ..., description="Remaining requests before rate limit"
@@ -267,12 +273,18 @@ class PublicChatResponse(ChatResponse):
     )
 
 
-@router.post("/assistant/public-chat", response_model=PublicChatResponse)
+@router.post("/assistant/public-chat", response_model=PublicChatResponse, deprecated=True)
 async def public_chat(
     request_body: ChatRequest, http_request: Request
 ) -> PublicChatResponse:
     """
+    ⚠️ DEPRECATED: Use /assistant/chat instead.
+
     Public anonymous chat endpoint with rate-limiting.
+
+    **DEPRECATION NOTICE**: This endpoint is deprecated and will be removed in a
+    future version. Please use `/assistant/chat` instead, which handles both
+    authenticated (with memory) and anonymous (ephemeral) conversations automatically.
 
     Architecture:
         - NO Auth0 required (doctor_id always None)
@@ -299,13 +311,18 @@ async def public_chat(
         500: If internal LLM call fails
 
     Example:
-        >>> # Frontend (no Auth0)
+        >>> # Frontend (no Auth0) - DEPRECATED, use /assistant/chat instead
         >>> response = await fetch("/api/workflows/aurity/assistant/public-chat", {
         ...     method: "POST",
         ...     body: JSON.stringify({ message: "¿Qué es AURITY?" })
         ... })
         >>> console.log(response.remaining_requests)  # 19 (if 20 rpm limit)
     """
+    logger.warning(
+        "PUBLIC_CHAT_DEPRECATED",
+        message="Endpoint /assistant/public-chat is deprecated. Use /assistant/chat instead.",
+        session_id=request_body.session_id,
+    )
     # 1. Kill-switch check (priority: fail fast without consuming resources)
     if os.getenv("KILL_SWITCH_PUBLIC_CHAT", "false").lower() == "true":
         logger.warning("PUBLIC_CHAT_KILL_SWITCH_ACTIVE")
