@@ -411,6 +411,63 @@ class Auth0ManagementService:
             raise
 
     # ========================================================================
+    # ACCOUNT LINKING OPERATIONS
+    # ========================================================================
+
+    def link_user_account(self, primary_user_id: str, secondary_user_id: str) -> dict[str, Any]:
+        """
+        Link two Auth0 accounts (merge identities).
+
+        After linking, the secondary account becomes a linked identity
+        of the primary account. User can login with either method
+        but will access the same account.
+
+        Args:
+            primary_user_id: Primary account ID (e.g., "google-oauth2|123")
+            secondary_user_id: Secondary account ID to link (e.g., "auth0|456")
+
+        Returns:
+            dict: Updated primary user with linked identities
+
+        Example:
+            service.link_user_account(
+                primary_user_id="google-oauth2|106469404976909684198",
+                secondary_user_id="auth0|652b5142ab01a819c304abe5"
+            )
+        """
+        try:
+            client = self._get_client()
+
+            # Extract provider and user_id from secondary account
+            # Format: "provider|user_id" -> {"provider": "auth0", "user_id": "123"}
+            provider, user_id = secondary_user_id.split("|", 1)
+
+            link_data = {
+                "provider": provider,
+                "user_id": user_id,
+            }
+
+            # Link the accounts
+            result = client.users.link_user_account(primary_user_id, link_data)
+
+            logger.info(
+                "ACCOUNTS_LINKED",
+                primary_user_id=primary_user_id,
+                secondary_user_id=secondary_user_id,
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(
+                "FAILED_TO_LINK_ACCOUNTS",
+                primary_user_id=primary_user_id,
+                secondary_user_id=secondary_user_id,
+                error=str(e),
+            )
+            raise
+
+    # ========================================================================
     # INVITATION OPERATIONS
     # ========================================================================
 
