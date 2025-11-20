@@ -88,13 +88,26 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
                 detail="doctor_id is required when use_memory=True",
             )
 
+        # Intelligent persona routing (Two-Model Strategy)
+        effective_persona = request.persona
+
+        if request.persona == "auto" or not request.persona:
+            # Use cheap routing to decide persona
+            effective_persona = persona_mgr.route_persona(request.message)
+            logger.info(
+                "PERSONA_AUTO_ROUTED",
+                user_message_preview=request.message[:50],
+                routed_to=effective_persona,
+                cost_pattern="Two-Model Strategy (Haiku routing + GPT-4 response)",
+            )
+
         # Get persona configuration
         try:
-            persona_config = persona_mgr.get_persona(request.persona)
+            persona_config = persona_mgr.get_persona(effective_persona)
         except ValueError as e:
             logger.warning(
                 "INTERNAL_LLM_INVALID_PERSONA",
-                persona=request.persona,
+                persona=effective_persona,
                 available=persona_mgr.list_personas(),
             )
             raise HTTPException(
@@ -134,7 +147,7 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
             )
 
             # Build enriched prompt with memory
-            system_prompt = persona_mgr.build_system_prompt(request.persona, request.context)
+            system_prompt = persona_mgr.build_system_prompt(effective_persona, request.context)
             prompt = memory.build_prompt(
                 context=context,
                 system_prompt=system_prompt,
@@ -152,7 +165,7 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
             )
         else:
             # Build prompt without memory (original behavior)
-            prompt = persona_mgr.build_system_prompt(request.persona, request.context)
+            prompt = persona_mgr.build_system_prompt(effective_persona, request.context)
 
             if request.context:
                 prompt += f"\n\nContext:\n{json.dumps(request.context, indent=2)}"
@@ -231,7 +244,7 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
 
         return ChatResponse(
             response=response_text,
-            persona=request.persona,
+            persona=effective_persona,  # Return effective persona (may differ if auto-routed)
             tokens_used=tokens_used,
             latency_ms=latency_ms,
             model=model_name,
