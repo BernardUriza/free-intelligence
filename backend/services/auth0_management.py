@@ -25,7 +25,6 @@ Created: 2025-11-20
 """
 
 import os
-import time
 from typing import Any, Optional
 from datetime import datetime, timedelta
 import structlog
@@ -87,7 +86,7 @@ class Auth0ManagementService:
         get_token = GetToken(self.domain, self.client_id, client_secret=self.client_secret)
         token_response = get_token.client_credentials(f"https://{self.domain}/api/v2/")
 
-        self._token = token_response["access_token"]
+        self._token = str(token_response["access_token"])
         # Auth0 tokens typically expire in 1 hour, cache for 55 min to be safe
         self._token_expires_at = datetime.now() + timedelta(minutes=55)
 
