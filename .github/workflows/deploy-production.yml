@@ -130,6 +130,9 @@ jobs:
             apt-get update && apt-get install -y python3.11 python3.11-venv python3.11-dev
           fi
 
+          echo "📦 Bootstrapping pip for Python 3.11..."
+          python3.11 -m ensurepip --upgrade 2>/dev/null || true
+
           echo "📦 Installing Python dependencies..."
           python3.11 -m pip install --upgrade pip
           python3.11 -m pip install -r requirements-prod.txt
