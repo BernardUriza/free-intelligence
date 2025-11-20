@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from backend.services.auth0_management import get_auth0_service
 
 
-def main():
+def main() -> None:
     """Link Auth0 accounts"""
     # Primary account (Google OAuth - keep this one)
     primary_user_id = "google-oauth2|106469404976909684198"
@@ -43,7 +43,7 @@ def main():
     print()
     print("⚠️  ADVERTENCIA: Esta operación es IRREVERSIBLE")
     print()
-    print(f"📧 Email: bernarduriza@gmail.com")
+    print("📧 Email: bernarduriza@gmail.com")
     print()
     print("🎯 Cuenta Principal (se mantiene):")
     print(f"   ID: {primary_user_id}")
@@ -78,8 +78,7 @@ def main():
         # Link the accounts
         # The secondary account's identity will be added to the primary account
         service.link_user_account(
-            primary_user_id=primary_user_id,
-            secondary_user_id=secondary_user_id
+            primary_user_id=primary_user_id, secondary_user_id=secondary_user_id
         )
 
         print("=" * 70)
@@ -100,9 +99,10 @@ def main():
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
 
 if __name__ == "__main__":
-    main()
+    main()  # type: ignore[no-untyped-call]
