@@ -54,6 +54,11 @@ class Auth0ManagementService:
                 "Set AUTH0_DOMAIN, AUTH0_MANAGEMENT_CLIENT_ID, and AUTH0_MANAGEMENT_CLIENT_SECRET"
             )
 
+        # Type assertions after validation check
+        assert self.domain is not None
+        assert self.client_id is not None
+        assert self.client_secret is not None
+
         # Token cache
         self._token: Optional[str] = None
         self._token_expires_at: Optional[datetime] = None

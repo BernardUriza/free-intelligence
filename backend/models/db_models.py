@@ -63,11 +63,11 @@ class Patient(Base):
             "nombre": self.nombre,
             "apellido": self.apellido,
             "fecha_nacimiento": self.fecha_nacimiento.isoformat()
-            if self.fecha_nacimiento
+            if self.fecha_nacimiento is not None
             else None,
             "curp": self.curp,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at is not None else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at is not None else None,
         }
 
 
@@ -108,6 +108,6 @@ class Provider(Base):
             "nombre": self.nombre,
             "cedula_profesional": self.cedula_profesional,
             "especialidad": self.especialidad,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at is not None else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at is not None else None,
         }

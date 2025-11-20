@@ -51,18 +51,18 @@ class ClinicMediaMetadata(BaseModel):
 
     media_id: str = Field(..., description="Unique media identifier")
     media_type: Literal["image", "video", "message"] = Field(..., description="Type of media")
-    title: Optional[str] = Field(None, description="Display title")
-    description: Optional[str] = Field(None, description="Description or caption")
+    title: Optional[str] = Field(default=None, description="Display title")
+    description: Optional[str] = Field(default=None, description="Description or caption")
     duration: int = Field(default=15000, description="Display duration in milliseconds")
-    file_path: Optional[str] = Field(None, description="Relative file path")
-    file_size: Optional[int] = Field(None, description="File size in bytes")
-    mime_type: Optional[str] = Field(None, description="MIME type")
+    file_path: Optional[str] = Field(default=None, description="Relative file path")
+    file_size: Optional[int] = Field(default=None, description="File size in bytes")
+    mime_type: Optional[str] = Field(default=None, description="MIME type")
     uploaded_at: int = Field(
         default_factory=lambda: int(time.time() * 1000),
         description="Upload timestamp (ms)",
     )
-    uploaded_by: Optional[str] = Field(None, description="Doctor ID who uploaded (Auth0 sub)")
-    clinic_id: Optional[str] = Field(None, description="Clinic identifier")
+    uploaded_by: Optional[str] = Field(default=None, description="Doctor ID who uploaded (Auth0 sub)")
+    clinic_id: Optional[str] = Field(default=None, description="Clinic identifier")
     is_active: bool = Field(default=True, description="Whether media is active in slider")
 
 

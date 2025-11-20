@@ -37,12 +37,8 @@ async def get_evidence_pack_workflow(session_id: str) -> dict:
     Raises:
         500: Failed to load or generate evidence pack
     """
-    from backend.services.evidence_service import EvidenceService
-
     try:
         logger.info("EVIDENCE_PACK_GET_STARTED", session_id=session_id)
-
-        evidence_service = EvidenceService()
 
         # Try to find existing evidence pack for this session
         # Pack IDs follow pattern: pack_{timestamp}_{session_id_suffix}
