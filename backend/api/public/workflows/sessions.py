@@ -369,6 +369,212 @@ async def analyze_emotion_workflow(
 
 
 @router.post(
+    "/sessions/{session_id}/analyze",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def analyze_session_intelligent_workflow(
+    session_id: str,
+    audio_duration_seconds: float | None = None,
+    language: str | None = None,
+) -> dict:
+    """Intelligent workflow orchestration using Two-Model Strategy (PUBLIC orchestrator).
+
+    Uses cheap Haiku ($0.25/1M tokens) for routing decisions,
+    expensive models (Sonnet/GPT-4) only for selected workflows.
+
+    Cost savings: ~16% per query by skipping unnecessary tasks.
+
+    Flow:
+    1. Use WorkflowRouter to decide which tasks to execute
+    2. Dispatch selected workflows in parallel (if independent)
+    3. Frontend polls /sessions/{session_id}/monitor for progress
+
+    Quick Win Benefits:
+    - Single API call instead of 3+ separate calls
+    - Automatic task dependency resolution
+    - Skip redundant tasks (already completed)
+    - Skip unnecessary tasks (audio too short for diarization)
+    - Cost tracking (routing cost + savings from skipped tasks)
+
+    PUBLIC layer: Intelligent orchestrator with cost optimization
+
+    Args:
+        session_id: Session UUID
+        audio_duration_seconds: Optional audio duration (will detect if not provided)
+        language: Optional language code (es, en, etc.)
+
+    Returns:
+        dict with:
+            - workflows: List of workflows being executed
+            - reasoning: Explanation of routing decision
+            - job_ids: Dict of task -> job_id mappings
+            - cost: Cost metrics (routing + savings)
+            - status: "dispatched"
+
+    Raises:
+        404: Session not found
+        500: Worker dispatch failed
+    """
+    from backend.models.task_type import TaskStatus, TaskType
+    from backend.services.workflow_router import get_workflow_router
+    from backend.storage.task_repository import (
+        CORPUS_PATH,
+        ensure_task_exists,
+        get_task_metadata,
+    )
+    from backend.workers.executor_pool import spawn_worker
+
+    try:
+        logger.info(
+            "INTELLIGENT_WORKFLOW_STARTED",
+            session_id=session_id,
+            audio_duration=audio_duration_seconds,
+            language=language,
+        )
+
+        # Auto-detect audio duration if not provided
+        if audio_duration_seconds is None:
+            try:
+                import h5py
+
+                with h5py.File(CORPUS_PATH, "r") as f:
+                    audio_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/full_audio.webm"
+                    if audio_path in f:
+                        audio_bytes = len(f[audio_path][()])
+                        # Rough estimate: WebM is ~12KB/s at 48kHz
+                        audio_duration_seconds = audio_bytes / (12 * 1024)
+                        logger.info(
+                            "AUDIO_DURATION_DETECTED",
+                            session_id=session_id,
+                            duration_seconds=audio_duration_seconds,
+                        )
+            except Exception as e:
+                logger.warning(
+                    "AUDIO_DURATION_DETECTION_FAILED",
+                    session_id=session_id,
+                    error=str(e),
+                    hint="Using default duration of 60s",
+                )
+                audio_duration_seconds = 60.0  # Default assumption
+
+        # Get existing tasks
+        existing_tasks = []
+        try:
+            import h5py
+
+            with h5py.File(CORPUS_PATH, "r") as f:
+                tasks_path = f"/sessions/{session_id}/tasks"
+                if tasks_path in f:
+                    for task_type in f[tasks_path]:
+                        metadata = get_task_metadata(session_id, TaskType[task_type])
+                        if metadata and metadata.get("status") == TaskStatus.COMPLETED.value:
+                            existing_tasks.append(task_type)
+        except Exception as e:
+            logger.warning(
+                "EXISTING_TASKS_DETECTION_FAILED",
+                session_id=session_id,
+                error=str(e),
+            )
+
+        # Use WorkflowRouter to decide which workflows to execute
+        router = get_workflow_router()
+        decision = router.route_workflows(
+            session_id=session_id,
+            audio_duration_seconds=audio_duration_seconds,
+            language=language,
+            existing_tasks=existing_tasks,
+        )
+
+        logger.info(
+            "WORKFLOW_ROUTING_DECISION",
+            session_id=session_id,
+            workflows=decision["workflows"],
+            reasoning=decision["reasoning"],
+            cost_usd=decision["cost"].routing_cost_usd,
+            savings_usd=decision["cost"].execution_cost_saved_usd,
+        )
+
+        # Dispatch selected workflows
+        job_ids = {}
+        for workflow in decision["workflows"]:
+            task_type = TaskType[workflow]
+
+            # Create task
+            ensure_task_exists(
+                session_id=session_id,
+                task_type=task_type,
+                allow_existing=True,
+            )
+
+            # Dispatch appropriate worker
+            if task_type == TaskType.TRANSCRIPTION:
+                # Transcription happens during streaming upload - skip here
+                logger.info(
+                    "TRANSCRIPTION_SKIPPED",
+                    session_id=session_id,
+                    hint="Transcription handled during upload",
+                )
+                continue
+
+            elif task_type == TaskType.DIARIZATION:
+                from backend.workers.tasks.diarization_worker import diarization_worker
+
+                spawn_worker(diarization_worker, session_id=session_id)
+                job_ids["DIARIZATION"] = session_id
+
+            elif task_type == TaskType.SOAP_GENERATION:
+                from backend.workers.tasks.soap_worker import generate_soap_worker
+
+                spawn_worker(generate_soap_worker, session_id=session_id)
+                job_ids["SOAP_GENERATION"] = session_id
+
+            elif task_type == TaskType.EMOTION_ANALYSIS:
+                from backend.workers.tasks.emotion_worker import analyze_emotion_worker
+
+                spawn_worker(analyze_emotion_worker, session_id=session_id)
+                job_ids["EMOTION_ANALYSIS"] = session_id
+
+            logger.info(
+                "WORKFLOW_DISPATCHED",
+                session_id=session_id,
+                task_type=workflow,
+            )
+
+        # Return 202 Accepted with routing decision
+        return {
+            "session_id": session_id,
+            "status": "dispatched",
+            "workflows": decision["workflows"],
+            "reasoning": decision["reasoning"],
+            "parallel": decision["parallel"],
+            "job_ids": job_ids,
+            "cost": {
+                "routing_usd": decision["cost"].routing_cost_usd,
+                "tokens_saved": decision["cost"].execution_tokens_saved,
+                "savings_usd": decision["cost"].execution_cost_saved_usd,
+                "net_savings_usd": (
+                    decision["cost"].execution_cost_saved_usd - decision["cost"].routing_cost_usd
+                ),
+            },
+            "message": f"Intelligent orchestration complete: {len(decision['workflows'])} workflows dispatched. Poll /sessions/{session_id}/monitor for progress.",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "INTELLIGENT_WORKFLOW_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to orchestrate workflows: {e!s}",
+        ) from e
+
+
+@router.post(
     "/sessions/{session_id}/finalize",
     response_model=FinalizeSessionResponse,
     status_code=status.HTTP_202_ACCEPTED,

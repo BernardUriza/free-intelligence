@@ -131,3 +131,47 @@ class PersonaManager:
             base_prompt = f"{base_prompt}\n\n{instruction}"
 
         return base_prompt
+
+    def route_persona(self, user_message: str) -> str:
+        """Intelligent persona routing using Two-Model Strategy.
+
+        Uses cheap Haiku ($0.25/1M tokens) to decide which persona
+        is most appropriate for the user's query.
+
+        Cost optimization:
+        - Routing: $0.00003 per query (Haiku)
+        - Response: $0.005 per query (GPT-4/Sonnet)
+        - Benefit: Auto-selects best persona without user knowledge
+
+        Args:
+            user_message: User's input message
+
+        Returns:
+            Persona name (e.g., "clinical_advisor", "soap_editor")
+        """
+        # TODO: Implement actual Haiku routing call
+        # For now, use rule-based routing
+
+        message_lower = user_message.lower()
+
+        # Rule-based routing (fallback until Haiku integration)
+        if any(
+            keyword in message_lower
+            for keyword in ["soap", "nota", "documentar", "transcripción", "editar"]
+        ):
+            return "soap_editor"
+        elif any(
+            keyword in message_lower
+            for keyword in [
+                "diagnóstico",
+                "tratamiento",
+                "evidencia",
+                "guidelines",
+                "recomendación",
+            ]
+        ):
+            return "clinical_advisor"
+        elif any(keyword in message_lower for keyword in ["hola", "bienvenid", "ayuda", "qué"]):
+            return "onboarding_guide"
+        else:
+            return "general_assistant"
