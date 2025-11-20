@@ -32,8 +32,8 @@ jobs:
 
       - name: Build frontend
         env:
-          NEXT_PUBLIC_BACKEND_URL: https://fi-aurity.duckdns.org
-          NEXT_PUBLIC_API_BASE: https://fi-aurity.duckdns.org
+          NEXT_PUBLIC_BACKEND_URL: https://app.aurity.io
+          NEXT_PUBLIC_API_BASE: https://app.aurity.io
         run: pnpm --filter aurity build
 
       - name: Setup SSH key
@@ -100,25 +100,22 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
             $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
-          cd $PROJECT_PATH
+          cd /opt/free-intelligence
 
-          echo "🐳 Building new Docker image..."
-          docker build -f Dockerfile.optimized -t fi-backend:latest .
+          echo "🛑 Stopping old backend process..."
+          pkill -f uvicorn || true
+          sleep 2
 
-          echo "🛑 Stopping old container..."
-          docker stop fi-backend || true
-          docker rm fi-backend || true
-
-          echo "🚀 Starting new container..."
-          docker run -d \
-            --name fi-backend \
-            --env-file /opt/free-intelligence/.env \
-            -p 7001:7001 \
-            -v /opt/free-intelligence/storage:/app/storage \
-            fi-backend:latest
+          echo "🚀 Starting new backend..."
+          nohup make run > /tmp/backend.log 2>&1 &
+          sleep 5
 
           echo "✅ Backend deployed successfully"
-          docker logs fi-backend --tail 10
+          echo "📝 Last 10 log lines:"
+          tail -10 /tmp/backend.log
+
+          echo "🔍 Verifying backend is running..."
+          ps aux | grep uvicorn | grep -v grep || echo "⚠️  Backend process not found"
           ENDSSH
 
   verify-deployment:
@@ -129,15 +126,16 @@ jobs:
       - name: Check health endpoint
         run: |
           sleep 10  # Wait for backend to start
-          curl -f https://fi-aurity.duckdns.org/health || exit 1
+          curl -f https://app.aurity.io/api/health || exit 1
 
       - name: Check API endpoint
         run: |
-          curl -f https://fi-aurity.duckdns.org/api/workflows/aurity/sessions || exit 1
+          curl -f https://app.aurity.io/api/workflows/aurity/sessions || exit 1
 
       - name: Send success notification
         if: success()
         run: |
           echo "✅ Deployment to production successful!"
-          echo "Frontend: https://fi-aurity.duckdns.org"
-          echo "Backend: https://fi-aurity.duckdns.org/api/"
+          echo "🌐 Frontend: https://app.aurity.io"
+          echo "🔌 Backend:  https://app.aurity.io/api/"
+          echo "💚 Health:   https://app.aurity.io/api/health"
