@@ -24,8 +24,5 @@ EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 # Base download URL (env var or default)
 BASE_DOWNLOAD_URL = os.getenv("BASE_DOWNLOAD_URL", "http://localhost:7001/downloads")
 
-# UTC timezone constant (Python 3.9+ compatible)
-UTC = UTC
-
 # Logger instance
 logger = get_logger(__name__)

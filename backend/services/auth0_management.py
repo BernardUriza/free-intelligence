@@ -24,6 +24,8 @@ Author: Bernard Uriza
 Created: 2025-11-20
 """
 
+from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta
 from typing import Any

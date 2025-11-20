@@ -9,6 +9,8 @@ Created: 2025-11-20
 Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 """
 
+from __future__ import annotations
+
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
