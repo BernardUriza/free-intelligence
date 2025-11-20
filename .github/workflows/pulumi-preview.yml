@@ -1,0 +1,51 @@
+name: Pulumi Preview (Infrastructure Changes)
+
+on:
+  pull_request:
+    branches: [prod]
+    paths:
+      - 'infra/**'
+      - 'Pulumi.yaml'
+      - 'Pulumi.*.yaml'
+
+jobs:
+  preview:
+    name: Preview Infrastructure Changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Pulumi
+        run: curl -fsSL https://get.pulumi.com | sh
+
+      - name: Install dependencies
+        run: |
+          cd infra
+          pip install -r requirements.txt
+
+      - name: Pulumi Preview
+        uses: pulumi/actions@v4
+        with:
+          command: preview
+          stack-name: prod
+          work-dir: ./infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          DIGITALOCEAN_TOKEN: ${{ secrets.DIGITALOCEAN_TOKEN }}
+
+      - name: Comment PR with Preview
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.name,
+              body: '👀 Pulumi Preview completed! Check the Actions log for details.'
+            })
