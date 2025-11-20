@@ -11,8 +11,6 @@ Usage:
     python scripts/run_chaos_drill.py network_partition --port 7001 --duration 20 --yes
 """
 
-import yaml
-
 import argparse
 import fcntl
 import json
@@ -25,7 +23,9 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
+import yaml
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -384,7 +384,7 @@ class CorpusFileLockDrill(ChaosDrill):
         file_path: str = "storage/corpus.h5",
         concurrency: int = 10,
         duration: int = 20,
-        join_grace: Optional[int] = None,
+        join_grace: int | None = None,
     ):
         super().__init__(config, dry_run)
         self.file_path = file_path
@@ -618,9 +618,9 @@ class LLMTimeoutStormDrill(ChaosDrill):
 
     def _inject_http_storm(self) -> None:
         """HTTP: Hammer LLM endpoint with concurrent requests"""
-        import requests
-
         from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        import requests
 
         logger.info(f"Starting HTTP storm: {self.concurrency} workers, {self.rps} RPS")
 

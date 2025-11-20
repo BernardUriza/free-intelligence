@@ -16,7 +16,7 @@ FI-API-FEAT-001
 """
 
 import re
-from typing import Any, Optional
+from typing import Any
 
 # Canonical list of approved events (from docs/events.md + docs/honest-uncertainty.md)
 CANONICAL_EVENTS = {
@@ -264,7 +264,7 @@ def get_canonical_events() -> list[str]:
     return sorted(CANONICAL_EVENTS)
 
 
-def suggest_event_name(description: str) -> Optional[str]:
+def suggest_event_name(description: str) -> str | None:
     """
     Suggest a properly formatted event name from a description.
 

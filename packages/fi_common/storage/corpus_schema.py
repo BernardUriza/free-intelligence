@@ -12,7 +12,7 @@ FI-DATA-FEAT-001
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import h5py
 
@@ -92,7 +92,7 @@ class CorpusSchema:
 
 
 def init_corpus(
-    corpus_path: str, owner_identifier: str, force: bool = False, salt: Optional[str] = None
+    corpus_path: str, owner_identifier: str, force: bool = False, salt: str | None = None
 ) -> bool:
     """
     Initialize HDF5 corpus with hierarchical schema and identity.
@@ -214,9 +214,9 @@ def init_corpus(
 
 def init_corpus_from_config(
     owner_identifier: str,
-    config_path: Optional[str] = None,
+    config_path: str | None = None,
     force: bool = False,
-    salt: Optional[str] = None,
+    salt: str | None = None,
 ) -> bool:
     """
     Initialize corpus using path from config.yml.
@@ -242,7 +242,7 @@ def init_corpus_from_config(
     return init_corpus(corpus_path, owner_identifier, force=force, salt=salt)
 
 
-def validate_corpus(corpus_path: Optional[str] = None) -> dict[str, Any]:
+def validate_corpus(corpus_path: str | None = None) -> dict[str, Any]:
     """
     Validate corpus schema and return status.
 

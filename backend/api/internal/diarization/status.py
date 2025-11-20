@@ -14,7 +14,7 @@ Created: 2025-11-14
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -41,10 +41,10 @@ class DiarizationStatusResponse(BaseModel):
     status: str = Field(..., description="pending, in_progress, completed, failed")
     progress: int = Field(default=0, description="Progress percentage (0-100)")
     segment_count: int = Field(default=0, description="Number of diarized segments")
-    transcription_sources: Optional[dict[str, Any]] = Field(
+    transcription_sources: dict[str, Any] | None = Field(
         default=None, description="Triple vision transcription sources"
     )
-    error: Optional[str] = Field(default=None, description="Error message if failed")
+    error: str | None = Field(default=None, description="Error message if failed")
 
 
 # ============================================================================

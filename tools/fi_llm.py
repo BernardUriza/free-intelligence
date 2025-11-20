@@ -27,7 +27,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -44,7 +44,7 @@ def call_http_endpoint(
     provider: str,
     model: str,
     prompt: str,
-    system: Optional[str] = None,
+    system: str | None = None,
     endpoint: str = "http://127.0.0.1:9001",
 ) -> dict[str, Any]:
     """Call HTTP endpoint /llm/generate."""
@@ -71,7 +71,7 @@ def call_direct_adapter(
     provider: str,
     model: str,
     prompt: str,
-    system: Optional[str] = None,
+    system: str | None = None,
 ) -> dict[str, Any]:
     """Call llm_router directly (unified LLM interface)."""
     # Import here to avoid loading heavy dependencies if not needed

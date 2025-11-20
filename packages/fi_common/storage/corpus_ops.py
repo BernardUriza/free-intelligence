@@ -13,7 +13,6 @@ FI-DATA-OPS (Test/Demo)
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import h5py
 import numpy as np
@@ -26,7 +25,7 @@ def append_interaction(
     response: str,
     model: str,
     tokens: int,
-    timestamp: Optional[str] = None,
+    timestamp: str | None = None,
 ) -> str:
     """
     Append interaction to corpus.
@@ -56,9 +55,8 @@ def append_interaction(
         ...     150
         ... )
     """
-    from packages.fi_common.logging.logger import get_logger
-
     from backend.append_only_policy import AppendOnlyPolicy
+    from packages.fi_common.logging.logger import get_logger
 
     logger = get_logger()
     interaction_id = str(uuid.uuid4())
@@ -128,9 +126,8 @@ def append_embedding(
         >>> append_embedding("storage/corpus.h5", interaction_id, vector)
         True
     """
-    from packages.fi_common.logging.logger import get_logger
-
     from backend.append_only_policy import AppendOnlyPolicy
+    from packages.fi_common.logging.logger import get_logger
 
     logger = get_logger()
 
@@ -176,7 +173,7 @@ def append_interaction_with_embedding(
     response: str,
     model: str,
     tokens: int,
-    timestamp: Optional[str] = None,
+    timestamp: str | None = None,
     auto_embed: bool = True,
 ) -> str:
     """
@@ -211,9 +208,8 @@ def append_interaction_with_embedding(
         ...     150
         ... )
     """
-    from packages.fi_common.logging.logger import get_logger
-
     from backend.llm_router import llm_embed, pad_embedding_to_768
+    from packages.fi_common.logging.logger import get_logger
 
     logger = get_logger()
 

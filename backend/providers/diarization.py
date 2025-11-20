@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 from backend.logger import get_logger
 
@@ -39,7 +39,7 @@ class Speaker:
     """Speaker information"""
 
     speaker_id: str  # "Speaker 1", "SPEAKER_01", etc.
-    name: Optional[str] = None  # "Doctor" or "Patient" (if known)
+    name: str | None = None  # "Doctor" or "Patient" (if known)
     confidence: float = 0.0  # 0-1, confidence in assignment
 
 
@@ -51,8 +51,8 @@ class DiarizationSegment:
     end_time: float  # Seconds from start
     speaker: Speaker  # Who is speaking
     confidence: float  # 0-1, confidence in speaker assignment
-    text: Optional[str] = None  # Transcript (if available)
-    improved_text: Optional[str] = None  # GPT-4 enhanced text (grammar, punctuation, medical terms)
+    text: str | None = None  # Transcript (if available)
+    improved_text: str | None = None  # GPT-4 enhanced text (grammar, punctuation, medical terms)
     duration: float = 0.0  # end_time - start_time
 
 
@@ -66,20 +66,20 @@ class DiarizationResponse:
     duration: float  # Total audio duration
     confidence: float  # Overall confidence (0-1)
     provider: str  # Provider name
-    latency_ms: Optional[float] = None
-    metadata: Optional[dict[str, Any]] = None
+    latency_ms: float | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class DiarizationProvider(ABC):
     """Abstract base class for diarization providers"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         self.config: dict[str, Any] = config or {}
         self.logger = get_logger(self.__class__.__name__)
 
     @abstractmethod
     def diarize(
-        self, audio_path: Union[str, Path], num_speakers: Optional[int] = None
+        self, audio_path: Union[str, Path], num_speakers: int | None = None
     ) -> DiarizationResponse:
         """
         Identify speakers in audio file.
@@ -102,7 +102,7 @@ class DiarizationProvider(ABC):
 class PyannoteProvider(DiarizationProvider):
     """Pyannote - Local, offline speaker diarization"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.model_name: str = str(self.config.get("model") or "pyannote/speaker-diarization-3.1")
         self.device: str = str(self.config.get("device") or "cpu")
@@ -152,7 +152,7 @@ class PyannoteProvider(DiarizationProvider):
         return self._pipeline_instance
 
     def diarize(
-        self, audio_path: Union[str, Path], num_speakers: Optional[int] = None
+        self, audio_path: Union[str, Path], num_speakers: int | None = None
     ) -> DiarizationResponse:
         """Diarize audio using Pyannote"""
         import time
@@ -236,7 +236,7 @@ class PyannoteProvider(DiarizationProvider):
 class AWSTranscribeProvider(DiarizationProvider):
     """AWS Transcribe - Cloud speaker diarization"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         import os
 
@@ -259,7 +259,7 @@ class AWSTranscribeProvider(DiarizationProvider):
         )
 
     def diarize(
-        self, audio_path: Union[str, Path], num_speakers: Optional[int] = None
+        self, audio_path: Union[str, Path], num_speakers: int | None = None
     ) -> DiarizationResponse:
         """Diarize audio using AWS Transcribe"""
         audio_path = Path(audio_path)
@@ -296,7 +296,7 @@ class AWSTranscribeProvider(DiarizationProvider):
 class GoogleSpeechProvider(DiarizationProvider):
     """Google Cloud Speech-to-Text - Cloud speaker diarization"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         import os
 
@@ -319,7 +319,7 @@ class GoogleSpeechProvider(DiarizationProvider):
         )
 
     def diarize(
-        self, audio_path: Union[str, Path], num_speakers: Optional[int] = None
+        self, audio_path: Union[str, Path], num_speakers: int | None = None
     ) -> DiarizationResponse:
         """Diarize audio using Google Cloud Speech"""
         raise NotImplementedError(
@@ -333,7 +333,7 @@ class GoogleSpeechProvider(DiarizationProvider):
 class DeepgramProvider(DiarizationProvider):
     """Deepgram - Cloud speaker diarization"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         import os
 
@@ -357,7 +357,7 @@ class DeepgramProvider(DiarizationProvider):
         )
 
     def diarize(
-        self, audio_path: Union[str, Path], num_speakers: Optional[int] = None
+        self, audio_path: Union[str, Path], num_speakers: int | None = None
     ) -> DiarizationResponse:
         """Diarize audio using Deepgram"""
         import time
@@ -468,7 +468,7 @@ class DeepgramProvider(DiarizationProvider):
 
 
 def get_diarization_provider(
-    provider_name: str, config: Optional[dict[str, Any]] = None
+    provider_name: str, config: dict[str, Any] | None = None
 ) -> DiarizationProvider:
     """
     Factory function to get diarization provider instance.
@@ -494,8 +494,7 @@ def get_diarization_provider(
     provider_class = provider_map.get(provider_name.lower())
     if not provider_class:
         raise ValueError(
-            f"Unknown diarization provider: {provider_name}. "
-            f"Supported: {list(provider_map.keys())}"
+            f"Unknown diarization provider: {provider_name}. Supported: {list(provider_map.keys())}"
         )
 
     return provider_class(config)
@@ -504,7 +503,7 @@ def get_diarization_provider(
 class AzureGPT4Provider(DiarizationProvider):
     """Azure GPT-4 - Text-based diarization using LLM"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         import os
 
@@ -522,11 +521,11 @@ class AzureGPT4Provider(DiarizationProvider):
 
     def diarize(  # type: ignore[override]  # Text-based provider has different signature than audio-based providers
         self,
-        audio_path: Optional[Union[str, Path]] = None,
-        transcript: Optional[str] = None,
+        audio_path: Union[str, Path] | None = None,
+        transcript: str | None = None,
         num_speakers: int = 2,
-        chunks: Optional[list[dict[str, Any]]] = None,
-        webspeech_final: Optional[list[str]] = None,
+        chunks: list[dict[str, Any]] | None = None,
+        webspeech_final: list[str] | None = None,
     ) -> DiarizationResponse:
         """Text-based diarization using Azure GPT-4 with TRIPLE VISION timeline inference"""
         import json

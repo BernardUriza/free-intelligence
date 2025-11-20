@@ -18,8 +18,8 @@ from backend.workers.tasks.soap_worker import generate_soap_worker
 from backend.workers.tasks.transcription_worker import transcribe_chunk_worker
 
 __all__ = [
-    "transcribe_chunk_worker",
     "diarize_session_worker",
     "generate_soap_worker",
     "log_audit_event_worker",
+    "transcribe_chunk_worker",
 ]

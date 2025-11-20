@@ -40,7 +40,6 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 import h5py
 import numpy as np
@@ -54,7 +53,7 @@ logger = get_logger(__name__)
 MEMORY_INDEX_PATH = Path(__file__).parent.parent.parent.parent / "storage" / "memory_index"
 
 # Embedding model (384-dim, local, no API keys needed)
-_embedding_model: Optional[SentenceTransformer] = None
+_embedding_model: SentenceTransformer | None = None
 _embedding_dim: int = 384  # all-MiniLM-L6-v2 dimensions
 _memory_lock = threading.RLock()  # Lock for memory index writes
 
@@ -99,7 +98,7 @@ class Interaction:
     role: str
     content: str
     embedding: np.ndarray
-    persona: Optional[str] = None
+    persona: str | None = None
     similarity: float = 0.0
 
 
@@ -116,7 +115,7 @@ class ConversationContext:
 
     recent: list[Interaction]
     relevant: list[Interaction]
-    summary: Optional[str] = None
+    summary: str | None = None
     total_interactions: int = 0
 
 
@@ -191,64 +190,63 @@ class ConversationMemoryManager:
         if self.memory_path.exists():
             return  # Already initialized
 
-        with _memory_lock:
-            with h5py.File(self.memory_path, "w") as f:
-                # Embeddings: (N, _embedding_dim) float32, chunked for append performance
-                f.create_dataset(
-                    "/embeddings/vectors",
-                    shape=(0, _embedding_dim),
-                    maxshape=(None, _embedding_dim),
-                    dtype=np.float32,
-                    chunks=(1000, _embedding_dim),  # 1000 interactions per chunk
-                    compression="lzf",  # Fast compression
-                )
+        with _memory_lock, h5py.File(self.memory_path, "w") as f:
+            # Embeddings: (N, _embedding_dim) float32, chunked for append performance
+            f.create_dataset(
+                "/embeddings/vectors",
+                shape=(0, _embedding_dim),
+                maxshape=(None, _embedding_dim),
+                dtype=np.float32,
+                chunks=(1000, _embedding_dim),  # 1000 interactions per chunk
+                compression="lzf",  # Fast compression
+            )
 
-                # Metadata: parallel arrays (N,)
-                metadata_group = f.create_group("/metadata")
+            # Metadata: parallel arrays (N,)
+            metadata_group = f.create_group("/metadata")
 
-                metadata_group.create_dataset(
-                    "session_ids",
-                    shape=(0,),
-                    maxshape=(None,),
-                    dtype=h5py.string_dtype(encoding="utf-8", length=64),
-                    chunks=(1000,),
-                )
+            metadata_group.create_dataset(
+                "session_ids",
+                shape=(0,),
+                maxshape=(None,),
+                dtype=h5py.string_dtype(encoding="utf-8", length=64),
+                chunks=(1000,),
+            )
 
-                metadata_group.create_dataset(
-                    "timestamps",
-                    shape=(0,),
-                    maxshape=(None,),
-                    dtype=np.int64,
-                    chunks=(1000,),
-                )
+            metadata_group.create_dataset(
+                "timestamps",
+                shape=(0,),
+                maxshape=(None,),
+                dtype=np.int64,
+                chunks=(1000,),
+            )
 
-                metadata_group.create_dataset(
-                    "roles",
-                    shape=(0,),
-                    maxshape=(None,),
-                    dtype=h5py.string_dtype(encoding="utf-8", length=16),
-                    chunks=(1000,),
-                )
+            metadata_group.create_dataset(
+                "roles",
+                shape=(0,),
+                maxshape=(None,),
+                dtype=h5py.string_dtype(encoding="utf-8", length=16),
+                chunks=(1000,),
+            )
 
-                metadata_group.create_dataset(
-                    "content",
-                    shape=(0,),
-                    maxshape=(None,),
-                    dtype=h5py.string_dtype(encoding="utf-8", length=4096),
-                    chunks=(1000,),
-                )
+            metadata_group.create_dataset(
+                "content",
+                shape=(0,),
+                maxshape=(None,),
+                dtype=h5py.string_dtype(encoding="utf-8", length=4096),
+                chunks=(1000,),
+            )
 
-                metadata_group.create_dataset(
-                    "personas",
-                    shape=(0,),
-                    maxshape=(None,),
-                    dtype=h5py.string_dtype(encoding="utf-8", length=64),
-                    chunks=(1000,),
-                )
+            metadata_group.create_dataset(
+                "personas",
+                shape=(0,),
+                maxshape=(None,),
+                dtype=h5py.string_dtype(encoding="utf-8", length=64),
+                chunks=(1000,),
+            )
 
-                # Store creation timestamp
-                f.attrs["created_at"] = datetime.now(UTC).isoformat()
-                f.attrs["doctor_id"] = self.doctor_id
+            # Store creation timestamp
+            f.attrs["created_at"] = datetime.now(UTC).isoformat()
+            f.attrs["doctor_id"] = self.doctor_id
 
         logger.info(
             "MEMORY_INDEX_INITIALIZED",
@@ -261,7 +259,7 @@ class ConversationMemoryManager:
         session_id: str,
         role: str,
         content: str,
-        persona: Optional[str] = None,
+        persona: str | None = None,
     ) -> int:
         """Store interaction in memory index with embedding.
 
@@ -283,30 +281,29 @@ class ConversationMemoryManager:
         timestamp = int(datetime.now(UTC).timestamp())
 
         # Append to H5 index
-        with _memory_lock:
-            with h5py.File(self.memory_path, "a") as f:
-                # Get current size
-                current_size = f["/embeddings/vectors"].shape[0]
-                new_size = current_size + 1
+        with _memory_lock, h5py.File(self.memory_path, "a") as f:
+            # Get current size
+            current_size = f["/embeddings/vectors"].shape[0]
+            new_size = current_size + 1
 
-                # Resize all datasets
-                f["/embeddings/vectors"].resize((new_size, _embedding_dim))
-                f["/metadata/session_ids"].resize((new_size,))
-                f["/metadata/timestamps"].resize((new_size,))
-                f["/metadata/roles"].resize((new_size,))
-                f["/metadata/content"].resize((new_size,))
-                f["/metadata/personas"].resize((new_size,))
+            # Resize all datasets
+            f["/embeddings/vectors"].resize((new_size, _embedding_dim))
+            f["/metadata/session_ids"].resize((new_size,))
+            f["/metadata/timestamps"].resize((new_size,))
+            f["/metadata/roles"].resize((new_size,))
+            f["/metadata/content"].resize((new_size,))
+            f["/metadata/personas"].resize((new_size,))
 
-                # Append data
-                f["/embeddings/vectors"][current_size] = embedding
-                f["/metadata/session_ids"][current_size] = session_id
-                f["/metadata/timestamps"][current_size] = timestamp
-                f["/metadata/roles"][current_size] = role
-                f["/metadata/content"][current_size] = content[:4096]  # Truncate if needed
-                f["/metadata/personas"][current_size] = persona or ""
+            # Append data
+            f["/embeddings/vectors"][current_size] = embedding
+            f["/metadata/session_ids"][current_size] = session_id
+            f["/metadata/timestamps"][current_size] = timestamp
+            f["/metadata/roles"][current_size] = role
+            f["/metadata/content"][current_size] = content[:4096]  # Truncate if needed
+            f["/metadata/personas"][current_size] = persona or ""
 
-                # Flush to disk
-                f.flush()
+            # Flush to disk
+            f.flush()
 
         latency_ms = int((time.time() - start_time) * 1000)
 
@@ -326,7 +323,7 @@ class ConversationMemoryManager:
     def get_context(
         self,
         current_message: str,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> ConversationContext:
         """Retrieve conversation context for LLM prompt.
 
@@ -571,7 +568,7 @@ class ConversationMemoryManager:
         self,
         offset: int = 0,
         limit: int = 50,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> dict:
         """Get paginated conversation history (chronological order).
 

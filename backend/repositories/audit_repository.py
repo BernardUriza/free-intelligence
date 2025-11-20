@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Union
 from uuid import uuid4
 
 from backend.logger import get_logger
@@ -155,10 +155,10 @@ class AuditRepository(BaseRepository):
 
     def list_all(
         self,
-        limit: Optional[int] = None,
-        action: Optional[str] = None,
-        user_id: Optional[str] = None,
-        resource: Optional[str] = None,
+        limit: int | None = None,
+        action: str | None = None,
+        user_id: str | None = None,
+        resource: str | None = None,
     ) -> list[dict[str, Any]]:
         """List audit logs with optional filtering.
 
@@ -205,7 +205,7 @@ class AuditRepository(BaseRepository):
         self,
         start_date: datetime,
         end_date: datetime,
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """Get audit logs within date range.
 

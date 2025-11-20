@@ -92,7 +92,7 @@ class DiagnosticsService:
             try:
                 size_mb = round(corpus_path.stat().st_size / 1024 / 1024, 2)
             except Exception as e:
-                logger.warning(f"CORPUS_SIZE_CHECK_FAILED: error={str(e)}")
+                logger.warning(f"CORPUS_SIZE_CHECK_FAILED: error={e!s}")
 
         return {
             "status": "healthy" if corpus_path.exists() else "warning",
@@ -120,7 +120,7 @@ class DiagnosticsService:
                 logger.warning("NODEJS_CHECK_FAILED: command failed")
                 return {"status": "unhealthy", "version": None, "error": "Command failed"}
         except Exception as e:
-            logger.warning(f"NODEJS_CHECK_FAILED: error={str(e)}")
+            logger.warning(f"NODEJS_CHECK_FAILED: error={e!s}")
             return {"status": "unhealthy", "version": None, "error": str(e)}
 
     def check_pnpm(self) -> dict[str, Any]:
@@ -143,7 +143,7 @@ class DiagnosticsService:
                 logger.warning("PNPM_CHECK_FAILED: command failed")
                 return {"status": "unhealthy", "version": None, "error": "Command failed"}
         except Exception as e:
-            logger.warning(f"PNPM_CHECK_FAILED: error={str(e)}")
+            logger.warning(f"PNPM_CHECK_FAILED: error={e!s}")
             return {"status": "unhealthy", "version": None, "error": str(e)}
 
     def check_pm2(self) -> dict[str, Any]:
@@ -184,7 +184,7 @@ class DiagnosticsService:
             else:
                 logger.warning("PM2_CHECK_FAILED: command failed, trying lsof fallback")
         except Exception as e:
-            logger.debug(f"PM2_CHECK_FAILED: error={str(e)}, trying lsof fallback")
+            logger.debug(f"PM2_CHECK_FAILED: error={e!s}, trying lsof fallback")
 
         # Fallback to lsof (check common service ports)
         try:
@@ -210,11 +210,11 @@ class DiagnosticsService:
                 "note": "Using lsof fallback (PM2 unavailable)",
             }
         except Exception as e:
-            logger.warning(f"LSOF_FALLBACK_FAILED: error={str(e)}")
+            logger.warning(f"LSOF_FALLBACK_FAILED: error={e!s}")
             return {
                 "status": "unhealthy",
                 "services": [],
-                "error": f"Both PM2 and lsof failed: {str(e)}",
+                "error": f"Both PM2 and lsof failed: {e!s}",
             }
 
     def get_system_info(self) -> dict[str, Any]:

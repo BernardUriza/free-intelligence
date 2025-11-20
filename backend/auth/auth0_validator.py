@@ -6,10 +6,11 @@ Created: 2025-11-17
 
 Validates Auth0 JWT tokens using JWKS (JSON Web Key Set).
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import requests
 from jose import JWTError, jwt
@@ -189,7 +190,7 @@ def extract_user_id(claims: Dict[str, Any]) -> str:
     return claims.get("sub", "")
 
 
-def extract_user_email(claims: Dict[str, Any]) -> Optional[str]:
+def extract_user_email(claims: Dict[str, Any]) -> str | None:
     """
     Extract user email from token claims.
 

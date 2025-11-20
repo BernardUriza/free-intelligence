@@ -93,8 +93,9 @@ async def transcribe_missing_chunks(session_id: str) -> None:
 
                     try:
                         # Try Azure Whisper
-                        from backend.providers.stt import get_stt_provider
                         import tempfile
+
+                        from backend.providers.stt import get_stt_provider
 
                         with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
                             tmp.write(audio_bytes)

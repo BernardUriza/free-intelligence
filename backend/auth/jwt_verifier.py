@@ -16,21 +16,19 @@ Created: 2025-11-20
 """
 
 import os
-from typing import Dict, Optional
 from functools import lru_cache
+from typing import Dict
 
 import requests
-from jose import jwt, JWTError
-from jose.exceptions import ExpiredSignatureError, JWTClaimsError
 import structlog
+from jose import JWTError, jwt
+from jose.exceptions import ExpiredSignatureError, JWTClaimsError
 
 logger = structlog.get_logger(__name__)
 
 # Auth0 configuration from environment
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
-AUTH0_API_IDENTIFIER = os.getenv(
-    "AUTH0_API_IDENTIFIER", "https://api.fi-aurity.duckdns.org"
-)
+AUTH0_API_IDENTIFIER = os.getenv("AUTH0_API_IDENTIFIER", "https://api.fi-aurity.duckdns.org")
 AUTH0_ALGORITHMS = ["RS256"]  # Auth0 uses RS256 for signing
 ROLES_CLAIM_NAMESPACE = "https://aurity.app/roles"
 
@@ -75,7 +73,7 @@ class Auth0JWTVerifier:
 
         except Exception as e:
             logger.error("JWKS_FETCH_FAILED", error=str(e))
-            raise ValueError(f"Failed to fetch JWKS from Auth0: {str(e)}")
+            raise ValueError(f"Failed to fetch JWKS from Auth0: {e!s}")
 
     def get_signing_key(self, token: str):  # type: ignore[no-untyped-def]
         """
@@ -111,7 +109,7 @@ class Auth0JWTVerifier:
 
         except Exception as e:
             logger.error("SIGNING_KEY_ERROR", error=str(e))
-            raise ValueError(f"Failed to get signing key: {str(e)}")
+            raise ValueError(f"Failed to get signing key: {e!s}")
 
     def verify_token(self, token: str) -> Dict:
         """
@@ -161,15 +159,15 @@ class Auth0JWTVerifier:
 
         except JWTClaimsError as e:
             logger.warning("TOKEN_CLAIMS_INVALID", error=str(e))
-            raise ValueError(f"Token claims are invalid: {str(e)}")
+            raise ValueError(f"Token claims are invalid: {e!s}")
 
         except JWTError as e:
             logger.warning("TOKEN_VERIFICATION_FAILED", error=str(e))
-            raise ValueError(f"Token verification failed: {str(e)}")
+            raise ValueError(f"Token verification failed: {e!s}")
 
         except Exception as e:
             logger.error("TOKEN_VERIFICATION_ERROR", error=str(e))
-            raise ValueError(f"Unexpected error verifying token: {str(e)}")
+            raise ValueError(f"Unexpected error verifying token: {e!s}")
 
     def get_user_from_token(self, token: str) -> Dict:
         """
@@ -236,7 +234,7 @@ class Auth0JWTVerifier:
 
 
 # Singleton instance
-_verifier: Optional[Auth0JWTVerifier] = None
+_verifier: Auth0JWTVerifier | None = None
 
 
 def get_jwt_verifier() -> Auth0JWTVerifier:

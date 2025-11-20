@@ -9,8 +9,6 @@ Created: 2025-11-20
 Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 """
 
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
@@ -32,7 +30,7 @@ class HistorySearchRequest(BaseModel):
     query: str = Field(..., min_length=1, description="Search query (semantic)")
     doctor_id: str = Field(..., description="Doctor ID (Auth0 user.sub)")
     limit: int = Field(default=10, ge=1, le=50, description="Max results")
-    session_id: Optional[str] = Field(None, description="Filter by session")
+    session_id: str | None = Field(None, description="Filter by session")
 
 
 class InteractionResult(BaseModel):
@@ -42,7 +40,7 @@ class InteractionResult(BaseModel):
     timestamp: int
     role: str  # "user" or "assistant"
     content: str
-    persona: Optional[str] = None
+    persona: str | None = None
     similarity: float = Field(description="Semantic similarity score (0-1)")
 
 
@@ -287,7 +285,7 @@ async def get_paginated_history(
     doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
     offset: int = Query(0, ge=0, description="Number of messages to skip"),
     limit: int = Query(50, ge=1, le=100, description="Messages per page"),
-    session_id: Optional[str] = Query(None, description="Filter by session"),
+    session_id: str | None = Query(None, description="Filter by session"),
 ) -> dict:
     """Get paginated conversation history (for infinite scroll).
 

@@ -21,8 +21,9 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.services.auth0_management import get_auth0_service
 import structlog
+
+from backend.services.auth0_management import get_auth0_service
 
 logger = structlog.get_logger(__name__)
 
@@ -54,8 +55,8 @@ def migrate_roles():
     role_name_to_id = {r["name"]: r["id"] for r in all_roles}
 
     print(f"✅ Encontrados {len(all_roles)} roles totales")
-    print(f"   Roles FI-*: {[r for r in role_name_to_id.keys() if r.startswith('FI-')]}")
-    print(f"   Roles FM-*: {[r for r in role_name_to_id.keys() if r.startswith('FM-')]}")
+    print(f"   Roles FI-*: {[r for r in role_name_to_id if r.startswith('FI-')]}")
+    print(f"   Roles FM-*: {[r for r in role_name_to_id if r.startswith('FM-')]}")
     print()
 
     # Verify all FI-* roles exist
@@ -65,7 +66,7 @@ def migrate_roles():
             missing_roles.append(fi_role)
 
     if missing_roles:
-        print(f"❌ ERROR: Faltan roles FI-* en Auth0:")
+        print("❌ ERROR: Faltan roles FI-* en Auth0:")
         for role in missing_roles:
             print(f"   - {role}")
         print()
@@ -128,7 +129,7 @@ def migrate_roles():
                 superadmin_id = role_name_to_id["FI-superadmin"]
                 if superadmin_id not in roles_to_add:
                     roles_to_add.append(superadmin_id)
-                    print(f"   ⭐ Asignando FI-superadmin")
+                    print("   ⭐ Asignando FI-superadmin")
                     superadmin_assigned = True
 
         # Execute migration
@@ -145,7 +146,7 @@ def migrate_roles():
             print()
 
         except Exception as e:
-            print(f"   ❌ ERROR: {str(e)}")
+            print(f"   ❌ ERROR: {e!s}")
             print()
             continue
 
@@ -195,7 +196,8 @@ if __name__ == "__main__":
         print("\n\n⚠️  Migración cancelada por usuario")
         sys.exit(1)
     except Exception as e:
-        print(f"\n\n❌ ERROR FATAL: {str(e)}")
+        print(f"\n\n❌ ERROR FATAL: {e!s}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

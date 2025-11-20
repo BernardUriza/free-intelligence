@@ -3,6 +3,7 @@
 Free Intelligence — Outreach Email Tool (Mail-Merge)
 Card: FI-GTM-STR-027
 """
+
 import argparse
 import csv
 import sys

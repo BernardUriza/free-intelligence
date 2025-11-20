@@ -1,7 +1,7 @@
 # Diarization UI - Accessibility & Dark Mode Improvements
 
-**Card**: FI-UI-FEAT-205  
-**Date**: 2025-10-31  
+**Card**: FI-UI-FEAT-205
+**Date**: 2025-10-31
 **Status**: ✅ COMPLETED
 
 ## Summary

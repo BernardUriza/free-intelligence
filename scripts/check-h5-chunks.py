@@ -52,7 +52,7 @@ def main():
                 created = row["created_at"]
 
                 print(
-                    f"      [{i}] chunk_{chunk_num}: \"{transcript[:40]}...\" "
+                    f'      [{i}] chunk_{chunk_num}: "{transcript[:40]}..." '
                     f"({duration:.1f}s) @ {created}"
                 )
 

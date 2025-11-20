@@ -20,7 +20,6 @@ Card: Architecture unification
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
@@ -80,9 +79,9 @@ async def upload_chunk(
     session_id: str = Form(...),
     chunk_number: int = Form(...),
     audio: UploadFile = File(...),
-    timestamp_start: Optional[float] = Form(None),
-    timestamp_end: Optional[float] = Form(None),
-    stt_provider: Optional[str] = Form(None),
+    timestamp_start: float | None = Form(None),
+    timestamp_end: float | None = Form(None),
+    stt_provider: str | None = Form(None),
 ) -> ChunkUploadResponse:
     """Upload audio chunk for transcription.
 

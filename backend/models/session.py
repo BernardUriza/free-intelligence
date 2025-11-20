@@ -20,9 +20,9 @@ Created: 2025-11-14
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class SessionStatus(str, Enum):
@@ -54,17 +54,17 @@ class Session:
     status: SessionStatus
     created_at: str
     updated_at: str
-    patient_id: Optional[str] = None  # Optional patient identifier
-    provider_id: Optional[str] = None  # Optional provider identifier
+    patient_id: str | None = None  # Optional patient identifier
+    provider_id: str | None = None  # Optional provider identifier
     recording_duration: float = 0.0  # Total recording time (seconds)
     total_chunks: int = 0  # Number of audio chunks
-    encryption_metadata: Optional[EncryptionMetadata] = None
-    diarization_job_id: Optional[str] = None  # Reference to diarization job
-    soap_note_path: Optional[str] = None  # Path in HDF5 to SOAP note
-    finalized_at: Optional[str] = None
-    diarized_at: Optional[str] = None
-    reviewed_at: Optional[str] = None
-    completed_at: Optional[str] = None
+    encryption_metadata: EncryptionMetadata | None = None
+    diarization_job_id: str | None = None  # Reference to diarization job
+    soap_note_path: str | None = None  # Path in HDF5 to SOAP note
+    finalized_at: str | None = None
+    diarized_at: str | None = None
+    reviewed_at: str | None = None
+    completed_at: str | None = None
 
     @classmethod
     def create_now(cls, session_id: str) -> Session:
@@ -76,7 +76,7 @@ class Session:
         Returns:
             Session instance
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         return cls(
             session_id=session_id,
             status=SessionStatus.ACTIVE,
@@ -92,7 +92,7 @@ class Session:
         """
         self.status = SessionStatus.FINALIZED
         self.encryption_metadata = encryption_metadata
-        self.finalized_at = datetime.now(timezone.utc).isoformat()
+        self.finalized_at = datetime.now(UTC).isoformat()
         self.updated_at = self.finalized_at
 
     def mark_diarized(self, diarization_job_id: str) -> None:
@@ -103,13 +103,13 @@ class Session:
         """
         self.status = SessionStatus.DIARIZED
         self.diarization_job_id = diarization_job_id
-        self.diarized_at = datetime.now(timezone.utc).isoformat()
+        self.diarized_at = datetime.now(UTC).isoformat()
         self.updated_at = self.diarized_at
 
     def mark_reviewed(self) -> None:
         """Mark session as reviewed (human approved)."""
         self.status = SessionStatus.REVIEWED
-        self.reviewed_at = datetime.now(timezone.utc).isoformat()
+        self.reviewed_at = datetime.now(UTC).isoformat()
         self.updated_at = self.reviewed_at
 
     def mark_completed(self, soap_note_path: str) -> None:
@@ -120,7 +120,7 @@ class Session:
         """
         self.status = SessionStatus.COMPLETED
         self.soap_note_path = soap_note_path
-        self.completed_at = datetime.now(timezone.utc).isoformat()
+        self.completed_at = datetime.now(UTC).isoformat()
         self.updated_at = self.completed_at
 
     def to_dict(self) -> dict[str, Any]:

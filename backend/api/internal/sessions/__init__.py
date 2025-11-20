@@ -15,4 +15,4 @@ from __future__ import annotations
 from . import checkpoint, finalize
 from .router import router
 
-__all__ = ["router", "finalize", "checkpoint"]
+__all__ = ["checkpoint", "finalize", "router"]

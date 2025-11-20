@@ -54,7 +54,12 @@ async def transcribe_chunk_direct(audio_bytes: bytes, api_key: str) -> str:
             result = await response.json()
 
             # Extract transcript
-            transcript = result.get("results", {}).get("channels", [{}])[0].get("alternatives", [{}])[0].get("transcript", "")
+            transcript = (
+                result.get("results", {})
+                .get("channels", [{}])[0]
+                .get("alternatives", [{}])[0]
+                .get("transcript", "")
+            )
             return transcript
 
 
@@ -102,7 +107,9 @@ async def transcribe_missing_chunks(session_id: str) -> None:
                 continue
 
             audio_hash = hashlib.sha256(audio_bytes).hexdigest()[:8]
-            print(f"🎙️  Chunk {chunk_idx}: Transcribing... ({len(audio_bytes):,} bytes, hash={audio_hash})")
+            print(
+                f"🎙️  Chunk {chunk_idx}: Transcribing... ({len(audio_bytes):,} bytes, hash={audio_hash})"
+            )
 
             try:
                 # Call Deepgram API
@@ -116,12 +123,12 @@ async def transcribe_missing_chunks(session_id: str) -> None:
                 chunk_grp["transcript"][()] = transcript_text.encode("utf-8")
 
                 preview = transcript_text[:60] if len(transcript_text) > 60 else transcript_text
-                print(f"✅ Chunk {chunk_idx}: Transcribed - \"{preview}...\"")
+                print(f'✅ Chunk {chunk_idx}: Transcribed - "{preview}..."')
 
                 transcribed_count += 1
 
             except Exception as e:
-                print(f"❌ Chunk {chunk_idx}: Failed - {str(e)}")
+                print(f"❌ Chunk {chunk_idx}: Failed - {e!s}")
 
     # Update session metadata
     try:
@@ -138,7 +145,7 @@ async def transcribe_missing_chunks(session_id: str) -> None:
         print()
         print(f"✅ Metadata updated: processed_chunks = {new_processed}")
     except Exception as e:
-        print(f"⚠️  Metadata update failed: {str(e)}")
+        print(f"⚠️  Metadata update failed: {e!s}")
 
     print()
     print(f"🎉 Complete! Transcribed {transcribed_count} chunks")
@@ -148,7 +155,9 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python3 transcribe_missing_chunks_direct.py <session_id>")
         print("\nExample:")
-        print("  python3 tools/transcribe_missing_chunks_direct.py 070fe4b1-f7f4-4477-ab82-f01f1c010474")
+        print(
+            "  python3 tools/transcribe_missing_chunks_direct.py 070fe4b1-f7f4-4477-ab82-f01f1c010474"
+        )
         sys.exit(1)
 
     session_id = sys.argv[1]

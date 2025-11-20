@@ -6,7 +6,7 @@ Supports any LLM provider configured in fi.policy.yaml.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from backend.logger import get_logger
 from backend.providers.llm import llm_generate
@@ -39,8 +39,8 @@ class LLMClient:
     def __init__(
         self,
         provider: str = "claude",
-        prompt_builder: Optional[OllamaPromptBuilder] = None,
-        response_parser: Optional[OllamaResponseParser] = None,
+        prompt_builder: OllamaPromptBuilder | None = None,
+        response_parser: OllamaResponseParser | None = None,
     ):
         """Initialize LLM client.
 

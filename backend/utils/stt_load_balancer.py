@@ -33,7 +33,6 @@ from __future__ import annotations
 import threading
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -95,11 +94,11 @@ class STTLoadBalancer:
 
     def select_provider_for_file(
         self,
-        audio_size_bytes: Optional[int] = None,
-        duration_seconds: Optional[float] = None,
-        chunk_number: Optional[int] = None,
-        session_id: Optional[str] = None,
-        force_provider: Optional[str] = None,
+        audio_size_bytes: int | None = None,
+        duration_seconds: float | None = None,
+        chunk_number: int | None = None,
+        session_id: str | None = None,
+        force_provider: str | None = None,
     ) -> tuple[str, str]:
         """Select STT provider based on file characteristics and policy.
 
@@ -187,7 +186,7 @@ class STTLoadBalancer:
 
         return primary, "primary_provider"
 
-    def get_fallback_for_empty(self, failed_provider: str) -> Optional[str]:
+    def get_fallback_for_empty(self, failed_provider: str) -> str | None:
         """Get fallback provider when transcript is empty (policy-driven).
 
         Args:
@@ -268,7 +267,7 @@ class STTLoadBalancer:
                 failed=failed,
             )
 
-    def _select_adaptive_provider(self, session_id: Optional[str] = None) -> Optional[str]:
+    def _select_adaptive_provider(self, session_id: str | None = None) -> str | None:
         """Select provider based on performance metrics (adaptive strategy).
 
         Strategy:
@@ -394,7 +393,7 @@ class STTLoadBalancer:
 
 
 # Global singleton instance (thread-safe)
-_load_balancer: Optional[STTLoadBalancer] = None
+_load_balancer: STTLoadBalancer | None = None
 _balancer_lock = threading.Lock()
 
 

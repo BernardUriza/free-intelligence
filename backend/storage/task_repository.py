@@ -36,7 +36,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import h5py
 
@@ -303,7 +303,7 @@ def update_task_metadata(
             )
 
 
-def get_task_metadata(session_id: str, task_type: Union[TaskType, str]) -> Optional[dict[str, Any]]:
+def get_task_metadata(session_id: str, task_type: Union[TaskType, str]) -> dict[str, Any] | None:
     """Get job metadata for a task.
 
     Args:
@@ -1005,7 +1005,7 @@ def get_chunk_audio_bytes(
     task_type: TaskType,
     chunk_idx: int,
     filename: str = "audio.webm",
-) -> Optional[bytes]:
+) -> bytes | None:
     """Get audio bytes from a chunk.
 
     Args:
@@ -1527,43 +1527,42 @@ def save_soap_data(
     """
     CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    with _h5_lock:
-        with h5py.File(CORPUS_PATH, "a") as f:
-            task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+    with _h5_lock, h5py.File(CORPUS_PATH, "a") as f:
+        task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
-            # Create task if doesn't exist
-            if task_path not in f:  # type: ignore[operator]
-                f.create_group(task_path)  # type: ignore[union-attr]
+        # Create task if doesn't exist
+        if task_path not in f:  # type: ignore[operator]
+            f.create_group(task_path)  # type: ignore[union-attr]
 
-            task_group = f[task_path]  # type: ignore[index]
+        task_group = f[task_path]  # type: ignore[index]
 
-            # Save SOAP data as JSON
-            soap_json = json.dumps(soap_data)
+        # Save SOAP data as JSON
+        soap_json = json.dumps(soap_data)
 
-            # Delete existing if present
-            if "soap_data" in task_group:  # type: ignore[operator]
-                del task_group["soap_data"]  # type: ignore[index]
+        # Delete existing if present
+        if "soap_data" in task_group:  # type: ignore[operator]
+            del task_group["soap_data"]  # type: ignore[index]
 
-            task_group.create_dataset(  # type: ignore[union-attr]
-                "soap_data", data=soap_json.encode("utf-8")
-            )
+        task_group.create_dataset(  # type: ignore[union-attr]
+            "soap_data", data=soap_json.encode("utf-8")
+        )
 
-            # Save version to history (audit trail)
-            if "version_history" not in task_group:  # type: ignore[operator]
-                task_group.create_group("version_history")  # type: ignore[union-attr]
+        # Save version to history (audit trail)
+        if "version_history" not in task_group:  # type: ignore[operator]
+            task_group.create_group("version_history")  # type: ignore[union-attr]
 
-            history_group = task_group["version_history"]  # type: ignore[index]
-            version_key = f"v_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
-            history_group.create_dataset(  # type: ignore[union-attr]
-                version_key, data=soap_json.encode("utf-8")
-            )
+        history_group = task_group["version_history"]  # type: ignore[index]
+        version_key = f"v_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+        history_group.create_dataset(  # type: ignore[union-attr]
+            version_key, data=soap_json.encode("utf-8")
+        )
 
-            logger.info(
-                "SOAP_DATA_SAVED",
-                session_id=session_id,
-                task_type=task_type.value,
-                version=version_key,
-            )
+        logger.info(
+            "SOAP_DATA_SAVED",
+            session_id=session_id,
+            task_type=task_type.value,
+            version=version_key,
+        )
 
     return f"{task_path}/soap_data"
 
@@ -1782,27 +1781,26 @@ def delete_order(
     Raises:
         ValueError: If order not found
     """
-    with _h5_lock:
-        with h5py.File(CORPUS_PATH, "a") as f:
-            task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+    with _h5_lock, h5py.File(CORPUS_PATH, "a") as f:
+        task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
-            if task_path not in f:  # type: ignore[operator]
-                raise ValueError(f"No orders found for session {session_id}")
+        if task_path not in f:  # type: ignore[operator]
+            raise ValueError(f"No orders found for session {session_id}")
 
-            task_group = f[task_path]  # type: ignore[index]
+        task_group = f[task_path]  # type: ignore[index]
 
-            if "orders" not in task_group:  # type: ignore[operator]
-                raise ValueError(f"No orders found for session {session_id}")
+        if "orders" not in task_group:  # type: ignore[operator]
+            raise ValueError(f"No orders found for session {session_id}")
 
-            orders_group = task_group["orders"]  # type: ignore[index]
+        orders_group = task_group["orders"]  # type: ignore[index]
 
-            if order_id not in orders_group:  # type: ignore[operator]
-                raise ValueError(f"Order {order_id} not found")
+        if order_id not in orders_group:  # type: ignore[operator]
+            raise ValueError(f"Order {order_id} not found")
 
-            del orders_group[order_id]  # type: ignore[index]
+        del orders_group[order_id]  # type: ignore[index]
 
-            logger.info(
-                "ORDER_DELETED",
-                session_id=session_id,
-                order_id=order_id,
-            )
+        logger.info(
+            "ORDER_DELETED",
+            session_id=session_id,
+            order_id=order_id,
+        )

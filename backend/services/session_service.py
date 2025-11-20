@@ -14,8 +14,7 @@ Card: Clean Architecture Refactor
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
@@ -65,8 +64,8 @@ class SessionService:
         """
         # Collect all task metadata
         tasks_metadata: dict[str, dict] = {}
-        earliest_created: Optional[datetime] = None
-        latest_updated: Optional[datetime] = None
+        earliest_created: datetime | None = None
+        latest_updated: datetime | None = None
 
         for task_type in TaskType:
             if task_exists(session_id, task_type):
@@ -98,7 +97,7 @@ class SessionService:
         overall_status = self._compute_overall_status(tasks_metadata)
 
         # Use timestamps or defaults
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         created_at = earliest_created.isoformat() if earliest_created else now.isoformat()
         updated_at = latest_updated.isoformat() if latest_updated else now.isoformat()
 

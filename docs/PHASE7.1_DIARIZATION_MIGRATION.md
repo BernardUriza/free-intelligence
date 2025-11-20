@@ -74,7 +74,7 @@ All 8 endpoints refactored and migrated to clean code architecture:
 
 **Refactored Endpoints (8 major endpoints):**
 
-1. **GET /api/diarization/jobs/{job_id}** 
+1. **GET /api/diarization/jobs/{job_id}**
    - Before: 48 lines inline HDF5 + in-memory logic
    - After: 15 lines thin controller delegating to `DiarizationJobService.get_job_status()`
    - Improvement: Service handles all status retrieval complexity
@@ -170,10 +170,10 @@ async def endpoint_handler(params):
         # 1. Get services from DI container
         service = get_container().get_service()
         audit_service = get_container().get_audit_service()
-        
+
         # 2. Delegate to service layer
         result = service.method(params)
-        
+
         # 3. Log audit event
         audit_service.log_action(
             action="action_name",
@@ -182,10 +182,10 @@ async def endpoint_handler(params):
             result="success",
             details={...}
         )
-        
+
         # 4. Return response
         return ResponseModel(**result)
-    
+
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

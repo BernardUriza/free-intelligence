@@ -16,8 +16,8 @@ from collections.abc import Callable
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from backend.services.kpis_aggregator import get_kpis_aggregator
 from backend.logger import get_logger
+from backend.services.kpis_aggregator import get_kpis_aggregator
 
 logger = get_logger(__name__)
 

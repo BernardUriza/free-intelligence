@@ -18,7 +18,7 @@ Created: 2025-10-28
 import hashlib
 import time
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from backend.logger import get_logger
 
@@ -72,7 +72,7 @@ class LLMCache:
         logger.info("LLM_CACHE_INITIALIZED", default_ttl=default_ttl)
 
     def compute_key(
-        self, prompt: str, temperature: float, model: str, schema: Optional[str] = None
+        self, prompt: str, temperature: float, model: str, schema: str | None = None
     ) -> str:
         """
         Compute cache key from prompt + parameters.
@@ -108,7 +108,7 @@ class LLMCache:
 
         return key_hash
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """
         Get value from cache if exists and not expired.
 
@@ -142,7 +142,7 @@ class LLMCache:
 
         return entry.value
 
-    def set(self, key: str, value: Any, ttl_seconds: Optional[int] = None) -> None:
+    def set(self, key: str, value: Any, ttl_seconds: int | None = None) -> None:
         """
         Store value in cache.
 
@@ -218,7 +218,7 @@ class LLMCache:
             "oldest_age_seconds": self._get_oldest_age(),
         }
 
-    def _get_oldest_age(self) -> Optional[float]:
+    def _get_oldest_age(self) -> float | None:
         """Get age of oldest entry in seconds"""
         if not self._cache:
             return None
@@ -273,10 +273,10 @@ class LLMCache:
 
 
 # Global singleton cache instance
-_cache_instance: Optional[LLMCache] = None
+_cache_instance: LLMCache | None = None
 
 
-def get_cache(ttl: Optional[int] = None) -> LLMCache:
+def get_cache(ttl: int | None = None) -> LLMCache:
     """
     Get global cache instance (singleton).
 

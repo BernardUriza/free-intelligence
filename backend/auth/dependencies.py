@@ -7,9 +7,8 @@ Created: 2025-11-17
 FastAPI dependency injection for JWT authentication and RBAC.
 Use Depends(get_current_user) to protect endpoints.
 """
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -61,7 +60,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     token = credentials.credentials
 
     # Decode and validate token
-    token_data: Optional[TokenData] = decode_token(token)
+    token_data: TokenData | None = decode_token(token)
     if token_data is None or token_data.user_id is None:
         raise credentials_exception
 

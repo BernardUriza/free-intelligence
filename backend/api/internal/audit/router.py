@@ -6,8 +6,6 @@ File: backend/api/audit/router.py
 Created: 2025-11-08
 """
 
-from __future__ import annotations
-
 #!/usr/bin/env python3
 from __future__ import annotations
 
@@ -19,8 +17,6 @@ Provides read-only access to audit logs with filtering and pagination.
 
 Updated to use clean code architecture with AuditService.
 """
-
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -53,8 +49,8 @@ class AuditLogsResponse(BaseModel):
     total: int
     limit: int
     logs: list[AuditLogEntry]
-    operation_filter: Optional[str] = None
-    user_filter: Optional[str] = None
+    operation_filter: str | None = None
+    user_filter: str | None = None
 
 
 class AuditStatsResponse(BaseModel):
@@ -69,8 +65,8 @@ class AuditStatsResponse(BaseModel):
 @router.get("/logs", response_model=AuditLogsResponse)
 async def get_logs(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of logs to retrieve"),
-    operation: Optional[str] = Query(None, description="Filter by operation name"),
-    user: Optional[str] = Query(None, description="Filter by user_id"),
+    operation: str | None = Query(None, description="Filter by operation name"),
+    user: str | None = Query(None, description="Filter by user_id"),
 ):
     """
     Get audit logs with optional filtering.
@@ -122,8 +118,8 @@ async def get_logs(
         )
 
     except Exception as e:
-        logger.error(f"GET_AUDIT_LOGS_FAILED: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve audit logs: {str(e)}")
+        logger.error(f"GET_AUDIT_LOGS_FAILED: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve audit logs: {e!s}")
 
 
 @router.get("/stats", response_model=AuditStatsResponse)
@@ -152,8 +148,8 @@ async def get_stats():
         return AuditStatsResponse(**stats_data)
 
     except Exception as e:
-        logger.error(f"GET_AUDIT_STATS_FAILED: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve audit stats: {str(e)}")
+        logger.error(f"GET_AUDIT_STATS_FAILED: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve audit stats: {e!s}")
 
 
 @router.get("/operations")

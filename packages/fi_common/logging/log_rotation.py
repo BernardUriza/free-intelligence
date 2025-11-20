@@ -17,7 +17,7 @@ import json
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from packages.fi_common.logging.logger_structured import ServiceChannel
 
@@ -127,7 +127,7 @@ class LogRotation:
 
         return False
 
-    def rotate_log(self, channel: ServiceChannel) -> Optional[Path]:
+    def rotate_log(self, channel: ServiceChannel) -> Path | None:
         """
         Rotate log file (compress and create new).
 
@@ -152,9 +152,8 @@ class LogRotation:
             compressed_path = self.base_path / channel.value / f"{file_date}-{timestamp}.ndjson.gz"
 
         # Compress log file
-        with open(log_path, "rb") as f_in:
-            with gzip.open(compressed_path, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
+        with open(log_path, "rb") as f_in, gzip.open(compressed_path, "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
 
         # Remove original
         log_path.unlink()

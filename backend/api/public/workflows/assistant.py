@@ -16,7 +16,6 @@ Created: 2025-11-18
 """
 
 import os
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -37,10 +36,10 @@ router = APIRouter()
 class IntroductionRequest(BaseModel):
     """Request for Free-Intelligence introduction."""
 
-    physician_name: Optional[str] = Field(
+    physician_name: str | None = Field(
         None, description="Physician's name for personalized greeting"
     )
-    clinic_name: Optional[str] = Field(None, description="Clinic/practice name")
+    clinic_name: str | None = Field(None, description="Clinic/practice name")
 
 
 class IntroductionResponse(BaseModel):
@@ -51,9 +50,7 @@ class IntroductionResponse(BaseModel):
         default="onboarding_guide",
         description="Persona used for this response",
     )
-    tokens_used: int = Field(
-        default=0, description="Tokens consumed in this interaction"
-    )
+    tokens_used: int = Field(default=0, description="Tokens consumed in this interaction")
     latency_ms: int = Field(default=0, description="Response latency in milliseconds")
 
 
@@ -61,8 +58,8 @@ class ChatRequest(BaseModel):
     """General chat request."""
 
     message: str = Field(..., description="User's message")
-    context: Optional[dict] = Field(None, description="Optional context")
-    session_id: Optional[str] = Field(None, description="Session ID for audit trail")
+    context: dict | None = Field(None, description="Optional context")
+    session_id: str | None = Field(None, description="Session ID for audit trail")
 
 
 class ChatResponse(BaseModel):
@@ -265,18 +262,12 @@ class PublicChatResponse(ChatResponse):
     compatibility but will be removed in a future version.
     """
 
-    remaining_requests: int = Field(
-        ..., description="Remaining requests before rate limit"
-    )
-    retry_after: Optional[int] = Field(
-        None, description="Seconds to wait if rate limited"
-    )
+    remaining_requests: int = Field(..., description="Remaining requests before rate limit")
+    retry_after: int | None = Field(None, description="Seconds to wait if rate limited")
 
 
 @router.post("/assistant/public-chat", response_model=PublicChatResponse, deprecated=True)
-async def public_chat(
-    request_body: ChatRequest, http_request: Request
-) -> PublicChatResponse:
+async def public_chat(request_body: ChatRequest, http_request: Request) -> PublicChatResponse:
     """
     ⚠️ DEPRECATED: Use /assistant/chat instead.
 
@@ -333,9 +324,7 @@ async def public_chat(
         )
 
     # 2. Rate-limit: IP-based (prevent abuse from single IP)
-    client_ip = (
-        http_request.client.host if http_request.client else "unknown"
-    )
+    client_ip = http_request.client.host if http_request.client else "unknown"
 
     if not ip_rate_limiter.allow(client_ip):
         retry_after = ip_rate_limiter.get_retry_after(client_ip)

@@ -15,7 +15,7 @@ FI-CORE-FEAT-003
 import hashlib
 import json
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from packages.fi_common.logging.log_rotation import LogRotation
 from packages.fi_common.logging.logger_structured import ServiceChannel
@@ -80,7 +80,7 @@ class LogManifest:
 
         return final_hash, len(events)
 
-    def get_previous_manifest_hash(self, current_date: str) -> Optional[str]:
+    def get_previous_manifest_hash(self, current_date: str) -> str | None:
         """
         Get hash of previous day's manifest.
 
@@ -106,7 +106,7 @@ class LogManifest:
 
         return None
 
-    def create_daily_manifest(self, date: Optional[str] = None) -> dict[str, Any]:
+    def create_daily_manifest(self, date: str | None = None) -> dict[str, Any]:
         """
         Create daily manifest for date.
 
@@ -148,7 +148,7 @@ class LogManifest:
         return manifest
 
     def verify_manifest_chain(
-        self, start_date: Optional[str] = None, end_date: Optional[str] = None
+        self, start_date: str | None = None, end_date: str | None = None
     ) -> dict[str, Any]:
         """
         Verify integrity of manifest chain.

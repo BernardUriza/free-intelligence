@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from typing import Optional
 
 import aiohttp
 from pydantic import BaseModel, Field
@@ -66,7 +65,7 @@ class DeepgramService:
             raise ValueError("DEEPGRAM_API_KEY environment variable not set")
 
         self.api_key = api_key
-        self.session: Optional[aiohttp.ClientSession] = None
+        self.session: aiohttp.ClientSession | None = None
 
     async def __aenter__(self):
         """Context manager entry."""

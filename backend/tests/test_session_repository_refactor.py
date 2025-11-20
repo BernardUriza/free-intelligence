@@ -77,9 +77,9 @@ class TestSessionRepositoryRefactor:
 
         # Verify nested dict is properly deserialized (THIS WAS THE BUG)
         transcription_sources = metadata["transcription_sources"]
-        assert isinstance(
-            transcription_sources, dict
-        ), "transcription_sources should be dict, not string!"
+        assert isinstance(transcription_sources, dict), (
+            "transcription_sources should be dict, not string!"
+        )
 
         # Verify we can use .get() on nested dict (this failed before refactor)
         webspeech = transcription_sources.get("webspeech_final", [])

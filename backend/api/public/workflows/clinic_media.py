@@ -21,7 +21,7 @@ import hashlib
 import time
 import uuid
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
@@ -51,18 +51,18 @@ class ClinicMediaMetadata(BaseModel):
 
     media_id: str = Field(..., description="Unique media identifier")
     media_type: Literal["image", "video", "message"] = Field(..., description="Type of media")
-    title: Optional[str] = Field(default=None, description="Display title")
-    description: Optional[str] = Field(default=None, description="Description or caption")
+    title: str | None = Field(default=None, description="Display title")
+    description: str | None = Field(default=None, description="Description or caption")
     duration: int = Field(default=15000, description="Display duration in milliseconds")
-    file_path: Optional[str] = Field(default=None, description="Relative file path")
-    file_size: Optional[int] = Field(default=None, description="File size in bytes")
-    mime_type: Optional[str] = Field(default=None, description="MIME type")
+    file_path: str | None = Field(default=None, description="Relative file path")
+    file_size: int | None = Field(default=None, description="File size in bytes")
+    mime_type: str | None = Field(default=None, description="MIME type")
     uploaded_at: int = Field(
         default_factory=lambda: int(time.time() * 1000),
         description="Upload timestamp (ms)",
     )
-    uploaded_by: Optional[str] = Field(default=None, description="Doctor ID who uploaded (Auth0 sub)")
-    clinic_id: Optional[str] = Field(default=None, description="Clinic identifier")
+    uploaded_by: str | None = Field(default=None, description="Doctor ID who uploaded (Auth0 sub)")
+    clinic_id: str | None = Field(default=None, description="Clinic identifier")
     is_active: bool = Field(default=True, description="Whether media is active in slider")
 
 
@@ -85,10 +85,10 @@ class MediaListResponse(BaseModel):
 class UpdateMediaRequest(BaseModel):
     """Request to update media metadata."""
 
-    title: Optional[str] = None
-    description: Optional[str] = None
-    duration: Optional[int] = None
-    is_active: Optional[bool] = None
+    title: str | None = None
+    description: str | None = None
+    duration: int | None = None
+    is_active: bool | None = None
 
 
 # ============================================================================
@@ -105,7 +105,7 @@ def save_metadata(metadata: ClinicMediaMetadata) -> None:
         json.dump(metadata.model_dump(), f, indent=2, ensure_ascii=False)
 
 
-def load_metadata(media_id: str) -> Optional[ClinicMediaMetadata]:
+def load_metadata(media_id: str) -> ClinicMediaMetadata | None:
     """Load media metadata from JSON file."""
     import json
 
@@ -173,14 +173,14 @@ def list_all_media() -> list[ClinicMediaMetadata]:
     """,
 )
 async def upload_clinic_media(
-    file: Optional[UploadFile] = File(None),
+    file: UploadFile | None = File(None),
     media_type: str = Form(...),
-    title: Optional[str] = Form(None),
-    description: Optional[str] = Form(None),
+    title: str | None = Form(None),
+    description: str | None = Form(None),
     duration: int = Form(15000),
-    message_content: Optional[str] = Form(None),
-    clinic_id: Optional[str] = Form(None),
-    doctor_id: Optional[str] = Form(None),
+    message_content: str | None = Form(None),
+    clinic_id: str | None = Form(None),
+    doctor_id: str | None = Form(None),
 ) -> UploadMediaResponse:
     """
     Upload clinic media for TV display.
@@ -313,7 +313,7 @@ async def upload_clinic_media(
     summary="List all clinic media",
 )
 async def list_clinic_media(
-    clinic_id: Optional[str] = None,
+    clinic_id: str | None = None,
     active_only: bool = True,
 ) -> MediaListResponse:
     """

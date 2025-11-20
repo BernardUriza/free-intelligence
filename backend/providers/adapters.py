@@ -22,8 +22,8 @@ Usage:
   event_store.append_event(consultation_id, event)
 """
 
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any, Dict
 from uuid import uuid4
 
 from backend.logger import get_logger
@@ -310,7 +310,7 @@ class ReduxAdapter:
         redux_action: Dict[str, Any],
         consultation_id: str,
         user_id: str,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> ConsultationEvent:
         """
         Translate Redux action to FI domain event.
@@ -348,7 +348,7 @@ class ReduxAdapter:
         event = ConsultationEvent(
             event_id=str(uuid4()),
             consultation_id=consultation_id,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             event_type=event_type,
             payload=event_payload,
             metadata=EventMetadata(
@@ -434,7 +434,7 @@ class BatchReduxAdapter:
         redux_actions: list[dict[str, Any]],
         consultation_id: str,
         user_id: str,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> list[ConsultationEvent]:
         """
         Translate batch of Redux actions to events.

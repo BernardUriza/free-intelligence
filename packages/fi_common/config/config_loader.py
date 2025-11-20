@@ -12,7 +12,7 @@ FI-CONFIG-FEAT-001
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -140,7 +140,7 @@ def get_default_config() -> dict[str, Any]:
     }
 
 
-def load_config(config_path: Optional[str] = None) -> dict[str, Any]:
+def load_config(config_path: str | None = None) -> dict[str, Any]:
     """
     Load and validate YAML configuration.
 
@@ -193,7 +193,7 @@ def load_config(config_path: Optional[str] = None) -> dict[str, Any]:
     return config
 
 
-def load_llm_config(config_path: Optional[str] = None) -> dict[str, Any]:
+def load_llm_config(config_path: str | None = None) -> dict[str, Any]:
     """
     Load LLM configuration from config/llm.yaml.
 

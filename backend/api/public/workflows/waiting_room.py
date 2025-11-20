@@ -15,7 +15,7 @@ Created: 2025-11-18
 """
 
 import time
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -38,7 +38,7 @@ class GenerateTipRequest(BaseModel):
     category: Literal["nutrition", "exercise", "mental_health", "prevention"] = Field(
         ..., description="Category of health tip to generate"
     )
-    context: Optional[str] = Field(
+    context: str | None = Field(
         None,
         description="Optional context (time of day, season, specialty)",
     )

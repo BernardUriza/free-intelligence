@@ -7,6 +7,7 @@ Created: 2025-11-17
 Role-based authorization logic for protecting ePHI endpoints.
 HIPAA Reference: 45 CFR §164.308(a)(4) - Access Management
 """
+
 from __future__ import annotations
 
 from typing import List

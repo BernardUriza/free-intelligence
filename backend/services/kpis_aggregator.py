@@ -19,8 +19,7 @@ import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from backend.logger import get_logger
 
@@ -51,8 +50,8 @@ class LLMMetricEvent:
 
     timestamp: float  # Unix timestamp
     provider: str  # anthropic, openai, local
-    tokens_in: Optional[int] = None
-    tokens_out: Optional[int] = None
+    tokens_in: int | None = None
+    tokens_out: int | None = None
     latency_ms: int = 0
     cache_hit: bool = False
 
@@ -166,8 +165,8 @@ class KPIsAggregator:
     def record_llm_event(
         self,
         provider: str,
-        tokens_in: Optional[int] = None,
-        tokens_out: Optional[int] = None,
+        tokens_in: int | None = None,
+        tokens_out: int | None = None,
         latency_ms: int = 0,
         cache_hit: bool = False,
     ):
@@ -225,8 +224,8 @@ class KPIsAggregator:
     def get_summary(
         self,
         window: str = "5m",
-        route_filter: Optional[str] = None,
-        provider_filter: Optional[str] = None,
+        route_filter: str | None = None,
+        provider_filter: str | None = None,
     ) -> dict:
         """
         Get summary metrics for time window.
@@ -294,7 +293,7 @@ class KPIsAggregator:
 
         return {
             "window": window,
-            "asOf": datetime.now(timezone.utc).isoformat() + "Z",
+            "asOf": datetime.now(UTC).isoformat() + "Z",
             "requests": {
                 "total": total_requests,
                 "2xx": total_2xx,
@@ -375,7 +374,7 @@ class KPIsAggregator:
     def get_timeseries(
         self,
         window: str = "15m",
-        bucket_sec: Optional[int] = None,
+        bucket_sec: int | None = None,
     ) -> dict:
         """
         Get timeseries data for sparklines (UI-204/205).
@@ -392,7 +391,7 @@ class KPIsAggregator:
         if not buckets:
             return {
                 "window": window,
-                "asOf": datetime.now(timezone.utc).isoformat() + "Z",
+                "asOf": datetime.now(UTC).isoformat() + "Z",
                 "bucketSec": bucket_sec or self.bucket_sec,
                 "series": {
                     "p95_ms": [],
@@ -427,7 +426,7 @@ class KPIsAggregator:
 
         return {
             "window": window,
-            "asOf": datetime.now(timezone.utc).isoformat() + "Z",
+            "asOf": datetime.now(UTC).isoformat() + "Z",
             "bucketSec": bucket_sec or self.bucket_sec,
             "series": {
                 "p95_ms": p95_series,
@@ -533,7 +532,7 @@ class KPIsAggregator:
         """Return empty summary for when no data available."""
         return {
             "window": window,
-            "asOf": datetime.now(timezone.utc).isoformat() + "Z",
+            "asOf": datetime.now(UTC).isoformat() + "Z",
             "requests": {"total": 0, "2xx": 0, "4xx": 0, "5xx": 0},
             "latency": {"p50_ms": 0, "p95_ms": 0, "max_ms": 0},
             "tokens": {"in": 0, "out": 0, "unknown": 0},
@@ -543,7 +542,7 @@ class KPIsAggregator:
 
 
 # Global singleton instance
-_kpis_aggregator: Optional[KPIsAggregator] = None
+_kpis_aggregator: KPIsAggregator | None = None
 
 
 def get_kpis_aggregator() -> KPIsAggregator:

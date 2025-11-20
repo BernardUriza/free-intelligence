@@ -6,16 +6,16 @@ Converts parsed JSON to Pydantic models for type safety.
 
 from __future__ import annotations
 
+import json
+import re
+from typing import Any, Dict
+
 from pydantic import ValidationError
 
 from backend.logger import get_logger
 from backend.services.soap_generation.soap_models import SOAPNote
 
-import json
-import re
-from typing import Any, Dict, Optional
-
-__all__ = ["OllamaResponseParser", "OllamaExtractionError"]
+__all__ = ["OllamaExtractionError", "OllamaResponseParser"]
 
 logger = get_logger(__name__)
 
@@ -116,7 +116,7 @@ class OllamaResponseParser:
             f"Could not extract valid JSON from response. Preview: {text[:200]}"
         )
 
-    def _try_simple_extraction(self, text: str) -> Optional[dict[str, Any]]:
+    def _try_simple_extraction(self, text: str) -> dict[str, Any] | None:
         """Try simple bracket matching extraction.
 
         Args:
@@ -134,7 +134,7 @@ class OllamaResponseParser:
         json_str = text[json_start:json_end]
         return self._parse_json_string(json_str)
 
-    def _try_regex_extraction(self, text: str) -> Optional[dict[str, Any]]:
+    def _try_regex_extraction(self, text: str) -> dict[str, Any] | None:
         """Try regex-based JSON extraction.
 
         Args:
@@ -151,7 +151,7 @@ class OllamaResponseParser:
 
         return None
 
-    def _try_markdown_extraction(self, text: str) -> Optional[dict[str, Any]]:
+    def _try_markdown_extraction(self, text: str) -> dict[str, Any] | None:
         """Try to extract JSON from markdown code blocks.
 
         Handles ```json ... ``` and similar markdown blocks.
@@ -173,7 +173,7 @@ class OllamaResponseParser:
 
         return None
 
-    def _parse_json_string(self, json_str: str) -> Optional[dict[str, Any]]:
+    def _parse_json_string(self, json_str: str) -> dict[str, Any] | None:
         """Attempt to parse a JSON string.
 
         Args:

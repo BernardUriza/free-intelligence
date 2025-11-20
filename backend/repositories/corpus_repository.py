@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import h5py
 
@@ -64,7 +64,7 @@ class CorpusRepository(BaseRepository):
         self,
         document_id: str,
         content: str,
-        metadata: dict[str, Optional[Any]] | None = None,
+        metadata: dict[str, Any | None] | None = None,
     ) -> str:
         """Create new corpus document.
 
@@ -116,7 +116,7 @@ class CorpusRepository(BaseRepository):
             self._log_operation("create", document_id, status="failed", error=str(e))
             raise
 
-    def read(self, document_id: str) -> dict[str, Optional[Any]] | None:  # type: ignore[override]
+    def read(self, document_id: str) -> dict[str, Any | None] | None:  # type: ignore[override]
         """Read corpus document.
 
         Args:
@@ -148,7 +148,7 @@ class CorpusRepository(BaseRepository):
             return None
 
     def update(  # type: ignore[override]
-        self, document_id: str, content: str, metadata: dict[str, Optional[Any]] | None = None
+        self, document_id: str, content: str, metadata: dict[str, Any | None] | None = None
     ) -> bool:
         """Update corpus document (enforces append-only by creating new version).
 
@@ -213,7 +213,7 @@ class CorpusRepository(BaseRepository):
             self._log_operation("delete", document_id, status="failed", error=str(e))
             return False
 
-    def list_all(self, limit: Optional[int] = None) -> list[dict[str, Any]]:
+    def list_all(self, limit: int | None = None) -> list[dict[str, Any]]:
         """List all documents in corpus.
 
         Args:
@@ -264,9 +264,7 @@ class CorpusRepository(BaseRepository):
 
                 # Store chunk data
                 for key, value in chunk.items():
-                    if isinstance(value, str):
-                        chunk_group.attrs[key] = value
-                    elif isinstance(value, (int, float)):
+                    if isinstance(value, str) or isinstance(value, (int, float)):
                         chunk_group.attrs[key] = value
 
             self._log_operation("create_chunk", chunk_id)

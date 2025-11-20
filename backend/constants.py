@@ -68,11 +68,14 @@ DEFAULT_ALLOWED_ORIGINS = [
 # Provider Enums
 # ============================================================================
 
+
 class LLMProvider:
     """LLM Provider identifiers."""
+
     CLAUDE = "claude"
     OLLAMA = "ollama"
     OPENAI = "openai"  # Future support
+
 
 # ============================================================================
 # Notes

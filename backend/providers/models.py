@@ -10,9 +10,9 @@ File: backend/fi_consult_models.py
 Created: 2025-10-28
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -139,18 +139,18 @@ class PatientStub(BaseModel):
     For demo/MVP - does not include full patient record.
     """
 
-    patient_id: Optional[str] = Field(
+    patient_id: str | None = Field(
         default=None, description="De-identified patient ID (not real PHI)"
     )
-    age: Optional[int] = Field(default=None, ge=0, le=120)
-    gender: Optional[Gender] = None
-    weight: Optional[float] = Field(default=None, ge=0, description="Weight in kg")
-    height: Optional[float] = Field(default=None, ge=0, description="Height in cm")
-    occupation: Optional[str] = None
+    age: int | None = Field(default=None, ge=0, le=120)
+    gender: Gender | None = None
+    weight: float | None = Field(default=None, ge=0, description="Weight in kg")
+    height: float | None = Field(default=None, ge=0, description="Height in cm")
+    occupation: str | None = None
 
     @field_validator("age")
     @classmethod
-    def validate_age(cls, v: Optional[int]) -> Optional[int]:
+    def validate_age(cls, v: int | None) -> int | None:
         """Validate age is reasonable."""
         if v is not None and (v < 0 or v > 120):
             raise ValueError("Age must be between 0 and 120")
@@ -160,34 +160,34 @@ class PatientStub(BaseModel):
 class Demographics(BaseModel):
     """Demographics extracted from conversation."""
 
-    age: Optional[int] = None
-    gender: Optional[Gender] = None
-    weight: Optional[float] = None
-    height: Optional[float] = None
-    occupation: Optional[str] = None
+    age: int | None = None
+    gender: Gender | None = None
+    weight: float | None = None
+    height: float | None = None
+    occupation: str | None = None
 
 
 class Symptoms(BaseModel):
     """Symptom data structure."""
 
     primary_symptoms: List[str] = Field(default_factory=list)
-    secondary_symptoms: Optional[list[str]] = None
-    duration: Optional[str] = None
-    severity: Optional[Severity] = None
-    location: Optional[str] = None
-    quality: Optional[str] = None
-    aggravating_factors: Optional[list[str]] = None
-    relieving_factors: Optional[list[str]] = None
+    secondary_symptoms: list[str] | None = None
+    duration: str | None = None
+    severity: Severity | None = None
+    location: str | None = None
+    quality: str | None = None
+    aggravating_factors: list[str] | None = None
+    relieving_factors: list[str] | None = None
 
 
 class MedicalContext(BaseModel):
     """Medical history and context."""
 
-    past_medical_history: Optional[list[str]] = None
-    family_history: Optional[list[str]] = None
-    medications: Optional[list[str]] = None
-    allergies: Optional[list[str]] = None
-    surgeries: Optional[list[str]] = None
+    past_medical_history: list[str] | None = None
+    family_history: list[str] | None = None
+    medications: list[str] | None = None
+    allergies: list[str] | None = None
+    surgeries: list[str] | None = None
 
 
 # ============================================================================
@@ -208,11 +208,11 @@ class Antecedentes(BaseModel):
 class Habitos(BaseModel):
     """Hábitos y estilo de vida (Lifestyle habits)."""
 
-    tabaquismo: Optional[str] = None
-    alcoholismo: Optional[str] = None
-    drogas: Optional[str] = None
-    ejercicio: Optional[str] = None
-    dieta: Optional[str] = None
+    tabaquismo: str | None = None
+    alcoholismo: str | None = None
+    drogas: str | None = None
+    ejercicio: str | None = None
+    dieta: str | None = None
 
 
 class Subjetivo(BaseModel):
@@ -225,9 +225,9 @@ class Subjetivo(BaseModel):
     motivo_consulta: str = Field(description="Chief complaint")
     historia_actual: str = Field(description="Present illness history")
     antecedentes: Antecedentes
-    revision_sistemas: Optional[str] = None
-    contexto_psicosocial: Optional[str] = None
-    habitos: Optional[Habitos] = None
+    revision_sistemas: str | None = None
+    contexto_psicosocial: str | None = None
+    habitos: Habitos | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -239,15 +239,15 @@ class SignosVitales(BaseModel):
     Accepts data in Spanish or English field names.
     """
 
-    presion_arterial: Optional[str] = None
-    frecuencia_cardiaca: Optional[int] = None
-    frecuencia_respiratoria: Optional[int] = None
-    temperatura: Optional[float] = None
-    saturacion_oxigeno: Optional[float] = None
-    peso: Optional[float] = None
-    talla: Optional[float] = None
-    imc: Optional[float] = None
-    glucosa: Optional[float] = None
+    presion_arterial: str | None = None
+    frecuencia_cardiaca: int | None = None
+    frecuencia_respiratoria: int | None = None
+    temperatura: float | None = None
+    saturacion_oxigeno: float | None = None
+    peso: float | None = None
+    talla: float | None = None
+    imc: float | None = None
+    glucosa: float | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -260,14 +260,14 @@ class ExploracionFisica(BaseModel):
     """
 
     aspecto: str
-    cabeza_cuello: Optional[str] = None
-    torax: Optional[str] = None
-    cardiovascular: Optional[str] = None
-    pulmonar: Optional[str] = None
-    abdomen: Optional[str] = None
-    extremidades: Optional[str] = None
-    neurologico: Optional[str] = None
-    piel: Optional[str] = None
+    cabeza_cuello: str | None = None
+    torax: str | None = None
+    cardiovascular: str | None = None
+    pulmonar: str | None = None
+    abdomen: str | None = None
+    extremidades: str | None = None
+    neurologico: str | None = None
+    piel: str | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -281,7 +281,7 @@ class Objetivo(BaseModel):
 
     signos_vitales: SignosVitales
     exploracion_fisica: ExploracionFisica
-    estudios_complementarios: Optional[dict[str, Any]] = None
+    estudios_complementarios: dict[str, Any] | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -333,7 +333,7 @@ class Analisis(BaseModel):
         default_factory=list, description="Red flags (widow maker patterns)"
     )
     pronostico: Pronostico
-    razonamiento_clinico: Optional[str] = None
+    razonamiento_clinico: str | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -396,7 +396,7 @@ class Plan(BaseModel):
     estudios_adicionales: list[EstudioAdicional] = Field(default_factory=list)
     interconsultas: list[Interconsulta] = Field(default_factory=list)
     seguimiento: Seguimiento
-    criterios_hospitalizacion: Optional[list[str]] = None
+    criterios_hospitalizacion: list[str] | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -428,9 +428,9 @@ class SOAPNote(BaseModel):
     metadata: SOAPMetadata
 
     # Quality metrics
-    quality_score: Optional[float] = Field(default=None, ge=0, le=1)
-    completeness: Optional[float] = Field(default=None, ge=0, le=100)
-    nom_compliance: Optional[float] = Field(default=None, ge=0, le=100)
+    quality_score: float | None = Field(default=None, ge=0, le=1)
+    completeness: float | None = Field(default=None, ge=0, le=100)
+    nom_compliance: float | None = Field(default=None, ge=0, le=100)
 
 
 # ============================================================================
@@ -455,13 +455,13 @@ class ConsultationEvent(BaseModel):
 
     event_id: str = Field(default_factory=lambda: str(uuid4()))
     consultation_id: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     event_type: EventType
     payload: Dict[str, Any]
     metadata: EventMetadata
 
     # For audit compliance
-    audit_hash: Optional[str] = Field(
+    audit_hash: str | None = Field(
         default=None, description="SHA256 hash of payload for non-repudiation"
     )
 
@@ -474,7 +474,7 @@ class MessageReceivedEvent(ConsultationEvent):
     class PayloadSchema(BaseModel):
         message_content: str
         message_role: MessageRole
-        metadata: Optional[dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
 
 
 class ExtractionStartedEvent(ConsultationEvent):
@@ -549,7 +549,7 @@ class CompletenessMetrics(BaseModel):
     """Completeness metrics for extraction/SOAP."""
 
     percentage: float = Field(ge=0, le=100)
-    sections: Optional[dict[str, float]] = None
+    sections: dict[str, float] | None = None
     critical_fields_present: List[str] = Field(default_factory=list)
     critical_fields_missing: List[str] = Field(default_factory=list)
     nom_compliance: float = Field(ge=0, le=100)
@@ -576,25 +576,25 @@ class Consultation(BaseModel):
 
     consultation_id: str = Field(default_factory=lambda: str(uuid4()))
     session_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Current state
     messages: list[dict[str, Any]] = Field(default_factory=list)
-    patient_data: Optional[PatientStub] = None
-    extraction_data: Optional[dict[str, Any]] = None
-    soap_note: Optional[SOAPNote] = None
-    urgency_assessment: Optional[UrgencyAssessment] = None
+    patient_data: PatientStub | None = None
+    extraction_data: dict[str, Any] | None = None
+    soap_note: SOAPNote | None = None
+    urgency_assessment: UrgencyAssessment | None = None
 
     # Metrics
-    completeness: Optional[CompletenessMetrics] = None
+    completeness: CompletenessMetrics | None = None
     extraction_iteration: int = Field(default=0, ge=0, le=5)
     is_committed: bool = Field(default=False)
-    commit_hash: Optional[str] = None
+    commit_hash: str | None = None
 
     # Event stream
     event_count: int = Field(default=0, ge=0)
-    last_event_id: Optional[str] = None
+    last_event_id: str | None = None
 
 
 # ============================================================================
@@ -606,7 +606,7 @@ class StartConsultationRequest(BaseModel):
     """Request to start a new consultation."""
 
     user_id: str
-    patient_stub: Optional[PatientStub] = None
+    patient_stub: PatientStub | None = None
 
 
 class StartConsultationResponse(BaseModel):
@@ -644,7 +644,7 @@ class GetSOAPResponse(BaseModel):
     """Response with SOAP note view."""
 
     consultation_id: str
-    soap_note: Optional[SOAPNote]
-    completeness: Optional[CompletenessMetrics]
-    urgency_assessment: Optional[UrgencyAssessment]
+    soap_note: SOAPNote | None
+    completeness: CompletenessMetrics | None
+    urgency_assessment: UrgencyAssessment | None
     is_ready_for_commit: bool

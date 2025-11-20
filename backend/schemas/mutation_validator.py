@@ -14,7 +14,6 @@ import ast
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -55,7 +54,7 @@ ALLOWED_EXCEPTIONS = [
 ]
 
 
-def is_forbidden_function_name(func_name: str) -> tuple[bool, Optional[str]]:
+def is_forbidden_function_name(func_name: str) -> tuple[bool, str | None]:
     """
     Check if function name matches forbidden mutation patterns.
 
@@ -136,7 +135,7 @@ def scan_file_for_mutations(file_path: str) -> list[MutationViolation]:
 
 
 def scan_directory(
-    directory: str, exclude_dirs: list[Optional[str]] = None
+    directory: str, exclude_dirs: list[str | None] = None
 ) -> dict[str, list[MutationViolation]]:
     """
     Scan directory recursively for mutation violations.

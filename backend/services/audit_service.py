@@ -9,8 +9,8 @@ audit policies across the entire application.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from backend.logger import get_logger
 from backend.repositories import AuditRepository
@@ -42,7 +42,7 @@ class AuditService:
         user_id: str,
         resource: str,
         result: str,
-        details: dict[str, Optional[Any]] = None,
+        details: dict[str, Any | None] = None,
     ) -> str:
         """Log an action to the audit trail.
 
@@ -75,7 +75,7 @@ class AuditService:
 
         try:
             audit_log: AuditLogDict = {
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "action": action,
                 "user_id": user_id,
                 "resource": resource,
@@ -122,10 +122,10 @@ class AuditService:
 
     def get_logs(
         self,
-        limit: Optional[int] = None,
-        action: Optional[str] = None,
-        user_id: Optional[str] = None,
-        resource: Optional[str] = None,
+        limit: int | None = None,
+        action: str | None = None,
+        user_id: str | None = None,
+        resource: str | None = None,
     ) -> list[dict[str, Any]]:
         """Query audit logs with filtering.
 
@@ -153,7 +153,7 @@ class AuditService:
         self,
         start_date: datetime,
         end_date: datetime,
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """Get audit logs within date range.
 
@@ -174,7 +174,7 @@ class AuditService:
     def get_user_activity(
         self,
         user_id: str,
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """Get all audit logs for a specific user.
 
@@ -199,7 +199,7 @@ class AuditService:
     def get_resource_activity(
         self,
         resource: str,
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """Get all audit logs for a specific resource.
 
@@ -230,7 +230,7 @@ class AuditService:
         user_id: str,
         document_id: str,
         size_bytes: int,
-        details: dict[str, Optional[Any]] = None,
+        details: dict[str, Any | None] = None,
     ) -> str:
         """Log document creation event.
 
@@ -262,7 +262,7 @@ class AuditService:
         self,
         user_id: str,
         document_id: str,
-        reason: Optional[str] = None,
+        reason: str | None = None,
     ) -> str:
         """Log document deletion event.
 

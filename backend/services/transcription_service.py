@@ -13,8 +13,6 @@ Card: Clean Architecture Refactor
 
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
 from backend.storage.task_repository import (
@@ -54,8 +52,8 @@ class TranscriptionService:
         session_id: str,
         chunk_number: int,
         audio_bytes: bytes,
-        timestamp_start: Optional[float] = None,
-        timestamp_end: Optional[float] = None,
+        timestamp_start: float | None = None,
+        timestamp_end: float | None = None,
     ) -> ChunkProcessingResult:
         """Process audio chunk for transcription (ASYNC pattern).
 

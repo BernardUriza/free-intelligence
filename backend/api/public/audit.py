@@ -23,8 +23,6 @@ Created: 2025-11-17
 
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -56,8 +54,8 @@ class AuditLogsResponse(BaseModel):
     total: int
     limit: int
     logs: list[AuditLogEntry]
-    operation_filter: Optional[str] = None
-    user_filter: Optional[str] = None
+    operation_filter: str | None = None
+    user_filter: str | None = None
 
 
 class AuditStatsResponse(BaseModel):
@@ -72,8 +70,8 @@ class AuditStatsResponse(BaseModel):
 @router.get("/logs", response_model=AuditLogsResponse, tags=["Audit"])
 async def get_audit_logs(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of logs to retrieve"),
-    operation: Optional[str] = Query(None, description="Filter by operation name"),
-    user: Optional[str] = Query(None, description="Filter by user_id"),
+    operation: str | None = Query(None, description="Filter by operation name"),
+    user: str | None = Query(None, description="Filter by user_id"),
 ):
     """
     Get audit logs with optional filtering (read-only).
@@ -136,13 +134,15 @@ async def get_audit_logs(
                     user_id=log_data.get("user_id", ""),
                     endpoint=log_data.get("resource", ""),
                     payload_hash="",  # Not stored in simple schema
-                    result_hash="",   # Not stored in simple schema
+                    result_hash="",  # Not stored in simple schema
                     status=log_data.get("result", "").upper(),  # SUCCESS/FAILED
                     metadata=str(log_data.get("details", {})),
                 )
                 logs.append(public_log)
             except Exception as validation_error:
-                logger.warning("AUDIT_LOG_TRANSFORM_FAILED", error=str(validation_error), log_data=log_data)
+                logger.warning(
+                    "AUDIT_LOG_TRANSFORM_FAILED", error=str(validation_error), log_data=log_data
+                )
                 continue
 
         logger.info(

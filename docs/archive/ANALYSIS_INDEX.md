@@ -4,8 +4,8 @@
 
 Complete performance analysis of the Free Intelligence audio transcription and diarization pipeline. Identifies bottlenecks, quantifies impact, and provides optimization strategies.
 
-**Analysis Date:** 2025-10-31  
-**Coverage:** Whisper ASR, speaker diarization, LLM classification, HDF5 storage  
+**Analysis Date:** 2025-10-31
+**Coverage:** Whisper ASR, speaker diarization, LLM classification, HDF5 storage
 **Platforms:** CPU (DS923+), GPU (M1/M2/M3, NVIDIA)
 
 ---
@@ -13,8 +13,8 @@ Complete performance analysis of the Free Intelligence audio transcription and d
 ## Documents
 
 ### 1. BOTTLENECK_SUMMARY.txt
-**File:** `/BOTTLENECK_SUMMARY.txt`  
-**Size:** 4.2 KB  
+**File:** `/BOTTLENECK_SUMMARY.txt`
+**Size:** 4.2 KB
 **Purpose:** Quick executive summary for fast reference
 
 **Contents:**
@@ -35,8 +35,8 @@ Quick fix: ENABLE_LLM_CLASSIFICATION=false → 3-4x faster
 ---
 
 ### 2. PERFORMANCE_QUICK_REFERENCE.md
-**File:** `/PERFORMANCE_QUICK_REFERENCE.md`  
-**Size:** 9.7 KB  
+**File:** `/PERFORMANCE_QUICK_REFERENCE.md`
+**Size:** 9.7 KB
 **Purpose:** Practical reference guide with tables and scenarios
 
 **Contents:**
@@ -60,8 +60,8 @@ Diarization time for 10 min audio:
 ---
 
 ### 3. docs/TRANSCRIPTION_PERFORMANCE_ANALYSIS.md
-**File:** `/docs/TRANSCRIPTION_PERFORMANCE_ANALYSIS.md`  
-**Size:** 26 KB (825 lines)  
+**File:** `/docs/TRANSCRIPTION_PERFORMANCE_ANALYSIS.md`
+**Size:** 26 KB (825 lines)
 **Purpose:** Comprehensive technical analysis and reference
 
 **Contents:**
@@ -325,6 +325,6 @@ A: Model hierarchy (speed to accuracy):
 
 ---
 
-**Generated:** 2025-10-31  
-**Analysis Tool:** Claude Code (claude-haiku-4-5-20251001)  
+**Generated:** 2025-10-31
+**Analysis Tool:** Claude Code (claude-haiku-4-5-20251001)
 **Platform:** macOS (Darwin 25.0.0)

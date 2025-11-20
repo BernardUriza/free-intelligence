@@ -14,7 +14,6 @@ License: MIT
 """
 
 from datetime import datetime
-from typing import Optional
 
 import h5py
 import numpy as np
@@ -244,7 +243,7 @@ def get_boot_sequence(h5file: h5py.File) -> list[tuple[str, str]]:
     return sequence
 
 
-def get_core_functions(h5file: h5py.File, category: Optional[str] = None) -> list[dict]:
+def get_core_functions(h5file: h5py.File, category: str | None = None) -> list[dict]:
     """
     Recupera funciones core registradas.
 

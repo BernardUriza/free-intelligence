@@ -12,7 +12,7 @@ Clean Code Principles:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 # NOTE: Defer logger import to avoid circular dependency:
 # backend.logger -> backend.common.logger -> backend.common.__init__ -> backend.common.container
@@ -88,21 +88,21 @@ class DIContainer:
         self.h5_file_path = Path(h5_file_path)
 
         # Lazy-loaded singletons (created on first access)
-        self._corpus_repository: Optional[CorpusRepository] = None
-        self._session_repository: Optional[SessionRepository] = None
-        self._audit_repository: Optional[AuditRepository] = None
+        self._corpus_repository: CorpusRepository | None = None
+        self._session_repository: SessionRepository | None = None
+        self._audit_repository: AuditRepository | None = None
 
-        self._audit_service: Optional[AuditService] = None
-        self._corpus_service: Optional[CorpusService] = None
-        self._diarization_service: Optional[DiarizationService] = None
-        self._diarization_job_service: Optional[DiarizationJobService] = None
-        self._diagnostics_service: Optional[DiagnosticsService] = None
-        self._evidence_service: Optional[EvidenceService] = None
-        self._export_service: Optional[ExportService] = None
-        self._session_service: Optional[SessionService] = None
-        self._system_health_service: Optional[SystemHealthService] = None
-        self._transcription_service: Optional[TranscriptionService] = None
-        self._triage_service: Optional[TriageService] = None
+        self._audit_service: AuditService | None = None
+        self._corpus_service: CorpusService | None = None
+        self._diarization_service: DiarizationService | None = None
+        self._diarization_job_service: DiarizationJobService | None = None
+        self._diagnostics_service: DiagnosticsService | None = None
+        self._evidence_service: EvidenceService | None = None
+        self._export_service: ExportService | None = None
+        self._session_service: SessionService | None = None
+        self._system_health_service: SystemHealthService | None = None
+        self._transcription_service: TranscriptionService | None = None
+        self._triage_service: TriageService | None = None
 
         _get_logger().info(f"DIContainer initialized with h5_file_path={self.h5_file_path}")
 
@@ -431,7 +431,7 @@ class DIContainer:
 
 
 # Global container instance (created on module import)
-_global_container: Optional[DIContainer] = None
+_global_container: DIContainer | None = None
 
 
 def get_container(

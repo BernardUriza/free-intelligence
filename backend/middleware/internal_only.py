@@ -5,10 +5,10 @@ Restricts access to internal endpoints based on environment and client IP.
 
 from __future__ import annotations
 
+import os
+
 from fastapi import HTTPException, Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
-
-import os
 
 
 class InternalOnlyMiddleware(BaseHTTPMiddleware):

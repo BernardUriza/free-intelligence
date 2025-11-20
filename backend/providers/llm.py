@@ -17,7 +17,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import anthropic
 import numpy as np
@@ -124,15 +124,15 @@ class LLMResponse:
     model: str
     provider: str
     tokens_used: int
-    cost_usd: Optional[float] = None
-    latency_ms: Optional[float] = None
-    metadata: Optional[dict[str, Any]] = None
+    cost_usd: float | None = None
+    latency_ms: float | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class LLMProvider(ABC):
     """Abstract base class for LLM providers"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         self.config: dict[str, Any] = config or {}
         self.logger = get_logger(self.__class__.__name__)
 
@@ -184,7 +184,7 @@ class ClaudeProvider(LLMProvider):
         },
     }
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         api_key = os.getenv("CLAUDE_API_KEY")
         if not api_key:
@@ -321,7 +321,7 @@ class ClaudeProvider(LLMProvider):
 class OllamaProvider(LLMProvider):
     """Ollama local inference provider for offline-first operation"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.base_url: str = str(self.config.get("base_url") or "http://localhost:11434")
         self.default_model: str = str(self.config.get("model") or "qwen2.5:7b-instruct-q4_0")
@@ -486,7 +486,7 @@ class AzureOpenAIProvider(LLMProvider):
         },
     }
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         self.api_key = os.getenv("AZURE_OPENAI_KEY")
@@ -532,7 +532,6 @@ class AzureOpenAIProvider(LLMProvider):
             - Supports chat/completions endpoint with streaming
             - Pricing: gpt-4o ($2.50/$10 per 1M tokens), gpt-4 ($30/$60)
         """
-        import asyncio
 
         model: str = str(kwargs.get("model", self.default_model))
         deployment: str = str(kwargs.get("deployment", self.deployment_name))
@@ -692,7 +691,7 @@ class AzureOpenAIProvider(LLMProvider):
                 sanitized_error = sanitize_error_message(str(e))
                 self.logger.error("❌ [AZURE] CONNECTION_ERROR", error=sanitized_error)
                 raise
-            except asyncio.TimeoutError as e:
+            except TimeoutError as e:
                 sanitized_error = sanitize_error_message(str(e))
                 self.logger.error(
                     "❌ [AZURE] TIMEOUT_ERROR", error=sanitized_error, timeout=self.timeout
@@ -726,7 +725,7 @@ class AzureOpenAIProvider(LLMProvider):
         return "azure"
 
 
-def get_provider(provider_name: str, config: Optional[dict[str, Any]] = None) -> LLMProvider:
+def get_provider(provider_name: str, config: dict[str, Any] | None = None) -> LLMProvider:
     """
     Factory function to get LLM provider instance.
 
@@ -759,8 +758,8 @@ def get_provider(provider_name: str, config: Optional[dict[str, Any]] = None) ->
 @require_audit_log
 def llm_generate(
     prompt: str,
-    provider: Optional[str] = None,
-    provider_config: Optional[dict[str, Any]] = None,
+    provider: str | None = None,
+    provider_config: dict[str, Any] | None = None,
     **kwargs,
 ) -> LLMResponse:
     """
@@ -890,7 +889,7 @@ def _cached_embed(text_hash: str, text: str, provider: str) -> bytes:
 
 
 def llm_embed(
-    text: str, provider: str = "claude", provider_config: Optional[dict[str, Any]] = None
+    text: str, provider: str = "claude", provider_config: dict[str, Any] | None = None
 ) -> np.ndarray:
     """
     Generate embedding vector for text with LRU caching.
@@ -948,7 +947,7 @@ def llm_embed(
             embedding_dim=len(embedding),
             cache_hits=cache_info.hits,
             cache_misses=cache_info.misses,
-            cache_hit_rate=f"{cache_info.hits/(cache_info.hits+cache_info.misses)*100:.1f}%"
+            cache_hit_rate=f"{cache_info.hits / (cache_info.hits + cache_info.misses) * 100:.1f}%"
             if (cache_info.hits + cache_info.misses) > 0
             else "0%",
         )

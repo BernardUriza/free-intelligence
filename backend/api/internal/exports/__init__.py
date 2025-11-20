@@ -11,11 +11,11 @@ from .handlers import create_export, download_file, get_export, verify_export
 from .models import ExportRequest, ExportResponse, VerifyRequest, VerifyResponse
 
 __all__ = [
-    "router",
     "ExportRequest",
     "ExportResponse",
     "VerifyRequest",
     "VerifyResponse",
+    "router",
 ]
 
 # Create router for export endpoints

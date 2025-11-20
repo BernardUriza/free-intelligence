@@ -36,9 +36,8 @@ import random
 # ULID generation (simple implementation)
 import time
 from dataclasses import asdict, dataclass
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 
 def generate_ulid() -> str:
@@ -65,7 +64,7 @@ class Session:
     status: str  # new|active|complete
     is_persisted: bool
     owner_hash: str
-    thread_id: Optional[str] = None
+    thread_id: str | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary"""
@@ -131,7 +130,7 @@ class SessionsStore:
         self,
         owner_hash: str,
         status: str = "new",
-        thread_id: Optional[str] = None,
+        thread_id: str | None = None,
     ) -> Session:
         """
         Create new session atomically.
@@ -144,7 +143,7 @@ class SessionsStore:
         Returns:
             Created Session instance
         """
-        now = datetime.now(timezone.utc).isoformat() + "Z"
+        now = datetime.now(UTC).isoformat() + "Z"
         session = Session(
             id=generate_ulid(),
             created_at=now,
@@ -177,7 +176,7 @@ class SessionsStore:
 
         return session
 
-    def get(self, session_id: str) -> Optional[Session]:
+    def get(self, session_id: str) -> Session | None:
         """
         Get session by ID.
 
@@ -209,7 +208,7 @@ class SessionsStore:
         self,
         limit: int = 50,
         offset: int = 0,
-        owner_hash: Optional[str] = None,
+        owner_hash: str | None = None,
     ) -> list[Session]:
         """
         List sessions with pagination.
@@ -254,10 +253,10 @@ class SessionsStore:
     def update(
         self,
         session_id: str,
-        status: Optional[str] = None,
-        last_active: Optional[str] = None,
-        interaction_count: Optional[int] = None,
-    ) -> Optional[Session]:
+        status: str | None = None,
+        last_active: str | None = None,
+        interaction_count: int | None = None,
+    ) -> Session | None:
         """
         Update session (append-only: creates new entry).
 
@@ -276,7 +275,7 @@ class SessionsStore:
             return None
 
         # Create updated session
-        now = datetime.now(timezone.utc).isoformat() + "Z"
+        now = datetime.now(UTC).isoformat() + "Z"
         updated = Session(
             id=current.id,
             created_at=current.created_at,
@@ -311,7 +310,7 @@ class SessionsStore:
 
         return updated
 
-    def count(self, owner_hash: Optional[str] = None) -> int:
+    def count(self, owner_hash: str | None = None) -> int:
         """
         Count total sessions.
 

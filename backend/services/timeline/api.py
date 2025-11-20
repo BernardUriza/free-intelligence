@@ -24,9 +24,9 @@ Usage:
 
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List
 
 from fastapi import FastAPI, HTTPException
 from fastapi import Path as PathParam
@@ -65,7 +65,7 @@ class SessionMetadata(BaseModel):
     """Session metadata for listing"""
 
     session_id: str = Field(..., description="Session ID (session_YYYYMMDD_HHMMSS)")
-    thread_id: Optional[str] = Field(None, description="Thread ID if applicable")
+    thread_id: str | None = Field(None, description="Thread ID if applicable")
     owner_hash: str = Field(..., description="Owner hash (first 16 chars)")
     created_at: str = Field(..., description="Session creation timestamp (ISO 8601)")
     updated_at: str = Field(..., description="Last update timestamp (ISO 8601)")
@@ -108,7 +108,7 @@ class EventResponse(BaseModel):
     timestamp: str
     who: str
     what: str
-    summary: Optional[str]
+    summary: str | None
     content_hash: str
     redaction_policy: str
     causality: list[dict[str, Any]]
@@ -216,11 +216,11 @@ def format_size_human(tokens: int, chars: int) -> str:
     """Format size to human-readable string"""
     if tokens > 0:
         if tokens >= 1000:
-            return f"{tokens/1000:.1f}K tokens"
+            return f"{tokens / 1000:.1f}K tokens"
         return f"{tokens} tokens"
     elif chars > 0:
         if chars >= 1000:
-            return f"{chars/1000:.1f}K chars"
+            return f"{chars / 1000:.1f}K chars"
         return f"{chars} chars"
     return "0 tokens"
 
@@ -278,7 +278,7 @@ def compute_policy_badges(timeline: Timeline) -> PolicyBadges:
 def compute_session_timespan(timeline: Timeline) -> SessionTimespan:
     """Compute session timespan from events"""
     if not timeline.events:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         return SessionTimespan(start=now, end=now, duration_ms=0, duration_human="0s")
 
     # Sort events by timestamp
@@ -519,7 +519,7 @@ async def health_check():
         status="healthy",
         storage_path=str(STORAGE_PATH),
         storage_exists=STORAGE_PATH.exists(),
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
 
 
@@ -617,9 +617,9 @@ async def get_session_detail(session_id: str = PathParam(..., description="Sessi
 
 @app.get("/api/timeline/events", response_model=list[EventResponse], tags=["timeline"])
 async def list_events(
-    session_id: Optional[str] = Query(None, description="Filter by session ID"),
-    event_type: Optional[str] = Query(None, description="Filter by event type"),
-    who: Optional[str] = Query(None, description="Filter by actor"),
+    session_id: str | None = Query(None, description="Filter by session ID"),
+    event_type: str | None = Query(None, description="Filter by event type"),
+    who: str | None = Query(None, description="Filter by actor"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum events to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
 ):

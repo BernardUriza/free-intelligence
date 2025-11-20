@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 # Export AuditService class for backward compatibility
 # pyright: reportUnusedImport=false
@@ -19,7 +19,7 @@ def append_audit_log(
     operation: str,
     user_id: str,
     outcome: str = "SUCCESS",
-    metadata: Optional[dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> None:
     """Append audit log entry.

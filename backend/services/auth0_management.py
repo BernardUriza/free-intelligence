@@ -25,11 +25,12 @@ Created: 2025-11-20
 """
 
 import os
-from typing import Any, Optional
 from datetime import datetime, timedelta
+from typing import Any
+
 import structlog
-from auth0.management import Auth0
 from auth0.authentication import GetToken
+from auth0.management import Auth0
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -64,9 +65,9 @@ class Auth0ManagementService:
         assert self.client_secret is not None
 
         # Token cache
-        self._token: Optional[str] = None
-        self._token_expires_at: Optional[datetime] = None
-        self._mgmt_client: Optional[Auth0] = None
+        self._token: str | None = None
+        self._token_expires_at: datetime | None = None
+        self._mgmt_client: Auth0 | None = None
 
         logger.info(
             "AUTH0_MANAGEMENT_INITIALIZED",
@@ -120,8 +121,8 @@ class Auth0ManagementService:
         self,
         page: int = 0,
         per_page: int = 50,
-        search: Optional[str] = None,
-        sort: str = "created_at:-1"
+        search: str | None = None,
+        sort: str = "created_at:-1",
     ) -> dict[str, Any]:
         """
         List users with pagination and search.
@@ -189,8 +190,8 @@ class Auth0ManagementService:
     def create_user(
         self,
         email: str,
-        password: Optional[str] = None,
-        name: Optional[str] = None,
+        password: str | None = None,
+        name: str | None = None,
         connection: str = "Username-Password-Authentication",
         email_verified: bool = False,
         send_verification_email: bool = True,
@@ -215,6 +216,7 @@ class Auth0ManagementService:
             # Generate secure random password if not provided
             if not password:
                 import secrets
+
                 password = secrets.token_urlsafe(32)
 
             user_data = {
@@ -243,11 +245,7 @@ class Auth0ManagementService:
             logger.error("FAILED_TO_CREATE_USER", email=email, error=str(e))
             raise
 
-    def update_user(
-        self,
-        user_id: str,
-        updates: dict[str, Any]
-    ) -> dict[str, Any]:
+    def update_user(self, user_id: str, updates: dict[str, Any]) -> dict[str, Any]:
         """
         Update user attributes.
 
@@ -433,7 +431,7 @@ class Auth0ManagementService:
 
 
 # Singleton instance
-_auth0_service: Optional[Auth0ManagementService] = None
+_auth0_service: Auth0ManagementService | None = None
 
 
 def get_auth0_service() -> Auth0ManagementService:

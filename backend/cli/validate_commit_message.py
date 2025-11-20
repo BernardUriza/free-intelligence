@@ -73,8 +73,7 @@ def validate_commit_message(message: str) -> tuple[bool, str]:
     # Validate type
     if commit_type not in VALID_TYPES:
         return False, (
-            f"Invalid commit type: '{commit_type}'\n\n"
-            f"Valid types: {', '.join(sorted(VALID_TYPES))}"
+            f"Invalid commit type: '{commit_type}'\n\nValid types: {', '.join(sorted(VALID_TYPES))}"
         )
 
     # Validate message not empty

@@ -17,7 +17,7 @@ import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -60,7 +60,7 @@ class TypeCheckResults:
         }
 
 
-def run_pyright(path: str) -> Optional[dict[str, Any]]:
+def run_pyright(path: str) -> dict[str, Any] | None:
     """Run pyright and return JSON output."""
     try:
         print("🔍 Running Pyright...", file=sys.stderr)
@@ -88,7 +88,7 @@ def run_pyright(path: str) -> Optional[dict[str, Any]]:
         return None
 
 
-def run_mypy(path: str) -> Optional[dict[str, Any]]:
+def run_mypy(path: str) -> dict[str, Any] | None:
     """Run mypy and return JSON output."""
     try:
         print("🔍 Running Mypy...", file=sys.stderr)
@@ -130,7 +130,7 @@ def run_mypy(path: str) -> Optional[dict[str, Any]]:
         return None
 
 
-def run_ruff(path: str) -> Optional[dict[str, Any]]:
+def run_ruff(path: str) -> dict[str, Any] | None:
     """Run ruff and return JSON output."""
     try:
         print("🔍 Running Ruff...", file=sys.stderr)

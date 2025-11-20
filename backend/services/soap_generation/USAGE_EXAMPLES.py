@@ -6,7 +6,7 @@ into your medical consultation processing pipeline.
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List
 
 # ============================================================================
 # Example 1: Basic Usage (Backward Compatible)
@@ -170,7 +170,7 @@ def example_testing_with_mocks() -> None:
 
 def example_pipeline_integration(
     audio_file_path: str,
-) -> dict[str, Optional[str]]:
+) -> dict[str, str | None]:
     """Integration in a full processing pipeline."""
     from backend.logger import get_logger
     from backend.services.soap_generation.llm_client import OllamaClient

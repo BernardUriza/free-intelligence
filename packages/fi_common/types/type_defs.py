@@ -10,7 +10,7 @@ Created: 2025-10-31
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional, TypedDict
+from typing import Any, TypedDict
 
 
 class KPIsSnapshot(TypedDict, total=False):
@@ -31,8 +31,8 @@ class JobStatusDict(TypedDict, total=False):
     session_id: str
     status: str
     progress_pct: int
-    error: Optional[str]
-    result: Optional[dict[str, Any]]
+    error: str | None
+    result: dict[str, Any] | None
     created_at: str
     updated_at: str
 

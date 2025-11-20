@@ -5,7 +5,7 @@ from backend.workers.tasks.diarization_worker import diarize_session_worker
 from backend.workers.tasks.transcription_worker import transcribe_chunk_worker
 
 __all__ = [
-    "transcribe_chunk_worker",
     "diarize_session_worker",
     "log_audit_event_worker",
+    "transcribe_chunk_worker",
 ]

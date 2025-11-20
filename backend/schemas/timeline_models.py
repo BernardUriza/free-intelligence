@@ -13,9 +13,9 @@ Sprint: SPR-2025W44
 
 import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Any, List
 
 from pydantic import BaseModel, Field
 
@@ -93,7 +93,7 @@ class TimelineEventCausality(BaseModel):
 
     related_event_id: str = Field(..., description="UUID del evento relacionado")
     causality_type: CausalityType = Field(..., description="Tipo de relación causal")
-    explanation: Optional[str] = Field(None, description="Explicación de la causalidad")
+    explanation: str | None = Field(None, description="Explicación de la causalidad")
     confidence: float = Field(1.0, ge=0.0, le=1.0, description="Confianza en la relación (0-1)")
 
 
@@ -118,7 +118,7 @@ class TimelineEvent(BaseModel):
     # Core fields (obligatorios)
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     event_type: TimelineEventType
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Causalidad (quién→qué→cuándo→por qué)
     who: str = Field(..., description="Quién ejecutó (user_hash/assistant/system)")
@@ -128,15 +128,15 @@ class TimelineEvent(BaseModel):
     )
 
     # Contenido (con redacción)
-    summary: Optional[str] = Field(None, description="Resumen del evento (redactado)")
+    summary: str | None = Field(None, description="Resumen del evento (redactado)")
     content_hash: str = Field(..., description="SHA256 del contenido crudo (sin exponer)")
     redaction_policy: RedactionPolicy = Field(
         default=RedactionPolicy.SUMMARY, description="Política de redacción aplicada"
     )
 
     # Metadata
-    session_id: Optional[str] = Field(None, description="ID de sesión/consulta")
-    reference_id: Optional[str] = Field(None, description="ID en event store (HDF5)")
+    session_id: str | None = Field(None, description="ID de sesión/consulta")
+    reference_id: str | None = Field(None, description="ID en event store (HDF5)")
     tags: List[str] = Field(default_factory=list, description="Tags para filtrado")
 
     # Auto-timeline metadata
@@ -168,8 +168,8 @@ class Timeline(BaseModel):
     events: list[TimelineEvent] = Field(default_factory=list)
 
     # Metadata
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Generation metadata
     generation_mode: TimelineMode = Field(
@@ -187,7 +187,7 @@ class Timeline(BaseModel):
     def add_event(self, event: TimelineEvent):
         """Add event to timeline and update metadata."""
         self.events.append(event)
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(UTC)
 
         # Update counters
         if event.auto_generated:
@@ -230,7 +230,7 @@ class Timeline(BaseModel):
 
         return chain
 
-    def get_event_by_id(self, event_id: str) -> Optional[TimelineEvent]:
+    def get_event_by_id(self, event_id: str) -> TimelineEvent | None:
         """Get event by ID."""
         for event in self.events:
             if event.event_id == event_id:
@@ -263,11 +263,11 @@ def create_timeline_event(
     who: str,
     what: str,
     raw_content: str,
-    summary: Optional[str] = None,
-    causality: list[Optional[TimelineEventCausality]] = None,
+    summary: str | None = None,
+    causality: list[TimelineEventCausality | None] = None,
     redaction_policy: RedactionPolicy = RedactionPolicy.SUMMARY,
-    session_id: Optional[str] = None,
-    tags: list[Optional[str]] = None,
+    session_id: str | None = None,
+    tags: list[str | None] = None,
     auto_generated: bool = False,
     generation_mode: TimelineMode = TimelineMode.MANUAL,
 ) -> TimelineEvent:
@@ -313,7 +313,7 @@ def create_timeline_event(
 def create_causality(
     related_event_id: str,
     causality_type: CausalityType,
-    explanation: Optional[str] = None,
+    explanation: str | None = None,
     confidence: float = 1.0,
 ) -> TimelineEventCausality:
     """Helper function to create causality relation."""

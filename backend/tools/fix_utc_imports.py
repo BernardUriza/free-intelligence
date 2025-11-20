@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Fix missing UTC imports in all files with reportUndefinedVariable errors."""
+
 from __future__ import annotations
 
 import json
@@ -104,9 +105,9 @@ def main():
             file_path = error["file"]
             files_to_fix[file_path].append(error)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("🔧 Fixing UTC Import Errors")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Files to fix: {len(files_to_fix)}")
 
     # Fix each file
@@ -124,9 +125,9 @@ def main():
             failed.append(short_path)
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("📊 Summary")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"✅ Fixed: {len(fixed)}")
     print(f"❌ Failed: {len(failed)}")
 

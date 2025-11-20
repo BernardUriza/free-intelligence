@@ -21,5 +21,5 @@ from __future__ import annotations
 
 from . import audit, patients, providers, system, workflows
 
-__all__ = ["workflows", "system", "patients", "providers", "audit"]
+__all__ = ["audit", "patients", "providers", "system", "workflows"]
 # NOTE: assistant moved to workflows/assistant.py (AURITY-specific architecture)

@@ -6,6 +6,7 @@ Created: 2025-11-17
 
 Auth0 OAuth2/OIDC configuration for production-grade authentication.
 """
+
 from __future__ import annotations
 
 import os

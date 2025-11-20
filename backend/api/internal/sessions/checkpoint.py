@@ -212,7 +212,7 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
             logger.warning(
                 "NO_NEW_CHUNKS_TO_CONCATENATE",
                 session_id=session_id,
-                range=f"{last_checkpoint_idx+1} to {request.last_chunk_idx}",
+                range=f"{last_checkpoint_idx + 1} to {request.last_chunk_idx}",
             )
             return CheckpointResponse(
                 session_id=session_id,

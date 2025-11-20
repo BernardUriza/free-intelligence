@@ -11,9 +11,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from uuid import uuid4
 
 from backend.logger import get_logger
@@ -32,7 +32,7 @@ class TriageService:
     - Buffer retrieval and metadata management
     """
 
-    def __init__(self, data_dir: Optional[Path] = None) -> None:
+    def __init__(self, data_dir: Path | None = None) -> None:
         """Initialize service with triage data directory.
 
         Args:
@@ -98,7 +98,7 @@ class TriageService:
             buffer_dir.mkdir(parents=True, exist_ok=True)
 
             # Prepare intake data
-            received_at = datetime.now(timezone.utc).isoformat() + "Z"
+            received_at = datetime.now(UTC).isoformat() + "Z"
             intake_data = {
                 "bufferId": buffer_id,
                 "receivedAt": received_at,
@@ -160,7 +160,7 @@ class TriageService:
             logger.error(f"TRIAGE_BUFFER_CREATION_FAILED: buffer_id={buffer_id}, error={e!s}")
             raise OSError(f"Failed to create triage buffer: {e!s}") from e
 
-    def get_manifest(self, buffer_id: str) -> dict[str, Optional[Any]] | None:
+    def get_manifest(self, buffer_id: str) -> dict[str, Any | None] | None:
         """Retrieve manifest for a triage buffer.
 
         Args:
@@ -187,7 +187,7 @@ class TriageService:
             logger.error(f"TRIAGE_MANIFEST_READ_FAILED: buffer_id={buffer_id}, error={e!s}")
             raise OSError(f"Failed to read manifest: {e!s}") from e
 
-    def get_intake(self, buffer_id: str) -> dict[str, Optional[Any]] | None:
+    def get_intake(self, buffer_id: str) -> dict[str, Any | None] | None:
         """Retrieve intake data for a triage buffer.
 
         Args:

@@ -1,7 +1,7 @@
 # Type Checking Error Analysis - Documentation Index
 
-**Generated:** 2025-11-01  
-**Analyzed Data:** 600 errors + 124 warnings across 57 files  
+**Generated:** 2025-11-01
+**Analyzed Data:** 600 errors + 124 warnings across 57 files
 **Source:** `/ops/type_check_results/results.json`
 
 ## Quick Start
@@ -22,7 +22,7 @@
   - h5py operations return `Group | Dataset | Datatype | Any | Unknown`
   - Pyright can't narrow the type through subsequent operations
   - Single ambiguity cascades into 2-4 duplicate errors
-  
+
 - **122 errors (20%)** - Function parameter mismatches
   - Signatures refactored, call sites not updated
   - Missing/wrong parameters in constructors
@@ -58,7 +58,7 @@
 ## Files in This Analysis
 
 ### 1. TYPE_CHECK_ERROR_ANALYSIS.md
-**Type:** Comprehensive Report (549 lines)  
+**Type:** Comprehensive Report (549 lines)
 **Purpose:** Deep dive into all error patterns
 
 **Sections:**
@@ -80,7 +80,7 @@
 - Reference material for long-term strategy
 
 ### 2. TYPE_CHECK_FIX_PRIORITY.json
-**Type:** Structured Data (304 lines)  
+**Type:** Structured Data (304 lines)
 **Purpose:** Programmatic reference for automation/tooling
 
 **Contains:**
@@ -97,7 +97,7 @@
 - Feeding into project management tools
 
 ### 3. This File (ANALYSIS_README.md)
-**Type:** Index and Quick Reference  
+**Type:** Index and Quick Reference
 **Purpose:** Navigation and overview
 
 ---
@@ -296,7 +296,7 @@ This approach recognizes the constraint (h5py stubs) and works around it pragmat
 
 ---
 
-**Last Updated:** 2025-11-01  
-**Analysis Duration:** ~2 hours  
-**Files Analyzed:** 600 errors + 124 warnings  
+**Last Updated:** 2025-11-01
+**Analysis Duration:** ~2 hours
+**Files Analyzed:** 600 errors + 124 warnings
 **Data Quality:** High (verified against source JSON)

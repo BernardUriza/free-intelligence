@@ -11,7 +11,7 @@ FI-CORE-FEAT-003
 """
 
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from packages.fi_common.logging.log_manifest import LogManifest
 from packages.fi_common.logging.log_rotation import LogRotation
@@ -95,8 +95,8 @@ class LogWriter:
         bytes_sent: int,
         client_ip: str,
         latency_ms: float,
-        trace_id: Optional[str] = None,
-        session_id: Optional[str] = None,
+        trace_id: str | None = None,
+        session_id: str | None = None,
         user: str = "system",
         role: UserRole = UserRole.SYSTEM,
     ):
@@ -128,8 +128,8 @@ class LogWriter:
         sensitive: bool = False,
         timeout: bool = False,
         retry_count: int = 0,
-        trace_id: Optional[str] = None,
-        session_id: Optional[str] = None,
+        trace_id: str | None = None,
+        session_id: str | None = None,
         user: str = "system",
         role: UserRole = UserRole.SYSTEM,
     ):
@@ -159,8 +159,8 @@ class LogWriter:
         sha256: str,
         segment_seconds: float,
         ready: bool,
-        trace_id: Optional[str] = None,
-        session_id: Optional[str] = None,
+        trace_id: str | None = None,
+        session_id: str | None = None,
         user: str = "system",
     ):
         """Write storage segment log."""
@@ -181,11 +181,11 @@ class LogWriter:
         client_ip: str,
         result: bool,
         user: str,
-        old_role: Optional[UserRole] = None,
-        new_role: Optional[UserRole] = None,
-        trace_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-        details: dict[str, Optional[Any]] = None,
+        old_role: UserRole | None = None,
+        new_role: UserRole | None = None,
+        trace_id: str | None = None,
+        session_id: str | None = None,
+        details: dict[str, Any | None] = None,
     ):
         """Write access event log (AUDIT)."""
         event = log_access_event(
@@ -201,7 +201,7 @@ class LogWriter:
         )
         self._write_event(event)
 
-    def rotate_all(self) -> dict[ServiceChannel, Optional[Path]]:
+    def rotate_all(self) -> dict[ServiceChannel, Path | None]:
         """
         Rotate all logs.
 
@@ -227,7 +227,7 @@ class LogWriter:
             results[channel] = len(deleted)
         return results
 
-    def create_manifest(self, date: Optional[str] = None) -> dict[str, Any]:
+    def create_manifest(self, date: str | None = None) -> dict[str, Any]:
         """
         Create daily manifest for access logs.
 

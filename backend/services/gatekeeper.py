@@ -16,7 +16,6 @@ Created: 2025-10-28 (Sprint 4)
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from backend.logger import get_logger
 from backend.policy_loader import get_policy_loader  # type: ignore[import]
@@ -359,7 +358,7 @@ class Gatekeeper:
         self.policy_loader = get_policy_loader()
 
     def should_use_primary(
-        self, prompt: str, force_provider: Optional[str] = None
+        self, prompt: str, force_provider: str | None = None
     ) -> tuple[bool, str]:
         """
         Decide whether to use primary provider (Ollama) or fallback (Claude).
@@ -411,7 +410,7 @@ class Gatekeeper:
 
     def evaluate_response_quality(
         self, prompt: str, response: str, provider: str, should_fallback_on_low_score: bool = True
-    ) -> tuple[QualityScore, Optional[str]]:
+    ) -> tuple[QualityScore, str | None]:
         """
         Evaluate response quality and decide if fallback is needed.
 
@@ -483,9 +482,9 @@ def main():
     if args.command == "score":
         quality_score = scorer.score_response(args.prompt, args.response, args.provider)
 
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"Quality Score: {quality_score.total_score}/100")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         print("\nBreakdown:")
         print(f"  Length:       {quality_score.length_score}/30")
         print(f"  Keywords:     {quality_score.keyword_score}/30")
@@ -508,9 +507,9 @@ def main():
             ("What is 2+2?", "4", "ollama"),
         ]
 
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print("Gatekeeper Quality Scorer - Test Cases")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         for prompt, response, provider in test_cases:
             quality_score = scorer.score_response(prompt, response, provider)

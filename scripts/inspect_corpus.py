@@ -76,7 +76,7 @@ def inspect_corpus(corpus_path="storage/corpus.h5"):
                 print(f"   Showing last {show_count}:\n")
 
                 for i in range(interactions_count - show_count, interactions_count):
-                    print(f"   [{i+1}]")
+                    print(f"   [{i + 1}]")
                     print(f"      Session: {f['/interactions/session_id'][i].decode('utf-8')}")
                     print(f"      Timestamp: {f['/interactions/timestamp'][i].decode('utf-8')}")
 
@@ -108,7 +108,7 @@ def inspect_corpus(corpus_path="storage/corpus.h5"):
 
                 if audit_count > 0:
                     print(
-                        f"   Latest operation: {f['/audit_logs/operation'][audit_count-1].decode('utf-8')}"
+                        f"   Latest operation: {f['/audit_logs/operation'][audit_count - 1].decode('utf-8')}"
                     )
             else:
                 print("   Audit Logs: Group exists but empty")

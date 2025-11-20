@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 from backend.logger import get_logger
 
@@ -159,7 +159,7 @@ class SessionRepository(BaseRepository):
     # Public CRUD Methods
     # ============================================================================
 
-    def create(self, entity: dict[str, Optional[Any]], **kwargs: Any) -> str:
+    def create(self, entity: dict[str, Any | None], **kwargs: Any) -> str:
         """Create new session.
 
         Args:
@@ -246,7 +246,7 @@ class SessionRepository(BaseRepository):
     def update(
         self,
         entity_id: str,
-        entity: dict[str, Optional[Any]],
+        entity: dict[str, Any | None],
     ) -> bool:
         """Update session status and metadata.
 
@@ -311,9 +311,7 @@ class SessionRepository(BaseRepository):
             self._log_operation("delete", session_id, status="failed", error=str(e))
             return False
 
-    def list_all(
-        self, limit: Optional[int] = None, status: Optional[str] = None
-    ) -> list[dict[str, Any]]:
+    def list_all(self, limit: int | None = None, status: str | None = None) -> list[dict[str, Any]]:
         """List sessions with optional filtering.
 
         Args:
