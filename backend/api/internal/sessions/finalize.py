@@ -378,7 +378,7 @@ async def finalize_session(
                                 chunk_group = f[chunk_path]
 
                                 # Check if audio.webm exists
-                                if "audio.webm" in chunk_group:
+                                if "audio.webm" in chunk_group:  # type: ignore[operator]
                                     audio_bytes = chunk_group["audio.webm"][()]
 
                                     # Save to temp file

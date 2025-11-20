@@ -14,7 +14,8 @@ Created: 2025-11-20
 Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 """
 
-import asyncio
+from __future__ import annotations
+
 from typing import Dict, Set
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query

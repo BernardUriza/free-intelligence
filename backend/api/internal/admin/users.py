@@ -17,7 +17,7 @@ Author: Bernard Uriza
 Created: 2025-11-20
 """
 
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Header
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 import structlog
@@ -73,26 +73,75 @@ class UpdateRolesRequest(BaseModel):
 # ============================================================================
 
 async def require_superadmin(
-    # TODO: Extract user from Auth0 JWT token
-    # For now, this is a placeholder
+    authorization: str = Header(None)
 ) -> dict:
     """
-    Verify user has SUPERADMIN role.
+    Verify user has SUPERADMIN role via JWT token.
 
-    In production, this should:
+    Performs:
     1. Extract JWT token from Authorization header
-    2. Verify token with Auth0
-    3. Check 'https://aurity.app/roles' claim contains 'superadmin'
-    4. Check against SUPERADMIN_EMAILS list from env
+    2. Verify token signature with Auth0 JWKS
+    3. Check token expiration
+    4. Verify 'https://aurity.app/roles' contains 'FI-superadmin'
 
-    For now, returns mock admin user.
+    Args:
+        authorization: Bearer token from Authorization header
+
+    Returns:
+        dict: User information (user_id, email, roles)
+
+    Raises:
+        HTTPException: 401 if token missing/invalid, 403 if not superadmin
     """
-    # TODO: Implement real JWT verification
-    return {
-        "user_id": "auth0|mock",
-        "email": "admin@aurity.app",
-        "roles": ["superadmin"],
-    }
+    from backend.auth.jwt_verifier import get_jwt_verifier
+
+    if not authorization:
+        logger.warning("SUPERADMIN_AUTH_MISSING")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Authorization header",
+        )
+
+    if not authorization.startswith("Bearer "):
+        logger.warning("SUPERADMIN_AUTH_INVALID_FORMAT")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Authorization header format. Expected: Bearer <token>",
+        )
+
+    token = authorization[7:]  # Remove "Bearer " prefix
+
+    try:
+        verifier = get_jwt_verifier()
+        user = verifier.verify_superadmin(token)
+        return user
+
+    except ValueError as e:
+        # JWT verification failed or not superadmin
+        error_msg = str(e)
+
+        if "expired" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has expired. Please login again.",
+            )
+        elif "superadmin" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions. Superadmin role required.",
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Token verification failed: {error_msg}",
+            )
+
+    except Exception as e:
+        logger.error("SUPERADMIN_AUTH_ERROR", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal authentication error",
+        )
 
 
 # ============================================================================

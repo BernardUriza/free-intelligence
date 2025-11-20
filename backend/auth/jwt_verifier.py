@@ -77,7 +77,7 @@ class Auth0JWTVerifier:
             logger.error("JWKS_FETCH_FAILED", error=str(e))
             raise ValueError(f"Failed to fetch JWKS from Auth0: {str(e)}")
 
-    def get_signing_key(self, token: str) -> str:
+    def get_signing_key(self, token: str):  # type: ignore[no-untyped-def]
         """
         Get the signing key for a token from JWKS.
 
@@ -85,7 +85,7 @@ class Auth0JWTVerifier:
             token: JWT token string
 
         Returns:
-            str: PEM-formatted public key for verification
+            CryptographyRSAKey: RSA key object for verification
 
         Raises:
             ValueError: If key not found in JWKS
