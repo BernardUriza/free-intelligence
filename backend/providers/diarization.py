@@ -501,11 +501,13 @@ def get_diarization_provider(
 
 
 class AzureGPT4Provider(DiarizationProvider):
-    """Azure GPT-4 - Text-based diarization using LLM"""
+    """Azure GPT-4 - Text-based diarization using LLM with preset support"""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         import os
+
+        from backend.schemas.preset_loader import get_preset_loader
 
         self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         self.api_key = os.getenv("AZURE_OPENAI_KEY")
@@ -516,6 +518,24 @@ class AzureGPT4Provider(DiarizationProvider):
             raise ValueError("AZURE_OPENAI_ENDPOINT environment variable not set")
         if not self.api_key:
             raise ValueError("AZURE_OPENAI_KEY environment variable not set")
+
+        # Load diarization preset (prompt engineering config)
+        try:
+            preset_loader = get_preset_loader()
+            self.preset = preset_loader.load_preset("diarization_analyst")
+            self.logger.info(
+                "DIARIZATION_PRESET_LOADED",
+                preset_id=self.preset.preset_id,
+                version=self.preset.version,
+                temperature=self.preset.temperature,
+            )
+        except Exception as e:
+            self.logger.warning(
+                "DIARIZATION_PRESET_LOAD_FAILED",
+                error=str(e),
+                hint="Falling back to legacy hardcoded prompt",
+            )
+            self.preset = None
 
         self.logger.info("AZURE_GPT4_DIARIZATION_PROVIDER_INITIALIZED")
 
@@ -558,8 +578,60 @@ class AzureGPT4Provider(DiarizationProvider):
                     f'Chunk {chunk_idx}: [{ts_start:.1f}s → {ts_end:.1f}s] "{chunk_text[:80]}..."\n'
                 )
 
-        # Prompt for diarization with TRIPLE VISION (full text + webspeech + chunks with timestamps)
-        prompt = f"""Eres un asistente médico experto en identificar speakers en transcripciones de consultas médicas.
+        # Build prompt using preset or fallback to legacy
+        if self.preset:
+            # Use preset system_prompt + context-specific instructions
+            system_prompt = self.preset.system_prompt
+            user_prompt = f"""TRIPLE VISION - 3 FUENTES DE TRANSCRIPCIÓN:
+
+1. TRANSCRIPT COMPLETO (texto limpio):
+{transcript}
+{webspeech_section}
+{chunks_timeline}
+
+TASK ADICIONAL:
+- USA LOS TIMESTAMPS REALES de los chunks para ubicar cada segmento en el timeline
+- Infiere la ubicación temporal comparando el texto del segmento con los chunks
+- Para cada segmento, genera DOS versiones del texto:
+  * "text": Texto original exacto de la transcripción (sin cambios)
+  * "improved_text": Versión mejorada con gramática correcta, puntuación, acentos, capitalización y terminología médica apropiada
+
+OUTPUT FORMAT (JSON):
+{{
+  "segments": [
+    {{
+      "speaker": "DOCTOR",
+      "text": "hola maria pasa",
+      "improved_text": "Hola María, pasa.",
+      "chunk_idx": 0,
+      "start": 0.0,
+      "end": 13.0,
+      "confidence": 0.95,
+      "reasoning": "Greeting + professional tone"
+    }}
+  ]
+}}
+
+REGLAS:
+- "speaker": DOCTOR | PATIENT | OTHER (usa mayúsculas)
+- "text": Mantén el texto EXACTO de la transcripción original
+- "improved_text": Mejora gramática, puntuación, acentos, capitalización, términos médicos
+- "chunk_idx": Índice del chunk donde aparece el segmento (infiere comparando textos)
+- "start" y "end": Usa los timestamps del chunk correspondiente
+- "confidence": Score 0.0-1.0 (de preset)
+- "reasoning": Breve explicación de clasificación
+
+Responde SOLO con el JSON, sin explicaciones adicionales."""
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
+            temperature = self.preset.temperature
+            max_tokens = self.preset.max_tokens
+        else:
+            # Legacy fallback (old hardcoded prompt)
+            prompt = f"""Eres un asistente médico experto en identificar speakers en transcripciones de consultas médicas.
 
 TRIPLE VISION - 3 FUENTES DE TRANSCRIPCIÓN:
 
@@ -572,15 +644,6 @@ TASK: Identifica quién dijo qué en la transcripción. En una consulta médica 
 - Doctor/Doctora (hace preguntas médicas, examina, diagnostica)
 - Paciente (describe síntomas, responde preguntas)
 
-IMPORTANTE:
-- Divide el texto en segmentos naturales (cambios de speaker)
-- Asigna cada segmento a "Doctor" o "Paciente"
-- USA LOS TIMESTAMPS REALES de los chunks para ubicar cada segmento en el timeline
-- Infiere la ubicación temporal comparando el texto del segmento con los chunks
-- Para cada segmento, genera DOS versiones del texto:
-  * "text": Texto original exacto de la transcripción (sin cambios)
-  * "improved_text": Versión mejorada con gramática correcta, puntuación, acentos, capitalización y terminología médica apropiada
-
 OUTPUT FORMAT (JSON):
 {{
   "segments": [
@@ -591,33 +654,21 @@ OUTPUT FORMAT (JSON):
       "chunk_idx": 0,
       "start": 0.0,
       "end": 13.0
-    }},
-    {{
-      "speaker": "Paciente",
-      "text": "...",
-      "improved_text": "...",
-      "chunk_idx": 1,
-      "start": 13.0,
-      "end": 26.0
     }}
   ]
 }}
 
-REGLAS:
-- "text": Mantén el texto EXACTO de la transcripción original (no lo cambies)
-- "improved_text": Mejora gramática, puntuación, acentos, capitalización, términos médicos
-- "chunk_idx": Índice del chunk donde aparece el segmento (infiere comparando textos)
-- "start" y "end": Usa los timestamps del chunk correspondiente
-- Si un segmento abarca múltiples chunks, usa el rango completo
-
 Responde SOLO con el JSON, sin explicaciones adicionales."""
+            messages = [{"role": "user", "content": prompt}]
+            temperature = 0.1
+            max_tokens = 4000
 
         url = f"{self.endpoint}openai/deployments/{self.deployment}/chat/completions?api-version={self.api_version}"
         headers = {"api-key": self.api_key, "Content-Type": "application/json"}
         payload = {
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 4000,
-            "temperature": 0.1,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
         }
 
         try:

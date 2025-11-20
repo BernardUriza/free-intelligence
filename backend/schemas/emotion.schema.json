@@ -1,0 +1,210 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://free-intelligence.com/schemas/emotion.json",
+  "title": "Emotional State Analysis",
+  "description": "Schema for patient emotional state detection from emotion_analyzer preset",
+  "type": "object",
+  "required": ["primary_emotion", "confidence", "detected_emotions"],
+  "properties": {
+    "primary_emotion": {
+      "type": "string",
+      "enum": ["ANXIETY", "DEPRESSION", "PAIN_DISTRESS", "FEAR", "FRUSTRATION", "HOPE", "NEUTRAL"],
+      "description": "Primary detected emotion"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Confidence in primary emotion detection (0.0-1.0)"
+    },
+    "severity": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "Severity of primary emotion (0=none, 10=extreme)"
+    },
+    "detected_emotions": {
+      "type": "array",
+      "description": "All emotions detected with evidence",
+      "items": {
+        "type": "object",
+        "required": ["emotion", "confidence", "severity", "evidence"],
+        "properties": {
+          "emotion": {
+            "type": "string",
+            "enum": ["ANXIETY", "DEPRESSION", "PAIN_DISTRESS", "FEAR", "FRUSTRATION", "HOPE", "NEUTRAL"]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "severity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "evidence": {
+            "type": "array",
+            "description": "Evidence supporting this emotion",
+            "items": {
+              "type": "string"
+            }
+          },
+          "quotes": {
+            "type": "array",
+            "description": "Direct quotes from patient showing this emotion",
+            "items": {
+              "type": "string"
+            }
+          },
+          "linguistic_features": {
+            "type": "object",
+            "description": "Linguistic patterns detected",
+            "properties": {
+              "hedging": {
+                "type": "boolean",
+                "description": "Uses hedging language (tal vez, no sé)"
+              },
+              "absolutism": {
+                "type": "boolean",
+                "description": "Uses absolute terms (siempre, nunca)"
+              },
+              "repetition": {
+                "type": "boolean",
+                "description": "Repetitive concerns or obsessive thoughts"
+              },
+              "urgency": {
+                "type": "boolean",
+                "description": "Expresses urgency or desperation"
+              },
+              "hopelessness": {
+                "type": "boolean",
+                "description": "Expresses hopelessness or resignation"
+              }
+            }
+          }
+        }
+      }
+    },
+    "red_flags": {
+      "type": "array",
+      "description": "Critical warning signs requiring immediate attention",
+      "items": {
+        "type": "object",
+        "required": ["flag_type", "severity", "description"],
+        "properties": {
+          "flag_type": {
+            "type": "string",
+            "enum": [
+              "SUICIDAL_IDEATION",
+              "SELF_HARM",
+              "SEVERE_ANXIETY",
+              "SEVERE_DEPRESSION",
+              "PANIC_ATTACK",
+              "PSYCHOTIC_SYMPTOMS"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["HIGH", "CRITICAL"]
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the red flag"
+          },
+          "quotes": {
+            "type": "array",
+            "description": "Patient quotes indicating red flag",
+            "items": {
+              "type": "string"
+            }
+          },
+          "recommended_action": {
+            "type": "string",
+            "description": "Recommended immediate action (e.g., psychiatric referral)"
+          }
+        }
+      }
+    },
+    "clinical_recommendations": {
+      "type": "array",
+      "description": "Clinical recommendations based on emotional state",
+      "items": {
+        "type": "string"
+      }
+    },
+    "support_needs": {
+      "type": "array",
+      "description": "Support needs identified",
+      "items": {
+        "type": "string"
+      }
+    },
+    "screening_tools": {
+      "type": "array",
+      "description": "Recommended screening tools",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tool": {
+            "type": "string",
+            "enum": ["GAD-7", "PHQ-9", "PHQ-2", "PCL-5", "MDQ"],
+            "description": "Standardized screening tool"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why this tool is recommended"
+          }
+        }
+      }
+    },
+    "cultural_context": {
+      "type": "object",
+      "description": "Cultural considerations (Mexican healthcare context)",
+      "properties": {
+        "stoicism_noted": {
+          "type": "boolean",
+          "description": "Patient exhibits aguantar culture (underreporting distress)"
+        },
+        "family_involvement": {
+          "type": "boolean",
+          "description": "Family members present or mentioned (familismo)"
+        },
+        "religious_coping": {
+          "type": "boolean",
+          "description": "References to religious faith as coping mechanism"
+        },
+        "respeto_barrier": {
+          "type": "boolean",
+          "description": "May not question doctor directly due to respeto"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "description": "Session identifier"
+        },
+        "analyzed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When analysis was performed"
+        },
+        "model_version": {
+          "type": "string",
+          "description": "Version of emotion analyzer used"
+        },
+        "analysis_limitations": {
+          "type": "array",
+          "description": "Limitations of this analysis",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
