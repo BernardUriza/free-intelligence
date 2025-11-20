@@ -132,29 +132,52 @@ async def stream_chunk(
 
             await handler.initialize_session(session_id, metadata if metadata else None)
 
-        # 3. Transcribe audio (SHARED LOGIC - STT load balancer)
+        # 3. Read audio bytes
         audio_bytes = await audio.read()
-        transcript_result = await service.transcribe_audio(audio_bytes)
 
-        # 4. Save chunk (strategy-specific: HDF5 vs in-memory)
-        await handler.save_chunk(
-            session_id=session_id,
-            chunk_number=chunk_number,
-            audio_bytes=audio_bytes,
-            transcript=transcript_result.get("text", ""),
-            metadata={
-                "provider": transcript_result.get("provider", "unknown"),
-                "confidence": transcript_result.get("confidence", 0.0),
-                "timestamp": timestamp_start or 0.0,
-                "timestamp_start": timestamp_start or 0.0,
-                "timestamp_end": timestamp_end or 0.0,
-                "duration": transcript_result.get("duration", 0.0),
-                "language": transcript_result.get("language", "es-MX"),
-            },
-        )
+        # 4. Transcribe + Save (strategy-specific)
+        if mode == "chat":
+            # CHAT MODE: Synchronous transcription (blocking - OK for chat)
+            transcript_result = await service.transcribe_audio_sync(audio_bytes)
 
-        # 5. Get status for response
-        status_dict = await handler.get_session_status(session_id)
+            # Save chunk with transcript
+            await handler.save_chunk(
+                session_id=session_id,
+                chunk_number=chunk_number,
+                audio_bytes=audio_bytes,
+                transcript=transcript_result.get("text", ""),
+                metadata={
+                    "provider": transcript_result.get("provider", "unknown"),
+                    "confidence": transcript_result.get("confidence", 0.0),
+                    "timestamp": timestamp_start or 0.0,
+                    "timestamp_start": timestamp_start or 0.0,
+                    "timestamp_end": timestamp_end or 0.0,
+                    "duration": transcript_result.get("duration", 0.0),
+                    "language": transcript_result.get("language", "es-MX"),
+                },
+            )
+
+            # Get status for response
+            status_dict = await handler.get_session_status(session_id)
+
+        else:
+            # MEDICAL MODE: Use existing worker flow (async, non-blocking)
+            result = await service.process_chunk(
+                session_id=session_id,
+                chunk_number=chunk_number,
+                audio_bytes=audio_bytes,
+                timestamp_start=timestamp_start,
+                timestamp_end=timestamp_end,
+            )
+
+            # Return existing result format
+            return StreamChunkResponse(
+                session_id=result.session_id,
+                chunk_number=result.chunk_number,
+                status=result.status,
+                total_chunks=result.total_chunks,
+                processed_chunks=result.processed_chunks,
+            )
 
         return StreamChunkResponse(
             session_id=session_id,
