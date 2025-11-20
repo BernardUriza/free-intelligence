@@ -1,0 +1,264 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://free-intelligence.com/schemas/soap.json",
+  "title": "SOAP Note",
+  "description": "Schema for structured SOAP note output from soap_generator preset",
+  "type": "object",
+  "required": ["subjective", "objective", "assessment", "plan"],
+  "properties": {
+    "subjective": {
+      "type": "object",
+      "description": "Subjective section - patient's symptoms and history",
+      "required": ["chief_complaint"],
+      "properties": {
+        "chief_complaint": {
+          "type": "string",
+          "description": "Main reason for visit (motivo de consulta)"
+        },
+        "hpi": {
+          "type": "string",
+          "description": "History of present illness - detailed symptom description"
+        },
+        "past_medical_history": {
+          "type": "array",
+          "description": "Previous medical conditions",
+          "items": {
+            "type": "string"
+          }
+        },
+        "medications": {
+          "type": "array",
+          "description": "Current medications",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allergies": {
+          "type": "array",
+          "description": "Known allergies",
+          "items": {
+            "type": "string"
+          }
+        },
+        "social_history": {
+          "type": "string",
+          "description": "Relevant social history (smoking, alcohol, occupation)"
+        },
+        "family_history": {
+          "type": "string",
+          "description": "Relevant family medical history"
+        },
+        "review_of_systems": {
+          "type": "object",
+          "description": "Systematic review of body systems",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "objective": {
+      "type": "object",
+      "description": "Objective section - observable findings",
+      "properties": {
+        "vitals": {
+          "type": "object",
+          "description": "Vital signs",
+          "properties": {
+            "blood_pressure": {
+              "type": "string",
+              "pattern": "^\\d{2,3}/\\d{2,3}$",
+              "description": "Blood pressure (e.g., 120/80)"
+            },
+            "heart_rate": {
+              "type": "string",
+              "description": "Heart rate in bpm"
+            },
+            "temperature": {
+              "type": "string",
+              "description": "Body temperature in Celsius"
+            },
+            "respiratory_rate": {
+              "type": "string",
+              "description": "Respiratory rate per minute"
+            },
+            "spo2": {
+              "type": "string",
+              "description": "Oxygen saturation percentage"
+            },
+            "weight": {
+              "type": "string",
+              "description": "Patient weight"
+            },
+            "height": {
+              "type": "string",
+              "description": "Patient height"
+            },
+            "bmi": {
+              "type": "string",
+              "description": "Body mass index"
+            }
+          }
+        },
+        "physical_exam": {
+          "type": "string",
+          "description": "Physical examination findings by system"
+        },
+        "diagnostic_tests": {
+          "type": "string",
+          "description": "Results of diagnostic tests mentioned"
+        },
+        "mental_status": {
+          "type": "string",
+          "description": "Mental status observations"
+        }
+      }
+    },
+    "assessment": {
+      "type": "object",
+      "description": "Assessment section - diagnosis and clinical reasoning",
+      "required": ["primary_diagnosis"],
+      "properties": {
+        "primary_diagnosis": {
+          "type": "string",
+          "description": "Primary working diagnosis"
+        },
+        "differential": {
+          "type": "array",
+          "description": "Differential diagnoses considered",
+          "items": {
+            "type": "string"
+          }
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["mild", "moderate", "severe", "critical"],
+          "description": "Severity assessment of condition"
+        },
+        "clinical_reasoning": {
+          "type": "string",
+          "description": "Explanation of diagnostic reasoning"
+        },
+        "icd10_codes": {
+          "type": "array",
+          "description": "ICD-10 diagnostic codes",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "pattern": "^[A-Z]\\d{2}(\\.\\d{1,2})?$"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "plan": {
+      "type": "object",
+      "description": "Plan section - treatment and follow-up",
+      "properties": {
+        "medications": {
+          "type": "array",
+          "description": "Prescribed medications",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Medication name"
+              },
+              "dose": {
+                "type": "string",
+                "description": "Dosage"
+              },
+              "frequency": {
+                "type": "string",
+                "description": "Frequency (e.g., cada 8 horas)"
+              },
+              "duration": {
+                "type": "string",
+                "description": "Duration of treatment"
+              },
+              "instructions": {
+                "type": "string",
+                "description": "Special instructions"
+              }
+            }
+          }
+        },
+        "diagnostic_tests": {
+          "type": "array",
+          "description": "Diagnostic tests ordered",
+          "items": {
+            "type": "string"
+          }
+        },
+        "referrals": {
+          "type": "array",
+          "description": "Referrals to specialists",
+          "items": {
+            "type": "string"
+          }
+        },
+        "follow_up": {
+          "type": "string",
+          "description": "Follow-up instructions (timeframe and conditions)"
+        },
+        "patient_education": {
+          "type": "string",
+          "description": "Patient education and self-care instructions"
+        },
+        "lifestyle_modifications": {
+          "type": "array",
+          "description": "Recommended lifestyle changes",
+          "items": {
+            "type": "string"
+          }
+        },
+        "warning_signs": {
+          "type": "array",
+          "description": "Warning signs to watch for",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "description": "Session identifier"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When SOAP note was generated"
+        },
+        "model_version": {
+          "type": "string",
+          "description": "Version of SOAP generator used"
+        },
+        "completeness_score": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "How complete the SOAP note is (0.0-1.0)"
+        },
+        "missing_sections": {
+          "type": "array",
+          "description": "Sections that could not be populated from transcription",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

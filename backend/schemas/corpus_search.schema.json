@@ -1,0 +1,230 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://free-intelligence.com/schemas/corpus_search.json",
+  "title": "Corpus Search Result",
+  "description": "Schema for HDF5 corpus search results from corpus_search preset",
+  "type": "object",
+  "required": ["query_interpretation", "results"],
+  "properties": {
+    "query_interpretation": {
+      "type": "string",
+      "description": "Natural language explanation of what the query is looking for"
+    },
+    "hdf5_paths": {
+      "type": "array",
+      "description": "HDF5 paths that will be searched",
+      "items": {
+        "type": "string",
+        "pattern": "^/sessions/.*"
+      }
+    },
+    "search_strategy": {
+      "type": "string",
+      "description": "Strategy used to execute the search (filter, scan, aggregate)"
+    },
+    "expected_results": {
+      "type": "string",
+      "description": "Expected number/type of results"
+    },
+    "results": {
+      "type": "array",
+      "description": "Search results",
+      "items": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "pattern": "^session_\\d{8}_\\d{6}$",
+            "description": "Session identifier"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Session date and time"
+          },
+          "tasks_completed": {
+            "type": "array",
+            "description": "Completed task types",
+            "items": {
+              "type": "string",
+              "enum": [
+                "TRANSCRIPTION",
+                "DIARIZATION",
+                "SOAP_GENERATION",
+                "EMOTION_ANALYSIS",
+                "ENCRYPTION"
+              ]
+            }
+          },
+          "diagnosis": {
+            "type": "string",
+            "description": "Primary diagnosis (if available)"
+          },
+          "medications": {
+            "type": "array",
+            "description": "Medications prescribed",
+            "items": {
+              "type": "string"
+            }
+          },
+          "duration_minutes": {
+            "type": "number",
+            "description": "Consultation duration in minutes"
+          },
+          "emotional_state": {
+            "type": "string",
+            "description": "Detected patient emotional state"
+          },
+          "quality_score": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "description": "Overall data quality score"
+          },
+          "flags": {
+            "type": "array",
+            "description": "Any red flags or warnings",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "aggregations": {
+      "type": "object",
+      "description": "Aggregated statistics across results",
+      "properties": {
+        "total_sessions": {
+          "type": "integer",
+          "description": "Total number of sessions found"
+        },
+        "avg_duration": {
+          "type": "number",
+          "description": "Average consultation duration"
+        },
+        "most_common_diagnosis": {
+          "type": "string",
+          "description": "Most frequently occurring diagnosis"
+        },
+        "most_common_medication": {
+          "type": "string",
+          "description": "Most frequently prescribed medication"
+        },
+        "date_range": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "end": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "task_completion_rates": {
+          "type": "object",
+          "description": "Completion rates by task type",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          }
+        },
+        "emotional_state_distribution": {
+          "type": "object",
+          "description": "Distribution of emotional states",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "filters_applied": {
+      "type": "object",
+      "description": "Filters applied to the search",
+      "properties": {
+        "date_range": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string",
+              "format": "date"
+            },
+            "end": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        },
+        "task_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["completed", "failed", "in_progress", "pending"]
+        },
+        "diagnosis_keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "medication_keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "description": "Recommendations for improving search or data quality",
+      "items": {
+        "type": "string"
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Search performance metrics",
+      "properties": {
+        "query_time_ms": {
+          "type": "number",
+          "description": "Query execution time in milliseconds"
+        },
+        "sessions_scanned": {
+          "type": "integer",
+          "description": "Number of sessions scanned"
+        },
+        "cache_hit": {
+          "type": "boolean",
+          "description": "Whether result was cached"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "searched_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When search was performed"
+        },
+        "model_version": {
+          "type": "string",
+          "description": "Version of corpus search analyzer used"
+        },
+        "corpus_path": {
+          "type": "string",
+          "description": "Path to HDF5 corpus file"
+        }
+      }
+    }
+  }
+}

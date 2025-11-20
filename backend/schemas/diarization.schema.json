@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://free-intelligence.com/schemas/diarization.json",
+  "title": "Speaker Diarization Output",
+  "description": "Schema for speaker classification output from diarization_analyst preset",
+  "type": "object",
+  "required": ["speaker", "confidence"],
+  "properties": {
+    "speaker": {
+      "type": "string",
+      "enum": ["DOCTOR", "PATIENT", "OTHER"],
+      "description": "Classified speaker role"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Confidence score for classification (0.0-1.0)"
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "Explanation of classification decision with linguistic evidence"
+    },
+    "segment_text": {
+      "type": "string",
+      "description": "The actual speech segment that was classified"
+    },
+    "alternative_speakers": {
+      "type": "array",
+      "description": "Alternative speaker classifications if ambiguous",
+      "items": {
+        "type": "object",
+        "required": ["speaker", "confidence"],
+        "properties": {
+          "speaker": {
+            "type": "string",
+            "enum": ["DOCTOR", "PATIENT", "OTHER"]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          }
+        }
+      }
+    },
+    "linguistic_features": {
+      "type": "object",
+      "description": "Detected linguistic patterns",
+      "properties": {
+        "medical_terminology": {
+          "type": "boolean",
+          "description": "Uses professional medical terms"
+        },
+        "asks_questions": {
+          "type": "boolean",
+          "description": "Speaker asks diagnostic questions"
+        },
+        "first_person_symptoms": {
+          "type": "boolean",
+          "description": "Describes symptoms in first person"
+        },
+        "gives_instructions": {
+          "type": "boolean",
+          "description": "Provides medical instructions or prescriptions"
+        },
+        "third_person_reference": {
+          "type": "boolean",
+          "description": "References patient in third person (family member)"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "segment_index": {
+          "type": "integer",
+          "description": "Index of this segment in full conversation"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When classification was performed"
+        },
+        "model_version": {
+          "type": "string",
+          "description": "Version of diarization model used"
+        }
+      }
+    }
+  }
+}
