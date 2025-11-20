@@ -79,3 +79,4 @@ data/
 backups/
 exports/
 backend/static/*.mp3
+.claude/
