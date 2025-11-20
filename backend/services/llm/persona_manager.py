@@ -16,10 +16,9 @@ Personas disponibles:
 
 from __future__ import annotations
 
+import yaml
 from dataclasses import dataclass
 from pathlib import Path
-
-import yaml
 
 
 @dataclass
@@ -63,7 +62,7 @@ class PersonaManager:
                     config_data = yaml.safe_load(f)
 
                 persona_name = config_data["persona"]
-                self._personas[persona_name] = PersonaConfig(
+                self._personas[persona_name] = PersonaConfig(  # type: ignore[call-arg]
                     persona=persona_name,
                     system_prompt=config_data["system_prompt"],
                     temperature=config_data.get("temperature", 0.7),
