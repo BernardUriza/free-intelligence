@@ -3,11 +3,17 @@
 # Created: 2025-10-28
 # Card: FI-CORE-FEAT-008
 
+preset_id: "intake_coach"
 name: IntakeCoach
 version: "1.0.0"
 description: AI-powered medical intake assistant for triage and patient data collection
-provider: claude
-model: claude-3-5-sonnet-20241022
+
+llm:
+  provider: claude
+  model: claude-3-5-sonnet-20241022
+  temperature: 0.7
+  max_tokens: 2048
+  stream: false
 
 # System prompt - defines the assistant's role and behavior
 system_prompt: |
@@ -114,22 +120,20 @@ phi_redaction:
     - ssn
 
 # Output schema reference
-output_schema: "backend/schemas/intake.schema.json"
-
-# LLM parameters
-llm_config:
-  max_tokens: 2048
-  temperature: 0.7
-  timeout_seconds: 30
-  budget:
-    max_tokens_per_hour: 50000
-    max_requests_per_hour: 100
-
-# Quality checks
 validation:
-  min_conversation_turns: 3  # At least 3 back-and-forth exchanges
-  required_symptom_details:
-    - onset
-    - duration
-    - severity
-  urgency_must_be_classified: true
+  output_schema: "backend/schemas/intake.schema.json"
+  enabled: true
+  strict: true
+
+# Caching
+cache:
+  enabled: true
+  ttl_seconds: 3600
+  key_fields: ["prompt", "model"]
+
+# Metadata
+metadata:
+  task_type: "INTAKE"
+  use_case: "patient_triage"
+  avg_tokens_per_call: 1500
+  cost_per_1k_tokens: 0.03

@@ -73,14 +73,20 @@ class PresetLoader:
     - Cache key computation (hash of prompt+config)
     """
 
-    def __init__(self, presets_dir: str = "prompts", schemas_dir: str = "schemas"):
+    def __init__(self, presets_dir: str | None = None, schemas_dir: str | None = None):
         """
         Initialize preset loader.
 
         Args:
-            presets_dir: Directory with YAML presets
-            schemas_dir: Directory with JSON schemas
+            presets_dir: Directory with YAML presets (default: backend/prompts)
+            schemas_dir: Directory with JSON schemas (default: backend/schemas)
         """
+        # Default to backend/prompts and backend/schemas (absolute paths)
+        if presets_dir is None:
+            presets_dir = str(Path(__file__).parent.parent / "prompts")
+        if schemas_dir is None:
+            schemas_dir = str(Path(__file__).parent)
+
         self.presets_dir = Path(presets_dir)
         self.schemas_dir = Path(schemas_dir)
         self.logger = get_logger(__name__)
