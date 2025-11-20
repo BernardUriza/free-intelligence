@@ -30,6 +30,10 @@ from datetime import datetime, timedelta
 import structlog
 from auth0.management import Auth0
 from auth0.authentication import GetToken
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 logger = structlog.get_logger(__name__)
 
@@ -354,7 +358,7 @@ class Auth0ManagementService:
         """
         try:
             client = self._get_client()
-            client.users.add_roles(user_id, {"roles": role_ids})
+            client.users.add_roles(user_id, role_ids)
 
             logger.info(
                 "ROLES_ASSIGNED",
@@ -376,7 +380,7 @@ class Auth0ManagementService:
         """
         try:
             client = self._get_client()
-            client.users.remove_roles(user_id, {"roles": role_ids})
+            client.users.remove_roles(user_id, role_ids)
 
             logger.info(
                 "ROLES_REMOVED",

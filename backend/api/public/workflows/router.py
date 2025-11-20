@@ -40,6 +40,8 @@ from fastapi import APIRouter
 # Import sub-routers (modular architecture following SOLIS pattern)
 from backend.api.public.workflows import (
     assistant,
+    assistant_history,
+    assistant_websocket,
     clinic_media,
     evidence,
     kpis,
@@ -90,6 +92,12 @@ router.include_router(kpis.router, tags=["KPIs"])
 
 # ASSISTANT: Free-Intelligence AI persona (onboarding, chat)
 router.include_router(assistant.router, tags=["AI Assistant"])
+
+# ASSISTANT HISTORY: Conversation history search (semantic search over embeddings)
+router.include_router(assistant_history.router, tags=["AI Assistant"])
+
+# ASSISTANT WEBSOCKET: Real-time chat sync via WebSocket
+router.include_router(assistant_websocket.router, tags=["AI Assistant"])
 
 # WAITING ROOM: Dynamic content generation for TV displays
 router.include_router(waiting_room.router, prefix="/waiting-room", tags=["Waiting Room"])

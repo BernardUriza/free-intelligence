@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 
+from backend.api.public.workflows.assistant_websocket import broadcast_new_message
 from backend.logger import get_logger
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.llm import llm_generate
@@ -109,10 +110,20 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
             memory = get_memory_manager(effective_doctor_id)
 
             # Store user message
+            user_timestamp = datetime.now(UTC).isoformat()
             memory.store_interaction(
                 session_id=request.session_id or "unknown",
                 role="user",
                 content=request.message,
+                persona=request.persona,
+            )
+
+            # Broadcast user message to all connected devices (WebSocket)
+            await broadcast_new_message(
+                doctor_id=effective_doctor_id,
+                role="user",
+                content=request.message,
+                timestamp=user_timestamp,
                 persona=request.persona,
             )
 
@@ -185,10 +196,20 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
         # Store assistant response in memory if enabled
         if memory_enabled and effective_doctor_id:
             memory = get_memory_manager(effective_doctor_id)
+            assistant_timestamp = datetime.now(UTC).isoformat()
             memory.store_interaction(
                 session_id=request.session_id or "unknown",
                 role="assistant",
                 content=response_text,
+                persona=request.persona,
+            )
+
+            # Broadcast assistant response to all connected devices (WebSocket)
+            await broadcast_new_message(
+                doctor_id=effective_doctor_id,
+                role="assistant",
+                content=response_text,
+                timestamp=assistant_timestamp,
                 persona=request.persona,
             )
 
