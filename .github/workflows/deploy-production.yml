@@ -111,8 +111,20 @@ jobs:
             apt-get update && apt-get install -y python3-pip
           fi
 
+          echo "💾 Setting up swap space if needed..."
+          if [ ! -f /swapfile ]; then
+            fallocate -l 2G /swapfile
+            chmod 600 /swapfile
+            mkswap /swapfile
+            swapon /swapfile
+            echo "✅ Swap space created (2GB)"
+          else
+            echo "✅ Swap space already exists"
+          fi
+
           echo "📦 Installing Python dependencies..."
-          python3 -m pip install -r requirements.txt --quiet
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt
 
           echo "✅ Dependencies installed"
           ENDSSH
