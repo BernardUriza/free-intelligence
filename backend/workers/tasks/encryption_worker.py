@@ -57,8 +57,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 # Import structlog logger for consistent logging
 try:
-    from backend.logger import get_logger
-    from backend.models.task_type import TaskStatus, TaskType
+    from backend.logger import get_logger  # type: ignore[assignment]
+    from backend.models.task_type import TaskStatus, TaskType  # type: ignore[assignment]
     from backend.storage.task_repository import update_task_metadata
     HAS_BACKEND_IMPORTS = True
 except ImportError:
