@@ -97,7 +97,7 @@ jobs:
         run: |
           rsync -avz \
             -e "ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no" \
-            requirements.txt policy.yaml \
+            requirements-prod.txt policy.yaml \
             $DROPLET_USER@$DROPLET_HOST:$PROJECT_PATH/
 
       - name: Install Python dependencies
@@ -123,8 +123,8 @@ jobs:
           fi
 
           echo "📦 Installing Python dependencies..."
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements.txt
+          python3.14 -m pip install --upgrade pip
+          python3.14 -m pip install -r requirements-prod.txt
 
           echo "✅ Dependencies installed"
           ENDSSH
@@ -141,7 +141,7 @@ jobs:
 
           echo "🚀 Starting new backend..."
           cd /opt/free-intelligence
-          nohup python3 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
+          PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
           sleep 5
 
           echo "✅ Backend deployed successfully"
