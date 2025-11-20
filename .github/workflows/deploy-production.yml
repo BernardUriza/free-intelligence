@@ -122,6 +122,9 @@ jobs:
             echo "✅ Swap space already exists"
           fi
 
+          echo "🧹 Removing conflicting system packages..."
+          apt-get remove -y python3-zope.interface python3-twisted || true
+
           echo "📦 Installing Python dependencies..."
           python3.14 -m pip install --upgrade pip
           python3.14 -m pip install -r requirements-prod.txt
