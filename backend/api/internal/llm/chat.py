@@ -123,9 +123,10 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
             )
 
             # Build enriched prompt with memory
+            system_prompt = persona_mgr.build_system_prompt(request.persona, request.context)
             prompt = memory.build_prompt(
                 context=context,
-                system_prompt=persona_config.system_prompt,
+                system_prompt=system_prompt,
                 current_message=request.message,
             )
 
@@ -140,7 +141,7 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
             )
         else:
             # Build prompt without memory (original behavior)
-            prompt = persona_config.system_prompt
+            prompt = persona_mgr.build_system_prompt(request.persona, request.context)
 
             if request.context:
                 prompt += f"\n\nContext:\n{json.dumps(request.context, indent=2)}"
