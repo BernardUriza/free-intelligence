@@ -148,11 +148,17 @@ jobs:
           sleep 5
 
           echo "✅ Backend deployed successfully"
-          echo "📝 Last 10 log lines:"
-          tail -10 /tmp/backend.log
+          echo "📝 Last 100 log lines:"
+          tail -100 /tmp/backend.log
 
+          echo ""
           echo "🔍 Verifying backend is running..."
           ps aux | grep uvicorn | grep -v grep || echo "⚠️  Backend process not found"
+
+          echo ""
+          echo "🧪 Testing local backend connection..."
+          sleep 3
+          curl -s http://localhost:7001/api/health || echo "❌ Backend not responding locally"
           ENDSSH
 
   verify-deployment:
