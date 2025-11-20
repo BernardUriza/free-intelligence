@@ -14,6 +14,8 @@ Personas disponibles:
 - general_assistant: Asistente general médico
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
 
