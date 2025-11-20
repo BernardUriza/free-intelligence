@@ -32,18 +32,26 @@ def normalize_capitalization(text: str) -> str:
         "Muy bien doctor García"
     """
     if not text or not text.strip():
-        return text
+        return ""  # Return empty string for whitespace-only input
 
-    # Step 1: Capitalize first character
-    text = text[0].upper() + text[1:] if len(text) > 1 else text.upper()
+    # Strip leading/trailing whitespace for processing
+    text = text.strip()
+
+    # Step 1: Capitalize first letter (handle ¿ prefix for Spanish)
+    # If starts with ¿, capitalize the first letter after it
+    if text.startswith("¿") and len(text) > 1:
+        text = "¿" + text[1].upper() + text[2:] if len(text) > 2 else "¿" + text[1].upper()
+    else:
+        text = text[0].upper() + text[1:] if len(text) > 1 else text.upper()
 
     # Step 2: Capitalize after sentence endings (. ! ?)
-    # Matches: ". word" → ". Word"
-    text = re.sub(r'([.!?]\s+)([a-záéíóúñü])', lambda m: m.group(1) + m.group(2).upper(), text)
+    # Matches: ". word" → ". Word" and "? word" → "? Word"
+    # Also handle "? ¿word" → "? ¿Word" (Spanish questions after periods)
+    text = re.sub(r'([.!?]\s+)(¿?)([a-záéíóúñü])', lambda m: m.group(1) + m.group(2) + m.group(3).upper(), text)
 
     # Step 3: Fix common mid-sentence capitalization errors
     # "El " → "el " (when not at start of sentence)
-    # But preserve after sentence endings
+    # But preserve after sentence endings and at start of text
     common_words = {
         r'\bEl\b': 'el',
         r'\bLa\b': 'la',
@@ -57,13 +65,16 @@ def normalize_capitalization(text: str) -> str:
         r'\bPor\b': 'por',
         r'\bPara\b': 'para',
         r'\bEs\b': 'es',
+        r'\bEspero\b': 'espero',
+        r'\bQue\b': 'que',
+        r'\bDisfrute\b': 'disfrute',
     }
 
     for pattern, replacement in common_words.items():
-        # Only replace if NOT at start of sentence (after . ! ?)
-        # Use negative lookbehind to avoid replacing after sentence endings
+        # Only replace if NOT at start of sentence (after . ! ?) or start of string
+        # Use negative lookbehind to avoid replacing after sentence endings or at position 0
         text = re.sub(
-            rf'(?<![.!?]\s)({pattern})',
+            rf'(?<!^)(?<![.!?]\s)({pattern})',
             replacement,
             text
         )
