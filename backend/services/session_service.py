@@ -30,6 +30,14 @@ class SessionService:
     Provides unified view of session state across all task types.
     """
 
+    def __init__(self, repository=None):
+        """Initialize SessionService.
+
+        Args:
+            repository: SessionRepository instance (optional for backwards compatibility)
+        """
+        self.repository = repository
+
     async def get_session_info(self, session_id: str) -> dict:
         """Get complete session information (all tasks).
 
