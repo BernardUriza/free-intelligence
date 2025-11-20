@@ -100,6 +100,23 @@ jobs:
             requirements.txt policy.yaml \
             $DROPLET_USER@$DROPLET_HOST:$PROJECT_PATH/
 
+      - name: Install Python dependencies
+        run: |
+          ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
+            $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
+          cd /opt/free-intelligence
+
+          echo "📦 Installing pip if needed..."
+          if ! python3 -m pip --version > /dev/null 2>&1; then
+            apt-get update && apt-get install -y python3-pip
+          fi
+
+          echo "📦 Installing Python dependencies..."
+          python3 -m pip install -r requirements.txt --quiet
+
+          echo "✅ Dependencies installed"
+          ENDSSH
+
       - name: Rebuild and restart backend
         run: |
           ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
