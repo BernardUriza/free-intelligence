@@ -49,7 +49,7 @@ class Auth0ManagementService:
     Implements token caching to avoid rate limits.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize Auth0 Management API client with token caching."""
         self.domain = os.getenv("AUTH0_DOMAIN")
         self.client_id = os.getenv("AUTH0_MANAGEMENT_CLIENT_ID")
@@ -87,10 +87,9 @@ class Auth0ManagementService:
             str: Valid access token
         """
         # Return cached token if still valid
-        if self._token and self._token_expires_at:
-            if datetime.now() < self._token_expires_at:
-                logger.debug("USING_CACHED_TOKEN")
-                return self._token
+        if self._token and self._token_expires_at and datetime.now() < self._token_expires_at:
+            logger.debug("USING_CACHED_TOKEN")
+            return self._token
 
         # Request new token
         logger.info("REQUESTING_NEW_MANAGEMENT_TOKEN")
@@ -162,7 +161,7 @@ class Auth0ManagementService:
                 returned=len(response.get("users", [])),
             )
 
-            return response
+            return response  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error("FAILED_TO_LIST_USERS", error=str(e))
@@ -183,7 +182,7 @@ class Auth0ManagementService:
             user = client.users.get(user_id)
 
             logger.info("USER_RETRIEVED", user_id=user_id, email=user.get("email"))
-            return user
+            return user  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error("FAILED_TO_GET_USER", user_id=user_id, error=str(e))
@@ -241,7 +240,7 @@ class Auth0ManagementService:
                 email_verified=email_verified,
             )
 
-            return user
+            return user  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error("FAILED_TO_CREATE_USER", email=email, error=str(e))
@@ -268,7 +267,7 @@ class Auth0ManagementService:
                 fields_updated=list(updates.keys()),
             )
 
-            return user
+            return user  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error("FAILED_TO_UPDATE_USER", user_id=user_id, error=str(e))
@@ -312,7 +311,7 @@ class Auth0ManagementService:
                 blocked=blocked,
             )
 
-            return user
+            return user  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error("FAILED_TO_BLOCK_USER", user_id=user_id, error=str(e))
@@ -342,7 +341,7 @@ class Auth0ManagementService:
                 roles=[r.get("name") for r in roles.get("roles", [])],
             )
 
-            return roles.get("roles", [])
+            return roles.get("roles", [])  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error("FAILED_TO_GET_USER_ROLES", user_id=user_id, error=str(e))
@@ -404,7 +403,7 @@ class Auth0ManagementService:
             response = client.roles.list()
 
             logger.info("ROLES_LISTED", count=len(response.get("roles", [])))
-            return response.get("roles", [])
+            return response.get("roles", [])  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error("FAILED_TO_LIST_ROLES", error=str(e))
@@ -456,7 +455,7 @@ class Auth0ManagementService:
                 secondary_user_id=secondary_user_id,
             )
 
-            return result
+            return result  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error(
@@ -497,5 +496,5 @@ def get_auth0_service() -> Auth0ManagementService:
     """Get singleton Auth0 Management Service instance."""
     global _auth0_service
     if _auth0_service is None:
-        _auth0_service = Auth0ManagementService()
+        _auth0_service = Auth0ManagementService()  # type: ignore[no-untyped-call]
     return _auth0_service

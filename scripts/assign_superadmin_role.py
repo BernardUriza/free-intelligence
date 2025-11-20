@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from backend.services.auth0_management import get_auth0_service
 
 
-def main():
+def main() -> None:
     """Assign superadmin role to user"""
     if len(sys.argv) < 2:
         print("❌ Usage: python3 scripts/assign_superadmin_role.py <email>")
@@ -62,7 +62,7 @@ def main():
         if not superadmin_role:
             # Create the role if it doesn't exist
             print("📝 Creating FI-superadmin role...")
-            superadmin_role = service.create_role(
+            superadmin_role = service.create_role(  # type: ignore[attr-defined]
                 name="FI-superadmin",
                 description="Free Intelligence Superadmin - Full system access for user management and configuration",
             )
@@ -101,7 +101,7 @@ def main():
         print()
         print(f"📧 User email: {email}")
         print(f"🆔 User ID: {user_id}")
-        print(f"🔑 Role: FI-superadmin")
+        print("🔑 Role: FI-superadmin")
         print()
 
     except Exception as e:
@@ -113,4 +113,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()  # type: ignore[no-untyped-call]
