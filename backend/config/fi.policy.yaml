@@ -65,7 +65,7 @@ diarization:
 # ===== STT Provider Configuration =====
 stt:
   # Primary provider for transcription
-  primary_provider: deepgram  # CHANGED: Deepgram (fast, 1-2s) instead of Azure Whisper (slow, 10-30s)
+  primary_provider: azure_whisper  # TEMPORARILY using Azure Whisper for chat (Deepgram returns empty)
 
   # Fallback providers in order (cloud only)
   fallback_providers:
@@ -91,6 +91,9 @@ stt:
       model: nova-2
       timeout_seconds: 30
       language_default: es
+      # Fallback to Azure Whisper if Deepgram returns empty transcript
+      retry_on_empty: true
+      fallback_on_empty: azure_whisper
       # Credentials from environment:
       # - DEEPGRAM_API_KEY: your-api-key
 

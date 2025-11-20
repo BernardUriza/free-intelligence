@@ -241,9 +241,10 @@ class TranscriptionService:
         self,
         audio_bytes: bytes,
     ) -> dict:
-        """Synchronous audio transcription (for chat mode - blocking).
+        """Async audio transcription for chat mode (runs in thread pool).
 
-        NOTE: This is a BLOCKING operation (10-15s). Only use for chat mode.
+        NOTE: This uses asyncio.to_thread() to run blocking STT in a thread pool.
+        This prevents blocking the event loop during transcription (10-15s).
         Medical mode should use process_chunk() with workers instead.
 
         Args:
@@ -257,6 +258,7 @@ class TranscriptionService:
                 - duration: Audio duration in seconds
                 - language: Detected language
         """
+        import asyncio
         import os
         import tempfile
 
@@ -287,9 +289,12 @@ class TranscriptionService:
             # Get provider config from policy
             provider_config = balancer.policy.get("stt", {}).get("providers", {}).get(provider_name, {})
 
-            # Transcribe
-            provider = get_stt_provider(provider_name, config=provider_config)
-            response = provider.transcribe(tmp_path, language="es")
+            # Transcribe in thread pool (blocking call)
+            def _do_transcribe():
+                provider = get_stt_provider(provider_name, config=provider_config)
+                return provider.transcribe(tmp_path, language="es")
+
+            response = await asyncio.to_thread(_do_transcribe)
 
             logger.info(
                 "SYNC_TRANSCRIPTION_SUCCESS",

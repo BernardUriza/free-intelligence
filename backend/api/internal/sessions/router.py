@@ -25,7 +25,7 @@ Endpoints:
 - PATCH /api/sessions/{id} -> update session
 """
 
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, Query

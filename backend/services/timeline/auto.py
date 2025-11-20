@@ -12,7 +12,7 @@ Sprint: SPR-2025W44
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from backend.compat import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict
 

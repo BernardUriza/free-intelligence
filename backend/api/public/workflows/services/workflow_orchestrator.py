@@ -12,7 +12,7 @@ Pattern: Service Layer + Command Pattern
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from typing import Any
 
 from backend.logger import get_logger

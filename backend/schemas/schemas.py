@@ -11,7 +11,7 @@ Clean Code Principles:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from enum import Enum
 from typing import Any, Generic, List, TypeVar
 

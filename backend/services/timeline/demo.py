@@ -12,7 +12,7 @@ Card: [P0][Área: UX/UI][Tipo: feature] Memoria legible — Timeline AURITY
 Sprint: SPR-2025W44
 """
 
-from datetime import UTC, datetime, timedelta
+from backend.compat import UTC, datetime, timedelta
 
 from backend.schemas.timeline_models import (
     CausalityType,

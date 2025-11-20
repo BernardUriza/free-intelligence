@@ -104,7 +104,7 @@ async def generate_evidence_pack_from_session(session_id: str) -> dict:
     Raises:
         ValueError: If session has insufficient data for evidence pack
     """
-    from datetime import UTC, datetime
+    from backend.compat import UTC, datetime
 
     from backend.models.task_type import TaskType
     from backend.storage.task_repository import (

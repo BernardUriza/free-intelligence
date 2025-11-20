@@ -13,7 +13,7 @@ Refactored: 2025-11-14 (Pruned unused endpoints)
 from __future__ import annotations
 
 import os
-from datetime import UTC
+from backend.compat import UTC
 from pathlib import Path
 
 from fastapi import FastAPI

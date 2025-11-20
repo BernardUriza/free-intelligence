@@ -9,7 +9,7 @@ User, role, and token models for JWT authentication and RBAC.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from enum import Enum
 from typing import List
 

@@ -34,7 +34,7 @@ import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from pathlib import Path
 from typing import Any, Union
 

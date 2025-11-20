@@ -36,7 +36,7 @@ import random
 # ULID generation (simple implementation)
 import time
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from backend.compat import UTC, datetime
 from pathlib import Path
 
 
