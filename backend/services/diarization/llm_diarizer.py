@@ -13,7 +13,6 @@ from typing import Any, Optional
 import requests
 
 from backend.constants import (
-    CLAUDE_TIMEOUT_SEC,
     DEFAULT_OLLAMA_MODEL,
     OLLAMA_API_GENERATE_ENDPOINT,
     OLLAMA_BASE_URL as DEFAULT_OLLAMA_BASE_URL,

@@ -23,7 +23,6 @@ from typing import Optional
 import structlog
 
 from backend.services.auth0_management import get_auth0_service
-from backend.policy.policy_loader import PolicyLoader
 
 logger = structlog.get_logger(__name__)
 

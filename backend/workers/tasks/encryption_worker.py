@@ -64,9 +64,23 @@ try:
 except ImportError:
     # Fallback for CLI execution outside backend context
     import logging
+    from typing import Any
     logging.basicConfig(level=logging.INFO)
-    def get_logger(name: str):
+    def get_logger(name: str):  # type: ignore[misc]
         return logging.getLogger(name)
+
+    # Stub definitions for type checking
+    class TaskStatus:  # type: ignore[no-redef]
+        IN_PROGRESS = "IN_PROGRESS"
+        COMPLETED = "COMPLETED"
+        FAILED = "FAILED"
+
+    class TaskType:  # type: ignore[no-redef]
+        ENCRYPTION = "ENCRYPTION"
+
+    def update_task_metadata(session_id: str, task_type: Any, metadata: dict) -> None:  # type: ignore[misc]
+        pass
+
     HAS_BACKEND_IMPORTS = False
 
 # ═══════════════════════════════════════════════════════════════════

@@ -216,7 +216,7 @@ Requires environment variables:
             internal.llm.router
         )  # Ultra observable LLM layer (prefix already in router)
         internal_app.include_router(
-            users_router, prefix="/admin", tags=["admin"]
+            users_router, tags=["admin"]
         )  # Admin user management (Auth0 Management API)
 
         # Mount sub-apps
