@@ -178,6 +178,7 @@ Requires environment variables:
         from backend.auth.auth0_router import (
             router as auth_router,  # HIPAA G-003 (Auth0)
         )
+        from backend.api.internal.admin import users_router  # Admin user management
 
         # PUBLIC API (CORS enabled, orchestrators)
         public_app.include_router(auth_router)  # Auth0 Authentication (HIPAA G-003)
@@ -214,6 +215,9 @@ Requires environment variables:
         internal_app.include_router(
             internal.llm.router
         )  # Ultra observable LLM layer (prefix already in router)
+        internal_app.include_router(
+            users_router, prefix="/admin", tags=["admin"]
+        )  # Admin user management (Auth0 Management API)
 
         # Mount sub-apps
         app.mount("/api", public_app)
