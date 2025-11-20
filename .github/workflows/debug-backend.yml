@@ -1,0 +1,53 @@
+name: Debug Backend
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+env:
+  DROPLET_HOST: 104.131.175.65
+  DROPLET_USER: root
+  PROJECT_PATH: /opt/free-intelligence
+
+jobs:
+  debug:
+    name: Debug Backend Status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DO_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519_do
+          chmod 600 ~/.ssh/id_ed25519_do
+          ssh-keyscan -H $DROPLET_HOST >> ~/.ssh/known_hosts
+
+      - name: Check backend status
+        run: |
+          ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
+            $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
+          cd /opt/free-intelligence
+
+          echo "=== Python version ==="
+          python3.14 --version
+
+          echo ""
+          echo "=== Backend Process Status ==="
+          ps aux | grep "[p]ython3.14.*uvicorn" || echo "❌ Backend not running"
+
+          echo ""
+          echo "=== Port 7001 Status ==="
+          lsof -i :7001 2>/dev/null || echo "Port 7001 not listening"
+
+          echo ""
+          echo "=== Last 100 lines of backend logs ==="
+          tail -100 /tmp/backend.log 2>/dev/null || echo "No backend logs found"
+
+          echo ""
+          echo "=== Test local backend connection ==="
+          curl -s http://localhost:7001/api/health || echo "❌ Backend not responding locally"
+
+          echo ""
+          echo "=== Environment check ==="
+          echo "PYTHONNOUSERSITE: $PYTHONNOUSERSITE"
+          python3.14 -c "import sys; print('Python site packages:'); print('\n'.join(sys.path))"
+
+          ENDSSH
