@@ -13,7 +13,6 @@ Clean Code Principles Applied:
 from .audit_repository import AuditRepository
 from .base_repository import BaseRepository
 from .corpus_repository import CorpusRepository
-from .job_repository import JobRepository, job_repository
 from .session_repository import SessionRepository
 
 __all__ = [
@@ -21,6 +20,4 @@ __all__ = [
     "CorpusRepository",
     "SessionRepository",
     "AuditRepository",
-    "JobRepository",
-    "job_repository",
 ]
