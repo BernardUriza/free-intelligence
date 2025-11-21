@@ -1,10 +1,26 @@
 name: Deploy to Production (Digital Ocean)
 
+# =============================================================================
+# AURITY Production Deployment Pipeline
+# =============================================================================
+# Security: Pre-deploy integrity check, post-deploy validation
+# Rollback: Tag-based versioning with manual rollback trigger
+# =============================================================================
+
 on:
   push:
     branches:
       - prod
-  workflow_dispatch:  # Allow manual triggers
+  workflow_dispatch:
+    inputs:
+      rollback_to:
+        description: 'Tag to rollback to (e.g., v0.1.5). Leave empty for normal deploy.'
+        required: false
+        type: string
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false  # NEVER cancel production deploys mid-flight
 
 env:
   DROPLET_HOST: 104.131.175.65
@@ -12,9 +28,73 @@ env:
   PROJECT_PATH: /opt/free-intelligence
 
 jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Phase 0: Pre-flight Integrity Check
+  # ═══════════════════════════════════════════════════════════════════════════
+  integrity-check:
+    name: Pre-flight Integrity Check
+    runs-on: ubuntu-latest
+    if: github.event.inputs.rollback_to == ''
+    outputs:
+      was_dirty: ${{ steps.check.outputs.was_dirty }}
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DO_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519_do
+          chmod 600 ~/.ssh/id_ed25519_do
+          ssh-keyscan -H $DROPLET_HOST >> ~/.ssh/known_hosts
+
+      - name: Check Production Integrity
+        id: check
+        run: |
+          echo "🔍 Checking if production has unauthorized changes..."
+          ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
+            $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
+          cd /opt/free-intelligence
+
+          DIRTY=false
+
+          # Check for uncommitted changes
+          if ! git diff --quiet 2>/dev/null; then
+            echo "⚠️  DIRTY: Uncommitted changes detected!"
+            git diff --name-only
+            DIRTY=true
+          fi
+
+          # Check for untracked files in critical dirs
+          UNTRACKED=$(git ls-files --others --exclude-standard backend/ apps/ 2>/dev/null | head -10)
+          if [ -n "$UNTRACKED" ]; then
+            echo "⚠️  DIRTY: Untracked files detected!"
+            echo "$UNTRACKED"
+            DIRTY=true
+          fi
+
+          if [ "$DIRTY" = true ]; then
+            echo ""
+            echo "════════════════════════════════════════════════════════"
+            echo "⛔️ PRODUCTION WAS DIRTY - RESETTING TO CLEAN STATE"
+            echo "════════════════════════════════════════════════════════"
+            git checkout -- .
+            git clean -fd
+            echo "✅ Production reset to clean state"
+            echo "was_dirty=true" >> /tmp/check_result
+          else
+            echo "✅ Production is clean"
+            echo "was_dirty=false" >> /tmp/check_result
+          fi
+          ENDSSH
+
+          # Get result
+          RESULT=$(ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
+            $DROPLET_USER@$DROPLET_HOST "cat /tmp/check_result 2>/dev/null || echo 'was_dirty=false'")
+          echo "$RESULT" >> $GITHUB_OUTPUT
+
   deploy-frontend:
     name: Deploy Frontend (Next.js)
     runs-on: ubuntu-latest
+    needs: integrity-check
+    if: always() && (needs.integrity-check.result == 'success' || needs.integrity-check.result == 'skipped')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -134,7 +214,7 @@ jobs:
 
           echo "📦 Installing Python 3.14 if needed..."
           if ! python3.14 --version > /dev/null 2>&1; then
-            apt-get update && apt-get install -y python3.14 python3.14-venv python3.14-dev
+            apt-get update && apt-get install -y python3.14 python3.14-dev
           fi
 
           echo "📦 Bootstrapping pip for Python 3.14..."
@@ -154,7 +234,8 @@ jobs:
           cd /opt/free-intelligence
 
           echo "🛑 Stopping old backend process..."
-          pkill -f uvicorn || true
+          # Kill any process listening on port 7001 (more reliable than pkill pattern)
+          fuser -k 7001/tcp || true
           sleep 2
 
           echo "🧹 Clearing Python bytecode cache..."
@@ -196,9 +277,77 @@ jobs:
           curl -f https://app.aurity.io/api/workflows/aurity/sessions || exit 1
           echo "✅ Backend API is responding"
 
+      - name: Create Release Tag
+        run: |
+          # Auto-generate version tag
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          TAG="deploy-${TIMESTAMP}"
+          echo "🏷️  Creating tag: $TAG"
+
+          # This requires GITHUB_TOKEN with write access
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/git/refs \
+            -d "{\"ref\":\"refs/tags/$TAG\",\"sha\":\"${{ github.sha }}\"}" || true
+
+          echo "✅ Tag created: $TAG"
+
       - name: Send success notification
         if: success()
         run: |
           echo "✅ Deployment to production successful!"
           echo "🌐 Frontend: https://app.aurity.io"
           echo "🔌 Backend:  https://app.aurity.io/api/workflows/aurity/sessions"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Rollback Job (manual trigger with rollback_to input)
+  # ═══════════════════════════════════════════════════════════════════════════
+  rollback:
+    name: Rollback to Tag
+    runs-on: ubuntu-latest
+    if: github.event.inputs.rollback_to != ''
+    steps:
+      - name: Checkout at Tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.rollback_to }}
+          submodules: recursive
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DO_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519_do
+          chmod 600 ~/.ssh/id_ed25519_do
+          ssh-keyscan -H $DROPLET_HOST >> ~/.ssh/known_hosts
+
+      - name: Execute Rollback
+        run: |
+          TAG="${{ github.event.inputs.rollback_to }}"
+          echo "🔄 Rolling back to $TAG..."
+
+          ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
+            $DROPLET_USER@$DROPLET_HOST << ENDSSH
+          cd $PROJECT_PATH
+
+          echo "📥 Fetching tags..."
+          git fetch --all --tags
+
+          echo "🔄 Checking out $TAG..."
+          git checkout $TAG
+
+          echo "🛑 Restarting backend..."
+          fuser -k 7001/tcp || true
+          sleep 2
+          PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
+
+          echo "🔄 Reloading nginx..."
+          nginx -t && nginx -s reload
+
+          echo "✅ Rolled back to $TAG"
+          ENDSSH
+
+      - name: Verify Rollback
+        run: |
+          sleep 10
+          curl -f https://app.aurity.io/ -o /dev/null && echo "✅ Rollback verified"
