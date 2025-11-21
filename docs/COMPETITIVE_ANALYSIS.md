@@ -135,7 +135,54 @@ Este documento identifica oportunidades de mejora para AURITY basándose en el a
 
 ---
 
-## 4. [Próximo Competidor]
+## 4. Itaca AI
+
+**URL**: https://itaca.ai/
+**Tipo**: Asistente IA médica completo (SaaS)
+**Origen**: Latinoamérica
+**Tracción**: 20,000+ profesionales de salud en LATAM
+
+### Características Principales
+- **Notas desde videollamadas**: Integración con Google Meet, Zoom, Microsoft Teams
+- **Templates por especialidad**: Psiquiatría, pediatría, cirugía, gineco-obstetricia, medicina interna, urgencias, nutrición
+- **Formato SOAP**: Notas estructuradas listas para EHR
+- **Respuestas clínicas con citas**: Cada respuesta tiene fuentes verificadas
+- **Transcripción presencial**: También funciona en consultas físicas
+- **Gestión de casos médicos**: Ecosistema completo
+
+### Testimonios
+> "Las consultas a distancia llegaron para quedarse. Esta herramienta permite al médico concentrarse en el paciente mientras la IA se encarga de la documentación." - Dr. José Alfredo Puentes López, Director Médico de Itaca
+
+### Diferenciador Clave
+Adaptación automática por especialidad: la nota se ajusta a la terminología y estructura de cada disciplina médica.
+
+### ✅ Features a Incorporar en AURITY
+
+| Feature | Prioridad | Descripción | Complejidad |
+|---------|-----------|-------------|-------------|
+| **Integración videollamadas** | 🔴 Alta | Conectar con Zoom/Meet/Teams para grabar consultas | Alta |
+| **Templates por especialidad** | 🔴 Alta | Notas adaptadas a cada especialidad médica | Media |
+| **Citas en respuestas** | 🟡 Media | Incluir fuentes verificadas en respuestas de IA | Media |
+
+### Notas de Implementación
+
+#### Integración Videollamadas
+- API de Zoom/Meet para grabar sesiones
+- Procesar audio post-llamada
+- Alternativa: extensión de navegador que captura audio
+
+#### Templates por Especialidad
+- Crear plantillas SOAP específicas:
+  - Psiquiatría: estado mental, medicación psiquiátrica
+  - Pediatría: percentiles, vacunas, desarrollo
+  - Ginecología: ciclo menstrual, embarazo
+  - Cirugía: procedimiento, complicaciones
+  - Urgencias: triaje, signos vitales
+- Selector de especialidad en UI
+
+---
+
+## 5. [Próximo Competidor]
 
 *Pendiente de análisis...*
 
@@ -143,20 +190,22 @@ Este documento identifica oportunidades de mejora para AURITY basándose en el a
 
 ## Matriz Comparativa General
 
-| Feature | AURITY | NotaSalud | Telepatía | Leona |
-|---------|--------|-----------|-----------|-------|
-| Notas SOAP | ✅ | ✅ | ✅ | ❌ |
-| Transcripción audio | ✅ | ✅ | ✅ | ✅ (WhatsApp) |
-| Recetas | ❌ | ✅ | ❌ | ❌ |
-| IA aprende estilo | ❌ | ✅ | ❌ | ❌ |
-| App móvil | PWA | 🔜 | ✅ | ✅ |
-| Integración EHR | ❌ | ❌ | ✅ | ❌ |
-| Integración WhatsApp | ❌ | ❌ | ❌ | ✅ |
-| Mensajes programados | ❌ | ❌ | ❌ | ✅ |
-| Cumplimiento HIPAA | ✅ | ⚠️ | ✅ | ⚠️ |
-| Auditoría inmutable | ✅ | ❌ | ❌ | ❌ |
-| White label on-prem | ✅ | ❌ | ❌ | ❌ |
-| Timeline causal | ✅ | ❌ | ❌ | ❌ |
+| Feature | AURITY | NotaSalud | Telepatía | Leona | Itaca |
+|---------|--------|-----------|-----------|-------|-------|
+| Notas SOAP | ✅ | ✅ | ✅ | ❌ | ✅ |
+| Transcripción audio | ✅ | ✅ | ✅ | ✅ (WA) | ✅ |
+| Recetas | ❌ | ✅ | ❌ | ❌ | ❌ |
+| IA aprende estilo | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Templates especialidad | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Integración videollamada | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Citas/fuentes en IA | ❌ | ❌ | ❌ | ❌ | ✅ |
+| App móvil | PWA | 🔜 | ✅ | ✅ | ✅ |
+| Integración EHR | ❌ | ❌ | ✅ | ❌ | ✅ |
+| Integración WhatsApp | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Cumplimiento HIPAA | ✅ | ⚠️ | ✅ | ⚠️ | ⚠️ |
+| Auditoría inmutable | ✅ | ❌ | ❌ | ❌ | ❌ |
+| White label on-prem | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Timeline causal | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -169,12 +218,14 @@ Este documento identifica oportunidades de mejora para AURITY basándose en el a
 - [ ] Mensajes programados (recordatorios de citas)
 
 ### Fase 2 - Mejoras UX
+- [ ] **Templates por especialidad** (psiquiatría, pediatría, cirugía, etc.)
 - [ ] IA que aprende estilo del médico
-- [ ] Templates personalizados por especialidad
 - [ ] Flujo de aprobación de notas (revisar antes de guardar)
 - [ ] Respuestas sugeridas para preguntas frecuentes
+- [ ] **Citas/fuentes en respuestas de IA**
 
 ### Fase 3 - Integraciones
+- [ ] **Integración videollamadas (Zoom/Meet/Teams)**
 - [ ] Integración con sistemas EHR (HL7 FHIR)
 - [ ] App móvil nativa (iOS/Android)
 - [ ] Integración WhatsApp Business API
@@ -188,4 +239,5 @@ Este documento identifica oportunidades de mejora para AURITY basándose en el a
 | 2025-11-21 | Análisis inicial: NotaSalud |
 | 2025-11-21 | Agregado: Telepatía AI |
 | 2025-11-21 | Agregado: Leona Health (enfoque WhatsApp) |
+| 2025-11-21 | Agregado: Itaca AI (líder LATAM, 20k+ usuarios) |
 
