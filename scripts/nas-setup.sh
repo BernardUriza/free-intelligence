@@ -77,15 +77,11 @@ info "Installing Node.js dependencies (this may take a few minutes)..."
 pnpm install --frozen-lockfile || error "Failed to install Node.js dependencies"
 success "Node.js dependencies installed"
 
-# 4. Install Python dependencies
-info "Setting up Python virtual environment..."
-if [ ! -d "venv" ]; then
-    python3 -m venv venv || error "Failed to create virtual environment"
-fi
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt || error "Failed to install Python dependencies"
-success "Python dependencies installed"
+# 4. Install Python dependencies (system-wide, no venv)
+info "Installing Python dependencies (system-wide)..."
+python3 -m pip install --upgrade pip --break-system-packages
+python3 -m pip install -r requirements.txt --break-system-packages || error "Failed to install Python dependencies"
+success "Python dependencies installed (no venv - we don't use venvs here)"
 
 # 5. Setup environment file
 if [ ! -f ".env.local" ]; then
