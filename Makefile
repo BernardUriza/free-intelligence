@@ -13,6 +13,7 @@
 SHELL := /usr/bin/env bash
 .SHELLFLAGS := -o errexit -o nounset -o pipefail -c
 MAKEFLAGS += --warn-undefined-variables --no-builtin-rules --no-print-directory
+.EXPORT_ALL_VARIABLES:
 ## Global env noise reducers
 export PYTHONDONTWRITEBYTECODE=1
 export PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -27,9 +28,10 @@ STRIDE_PORT ?= 9050
 FRONTEND_PORT ?= 9000
 CORPUS_EMAIL ?= $(USER)@example.com
 TRELLO_CLI ?= trello
+TRELLO_BOARD_ID ?= 68fc011510584fb24b9ef5a6
 ALLOW_BREAK ?= 0
 # Set ALLOW_BREAK=1 to allow --break-system-packages (non-strict envs)
-# Use `make uv-install` for venv-free alternative
+# Use `make uv-install` for no-global installs (creates project .venv)
 
 # ============================================================================
 # PHONY Declarations (all targets)
@@ -111,9 +113,11 @@ endif
 	@echo "✅ Dev dependencies installed"
 
 check-deps: ## Check if all dependencies are installed (fails if missing)
-	@$(PY) -c "import h5py; import structlog; import fastapi; import anthropic; import ollama" \
-		&& echo "✅ All dependencies OK" \
-		|| { echo "❌ Missing dependencies - run 'make install'"; exit 1; }
+	@$(PY) -c '\
+import importlib.util, sys; \
+mods = ["h5py","structlog","fastapi","anthropic","ollama"]; \
+missing = [m for m in mods if importlib.util.find_spec(m) is None]; \
+sys.exit(print("❌ Missing:", ", ".join(missing)) or 1) if missing else print("✅ All dependencies OK")'
 
 # ============================================================================
 # Initialization
@@ -196,8 +200,12 @@ format-check: ## Check code formatting
 
 type-check: ## Run Pyright type checker (fast)
 	@echo "🔍 Type checking with Pyright..."
-	@command -v pyright >/dev/null 2>&1 || { echo "Installing pyright..."; npm install -g pyright; }
-	pyright backend/
+	@if command -v uv >/dev/null 2>&1; then \
+		uvx pyright backend/; \
+	else \
+		command -v pyright >/dev/null 2>&1 || { echo "Installing pyright..."; npm install -g pyright; }; \
+		pyright backend/; \
+	fi
 
 type-check-mypy: ## Run mypy type checker (thorough)
 	@echo "🔍 Type checking with Mypy..."
@@ -273,7 +281,7 @@ audit-logs: ## Show recent audit logs
 trello-status: ## Show Trello sprint status
 	@echo "📋 Trello Sprint Status"
 	@command -v $(TRELLO_CLI) >/dev/null 2>&1 \
-		&& $(TRELLO_CLI) cards 68fc011510584fb24b9ef5a6 | head -20 \
+		&& $(TRELLO_CLI) cards $(TRELLO_BOARD_ID) | head -20 \
 		|| echo "❌ $(TRELLO_CLI) not found. Set TRELLO_CLI=/path/to/trello"
 
 # ============================================================================
