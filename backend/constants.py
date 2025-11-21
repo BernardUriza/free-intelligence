@@ -60,8 +60,7 @@ MIN_CLAUDE_API_VERSION = "2023-01-01"  # Claude API version
 DEFAULT_ALLOWED_ORIGINS = [
     "http://localhost:9000",
     "http://localhost:9050",
-    "http://104.131.175.65",
-    "https://fi-aurity.duckdns.org",
+    "https://app.aurity.io",
 ]
 
 # ============================================================================
