@@ -43,7 +43,14 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-from sentence_transformers import SentenceTransformer
+
+# Optional: sentence_transformers (heavy ML dependency, not required in production)
+try:
+    from sentence_transformers import SentenceTransformer
+    HAS_SENTENCE_TRANSFORMERS = True
+except ImportError:
+    SentenceTransformer = None  # type: ignore
+    HAS_SENTENCE_TRANSFORMERS = False
 
 from backend.logger import get_logger
 
@@ -69,7 +76,16 @@ def get_embedding_model() -> SentenceTransformer:
 
     Returns:
         SentenceTransformer model instance
+
+    Raises:
+        RuntimeError: If sentence_transformers is not installed (production mode)
     """
+    if not HAS_SENTENCE_TRANSFORMERS:
+        raise RuntimeError(
+            "Conversation memory requires sentence_transformers library. "
+            "Install it with: pip install sentence-transformers"
+        )
+
     global _embedding_model
     if _embedding_model is None:
         logger.info("EMBEDDING_MODEL_INIT", model="all-MiniLM-L6-v2")
