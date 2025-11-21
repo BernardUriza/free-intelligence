@@ -84,8 +84,6 @@ jobs:
       - name: Sync backend code
         run: |
           rsync -avz --delete \
-            --exclude 'storage/' \
-            --exclude 'export/' \
             --exclude '__pycache__/' \
             --exclude '*.pyc' \
             --exclude '.env*' \
