@@ -125,17 +125,17 @@ jobs:
           echo "🧹 Removing conflicting system packages..."
           apt-get remove -y python3-zope.interface python3-twisted || true
 
-          echo "📦 Installing Python 3.11 if needed..."
-          if ! python3.11 --version > /dev/null 2>&1; then
-            apt-get update && apt-get install -y python3.11 python3.11-venv python3.11-dev
+          echo "📦 Installing Python 3.14 if needed..."
+          if ! python3.14 --version > /dev/null 2>&1; then
+            apt-get update && apt-get install -y python3.14 python3.14-venv python3.14-dev
           fi
 
-          echo "📦 Bootstrapping pip for Python 3.11..."
-          python3.11 -m ensurepip --upgrade 2>/dev/null || true
+          echo "📦 Bootstrapping pip for Python 3.14..."
+          python3.14 -m ensurepip --upgrade 2>/dev/null || true
 
           echo "📦 Installing Python dependencies..."
-          python3.11 -m pip install --upgrade pip
-          python3.11 -m pip install -r requirements-prod.txt
+          python3.14 -m pip install --upgrade pip
+          python3.14 -m pip install -r requirements-prod.txt
 
           echo "✅ Dependencies installed"
           ENDSSH
@@ -152,7 +152,7 @@ jobs:
 
           echo "🚀 Starting new backend..."
           cd /opt/free-intelligence
-          PYTHONNOUSERSITE=1 nohup python3.11 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
+          PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
           sleep 5
 
           echo "✅ Backend deployed successfully"

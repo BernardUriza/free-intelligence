@@ -90,3 +90,36 @@ class UpdateSegmentRequest(BaseModel):
     """Request body for updating segment text."""
 
     text: str = Field(..., min_length=1, description="New text content for the segment")
+
+
+class SOAPCorrectionModel(BaseModel):
+    """Single SOAP correction made by doctor."""
+
+    section: str = Field(..., description="SOAP section (subjective, objective, assessment, plan)")
+    original: str = Field(..., description="Original text before correction")
+    corrected: str = Field(..., description="Corrected text")
+    timestamp: str = Field(..., description="ISO timestamp of correction")
+
+
+class DoctorFeedbackRequest(BaseModel):
+    """Doctor's audit feedback for a session."""
+
+    rating: int = Field(..., ge=1, le=5, description="Quality rating 1-5 stars")
+    comments: str = Field(default="", description="Additional comments from doctor")
+    corrections: list[SOAPCorrectionModel] = Field(
+        default_factory=list,
+        description="List of SOAP corrections made",
+    )
+    decision: str = Field(
+        ...,
+        description="approved | rejected | needs_review",
+    )
+
+
+class DoctorFeedbackResponse(BaseModel):
+    """Response after submitting doctor feedback."""
+
+    status: str = Field(..., description="feedback_saved")
+    session_id: str = Field(..., description="Session identifier")
+    audit_status: str = Field(..., description="approved | rejected | needs_review")
+    corrections_applied: int = Field(..., description="Number of corrections applied to SOAP")

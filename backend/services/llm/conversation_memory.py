@@ -38,15 +38,17 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass
-from backend.compat import UTC, datetime
 from pathlib import Path
 
 import h5py
 import numpy as np
 
+from datetime import UTC, datetime
+
 # Optional: sentence_transformers (heavy ML dependency, not required in production)
 try:
     from sentence_transformers import SentenceTransformer
+
     HAS_SENTENCE_TRANSFORMERS = True
 except ImportError:
     SentenceTransformer = None  # type: ignore

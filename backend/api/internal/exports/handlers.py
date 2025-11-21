@@ -6,7 +6,7 @@ Implements the FastAPI endpoint functions for export operations.
 from __future__ import annotations
 
 import json
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from fastapi.responses import FileResponse

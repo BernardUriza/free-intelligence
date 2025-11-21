@@ -14,7 +14,7 @@ Card: Clean Architecture Refactor
 
 from __future__ import annotations
 
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType

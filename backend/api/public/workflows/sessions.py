@@ -21,8 +21,10 @@ SOLID Refactor: 2025-11-20
 from __future__ import annotations
 
 import tempfile
-from backend.compat import UTC, datetime
+from datetime import datetime
 from typing import Any, cast
+
+from backend.compat import UTC
 
 import h5py
 from fastapi import APIRouter, HTTPException, Request, status
@@ -32,6 +34,8 @@ from backend.api.public.workflows.models import (
     CheckpointRequest,
     CheckpointResponse,
     DiarizationStatusResponse,
+    DoctorFeedbackRequest,
+    DoctorFeedbackResponse,
     FinalizeSessionRequest,
     FinalizeSessionResponse,
     TranscriptionSourcesModel,
@@ -1288,4 +1292,293 @@ async def get_session_audio_workflow(session_id: str) -> FileResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get session audio: {e!s}",
+        ) from e
+
+
+# ============================================================================
+# Medical Audit & Feedback Endpoints
+# ============================================================================
+
+
+@router.get("/sessions/{session_id}/audit")
+async def get_session_audit(session_id: str) -> dict[str, Any]:
+    """Get complete audit data for doctor review.
+
+    Returns session metadata, SOAP notes, orchestration steps, diarization,
+    and automatically detected flags for doctor attention.
+
+    Args:
+        session_id: Session identifier
+
+    Returns:
+        {
+            "session_id": str,
+            "patient": {...},
+            "session_metadata": {...},
+            "orchestration": {...},
+            "soap_note": {...},
+            "diarization": {...},
+            "flags": [...],
+            "doctor_feedback": {...} | null
+        }
+    """
+    from backend.models.task_type import TaskType
+    from backend.storage.task_repository import (
+        get_diarization_segments,
+        get_session_metadata,
+        get_soap_data,
+        get_task_metadata,
+    )
+
+    try:
+        logger.info("SESSION_AUDIT_GET_START", session_id=session_id)
+
+        # Get session metadata
+        session_meta = get_session_metadata(session_id)
+        if not session_meta:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Session {session_id} not found",
+            )
+
+        # Get SOAP note
+        soap_data = get_soap_data(session_id)
+
+        # Get orchestration steps
+        soap_task_meta = get_task_metadata(session_id, TaskType.SOAP_GENERATION)
+
+        # Get diarization segments
+        diarization_segments = get_diarization_segments(session_id)
+
+        # Analyze for flags (low confidence, medication interactions, etc.)
+        flags = _analyze_session_flags(soap_data, soap_task_meta)
+
+        # Get existing doctor feedback (if any)
+        doctor_feedback = session_meta.get("doctor_feedback")
+
+        response = {
+            "session_id": session_id,
+            "patient": session_meta.get("patient", {}),
+            "session_metadata": {
+                "date": session_meta.get("created_at"),
+                "duration_seconds": session_meta.get("duration_seconds"),
+                "doctor": session_meta.get("doctor_name", "Unknown"),
+                "status": session_meta.get("audit_status", "pending_review"),
+            },
+            "orchestration": {
+                "strategy": soap_task_meta.get("orchestration_strategy", "UNKNOWN"),
+                "personas_invoked": soap_task_meta.get("personas_invoked", []),
+                "confidence_score": soap_task_meta.get("confidence_score", 0.0),
+                "complexity_score": soap_task_meta.get("complexity_score", 0.0),
+                "steps": soap_task_meta.get("intermediate_outputs", []),
+            },
+            "soap_note": soap_data or {},
+            "diarization": {
+                "segments": diarization_segments or [],
+            },
+            "flags": flags,
+            "doctor_feedback": doctor_feedback,
+        }
+
+        logger.info(
+            "SESSION_AUDIT_GET_SUCCESS",
+            session_id=session_id,
+            flags_count=len(flags),
+            has_feedback=doctor_feedback is not None,
+        )
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "SESSION_AUDIT_GET_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get session audit: {e!s}",
+        ) from e
+
+
+def _analyze_session_flags(
+    soap_data: dict[str, Any] | None,
+    orchestration: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Analyze session for potential issues requiring doctor attention.
+
+    Args:
+        soap_data: SOAP note data
+        orchestration: Orchestration metadata
+
+    Returns:
+        List of flags with type, severity, message, location
+    """
+    flags = []
+
+    if not soap_data or not orchestration:
+        return flags
+
+    # Low confidence flag
+    confidence = orchestration.get("confidence_score", 1.0)
+    if confidence < 0.95:
+        flags.append({
+            "type": "low_confidence",
+            "severity": "warning",
+            "message": f"Confidence score below 95% ({confidence:.0%})",
+            "location": "overall",
+        })
+
+    # Medication interaction detection (example heuristic)
+    plan = soap_data.get("plan", {})
+    medications = plan.get("medications", [])
+
+    # Check for IECA combinations (enalapril + losartán)
+    has_enalapril = any(
+        "enalapril" in med.get("name", "").lower()
+        for med in medications
+        if isinstance(med, dict)
+    )
+    has_losartan = any(
+        "losartán" in med.get("name", "").lower() or "losartan" in med.get("name", "").lower()
+        for med in medications
+        if isinstance(med, dict)
+    )
+
+    if has_enalapril and has_losartan:
+        flags.append({
+            "type": "medication_interaction",
+            "severity": "critical",
+            "message": "Posible interacción: Enalapril + Losartán (ambos IECA)",
+            "location": "plan.medications",
+        })
+
+    # Missing objective data flag
+    objective = soap_data.get("objective")
+    if not objective or (isinstance(objective, str) and len(objective.strip()) < 10):
+        flags.append({
+            "type": "missing_objective_data",
+            "severity": "warning",
+            "message": "No se registraron signos vitales ni exploración física",
+            "location": "objective",
+        })
+
+    # High complexity with low confidence
+    complexity = orchestration.get("complexity_score", 0.0)
+    if complexity >= 60 and confidence < 0.90:
+        flags.append({
+            "type": "complex_low_confidence",
+            "severity": "warning",
+            "message": f"Caso complejo (score {complexity:.1f}) con confianza baja ({confidence:.0%})",
+            "location": "overall",
+        })
+
+    return flags
+
+
+@router.post("/sessions/{session_id}/feedback")
+async def submit_doctor_feedback(
+    session_id: str,
+    feedback: DoctorFeedbackRequest,
+) -> DoctorFeedbackResponse:
+    """Submit doctor's audit feedback for a session.
+
+    Args:
+        session_id: Session identifier
+        feedback: Doctor's rating, comments, corrections, and decision
+
+    Returns:
+        DoctorFeedbackResponse with status and corrections count
+    """
+    from backend.models.task_type import TaskType
+    from backend.storage.task_repository import (
+        get_soap_data,
+        save_soap_data,
+        update_session_metadata,
+    )
+
+    try:
+        logger.info(
+            "DOCTOR_FEEDBACK_SUBMIT_START",
+            session_id=session_id,
+            decision=feedback.decision,
+            rating=feedback.rating,
+            corrections_count=len(feedback.corrections),
+        )
+
+        # Save feedback to session metadata
+        feedback_data = {
+            "rating": feedback.rating,
+            "comments": feedback.comments,
+            "corrections": [corr.dict() for corr in feedback.corrections],
+            "decision": feedback.decision,
+            "submitted_at": datetime.now(UTC).isoformat(),
+            "submitted_by": "Dr. Uriza",  # TODO: Get from auth context
+        }
+
+        update_session_metadata(
+            session_id,
+            {
+                "doctor_feedback": feedback_data,
+                "audit_status": feedback.decision,
+                "audit_rating": feedback.rating,
+                "audited_at": datetime.now(UTC).isoformat(),
+                "audited_by": "Dr. Uriza",  # TODO: Get from auth context
+            },
+        )
+
+        # Apply corrections to SOAP note
+        corrections_applied = 0
+        if feedback.corrections:
+            soap_data = get_soap_data(session_id)
+            if soap_data:
+                for correction in feedback.corrections:
+                    section = correction.section
+                    if section in soap_data:
+                        # Replace original text with corrected text
+                        if isinstance(soap_data[section], str):
+                            soap_data[section] = soap_data[section].replace(
+                                correction.original,
+                                correction.corrected,
+                            )
+                            corrections_applied += 1
+                        elif isinstance(soap_data[section], dict):
+                            # For complex sections (like assessment, plan)
+                            # Store correction metadata
+                            if "corrections" not in soap_data[section]:
+                                soap_data[section]["corrections"] = []
+                            soap_data[section]["corrections"].append(correction.dict())
+                            corrections_applied += 1
+
+                # Save updated SOAP data
+                save_soap_data(session_id, soap_data, TaskType.SOAP_GENERATION)
+
+        logger.info(
+            "DOCTOR_FEEDBACK_SUBMITTED",
+            session_id=session_id,
+            decision=feedback.decision,
+            rating=feedback.rating,
+            corrections_applied=corrections_applied,
+        )
+
+        return DoctorFeedbackResponse(
+            status="feedback_saved",
+            session_id=session_id,
+            audit_status=feedback.decision,
+            corrections_applied=corrections_applied,
+        )
+
+    except Exception as e:
+        logger.error(
+            "DOCTOR_FEEDBACK_SUBMIT_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to submit doctor feedback: {e!s}",
         ) from e

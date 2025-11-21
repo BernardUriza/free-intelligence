@@ -23,7 +23,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, status

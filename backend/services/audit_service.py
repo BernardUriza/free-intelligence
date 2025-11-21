@@ -9,7 +9,7 @@ audit policies across the entire application.
 
 from __future__ import annotations
 
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from backend.logger import get_logger

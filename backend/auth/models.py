@@ -9,11 +9,13 @@ User, role, and token models for JWT authentication and RBAC.
 
 from __future__ import annotations
 
-from backend.compat import UTC, datetime
+from datetime import datetime
 from enum import Enum
 from typing import List
 
 from pydantic import BaseModel, Field
+
+from backend.compat import UTC
 
 
 class UserRole(str, Enum):
