@@ -11,10 +11,11 @@ TZ: America/Mexico_City
 
 ## 🌐 Production Deployment
 
-**Live URL**: https://fi-aurity.duckdns.org/
-**Backend API**: https://fi-aurity.duckdns.org/api/
+**Live URL**: https://app.aurity.io/
+**Backend API**: https://app.aurity.io/api/
 **SSL**: Let's Encrypt (auto-renews)
-**DNS**: DuckDNS (fi-aurity.duckdns.org → 104.131.175.65)
+**DNS**: app.aurity.io → 104.131.175.65
+**Legacy**: fi-aurity.duckdns.org (deprecated)
 
 ### Architecture
 ```
@@ -25,7 +26,7 @@ Browser (HTTPS:443) → Nginx (SSL termination) → {
 ```
 
 ### CORS Configuration
-Backend allows: `http://localhost:9000`, `http://localhost:9050`, `https://fi-aurity.duckdns.org`
+Backend allows: `http://localhost:9000`, `http://localhost:9050`, `https://app.aurity.io`
 Location: `backend/app/main.py` (line 125)
 
 ---

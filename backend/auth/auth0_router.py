@@ -73,7 +73,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user_au
     Example:
         ```bash
         curl -H "Authorization: Bearer $ACCESS_TOKEN" \\
-             https://fi-aurity.duckdns.org/api/auth/me
+             https://app.aurity.io/api/auth/me
         ```
 
         Response:
@@ -118,7 +118,7 @@ async def get_auth0_config() -> dict:
 
     Example:
         ```bash
-        curl https://fi-aurity.duckdns.org/api/auth/config
+        curl https://app.aurity.io/api/auth/config
         ```
 
         Response:
@@ -158,7 +158,7 @@ async def get_rbac_matrix() -> dict:
 
     Example:
         ```bash
-        curl https://fi-aurity.duckdns.org/api/auth/rbac-matrix
+        curl https://app.aurity.io/api/auth/rbac-matrix
         ```
 
         Response:
@@ -184,7 +184,7 @@ async def health_check() -> dict:
 
     Example:
         ```bash
-        curl https://fi-aurity.duckdns.org/api/auth/health
+        curl https://app.aurity.io/api/auth/health
         ```
 
         Response:

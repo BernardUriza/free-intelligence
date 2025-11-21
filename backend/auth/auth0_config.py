@@ -38,7 +38,7 @@ JWKS_URL = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
 ISSUER = f"https://{AUTH0_DOMAIN}/"
 
 # Frontend URLs (for CORS and redirects)
-FRONTEND_URL_PROD = os.getenv("FRONTEND_URL_PROD", "https://fi-aurity.duckdns.org")
+FRONTEND_URL_PROD = os.getenv("FRONTEND_URL_PROD", "https://app.aurity.io")
 FRONTEND_URL_DEV = os.getenv("FRONTEND_URL_DEV", "http://localhost:9000")
 
 

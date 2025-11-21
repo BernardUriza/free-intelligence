@@ -93,6 +93,15 @@ jobs:
             backend/ \
             $DROPLET_USER@$DROPLET_HOST:$PROJECT_PATH/backend/
 
+      - name: Sync packages (fi_common)
+        run: |
+          rsync -avz --delete \
+            --exclude '__pycache__/' \
+            --exclude '*.pyc' \
+            -e "ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no" \
+            packages/ \
+            $DROPLET_USER@$DROPLET_HOST:$PROJECT_PATH/packages/
+
       - name: Sync project files
         run: |
           rsync -avz \
