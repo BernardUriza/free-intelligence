@@ -11,13 +11,11 @@ Clean Code Principles:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Generic, List, TypeVar
 
 from pydantic import BaseModel, Field
-
-from backend.compat import UTC
 
 T = TypeVar("T")
 

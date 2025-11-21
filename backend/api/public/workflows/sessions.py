@@ -21,10 +21,8 @@ SOLID Refactor: 2025-11-20
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, cast
-
-from backend.compat import UTC
 
 import h5py
 from fastapi import APIRouter, HTTPException, Request, status
@@ -1425,12 +1423,14 @@ def _analyze_session_flags(
     # Low confidence flag
     confidence = orchestration.get("confidence_score", 1.0)
     if confidence < 0.95:
-        flags.append({
-            "type": "low_confidence",
-            "severity": "warning",
-            "message": f"Confidence score below 95% ({confidence:.0%})",
-            "location": "overall",
-        })
+        flags.append(
+            {
+                "type": "low_confidence",
+                "severity": "warning",
+                "message": f"Confidence score below 95% ({confidence:.0%})",
+                "location": "overall",
+            }
+        )
 
     # Medication interaction detection (example heuristic)
     plan = soap_data.get("plan", {})
@@ -1438,9 +1438,7 @@ def _analyze_session_flags(
 
     # Check for IECA combinations (enalapril + losartán)
     has_enalapril = any(
-        "enalapril" in med.get("name", "").lower()
-        for med in medications
-        if isinstance(med, dict)
+        "enalapril" in med.get("name", "").lower() for med in medications if isinstance(med, dict)
     )
     has_losartan = any(
         "losartán" in med.get("name", "").lower() or "losartan" in med.get("name", "").lower()
@@ -1449,32 +1447,38 @@ def _analyze_session_flags(
     )
 
     if has_enalapril and has_losartan:
-        flags.append({
-            "type": "medication_interaction",
-            "severity": "critical",
-            "message": "Posible interacción: Enalapril + Losartán (ambos IECA)",
-            "location": "plan.medications",
-        })
+        flags.append(
+            {
+                "type": "medication_interaction",
+                "severity": "critical",
+                "message": "Posible interacción: Enalapril + Losartán (ambos IECA)",
+                "location": "plan.medications",
+            }
+        )
 
     # Missing objective data flag
     objective = soap_data.get("objective")
     if not objective or (isinstance(objective, str) and len(objective.strip()) < 10):
-        flags.append({
-            "type": "missing_objective_data",
-            "severity": "warning",
-            "message": "No se registraron signos vitales ni exploración física",
-            "location": "objective",
-        })
+        flags.append(
+            {
+                "type": "missing_objective_data",
+                "severity": "warning",
+                "message": "No se registraron signos vitales ni exploración física",
+                "location": "objective",
+            }
+        )
 
     # High complexity with low confidence
     complexity = orchestration.get("complexity_score", 0.0)
     if complexity >= 60 and confidence < 0.90:
-        flags.append({
-            "type": "complex_low_confidence",
-            "severity": "warning",
-            "message": f"Caso complejo (score {complexity:.1f}) con confianza baja ({confidence:.0%})",
-            "location": "overall",
-        })
+        flags.append(
+            {
+                "type": "complex_low_confidence",
+                "severity": "warning",
+                "message": f"Caso complejo (score {complexity:.1f}) con confianza baja ({confidence:.0%})",
+                "location": "overall",
+            }
+        )
 
     return flags
 

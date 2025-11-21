@@ -22,7 +22,7 @@ Updated: 2025-11-20 (Multi-tenant support)
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import yaml
@@ -30,7 +30,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from backend.compat import UTC
 from backend.database import get_db_dependency
 from backend.services.llm.persona_manager import PersonaManager
 
