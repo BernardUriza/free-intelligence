@@ -31,7 +31,7 @@ from backend.auth.rbac import export_rbac_matrix_csv
 # ============================================================================
 
 router = APIRouter(
-    prefix="/api/auth",
+    prefix="/auth",
     tags=["authentication"],
 )
 

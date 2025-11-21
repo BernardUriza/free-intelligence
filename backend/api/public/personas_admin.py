@@ -32,11 +32,13 @@ from sqlalchemy.orm import Session
 
 from backend.database import get_db_dependency
 from backend.services.llm.persona_manager import PersonaManager
+from backend.services.persona_metrics_service import get_persona_metrics_service
 
 router = APIRouter(prefix="/admin/personas", tags=["Personas Admin"])
 
-# Initialize PersonaManager
+# Initialize PersonaManager and MetricsService
 persona_manager = PersonaManager()
+metrics_service = get_persona_metrics_service()
 
 
 # Pydantic Models
@@ -63,6 +65,7 @@ class PersonaResponse(BaseModel):
     description: str = Field(..., description="Persona description")
     system_prompt: str = Field(..., description="System prompt")
     model: str = Field(..., description="LLM model (e.g., 'gpt-4o-mini')")
+    voice: str | None = Field(None, description="TTS voice (e.g., 'nova', 'shimmer')")
     temperature: float = Field(..., description="Temperature (0.0-1.0)")
     max_tokens: int = Field(..., description="Max tokens")
     examples: list[dict[str, Any]] = Field(default_factory=list, description="Few-shot examples")
@@ -143,6 +146,9 @@ async def list_personas(
             with open(yaml_path, encoding="utf-8") as f:
                 yaml_data = yaml.safe_load(f)
 
+            # Get real metrics from audit logs
+            metrics = metrics_service.get_persona_stats(persona_id)
+
             personas_list.append(
                 PersonaResponse(
                     id=persona_id,
@@ -150,13 +156,14 @@ async def list_personas(
                     description=config.description,
                     system_prompt=config.system_prompt,
                     model=yaml_data.get("model", "gpt-4o-mini"),  # From template
+                    voice=yaml_data.get("voice"),  # TTS voice
                     temperature=config.temperature,
                     max_tokens=config.max_tokens,
                     examples=yaml_data.get("examples", []),
                     usage_stats=PersonaUsageStats(
-                        total_invocations=0,  # TODO: Load from metrics
-                        avg_latency_ms=0.0,
-                        avg_cost_usd=0.0,
+                        total_invocations=metrics["total_invocations"],
+                        avg_latency_ms=metrics["avg_latency_ms"],
+                        avg_cost_usd=metrics["avg_cost_usd"],
                     ),
                     version=yaml_data.get("version", 1),
                     last_updated=yaml_data.get("updated_at", datetime.now(UTC).isoformat()),
@@ -213,16 +220,24 @@ async def get_persona(
     with open(yaml_path, encoding="utf-8") as f:
         yaml_data = yaml.safe_load(f)
 
+    # Get real metrics from audit logs
+    metrics = metrics_service.get_persona_stats(persona_id)
+
     return PersonaResponse(
         id=persona_id,
         name=yaml_data.get("persona", persona_id).replace("_", " ").title(),
         description=config.description,
         system_prompt=config.system_prompt,
         model=yaml_data.get("model", "gpt-4o-mini"),
+        voice=yaml_data.get("voice"),  # TTS voice
         temperature=config.temperature,
         max_tokens=config.max_tokens,
         examples=yaml_data.get("examples", []),
-        usage_stats=PersonaUsageStats(),
+        usage_stats=PersonaUsageStats(
+            total_invocations=metrics["total_invocations"],
+            avg_latency_ms=metrics["avg_latency_ms"],
+            avg_cost_usd=metrics["avg_cost_usd"],
+        ),
         version=yaml_data.get("version", 1),
         last_updated=yaml_data.get("updated_at", datetime.now(UTC).isoformat()),
         updated_by=yaml_data.get("updated_by", "System"),

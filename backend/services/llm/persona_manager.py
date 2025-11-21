@@ -40,6 +40,7 @@ class PersonaConfig:
     temperature: float = 0.7
     max_tokens: int = 2048
     description: str = ""
+    voice: str = "nova"  # Azure TTS voice (nova, alloy, echo, fable, onyx, shimmer)
 
 
 class PersonaManager:
@@ -78,6 +79,7 @@ class PersonaManager:
                     temperature=config_data.get("temperature", 0.7),
                     max_tokens=config_data.get("max_tokens", 2048),
                     description=config_data.get("description", ""),
+                    voice=config_data.get("voice", "nova"),
                 )
             except Exception as e:
                 # Log pero no fallar si una persona no carga
@@ -230,6 +232,7 @@ class PersonaManager:
             max_tokens=override.max_tokens
             if override.max_tokens is not None
             else template.max_tokens,
+            voice=override.voice if override.voice is not None else template.voice,
             description=template.description,  # Description always from template
         )
 
@@ -282,6 +285,7 @@ class PersonaManager:
         custom_prompt: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        voice: str | None = None,
     ) -> PersonaConfig:
         """Update user's persona overrides.
 
@@ -292,6 +296,7 @@ class PersonaManager:
             custom_prompt: Override system prompt (None = keep current)
             temperature: Override temperature (None = keep current)
             max_tokens: Override max tokens (None = keep current)
+            voice: Override Azure TTS voice (None = keep current)
 
         Returns:
             Updated PersonaConfig with overrides applied
@@ -315,6 +320,7 @@ class PersonaManager:
                 custom_prompt=custom_prompt,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                voice=voice,
                 is_active=True,
             )
             db.add(config)
@@ -326,6 +332,8 @@ class PersonaManager:
                 config.temperature = temperature
             if max_tokens is not None:
                 config.max_tokens = max_tokens
+            if voice is not None:
+                config.voice = voice
 
         db.commit()
         db.refresh(config)
