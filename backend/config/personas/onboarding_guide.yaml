@@ -31,6 +31,9 @@ model: gpt-4o-mini
 temperature: 0.8
 max_tokens: 500
 
+# TTS voice (Azure OpenAI)
+voice: shimmer  # Female, welcoming
+
 # Few-shot examples
 examples:
   - input: ¿Qué es Free Intelligence?

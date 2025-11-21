@@ -25,6 +25,9 @@ model: gpt-4o-mini
 temperature: 0.3  # Muy preciso para datos médicos
 max_tokens: 2048
 
+# TTS voice (Azure OpenAI)
+voice: echo  # Male, precise
+
 # Few-shot examples
 examples:
   - input: "El paciente reporta dolor abdominal desde hace 3 días, sin fiebre"

@@ -22,6 +22,9 @@ system_prompt: |
 
 # Model configuration
 model: gpt-4o-mini
+
+# TTS voice (Azure OpenAI)
+voice: nova  # Female, medical context
 temperature: 0.7  # Balance para conversación natural
 max_tokens: 1500
 

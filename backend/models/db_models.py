@@ -154,6 +154,7 @@ class UserPersonaConfig(Base):
     custom_prompt = Column(Text, nullable=True)  # NULL = use template
     temperature = Column(Float, nullable=True)  # NULL = use template
     max_tokens = Column(Integer, nullable=True)  # NULL = use template
+    voice = Column(String(20), nullable=True)  # NULL = use template (nova, alloy, echo, fable, onyx, shimmer)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
@@ -172,6 +173,7 @@ class UserPersonaConfig(Base):
             "custom_prompt": self.custom_prompt,
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
+            "voice": self.voice,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at is not None else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at is not None else None,
