@@ -182,7 +182,55 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 
 ---
 
-## 5. [Próximo Competidor]
+## 5. Dorascribe
+
+**URL**: https://dorascribe.ai/es/
+**Tipo**: Scribe médico IA (SaaS)
+**Origen**: Internacional
+**Idiomas**: Español, francés, portugués, italiano (nativo)
+
+### Características Principales
+- **Transcripción en tiempo real**: Escucha y convierte voz a notas
+- **Notas SOAP**: Resumen estructurado para copiar/pegar en EMR
+- **Plantillas personalizables**: SOAP, H&P, resúmenes de alta
+- **App móvil completa**: Misma funcionalidad que desktop
+- **Multi-idioma nativo**: 4 idiomas sin traducción
+- **Precisión 99%+**: Para grabaciones claras
+- **HIPAA compliant**: Cifrado robusto, notas se borran en 28 días
+
+### Planes y Precios (Referencia de mercado)
+
+| Plan | Precio | Transcripciones/mes |
+|------|--------|---------------------|
+| Free | $0 | 20 |
+| Essential | $39/usuario | 150 |
+| Professional | $59/usuario | 250 |
+| Premium | $89/usuario | Ilimitadas |
+
+*Descuento anual: 2 meses gratis*
+
+### Dato Clave
+> Los médicos pasan casi **2 horas en documentación por cada hora de atención** directa al paciente.
+
+### ✅ Features a Incorporar en AURITY
+
+| Feature | Prioridad | Descripción | Complejidad |
+|---------|-----------|-------------|-------------|
+| **Plan gratuito limitado** | 🟡 Media | Freemium para captar usuarios (20 transcripciones/mes) | Baja |
+| **Multi-idioma nativo** | 🟢 Baja | Soporte nativo para español, portugués, etc. | Media |
+| **Plantillas personalizables** | 🟡 Media | Usuario puede modificar campos/secciones de templates | Media |
+| **Auto-completado** | 🟢 Baja | Sugerencias para entradas repetitivas | Baja |
+
+### Notas de Implementación
+
+#### Modelo Freemium
+- 20 sesiones gratis/mes para usuarios nuevos
+- Upgrade a planes pagados para más volumen
+- Referencia de pricing: $39-89/usuario/mes
+
+---
+
+## 6. [Próximo Competidor]
 
 *Pendiente de análisis...*
 
@@ -190,22 +238,21 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 
 ## Matriz Comparativa General
 
-| Feature | AURITY | NotaSalud | Telepatía | Leona | Itaca |
-|---------|--------|-----------|-----------|-------|-------|
-| Notas SOAP | ✅ | ✅ | ✅ | ❌ | ✅ |
-| Transcripción audio | ✅ | ✅ | ✅ | ✅ (WA) | ✅ |
-| Recetas | ❌ | ✅ | ❌ | ❌ | ❌ |
-| IA aprende estilo | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Templates especialidad | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Integración videollamada | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Citas/fuentes en IA | ❌ | ❌ | ❌ | ❌ | ✅ |
-| App móvil | PWA | 🔜 | ✅ | ✅ | ✅ |
-| Integración EHR | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Integración WhatsApp | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Cumplimiento HIPAA | ✅ | ⚠️ | ✅ | ⚠️ | ⚠️ |
-| Auditoría inmutable | ✅ | ❌ | ❌ | ❌ | ❌ |
-| White label on-prem | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Timeline causal | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Feature | AURITY | NotaSalud | Telepatía | Leona | Itaca | Dorascribe |
+|---------|--------|-----------|-----------|-------|-------|------------|
+| Notas SOAP | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| Transcripción audio | ✅ | ✅ | ✅ | ✅ (WA) | ✅ | ✅ |
+| Recetas | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| IA aprende estilo | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Templates especialidad | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Templates personalizables | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Multi-idioma | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ✅ (4) |
+| Plan gratuito | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (20/mes) |
+| App móvil | PWA | 🔜 | ✅ | ✅ | ✅ | ✅ |
+| Integración EHR | ❌ | ❌ | ✅ | ❌ | ✅ | ⚠️ |
+| Cumplimiento HIPAA | ✅ | ⚠️ | ✅ | ⚠️ | ⚠️ | ✅ |
+| Auditoría inmutable | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| White label on-prem | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -216,9 +263,11 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 - [ ] Métricas de ahorro de tiempo por médico
 - [ ] Traducción automática de términos médicos
 - [ ] Mensajes programados (recordatorios de citas)
+- [ ] **Auto-completado para entradas repetitivas**
 
 ### Fase 2 - Mejoras UX
 - [ ] **Templates por especialidad** (psiquiatría, pediatría, cirugía, etc.)
+- [ ] **Plantillas personalizables** (usuario edita campos/secciones)
 - [ ] IA que aprende estilo del médico
 - [ ] Flujo de aprobación de notas (revisar antes de guardar)
 - [ ] Respuestas sugeridas para preguntas frecuentes
@@ -230,6 +279,22 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 - [ ] App móvil nativa (iOS/Android)
 - [ ] Integración WhatsApp Business API
 
+### Fase 4 - Modelo de Negocio
+- [ ] **Plan freemium** (20 sesiones/mes gratis)
+- [ ] Pricing tiers ($39-89/usuario/mes referencia)
+
+---
+
+## Referencia de Precios del Mercado
+
+| Competidor | Plan Básico | Plan Pro | Notas |
+|------------|-------------|----------|-------|
+| Dorascribe | $39/mes | $89/mes | 20 gratis/mes |
+| NotaSalud | N/D | N/D | - |
+| Telepatía | N/D | N/D | - |
+| Leona | N/D | N/D | - |
+| Itaca | N/D | N/D | - |
+
 ---
 
 ## Changelog
@@ -240,4 +305,5 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 | 2025-11-21 | Agregado: Telepatía AI |
 | 2025-11-21 | Agregado: Leona Health (enfoque WhatsApp) |
 | 2025-11-21 | Agregado: Itaca AI (líder LATAM, 20k+ usuarios) |
+| 2025-11-21 | Agregado: Dorascribe (precios públicos, freemium) |
 
