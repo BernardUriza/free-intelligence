@@ -246,10 +246,14 @@ python3 scripts/link_auth0_accounts.py
 
 ## 📝 Recent Changes
 
-**2025-11-20**: Frontend UX improvements + Auth0 RBAC completion
+**2025-11-20**: Frontend UX improvements + Auth0 RBAC + Chat voice recording
 - Auth0 RBAC fully configured (FI-superadmin role)
 - User Management page functional at `/admin/users`
-- Fixed Turbopack cache coherency issues (nuclear cache clear required)
+- **Chat Widget voice recording**: Created useChatVoiceRecorder hook + VoiceMicButton component with VAD
+  - Fixed missing voice props in `/chat/page.tsx` (ChatToolbar:172-180)
+  - Root cause: Wrapper component wasn't passing `voiceRecording`, `onVoiceStart`, `onVoiceStop` props
+  - Floating widget worked (ChatWidget.tsx had props), standalone `/chat/` page didn't
+  - **False alarm**: Initially thought it was Turbopack HMR bug, but was just missing props
 - Corrected module import paths (absolute `@/` paths for cross-directory imports)
 - Chat Widget: expand button hides when expanded, Minimize2 restores to normal
 - GlobalPolicyBanner: auto-dismiss after 5s with smooth fade-out

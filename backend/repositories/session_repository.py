@@ -18,7 +18,7 @@ DRY Principle:
 from __future__ import annotations
 
 import json
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Union
 

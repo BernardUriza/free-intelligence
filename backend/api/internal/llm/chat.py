@@ -14,7 +14,7 @@ Propósito:
 import hashlib
 import json
 import time
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 

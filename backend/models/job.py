@@ -22,7 +22,7 @@ Card: Architecture unification
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 

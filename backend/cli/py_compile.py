@@ -8,7 +8,7 @@ import json
 import os
 import py_compile
 import sys
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(".")

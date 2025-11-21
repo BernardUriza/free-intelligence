@@ -46,7 +46,7 @@ import os
 import sys
 import time
 from dataclasses import asdict, dataclass
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 

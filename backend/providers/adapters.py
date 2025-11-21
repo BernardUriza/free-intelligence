@@ -22,7 +22,7 @@ Usage:
   event_store.append_event(consultation_id, event)
 """
 
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 from typing import Any, Dict
 from uuid import uuid4
 

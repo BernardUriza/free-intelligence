@@ -15,7 +15,7 @@ Pattern: redux-claude Two-Model Strategy
 from __future__ import annotations
 
 from dataclasses import dataclass
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from backend.logger import get_logger

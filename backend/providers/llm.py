@@ -15,7 +15,7 @@ import asyncio
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 

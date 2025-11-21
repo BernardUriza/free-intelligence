@@ -27,7 +27,7 @@ import argparse
 import json
 import sys
 import uuid
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 

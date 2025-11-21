@@ -34,7 +34,7 @@ import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
-from backend.compat import UTC, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Union
 
@@ -1594,10 +1594,15 @@ def get_soap_data(
 
         task_group = f[task_path]  # type: ignore[index]
 
-        if "soap_data" not in task_group:  # type: ignore[operator]
+        # Try new format first, then fall back to legacy format
+        if "soap_data" in task_group:  # type: ignore[operator]
+            soap_json = task_group["soap_data"][()].decode("utf-8")  # type: ignore[index]
+        elif "soap_note" in task_group:  # type: ignore[operator]
+            # Legacy format compatibility
+            soap_json = task_group["soap_note"][()].decode("utf-8")  # type: ignore[index]
+        else:
             raise ValueError(f"No SOAP data found for session {session_id}")
 
-        soap_json = task_group["soap_data"][()].decode("utf-8")  # type: ignore[index]
         soap_data = json.loads(soap_json)
 
     logger.info(
@@ -1803,4 +1808,78 @@ def delete_order(
             "ORDER_DELETED",
             session_id=session_id,
             order_id=order_id,
+        )
+
+
+def get_session_metadata(session_id: str) -> dict[str, Any] | None:
+    """Get session-level metadata from HDF5 attributes.
+
+    Args:
+        session_id: Session identifier
+
+    Returns:
+        Dictionary containing session metadata, or None if session not found
+    """
+    with _h5_lock, h5py.File(CORPUS_PATH, "r") as f:
+        session_path = f"/sessions/{session_id}"
+
+        if session_path not in f:  # type: ignore[operator]
+            logger.warning("SESSION_NOT_FOUND", session_id=session_id)
+            return None
+
+        session_group = f[session_path]  # type: ignore[index]
+
+        # Read all attributes from session group
+        metadata = dict(session_group.attrs)  # type: ignore[union-attr]
+
+        # Deserialize JSON strings back to objects
+        for key, value in metadata.items():
+            if isinstance(value, (str, bytes)):
+                # Try to parse as JSON
+                try:
+                    value_str = value.decode("utf-8") if isinstance(value, bytes) else value
+                    metadata[key] = json.loads(value_str)
+                except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+                    # Not JSON, keep as-is
+                    pass
+
+        logger.info(
+            "SESSION_METADATA_GET_SUCCESS",
+            session_id=session_id,
+            keys=list(metadata.keys()),
+        )
+
+        return metadata
+
+
+def update_session_metadata(session_id: str, updates: dict[str, Any]) -> None:
+    """Update session-level metadata in HDF5 attributes.
+
+    Args:
+        session_id: Session identifier
+        updates: Dictionary of metadata fields to update
+
+    Raises:
+        ValueError: If session not found
+    """
+    with _h5_lock, h5py.File(CORPUS_PATH, "a") as f:
+        session_path = f"/sessions/{session_id}"
+
+        if session_path not in f:  # type: ignore[operator]
+            raise ValueError(f"Session {session_id} not found")
+
+        session_group = f[session_path]  # type: ignore[index]
+
+        # Update attributes
+        for key, value in updates.items():
+            # Convert complex types to JSON strings for HDF5 compatibility
+            if isinstance(value, (dict, list)):
+                session_group.attrs[key] = json.dumps(value)  # type: ignore[union-attr]
+            else:
+                session_group.attrs[key] = value  # type: ignore[union-attr]
+
+        logger.info(
+            "SESSION_METADATA_UPDATE_SUCCESS",
+            session_id=session_id,
+            updated_keys=list(updates.keys()),
         )
