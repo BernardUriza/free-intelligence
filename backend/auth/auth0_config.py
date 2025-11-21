@@ -26,7 +26,7 @@ AUTH0_CLIENT_SECRET = os.getenv("AUTH0_CLIENT_SECRET", "")
 
 # API Identifier (Audience) - this is your API's unique identifier in Auth0
 # You need to create an API in Auth0 Dashboard → Applications → APIs
-AUTH0_API_IDENTIFIER = os.getenv("AUTH0_API_IDENTIFIER", "https://api.fi-aurity.duckdns.org")
+AUTH0_API_IDENTIFIER = os.getenv("AUTH0_API_IDENTIFIER", "https://app.aurity.io")
 
 # Auth0 Algorithms (RS256 is the default for Auth0)
 ALGORITHMS = ["RS256"]
@@ -80,7 +80,7 @@ def validate_config() -> None:
             "Set these environment variables:\n"
             "  export AUTH0_DOMAIN=dev-1r4daup7ofj7q6gn.us.auth0.com\n"
             "  export AUTH0_CLIENT_ID=rYOowVCxSqeSNFVOFsZuVIiYsjw4wkKp\n"
-            "  export AUTH0_API_IDENTIFIER=https://api.fi-aurity.duckdns.org"
+            "  export AUTH0_API_IDENTIFIER=https://app.aurity.io"
         )
 
     print("✅ Auth0 configuration validated:")

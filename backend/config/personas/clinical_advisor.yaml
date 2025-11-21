@@ -26,6 +26,9 @@ model: gpt-4o-mini
 temperature: 0.5  # Balance entre creatividad y precisión
 max_tokens: 1024
 
+# TTS voice (Azure OpenAI)
+voice: alloy  # Neutral, professional
+
 # Few-shot examples
 examples:
   - input: "Paciente de 45 años con dolor torácico y disnea súbita. ¿Diagnósticos diferenciales?"

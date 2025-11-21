@@ -22,7 +22,9 @@ from backend.api.public.workflows.assistant_websocket import broadcast_new_messa
 from backend.logger import get_logger
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.llm import llm_generate
+from backend.repositories.audit_repository import AuditRepository
 from backend.schemas.llm_audit_policy import require_audit_log
+from backend.services.audit_service import AuditService
 from backend.services.llm.conversation_memory import get_memory_manager
 from backend.services.llm.persona_manager import PersonaManager
 
@@ -32,6 +34,12 @@ router = APIRouter()
 logger = get_logger(__name__)
 persona_mgr = PersonaManager()
 policy_loader = get_policy_loader()
+
+# Initialize audit service for persona metrics tracking
+from pathlib import Path
+CORPUS_PATH = Path(__file__).parent.parent.parent.parent.parent / "storage" / "corpus.h5"
+audit_repo = AuditRepository(CORPUS_PATH)
+audit_service = AuditService(audit_repo)
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -226,6 +234,37 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
                 persona=request.persona,
             )
 
+        # Calculate cost estimate (rough approximation based on tokens)
+        # Azure GPT-4: ~$0.03 per 1K input tokens, $0.06 per 1K output tokens
+        # Simplified: average $0.045 per 1K tokens
+        cost_usd = (tokens_used / 1000) * 0.045 if tokens_used > 0 else 0.0
+
+        # Log to audit trail for persona metrics tracking
+        try:
+            audit_service.log_action(
+                action="llm_call",
+                user_id=effective_doctor_id or "anonymous",
+                resource=f"persona:{effective_persona}",
+                result="success",
+                details={
+                    "persona": effective_persona,
+                    "latency_ms": latency_ms,
+                    "tokens_used": tokens_used,
+                    "cost_usd": round(cost_usd, 6),
+                    "model": model_name,
+                    "session_id": request.session_id,
+                    "memory_enabled": memory_enabled,
+                    "provider": primary_provider,
+                },
+            )
+        except Exception as audit_error:
+            # Don't fail the request if audit fails
+            logger.warning(
+                "AUDIT_LOG_FAILED",
+                error=str(audit_error),
+                persona=effective_persona,
+            )
+
         # Ultra detailed logging
         logger.info(
             "INTERNAL_LLM_CHAT_SUCCESS",
@@ -240,6 +279,7 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
             memory_enabled=memory_enabled,
             auto_memory_enabled=auto_memory_enabled,
             provider=primary_provider,
+            cost_usd=round(cost_usd, 6),
         )
 
         return ChatResponse(
@@ -248,6 +288,7 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
             tokens_used=tokens_used,
             latency_ms=latency_ms,
             model=model_name,
+            voice=persona_config.voice,  # Azure TTS voice for this persona
             prompt_hash=prompt_hash[:12],
             response_hash=response_hash[:12],
             logged_at=datetime.now(UTC).isoformat(),

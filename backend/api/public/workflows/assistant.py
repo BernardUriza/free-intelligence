@@ -197,10 +197,14 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
         500: If internal LLM call fails
     """
     try:
-        # Extract doctor_id from context (Auth0 user.sub)
+        # Extract doctor_id and persona from context (Auth0 user.sub)
         doctor_id = None
-        if request.context and "doctor_id" in request.context:
-            doctor_id = request.context["doctor_id"]
+        persona = "general_assistant"  # Default persona
+        if request.context:
+            if "doctor_id" in request.context:
+                doctor_id = request.context["doctor_id"]
+            if "persona" in request.context:
+                persona = request.context["persona"]
 
         logger.info(
             "ASSISTANT_CHAT_START",
@@ -208,13 +212,14 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
             has_context=request.context is not None,
             session_id=request.session_id,
             doctor_id=doctor_id,
+            persona=persona,
             memory_enabled=doctor_id is not None,
         )
 
         llm_client = get_llm_client()
 
         result = await llm_client.chat(
-            persona="general_assistant",
+            persona=persona,  # Use persona from context (frontend dropdown)
             message=request.message,
             context=request.context,
             session_id=request.session_id,
@@ -363,18 +368,24 @@ async def public_chat(request_body: ChatRequest, http_request: Request) -> Publi
 
     # 4. Call LLM (reuse exact logic from /assistant/chat but doctor_id=None)
     try:
+        # Extract persona from context (default: general_assistant)
+        persona = "general_assistant"
+        if request_body.context and "persona" in request_body.context:
+            persona = request_body.context["persona"]
+
         logger.info(
             "PUBLIC_CHAT_START",
             message_length=len(request_body.message),
             session_id=session_id,
             client_ip=client_ip,
+            persona=persona,
             memory_enabled=False,  # Always false for public
         )
 
         llm_client = get_llm_client()
 
         result = await llm_client.chat(
-            persona="general_assistant",
+            persona=persona,  # Use persona from context
             message=request_body.message,
             context=request_body.context or {},
             session_id=session_id,
