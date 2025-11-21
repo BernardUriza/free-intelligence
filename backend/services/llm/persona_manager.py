@@ -3,15 +3,21 @@ PersonaManager - Free Intelligence
 
 Gestiona diferentes "personas" (modos) del asistente Free-Intelligence.
 
-ARQUITECTURA:
-- Prompts: /config/personas/*.yaml (NO en código)
-- Código: Solo parámetros y lógica de carga
+ARQUITECTURA (Template + Override Pattern):
+- Templates: /backend/config/personas/*.yaml (immutable base, version-controlled)
+- Overrides: PostgreSQL user_persona_configs table (per-user customizations)
+- Merge logic: User override takes precedence, NULL = use template default
 
 Personas disponibles:
 - onboarding_guide: Presentación en onboarding (obsesiva, empática, filosa)
 - soap_editor: Editor de notas SOAP (preciso, médico)
 - clinical_advisor: Asesor clínico (basado en evidencia)
 - general_assistant: Asistente general médico
+
+Multi-tenancy:
+- Each user gets cloned personas from templates on signup
+- Users can customize prompts, temperature, max_tokens independently
+- Template updates don't affect existing user customizations
 """
 
 from __future__ import annotations
@@ -20,6 +26,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
+from sqlalchemy.orm import Session
+
+from backend.models.db_models import UserPersonaConfig
 
 
 @dataclass
@@ -36,7 +45,7 @@ class PersonaConfig:
 class PersonaManager:
     """Gestor de personas de Free-Intelligence.
 
-    Carga configuraciones desde /config/personas/*.yaml
+    Carga configuraciones desde /backend/config/personas/*.yaml
     No embebe prompts en código - solo parámetros.
     """
 
@@ -44,11 +53,11 @@ class PersonaManager:
         """Inicializa el gestor de personas.
 
         Args:
-            config_dir: Directorio de configs (default: /config/personas/)
+            config_dir: Directorio de configs (default: /backend/config/personas/)
         """
         self._personas: dict[str, PersonaConfig] = {}
         self._config_dir = config_dir or (
-            Path(__file__).parent.parent.parent.parent / "config" / "personas"
+            Path(__file__).parent.parent.parent / "config" / "personas"
         )
         self._load_personas()
 
@@ -175,3 +184,151 @@ class PersonaManager:
             return "onboarding_guide"
         else:
             return "general_assistant"
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # MULTI-TENANT PERSONA MANAGEMENT (Template + Override Pattern)
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    def get_user_persona(self, persona: str, user_id: str, db: Session) -> PersonaConfig:
+        """Get persona config with user-specific overrides merged.
+
+        Architecture: Template + Override Pattern
+        1. Load base template from YAML
+        2. Query user_persona_configs for overrides
+        3. Merge: user override takes precedence, NULL = use template
+
+        Args:
+            persona: Persona identifier (e.g., "soap_editor")
+            user_id: User UUID
+            db: SQLAlchemy session
+
+        Returns:
+            PersonaConfig with user overrides applied
+
+        Raises:
+            ValueError: If persona doesn't exist in templates
+        """
+        # 1. Load base template
+        template = self.get_persona(persona)
+
+        # 2. Query user overrides
+        override = (
+            db.query(UserPersonaConfig).filter_by(user_id=user_id, persona_id=persona).first()
+        )
+
+        # 3. No override = return template as-is
+        if override is None:
+            return template
+
+        # 4. Merge: user override takes precedence
+        return PersonaConfig(
+            persona=persona,
+            system_prompt=override.custom_prompt or template.system_prompt,
+            temperature=override.temperature
+            if override.temperature is not None
+            else template.temperature,
+            max_tokens=override.max_tokens
+            if override.max_tokens is not None
+            else template.max_tokens,
+            description=template.description,  # Description always from template
+        )
+
+    def clone_personas_for_user(self, user_id: str, db: Session) -> list[str]:
+        """Clone all template personas for a new user (onboarding seed).
+
+        Creates user_persona_configs entries with all NULL overrides,
+        meaning user starts with exact template defaults but can customize later.
+
+        Args:
+            user_id: User UUID
+            db: SQLAlchemy session
+
+        Returns:
+            List of cloned persona IDs
+        """
+        cloned = []
+
+        for persona_id in self.list_personas():
+            # Check if already exists
+            existing = (
+                db.query(UserPersonaConfig)
+                .filter_by(user_id=user_id, persona_id=persona_id)
+                .first()
+            )
+
+            if existing is not None:
+                continue  # Already cloned
+
+            # Create with all NULL overrides (= use template defaults)
+            config = UserPersonaConfig(
+                user_id=user_id,
+                persona_id=persona_id,
+                custom_prompt=None,  # NULL = use template
+                temperature=None,  # NULL = use template
+                max_tokens=None,  # NULL = use template
+                is_active=True,
+            )
+            db.add(config)
+            cloned.append(persona_id)
+
+        db.commit()
+        return cloned
+
+    def update_user_persona(
+        self,
+        user_id: str,
+        persona_id: str,
+        db: Session,
+        custom_prompt: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> PersonaConfig:
+        """Update user's persona overrides.
+
+        Args:
+            user_id: User UUID
+            persona_id: Persona identifier
+            db: SQLAlchemy session
+            custom_prompt: Override system prompt (None = keep current)
+            temperature: Override temperature (None = keep current)
+            max_tokens: Override max tokens (None = keep current)
+
+        Returns:
+            Updated PersonaConfig with overrides applied
+
+        Raises:
+            ValueError: If persona doesn't exist in templates
+        """
+        # Verify persona exists in templates
+        self.get_persona(persona_id)  # Raises ValueError if not found
+
+        # Get or create user config
+        config = (
+            db.query(UserPersonaConfig).filter_by(user_id=user_id, persona_id=persona_id).first()
+        )
+
+        if config is None:
+            # Create new override entry
+            config = UserPersonaConfig(
+                user_id=user_id,
+                persona_id=persona_id,
+                custom_prompt=custom_prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                is_active=True,
+            )
+            db.add(config)
+        else:
+            # Update existing overrides (only non-None values)
+            if custom_prompt is not None:
+                config.custom_prompt = custom_prompt
+            if temperature is not None:
+                config.temperature = temperature
+            if max_tokens is not None:
+                config.max_tokens = max_tokens
+
+        db.commit()
+        db.refresh(config)
+
+        # Return merged config
+        return self.get_user_persona(persona_id, user_id, db)

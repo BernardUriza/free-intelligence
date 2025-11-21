@@ -13,13 +13,13 @@ Refactored: 2025-11-14 (Pruned unused endpoints)
 from __future__ import annotations
 
 import os
-from backend.compat import UTC
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from backend.compat import UTC
 from backend.middleware import InternalOnlyMiddleware
 
 
@@ -184,6 +184,7 @@ Requires environment variables:
             audit.router, prefix="/audit", tags=["Audit"]
         )  # Audit logs (FI-UI-FEAT-206)
         public_app.include_router(policy.router)  # Policy viewer (FI-UI-FEAT-204)
+        public_app.include_router(public.personas_admin.router)  # Personas Admin (FI-UI-DESIGN-003)
         public_app.include_router(public.system.router, prefix="/system", tags=["System"])
         public_app.include_router(tts.router)  # Text-to-Speech (Azure OpenAI)
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)

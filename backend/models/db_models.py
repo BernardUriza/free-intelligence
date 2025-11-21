@@ -1,18 +1,30 @@
 """SQLAlchemy database models for PostgreSQL.
 
 Patient and Provider models for medical record management.
+UserPersonaConfig for per-user AI persona customization.
 Uses SQLAlchemy ORM for PostgreSQL persistence.
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-17
-Card: FI-DATA-DB-001
+Updated: 2025-11-20 (Added UserPersonaConfig)
+Card: FI-DATA-DB-001, FI-UI-DESIGN-003
 """
 
 from __future__ import annotations
 
 from uuid import uuid4
 
-from sqlalchemy import CHAR, Column, DateTime, String, func
+from sqlalchemy import (
+    CHAR,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    Integer,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -108,6 +120,59 @@ class Provider(Base):
             "nombre": self.nombre,
             "cedula_profesional": self.cedula_profesional,
             "especialidad": self.especialidad,
+            "created_at": self.created_at.isoformat() if self.created_at is not None else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at is not None else None,
+        }
+
+
+class UserPersonaConfig(Base):
+    """User-specific AI persona configuration overrides.
+
+    Stores per-user customizations of AI personas (templates in /backend/config/personas/).
+    Uses NULL to indicate "use template default" - only stores actual overrides.
+
+    Architecture: Template + Override Pattern
+    - Templates: YAML files in /backend/config/personas/ (immutable base)
+    - Overrides: This table (per-user customizations)
+    - Merge logic: User override takes precedence, NULL = use template
+
+    Attributes:
+        user_id: UUID of user (provider_id FK)
+        persona_id: Persona identifier (soap_editor, clinical_advisor, etc.)
+        custom_prompt: Full system prompt override (NULL = use template)
+        temperature: LLM temperature override (NULL = use template)
+        max_tokens: Max tokens override (NULL = use template)
+        is_active: Whether this persona is active for user
+        created_at: When user first cloned/customized this persona
+        updated_at: Last modification timestamp
+    """
+
+    __tablename__ = "user_persona_configs"
+
+    user_id = Column(UUID(as_uuid=False), primary_key=True)
+    persona_id = Column(String(50), primary_key=True)
+    custom_prompt = Column(Text, nullable=True)  # NULL = use template
+    temperature = Column(Float, nullable=True)  # NULL = use template
+    max_tokens = Column(Integer, nullable=True)  # NULL = use template
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    def __repr__(self) -> str:
+        """String representation."""
+        return f"<UserPersonaConfig {self.user_id}/{self.persona_id} (active={self.is_active})>"
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for API responses."""
+        return {
+            "user_id": str(self.user_id),
+            "persona_id": self.persona_id,
+            "custom_prompt": self.custom_prompt,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at is not None else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at is not None else None,
         }

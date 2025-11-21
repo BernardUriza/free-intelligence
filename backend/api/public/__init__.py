@@ -19,7 +19,7 @@ Removed (FI-STRIDE deprecated):
 
 from __future__ import annotations
 
-from . import audit, patients, providers, system, workflows
+from . import audit, patients, personas_admin, providers, system, workflows
 
-__all__ = ["audit", "patients", "providers", "system", "workflows"]
+__all__ = ["audit", "patients", "personas_admin", "providers", "system", "workflows"]
 # NOTE: assistant moved to workflows/assistant.py (AURITY-specific architecture)
