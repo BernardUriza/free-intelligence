@@ -230,7 +230,54 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 
 ---
 
-## 6. [Próximo Competidor]
+## 6. INVOX Medical
+
+**URL**: https://www.invoxmedical.com/
+**Tipo**: Software de dictado médico por voz (SaaS + On-prem)
+**Origen**: España (Murcia)
+**Fundación**: 2011 (VÓCALI)
+**Tracción**: 550+ centros en 20 países
+**Idiomas**: Español, portugués, brasileño, catalán
+
+### Características Principales
+- **Dictado por voz**: Informes médicos sin tocar teclado
+- **+20 especialidades**: Diccionarios específicos por área
+- **Tiempo real**: Transcripción inmediata
+- **Compatible con cualquier EHR**: Integración universal
+- **On-prem o Cloud**: Flexibilidad de despliegue
+- **Líder en radiología**: También anatomía patológica, medicina interna, oncología
+
+### Precio
+- Desde **€300/año** (~$325 USD)
+- Modelo SaaS o licenciamiento
+- Prueba gratuita disponible
+
+### Soporte
+- Respuesta en menos de 24 horas
+- Acompañamiento en despliegue
+- Capacitación a médicos
+
+### Diferenciador Clave
+> **15+ años de experiencia** en reconocimiento de voz médico. Diccionarios especializados para máxima precisión.
+
+### ✅ Features a Incorporar en AURITY
+
+| Feature | Prioridad | Descripción | Complejidad |
+|---------|-----------|-------------|-------------|
+| **Diccionarios por especialidad** | 🔴 Alta | Vocabulario médico específico para cada área | Media |
+| **Comandos de voz** | 🟡 Media | "Nuevo párrafo", "punto", "borrar última oración" | Media |
+| **Soporte 24h** | 🟢 Baja | SLA de respuesta garantizado | Baja |
+
+### Notas de Implementación
+
+#### Diccionarios Especializados
+- Vocabulario específico: radiología, patología, oncología
+- Mejora precisión de transcripción
+- Puede entrenarse con corpus médico local
+
+---
+
+## 7. [Próximo Competidor]
 
 *Pendiente de análisis...*
 
@@ -238,21 +285,21 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 
 ## Matriz Comparativa General
 
-| Feature | AURITY | NotaSalud | Telepatía | Leona | Itaca | Dorascribe |
-|---------|--------|-----------|-----------|-------|-------|------------|
-| Notas SOAP | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
-| Transcripción audio | ✅ | ✅ | ✅ | ✅ (WA) | ✅ | ✅ |
-| Recetas | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| IA aprende estilo | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Templates especialidad | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Templates personalizables | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Multi-idioma | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ✅ (4) |
-| Plan gratuito | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (20/mes) |
-| App móvil | PWA | 🔜 | ✅ | ✅ | ✅ | ✅ |
-| Integración EHR | ❌ | ❌ | ✅ | ❌ | ✅ | ⚠️ |
-| Cumplimiento HIPAA | ✅ | ⚠️ | ✅ | ⚠️ | ⚠️ | ✅ |
-| Auditoría inmutable | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| White label on-prem | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Feature | AURITY | NotaSalud | Telepatía | Leona | Itaca | Dorascribe | INVOX |
+|---------|--------|-----------|-----------|-------|-------|------------|-------|
+| Notas SOAP | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ⚠️ |
+| Transcripción audio | ✅ | ✅ | ✅ | ✅ (WA) | ✅ | ✅ | ✅ |
+| Dictado por voz | ⚠️ | ⚠️ | ⚠️ | ❌ | ⚠️ | ✅ | ✅ |
+| Recetas | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Templates especialidad | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ (20+) |
+| Multi-idioma | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ✅ (4) | ✅ (4) |
+| Plan gratuito | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | Trial |
+| App móvil | PWA | 🔜 | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Integración EHR | ❌ | ❌ | ✅ | ❌ | ✅ | ⚠️ | ✅ |
+| Cumplimiento HIPAA | ✅ | ⚠️ | ✅ | ⚠️ | ⚠️ | ✅ | ✅ |
+| Auditoría inmutable | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **On-prem disponible** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Años en mercado | 1 | ~2 | ~3 | ~2 | ~4 | ~3 | **15+** |
 
 ---
 
@@ -290,6 +337,7 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 | Competidor | Plan Básico | Plan Pro | Notas |
 |------------|-------------|----------|-------|
 | Dorascribe | $39/mes | $89/mes | 20 gratis/mes |
+| INVOX Medical | €300/año (~$25/mes) | Licenciamiento | Trial gratis, on-prem disponible |
 | NotaSalud | N/D | N/D | - |
 | Telepatía | N/D | N/D | - |
 | Leona | N/D | N/D | - |
@@ -306,4 +354,5 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 | 2025-11-21 | Agregado: Leona Health (enfoque WhatsApp) |
 | 2025-11-21 | Agregado: Itaca AI (líder LATAM, 20k+ usuarios) |
 | 2025-11-21 | Agregado: Dorascribe (precios públicos, freemium) |
+| 2025-11-21 | Agregado: INVOX Medical (España, 15+ años, on-prem) |
 
