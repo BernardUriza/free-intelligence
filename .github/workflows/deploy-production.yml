@@ -185,19 +185,20 @@ jobs:
     runs-on: ubuntu-latest
     needs: deploy-backend
     steps:
-      - name: Check health endpoint
+      - name: Check frontend is serving
         run: |
           sleep 10  # Wait for backend to start
-          curl -f https://app.aurity.io/api/health || exit 1
+          curl -f https://app.aurity.io/ -o /dev/null || exit 1
+          echo "✅ Frontend is serving"
 
-      - name: Check API endpoint
+      - name: Check API sessions endpoint
         run: |
           curl -f https://app.aurity.io/api/workflows/aurity/sessions || exit 1
+          echo "✅ Backend API is responding"
 
       - name: Send success notification
         if: success()
         run: |
           echo "✅ Deployment to production successful!"
           echo "🌐 Frontend: https://app.aurity.io"
-          echo "🔌 Backend:  https://app.aurity.io/api/"
-          echo "💚 Health:   https://app.aurity.io/api/health"
+          echo "🔌 Backend:  https://app.aurity.io/api/workflows/aurity/sessions"
