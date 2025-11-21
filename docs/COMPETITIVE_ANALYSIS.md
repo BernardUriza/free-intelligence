@@ -277,7 +277,56 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 
 ---
 
-## 7. [Próximo Competidor]
+## 7. Neogaleno
+
+**URL**: https://neogaleno.com/
+**Tipo**: EHR/ECE completo con gestión administrativa (SaaS)
+**Origen**: México (CDMX)
+**Enfoque**: Expediente Clínico Electrónico + Gestión de consultorio
+
+### Características Principales
+- **Expediente 100% digital**: Digitaliza formatos en papel
+- **Recetas con firma digital**: Envío automático por email
+- **Gestión de citas**: Programación y confirmación automatizada
+- **Control de pagos**: Récord monetario, exporta Excel para contador
+- **Formularios personalizables**: Crea formularios a medida
+- **Cumplimiento NOM-024-SSA3**: Normativa mexicana de ECE
+- **Acceso móvil**: Historiales desde cualquier lugar
+
+### Diferenciador Clave
+> Sistema **todo-en-uno**: expediente clínico + gestión administrativa + facturación. Cumple normativa mexicana (NOM-024).
+
+### Cumplimiento Regulatorio México
+- **NOM-024-SSA3-2012**: Sistemas de Registro Electrónico para Salud
+- **CIE-10**: Clasificación Internacional de Enfermedades
+- Cifrado y autenticación de usuarios
+- Transmisión segura de datos
+
+### ✅ Features a Incorporar en AURITY
+
+| Feature | Prioridad | Descripción | Complejidad |
+|---------|-----------|-------------|-------------|
+| **Recetas con firma digital** | 🔴 Alta | Recetas firmadas digitalmente, envío por email | Media |
+| **Cumplimiento NOM-024** | 🟡 Media | Certificación para mercado mexicano | Media |
+| **Gestión de citas** | 🟡 Media | Agendamiento y confirmación automática | Media |
+| **Exportar a Excel** | 🟢 Baja | Datos para contador/administración | Baja |
+
+### Notas de Implementación
+
+#### Recetas con Firma Digital
+- Integrar con SAT (México) o equivalentes LATAM
+- Certificado digital del médico
+- Verificación QR en receta
+- Envío automático por email al paciente
+
+#### Cumplimiento NOM-024
+- Revisar requisitos específicos de la norma
+- Importante para vender a clínicas mexicanas
+- Diferenciador vs competidores extranjeros
+
+---
+
+## 8. [Próximo Competidor]
 
 *Pendiente de análisis...*
 
@@ -285,21 +334,20 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 
 ## Matriz Comparativa General
 
-| Feature | AURITY | NotaSalud | Telepatía | Leona | Itaca | Dorascribe | INVOX |
-|---------|--------|-----------|-----------|-------|-------|------------|-------|
-| Notas SOAP | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ⚠️ |
-| Transcripción audio | ✅ | ✅ | ✅ | ✅ (WA) | ✅ | ✅ | ✅ |
-| Dictado por voz | ⚠️ | ⚠️ | ⚠️ | ❌ | ⚠️ | ✅ | ✅ |
-| Recetas | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Templates especialidad | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ (20+) |
-| Multi-idioma | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ✅ (4) | ✅ (4) |
-| Plan gratuito | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | Trial |
-| App móvil | PWA | 🔜 | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Integración EHR | ❌ | ❌ | ✅ | ❌ | ✅ | ⚠️ | ✅ |
-| Cumplimiento HIPAA | ✅ | ⚠️ | ✅ | ⚠️ | ⚠️ | ✅ | ✅ |
-| Auditoría inmutable | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **On-prem disponible** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Años en mercado | 1 | ~2 | ~3 | ~2 | ~4 | ~3 | **15+** |
+| Feature | AURITY | NotaSalud | Telepatía | Leona | Itaca | Dorascribe | INVOX | Neogaleno |
+|---------|--------|-----------|-----------|-------|-------|------------|-------|-----------|
+| Notas SOAP | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ⚠️ | ⚠️ |
+| Transcripción audio | ✅ | ✅ | ✅ | ✅ (WA) | ✅ | ✅ | ✅ | ❌ |
+| Recetas | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (firma digital) |
+| EHR/ECE completo | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Gestión citas | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Control pagos | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Templates especialidad | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ (20+) | ✅ |
+| App móvil | PWA | 🔜 | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| Cumplimiento HIPAA | ✅ | ⚠️ | ✅ | ⚠️ | ⚠️ | ✅ | ✅ | ⚠️ |
+| Cumplimiento NOM-024 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Auditoría inmutable | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **On-prem disponible** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
 
 ---
 
@@ -355,4 +403,5 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 | 2025-11-21 | Agregado: Itaca AI (líder LATAM, 20k+ usuarios) |
 | 2025-11-21 | Agregado: Dorascribe (precios públicos, freemium) |
 | 2025-11-21 | Agregado: INVOX Medical (España, 15+ años, on-prem) |
+| 2025-11-21 | Agregado: Neogaleno (México, EHR completo, NOM-024) |
 
