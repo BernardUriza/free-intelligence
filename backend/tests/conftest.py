@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import tempfile
 from collections.abc import Generator
-from backend.compat import UTC
+from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Union
 

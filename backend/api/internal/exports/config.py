@@ -6,7 +6,7 @@ Centralizes environment variables and constants.
 from __future__ import annotations
 
 import os
-from backend.compat import UTC
+from datetime import UTC
 from pathlib import Path
 
 from backend.logger import get_logger
