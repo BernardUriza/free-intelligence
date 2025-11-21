@@ -98,7 +98,44 @@ Este documento identifica oportunidades de mejora para AURITY basándose en el a
 
 ---
 
-## 3. [Próximo Competidor]
+## 3. Leona Health
+
+**URL**: https://www.leona.health/
+**Tipo**: Gestión de comunicación médico-paciente vía WhatsApp
+**Origen**: México
+**Enfoque**: Diferente a los anteriores - no es transcripción de consultas
+
+### Características Principales
+- **Integración WhatsApp**: Separa chats de pacientes de personales
+- **Transcripción de audios**: Convierte notas de voz a texto
+- **Respuestas sugeridas**: IA sugiere respuestas a mensajes
+- **Mensajes programados**: Recordatorios automáticos de citas
+- **Delegación a equipo**: Asignar mensajes al asistente/equipo médico
+- **Historial centralizado**: Notas del equipo siempre disponibles
+- **Importación automática**: Recupera últimos 6 meses de chats
+
+### Problema que Resuelve
+> Médicos en México dependen mucho de WhatsApp para atender pacientes. Se saturan con notificaciones, mensajes a deshoras y presión de responder inmediatamente con una herramienta no diseñada para medicina.
+
+### ✅ Features a Incorporar en AURITY
+
+| Feature | Prioridad | Descripción | Complejidad |
+|---------|-----------|-------------|-------------|
+| **Integración WhatsApp** | 🟡 Media | Canal de comunicación paciente vía WhatsApp Business API | Alta |
+| **Mensajes programados** | 🟢 Baja | Recordatorios automáticos de citas/seguimiento | Baja |
+| **Respuestas sugeridas** | 🟡 Media | IA sugiere respuestas a preguntas frecuentes de pacientes | Media |
+
+### Notas de Implementación
+
+#### Integración WhatsApp
+- WhatsApp Business API (requiere aprobación Meta)
+- Alternativa: Twilio para WhatsApp
+- Separar contexto clínico del chat personal
+- Cumplimiento de privacidad en mensajería
+
+---
+
+## 4. [Próximo Competidor]
 
 *Pendiente de análisis...*
 
@@ -106,18 +143,20 @@ Este documento identifica oportunidades de mejora para AURITY basándose en el a
 
 ## Matriz Comparativa General
 
-| Feature | AURITY | NotaSalud | Telepatía | Comp. 4 |
-|---------|--------|-----------|-----------|---------|
-| Notas SOAP | ✅ | ✅ | ✅ | - |
-| Transcripción audio | ✅ | ✅ | ✅ | - |
-| Recetas | ❌ | ✅ | ❌ | - |
-| IA aprende estilo | ❌ | ✅ | ❌ | - |
-| App móvil | PWA | 🔜 | ✅ | - |
-| Integración EHR | ❌ | ❌ | ✅ | - |
-| Cumplimiento HIPAA | ✅ | ⚠️ | ✅ | - |
-| Auditoría inmutable | ✅ | ❌ | ❌ | - |
-| White label on-prem | ✅ | ❌ | ❌ | - |
-| Timeline causal | ✅ | ❌ | ❌ | - |
+| Feature | AURITY | NotaSalud | Telepatía | Leona |
+|---------|--------|-----------|-----------|-------|
+| Notas SOAP | ✅ | ✅ | ✅ | ❌ |
+| Transcripción audio | ✅ | ✅ | ✅ | ✅ (WhatsApp) |
+| Recetas | ❌ | ✅ | ❌ | ❌ |
+| IA aprende estilo | ❌ | ✅ | ❌ | ❌ |
+| App móvil | PWA | 🔜 | ✅ | ✅ |
+| Integración EHR | ❌ | ❌ | ✅ | ❌ |
+| Integración WhatsApp | ❌ | ❌ | ❌ | ✅ |
+| Mensajes programados | ❌ | ❌ | ❌ | ✅ |
+| Cumplimiento HIPAA | ✅ | ⚠️ | ✅ | ⚠️ |
+| Auditoría inmutable | ✅ | ❌ | ❌ | ❌ |
+| White label on-prem | ✅ | ❌ | ❌ | ❌ |
+| Timeline causal | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -127,15 +166,18 @@ Este documento identifica oportunidades de mejora para AURITY basándose en el a
 - [ ] Generación de recetas médicas
 - [ ] Métricas de ahorro de tiempo por médico
 - [ ] Traducción automática de términos médicos
+- [ ] Mensajes programados (recordatorios de citas)
 
 ### Fase 2 - Mejoras UX
 - [ ] IA que aprende estilo del médico
 - [ ] Templates personalizados por especialidad
 - [ ] Flujo de aprobación de notas (revisar antes de guardar)
+- [ ] Respuestas sugeridas para preguntas frecuentes
 
 ### Fase 3 - Integraciones
 - [ ] Integración con sistemas EHR (HL7 FHIR)
 - [ ] App móvil nativa (iOS/Android)
+- [ ] Integración WhatsApp Business API
 
 ---
 
@@ -145,4 +187,5 @@ Este documento identifica oportunidades de mejora para AURITY basándose en el a
 |-------|--------|
 | 2025-11-21 | Análisis inicial: NotaSalud |
 | 2025-11-21 | Agregado: Telepatía AI |
+| 2025-11-21 | Agregado: Leona Health (enfoque WhatsApp) |
 
