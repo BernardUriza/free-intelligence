@@ -150,6 +150,10 @@ jobs:
           pkill -f uvicorn || true
           sleep 2
 
+          echo "🧹 Clearing Python bytecode cache..."
+          find backend -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
+          find backend -type f -name '*.pyc' -delete 2>/dev/null || true
+
           echo "🚀 Starting new backend..."
           cd /opt/free-intelligence
           PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
