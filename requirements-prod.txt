@@ -25,6 +25,8 @@ httpx>=0.25.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 requests>=2.31.0
+cffi>=1.16.0
+cryptography>=41.0.0
 
 # ============================================================================
 # LLM Providers (no local models)
