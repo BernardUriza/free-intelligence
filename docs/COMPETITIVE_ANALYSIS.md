@@ -326,9 +326,56 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 
 ---
 
-## 8. [Próximo Competidor]
+## 8. Chainlink Health / Blockchain en Salud
 
-*Pendiente de análisis...*
+**URL**: https://chainlink.mx/chainlink-health
+**Tipo**: Trazabilidad blockchain para expedientes médicos
+**Nota**: Información limitada disponible públicamente
+
+### Concepto General: Blockchain en Salud
+
+La trazabilidad con blockchain en salud ofrece:
+- **Inmutabilidad**: Registros que no pueden ser alterados
+- **Trazabilidad del dato**: Saber qué ha ocurrido en cada paso
+- **Propiedad del paciente**: El paciente es dueño de sus datos
+- **Transparencia**: Acceso verificable desde cualquier lugar
+- **Interoperabilidad**: Compartir datos de forma segura entre instituciones
+
+### Proyectos Similares
+- **MedRec (MIT)**: Gestión de autenticación y trazabilidad de expedientes
+- **Teeb.Health (México)**: Plataforma blockchain para recetas y expedientes
+- **Solve.Care + Chainlink**: Oráculos para datos médicos en smart contracts
+
+### ✅ AURITY YA TIENE ESTO
+
+| Feature Blockchain | AURITY Equivalente | Estado |
+|-------------------|-------------------|--------|
+| Inmutabilidad | HDF5 append-only ledger | ✅ Implementado |
+| Hash de integridad | SHA256 en cada evento | ✅ Implementado |
+| Trazabilidad | Timeline causal con provenance | ✅ Implementado |
+| Auditoría | Logs estructurados, métricas | ✅ Implementado |
+| Reproducibilidad | agent_id, prompt_template_v, policy_snapshot | ✅ Implementado |
+
+### Diferenciador de AURITY vs Blockchain
+> AURITY ofrece **trazabilidad sin la complejidad de blockchain**. Mismo nivel de auditoría e inmutabilidad, pero más simple de implementar y operar.
+
+### Posible Mejora
+- Considerar **exportar manifiestos firmados** para verificación externa
+- Integrar con blockchain pública para "timestamping" opcional (prueba de existencia)
+
+---
+
+## Ventajas Competitivas Únicas de AURITY
+
+Después de analizar 7+ competidores, estas son las ventajas que **ningún otro tiene**:
+
+| Ventaja | Descripción | Competidores con esto |
+|---------|-------------|----------------------|
+| **Auditoría inmutable** | Hash SHA256 + append-only + timeline causal | Solo AURITY |
+| **White label on-prem** | Despliegue en NAS del cliente | Solo AURITY + INVOX |
+| **Soberanía de datos** | PHI nunca sale del perímetro del cliente | Solo AURITY |
+| **LLM Router** | Middleware inteligente sin llamadas directas a cloud | Solo AURITY |
+| **Reproducibilidad IA** | Misma pregunta + estado = misma respuesta + provenance | Solo AURITY |
 
 ---
 
@@ -404,4 +451,6 @@ Adaptación automática por especialidad: la nota se ajusta a la terminología y
 | 2025-11-21 | Agregado: Dorascribe (precios públicos, freemium) |
 | 2025-11-21 | Agregado: INVOX Medical (España, 15+ años, on-prem) |
 | 2025-11-21 | Agregado: Neogaleno (México, EHR completo, NOM-024) |
+| 2025-11-21 | Agregado: Chainlink Health / Blockchain (AURITY ya tiene trazabilidad) |
+| 2025-11-21 | Agregado: Sección "Ventajas Competitivas Únicas de AURITY" |
 
