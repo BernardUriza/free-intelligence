@@ -62,7 +62,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
             $DROPLET_USER@$DROPLET_HOST \
-            "nginx -t && systemctl reload nginx"
+            "nginx -t && (systemctl is-active nginx && systemctl reload nginx || systemctl start nginx)"
 
   deploy-backend:
     name: Deploy Backend (Docker)
