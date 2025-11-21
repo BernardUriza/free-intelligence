@@ -1,0 +1,47 @@
+#!/bin/bash
+# =============================================================================
+# AURITY Production Pre-Receive Hook
+# =============================================================================
+# Install on production server: /opt/free-intelligence/.git/hooks/pre-receive
+# Makes it IMPOSSIBLE to push directly to production
+#
+# This hook runs on the SERVER when someone tries to push.
+# It rejects ALL pushes - production only accepts deploys via CI/CD.
+# =============================================================================
+
+set -euo pipefail
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${RED}"
+cat << 'EOF'
+ ██████╗ ██████╗  ██████╗ ██████╗     ██████╗ ██╗      ██████╗  ██████╗██╗  ██╗███████╗██████╗
+ ██╔══██╗██╔══██╗██╔═══██╗██╔══██╗    ██╔══██╗██║     ██╔═══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗
+ ██████╔╝██████╔╝██║   ██║██║  ██║    ██████╔╝██║     ██║   ██║██║     █████╔╝ █████╗  ██║  ██║
+ ██╔═══╝ ██╔══██╗██║   ██║██║  ██║    ██╔══██╗██║     ██║   ██║██║     ██╔═██╗ ██╔══╝  ██║  ██║
+ ██║     ██║  ██║╚██████╔╝██████╔╝    ██████╔╝███████╗╚██████╔╝╚██████╗██║  ╚██╗███████╗██████╔╝
+ ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚═════╝     ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝╚═╝   ╚═╝╚══════╝╚═════╝
+EOF
+echo -e "${NC}"
+
+echo -e "${YELLOW}════════════════════════════════════════════════════════════════════════════════${NC}"
+echo -e "${RED}⛔️  DIRECT PUSH TO PRODUCTION IS FORBIDDEN${NC}"
+echo ""
+echo "   This is a PRODUCTION server. All deployments must go through CI/CD."
+echo ""
+echo "   What you should do instead:"
+echo "   1. Push to GitHub: git push origin main"
+echo "   2. CI/CD will deploy automatically after tests pass"
+echo "   3. Or use: make ci-deploy (from your local machine)"
+echo ""
+echo -e "${YELLOW}   Incident logged. Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")${NC}"
+echo -e "${YELLOW}   User: ${USER:-unknown}${NC}"
+echo -e "${YELLOW}   IP: ${SSH_CLIENT%% *}${NC}"
+echo -e "${YELLOW}════════════════════════════════════════════════════════════════════════════════${NC}"
+
+# Log the attempt
+echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") BLOCKED_PUSH user=${USER:-unknown} ip=${SSH_CLIENT%% *}" >> /var/log/aurity-security.log
+
+exit 1
