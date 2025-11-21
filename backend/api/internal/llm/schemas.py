@@ -45,6 +45,7 @@ class ChatResponse(BaseModel):
     tokens_used: int
     latency_ms: int
     model: str
+    voice: str = Field(description="Azure TTS voice for this persona (nova, alloy, echo, fable, onyx, shimmer)")
 
     # Observability metadata
     prompt_hash: str = Field(description="SHA256 del prompt enviado (primeros 12 chars)")
