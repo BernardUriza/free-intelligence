@@ -9,6 +9,7 @@ Exports:
     - Session: Medical consultation session
     - SessionStatus: Session lifecycle status
     - EncryptionMetadata: Encryption metadata for sessions
+    - Checkin models: Appointment, PendingAction, CheckinSession, Clinic, Doctor
 """
 
 from __future__ import annotations
@@ -17,7 +18,24 @@ from backend.models.job import Job, JobStatus, JobType
 from backend.models.session import EncryptionMetadata, Session, SessionStatus
 from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
 
+# FI Receptionist Check-in models
+from backend.models.checkin_models import (
+    Appointment,
+    AppointmentStatus,
+    AppointmentType,
+    CheckinSession,
+    CheckinStep,
+    Clinic,
+    DeviceType,
+    Doctor,
+    PendingAction,
+    PendingActionStatus,
+    PendingActionType,
+    WaitingRoomEvent,
+)
+
 __all__ = [
+    # Core models
     "ChunkMetadata",
     "EncryptionMetadata",
     "Job",
@@ -26,4 +44,17 @@ __all__ = [
     "Session",
     "SessionStatus",
     "TranscriptionJob",
+    # Check-in models (FI-CHECKIN-001)
+    "Appointment",
+    "AppointmentStatus",
+    "AppointmentType",
+    "CheckinSession",
+    "CheckinStep",
+    "Clinic",
+    "DeviceType",
+    "Doctor",
+    "PendingAction",
+    "PendingActionStatus",
+    "PendingActionType",
+    "WaitingRoomEvent",
 ]
