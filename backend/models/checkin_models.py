@@ -13,9 +13,6 @@ from __future__ import annotations
 import enum
 import secrets
 from datetime import datetime, timedelta
-from typing import List, Optional
-from uuid import uuid4
-
 from sqlalchemy import (
     Boolean,
     Column,
@@ -31,9 +28,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
+from typing import List  # noqa: F401 - referenced in string annotations
+from uuid import uuid4
 
 from backend.models.db_models import Base
-
 
 # =============================================================================
 # ENUMS
@@ -274,7 +272,9 @@ class Appointment(Base):
     # Scheduling
     scheduled_at = Column(DateTime(timezone=True), nullable=False, index=True)
     estimated_duration = Column(Integer, default=30)  # minutes
-    appointment_type = Column(Enum(AppointmentType), nullable=False, default=AppointmentType.FOLLOW_UP)
+    appointment_type = Column(
+        Enum(AppointmentType), nullable=False, default=AppointmentType.FOLLOW_UP
+    )
 
     # Status tracking
     status = Column(
@@ -316,7 +316,9 @@ class Appointment(Base):
     __table_args__ = (
         Index("ix_appointments_clinic_date", "clinic_id", "scheduled_at"),
         Index("ix_appointments_clinic_status", "clinic_id", "status"),
-        Index("ix_appointments_checkin_lookup", "clinic_id", "checkin_code", "checkin_code_expires_at"),
+        Index(
+            "ix_appointments_checkin_lookup", "clinic_id", "checkin_code", "checkin_code_expires_at"
+        ),
     )
 
     def __repr__(self) -> str:
@@ -363,9 +365,7 @@ class PendingAction(Base):
 
     # Type and status
     action_type = Column(Enum(PendingActionType), nullable=False)
-    status = Column(
-        Enum(PendingActionStatus), nullable=False, default=PendingActionStatus.PENDING
-    )
+    status = Column(Enum(PendingActionStatus), nullable=False, default=PendingActionStatus.PENDING)
 
     # Display
     title = Column(String(200), nullable=False)

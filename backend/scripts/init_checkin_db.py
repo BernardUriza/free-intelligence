@@ -16,15 +16,14 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from backend.database import engine, SessionLocal
-from backend.models.db_models import Base, Patient
+from backend.database import SessionLocal, engine
 from backend.models.checkin_models import (
     Appointment,
     AppointmentStatus,
@@ -33,9 +32,8 @@ from backend.models.checkin_models import (
     Doctor,
     PendingAction,
     PendingActionType,
-    PendingActionStatus,
-    generate_checkin_code,
 )
+from backend.models.db_models import Base, Patient
 
 
 def create_tables() -> None:
@@ -130,7 +128,7 @@ def seed_demo_data() -> None:
         print(f"   ✅ Patients: {len(patients)} created")
 
         # 4. Create demo appointments for today
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         today_10am = now.replace(hour=10, minute=0, second=0, microsecond=0)
         today_11am = now.replace(hour=11, minute=0, second=0, microsecond=0)
         today_12pm = now.replace(hour=12, minute=0, second=0, microsecond=0)

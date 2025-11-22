@@ -14,14 +14,13 @@ from __future__ import annotations
 import base64
 import io
 import json
-import secrets
-from datetime import datetime, timezone
-from typing import List, Optional
-
 import qrcode
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
-from sqlalchemy import and_, func
+import secrets
+from datetime import UTC, datetime
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
+from typing import List
 
 from backend.database import get_db_dependency
 from backend.logger import get_logger
@@ -32,13 +31,13 @@ from backend.models.checkin_models import (
     CheckinStep,
     Clinic,
     DeviceType,
-    Doctor,
     PendingAction,
     PendingActionStatus,
     WaitingRoomEvent,
 )
 from backend.models.db_models import Patient
 from backend.schemas.checkin_schemas import (
+    AppointmentBrief,
     CheckinSessionResponse,
     CompleteActionRequest,
     CompleteCheckinRequest,
@@ -51,12 +50,11 @@ from backend.schemas.checkin_schemas import (
     IdentifyByCurpRequest,
     IdentifyByNameRequest,
     IdentifyPatientResponse,
+    PatientBrief,
     PendingActionResponse,
     StartSessionRequest,
-    WaitingRoomState,
-    AppointmentBrief,
-    PatientBrief,
     WaitingRoomPatient,
+    WaitingRoomState,
 )
 
 logger = get_logger(__name__)
@@ -123,7 +121,7 @@ def calculate_wait_time(position: int, avg_consultation_minutes: int = 20) -> in
 
 def get_waiting_room_state(db: Session, clinic_id: str) -> WaitingRoomState:
     """Build current waiting room state."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Get checked-in patients waiting
@@ -141,12 +139,16 @@ def get_waiting_room_state(db: Session, clinic_id: str) -> WaitingRoomState:
     )
 
     # Get patients seen today
-    patients_seen = db.query(Appointment).filter(
-        Appointment.clinic_id == clinic_id,
-        Appointment.status.in_([AppointmentStatus.COMPLETED, AppointmentStatus.IN_PROGRESS]),
-        Appointment.scheduled_at >= today_start,
-        Appointment.is_deleted == False,
-    ).count()
+    patients_seen = (
+        db.query(Appointment)
+        .filter(
+            Appointment.clinic_id == clinic_id,
+            Appointment.status.in_([AppointmentStatus.COMPLETED, AppointmentStatus.IN_PROGRESS]),
+            Appointment.scheduled_at >= today_start,
+            Appointment.is_deleted == False,
+        )
+        .count()
+    )
 
     # Build patient list
     patients_waiting = []
@@ -159,7 +161,9 @@ def get_waiting_room_state(db: Session, clinic_id: str) -> WaitingRoomState:
             continue
 
         full_name = f"{patient.nombre} {patient.apellido}"
-        wait_minutes = calculate_wait_time(idx, appt.doctor.avg_consultation_minutes if appt.doctor else 20)
+        wait_minutes = calculate_wait_time(
+            idx, appt.doctor.avg_consultation_minutes if appt.doctor else 20
+        )
         total_wait += wait_minutes
 
         patients_waiting.append(
@@ -167,7 +171,9 @@ def get_waiting_room_state(db: Session, clinic_id: str) -> WaitingRoomState:
                 patient_id=str(appt.patient_id),
                 patient_name=full_name,
                 appointment_id=str(appt.appointment_id),
-                checked_in_at=appt.checked_in_at.isoformat() if appt.checked_in_at else now.isoformat(),
+                checked_in_at=appt.checked_in_at.isoformat()
+                if appt.checked_in_at
+                else now.isoformat(),
                 position_in_queue=idx,
                 estimated_wait_minutes=wait_minutes,
                 doctor_id=str(appt.doctor_id),
@@ -208,7 +214,7 @@ def generate_qr(request: GenerateQRRequest, db: Session = Depends(get_db_depende
         raise HTTPException(status_code=404, detail=f"Clinic {request.clinic_id} not found")
 
     # Generate QR data
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = now.replace(second=0, microsecond=0)
     expires_at = expires_at.replace(minute=expires_at.minute + QR_EXPIRY_MINUTES)
 
@@ -216,7 +222,9 @@ def generate_qr(request: GenerateQRRequest, db: Session = Depends(get_db_depende
 
     # URL for check-in page
     base_url = "https://app.aurity.io"
-    qr_url = f"{base_url}/checkin?clinic={request.clinic_id}&t={int(expires_at.timestamp())}&n={nonce}"
+    qr_url = (
+        f"{base_url}/checkin?clinic={request.clinic_id}&t={int(expires_at.timestamp())}&n={nonce}"
+    )
 
     # Generate QR code image
     qr = qrcode.QRCode(
@@ -261,7 +269,7 @@ def start_session(request: StartSessionRequest, db: Session = Depends(get_db_dep
         raise HTTPException(status_code=404, detail=f"Clinic {request.clinic_id} not found")
 
     # Create session
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session = CheckinSession(
         clinic_id=request.clinic_id,
         device_type=DeviceType(request.device_type.value),
@@ -326,7 +334,7 @@ def get_session(session_id: str, db: Session = Depends(get_db_dependency)):
 
 def _check_rate_limit(session: CheckinSession) -> None:
     """Check if session has exceeded identification attempts."""
-    if session.identification_attempts >= MAX_IDENTIFICATION_ATTEMPTS:
+    if session.identification_attempts >= MAX_IDENTIFICATION_ATTEMPTS:  # type: ignore[operator]
         raise HTTPException(
             status_code=429,
             detail="Too many identification attempts. Please try again later.",
@@ -335,9 +343,9 @@ def _check_rate_limit(session: CheckinSession) -> None:
 
 def _find_appointment_for_patient(
     db: Session, clinic_id: str, patient_id: str
-) -> Optional[Appointment]:
+) -> Appointment | None:
     """Find today's appointment for patient at clinic."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start.replace(hour=23, minute=59, second=59)
 
@@ -409,7 +417,7 @@ def identify_by_code(request: IdentifyByCodeRequest, db: Session = Depends(get_d
     Most secure method - code is sent via SMS/email when booking.
     Code expires at end of appointment day.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Find appointment by code
     appointment = (
@@ -460,7 +468,9 @@ def identify_by_curp(request: IdentifyByCurpRequest, db: Session = Depends(get_d
     patient = db.query(Patient).filter(Patient.curp == request.curp.upper()).first()
 
     if not patient:
-        logger.warning("IDENTIFY_BY_CURP_FAILED", clinic_id=request.clinic_id, curp=mask_curp(request.curp))
+        logger.warning(
+            "IDENTIFY_BY_CURP_FAILED", clinic_id=request.clinic_id, curp=mask_curp(request.curp)
+        )
         return IdentifyPatientResponse(
             success=False,
             error="CURP no encontrado. Verifique el dato o use otro método.",
@@ -586,7 +596,7 @@ def complete_action(
     if action.status == PendingActionStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="Action already completed")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Handle specific action types
     if request.signature_data:
@@ -641,7 +651,7 @@ def skip_action(action_id: str, db: Session = Depends(get_db_dependency)):
         raise HTTPException(status_code=400, detail="Action cannot be skipped in current state")
 
     action.status = PendingActionStatus.SKIPPED
-    action.completed_at = datetime.now(timezone.utc)
+    action.completed_at = datetime.now(UTC)
     action.completed_by = "patient"
 
     db.commit()
@@ -683,7 +693,9 @@ async def complete_checkin(
     and broadcasts to waiting room displays.
     """
     # Validate session
-    session = db.query(CheckinSession).filter(CheckinSession.session_id == request.session_id).first()
+    session = (
+        db.query(CheckinSession).filter(CheckinSession.session_id == request.session_id).first()
+    )
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -702,7 +714,8 @@ async def complete_checkin(
 
     # Check for blocking actions not completed
     blocking_pending = [
-        a for a in appointment.pending_actions
+        a
+        for a in appointment.pending_actions
         if a.is_blocking and a.status == PendingActionStatus.PENDING
     ]
     if blocking_pending:
@@ -715,7 +728,7 @@ async def complete_checkin(
             error="Debe completar las acciones requeridas antes del check-in",
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Calculate queue position
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -745,11 +758,13 @@ async def complete_checkin(
     event = WaitingRoomEvent(
         clinic_id=str(appointment.clinic_id),
         event_type="patient_checkin",
-        event_data=json.dumps({
-            "appointment_id": str(appointment.appointment_id),
-            "patient_id": str(appointment.patient_id),
-            "queue_position": queue_position,
-        }),
+        event_data=json.dumps(
+            {
+                "appointment_id": str(appointment.appointment_id),
+                "patient_id": str(appointment.patient_id),
+                "queue_position": queue_position,
+            }
+        ),
         appointment_id=appointment.appointment_id,
         patient_id=appointment.patient_id,
     )
