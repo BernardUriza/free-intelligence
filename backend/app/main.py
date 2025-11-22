@@ -167,11 +167,12 @@ Requires environment variables:
         from backend.api import internal, public
         from backend.api.internal.admin import users_router  # Admin user management
 
-        # Import TTS router, Check-in router, Payments router, and Clinics router
+        # Import TTS router, Check-in router, Payments router, Clinics router, Notifications router
         from backend.api.public import (
             audit,
             checkin,
             clinics,
+            notifications,
             patients,
             payments,
             policy,
@@ -199,6 +200,7 @@ Requires environment variables:
         public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
         public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
         public_app.include_router(clinics.router)  # Clinic/Doctor CRUD (FI-CHECKIN-002)
+        public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 
         # INTERNAL API (atomic resources, AURITY-only)

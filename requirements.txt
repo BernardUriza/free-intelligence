@@ -100,3 +100,9 @@ qrcode[pil]>=7.4                # QR code generation for check-in
 # Payments (FI-CHECKIN-002 - Sprint 2)
 # ============================================================================
 stripe>=8.0.0                   # Stripe payment processing
+
+# ============================================================================
+# Notifications (FI-CHECKIN-003 - Sprint 3)
+# ============================================================================
+twilio>=9.0.0                   # SMS notifications via Twilio
+sendgrid>=6.10.0                # Email notifications via SendGrid
