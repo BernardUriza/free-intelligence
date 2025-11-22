@@ -94,3 +94,4 @@ alembic>=1.13.0                 # Database migration tool
 # Diarization Low-Priority Worker (FI-RELIABILITY-IMPL-004)
 # ============================================================================
 psutil>=6.1.1                   # CPU monitoring for scheduler
+qrcode[pil]>=7.4
