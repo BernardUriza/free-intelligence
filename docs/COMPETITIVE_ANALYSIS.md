@@ -2,14 +2,108 @@
 
 Documento de análisis de competidores y features a incorporar en AURITY.
 
-**Fecha**: 2025-11-21
-**Versión**: 0.1.0
+**Fecha**: 2025-11-22
+**Versión**: 1.0.0
+**Competidores analizados**: 11
 
 ---
 
 ## Resumen Ejecutivo
 
-Este documento identifica oportunidades de mejora para AURITY basándose en el análisis de competidores en el espacio de IA médica y documentación clínica.
+### Panorama del Mercado
+
+Se analizaron **11 competidores** en el espacio de IA médica y documentación clínica:
+
+| # | Competidor | Enfoque Principal | Región | Tracción |
+|---|------------|-------------------|--------|----------|
+| 1 | NotaSalud | Notas + Recetas | LATAM | - |
+| 2 | Telepatía AI | Transcripción + EHR | Colombia | 250+ médicos, 15 instituciones |
+| 3 | Leona Health | WhatsApp médico | México | - |
+| 4 | Itaca AI | Videollamadas + SOAP | LATAM | **20,000+ profesionales** |
+| 5 | Dorascribe | Transcripción freemium | Global | - |
+| 6 | INVOX Medical | Dictado por voz | España | 550+ centros, 20 países |
+| 7 | Neogaleno | EHR completo | México | - |
+| 8 | Chainlink Health | Blockchain/Trazabilidad | México | - |
+| 9 | Dragon Medical | Gold standard mundial | Global | Líder de mercado |
+| 10 | Sonix | Transcripción IA | Global | - |
+| 11 | Transkriptor | Budget option | Global | - |
+
+---
+
+### Top 5 Features a Implementar (Prioridad Alta)
+
+| # | Feature | Fuente | Impacto |
+|---|---------|--------|---------|
+| 1 | **Generación de recetas** | NotaSalud, Neogaleno | Diferenciador clave en LATAM |
+| 2 | **Templates por especialidad** | Itaca, INVOX | Psiquiatría, pediatría, cirugía, etc. |
+| 3 | **Integración videollamadas** | Itaca | Zoom/Meet/Teams - captura telemedicina |
+| 4 | **Recetas con firma digital** | Neogaleno | Cumplimiento regulatorio México |
+| 5 | **Diccionarios especializados** | INVOX | Mejora precisión por especialidad |
+
+---
+
+### Ventajas Únicas de AURITY (Ningún competidor las tiene)
+
+| Ventaja | Descripción |
+|---------|-------------|
+| **Auditoría inmutable** | SHA256 + append-only + timeline causal |
+| **White label on-prem** | Despliegue en NAS del cliente |
+| **Soberanía de datos** | PHI nunca sale del perímetro |
+| **LLM Router** | Middleware sin llamadas directas a cloud |
+| **Reproducibilidad IA** | Misma pregunta = misma respuesta + provenance |
+
+> **Hallazgo clave**: La trazabilidad que buscan con blockchain, **AURITY ya la tiene** implementada de forma más simple.
+
+---
+
+### Referencia de Precios del Mercado
+
+| Tier | Rango | Ejemplos |
+|------|-------|----------|
+| Budget | $5-25/mes | Transkriptor, INVOX |
+| Mid-market | $39-89/mes | Dorascribe |
+| Enterprise | $$$$ | Dragon Medical One |
+
+**Recomendación**: Posicionar AURITY en **$30-60/mes** para mid-market LATAM, con opción **freemium** (20 sesiones/mes).
+
+---
+
+### Roadmap Sugerido por Fases
+
+**Fase 1 - Quick Wins** (1-2 meses)
+- Recetas médicas
+- Métricas de ahorro de tiempo
+- Auto-completado
+
+**Fase 2 - Mejoras UX** (3-4 meses)
+- Templates por especialidad
+- Plantillas personalizables
+- Flujo de aprobación de notas
+
+**Fase 3 - Integraciones** (5-6 meses)
+- Videollamadas (Zoom/Meet/Teams)
+- EHR (HL7 FHIR)
+- WhatsApp Business API
+
+**Fase 4 - Modelo de Negocio**
+- Plan freemium
+- Pricing tiers
+
+---
+
+### Conclusión
+
+AURITY tiene **ventajas técnicas únicas** (trazabilidad, on-prem, soberanía de datos) que ningún competidor ofrece. Para competir efectivamente en LATAM, debe agregar:
+
+1. **Recetas** - feature más solicitado
+2. **Templates por especialidad** - diferenciador de Itaca (líder con 20k+ usuarios)
+3. **Modelo freemium** - estrategia de adquisición de Dorascribe
+
+El mercado está fragmentado: hay oportunidad de ser el **líder en LATAM** combinando las mejores features de todos + las ventajas únicas de trazabilidad y privacidad.
+
+---
+
+## Análisis Detallado por Competidor
 
 ---
 
@@ -503,4 +597,5 @@ Después de analizar 7+ competidores, estas son las ventajas que **ningún otro 
 | 2025-11-21 | Agregado: Chainlink Health / Blockchain (AURITY ya tiene trazabilidad) |
 | 2025-11-21 | Agregado: Sección "Ventajas Competitivas Únicas de AURITY" |
 | 2025-11-22 | Agregado: Competidores globales (Dragon Medical, Sonix, Transkriptor) |
+| 2025-11-22 | **v1.0.0**: Resumen ejecutivo completo con conclusiones y recomendaciones |
 
