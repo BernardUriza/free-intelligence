@@ -167,8 +167,8 @@ Requires environment variables:
         from backend.api import internal, public
         from backend.api.internal.admin import users_router  # Admin user management
 
-        # Import TTS router
-        from backend.api.public import audit, patients, policy, providers, tts
+        # Import TTS router and Check-in router
+        from backend.api.public import audit, checkin, patients, policy, providers, tts
         from backend.api.public.workflows import timeline
         from backend.auth.auth0_router import (
             router as auth_router,  # HIPAA G-003 (Auth0)
@@ -187,6 +187,7 @@ Requires environment variables:
         public_app.include_router(public.personas_admin.router)  # Personas Admin (FI-UI-DESIGN-003)
         public_app.include_router(public.system.router, prefix="/system", tags=["System"])
         public_app.include_router(tts.router)  # Text-to-Speech (Azure OpenAI)
+        public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 
         # INTERNAL API (atomic resources, AURITY-only)
