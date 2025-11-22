@@ -365,6 +365,55 @@ La trazabilidad con blockchain en salud ofrece:
 
 ---
 
+## 9. Competidores Globales (del artículo Sonix)
+
+Referencia: https://sonix.ai/resources/es/mejor-software-de-transcripcion-medica/
+
+### 9.1 Dragon Medical One (Nuance/Microsoft)
+
+**Tipo**: Líder mundial en dictado médico
+**Precio**: Enterprise (alto costo)
+
+**Características**:
+- Dictado en tiempo real directo a EHR
+- Terminología médica avanzada
+- HIPAA compliant
+- Integración con Epic, Cerner, etc.
+- Propiedad de Microsoft
+
+**Por qué importa**: Es el "gold standard" pero muy caro. AURITY compite en el segmento más accesible.
+
+---
+
+### 9.2 Sonix
+
+**URL**: https://sonix.ai
+**Tipo**: Transcripción IA general con capacidades médicas
+**Precio**: $10/hora (Standard), $5/hora + $22/usuario/mes (Premium)
+
+**Características**:
+- HIPAA ready + SOC 2 Tipo 2
+- 99% precisión
+- 50+ idiomas
+- 30 min gratis de prueba
+
+**Limitaciones**: No tiempo real (aún), colaboración limitada
+
+---
+
+### 9.3 Transkriptor
+
+**URL**: https://transkriptor.com
+**Tipo**: Alternativa económica
+**Precio**: Desde $4.99 (300 min)
+
+**Características**:
+- 10x más barato que Sonix
+- Multi-idioma
+- Rápido y preciso
+
+---
+
 ## Ventajas Competitivas Únicas de AURITY
 
 Después de analizar 7+ competidores, estas son las ventajas que **ningún otro tiene**:
@@ -453,4 +502,5 @@ Después de analizar 7+ competidores, estas son las ventajas que **ningún otro 
 | 2025-11-21 | Agregado: Neogaleno (México, EHR completo, NOM-024) |
 | 2025-11-21 | Agregado: Chainlink Health / Blockchain (AURITY ya tiene trazabilidad) |
 | 2025-11-21 | Agregado: Sección "Ventajas Competitivas Únicas de AURITY" |
+| 2025-11-22 | Agregado: Competidores globales (Dragon Medical, Sonix, Transkriptor) |
 
