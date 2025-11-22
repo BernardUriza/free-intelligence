@@ -52,6 +52,7 @@ from backend.api.public.workflows import (
     timeline,
     transcription,
     tv_content_seeds,
+    unified_timeline,
     waiting_room,
     widget_configs,
 )
@@ -98,6 +99,9 @@ router.include_router(assistant_history.router, tags=["AI Assistant"])
 
 # ASSISTANT WEBSOCKET: Real-time chat sync via WebSocket
 router.include_router(assistant_websocket.router, tags=["AI Assistant"])
+
+# UNIFIED TIMELINE: Memoria Longitudinal Unificada (chat + audio)
+router.include_router(unified_timeline.router, tags=["Unified Timeline"])
 
 # WAITING ROOM: Dynamic content generation for TV displays
 router.include_router(waiting_room.router, prefix="/waiting-room", tags=["Waiting Room"])
