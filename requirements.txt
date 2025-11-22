@@ -94,4 +94,9 @@ alembic>=1.13.0                 # Database migration tool
 # Diarization Low-Priority Worker (FI-RELIABILITY-IMPL-004)
 # ============================================================================
 psutil>=6.1.1                   # CPU monitoring for scheduler
-qrcode[pil]>=7.4
+qrcode[pil]>=7.4                # QR code generation for check-in
+
+# ============================================================================
+# Payments (FI-CHECKIN-002 - Sprint 2)
+# ============================================================================
+stripe>=8.0.0                   # Stripe payment processing
