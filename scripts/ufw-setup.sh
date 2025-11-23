@@ -2,6 +2,8 @@
 # Free Intelligence - UFW Firewall Setup for DigitalOcean NAS
 # Configures deny-all + allow SSH + NFS from VPC only
 #
+# IMPORTANT: Also create a matching DO Cloud Firewall for defense-in-depth
+#
 # Usage: sudo ./scripts/ufw-setup.sh [VPC_CIDR] [--with-smb]
 # Example: sudo ./scripts/ufw-setup.sh 10.116.0.0/20 --with-smb
 
@@ -67,14 +69,12 @@ ufw allow from "$VPC_CIDR" to any port 111 proto tcp comment 'RPC portmapper'
 ufw allow from "$VPC_CIDR" to any port 111 proto udp comment 'RPC portmapper UDP'
 ok "NFS allowed"
 
-# 6. Allow SMB if requested
+# 6. Allow SMB if requested (SMB3 only - port 445)
 if [ "$ENABLE_SMB" = true ]; then
-    log "Allowing SMB from VPC..."
-    ufw allow from "$VPC_CIDR" to any port 445 proto tcp comment 'SMB from VPC'
-    ufw allow from "$VPC_CIDR" to any port 139 proto tcp comment 'NetBIOS from VPC'
-    ufw allow from "$VPC_CIDR" to any port 137 proto udp comment 'NetBIOS NS'
-    ufw allow from "$VPC_CIDR" to any port 138 proto udp comment 'NetBIOS DGM'
-    ok "SMB allowed"
+    log "Allowing SMB from VPC (port 445 only for SMB3)..."
+    ufw allow from "$VPC_CIDR" to any port 445 proto tcp comment 'SMB3 from VPC'
+    # Note: ports 137-139 are for legacy NetBIOS, not needed for SMB3
+    ok "SMB3 allowed"
 fi
 
 # 7. Allow loopback
@@ -92,32 +92,50 @@ echo ""
 log "Current UFW rules:"
 ufw status verbose
 
-# 10. Show summary
+# 10. Generate DO Cloud Firewall equivalent
 echo ""
 echo "========================================"
 echo -e "${GREEN}Firewall Configured${NC}"
 echo "========================================"
 echo ""
-echo -e "${CYAN}Allowed Services:${NC}"
+echo -e "${CYAN}UFW Rules Applied:${NC}"
 echo "  - SSH (22/tcp)     from $VPC_CIDR"
 echo "  - NFSv4 (2049/tcp) from $VPC_CIDR"
 echo "  - RPC (111)        from $VPC_CIDR"
 if [ "$ENABLE_SMB" = true ]; then
-echo "  - SMB (445/tcp)    from $VPC_CIDR"
-echo "  - NetBIOS (139)    from $VPC_CIDR"
+echo "  - SMB3 (445/tcp)   from $VPC_CIDR"
 fi
 echo ""
 echo -e "${CYAN}Default Policy:${NC}"
 echo "  - Incoming: DENY (all other traffic blocked)"
 echo "  - Outgoing: ALLOW"
 echo ""
-echo -e "${CYAN}Commands:${NC}"
+echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}IMPORTANT: Create DO Cloud Firewall Too!${NC}"
+echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo "Defense-in-depth: If someone disables UFW, the Cloud Firewall"
+echo "still protects the Droplet. Create via DO Console or CLI:"
+echo ""
+echo -e "${CYAN}doctl compute firewall create \\${NC}"
+echo "  --name fi-nas-fw \\"
+echo "  --droplet-ids \$(doctl compute droplet get fi-nas --format ID --no-header) \\"
+echo "  --inbound-rules \"protocol:tcp,ports:22,address:$VPC_CIDR\" \\"
+echo "  --inbound-rules \"protocol:tcp,ports:2049,address:$VPC_CIDR\" \\"
+echo "  --inbound-rules \"protocol:tcp,ports:111,address:$VPC_CIDR\" \\"
+echo "  --inbound-rules \"protocol:udp,ports:111,address:$VPC_CIDR\" \\"
+if [ "$ENABLE_SMB" = true ]; then
+echo "  --inbound-rules \"protocol:tcp,ports:445,address:$VPC_CIDR\" \\"
+fi
+echo "  --outbound-rules \"protocol:tcp,ports:all,address:0.0.0.0/0\" \\"
+echo "  --outbound-rules \"protocol:udp,ports:all,address:0.0.0.0/0\""
+echo ""
+echo -e "${CYAN}Verify Firewall:${NC}"
+echo "  doctl compute firewall list"
+echo ""
+echo -e "${CYAN}UFW Commands:${NC}"
 echo "  ufw status numbered   # Show rules with numbers"
 echo "  ufw delete [N]        # Delete rule by number"
 echo "  ufw reload            # Reload rules"
-echo "  ufw disable           # Disable firewall"
-echo ""
-echo -e "${YELLOW}IMPORTANT:${NC}"
-echo "  Also configure DigitalOcean Cloud Firewall in the console"
-echo "  for defense-in-depth (restrict to VPC CIDR only)."
+echo "  ufw disable           # Disable firewall (NOT recommended)"
 echo "========================================"

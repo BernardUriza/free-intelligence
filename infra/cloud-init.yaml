@@ -1,12 +1,12 @@
 #cloud-config
-# Free Intelligence - DigitalOcean NAS Droplet
-# Provisions Ubuntu 22.04 with Block Storage + NFSv4 server
+# Free Intelligence - DigitalOcean NAS Droplet (Hardened)
+# Provisions Ubuntu 22.04 with Block Storage + NFSv4 pseudo-root
 #
 # Usage: doctl compute droplet create fi-nas \
 #   --region nyc3 --size s-2vcpu-4gb --image ubuntu-22-04-x64 \
 #   --vpc-uuid $VPC_UUID --user-data-file infra/cloud-init.yaml
 #
-# Block Storage: Attach via DO console, note UUID for fstab
+# Block Storage: Attach via DO console, volume name: fi-data
 
 package_update: true
 package_upgrade: true
@@ -19,7 +19,7 @@ packages:
   - tree
   - jq
 
-# Create fi user with consistent UID/GID for NFS
+# Create fi user with consistent UID/GID (1000) for NFS anonuid/anongid
 users:
   - name: fi
     uid: 1000
@@ -29,12 +29,18 @@ users:
 
 # Write configuration files
 write_files:
-  # NFS exports configuration
+  # NFSv4 pseudo-root exports (proper structure)
+  # /export is the pseudo-root (fsid=0), /export/fi is the actual share
   - path: /etc/exports
     content: |
-      # Free Intelligence NFS Exports
-      # VPC-only access (replace 10.116.0.0/20 with your VPC CIDR)
-      /mnt/fi 10.116.0.0/20(rw,sync,no_subtree_check,no_root_squash,crossmnt)
+      # Free Intelligence NFS Exports (NFSv4 pseudo-root)
+      # VPC-only access - adjust CIDR as needed
+      #
+      # Pseudo-root (read-only, required for NFSv4)
+      /export           10.116.0.0/20(ro,fsid=0,crossmnt,no_subtree_check)
+      #
+      # FI data share (root_squash maps root→anonuid/anongid=1000)
+      /export/fi        10.116.0.0/20(rw,sync,no_subtree_check,root_squash,anonuid=1000,anongid=1000)
     permissions: '0644'
 
   # NFS server tuning for HDF5 workloads
@@ -47,12 +53,12 @@ write_files:
       RPCSVCGSSDOPTS=""
     permissions: '0644'
 
-  # NFSv4 ID mapping (critical for UID/GID consistency)
+  # NFSv4 ID mapping (critical for UID/GID consistency across VPC)
   - path: /etc/idmapd.conf
     content: |
       [General]
       Verbosity = 0
-      Domain = fi.local
+      Domain = vpc.local
 
       [Mapping]
       Nobody-User = nobody
@@ -72,6 +78,24 @@ write_files:
       net.ipv4.tcp_wmem = 4096 65536 16777216
       net.core.netdev_max_backlog = 30000
       sunrpc.tcp_slot_table_entries = 128
+    permissions: '0644'
+
+  # Bind mount for NFS pseudo-root (systemd unit)
+  - path: /etc/systemd/system/export-fi.mount
+    content: |
+      [Unit]
+      Description=Bind mount /mnt/fi to /export/fi for NFS
+      After=mnt-fi.mount
+      Requires=mnt-fi.mount
+
+      [Mount]
+      What=/mnt/fi
+      Where=/export/fi
+      Type=none
+      Options=bind
+
+      [Install]
+      WantedBy=multi-user.target
     permissions: '0644'
 
   # FI environment overrides
@@ -97,8 +121,7 @@ write_files:
 
 # Commands to run at first boot
 runcmd:
-  # Mount Block Storage (replace VOLUME_UUID with actual UUID)
-  # Get UUID with: blkid /dev/disk/by-id/scsi-0DO_Volume_fi-data
+  # Mount Block Storage with proper fstab options (automount, _netdev, nofail)
   - |
     VOLUME_DEVICE="/dev/disk/by-id/scsi-0DO_Volume_fi-data"
     if [ -b "$VOLUME_DEVICE" ]; then
@@ -110,13 +133,13 @@ runcmd:
       # Create mount point
       mkdir -p /mnt/fi
 
-      # Add to fstab if not present
+      # Add to fstab with automount + _netdev (avoids boot hangs)
       if ! grep -q "/mnt/fi" /etc/fstab; then
         VOLUME_UUID=$(blkid -s UUID -o value "$VOLUME_DEVICE")
-        echo "UUID=$VOLUME_UUID /mnt/fi ext4 defaults,nofail,discard 0 2" >> /etc/fstab
+        echo "UUID=$VOLUME_UUID /mnt/fi ext4 defaults,noatime,x-systemd.automount,_netdev,nofail,discard 0 2" >> /etc/fstab
       fi
 
-      # Mount
+      # Mount now
       mount -a
     fi
 
@@ -125,6 +148,11 @@ runcmd:
   - chown -R 1000:1000 /mnt/fi
   - chmod 755 /mnt/fi
 
+  # Create NFS pseudo-root structure
+  - mkdir -p /export/fi
+  - systemctl daemon-reload
+  - systemctl enable --now export-fi.mount
+
   # Apply sysctl tuning
   - sysctl --system
 
@@ -132,7 +160,7 @@ runcmd:
   - systemctl enable nfs-kernel-server
   - systemctl restart nfs-idmapd
   - exportfs -ra
-  - systemctl start nfs-kernel-server
+  - systemctl restart nfs-kernel-server
 
   # Configure UFW (VPC CIDR: 10.116.0.0/20 - adjust as needed)
   - ufw default deny incoming
@@ -142,14 +170,18 @@ runcmd:
   - ufw allow from 10.116.0.0/20 to any port 111 proto tcp comment 'RPC portmapper'
   - ufw --force enable
 
-  # Verify NFS is exporting
+  # Enable TRIM for SSD Block Storage
+  - systemctl enable --now fstrim.timer
+
+  # Verify NFS exports
   - exportfs -v
 
   # Log completion
-  - echo "$(date): FI NAS cloud-init complete" >> /var/log/fi-nas-setup.log
+  - echo "$(date): FI NAS cloud-init complete (hardened)" >> /var/log/fi-nas-setup.log
 
 final_message: |
-  Free Intelligence NAS ready!
-  - NFS export: /mnt/fi
-  - Mount from client: mount -t nfs4 ${PRIVATE_IP}:/mnt/fi /mnt/fi-remote
+  Free Intelligence NAS ready (hardened)!
+  - NFS export: /export/fi (pseudo-root at /export)
+  - Mount from client: mount -t nfs4 -o rsize=1048576,wsize=1048576,hard,noatime,nconnect=4 ${PRIVATE_IP}:/fi /mnt/fi
   - Check status: exportfs -v && systemctl status nfs-kernel-server
+  - IMPORTANT: Also create DO Cloud Firewall matching UFW rules for defense-in-depth
