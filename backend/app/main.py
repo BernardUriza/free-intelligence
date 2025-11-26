@@ -137,28 +137,59 @@ Requires environment variables:
 
     # Sub-app: Public API (orchestrators, CORS enabled)
     public_app = FastAPI(title="Public API")
-    allowed_origins = os.getenv(
-        "ALLOWED_ORIGINS",
-        "http://localhost:9000,http://localhost:9050,https://app.aurity.io",
-    ).split(",")
+
+    # CORS configuration: more restrictive in production
+    environment = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
+
+    if environment == "production":
+        # In production, ALLOWED_ORIGINS must be explicitly set
+        allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "")
+        if not allowed_origins_str:
+            raise ValueError(
+                "ALLOWED_ORIGINS must be set in production environment. "
+                "This is required for CORS security."
+            )
+        allowed_origins = [
+            origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()
+        ]
+        allowed_headers = ["Content-Type", "Authorization", "X-Requested-With"]
+    else:
+        # In development, allow localhost origins
+        allowed_origins = [
+            "http://localhost:9000",
+            "http://localhost:9050",
+            "http://127.0.0.1:9000",
+            "http://127.0.0.1:9050",
+            "http://localhost:3000",  # Next.js dev server
+            "http://127.0.0.1:3000",
+        ]
+        # Also allow any explicitly configured origins
+        explicit_origins = os.getenv("ALLOWED_ORIGINS", "")
+        if explicit_origins:
+            allowed_origins.extend(
+                [origin.strip() for origin in explicit_origins.split(",") if origin.strip()]
+            )
+        allowed_headers = ["*"]  # More permissive in development
+
     public_app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=allowed_headers,
     )
 
     # Sub-app: Internal API (atomic resources, CORS for dev, localhost-only)
     internal_app = FastAPI(title="Internal API")
 
     # Add CORS for development (showcase testing)
+    # Internal API uses same CORS config as public API
     internal_app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=allowed_headers,
     )
     internal_app.add_middleware(InternalOnlyMiddleware)
 
@@ -167,8 +198,18 @@ Requires environment variables:
         from backend.api import internal, public
         from backend.api.internal.admin import users_router  # Admin user management
 
-        # Import TTS router and Check-in router
-        from backend.api.public import audit, checkin, patients, policy, providers, tts
+        # Import TTS router, Check-in router, Payments router, Clinics router, Notifications router
+        from backend.api.public import (
+            audit,
+            checkin,
+            clinics,
+            notifications,
+            patients,
+            payments,
+            policy,
+            providers,
+            tts,
+        )
         from backend.api.public.workflows import timeline
         from backend.auth.auth0_router import (
             router as auth_router,  # HIPAA G-003 (Auth0)
@@ -188,6 +229,9 @@ Requires environment variables:
         public_app.include_router(public.system.router, prefix="/system", tags=["System"])
         public_app.include_router(tts.router)  # Text-to-Speech (Azure OpenAI)
         public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
+        public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
+        public_app.include_router(clinics.router)  # Clinic/Doctor CRUD (FI-CHECKIN-002)
+        public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 
         # INTERNAL API (atomic resources, AURITY-only)

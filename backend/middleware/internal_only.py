@@ -31,7 +31,8 @@ class InternalOnlyMiddleware(BaseHTTPMiddleware):
         Returns:
             Response from next handler if allowed
         """
-        env = os.getenv("ENV", "development")
+        # Check ENVIRONMENT first, fallback to ENV for backward compatibility
+        env = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
 
         # In production, restrict to localhost only
         if env == "production":
