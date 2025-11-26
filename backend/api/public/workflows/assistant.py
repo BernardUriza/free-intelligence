@@ -4,15 +4,20 @@ Free-Intelligence Assistant Workflow - AURITY
 Conversational endpoints for Free-Intelligence AI persona.
 
 Architecture:
-  PUBLIC (this file) → InternalLLMClient → /internal/llm/* → PersonaManager → llm_generate
+  PUBLIC (this file) -> InternalLLMClient -> /internal/llm/* -> PersonaManager -> llm_generate
 
 Endpoints:
 - POST /workflows/aurity/assistant/introduction - Onboarding presentation
 - POST /workflows/aurity/assistant/chat - General conversation (Auth0 required for memory)
-- POST /workflows/aurity/assistant/public-chat - Public anonymous chat (rate-limited)
+- POST /workflows/aurity/assistant/public-chat - Public anonymous chat (rate-limited, DEPRECATED)
+
+Modules:
+- assistant_schemas.py - Pydantic request/response models
+- emotional_analysis.py - Hybrid LLM + heuristic emotional detection
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-18
+Refactored: 2025-11-26
 """
 
 from __future__ import annotations
@@ -20,61 +25,29 @@ from __future__ import annotations
 import os
 
 from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel, Field
 
 from backend.clients import get_llm_client
 from backend.logger import get_logger
 from backend.security.rate_limiter import ip_rate_limiter, session_rate_limiter
+
+# Import schemas from dedicated module
+from .assistant_schemas import (
+    IntroductionRequest,
+    IntroductionResponse,
+    ChatRequest,
+    ChatResponse,
+    PublicChatResponse,
+)
+
+# Import emotional analysis from dedicated module
+from .emotional_analysis import analyze_emotional_state
 
 logger = get_logger(__name__)
 router = APIRouter()
 
 
 # ============================================================================
-# Request/Response Schemas
-# ============================================================================
-
-
-class IntroductionRequest(BaseModel):
-    """Request for Free-Intelligence introduction."""
-
-    physician_name: str | None = Field(
-        None, description="Physician's name for personalized greeting"
-    )
-    clinic_name: str | None = Field(None, description="Clinic/practice name")
-
-
-class IntroductionResponse(BaseModel):
-    """Free-Intelligence introduction response."""
-
-    message: str = Field(..., description="Free-Intelligence's introduction message")
-    persona: str = Field(
-        default="onboarding_guide",
-        description="Persona used for this response",
-    )
-    tokens_used: int = Field(default=0, description="Tokens consumed in this interaction")
-    latency_ms: int = Field(default=0, description="Response latency in milliseconds")
-
-
-class ChatRequest(BaseModel):
-    """General chat request."""
-
-    message: str = Field(..., description="User's message")
-    context: dict | None = Field(None, description="Optional context")
-    session_id: str | None = Field(None, description="Session ID for audit trail")
-
-
-class ChatResponse(BaseModel):
-    """Chat response."""
-
-    message: str = Field(..., description="Free-Intelligence's response")
-    persona: str = Field(default="general_assistant")
-    tokens_used: int = Field(default=0)
-    latency_ms: int = Field(default=0)
-
-
-# ============================================================================
-# Endpoints
+# Introduction Endpoint
 # ============================================================================
 
 
@@ -115,26 +88,7 @@ async def get_introduction(request: IntroductionRequest) -> IntroductionResponse
             context["clinic_name"] = request.clinic_name
 
         # Build message for Free-Intelligence
-        if request.physician_name and request.clinic_name:
-            message = (
-                f"Present yourself to Dr. {request.physician_name} "
-                f"from {request.clinic_name}. "
-                "Explain who you are, where you reside (locally in their NAS), "
-                "and how you'll help them with clinical documentation while "
-                "ensuring their data sovereignty."
-            )
-        elif request.physician_name:
-            message = (
-                f"Present yourself to Dr. {request.physician_name}. "
-                "Explain who you are, where you reside (locally in their infrastructure), "
-                "and how you'll help them with clinical workflows."
-            )
-        else:
-            message = (
-                "Present yourself to a new physician who is onboarding. "
-                "Explain who you are, where you reside (locally, not in the cloud), "
-                "and how you help with clinical documentation while respecting data sovereignty."
-            )
+        message = _build_introduction_message(request)
 
         # Extract doctor_id from context (Auth0 user.sub) if available
         doctor_id = context.get("doctor_id") if context else None
@@ -178,6 +132,35 @@ async def get_introduction(request: IntroductionRequest) -> IntroductionResponse
         ) from e
 
 
+def _build_introduction_message(request: IntroductionRequest) -> str:
+    """Build the introduction prompt based on available context."""
+    if request.physician_name and request.clinic_name:
+        return (
+            f"Present yourself to Dr. {request.physician_name} "
+            f"from {request.clinic_name}. "
+            "Explain who you are, where you reside (locally in their NAS), "
+            "and how you'll help them with clinical documentation while "
+            "ensuring their data sovereignty."
+        )
+    elif request.physician_name:
+        return (
+            f"Present yourself to Dr. {request.physician_name}. "
+            "Explain who you are, where you reside (locally in their infrastructure), "
+            "and how you'll help them with clinical workflows."
+        )
+    else:
+        return (
+            "Present yourself to a new physician who is onboarding. "
+            "Explain who you are, where you reside (locally, not in the cloud), "
+            "and how you help with clinical documentation while respecting data sovereignty."
+        )
+
+
+# ============================================================================
+# Chat Endpoint
+# ============================================================================
+
+
 @router.post("/assistant/chat", response_model=ChatResponse)
 async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
     """General chat endpoint for Free-Intelligence conversations.
@@ -186,12 +169,13 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
     with Free-Intelligence outside of specific workflows.
 
     Enables infinite memory when doctor_id is provided in context.
+    Supports hybrid emotional analysis when behavior_metrics is provided.
 
     Args:
-        request: Message and optional context (context.doctor_id enables memory)
+        request: Message, optional context, and optional behavior_metrics
 
     Returns:
-        Free-Intelligence's response
+        Free-Intelligence's response with optional emotional_analysis
 
     Raises:
         500: If internal LLM call fails
@@ -210,6 +194,7 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
             "ASSISTANT_CHAT_START",
             message_length=len(request.message),
             has_context=request.context is not None,
+            has_behavior_metrics=request.behavior_metrics is not None,
             session_id=request.session_id,
             doctor_id=doctor_id,
             persona=persona,
@@ -217,6 +202,21 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
         )
 
         llm_client = get_llm_client()
+
+        # Run emotional analysis if metrics provided
+        emotional_analysis = None
+        if request.behavior_metrics is not None:
+            emotional_analysis = await analyze_emotional_state(
+                message=request.message,
+                metrics=request.behavior_metrics,
+                llm_client=llm_client,
+            )
+            logger.info(
+                "EMOTIONAL_ANALYSIS_RESULT",
+                state=emotional_analysis.state if emotional_analysis else "none",
+                confidence=emotional_analysis.confidence if emotional_analysis else 0,
+                suggested_tone=emotional_analysis.suggested_tone if emotional_analysis else "none",
+            )
 
         result = await llm_client.chat(
             persona=persona,  # Use persona from context (frontend dropdown)
@@ -239,6 +239,7 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
             persona=result["persona"],
             tokens_used=result.get("tokens_used", 0),
             latency_ms=result.get("latency_ms", 0),
+            emotional_analysis=emotional_analysis,
         )
 
     except Exception as e:
@@ -256,27 +257,14 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
 
 
 # ============================================================================
-# PUBLIC CHAT (Anonymous, Rate-Limited, Ephemeral)
-# ⚠️ DEPRECATED: Use /assistant/chat instead (handles both authenticated + anonymous)
-# This endpoint will be removed in a future version.
+# Public Chat Endpoint (DEPRECATED)
 # ============================================================================
-
-
-class PublicChatResponse(ChatResponse):
-    """Extended response for public chat with rate-limit info.
-
-    DEPRECATED: Use /assistant/chat instead. This endpoint remains for backward
-    compatibility but will be removed in a future version.
-    """
-
-    remaining_requests: int = Field(..., description="Remaining requests before rate limit")
-    retry_after: int | None = Field(None, description="Seconds to wait if rate limited")
 
 
 @router.post("/assistant/public-chat", response_model=PublicChatResponse, deprecated=True)
 async def public_chat(request_body: ChatRequest, http_request: Request) -> PublicChatResponse:
     """
-    ⚠️ DEPRECATED: Use /assistant/chat instead.
+    DEPRECATED: Use /assistant/chat instead.
 
     Public anonymous chat endpoint with rate-limiting.
 
@@ -290,12 +278,6 @@ async def public_chat(request_body: ChatRequest, http_request: Request) -> Publi
         - NO persistent memory (ephemeral conversation)
         - Kill-switch support via KILL_SWITCH_PUBLIC_CHAT env var
 
-    Constraints:
-        - IP rate-limit: 20 requests/min, burst 5
-        - Session rate-limit: 10 requests/min, burst 3
-        - No message count limit (handled client-side for UX)
-        - No TTL storage (uses localStorage client-side)
-
     Args:
         request_body: Chat request (message, context, session_id)
         http_request: FastAPI Request object (for IP extraction)
@@ -307,21 +289,14 @@ async def public_chat(request_body: ChatRequest, http_request: Request) -> Publi
         503: If kill-switch is active
         429: If rate limit exceeded
         500: If internal LLM call fails
-
-    Example:
-        >>> # Frontend (no Auth0) - DEPRECATED, use /assistant/chat instead
-        >>> response = await fetch("/api/workflows/aurity/assistant/public-chat", {
-        ...     method: "POST",
-        ...     body: JSON.stringify({ message: "¿Qué es AURITY?" })
-        ... })
-        >>> console.log(response.remaining_requests)  # 19 (if 20 rpm limit)
     """
     logger.warning(
         "PUBLIC_CHAT_DEPRECATED",
         message="Endpoint /assistant/public-chat is deprecated. Use /assistant/chat instead.",
         session_id=request_body.session_id,
     )
-    # 1. Kill-switch check (priority: fail fast without consuming resources)
+
+    # 1. Kill-switch check
     if os.getenv("KILL_SWITCH_PUBLIC_CHAT", "false").lower() == "true":
         logger.warning("PUBLIC_CHAT_KILL_SWITCH_ACTIVE")
         raise HTTPException(
@@ -330,45 +305,40 @@ async def public_chat(request_body: ChatRequest, http_request: Request) -> Publi
             headers={"Retry-After": "60"},
         )
 
-    # 2. Rate-limit: IP-based (prevent abuse from single IP)
+    # 2. Rate-limit: IP-based
     client_ip = http_request.client.host if http_request.client else "unknown"
 
     if not ip_rate_limiter.allow(client_ip):
         retry_after = ip_rate_limiter.get_retry_after(client_ip)
-
         logger.warning(
             "PUBLIC_CHAT_IP_RATE_LIMITED",
             ip=client_ip,
             retry_after=retry_after,
         )
-
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Rate limit exceeded for IP {client_ip}. Retry after {retry_after}s.",
             headers={"Retry-After": str(retry_after)},
         )
 
-    # 3. Rate-limit: Session-based (prevent spam within session)
+    # 3. Rate-limit: Session-based
     session_id = request_body.session_id or "anonymous"
 
     if not session_rate_limiter.allow(session_id):
         retry_after = session_rate_limiter.get_retry_after(session_id)
-
         logger.warning(
             "PUBLIC_CHAT_SESSION_RATE_LIMITED",
             session_id=session_id,
             retry_after=retry_after,
         )
-
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Too many requests for this session. Retry after {retry_after}s.",
             headers={"Retry-After": str(retry_after)},
         )
 
-    # 4. Call LLM (reuse exact logic from /assistant/chat but doctor_id=None)
+    # 4. Call LLM
     try:
-        # Extract persona from context (default: general_assistant)
         persona = "general_assistant"
         if request_body.context and "persona" in request_body.context:
             persona = request_body.context["persona"]
@@ -379,21 +349,21 @@ async def public_chat(request_body: ChatRequest, http_request: Request) -> Publi
             session_id=session_id,
             client_ip=client_ip,
             persona=persona,
-            memory_enabled=False,  # Always false for public
+            memory_enabled=False,
         )
 
         llm_client = get_llm_client()
 
         result = await llm_client.chat(
-            persona=persona,  # Use persona from context
+            persona=persona,
             message=request_body.message,
             context=request_body.context or {},
             session_id=session_id,
-            doctor_id=None,  # NO doctor_id → NO persistent memory
-            use_memory=False,  # Explicitly disable memory
+            doctor_id=None,  # NO persistent memory
+            use_memory=False,
         )
 
-        # Calculate remaining requests (for X-RateLimit-Remaining header)
+        # Calculate remaining requests
         remaining_ip = ip_rate_limiter.get_remaining(client_ip)
         remaining_session = session_rate_limiter.get_remaining(session_id)
         remaining = min(remaining_ip, remaining_session)
