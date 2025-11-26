@@ -116,6 +116,7 @@ jobs:
         env:
           NEXT_PUBLIC_BACKEND_URL: https://app.aurity.io
           NEXT_PUBLIC_API_BASE: https://app.aurity.io
+          NEXT_PUBLIC_SUPERADMIN_EMAILS: ${{ secrets.SUPERADMIN_EMAILS }}
         run: pnpm --filter aurity build
 
       - name: Setup SSH key
