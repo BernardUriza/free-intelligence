@@ -17,15 +17,32 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from backend.auth.models import TokenData, User, UserRole
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 # ============================================================================
 # Configuration
 # ============================================================================
 
 # Secret key for JWT signing (MUST be set in environment variables)
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "INSECURE_DEV_KEY_CHANGE_IN_PRODUCTION")
-if SECRET_KEY == "INSECURE_DEV_KEY_CHANGE_IN_PRODUCTION":
-    print("⚠️  WARNING: Using default JWT_SECRET_KEY. Set JWT_SECRET_KEY env var for production!")
+# SECURITY: In production, this MUST be set or the application will fail to start
+ENVIRONMENT = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+
+if not SECRET_KEY:
+    if ENVIRONMENT == "production":
+        raise ValueError(
+            "JWT_SECRET_KEY must be set in production environment. "
+            "This is a critical security requirement."
+        )
+    SECRET_KEY = "INSECURE_DEV_KEY_CHANGE_IN_PRODUCTION"
+    logger.warning(
+        "JWT_SECRET_KEY_NOT_SET",
+        message="Using insecure default JWT_SECRET_KEY in development. "
+        "Set JWT_SECRET_KEY environment variable for production.",
+        environment=ENVIRONMENT,
+    )
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15  # 15 minutes (HIPAA best practice)
