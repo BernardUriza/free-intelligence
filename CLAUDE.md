@@ -1,171 +1,369 @@
-# CLAUDE.md - Free Intelligence
+Free Intelligence · Kernel Context (v0.7.1)
 
-Project context and guidelines for Claude Code sessions.
+AURITY — Advanced Universal Reliable Intelligence for Telemedicine Yield
 
----
+Owner: Bernard Uriza Orozco
+Version: 0.1.1 (Production)
+Updated: 2025-11-21
+TZ: America/Mexico_City
 
-## Project Overview
+⸻
 
-**Free Intelligence (FI)** is a privacy-first clinical documentation platform combining:
-- **Backend**: Python FastAPI + Ollama/Qwen LLM + HDF5 corpus storage
-- **Frontend**: Next.js (Aurity app) with TypeScript
-- **Infrastructure**: Local NAS (Synology DS923+) or DigitalOcean Droplet
+⚡ Executive Kernel
+	•	Single Entry: PUBLIC → INTERNAL → WORKER (no excepciones).
+	•	Only PUBLIC routes bajo /api/workflows/aurity/*.
+	•	Append‑only en datos clínicos (HDF5); integridad por sha256 + rename atómico.
+	•	Zero trust entre capas; RBAC Auth0 en ADMIN.
+	•	SLOs explícitos; observabilidad por defecto; kill‑switch listo.
 
-### Key Principles
-1. **Data Sovereignty**: All PHI stays on-premises or in private VPC
-2. **Local-First**: Works offline, no mandatory cloud dependencies
-3. **HIPAA Compliant**: TLS 1.3, encryption, audit logging
+⸻
 
----
+🌐 Production
 
-## Quick Commands
+Live: https://app.aurity.io/
+Backend: https://app.aurity.io/api/
+SSL: Let’s Encrypt (auto‑renew)
+DNS: app.aurity.io → 104.131.175.65
+Legacy: fi-aurity.duckdns.org (deprecated)
 
-```bash
-# Development
-make run              # Start backend API (port 7001)
-make run-timeline     # Start timeline API (port 9002)
-pnpm dev              # Start frontend (port 9000)
+Edge Topology
 
-# Testing
-pytest backend/       # Run backend tests
-pnpm test             # Run frontend tests
+graph LR
+  B[Browser (HTTPS:443)] --> N[Nginx (SSL termination)]
+  N --> F[Static Frontend (Next.js)]
+  N --> A[/api/* → FastAPI:7001]
 
-# Build
-pnpm build            # Production build
-docker compose up -d  # Docker deployment
+CORS (backend/app/main.py)
+
+Allow: http://localhost:9000, http://localhost:9050, https://app.aurity.io
+Location: main.py:#125
+
+⸻
+
+🏛️ Layering (Critical)
+
+❌ Regla Absoluta
+
+/api/internal/* prohibido para clientes externos.
+	•	Frontend/curl nunca llama /internal/*.
+	•	InternalOnlyMiddleware ⇒ 403.
+	•	Si ves /internal/* en una URL pública ⇒ BUG.
+
+✅ Capas Válidas
+
+1) PUBLIC — /api/workflows/aurity/* (única puerta)
+2) INTERNAL — recursos atómicos; solo invocados por PUBLIC
+3) WORKERS — ejecución (ThreadPoolExecutor)
+
+PUBLIC Endpoints (catálogo vivo)
+
+POST /api/workflows/aurity/stream                      # Upload chunk
+GET  /api/workflows/aurity/sessions/{id}/monitor       # Real-time progress
+POST /api/workflows/aurity/sessions/{id}/checkpoint    # Concatenate audio
+POST /api/workflows/aurity/sessions/{id}/diarization   # Start diarization
+POST /api/workflows/aurity/sessions/{id}/soap          # Generate SOAP notes
+POST /api/workflows/aurity/sessions/{id}/finalize      # Encrypt & finalize
+
+Nota: Workflows RealtimeTalk siguen el mismo prefijo; ver sección Speech → ASR → LLM → TTS.
+
+WORKERS (2025-11-15)
+	•	4 × transcription, 2 × diarization.
+	•	Sin Docker/Redis/Celery; simplificado a ThreadPoolExecutor.
+
+⸻
+
+📦 Storage (HDF5) — Invariantes
+	•	Un H5 por sesión; append‑only; single‑writer; SWMR opcional para lectura en vivo.
+	•	Integridad: sha256 por sesión, publicado en manifest/DB.
+	•	Cierre: escribir a *.h5.part → fsync → rename atómico a .h5.
+	•	TTL configurable por tipo de sesión (p. ej., RealtimeTalk efímero).
+
+Schema base
+
+/sessions/{id}/tasks/{TASK_TYPE}/
+  ├─ chunks/        # datos
+  └─ metadata       # json/attrs
+
+Task types: TRANSCRIPTION, DIARIZATION, SOAP_GENERATION, EMOTION_ANALYSIS, ENCRYPTION.
+
+⸻
+
+🗣️ Speech → ASR → LLM → TTS (RealtimeTalk)
+
+Contrato operativo (resumen):
+	1.	Frontend sube audio/* → 202 + jobId.
+	2.	Worker ejecuta ASR → LLM → TTS, persiste en talk-<sid>.h5.part (append‑only).
+	3.	Al Finalize: consolida dos mensajes (user, assistant) al H5 longitudinal del chat y borra el H5 temporal.
+
+Eventos append‑only: user.audio, asr.partial, asr.final, assistant.delta, assistant.text, tts.audio, interrupt.
+
+SLO RealtimeTalk: p95_total ≤ 5s, dropout_rate < 1%.
+
+⸻
+
+🔐 Security & Compliance Core
+	•	RBAC (Auth0): ruta ADMIN /admin/users (rol FI-superadmin).
+	•	JWT con claim de roles: https://aurity.app/roles.
+	•	Data sovereignty: on‑prem, AES‑GCM‑256 at‑rest, HTTPS in‑transit.
+	•	Public Safety: rate‑limit por IP/sesión; kill‑switch; CORS estricto.
+	•	Logs: structlog sin PII/PHI; WORM para auditoría crítica.
+
+⛔️ Production SSH Policy (ENFORCED)
+
+```
+# ════════════════════════════════════════════════════════════════════════════
+# AURITY PRODUCTION SECURITY POLICY
+# ════════════════════════════════════════════════════════════════════════════
+# This policy is MACHINE-ENFORCED via:
+#   - scripts/hooks/pre-receive-prod (blocks direct git push)
+#   - scripts/hooks/prod-integrity-check.sh (cron every 5min)
+#   - .github/workflows/deploy-production.yml (pre-deploy integrity check)
+# ════════════════════════════════════════════════════════════════════════════
+
+ALLOWED on production server:
+  ✅ SSH for READ-ONLY audit (tail logs, check status)
+  ✅ Viewing files: cat, less, head, tail
+  ✅ Process inspection: ps, top, htop, lsof
+  ✅ Log analysis: journalctl, tail -f /tmp/backend.log
+  ✅ Health checks: curl localhost:7001/api/health
+
+FORBIDDEN on production server:
+  ❌ vim, nano, emacs, or ANY text editor
+  ❌ echo "..." > file (file modification)
+  ❌ git commit, git push (blocked by pre-receive hook)
+  ❌ pip install (use CI/CD)
+  ❌ systemctl stop/restart (use CI/CD rollback)
+  ❌ Adding print() or debug statements
+  ❌ "Quick fixes" of any kind
+
+VIOLATION RESPONSE:
+  1. Integrity monitor detects change within 5 minutes
+  2. Alert sent to Slack + logged to /var/log/aurity-security.log
+  3. Next CI/CD deploy auto-resets production to clean state
+  4. Repeat violations = revoked SSH access
+
+CLAUDE CODE DIRECTIVE:
+  Claude must NEVER suggest:
+  - "Just SSH in and edit..."
+  - "Quick fix on prod..."
+  - "Temporarily add a print statement..."
+  - Any command that modifies production files directly
+
+  Instead, Claude must ALWAYS suggest:
+  - "Push to GitHub, CI/CD will deploy"
+  - "Use make ci-deploy for immediate deployment"
+  - "Create a hotfix branch and merge to prod"
 ```
 
----
-
-## Project Structure
+🚨 CREDENTIAL & SECRET SECURITY (MANDATORY)
 
 ```
+# ════════════════════════════════════════════════════════════════════════════
+# SECRET MANAGEMENT POLICY - ZERO TOLERANCE
+# ════════════════════════════════════════════════════════════════════════════
+# This policy exists because a hardcoded API key in documentation caused
+# real-world consequences. NEVER repeat this mistake.
+# ════════════════════════════════════════════════════════════════════════════
+
+ABSOLUTE RULES:
+
+1. NEVER commit secrets to git:
+   ❌ API keys (Azure, AWS, Deepgram, OpenAI, Auth0, etc.)
+   ❌ Passwords or tokens
+   ❌ Private keys or certificates
+   ❌ Database connection strings with credentials
+   ❌ Any string that looks like: sk-*, api_*, key=*, token=*
+
+2. NEVER put secrets in documentation:
+   ❌ README.md, CLAUDE.md, or any .md file
+   ❌ Code comments
+   ❌ Example files (use <PLACEHOLDER> instead)
+   ❌ Curl examples with real keys
+
+3. ALWAYS use environment variables:
+   ✅ .env files (gitignored)
+   ✅ .env.example with placeholders
+   ✅ Secret managers (Auth0, GitHub Secrets, etc.)
+
+CLAUDE CODE DIRECTIVE - CREDENTIALS:
+
+  When Claude sees ANY of these patterns, it MUST:
+  1. REFUSE to commit the file
+  2. WARN the user immediately
+  3. Suggest moving to .env
+
+  Patterns to detect:
+  - export.*API.*KEY.*=.*["'][a-zA-Z0-9]{20,}["']
+  - AZURE_API_KEY, OPENAI_API_KEY, DEEPGRAM_API_KEY, AWS_SECRET
+  - Bearer [a-zA-Z0-9]{20,}
+  - sk-[a-zA-Z0-9]{20,}
+  - Any 32+ character hexadecimal or base64 string in quotes
+
+  Claude must NEVER:
+  - Commit files with hardcoded credentials
+  - Create "reference" or "example" files with real keys
+  - Suggest "just for testing" with real credentials
+  - Allow curl examples with actual API keys
+
+  Claude must ALWAYS:
+  - Use .env.example with <YOUR_API_KEY_HERE> placeholders
+  - Check staged files for credential patterns before commit
+  - Suggest git-secrets or pre-commit hooks for detection
+  - Recommend rotating any key that may have been exposed
+
+RECOVERY PROCEDURE:
+
+  If a secret is committed:
+  1. IMMEDIATELY rotate the exposed credential
+  2. Run: git filter-repo --invert-paths --path <file> --force
+  3. Force push: git push --force --all
+  4. Notify affected services (Azure, AWS, etc.)
+  5. Review access logs for unauthorized usage
+```
+
+⸻
+
+📊 SLOs & Observabilidad
+
+Servicio	p95 (ms)	Error rate	Métricas clave
+PUBLIC API	800	<1%	requests_total, latency_ms_bucket, errors_total, rate_limited_total
+RealtimeTalk	5000	<1%	asr_ms, llm_ms, tts_ms, total_ms
+SOAP Gen	1500	<1%	soap_latency_ms, soap_failures_total
+
+Dashboards: API Latency · Error Budget · Voice Pipeline
+Alertas: p95 > SLO 3m ⇒ page on‑call
+Tracing: workflow_id, session_id, idempotency_key
+
+⸻
+
+🧰 Dev & Ops
+
+Dev
+
+make dev-all    # Backend (7001) + Frontend (9000)
+make test       # pytest
+make type-check # Pyright
+pnpm dev        # Next.js
+
+Prod Deploy
+
+cd apps/aurity && pnpm build && python3 ../../scripts/deploy-scp.py
+python3 scripts/deploy-backend-cors-fix.py
+python3 scripts/setup-https-letsencrypt.py
+
+Nginx (/etc/nginx/sites-enabled/aurity)
+
+server {
+  listen 443 ssl;
+  server_name fi-aurity.duckdns.org;
+  ssl_certificate /etc/letsencrypt/live/fi-aurity.duckdns.org/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/fi-aurity.duckdns.org/privkey.pem;
+  root /opt/free-intelligence/apps/aurity/out;
+  location /api/ { proxy_pass http://localhost:7001; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto $scheme; }
+  location / { try_files $uri $uri/ /index.html; }
+}
+
+
+⸻
+
+📂 Repo Layout
+
 free-intelligence/
-├── backend/           # FastAPI backend (Python)
-│   ├── app/           # Main application
-│   ├── services/      # Business logic
-│   └── storage/       # HDF5 corpus handling
-├── apps/
-│   └── aurity/        # Next.js frontend
-├── config/            # Configuration files
-├── docker/            # Docker configs
-├── infra/             # Infrastructure as Code
-│   └── cloud-init.yaml  # DO Droplet provisioning
-├── scripts/           # Deployment & utility scripts
-└── docs/              # Documentation
-    └── runbooks/      # Operational procedures
-```
+├─ backend/
+│  ├─ app/main.py                     # CORS/entry
+│  ├─ api/public/workflows/           # PUBLIC
+│  ├─ api/internal/                   # INTERNAL (bloqueado)
+│  ├─ workers/sync_workers.py         # ThreadPoolExecutor
+│  └─ storage/task_repository.py      # HDF5 ops
+├─ apps/aurity/
+│  ├─ .env.production                 # NEXT_PUBLIC_BACKEND_URL
+│  ├─ next.config.static.js           # output:'export'
+│  └─ out/                            # static build
+├─ storage/
+│  └─ corpus.h5
+└─ scripts/
+   ├─ deploy-scp.py
+   ├─ deploy-backend-cors-fix.py
+   ├─ setup-https-letsencrypt.py
+   └─ deploy-https-complete.py
 
----
 
-## Infra & Ops
+⸻
 
-### Architecture: DigitalOcean NAS
+🧱 Frontend Primitives
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    VPC: 10.116.0.0/20                       │
-│                                                             │
-│  ┌─────────────────┐     NFSv4      ┌─────────────────┐    │
-│  │  fi-nas         │◄──────────────►│  fi-app         │    │
-│  │  (Droplet)      │    :2049       │  (Droplet)      │    │
-│  │                 │                │                 │    │
-│  │  Block Storage  │                │  Backend API    │    │
-│  │  /mnt/fi (100G) │                │  Frontend       │    │
-│  └─────────────────┘                └─────────────────┘    │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+Chat Widget (components/chat/)
+	•	Modos: normal | expanded | minimized | fullscreen.
+	•	UX: infinite scroll ↑, autoscroll ↓ (100ms), response_mode: explanatory|concise.
+	•	Storage por usuario (Auth0): fi_chat_widget_{user.sub}.
+	•	Config: config/chat.config.ts, config/chat-messages.config.ts.
+	•	Banner: GlobalPolicyBanner — “100% Local • HIPAA Ready • Append‑Only” (auto‑dismiss 5s).
 
-### Why This Architecture
+User Management (components/admin/UserManagement.tsx)
+	•	Ruta: /admin/users (rol FI-superadmin).
+	•	Backend: /internal/admin/users + verificador JWT.
 
-| Decision | Rationale |
-|----------|-----------|
-| **Droplet over App Platform** | Block Storage attachment, persistent state, NFS server |
-| **Block Storage over Spaces** | POSIX filesystem for HDF5, lower latency |
-| **NFSv4 over SMB** | Linux-native, better locking for HDF5 |
-| **VPC-only access** | Zero public exposure, HIPAA isolation |
-| **cloud-init provisioning** | Reproducible, version-controlled infra |
+⸻
 
-### Deployment Files
+🔧 Configuración
 
-| File | Purpose |
-|------|---------|
-| `infra/cloud-init.yaml` | Droplet provisioning (NFS, UFW, mounts) |
-| `scripts/nfs-setup.sh` | Standalone NFS server setup |
-| `scripts/ufw-setup.sh` | Firewall configuration |
-| `scripts/smb-setup.sh` | Optional Windows client support |
-| `.env.production` | Production environment overrides |
+Env Vars (extract)
 
-### Runbooks
+# Backend
+ALLOWED_ORIGINS="http://localhost:9000,...,https://fi-aurity.duckdns.org"
+DEEPGRAM_API_KEY="..."  # STT
 
-| Runbook | Location |
-|---------|----------|
-| DO NAS Deployment | `docs/runbooks/NAS_DEPLOYMENT_DO.md` |
-| Local NAS (Synology) | `docs/archive/NAS_DEPLOYMENT.md` |
+# Frontend
+NEXT_PUBLIC_BACKEND_URL=https://fi-aurity.duckdns.org
+NEXT_PUBLIC_API_BASE=https://fi-aurity.duckdns.org
 
-### Reversion Criteria
 
-Roll back this infrastructure if:
-1. **NFS latency > 10ms** for corpus operations
-2. **HDF5 locking errors** exceed 1% of write operations
-3. **Cost exceeds $50/month** without proportional benefit
-4. **Recovery time > 30 min** from volume snapshot
+⸻
 
-Reversion path:
-1. Detach Block Storage from Droplet
-2. Restore from snapshot to local NAS
-3. Update DNS/client configs to point to local NAS IP
+📝 Changelog (reciente)
 
----
+2025-11-20 — UX + RBAC + Voice
+	•	Página /admin/users funcional; rol FI-superadmin.
+	•	useChatVoiceRecorder + VoiceMicButton con VAD.
+	•	Fix props de voz en /chat/ (ChatToolbar:172‑180).
+	•	Import absolutos @/ unificados.
+	•	UX: expand hide/minimize restore; autoscroll suave.
 
-## Environment Variables
+2025-11-17 — HTTPS prod
+	•	DuckDNS + Let’s Encrypt; reverse proxy; CORS prod.
 
-Critical paths that MUST be overridden for DO deployment:
+2025-11-15 — Sin Docker/Redis/Celery
+	•	Workers via ThreadPoolExecutor; tracking HDF5.
 
-```bash
-# Required overrides in .env.production
-CORPUS_PATH=/mnt/fi/data/corpus.h5    # Default: ./storage/corpus.h5
-STORAGE_PATH=/mnt/fi/data             # Default: ./storage
-BACKUP_PATH=/mnt/fi/backups           # Default: ./backups
-LOG_PATH=/mnt/fi/logs                 # Default: ./logs
-```
+2025-11-14 — HDF5 por tareas
+	•	Migración jobs/ → tasks/{TASK_TYPE}/ (58 sesiones).
 
----
+⸻
 
-## Known Risks
+🧩 Troubleshooting (conciso)
+	•	Turbopack: limpiar .next .turbo .swc node_modules/.cache y reiniciar.
+	•	Imports: absolutos para cross‑dir (@/…).
+	•	Auth0 403: verificar claim https://aurity.app/roles incluye FI-superadmin; reloguear.
+	•	Scroll: usar ref local, no getElementById.
+	•	Puertos: lsof -ti:9000 | xargs kill -9.
 
-| Risk | Mitigation |
-|------|------------|
-| HDF5 file locking on NFS | Use NFSv4.1+, monitor for ESTALE errors |
-| CORPUS_PATH hardcoded | Override via ENV; ~15 files reference it |
-| No encryption at rest | Enable DO Volume encryption (if available) or LUKS |
-| Single point of failure | Weekly snapshots, documented failover procedure |
+⸻
 
----
+🏷️ Conventions & Comm
+	•	NO_MD=1: evitar MD > 150 líneas (excepto README.md, CLAUDE.md).
+	•	Responder en chat con bullets técnicos (10–15 líneas).
+	•	Documentos permanentes → artefactos ejecutables.
+	•	Commits: Conventional Commits + Task ID.
+	•	Trello: FI-[AREA]-[TYPE]-[NUM]: Title + labels.
 
-## Session Conventions
+⸻
 
-### Branches
-- Feature work: `claude/feature-name-SESSIONID`
-- Always push to feature branch, never to main
+📚 Referencias
+	•	Claude Code Excellence: /mnt/data/claude-code-excellence.md
+	•	AURITY FRAMEWORK: /mnt/data/AURITY FRAMEWORK.md
+	•	MCP Hub multi‑LLM: /mnt/data/MCP como capa de interoperabilidad en un Hub multi‑LLM.pdf
+	•	AURITY Prompt Engineer (img): /mnt/data/AurityPromptEngineer.png
 
-### Commits
-- Conventional commits: `feat:`, `fix:`, `docs:`, `infra:`
-- Include card reference if applicable: `[FI-XXX]`
+⸻
 
-### Code Changes
-- Read before edit
-- Prefer Edit over Write for existing files
-- No changes to `backend/` app code unless explicitly requested
-- All infra changes in `infra/` or `scripts/`
-
----
-
-## Contact
-
-- Repository: Internal
-- Documentation: `/docs/`
-- Runbooks: `/docs/runbooks/`
-
-**Last Updated**: 2025-11-23
+Este kernel context existe para que cualquier persona (humana o máquina) entienda cómo se mueve el sistema en 2 minutos: entradas, límites, garantías y rutas de escape. Si rompes una de estas invariantes, deja de ser AURITY.
