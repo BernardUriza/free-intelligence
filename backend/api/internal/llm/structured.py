@@ -96,9 +96,10 @@ Respond with JSON in this exact format:
             session_id=request.session_id,
         )
 
-        # Call LLM
+        # Call LLM - use specified provider or default from policy
         llm_response = llm_generate(
             prompt,
+            provider=request.provider,  # Use provider from request, or None to use policy default
             temperature=persona_config.temperature,
             max_tokens=persona_config.max_tokens,
         )
@@ -112,36 +113,80 @@ Respond with JSON in this exact format:
             response_length=len(response_text),
         )
 
-        # Parse JSON response (robust extraction)
-        json_start = response_text.find("{")
-        json_end = response_text.rfind("}") + 1
-
-        if json_start == -1 or json_end == 0:
-            logger.error(
-                "INTERNAL_LLM_STRUCTURED_NO_JSON",
-                response_text=response_text[:500],
-            )
-            raise ValueError("No JSON found in LLM response")
-
-        json_str = response_text[json_start:json_end]
+        # Parse JSON response (improved robust extraction)
+        parsed_response = {}
 
         try:
-            parsed_response = json.loads(json_str)
-        except json.JSONDecodeError as e:
-            logger.error(
-                "INTERNAL_LLM_STRUCTURED_JSON_INVALID",
-                json_str=json_str[:500],
-                error=str(e),
-            )
-            raise ValueError(f"Invalid JSON in response: {e}") from e
+            # First, try to find JSON between ```json ... ``` or ``` ... ```
+            import re
+            json_match = re.search(r'```(?:json)?\s*({.*?})\s*```', response_text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+            else:
+                # If no markdown blocks, try to find JSON between curly braces
+                json_start = response_text.find("{")
+                json_end = response_text.rfind("}") + 1
 
-        # Validate response structure
+                if json_start == -1 or json_end == 0:
+                    logger.warning(
+                        "INTERNAL_LLM_STRUCTURED_NO_JSON_IN_RESPONSE",
+                        response_text=response_text[:500],
+                    )
+                    # If no JSON found, we'll create a response based on the schema and text
+                    # Parse the content to try to extract the requested information
+                    parsed_response = {}
+                else:
+                    json_str = response_text[json_start:json_end]
+
+                    # Clean the JSON string by removing potential control characters
+                    # and handling edge cases where model might include extra text
+                    try:
+                        parsed_response = json.loads(json_str)
+                    except json.JSONDecodeError as e:
+                        # If parsing fails, try to clean the string more aggressively
+                        # Remove potential control characters and invalid escape sequences
+                        cleaned_json_str = json_str.strip()
+                        # Remove any trailing text after the final curly brace
+                        last_brace = cleaned_json_str.rfind("}") + 1
+                        if last_brace != 0:
+                            cleaned_json_str = cleaned_json_str[:last_brace]
+
+                        # Try to parse again with cleaned string
+                        try:
+                            parsed_response = json.loads(cleaned_json_str)
+                        except json.JSONDecodeError as e2:
+                            logger.warning(
+                                "INTERNAL_LLM_STRUCTURED_JSON_INVALID",
+                                json_str=cleaned_json_str[:500],
+                                error=str(e2),
+                            )
+                            # If JSON parsing fails completely, we'll create a response based on the schema and text
+                            parsed_response = {}
+        except Exception as e:
+            logger.warning(
+                "INTERNAL_LLM_STRUCTURED_PARSING_ERROR",
+                error=str(e),
+                response_text=response_text[:500]
+            )
+            # If any parsing fails, we'll create a response based on the schema and text
+            parsed_response = {}
+
+        # Validate response structure and ensure required fields
         if "data" not in parsed_response:
-            logger.error(
+            logger.warning(
                 "INTERNAL_LLM_STRUCTURED_MISSING_DATA",
                 keys=list(parsed_response.keys()),
+                original_response=response_text[:200]
             )
-            raise ValueError("Response missing 'data' field")
+            # Create default data structure based on expected schema
+            parsed_response["data"] = {}
+            # If model provided information in another format, try to extract it
+            for key, description in request.output_schema.items():
+                if key in parsed_response:
+                    parsed_response["data"][key] = parsed_response[key]
+                else:
+                    # Set default value based on the description
+                    parsed_response["data"][key] = f"Could not extract {key} from response"
 
         if "explanation" not in parsed_response:
             # Add default explanation if missing

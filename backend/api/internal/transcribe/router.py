@@ -20,7 +20,6 @@ Card: Architecture unification
 from __future__ import annotations
 
 from datetime import UTC, datetime
-
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
@@ -93,8 +92,8 @@ async def upload_chunk(
         audio: Audio file (WebM/WAV/MP3)
         timestamp_start: Optional chunk start time
         timestamp_end: Optional chunk end time
-        stt_provider: Optional STT provider ("azure_whisper", "deepgram")
-                      If not provided, uses primary_provider from policy
+        stt_provider: Optional STT provider ("deepgram" - primary, "azure_whisper" deprecated)
+                      If not provided, uses primary_provider from policy (deepgram)
 
     Returns:
         ChunkUploadResponse with job status

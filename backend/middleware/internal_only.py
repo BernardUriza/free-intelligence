@@ -6,6 +6,7 @@ Restricts access to internal endpoints based on environment and client IP.
 from __future__ import annotations
 
 import os
+from typing import List
 
 from fastapi import HTTPException, Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -17,6 +18,18 @@ class InternalOnlyMiddleware(BaseHTTPMiddleware):
     In production, only allows requests from localhost (127.0.0.1).
     In development, allows all requests for testing.
     """
+
+    def __init__(self, app, allowed_hosts: List[str] | None = None):
+        """
+        Initialize the internal-only middleware.
+
+        Args:
+            app: The FastAPI application instance
+            allowed_hosts: Optional list of allowed host addresses.
+                          If None, defaults to localhost addresses.
+        """
+        super().__init__(app)
+        self.allowed_hosts = allowed_hosts or ["127.0.0.1", "localhost", "::1"]
 
     async def dispatch(self, request: Request, call_next):
         """Check if request is from allowed origin.
@@ -34,15 +47,25 @@ class InternalOnlyMiddleware(BaseHTTPMiddleware):
         # Check ENVIRONMENT first, fallback to ENV for backward compatibility
         env = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
 
-        # In production, restrict to localhost only
+        # In production, restrict to allowed hosts only
         if env == "production":
             client_host = request.client.host if request.client else None
 
-            # Allow localhost and 127.0.0.1
-            if client_host not in ("127.0.0.1", "localhost", "::1"):
+            if client_host not in self.allowed_hosts:
+                # Log the unauthorized access attempt for security monitoring
+                from backend.logger import get_logger
+                logger = get_logger(__name__)
+                logger.warning(
+                    "SECURITY_INTERNAL_API_ACCESS_ATTEMPT",
+                    client_host=client_host,
+                    path=request.url.path,
+                    method=request.method,
+                    user_agent=request.headers.get("user-agent"),
+                )
+
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Internal API endpoints are only accessible from localhost",
+                    detail="Internal API endpoints are only accessible from allowed hosts",
                 )
 
         # In development, allow all (for testing)

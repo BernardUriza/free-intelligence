@@ -2,23 +2,21 @@
 
 from __future__ import annotations
 
+import h5py
 import json
 import time
 from datetime import UTC, datetime
 from typing import Any
-
-import h5py
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.schemas.preset_loader import get_preset_loader
 from backend.storage.task_repository import (
     CORPUS_PATH,
-    get_task_chunks,
     task_exists,
     update_task_metadata,
 )
-from backend.workers.tasks.base_worker import WorkerResult, measure_time
+from backend.workers.tasks.base_worker import measure_time
 
 logger = get_logger(__name__)
 
@@ -61,7 +59,7 @@ def analyze_emotion_worker(
                 "EMOTION_PRESET_LOAD_FAILED",
                 error=str(e),
             )
-            raise ValueError(f"Failed to load emotion_analyzer preset: {e}")
+            raise ValueError(f"Failed to load emotion_analyzer preset: {e}") from e
 
         # Get diarization segments (patient speech only)
         try:
@@ -84,7 +82,7 @@ def analyze_emotion_worker(
                 session_id=session_id,
                 error=str(e),
             )
-            raise ValueError(f"Failed to load diarization data: {e}")
+            raise ValueError(f"Failed to load diarization data: {e}") from e
 
         # Filter patient segments only
         patient_segments = [
@@ -153,46 +151,133 @@ def analyze_emotion_worker(
         )
 
         # Call LLM for emotion analysis using preset
-        # TODO: Implement actual LLM call here
-        # For now, return mock result
-        logger.warning(
-            "EMOTION_ANALYSIS_MOCK",
-            session_id=session_id,
-            hint="LLM integration not yet implemented - returning mock data",
-        )
+        try:
+            from backend.providers.llm import llm_generate
 
-        result = {
-            "primary_emotion": "ANXIETY",
-            "confidence": 0.75,
-            "severity": 5,
-            "detected_emotions": [
-                {
-                    "emotion": "ANXIETY",
-                    "confidence": 0.75,
-                    "severity": 5,
-                    "evidence": [
-                        "Repetitive concerns about health",
-                        "Worry about serious illness",
-                    ],
-                    "quotes": ["¿Y si es algo grave?", "Me preocupa mucho"],
-                }
-            ],
-            "red_flags": [],
-            "clinical_recommendations": [
-                "Consider GAD-7 screening",
-                "Provide reassurance with specific information",
-            ],
-            "support_needs": [
-                "Patient education about condition",
-                "Address specific concerns",
-            ],
-            "metadata": {
+            # Build prompt: system prompt + patient text + few-shot examples
+            prompt_parts = [preset.system_prompt]
+
+            # Add few-shot examples if available
+            if preset.examples:
+                prompt_parts.append("\n\n## Examples:")
+                for example in preset.examples[:2]:  # Limit to 2 examples to save tokens
+                    prompt_parts.append(f"\nInput: {example.get('input', '')}")
+                    prompt_parts.append(f"Output: {json.dumps(example.get('output', {}), ensure_ascii=False)}")
+
+            # Add actual patient text
+            prompt_parts.append(f"\n\n## Patient Speech to Analyze:\n{patient_text}")
+
+            full_prompt = "\n".join(prompt_parts)
+
+            logger.info(
+                "EMOTION_LLM_CALL_START",
+                session_id=session_id,
+                provider=preset.provider,
+                model=preset.model,
+                prompt_length=len(full_prompt),
+                patient_text_length=len(patient_text),
+            )
+
+            # Call LLM with preset configuration
+            llm_response = llm_generate(
+                full_prompt,
+                provider=preset.provider,
+                temperature=preset.temperature,
+                max_tokens=preset.max_tokens,
+            )
+
+            logger.info(
+                "EMOTION_LLM_CALL_COMPLETE",
+                session_id=session_id,
+                response_length=len(llm_response.content),
+            )
+
+            # Parse JSON response
+            try:
+                result = json.loads(llm_response.content)
+            except json.JSONDecodeError as e:
+                logger.error(
+                    "EMOTION_LLM_JSON_PARSE_FAILED",
+                    session_id=session_id,
+                    error=str(e),
+                    response_preview=llm_response.content[:200],
+                )
+                # Fallback: try to extract JSON from markdown code blocks
+                import re
+                json_match = re.search(r"```json\s*(\{.*?\})\s*```", llm_response.content, re.DOTALL)
+                if json_match:
+                    result = json.loads(json_match.group(1))
+                else:
+                    raise ValueError(f"LLM response is not valid JSON: {llm_response.content[:200]}") from e
+
+            # Validate result structure (basic validation)
+            required_fields = ["primary_emotion", "confidence", "detected_emotions"]
+            for field in required_fields:
+                if field not in result:
+                    logger.warning(
+                        "EMOTION_RESULT_MISSING_FIELD",
+                        session_id=session_id,
+                        missing_field=field,
+                    )
+                    # Set defaults
+                    if field == "primary_emotion":
+                        result["primary_emotion"] = "NEUTRAL"
+                    elif field == "confidence":
+                        result["confidence"] = 0.5
+                    elif field == "detected_emotions":
+                        result["detected_emotions"] = []
+
+            # Add metadata
+            result["metadata"] = {
                 "session_id": session_id,
                 "analyzed_at": datetime.now(UTC).isoformat(),
                 "model_version": preset.version,
+                "provider": preset.provider,
+                "model": preset.model,
                 "patient_segments_analyzed": len(patient_segments),
-            },
-        }
+                "llm_response_id": getattr(llm_response, "response_id", None),
+            }
+
+            logger.info(
+                "EMOTION_ANALYSIS_LLM_SUCCESS",
+                session_id=session_id,
+                primary_emotion=result.get("primary_emotion"),
+                confidence=result.get("confidence"),
+            )
+
+        except Exception as e:
+            logger.error(
+                "EMOTION_LLM_CALL_FAILED",
+                session_id=session_id,
+                error=str(e),
+                exc_info=True,
+            )
+            # Fallback to neutral result if LLM fails
+            logger.warning(
+                "EMOTION_ANALYSIS_FALLBACK",
+                session_id=session_id,
+                message="LLM call failed - returning neutral emotion result",
+            )
+            result = {
+                "primary_emotion": "NEUTRAL",
+                "confidence": 0.5,
+                "severity": 0,
+                "detected_emotions": [],
+                "red_flags": [],
+                "clinical_recommendations": [
+                    "Emotion analysis unavailable - LLM call failed",
+                    "Manual clinical assessment recommended",
+                ],
+                "support_needs": [],
+                "metadata": {
+                    "session_id": session_id,
+                    "analyzed_at": datetime.now(UTC).isoformat(),
+                    "model_version": preset.version,
+                    "patient_segments_analyzed": len(patient_segments),
+                    "error": str(e),
+                    "fallback": True,
+                },
+            }
 
         # Save result to HDF5
         _save_emotion_result(session_id, result)

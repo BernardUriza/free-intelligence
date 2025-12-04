@@ -2,33 +2,32 @@
 
 **Created:** 2025-11-15
 **Author:** Bernard Uriza Orozco
-**Status:** ✅ Production Ready
+**Status:** ⚠️ Updated - Azure Whisper endpoint removed (2025-01-XX)
+**Current:** Deepgram-only (load balancer available for future providers)
 
-## Problem
+## Historical Context
 
-Azure Whisper S0 tier has a strict rate limit:
+Previously, Azure Whisper S0 tier had a strict rate limit:
 - **3 requests per minute (RPM)**
 - With 4 ThreadPoolExecutor workers, chunks 4+ hit rate limit
 - Results in **35-52 second delays** per chunk (waiting for rate limit window)
 - Real latency: 52s instead of expected 2-5s
 
-## Solution
+**Solution implemented:** Intelligent Load Balancer that alternated between Azure Whisper and Deepgram.
 
-**Intelligent Load Balancer** that alternates between Azure Whisper and Deepgram to maximize throughput while avoiding rate limits.
+## Current Status
 
-### Architecture
+**Azure Whisper endpoint has been removed** by Microsoft. The system now uses **Deepgram exclusively** as the primary STT provider.
+
+### Current Architecture
 
 ```
-Chunk 0 → Azure Whisper   (fast, 2-5s)
-Chunk 1 → Deepgram        (very fast, 1-2s)
-Chunk 2 → Azure Whisper   (fast, 2-5s)
-Chunk 3 → Deepgram        (very fast, 1-2s)
-Chunk 4 → Azure Whisper   (fast, 2-5s)
-Chunk 5 → Deepgram        (very fast, 1-2s)
-...
+All chunks → Deepgram (very fast, 1-2s)
 ```
 
-### Benefits
+The load balancer infrastructure remains in place for future multi-provider support.
+
+### Historical Benefits (Before Azure removal)
 
 | Metric | Before | After |
 |--------|--------|-------|
@@ -36,6 +35,12 @@ Chunk 5 → Deepgram        (very fast, 1-2s)
 | **Throughput** | ~1 chunk/min | ~20-30 chunks/min |
 | **Azure RPM** | 3 RPM (limit hit) | ~2 RPM (safe) |
 | **Cost** | Free (Azure S0) | Free (both free tiers) |
+
+### Current Performance (Deepgram-only)
+
+- **Avg Latency**: 1-2s per chunk
+- **Throughput**: ~30-60 chunks/min (no rate limits)
+- **Cost**: Free tier (50k minutes/month)
 
 ## Implementation
 
@@ -82,21 +87,18 @@ update_chunk_dataset(
 
 ## Configuration
 
-Both providers must be configured in `.env`:
+Deepgram must be configured in `.env`:
 
 ```bash
-# Azure Whisper (optional)
-AZURE_OPENAI_ENDPOINT=https://your-endpoint.openai.azure.com/
-AZURE_OPENAI_KEY=your-key-here
-
-# Deepgram (optional)
+# Deepgram (required)
 DEEPGRAM_API_KEY=your-key-here
 ```
 
+**Note:** Azure Whisper configuration is no longer needed (endpoint removed).
+
 **Auto-Detection:**
-- If both configured: Round-robin between both
-- If only one configured: Uses that provider exclusively
-- If none configured: Raises error
+- If Deepgram configured: Uses Deepgram exclusively
+- If not configured: Raises error
 
 ## Testing
 
@@ -106,15 +108,17 @@ Run manual test:
 python3 /tmp/test_load_balancer.py
 ```
 
-Expected output:
+Expected output (current):
 ```
-Chunk 0 → azure_whisper
+Chunk 0 → deepgram
 Chunk 1 → deepgram
-Chunk 2 → azure_whisper
+Chunk 2 → deepgram
 Chunk 3 → deepgram
 ...
 ✅ All tests passed!
 ```
+
+**Note:** Load balancer will return Deepgram for all chunks since Azure Whisper is no longer available.
 
 ## Monitoring
 
@@ -137,7 +141,7 @@ Example log:
 
 ## Performance Comparison
 
-### Before (Azure only, hitting rate limit)
+### Historical Performance (Before load balancing)
 
 ```
 Chunk 0: 2.5s   (Azure)
@@ -150,7 +154,7 @@ Chunk 5: 51s    (Azure - RATE LIMITED!)
 Total: 160s for 6 chunks = 26.6s/chunk avg
 ```
 
-### After (Load balanced Azure + Deepgram)
+### Historical Performance (With load balancing - Azure + Deepgram)
 
 ```
 Chunk 0: 2.5s   (Azure)
@@ -163,25 +167,42 @@ Chunk 5: 1.9s   (Deepgram)
 Total: 12.7s for 6 chunks = 2.1s/chunk avg
 ```
 
-**Improvement: 12.6x faster** 🚀
+### Current Performance (Deepgram-only)
+
+```
+Chunk 0: 1.8s   (Deepgram)
+Chunk 1: 1.5s   (Deepgram)
+Chunk 2: 1.9s   (Deepgram)
+Chunk 3: 1.6s   (Deepgram)
+Chunk 4: 1.7s   (Deepgram)
+Chunk 5: 1.8s   (Deepgram)
+---
+Total: 10.3s for 6 chunks = 1.7s/chunk avg
+```
+
+**Current: Consistent 1-2s latency, no rate limits** ✅
 
 ## Future Enhancements
 
 Potential improvements (not implemented yet):
 
-1. **Weighted Load Balancing**
-   - Give more traffic to faster provider (Deepgram)
-   - Example: 70% Deepgram, 30% Azure
+1. **Multi-Provider Support**
+   - Add alternative STT providers (e.g., Google Speech-to-Text, AWS Transcribe)
+   - Load balancer infrastructure ready for this
 
-2. **Dynamic Provider Selection**
+2. **Weighted Load Balancing**
+   - Give more traffic to faster/more reliable providers
+   - Example: 80% Deepgram, 20% fallback provider
+
+3. **Dynamic Provider Selection**
    - Track latency per provider
    - Route to fastest provider in real-time
 
-3. **Cost-Aware Routing**
+4. **Cost-Aware Routing**
    - Route based on cost optimization
    - Use free tier providers first
 
-4. **Circuit Breaker**
+5. **Circuit Breaker**
    - Auto-disable failing providers
    - Re-enable after cooldown period
 

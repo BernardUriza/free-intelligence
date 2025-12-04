@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 from backend.dependencies import get_transcription_service
 from backend.logger import get_logger
 from backend.services.transcription_service import TranscriptionService
+from backend.validators import validate_session_id
 
 logger = get_logger(__name__)
 
@@ -60,6 +61,25 @@ class JobStatusResponse(BaseModel):
 # ============================================================================
 # Endpoints
 # ============================================================================
+
+
+# P0 FIX: validate_session_id removed - now uses shared backend.validators.validate_session_id
+
+
+def validate_chunk_number(chunk_number: int) -> None:
+    """Validate chunk number and raise HTTPException if invalid."""
+    if chunk_number < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid chunk_number: must be >= 0, got {chunk_number}",
+        )
+
+    # Reasonable limit to prevent abuse (e.g., integer overflow attempts)
+    if chunk_number > 10000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid chunk_number: too large (>10000), got {chunk_number}",
+        )
 
 
 @router.post("/stream", response_model=StreamChunkResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -112,6 +132,53 @@ async def stream_chunk(
         // Transcript available immediately (no polling)
         ```
     """
+    # Validate inputs
+    validate_session_id(session_id)
+    validate_chunk_number(chunk_number)
+
+    # Validate mode
+    if mode not in ["medical", "chat"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid mode: must be 'medical' or 'chat', got '{mode}'",
+        )
+
+    # Validate audio file size (prevent extremely large uploads)
+    if audio.size and audio.size > 50 * 1024 * 1024:  # 50MB limit
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Audio file too large: maximum 50MB allowed",
+        )
+
+    # Validate audio content type
+    allowed_content_types = [
+        "audio/webm", "audio/wav", "audio/mp3", "audio/mpeg",
+        "audio/ogg", "audio/flac", "audio/aac"
+    ]
+    if audio.content_type and audio.content_type not in allowed_content_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid audio format: allowed formats are {', '.join(allowed_content_types)}",
+        )
+
+    # Validate timestamps
+    if timestamp_start is not None and timestamp_end is not None:
+        if timestamp_start < 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid timestamp_start: must be >= 0, got {timestamp_start}",
+            )
+        if timestamp_end < 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid timestamp_end: must be >= 0, got {timestamp_end}",
+            )
+        if timestamp_end < timestamp_start:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid timestamps: timestamp_end ({timestamp_end}) must be >= timestamp_start ({timestamp_start})",
+            )
+
     try:
         # 1. Get handler based on mode (Strategy Pattern)
         from backend.services.chunk_handler_factory import get_chunk_handler
@@ -122,12 +189,40 @@ async def stream_chunk(
         if chunk_number == 0:
             metadata = {}
             if patient_name:
+                # Validate patient name
+                if len(patient_name.strip()) < 2:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Patient name must be at least 2 characters",
+                    )
                 metadata["patient_name"] = patient_name
             if patient_age:
+                # Validate patient age
+                try:
+                    age = int(patient_age)
+                    if age < 0 or age > 150:
+                        raise ValueError("Age out of valid range")
+                except ValueError:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Patient age must be a number between 0 and 150",
+                    )
                 metadata["patient_age"] = patient_age
             if patient_id:
+                # Validate patient ID
+                if len(patient_id.strip()) < 1:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Patient ID cannot be empty",
+                    )
                 metadata["patient_id"] = patient_id
             if chief_complaint:
+                # Validate chief complaint
+                if len(chief_complaint.strip()) < 3:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Chief complaint must be at least 3 characters",
+                    )
                 metadata["chief_complaint"] = chief_complaint
 
             await handler.initialize_session(session_id, metadata if metadata else None)
@@ -187,6 +282,9 @@ async def stream_chunk(
             processed_chunks=status_dict["processed_chunks"],
         )
 
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except ValueError as e:
         logger.error("VALIDATION_ERROR", session_id=session_id, mode=mode, error=str(e))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
@@ -281,6 +379,44 @@ async def end_session(
     Returns:
         dict with audio_path, chunks_count, duration
     """
+    # Validate inputs
+    validate_session_id(session_id)
+
+    # Validate audio content type
+    allowed_content_types = [
+        "audio/webm", "audio/wav", "audio/mp3", "audio/mpeg",
+        "audio/ogg", "audio/flac", "audio/aac"
+    ]
+    if full_audio.content_type and full_audio.content_type not in allowed_content_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid audio format: allowed formats are {', '.join(allowed_content_types)}",
+        )
+
+    # Validate audio file size (prevent extremely large uploads)
+    if full_audio.size and full_audio.size > 100 * 1024 * 1024:  # 100MB limit for final session
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Audio file too large: maximum 100MB allowed for final session",
+        )
+
+    # Validate webspeech JSON if provided
+    if webspeech_final:
+        try:
+            webspeech_list = json.loads(webspeech_final)
+            if not isinstance(webspeech_list, list):
+                raise ValueError("webspeech_final must be a JSON array")
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid webspeech JSON: must be a valid JSON array",
+            )
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid webspeech format: {str(e)}",
+            )
+
     try:
         # 1. Save audio to storage/audio/{session_id}/full.{ext}
         audio_dir = Path("storage/audio") / session_id
@@ -299,6 +435,14 @@ async def end_session(
 
         audio_path = audio_dir / f"full{ext}"
         audio_bytes = await full_audio.read()
+
+        # Additional validation: check if audio is empty
+        if len(audio_bytes) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Audio file is empty",
+            )
+
         audio_path.write_bytes(audio_bytes)
 
         logger.info(
@@ -315,7 +459,7 @@ async def end_session(
         )
 
         chunks = get_session_chunks(session_id)
-        total_duration = sum(c["duration"] for c in chunks)
+        total_duration = sum(c.get("duration", 0.0) for c in chunks)
         total_chunks = len(chunks)
 
         # 3. Save metadata to HDF5
@@ -386,6 +530,9 @@ async def end_session(
             "duration": total_duration,
         }
 
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
         logger.error("SESSION_END_FAILED", session_id=session_id, error=str(e))
         raise HTTPException(

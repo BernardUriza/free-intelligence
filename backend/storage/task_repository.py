@@ -42,11 +42,15 @@ import h5py
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
+from backend.storage.session_h5_manager import (
+    CORPUS_PATH,
+    ensure_session_h5_exists,
+    get_h5_file_for_session,
+    get_session_h5_path,
+)
+from backend.storage.session_locks import locked_session_h5
 
 logger = get_logger(__name__)
-
-# HDF5 corpus path
-CORPUS_PATH = Path(__file__).parent.parent.parent / "storage" / "corpus.h5"
 
 # Global lock for HDF5 file access (HDF5 is not thread-safe for concurrent writes)
 # Using RLock to allow same thread to acquire lock multiple times
@@ -108,6 +112,8 @@ def ensure_task_exists(
 ) -> str:
     """Ensure task group exists for session.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files + per-session locks.
+
     Args:
         session_id: Session identifier
         task_type: Type of task (TaskType enum or string)
@@ -122,7 +128,8 @@ def ensure_task_exists(
     task_type_str = task_type.value if isinstance(task_type, TaskType) else task_type
     task_path = f"/sessions/{session_id}/tasks/{task_type_str}"
 
-    with open_h5_write() as f:
+    # P0.5 FIX: Use session-level file with per-session lock
+    with locked_session_h5(session_id, mode="a") as f:
         # Check if task already exists
         if task_path in f:  # type: ignore[operator]
             if not allow_existing:
@@ -715,6 +722,8 @@ def add_webspeech_transcripts(
 ) -> str:
     """Add WebSpeech instant preview transcripts to TRANSCRIPTION task.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files + per-session locks.
+
     Args:
         session_id: Session identifier
         transcripts: List of WebSpeech transcript strings
@@ -723,9 +732,8 @@ def add_webspeech_transcripts(
     Returns:
         HDF5 path to webspeech_final dataset
     """
-    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    with h5py.File(CORPUS_PATH, "a") as f:
+    # P0.5 FIX: Use session-level file with per-session lock (safe for concurrent tasks)
+    with locked_session_h5(session_id, mode="a") as f:
         task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
         if task_path not in f:  # type: ignore[operator]
@@ -762,6 +770,8 @@ def add_full_transcription(
 ) -> str:
     """Add full concatenated transcription to TRANSCRIPTION task.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files + per-session locks.
+
     Args:
         session_id: Session identifier
         full_text: Complete transcription text
@@ -770,9 +780,8 @@ def add_full_transcription(
     Returns:
         HDF5 path to full_transcription dataset
     """
-    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    with h5py.File(CORPUS_PATH, "a") as f:
+    # P0.5 FIX: Use session-level file with per-session lock (safe for concurrent tasks)
+    with locked_session_h5(session_id, mode="a") as f:
         task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
         if task_path not in f:  # type: ignore[operator]
@@ -811,6 +820,8 @@ def add_full_audio(
 ) -> str:
     """Add full audio file to TRANSCRIPTION task.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files + per-session locks.
+
     Args:
         session_id: Session identifier
         audio_bytes: Raw audio bytes
@@ -820,9 +831,8 @@ def add_full_audio(
     Returns:
         HDF5 path to audio dataset
     """
-    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    with h5py.File(CORPUS_PATH, "a") as f:
+    # P0.5 FIX: Use session-level file with per-session lock (safe for concurrent tasks)
+    with locked_session_h5(session_id, mode="a") as f:
         task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
         if task_path not in f:  # type: ignore[operator]
@@ -1311,6 +1321,8 @@ def save_diarization_segments(
 ) -> str:
     """Save diarization segments to HDF5.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files + per-session locks.
+
     Args:
         session_id: Session identifier
         segments: List of DiarizationSegment objects
@@ -1319,9 +1331,8 @@ def save_diarization_segments(
     Returns:
         HDF5 path to segments group
     """
-    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    with h5py.File(CORPUS_PATH, "a") as f:
+    # P0.5 FIX: Use session-level file with per-session lock (safe for concurrent tasks)
+    with locked_session_h5(session_id, mode="a") as f:
         task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
         if task_path not in f:  # type: ignore[operator]
@@ -1439,6 +1450,8 @@ def update_diarization_segment_text(
 ) -> dict[str, Any]:
     """Update text of a specific diarization segment.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files + per-session locks.
+
     Args:
         session_id: Session identifier
         segment_index: Index of segment to update (0-based)
@@ -1451,10 +1464,12 @@ def update_diarization_segment_text(
     Raises:
         ValueError: If session, task, or segment not found
     """
-    if not CORPUS_PATH.exists():
-        raise ValueError(f"Corpus file not found: {CORPUS_PATH}")
+    # P0.5 FIX: Use session-level file with per-session lock (safe for concurrent tasks)
+    session_h5_path = get_session_h5_path(session_id)
+    if not session_h5_path.exists():
+        raise ValueError(f"Session file not found: {session_h5_path}")
 
-    with h5py.File(CORPUS_PATH, "a") as f:
+    with locked_session_h5(session_id, mode="a") as f:
         task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
         if task_path not in f:  # type: ignore[operator]

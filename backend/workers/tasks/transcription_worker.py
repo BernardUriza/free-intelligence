@@ -33,7 +33,7 @@ def transcribe_chunk_worker(
     Args:
         session_id: Session identifier
         chunk_number: Chunk index
-        stt_provider: Provider name (deepgram, azure_whisper). If None, uses adaptive selection.
+        stt_provider: Provider name (deepgram - primary, azure_whisper deprecated). If None, uses adaptive selection.
 
     Returns:
         WorkerResult with transcript, duration, language, confidence

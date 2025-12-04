@@ -13,6 +13,7 @@ from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.diarization import get_diarization_provider
+from backend.services.workflow_tracker import get_workflow_tracker
 from backend.storage.task_repository import (
     CORPUS_PATH,
     get_task_chunks,
@@ -32,6 +33,8 @@ def diarize_session_worker(
 ) -> dict[str, Any]:
     """Synchronous diarization (speaker separation).
 
+    P1 FIX: Now integrates with WorkflowTracker for completion detection.
+
     Args:
         session_id: Session identifier
         diarization_provider: Provider (azure_gpt4, ollama, etc)
@@ -39,6 +42,10 @@ def diarize_session_worker(
     Returns:
         WorkerResult with segments, speakers, confidence
     """
+    # P1: Mark task as started in workflow tracker
+    tracker = get_workflow_tracker()
+    tracker.mark_task_started(session_id, TaskType.DIARIZATION)
+
     try:
         start_time = time.time()
         logger.info(
@@ -219,6 +226,9 @@ def diarize_session_worker(
             duration_seconds=round(elapsed_time, 2),
         )
 
+        # P1: Mark task as completed in workflow tracker
+        tracker.mark_task_completed(session_id, TaskType.DIARIZATION, result=result)
+
         return WorkerResult(session_id=session_id, result=result).to_dict()
 
     except Exception as e:
@@ -247,5 +257,8 @@ def diarize_session_worker(
                 session_id=session_id,
                 error=str(meta_error),
             )
+
+        # P1: Mark task as failed in workflow tracker
+        tracker.mark_task_failed(session_id, TaskType.DIARIZATION, error=str(e))
 
         raise

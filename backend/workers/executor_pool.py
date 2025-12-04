@@ -43,12 +43,12 @@ def get_executor() -> ThreadPoolExecutor:
         with _executor_lock:
             if _executor is None:
                 _executor = ThreadPoolExecutor(
-                    max_workers=1,  # DEMO MODE: 1 worker to prevent HDF5 concurrency errors
+                    max_workers=4,  # P0 FIX: Restored to 4 workers per CLAUDE.md spec (was 1 for DEMO)
                     thread_name_prefix="fi-worker-",
                 )
                 logger.info(
                     "EXECUTOR_POOL_INITIALIZED",
-                    max_workers=1,
+                    max_workers=4,
                     thread_prefix="fi-worker-",
                 )
 

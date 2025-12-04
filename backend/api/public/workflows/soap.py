@@ -14,13 +14,16 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from backend.clients import get_llm_client
 from backend.logger import get_logger
+from backend.services.soap_generation.soap_models import SOAPNote
+from backend.validators import validate_session_id
 
 logger = get_logger(__name__)
 
@@ -35,7 +38,29 @@ router = APIRouter()
 class SOAPUpdateRequest(BaseModel):
     """Request body for SOAP update."""
 
-    soap: dict[str, Any] = Field(..., description="Complete SOAP data structure")
+    soap: SOAPNote = Field(..., description="Complete validated SOAP data structure")
+
+    @field_validator('soap', mode='before')
+    @classmethod
+    def validate_soap_structure(cls, v: Any) -> dict:
+        """Validate SOAP structure before creating the model."""
+        if isinstance(v, dict):
+            # Check if required sections exist
+            required_sections = ['subjective', 'objective', 'assessment', 'plan']
+            for section in required_sections:
+                if section not in v:
+                    raise ValueError(f"Missing required section: {section}")
+
+            # Create and validate the SOAPNote instance
+            try:
+                soap_note = SOAPNote.model_validate(v)
+                validation_errors = soap_note.validate_completeness()
+                if validation_errors:
+                    raise ValueError(f"SOAP note validation failed: {'; '.join(validation_errors)}")
+                return soap_note
+            except Exception as e:
+                raise ValueError(f"Invalid SOAP structure: {str(e)}")
+        return v
 
 
 class AssistantRequest(BaseModel):
@@ -55,9 +80,9 @@ class AssistantRequest(BaseModel):
 class AssistantResponse(BaseModel):
     """Response from SOAP assistant with structured updates."""
 
-    updates: dict[str, str] = Field(
+    updates: dict[str, str | dict] = Field(
         ...,
-        description="Dictionary of SOAP field updates (field_name: operation:content)",
+        description="Dictionary of SOAP field updates (field_name: operation:content or complex object)",
     )
     explanation: str = Field(..., description="Human-readable explanation of changes")
     success: bool = Field(default=True, description="Whether operation succeeded")
@@ -66,6 +91,9 @@ class AssistantResponse(BaseModel):
 # ============================================================================
 # SOAP CRUD Endpoints
 # ============================================================================
+
+
+# P0 FIX: validate_session_id removed - now uses shared backend.validators.validate_session_id
 
 
 @router.get(
@@ -82,8 +110,12 @@ async def get_soap_workflow(session_id: str) -> dict:
         SOAP data with subjective, objective, assessment, plan
 
     Raises:
+        400: Invalid session_id
         500: Failed to load or generate SOAP data
     """
+    # Validate session ID first
+    validate_session_id(session_id)
+
     from backend.storage.task_repository import get_soap_data
 
     try:
@@ -121,6 +153,9 @@ async def get_soap_workflow(session_id: str) -> dict:
                 "soap_note": soap_data,
             }
 
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
         logger.error(
             "SOAP_GET_FAILED",
@@ -154,45 +189,57 @@ async def update_soap_workflow(
         Success message with version info
 
     Raises:
-        400: Invalid SOAP data
+        400: Invalid session_id or SOAP data
         500: Failed to save SOAP data
     """
+    # Validate session ID first
+    validate_session_id(session_id)
+
     from backend.storage.task_repository import create_order, get_orders, save_soap_data
 
     try:
         logger.info("SOAP_UPDATE_STARTED", session_id=session_id)
+
+        # Validate SOAP data structure before saving
+        validation_errors = request.soap.validate_completeness()
+        if validation_errors:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid SOAP data: {'; '.join(validation_errors)}",
+            )
 
         # Save SOAP data
         soap_path = save_soap_data(session_id, request.soap)
 
         # TRIGGER: Create orders from SOAP.plan
         orders_created = 0
-        plan = request.soap.get("plan", {})
+        plan = request.soap.plan
 
         # Get existing orders to avoid duplicates
         existing_orders = get_orders(session_id)
         existing_descriptions = {order.get("description") for order in existing_orders}
 
         # Create medication orders
-        medications = plan.get("medications", [])
-        if isinstance(medications, list):
-            for med in medications:
-                if isinstance(med, dict):
-                    desc = f"{med.get('name', '')} {med.get('dose', '')}"
-                    if desc.strip() and desc not in existing_descriptions:
-                        create_order(
-                            session_id,
-                            {
-                                "type": "medication",
-                                "description": desc,
-                                "details": f"{med.get('frequency', '')} - {med.get('duration', '')}",
-                                "source": "soap",
-                            },
-                        )
-                        orders_created += 1
+        medications = plan.treatment
+        if medications:
+            # Extract medications from treatment plan
+            # This is a simplified approach - in a real system,
+            # this would need more sophisticated parsing
+            med_desc = f"{plan.treatment[:50]}..." if len(plan.treatment) > 50 else plan.treatment
+            if med_desc.strip() and med_desc not in existing_descriptions:
+                create_order(
+                    session_id,
+                    {
+                        "type": "medication",
+                        "description": med_desc,
+                        "details": plan.follow_up,
+                        "source": "soap",
+                    },
+                )
+                orders_created += 1
 
         # Create lab/imaging orders
-        studies = plan.get("studies", [])
+        studies = plan.studies
         if isinstance(studies, list):
             for study in studies:
                 if isinstance(study, str) and study not in existing_descriptions:
@@ -235,6 +282,9 @@ async def update_soap_workflow(
             "orders_created": orders_created,
         }
 
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
         logger.error(
             "SOAP_UPDATE_FAILED",
@@ -284,6 +334,22 @@ async def soap_assistant_workflow(
         400: Invalid command or SOAP data
         500: LLM processing failed
     """
+    # Validate session ID first
+    validate_session_id(session_id)
+
+    # Validate request command length
+    if not request.command or len(request.command.strip()) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Command cannot be empty",
+        )
+
+    if len(request.command) > 1000:  # Reasonable limit for a command
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Command too long: maximum 1000 characters allowed",
+        )
+
     try:
         logger.info(
             "ASSISTANT_COMMAND_START",

@@ -6,7 +6,7 @@
   "python.autoComplete.extraPaths": [
     "${workspaceFolder}"
   ],
-  "python.languageServer": "Pylance",
+  "python.languageServer": "None",
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.diagnosticMode": "workspace",
   "python.linting.enabled": false,

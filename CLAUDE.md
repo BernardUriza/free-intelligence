@@ -1,10 +1,10 @@
-Free Intelligence · Kernel Context (v0.7.1)
+Free Intelligence · Kernel Context (v0.7.2)
 
 AURITY — Advanced Universal Reliable Intelligence for Telemedicine Yield
 
 Owner: Bernard Uriza Orozco
 Version: 0.1.1 (Production)
-Updated: 2025-11-21
+Updated: 2025-12-03
 TZ: America/Mexico_City
 
 ⸻
@@ -263,6 +263,32 @@ server {
   location / { try_files $uri $uri/ /index.html; }
 }
 
+
+⸻
+
+🛠️ Development Tools
+
+Qwen Code CLI
+
+⚠️ IMPORTANTE: "qwen-code" ≠ "qwen-coder"
+	•	qwen-code = CLI tool (similar a Claude Code) para agentic coding
+	•	qwen-coder = modelo LLM de Alibaba (Qwen2.5-Coder, Qwen3-Coder)
+	•	qwen-code usa el modelo Qwen3-Coder para operaciones de código
+
+Instalación local (Mac):
+	•	Ubicación: /opt/homebrew/lib/node_modules/@qwen-code/qwen-code/cli.js
+	•	Alias: qwen-code → node /opt/homebrew/lib/node_modules/@qwen-code/qwen-code/cli.js
+	•	Verificar: which qwen-code
+
+Uso no-interactivo:
+qwen-code "tu prompt aquí"                  # one-shot mode
+qwen-code -p "tu prompt" --yolo             # auto-approve all
+qwen-code --help                            # ver todas las opciones
+
+Recursos:
+	•	GitHub: https://github.com/QwenLM/qwen-code
+	•	Documentación: https://qwenlm.github.io/blog/qwen3-coder/
+	•	Contexto: "Vibe coding" con Qwen3-Coder-480B (256K context)
 
 ⸻
 

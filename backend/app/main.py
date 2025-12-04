@@ -20,7 +20,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.middleware import InternalOnlyMiddleware
+from backend.middleware.idempotency import IdempotencyMiddleware
+from backend.middleware.internal_only import InternalOnlyMiddleware
+from backend.middleware.tracing import TracingMiddleware
 
 
 def create_app() -> FastAPI:
@@ -38,7 +40,7 @@ Process natural language commands to update medical records using Claude AI.
 
 ### 🔑 **Key Features:**
 - **AI Assistant** - Natural language processing with Claude
-- **Audio Transcription** - Azure Whisper / Deepgram speech-to-text
+- **Audio Transcription** - Deepgram speech-to-text (Azure Whisper endpoint removed)
 - **SOAP Notes** - Structured medical documentation
 - **HDF5 Storage** - Append-only data persistence
 
@@ -74,7 +76,7 @@ POST /api/workflows/aurity/sessions/{session_id}/finalize
 ### 🔐 **Configuration**
 Requires environment variables:
 - `CLAUDE_API_KEY` - Anthropic Claude API
-- `AZURE_OPENAI_KEY` - Azure Whisper transcription
+- `DEEPGRAM_API_KEY` - Deepgram transcription (required)
 
 ### 📖 **Quick Start**
 1. Check health: `GET /health`
@@ -98,7 +100,7 @@ Requires environment variables:
         },
         {
             "name": "Transcription",
-            "description": "Audio to text transcription using Azure Whisper",
+            "description": "Audio to text transcription using Deepgram",
         },
         {
             "name": "Sessions",
@@ -137,6 +139,9 @@ Requires environment variables:
 
     # Sub-app: Public API (orchestrators, CORS enabled)
     public_app = FastAPI(title="Public API")
+
+    # P2: Distributed tracing (must be first middleware - outermost layer)
+    public_app.add_middleware(TracingMiddleware)
 
     # CORS configuration: more restrictive in production
     environment = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
@@ -179,8 +184,19 @@ Requires environment variables:
         allow_headers=allowed_headers,
     )
 
+    # P1: Idempotency middleware for workflow orchestration (prevents duplicate POST operations)
+    public_app.add_middleware(
+        IdempotencyMiddleware,
+        paths=["/workflows/"],  # Relative to /api prefix
+        require_key=False,  # Optional for now (non-breaking change)
+        ttl=3600,  # 1 hour cache
+    )
+
     # Sub-app: Internal API (atomic resources, CORS for dev, localhost-only)
     internal_app = FastAPI(title="Internal API")
+
+    # P2: Distributed tracing (must be first middleware)
+    internal_app.add_middleware(TracingMiddleware)
 
     # Add CORS for development (showcase testing)
     # Internal API uses same CORS config as public API
@@ -416,6 +432,11 @@ Requires environment variables:
     async def health_check() -> dict[str, str]:
         """Health check endpoint."""
         return {"status": "ok"}
+
+    # P2: Prometheus metrics endpoint for observability
+    from backend.utils.metrics import setup_metrics_endpoint
+
+    setup_metrics_endpoint(app)
 
     # Mount static files (for demo audio, etc.)
     # Note: StaticFiles doesn't inherit CORS from parent app, so we wrap it

@@ -193,9 +193,10 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
             session_id=request.session_id,
         )
 
-        # Call LLM via router
+        # Call LLM via router - use request provider or default from policy
         llm_response = llm_generate(
             prompt,
+            provider=request.provider,  # Use provider from request, or None to use policy default
             temperature=persona_config.temperature,
             max_tokens=persona_config.max_tokens,
         )

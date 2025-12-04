@@ -3,6 +3,79 @@
 
 version: "1.0"
 
+# Metadata about this policy
+metadata:
+  version: "1.0.0"
+  last_updated: "2024-12-02"
+  owner: "Free Intelligence Team"
+  environment: "development"
+
+# Diarization policy
+diarization:
+  primary_provider: "pyannote"
+  fallback_providers: ["deepgram"]
+  providers:
+    pyannote:
+      model: "pyannote/speaker-diarization"
+      auth_token: "YOUR_HUGGING_FACE_TOKEN" # Set via HF_TOKEN
+    deepgram:
+      api_key: "YOUR_DEEPGRAM_KEY" # Set via DEEPGRAM_API_KEY
+      model: "dual-channel"
+
+# STT policy
+stt:
+  primary_provider: "deepgram"  # Azure Whisper endpoint removed
+  fallback_providers: ["deepgram"]  # No Azure fallback available
+  providers:
+    # azure_whisper: REMOVED - endpoint no longer available
+    deepgram:
+      api_key: "YOUR_DEEPGRAM_KEY" # Set via DEEPGRAM_API_KEY
+      model: "nova-2-conversationalai"
+
+# LLM policy
+llm:
+  primary_provider: "ollama"
+  fallback_provider: "claude"
+  providers:
+    ollama:
+      base_url: "http://127.0.0.1:11434"
+      model: "qwen2:1.5b-instruct"
+      embed_model: "nomic-embed-text"
+      timeout_seconds: 30
+      max_tokens: 2048
+    claude:
+      model: "claude-3-5-sonnet-20241022"
+      timeout_seconds: 60
+      max_tokens: 4096
+    azure:
+      endpoint: "https://your-instance.openai.azure.com"
+      deployment: "gpt-4o"
+      api_version: "2024-02-15-preview"
+      timeout_seconds: 30
+      max_tokens: 2048
+  budgets:
+    max_cost_per_day: 20.0
+    max_requests_per_hour: 100
+  fallback_rules:
+    - condition: "primary_provider_unavailable"
+      action: "use_fallback_provider"
+    - condition: "budget_exceeded"
+      action: "switch_to_offline_mode"
+  enable_offline: true
+
+# Export policy
+export:
+  require_manifest: true
+  compute_sha256: true
+  allowed_formats: ["json", "markdown", "hdf5"]
+
+# Audit policy
+audit:
+  log_all_operations: true
+  retention_days: 90
+  hash_payloads: true
+  hash_results: true
+
 # Sovereignty Policy
 sovereignty:
   egress:
@@ -11,11 +84,13 @@ sovereignty:
       - "api.anthropic.com"
       - "127.0.0.1:11434"
       - "localhost:11434"
+      - "127.0.0.1:5000"
+      - "localhost:5000"
 
 # Privacy Policy
 privacy:
   phi:
-    enabled: false
+    enabled: true
   redaction:
     spoilers: true
     style_file: "config/redaction_style.yaml"
@@ -27,22 +102,6 @@ integrity:
   snapshots:
     ready:
       daily: 7
-
-# LLM Policy
-llm:
-  enabled: true
-  providers: ["claude", "ollama"]
-  budgets:
-    monthly_usd: 200
-  timeouts:
-    request_ms: 8000
-  retry: 1
-  audit:
-    required: true
-    decorator: "@require_audit_log"
-  fallback:
-    enabled: true
-    model: "ollama/llama3:8b"
 
 # Timeline Policy
 timeline:
@@ -71,13 +130,6 @@ corpus:
   identity_required: true
   owner_hash_algorithm: "sha256"
   lock_timeout_seconds: 30
-
-# Export Policy
-export:
-  enabled: true
-  formats: ["json", "markdown", "hdf5"]
-  manifest_required: true
-  hash_algorithm: "sha256"
 
 # Retention Policy
 retention:

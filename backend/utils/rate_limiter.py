@@ -1,13 +1,16 @@
-"""Azure Whisper Rate Limiter.
+"""Rate Limiter (Generic).
 
-Azure OpenAI Whisper has a rate limit of 3 requests per minute (RPM).
-This module provides a simple rate limiter to avoid 429 errors.
+Generic rate limiter for API calls. Originally created for Azure Whisper
+(3 requests per minute), but Azure Whisper endpoint has been removed.
+
+This module is kept for backward compatibility and potential future use.
 
 Usage:
-    from backend.utils.rate_limiter import azure_whisper_rate_limiter
+    from backend.utils.rate_limiter import RateLimiter
 
-    with azure_whisper_rate_limiter:
-        result = call_azure_whisper(audio_bytes)
+    limiter = RateLimiter(max_calls=3, period_seconds=60.0)
+    with limiter:
+        result = call_api(data)
 """
 
 from __future__ import annotations
@@ -83,5 +86,6 @@ class RateLimiter:
         pass
 
 
-# Global rate limiter instance for Azure Whisper (3 RPM)
+# Global rate limiter instance for Azure Whisper (DEPRECATED - endpoint removed)
+# Kept for backward compatibility in case AzureWhisperProvider is still referenced
 azure_whisper_rate_limiter = RateLimiter(max_calls=3, period_seconds=60.0)

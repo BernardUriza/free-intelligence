@@ -253,7 +253,7 @@ class TranscriptionService:
         Returns:
             dict with keys:
                 - text: Transcription text
-                - provider: STT provider used (deepgram, azure_whisper)
+                - provider: STT provider used (deepgram - primary, azure_whisper deprecated)
                 - confidence: Confidence score (0.0-1.0)
                 - duration: Audio duration in seconds
                 - language: Detected language

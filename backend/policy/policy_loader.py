@@ -10,10 +10,9 @@ Philosophy: Policy-driven configuration for provider-agnostic LLM routing.
 from __future__ import annotations
 
 import threading
+import yaml
 from pathlib import Path
 from typing import Any
-
-import yaml
 
 from backend.logger import get_logger
 
@@ -305,7 +304,7 @@ class PolicyLoader:
         Get configuration for specific STT provider.
 
         Args:
-            provider_name: Provider name (e.g., "azure_whisper", "deepgram")
+            provider_name: Provider name (e.g., "deepgram" - primary, "azure_whisper" deprecated)
 
         Returns:
             Dict with provider configuration

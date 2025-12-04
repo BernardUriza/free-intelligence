@@ -9,6 +9,7 @@ from typing import Any
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.policy.policy_loader import get_policy_loader
+from backend.services.workflow_tracker import get_workflow_tracker
 from backend.storage.task_repository import (
     create_order,
     get_diarization_segments,
@@ -30,6 +31,8 @@ def generate_soap_worker(
 ) -> dict[str, Any]:
     """Synchronous SOAP note generation from diarization.
 
+    P1 FIX: Now integrates with WorkflowTracker for completion detection.
+
     Args:
         session_id: Session identifier
         soap_provider: LLM provider (claude, ollama, openai, etc)
@@ -37,6 +40,10 @@ def generate_soap_worker(
     Returns:
         WorkerResult with SOAP note (subjective, objective, assessment, plan)
     """
+    # P1: Mark task as started in workflow tracker
+    tracker = get_workflow_tracker()
+    tracker.mark_task_started(session_id, TaskType.SOAP_GENERATION)
+
     try:
         start_time = time.time()
         logger.info(
@@ -266,6 +273,9 @@ def generate_soap_worker(
             provider=soap_provider,
         )
 
+        # P1: Mark task as completed in workflow tracker
+        tracker.mark_task_completed(session_id, TaskType.SOAP_GENERATION, result=result)
+
         return WorkerResult(session_id=session_id, result=result).to_dict()
 
     except Exception as e:
@@ -294,5 +304,8 @@ def generate_soap_worker(
                 session_id=session_id,
                 error=str(meta_error),
             )
+
+        # P1: Mark task as failed in workflow tracker
+        tracker.mark_task_failed(session_id, TaskType.SOAP_GENERATION, error=str(e))
 
         raise

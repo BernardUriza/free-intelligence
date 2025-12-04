@@ -20,13 +20,14 @@ SOLID Refactor: 2025-11-20
 
 from __future__ import annotations
 
+import h5py
+import os
 import tempfile
 from datetime import UTC, datetime
-from typing import Any, cast
-
-import h5py
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
+from typing import Any, cast
 
 from backend.api.public.workflows.models import (
     CheckpointRequest,
@@ -39,7 +40,10 @@ from backend.api.public.workflows.models import (
     TranscriptionSourcesModel,
     UpdateSegmentRequest,
 )
+from backend.auth.auth0_dependencies import get_current_user_auth0
+from backend.auth.models import User
 from backend.logger import get_logger
+from backend.validators import validate_session_id
 
 logger = get_logger(__name__)
 
@@ -73,8 +77,12 @@ async def diarize_session_workflow(
         dict with job_id and status (202 Accepted)
 
     Raises:
+        400: Invalid session_id
         500: Worker dispatch failed
     """
+    # Validate session ID
+    validate_session_id(session_id)
+
     from backend.api.public.workflows.services import get_workflow_orchestrator
 
     try:
@@ -114,8 +122,12 @@ async def generate_soap_workflow(
         dict with job_id and status (202 Accepted)
 
     Raises:
+        400: Invalid session_id
         500: Worker dispatch failed
     """
+    # Validate session ID
+    validate_session_id(session_id)
+
     from backend.api.public.workflows.services import get_workflow_orchestrator
 
     try:
@@ -543,6 +555,9 @@ async def checkpoint_session_workflow(
         ) from e
 
 
+# P0 FIX: validate_session_id removed - now uses shared backend.validators.validate_session_id
+
+
 @router.get("/sessions/{session_id}/monitor", status_code=status.HTTP_200_OK)
 async def monitor_session_progress(session_id: str, request: Request) -> dict:
     """Monitor session progress with colorized ASCII output OR JSON data.
@@ -558,6 +573,8 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
     Returns:
         dict with either JSON data or ASCII display based on Accept header
     """
+    # Validate session ID
+    validate_session_id(session_id)
     from backend.models.task_type import TaskType
     from backend.storage.task_repository import count_task_chunks, get_task_metadata
 
@@ -893,9 +910,13 @@ async def get_diarization_segments_workflow(session_id: str) -> dict:
         dict with session_id, segments list, metadata
 
     Raises:
+        400: Invalid session_id
         404: Session not found or diarization not completed
         500: Failed to load segments
     """
+    # Validate session ID
+    validate_session_id(session_id)
+
     from backend.models.task_type import TaskType
     from backend.storage.task_repository import (
         get_diarization_segments,
@@ -1068,7 +1089,7 @@ async def get_transcription_sources_workflow(session_id: str) -> TranscriptionSo
 
     Reconstructs Triple Vision transcription sources from HDF5:
     1. webspeech_final: Browser WebSpeech API instant previews
-    2. transcription_per_chunks: Per-chunk transcripts (Deepgram/Azure Whisper)
+    2. transcription_per_chunks: Per-chunk transcripts (Deepgram - primary, Azure Whisper deprecated)
     3. full_transcription: Concatenated full text
 
     Used when opening a saved session to populate "Fuentes de Transcripción" UI.
@@ -1213,12 +1234,16 @@ async def get_session_audio_workflow(session_id: str) -> FileResponse:
         FileResponse with audio/webm content
 
     Raises:
+        400: Invalid session_id
         404: Session not found or audio not available
         500: Failed to load audio
     """
+    # Validate session ID
+    validate_session_id(session_id)
 
     from backend.storage.task_repository import CORPUS_PATH
 
+    temp_file_path = None
     try:
         logger.info(
             "SESSION_AUDIO_GET_STARTED",
@@ -1251,36 +1276,89 @@ async def get_session_audio_workflow(session_id: str) -> FileResponse:
                     detail=f"Audio file is empty for session {session_id}",
                 )
 
-        # Write to temporary file
-        temp_file = tempfile.NamedTemporaryFile(
-            delete=False, suffix=".webm", prefix=f"session_{session_id}_"
-        )
-        temp_file.write(audio_bytes)
-        temp_file.close()
+        # Write to temporary file with guaranteed cleanup
+        temp_file_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=".webm", prefix=f"session_{session_id}_"
+            ) as temp_file:
+                temp_file.write(audio_bytes)
+                temp_file_path = temp_file.name
 
-        logger.info(
-            "SESSION_AUDIO_GET_SUCCESS",
-            session_id=session_id,
-            audio_size_bytes=len(audio_bytes),
-            temp_file_path=temp_file.name,
-        )
+            logger.info(
+                "SESSION_AUDIO_GET_SUCCESS",
+                session_id=session_id,
+                audio_size_bytes=len(audio_bytes),
+                temp_file_path=temp_file_path,
+            )
 
-        # Return as FileResponse with CORS headers
-        return FileResponse(
-            path=temp_file.name,
-            media_type="audio/webm",
-            filename=f"session_{session_id}.webm",
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, OPTIONS",
-                "Access-Control-Allow-Headers": "*",
-            },
-            # Note: Temporary file will be cleaned up by OS after response is sent
-        )
+            # P0 FIX: Explicit cleanup with BackgroundTask + atexit fallback
+            # Register cleanup on exit as fallback (in case BackgroundTask fails)
+            import atexit
+
+            def cleanup_temp_file():
+                if temp_file_path and os.path.exists(temp_file_path):
+                    try:
+                        os.unlink(temp_file_path)
+                        logger.debug("TEMP_FILE_CLEANUP_ATEXIT", path=temp_file_path)
+                    except Exception as e:
+                        logger.warning(
+                            "TEMP_FILE_CLEANUP_ATEXIT_FAILED",
+                            path=temp_file_path,
+                            error=str(e),
+                        )
+
+            atexit.register(cleanup_temp_file)
+
+            # Return as FileResponse with CORS headers + guaranteed cleanup
+            return FileResponse(
+                path=temp_file_path,
+                media_type="audio/webm",
+                filename=f"session_{session_id}.webm",
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, OPTIONS",
+                    "Access-Control-Allow-Headers": "*",
+                },
+                background=BackgroundTask(cleanup_temp_file),
+            )
+
+        except Exception:
+            # Cleanup on error
+            if temp_file_path and os.path.exists(temp_file_path):
+                try:
+                    os.unlink(temp_file_path)
+                except Exception as cleanup_error:
+                    logger.warning(
+                        "TEMP_FILE_CLEANUP_ON_ERROR_FAILED",
+                        path=temp_file_path,
+                        error=str(cleanup_error),
+                    )
+            raise
 
     except HTTPException:
+        # P0 FIX: Clean up temp file on HTTP errors (404, etc.)
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+            except Exception as cleanup_error:
+                logger.warning(
+                    "TEMP_FILE_CLEANUP_FAILED",
+                    temp_file=temp_file_path,
+                    error=str(cleanup_error),
+                )
         raise
     except Exception as e:
+        # P0 FIX: Clean up temp file on unexpected errors
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+            except Exception as cleanup_error:
+                logger.warning(
+                    "TEMP_FILE_CLEANUP_FAILED",
+                    temp_file=temp_file_path,
+                    error=str(cleanup_error),
+                )
         logger.error(
             "SESSION_AUDIO_GET_FAILED",
             session_id=session_id,
@@ -1487,12 +1565,14 @@ def _analyze_session_flags(
 async def submit_doctor_feedback(
     session_id: str,
     feedback: DoctorFeedbackRequest,
+    current_user: User | None = Depends(get_current_user_auth0),
 ) -> DoctorFeedbackResponse:
     """Submit doctor's audit feedback for a session.
 
     Args:
         session_id: Session identifier
         feedback: Doctor's rating, comments, corrections, and decision
+        current_user: Authenticated user (optional - graceful degradation if auth fails)
 
     Returns:
         DoctorFeedbackResponse with status and corrections count
@@ -1513,6 +1593,23 @@ async def submit_doctor_feedback(
             corrections_count=len(feedback.corrections),
         )
 
+        # Extract user identifier from auth context (graceful degradation if not authenticated)
+        if current_user:
+            user_identifier = current_user.user_id or current_user.email or "unknown"
+            user_display_name = (
+                current_user.name
+                or current_user.email
+                or (f"User {current_user.user_id[:8]}" if current_user.user_id else "Unknown User")
+            )
+        else:
+            logger.warning(
+                "AUTH_CONTEXT_MISSING",
+                session_id=session_id,
+                message="No authenticated user - using 'system' identifier",
+            )
+            user_identifier = "system"
+            user_display_name = "System"
+
         # Save feedback to session metadata
         feedback_data = {
             "rating": feedback.rating,
@@ -1520,7 +1617,8 @@ async def submit_doctor_feedback(
             "corrections": [corr.dict() for corr in feedback.corrections],
             "decision": feedback.decision,
             "submitted_at": datetime.now(UTC).isoformat(),
-            "submitted_by": "Dr. Uriza",  # TODO: Get from auth context
+            "submitted_by": user_identifier,
+            "submitted_by_display": user_display_name,
         }
 
         update_session_metadata(
@@ -1530,7 +1628,8 @@ async def submit_doctor_feedback(
                 "audit_status": feedback.decision,
                 "audit_rating": feedback.rating,
                 "audited_at": datetime.now(UTC).isoformat(),
-                "audited_by": "Dr. Uriza",  # TODO: Get from auth context
+                "audited_by": user_identifier,
+                "audited_by_display": user_display_name,
             },
         )
 

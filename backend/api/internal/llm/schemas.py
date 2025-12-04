@@ -35,6 +35,7 @@ class ChatRequest(BaseModel):
         default=False,
         description="Enable conversation memory (requires doctor_id)",
     )
+    provider: str | None = Field(default=None, description="Nombre del proveedor LLM (por defecto usa el de policy)")
 
 
 class ChatResponse(BaseModel):
@@ -66,6 +67,7 @@ class StructuredRequest(BaseModel):
     context: dict[str, Any] = Field(..., description="Contexto necesario (ej: current_soap)")
     output_schema: dict[str, str] = Field(..., description="Schema esperado del JSON de salida")
     session_id: str | None = Field(default=None, description="Session ID para audit")
+    provider: str | None = Field(default=None, description="Nombre del proveedor LLM (por defecto usa el de policy)")
 
 
 class StructuredResponse(BaseModel):

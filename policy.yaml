@@ -8,40 +8,34 @@ description: "Policy-driven provider selection with size-based routing"
 # STT Provider Configuration
 stt:
   # Primary provider for standard chunks
-  primary_provider: "azure_whisper"  # TEMP: Using Azure Whisper (Deepgram returns empty for some audio formats)
+  primary_provider: "deepgram"  # Deepgram as primary (Azure Whisper endpoint removed)
 
   # Fallback providers in priority order
   fallback_providers:
-    - "azure_whisper"
+    - "deepgram"  # No Azure fallback - endpoint removed
 
   # Size-based routing rules
   routing_rules:
-    # Large files go to Azure Whisper (better for long audio)
-    large_file_threshold_mb: 5.0  # Files > 5MB use Azure
-    large_file_provider: "azure_whisper"
+    # Large files use Deepgram (Azure endpoint removed)
+    large_file_threshold_mb: 5.0  # Files > 5MB still use Deepgram
+    large_file_provider: "deepgram"
 
     # Duration-based routing (if duration is known)
-    long_duration_threshold_seconds: 300  # Audio > 5 min uses Azure
-    long_duration_provider: "azure_whisper"
+    long_duration_threshold_seconds: 300  # Audio > 5 min uses Deepgram
+    long_duration_provider: "deepgram"
 
   # Provider-specific configurations
   providers:
-    azure_whisper:
-      enabled: true
-      timeout_seconds: 120  # Longer timeout for large files
-      api_version: "2024-02-15-preview"
-      deployment: "whisper"
-      max_file_size_mb: 25  # Azure limit
-      retry_on_empty: true
-
+    # azure_whisper: REMOVED - endpoint no longer available
+    
     deepgram:
       enabled: true
       timeout_seconds: 30
       model: "nova-2"
       language: "es"
-      max_file_size_mb: 10
+      max_file_size_mb: 25  # Increased limit (was 10, now matches Azure's old limit)
       retry_on_empty: true
-      fallback_on_empty: "azure_whisper"  # Explicit fallback
+      # No fallback to Azure - endpoint removed
 
   # Automatic retry configuration
   retry_policy:
@@ -70,8 +64,8 @@ diarization:
 
 # LLM Provider Configuration
 llm:
-  primary_provider: "claude"
-  fallback_provider: "ollama"
+  primary_provider: "ollama"
+  fallback_provider: "claude"
 
   providers:
     claude:
@@ -80,7 +74,7 @@ llm:
       temperature: 0.3
 
     ollama:
-      model: "qwen2.5:7b-instruct-q4_0"
+      model: "qwen2:1.5b-instruct"
       base_url: "http://localhost:11434"
       timeout_seconds: 30
 

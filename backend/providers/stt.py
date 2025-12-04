@@ -1,11 +1,12 @@
 """Free Intelligence - STT Provider Abstraction
 
 Provides a unified interface for speech-to-text (STT) services, supporting:
-- Azure Whisper (cloud, faster, requires API key)
-- Deepgram (cloud, very fast, requires API key)
+- Deepgram (cloud, very fast, requires API key) - PRIMARY
+- Azure Whisper (cloud, DEPRECATED - endpoint removed by Microsoft)
 
 Philosophy: Provider-agnostic design, same pattern as LLM providers.
 Note: faster-whisper removed (CTranslate2 compilation issues with Python 3.14)
+Note: Azure Whisper endpoint removed - AzureWhisperProvider kept for compatibility but not used
 """
 
 from __future__ import annotations
@@ -13,11 +14,10 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from dotenv import load_dotenv
 from enum import Enum
 from pathlib import Path
 from typing import Any, Union
-
-from dotenv import load_dotenv
 
 from backend.logger import get_logger
 
@@ -171,9 +171,8 @@ class AzureWhisperProvider(STTProvider):
         self, audio_bytes: bytes, language: str | None = None
     ) -> dict[str, Any]:
         """Async call to Azure Whisper API with exponential backoff retry"""
-        import asyncio
-
         import aiohttp
+        import asyncio
 
         # Rate limit: Azure Whisper allows 3 requests per minute
         from backend.utils.rate_limiter import azure_whisper_rate_limiter
@@ -413,7 +412,7 @@ def get_stt_provider(provider_name: str, config: dict[str, Any] | None = None) -
     Factory function to get STT provider instance.
 
     Args:
-        provider_name: "azure_whisper" or "deepgram"
+        provider_name: "deepgram" (recommended) or "azure_whisper" (deprecated - endpoint removed)
         config: Provider-specific configuration
 
     Returns:
@@ -421,13 +420,24 @@ def get_stt_provider(provider_name: str, config: dict[str, Any] | None = None) -
 
     Raises:
         ValueError: If provider not supported
+        ValueError: If azure_whisper is requested (endpoint no longer available)
     """
+    provider_name_lower = provider_name.lower()
+
+    # Warn if trying to use deprecated Azure Whisper
+    if provider_name_lower == "azure_whisper":
+        logger.warning(
+            "AZURE_WHISPER_DEPRECATED",
+            message="Azure Whisper endpoint has been removed by Microsoft. Use 'deepgram' instead.",
+        )
+        # Still allow it for backward compatibility, but it will fail at runtime
+    
     provider_map = {
-        "azure_whisper": AzureWhisperProvider,
+        "azure_whisper": AzureWhisperProvider,  # Deprecated - kept for compatibility
         "deepgram": DeepgramProvider,
     }
 
-    provider_class = provider_map.get(provider_name.lower())
+    provider_class = provider_map.get(provider_name_lower)
     if not provider_class:
         raise ValueError(
             f"Unknown STT provider: {provider_name}. Supported: {list(provider_map.keys())}"
