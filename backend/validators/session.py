@@ -45,7 +45,7 @@ def validate_session_id(session_id: str) -> None:
         )
 
     # Character whitelist validation (alphanumeric + hyphens + underscores only)
-    if not re.match(r'^[a-zA-Z0-9_-]+$', session_id):
+    if not re.match(r"^[a-zA-Z0-9_-]+$", session_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid session_id format: only alphanumeric, hyphens, and underscores allowed",

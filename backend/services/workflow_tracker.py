@@ -413,7 +413,9 @@ class WorkflowTracker:
         def consolidate_in_background():
             """Background consolidation with error handling."""
             try:
-                from backend.storage.session_h5_manager import consolidate_session_to_corpus
+                from backend.storage.session_h5_manager import (
+                    consolidate_session_to_corpus,
+                )
 
                 self.logger.info(
                     "CONSOLIDATION_STARTED",

@@ -21,10 +21,10 @@ except ImportError:
 
 import structlog
 from fastapi import FastAPI, HTTPException
-from langdetect import detect, LangDetectException
+from langdetect import LangDetectException, detect
 from pydantic import BaseModel
 
-from backend.providers.llm import LLMProviderType, llm_generate
+from backend.providers.llm import llm_generate
 from backend.schemas.llm_audit_policy import require_audit_log
 
 
@@ -44,7 +44,7 @@ def detect_language(text: str) -> str:
     except LangDetectException:
         # If language detection fails, return default language 'es'
         logger.warning("LANGUAGE_DETECTION_FAILED", text_preview=text[:50])
-        return 'es'
+        return "es"
 
 
 def get_language_instruction(lang: str) -> str:
@@ -58,22 +58,22 @@ def get_language_instruction(lang: str) -> str:
         Instruction string to inject into the prompt
     """
     language_instructions = {
-        'es': 'IMPORTANTE: Responde en español.',
-        'en': 'IMPORTANT: Respond in English.',
-        'fr': 'IMPORTANT: Répondez en français.',
-        'de': 'WICHTIG: Antworten Sie auf Deutsch.',
-        'it': 'IMPORTANTE: Rispondi in italiano.',
-        'pt': 'IMPORTANTE: Responda em português.',
-        'zh-cn': '重要：用中文回答。',
-        'ja': '重要：日本語で答えてください。',
-        'ko': '중요: 한국어로 대답하세요.',
-        'ru': 'ВАЖНО: Отвечайте на русском языке.',
-        'ar': 'مهم: أجب باللغة العربية.',
-        'hi': 'महत्वपूर्ण: हिंदी में उत्तर दें।',
+        "es": "IMPORTANTE: Responde en español.",
+        "en": "IMPORTANT: Respond in English.",
+        "fr": "IMPORTANT: Répondez en français.",
+        "de": "WICHTIG: Antworten Sie auf Deutsch.",
+        "it": "IMPORTANTE: Rispondi in italiano.",
+        "pt": "IMPORTANTE: Responda em português.",
+        "zh-cn": "重要：用中文回答。",
+        "ja": "重要：日本語で答えてください。",
+        "ko": "중요: 한국어로 대답하세요.",
+        "ru": "ВАЖНО: Отвечайте на русском языке.",
+        "ar": "مهم: أجب باللغة العربية.",
+        "hi": "महत्वपूर्ण: हिंदी में उत्तर दें।",
     }
 
     # Return the instruction for the detected language, or default to Spanish
-    return language_instructions.get(lang, 'IMPORTANTE: Responde en español.')
+    return language_instructions.get(lang, "IMPORTANTE: Responde en español.")
 
 
 def get_logger(
@@ -93,7 +93,7 @@ def get_logger(
         format="%(message)s",
         level=numeric_level,
         handlers=[logging.StreamHandler(sys.stderr)],
-        force=True
+        force=True,
     )
 
     # Timezone-aware timestamp processor
@@ -129,12 +129,14 @@ logger = get_logger()
 app = FastAPI(
     title="Free Intelligence - LLM Middleware",
     description="Centralized LLM interface with policy enforcement",
-    version="0.1.0"
+    version="0.1.0",
 )
+
 
 # Pydantic models
 class LLMGenerateRequest(BaseModel):
     """Request model for LLM generation"""
+
     prompt: str
     provider: str = "claude"  # Default to Claude
     model: str | None = None
@@ -145,6 +147,7 @@ class LLMGenerateRequest(BaseModel):
 
 class LLMGenerateResponse(BaseModel):
     """Response model for LLM generation"""
+
     content: str
     provider: str
     model: str
@@ -154,6 +157,7 @@ class LLMGenerateResponse(BaseModel):
 
 class StructuredExtractRequest(BaseModel):
     """Request model for structured data extraction"""
+
     text: str
     schema_definition: Dict[str, Any]
     provider: str = "claude"
@@ -162,6 +166,7 @@ class StructuredExtractRequest(BaseModel):
 
 class StructuredResponse(BaseModel):
     """Response model for structured data extraction"""
+
     extracted_data: Dict[str, Any]
     provider: str
     success: bool
@@ -171,7 +176,11 @@ class StructuredResponse(BaseModel):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "llm-middleware", "timestamp": datetime.now(UTC).isoformat()}
+    return {
+        "status": "healthy",
+        "service": "llm-middleware",
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
 
 
 @app.get("/metrics")
@@ -206,7 +215,7 @@ async def generate_text(request: LLMGenerateRequest):
             "LLM_GENERATE_REQUEST",
             provider=request.provider,
             prompt_preview=request.prompt[:50] + ("..." if len(request.prompt) > 50 else ""),
-            detected_language=detected_lang
+            detected_language=detected_lang,
         )
 
         # Inject language instruction at the beginning of the prompt
@@ -218,7 +227,7 @@ async def generate_text(request: LLMGenerateRequest):
             provider=request.provider,
             provider_config={"model": request.model} if request.model else None,
             max_tokens=request.max_tokens,
-            temperature=request.temperature
+            temperature=request.temperature,
         )
 
         logger.info("LLM_GENERATE_SUCCESS", provider=request.provider)
@@ -228,12 +237,12 @@ async def generate_text(request: LLMGenerateRequest):
             provider=request.provider,
             model=response.model or request.model or "unknown",
             tokens_used=response.tokens_used,
-            timestamp=datetime.now(UTC).isoformat()
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
     except Exception as e:
         logger.error("LLM_GENERATE_ERROR", error=str(e), provider=request.provider)
-        raise HTTPException(status_code=500, detail=f"LLM generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"LLM generation failed: {e!s}")
 
 
 @app.post("/llm/structured-extract", response_model=StructuredResponse)
@@ -249,13 +258,13 @@ async def structured_extract(request: StructuredExtractRequest):
         logger.info(
             "STRUCTURED_EXTRACT_REQUEST",
             provider=request.provider,
-            schema_keys=list(request.schema_definition.keys())
+            schema_keys=list(request.schema_definition.keys()),
         )
 
         # Create a prompt for structured extraction
-        schema_description = "\n".join([
-            f"- {key}: {value}" for key, value in request.schema_definition.items()
-        ])
+        schema_description = "\n".join(
+            [f"- {key}: {value}" for key, value in request.schema_definition.items()]
+        )
 
         prompt = f"""
         Extract the following structured information from the provided text:
@@ -275,10 +284,11 @@ async def structured_extract(request: StructuredExtractRequest):
             provider=provider_to_use,
             # Note: temperature is not supported by llm_generate function
             # We'll pass it in **kwargs to allow for future implementation
-            temperature=request.temperature
+            temperature=request.temperature,
         )
 
         import json
+
         try:
             extracted_data = json.loads(response.content)
         except json.JSONDecodeError:
@@ -291,7 +301,7 @@ async def structured_extract(request: StructuredExtractRequest):
             extracted_data=extracted_data,
             provider=request.provider,
             success=True,
-            message="Structured extraction completed successfully"
+            message="Structured extraction completed successfully",
         )
 
     except Exception as e:
@@ -300,7 +310,7 @@ async def structured_extract(request: StructuredExtractRequest):
             extracted_data={},
             provider=request.provider,
             success=False,
-            message=f"Structured extraction failed: {str(e)}"
+            message=f"Structured extraction failed: {e!s}",
         )
 
 
@@ -308,7 +318,7 @@ async def structured_extract(request: StructuredExtractRequest):
 async def chat_endpoint():
     """
     Chat endpoint placeholder.
-    
+
     This would implement a chat-based interface using the LLM router.
     """
     return {"message": "Chat endpoint not implemented", "status": "placeholder"}
@@ -316,15 +326,15 @@ async def chat_endpoint():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     # This allows running the middleware as a standalone service
     port = int(os.getenv("LLM_MIDDLEWARE_PORT", 9001))
     host = os.getenv("LLM_MIDDLEWARE_HOST", "0.0.0.0")
-    
+
     uvicorn.run(
         "backend.llm_middleware:app",
         host=host,
         port=port,
         reload=True,
-        log_config=None  # Use structlog configuration
+        log_config=None,  # Use structlog configuration
     )

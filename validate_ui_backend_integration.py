@@ -6,20 +6,21 @@ Validates the complete integration between UI and backend components.
 Confirms that both systems are working in coordination.
 """
 
-import requests
 import sys
-import time
 from pathlib import Path
+
+import requests
 
 # Add project root to path to access backend modules
 sys.path.insert(0, str(Path(__file__).parent))
 
+
 def validate_ui_backend_integration():
     """Validates that UI and backend are properly integrated"""
-    
+
     print("🏥 Validando integración UI-Backend Free Intelligence")
-    print("="*60)
-    
+    print("=" * 60)
+
     # 1. Validate backend health
     print("🔍 Validando salud del backend...")
     try:
@@ -33,7 +34,7 @@ def validate_ui_backend_integration():
     except Exception as e:
         print(f"❌ Error conectando con backend: {e}")
         backend_healthy = False
-    
+
     # 2. Validate UI is accessible
     print("\n🔍 Validando UI accesible...")
     try:
@@ -47,7 +48,7 @@ def validate_ui_backend_integration():
     except Exception as e:
         print(f"❌ Error conectando con UI: {e}")
         ui_accessible = False
-    
+
     # 3. Validate internal LLM endpoint (protected)
     print("\n🔍 Validando endpoint de LLM interno...")
     try:
@@ -61,7 +62,7 @@ def validate_ui_backend_integration():
     except Exception as e:
         print(f"⚠️  Error con endpoint LLM interno: {e}")
         internal_healthy = False
-    
+
     # 4. Test structured extraction endpoint
     print("\n🔍 Validando endpoint de asistente SOAP...")
     try:
@@ -71,27 +72,29 @@ def validate_ui_backend_integration():
                 "subjective": "Paciente refiere dolor de cabeza ocasional",
                 "objective": {"pressure": "140/90"},
                 "assessment": "Dolor de cabeza, posible hipertensión",
-                "plan": {"studies": ["presión arterial"]}
-            }
+                "plan": {"studies": ["presión arterial"]},
+            },
         }
 
         extraction_response = requests.post(
             "http://localhost:7001/api/workflows/aurity/sessions/test_validation/assistant",
             json=extraction_payload,
-            timeout=30
+            timeout=30,
         )
 
         if extraction_response.status_code == 200:
             print("✅ Endpoint de asistente SOAP funcionando")
             extraction_working = True
         else:
-            print(f"⚠️  Endpoint de asistente SOAP no funcionando: {extraction_response.status_code}")
+            print(
+                f"⚠️  Endpoint de asistente SOAP no funcionando: {extraction_response.status_code}"
+            )
             print(f"   Response: {extraction_response.text[:200]}...")
             extraction_working = False
     except Exception as e:
         print(f"⚠️  Error con endpoint de asistente SOAP: {e}")
         extraction_working = False
-    
+
     # 5. Check for Ollama availability
     print("\n🔍 Validando disponibilidad de Ollama...")
     try:
@@ -110,20 +113,22 @@ def validate_ui_backend_integration():
     except Exception as e:
         print(f"⚠️  Error conectando con Ollama: {e}")
         ollama_available = False
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("📊 RESULTADOS DE VALIDACIÓN")
-    print("="*60)
+    print("=" * 60)
     print(f"Backend saludable: {'✅' if backend_healthy else '❌'}")
     print(f"UI accesible: {'✅' if ui_accessible else '❌'}")
     print(f"Endpoint LLM interno: {'✅' if internal_healthy else '❌'}")
     print(f"Extracción estructurada: {'✅' if extraction_working else '❌'}")
     print(f"Ollama disponible: {'✅' if ollama_available else '❌'}")
-    
-    all_working = all([backend_healthy, ui_accessible, internal_healthy, extraction_working, ollama_available])
-    
+
+    all_working = all(
+        [backend_healthy, ui_accessible, internal_healthy, extraction_working, ollama_available]
+    )
+
     print(f"\n🎯 INTEGRACIÓN COMPLETA: {'✅ APROBADA' if all_working else '❌ CON ERRORES'}")
-    
+
     if all_working:
         print("\n🎉 ¡Sistema Free Intelligence (AURITY) completamente operativo!")
         print("   - Backend API: http://localhost:7001")
@@ -133,8 +138,9 @@ def validate_ui_backend_integration():
         print("   - Extracción estructurada: Funcional")
     else:
         print("\n⚠️  El sistema tiene componentes no operativos. Revisa los errores anteriores.")
-    
+
     return all_working
+
 
 if __name__ == "__main__":
     success = validate_ui_backend_integration()

@@ -168,4 +168,3 @@ def exception_to_response(exc: Exception) -> dict:
         code=500,
         status=StatusCode.INTERNAL_ERROR,
     ).dict()
-

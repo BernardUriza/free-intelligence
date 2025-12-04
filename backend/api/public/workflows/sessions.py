@@ -20,14 +20,15 @@ SOLID Refactor: 2025-11-20
 
 from __future__ import annotations
 
-import h5py
 import os
 import tempfile
 from datetime import UTC, datetime
+from typing import Any, cast
+
+import h5py
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
-from typing import Any, cast
 
 from backend.api.public.workflows.models import (
     CheckpointRequest,

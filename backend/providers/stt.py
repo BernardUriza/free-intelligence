@@ -14,10 +14,11 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from dotenv import load_dotenv
 from enum import Enum
 from pathlib import Path
 from typing import Any, Union
+
+from dotenv import load_dotenv
 
 from backend.logger import get_logger
 
@@ -171,8 +172,9 @@ class AzureWhisperProvider(STTProvider):
         self, audio_bytes: bytes, language: str | None = None
     ) -> dict[str, Any]:
         """Async call to Azure Whisper API with exponential backoff retry"""
-        import aiohttp
         import asyncio
+
+        import aiohttp
 
         # Rate limit: Azure Whisper allows 3 requests per minute
         from backend.utils.rate_limiter import azure_whisper_rate_limiter
@@ -431,7 +433,7 @@ def get_stt_provider(provider_name: str, config: dict[str, Any] | None = None) -
             message="Azure Whisper endpoint has been removed by Microsoft. Use 'deepgram' instead.",
         )
         # Still allow it for backward compatibility, but it will fail at runtime
-    
+
     provider_map = {
         "azure_whisper": AzureWhisperProvider,  # Deprecated - kept for compatibility
         "deepgram": DeepgramProvider,

@@ -90,13 +90,17 @@ class TestSessionEndpoints:
 
         # Test with too long session ID
         long_session_id = "a" * 200
-        response = client.get(f"/api/workflows/aurity/sessions/{long_session_id}/diarization/segments")
+        response = client.get(
+            f"/api/workflows/aurity/sessions/{long_session_id}/diarization/segments"
+        )
         assert response.status_code == 400
         data = response.json()
         assert "Invalid session_id format" in data["detail"]
 
         # Test with invalid characters (URL encoded)
-        response = client.get("/api/workflows/aurity/sessions/invalid%21%40%23session/diarization/segments")
+        response = client.get(
+            "/api/workflows/aurity/sessions/invalid%21%40%23session/diarization/segments"
+        )
         assert response.status_code in [400, 404]  # Either validation error or path not found
 
     def test_get_session_audio_with_invalid_session_id(self, client):
@@ -127,17 +131,17 @@ class TestSessionEndpoints:
             "session_id": "valid_session_12345",
             "job_id": "valid_session_12345",
             "status": "dispatched",
-            "message": "Diarization running in background"
+            "message": "Diarization running in background",
         }
         mock_get_orchestrator.return_value = mock_orchestrator
 
         # Test with valid session ID
         response = client.post("/api/workflows/aurity/sessions/valid_session_12345/diarization")
-        
+
         # Response could be 202 or 500 depending on internal processing
         assert response.status_code in [202, 500]
 
-    @patch("backend.api.public.workflows.services.get_workflow_orchestrator") 
+    @patch("backend.api.public.workflows.services.get_workflow_orchestrator")
     def test_soap_generation_workflow_valid_session_id(self, mock_get_orchestrator, client):
         """Test POST /api/workflows/aurity/sessions/{session_id}/soap with valid session ID."""
         # Mock the orchestrator
@@ -145,13 +149,13 @@ class TestSessionEndpoints:
         mock_orchestrator.dispatch_soap_generation.return_value = {
             "session_id": "valid_session_12345",
             "job_id": "valid_session_12345",
-            "status": "dispatched", 
-            "message": "SOAP generation running in background"
+            "status": "dispatched",
+            "message": "SOAP generation running in background",
         }
         mock_get_orchestrator.return_value = mock_orchestrator
 
         # Test with valid session ID
         response = client.post("/api/workflows/aurity/sessions/valid_session_12345/soap")
-        
+
         # Response could be 202 or 500 depending on internal processing
         assert response.status_code in [202, 500]

@@ -6,7 +6,6 @@ Tests the transcription API endpoints with improved validation and error handlin
 from __future__ import annotations
 
 import io
-from unittest.mock import Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -27,16 +26,12 @@ class TestTranscriptionEndpoints:
     def test_stream_chunk_with_invalid_session_id(self, client):
         """Test POST /api/workflows/aurity/stream with invalid session ID."""
         audio_data = io.BytesIO(b"fake audio data")
-        
+
         # Test with too short session ID
         response = client.post(
             "/api/workflows/aurity/stream",
-            data={
-                "session_id": "abc",
-                "chunk_number": 0,
-                "mode": "medical"
-            },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            data={"session_id": "abc", "chunk_number": 0, "mode": "medical"},
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -46,12 +41,8 @@ class TestTranscriptionEndpoints:
         long_session_id = "a" * 200
         response = client.post(
             "/api/workflows/aurity/stream",
-            data={
-                "session_id": long_session_id,
-                "chunk_number": 0,
-                "mode": "medical"
-            },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            data={"session_id": long_session_id, "chunk_number": 0, "mode": "medical"},
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -60,28 +51,20 @@ class TestTranscriptionEndpoints:
         # Test with invalid characters (URL encoded)
         response = client.post(
             "/api/workflows/aurity/stream",
-            data={
-                "session_id": "invalid%21%40%23session",
-                "chunk_number": 0,
-                "mode": "medical"
-            },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            data={"session_id": "invalid%21%40%23session", "chunk_number": 0, "mode": "medical"},
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code in [400, 404]  # Either validation error or path not found
 
     def test_stream_chunk_with_invalid_chunk_number(self, client):
         """Test POST /api/workflows/aurity/stream with invalid chunk number."""
         audio_data = io.BytesIO(b"fake audio data")
-        
+
         # Test with negative chunk number
         response = client.post(
             "/api/workflows/aurity/stream",
-            data={
-                "session_id": "valid_session_12345",
-                "chunk_number": -1,
-                "mode": "medical"
-            },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            data={"session_id": "valid_session_12345", "chunk_number": -1, "mode": "medical"},
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -93,9 +76,9 @@ class TestTranscriptionEndpoints:
             data={
                 "session_id": "valid_session_12345",
                 "chunk_number": 20000,  # Exceeds 10000 limit
-                "mode": "medical"
+                "mode": "medical",
             },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -104,16 +87,12 @@ class TestTranscriptionEndpoints:
     def test_stream_chunk_with_invalid_mode(self, client):
         """Test POST /api/workflows/aurity/stream with invalid mode."""
         audio_data = io.BytesIO(b"fake audio data")
-        
+
         # Test with invalid mode
         response = client.post(
             "/api/workflows/aurity/stream",
-            data={
-                "session_id": "valid_session_12345",
-                "chunk_number": 0,
-                "mode": "invalid_mode"
-            },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            data={"session_id": "valid_session_12345", "chunk_number": 0, "mode": "invalid_mode"},
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -122,16 +101,12 @@ class TestTranscriptionEndpoints:
     def test_stream_chunk_with_invalid_audio_format(self, client):
         """Test POST /api/workflows/aurity/stream with invalid audio format."""
         fake_file_data = io.BytesIO(b"not actually an audio file")
-        
+
         # Test with invalid audio format
         response = client.post(
             "/api/workflows/aurity/stream",
-            data={
-                "session_id": "valid_session_12345",
-                "chunk_number": 0,
-                "mode": "medical"
-            },
-            files={"audio": ("test.txt", fake_file_data, "text/plain")}
+            data={"session_id": "valid_session_12345", "chunk_number": 0, "mode": "medical"},
+            files={"audio": ("test.txt", fake_file_data, "text/plain")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -140,7 +115,7 @@ class TestTranscriptionEndpoints:
     def test_stream_chunk_with_invalid_timestamps(self, client):
         """Test POST /api/workflows/aurity/stream with invalid timestamps."""
         audio_data = io.BytesIO(b"fake audio data")
-        
+
         # Test with negative start timestamp
         response = client.post(
             "/api/workflows/aurity/stream",
@@ -149,9 +124,9 @@ class TestTranscriptionEndpoints:
                 "chunk_number": 0,
                 "mode": "medical",
                 "timestamp_start": -5.0,
-                "timestamp_end": 10.0
+                "timestamp_end": 10.0,
             },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -165,9 +140,9 @@ class TestTranscriptionEndpoints:
                 "chunk_number": 0,
                 "mode": "medical",
                 "timestamp_start": 5.0,
-                "timestamp_end": -10.0
+                "timestamp_end": -10.0,
             },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -181,9 +156,9 @@ class TestTranscriptionEndpoints:
                 "chunk_number": 0,
                 "mode": "medical",
                 "timestamp_start": 10.0,
-                "timestamp_end": 5.0  # End before start
+                "timestamp_end": 5.0,  # End before start
             },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -192,7 +167,7 @@ class TestTranscriptionEndpoints:
     def test_stream_chunk_with_invalid_patient_data(self, client):
         """Test POST /api/workflows/aurity/stream with invalid patient data."""
         audio_data = io.BytesIO(b"fake audio data")
-        
+
         # Test with too short patient name
         response = client.post(
             "/api/workflows/aurity/stream",
@@ -200,9 +175,9 @@ class TestTranscriptionEndpoints:
                 "session_id": "valid_session_12345",
                 "chunk_number": 0,
                 "mode": "medical",
-                "patient_name": "A"  # Only 1 character
+                "patient_name": "A",  # Only 1 character
             },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -215,9 +190,9 @@ class TestTranscriptionEndpoints:
                 "session_id": "valid_session_12345",
                 "chunk_number": 0,
                 "mode": "medical",
-                "patient_age": "invalid_age"
+                "patient_age": "invalid_age",
             },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -230,9 +205,9 @@ class TestTranscriptionEndpoints:
                 "session_id": "valid_session_12345",
                 "chunk_number": 0,
                 "mode": "medical",
-                "patient_age": "200"  # Too old
+                "patient_age": "200",  # Too old
             },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -245,9 +220,9 @@ class TestTranscriptionEndpoints:
                 "session_id": "valid_session_12345",
                 "chunk_number": 0,
                 "mode": "medical",
-                "chief_complaint": "A"  # Only 1 character
+                "chief_complaint": "A",  # Only 1 character
             },
-            files={"audio": ("test.wav", audio_data, "audio/wav")}
+            files={"audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -256,14 +231,12 @@ class TestTranscriptionEndpoints:
     def test_end_session_with_invalid_data(self, client):
         """Test POST /api/workflows/aurity/end-session with invalid data."""
         audio_data = io.BytesIO(b"fake audio data")
-        
+
         # Test with invalid session ID
         response = client.post(
             "/api/workflows/aurity/end-session",
-            data={
-                "session_id": "invalid!@#session"
-            },
-            files={"full_audio": ("test.wav", audio_data, "audio/wav")}
+            data={"session_id": "invalid!@#session"},
+            files={"full_audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -273,10 +246,8 @@ class TestTranscriptionEndpoints:
         fake_file_data = io.BytesIO(b"not actually an audio file")
         response = client.post(
             "/api/workflows/aurity/end-session",
-            data={
-                "session_id": "valid_session_12345"
-            },
-            files={"full_audio": ("test.txt", fake_file_data, "text/plain")}
+            data={"session_id": "valid_session_12345"},
+            files={"full_audio": ("test.txt", fake_file_data, "text/plain")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -285,11 +256,8 @@ class TestTranscriptionEndpoints:
         # Test with invalid JSON for webspeech
         response = client.post(
             "/api/workflows/aurity/end-session",
-            data={
-                "session_id": "valid_session_12345",
-                "webspeech_final": "invalid json {"
-            },
-            files={"full_audio": ("test.wav", audio_data, "audio/wav")}
+            data={"session_id": "valid_session_12345", "webspeech_final": "invalid json {"},
+            files={"full_audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()
@@ -298,11 +266,8 @@ class TestTranscriptionEndpoints:
         # Test with non-array JSON for webspeech
         response = client.post(
             "/api/workflows/aurity/end-session",
-            data={
-                "session_id": "valid_session_12345",
-                "webspeech_final": '{"not": "an array"}'
-            },
-            files={"full_audio": ("test.wav", audio_data, "audio/wav")}
+            data={"session_id": "valid_session_12345", "webspeech_final": '{"not": "an array"}'},
+            files={"full_audio": ("test.wav", audio_data, "audio/wav")},
         )
         assert response.status_code == 400
         data = response.json()

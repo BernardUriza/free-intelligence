@@ -31,7 +31,6 @@ from backend.storage.session_h5_manager import (
     consolidate_all_sessions,
     consolidate_session_to_corpus,
     get_storage_stats,
-    list_all_sessions,
 )
 
 logger = get_logger(__name__)

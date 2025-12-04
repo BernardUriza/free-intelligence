@@ -451,4 +451,3 @@ __all__ = [
     # Search
     "SearchError",
 ]
-

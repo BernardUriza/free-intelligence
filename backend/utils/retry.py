@@ -22,7 +22,8 @@ import asyncio
 import functools
 import random
 import time
-from typing import Any, Callable, Type
+from collections.abc import Callable
+from typing import Any, Type
 
 from backend.logger import get_logger
 

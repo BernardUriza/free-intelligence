@@ -1,6 +1,6 @@
 # Auditoría Técnica Brutal - Free Intelligence
-**Fecha:** 2025-01-XX  
-**Auditor:** Claude Code (Agente Autónomo Crítico)  
+**Fecha:** 2025-01-XX
+**Auditor:** Claude Code (Agente Autónomo Crítico)
 **Estado:** 🔴 CRÍTICO - Sistema en estado de abandono técnico
 
 ---
@@ -16,8 +16,8 @@ Este sistema médico ha sido víctima de **implementación a medias, decisiones 
 ## Problemas Críticos (P0 - Bloquean Funcionalidad)
 
 ### 1. WorkflowTracker - Consolidación Nunca Implementada
-**Archivo:** `backend/services/workflow_tracker.py:391-393`  
-**Severidad:** 🔴 CRÍTICO  
+**Archivo:** `backend/services/workflow_tracker.py:391-393`
+**Severidad:** 🔴 CRÍTICO
 **Impacto:** Las sesiones nunca se consolidan automáticamente al completar workflows
 
 ```python
@@ -33,8 +33,8 @@ Este sistema médico ha sido víctima de **implementación a medias, decisiones 
 ---
 
 ### 2. Emotion Worker - Mock Data en Producción
-**Archivo:** `backend/workers/tasks/emotion_worker.py:156-162`  
-**Severidad:** 🔴 CRÍTICO  
+**Archivo:** `backend/workers/tasks/emotion_worker.py:156-162`
+**Severidad:** 🔴 CRÍTICO
 **Impacto:** Análisis de emociones siempre retorna datos falsos
 
 ```python
@@ -51,8 +51,8 @@ result = {"primary_emotion": "ANXIETY", ...}  # HARDCODED
 ---
 
 ### 3. SHA256 Audit Hashing - Nunca Implementado
-**Archivo:** Múltiples referencias en `docs/archive/QA_RESULTS.md:129-142`  
-**Severidad:** 🔴 CRÍTICO  
+**Archivo:** Múltiples referencias en `docs/archive/QA_RESULTS.md:129-142`
+**Severidad:** 🔴 CRÍTICO
 **Impacto:** Integridad de datos no verificable, violación de política de auditoría
 
 ```python
@@ -67,8 +67,8 @@ result = {"primary_emotion": "ANXIETY", ...}  # HARDCODED
 ---
 
 ### 4. Auth Context Hardcoded
-**Archivo:** `backend/api/public/workflows/sessions.py:1568, 1578`  
-**Severidad:** 🟠 ALTO  
+**Archivo:** `backend/api/public/workflows/sessions.py:1568, 1578`
+**Severidad:** 🟠 ALTO
 **Impacto:** Auditoría incorrecta, imposible rastrear quién hizo qué
 
 ```python
@@ -85,8 +85,8 @@ result = {"primary_emotion": "ANXIETY", ...}  # HARDCODED
 ## Problemas Arquitectónicos (P1 - Comprometen Escalabilidad)
 
 ### 5. Inconsistencia en Manejo de Errores
-**Archivo:** Múltiples módulos  
-**Severidad:** 🟠 ALTO  
+**Archivo:** Múltiples módulos
+**Severidad:** 🟠 ALTO
 **Impacto:** API inconsistente, debugging imposible
 
 **Evidencia:**
@@ -101,8 +101,8 @@ result = {"primary_emotion": "ANXIETY", ...}  # HARDCODED
 ---
 
 ### 6. Temporal Files sin Cleanup Garantizado
-**Archivo:** `backend/api/public/workflows/sessions.py:1277-1326`  
-**Severidad:** 🟠 ALTO  
+**Archivo:** `backend/api/public/workflows/sessions.py:1277-1326`
+**Severidad:** 🟠 ALTO
 **Impacto:** Fuga de recursos, disco lleno en producción
 
 ```python
@@ -126,8 +126,8 @@ if temp_file_path and os.path.exists(temp_file_path):
 ---
 
 ### 7. Frontend: God Component Anti-Pattern
-**Archivo:** `apps/aurity/components/medical/ConversationCapture.tsx`  
-**Severidad:** 🟠 ALTO  
+**Archivo:** `apps/aurity/components/medical/ConversationCapture.tsx`
+**Severidad:** 🟠 ALTO
 **Impacto:** Imposible mantener, testear o extender
 
 **Evidencia:**
@@ -143,8 +143,8 @@ if temp_file_path and os.path.exists(temp_file_path):
 ---
 
 ### 8. Hardcoded URLs en Frontend
-**Archivo:** `apps/aurity/components/medical/ConversationCapture.tsx:526, 730, 742`  
-**Severidad:** 🟠 ALTO  
+**Archivo:** `apps/aurity/components/medical/ConversationCapture.tsx:526, 730, 742`
+**Severidad:** 🟠 ALTO
 **Impacto:** Imposible deployar en staging/production
 
 ```typescript
@@ -160,8 +160,8 @@ const response = await fetch('http://localhost:7001/api/workflows/...')
 ## Problemas de Diseño (P2 - Deuda Técnica Acumulada)
 
 ### 9. Provider Factory Inconsistente
-**Archivo:** Múltiples providers  
-**Severidad:** 🟡 MEDIO  
+**Archivo:** Múltiples providers
+**Severidad:** 🟡 MEDIO
 **Impacto:** Difícil agregar nuevos providers, código duplicado
 
 **Evidencia:**
@@ -177,8 +177,8 @@ const response = await fetch('http://localhost:7001/api/workflows/...')
 ---
 
 ### 10. State Management Caótico
-**Archivo:** `apps/aurity/components/medical/ConversationCapture.tsx`  
-**Severidad:** 🟡 MEDIO  
+**Archivo:** `apps/aurity/components/medical/ConversationCapture.tsx`
+**Severidad:** 🟡 MEDIO
 **Impacto:** Race conditions, re-renders innecesarios, bugs difíciles de reproducir
 
 **Evidencia:**
@@ -194,8 +194,8 @@ const response = await fetch('http://localhost:7001/api/workflows/...')
 ---
 
 ### 11. Documentación de TODOs sin Resolver
-**Archivo:** 833 líneas con TODO/FIXME/WARNING  
-**Severidad:** 🟡 MEDIO  
+**Archivo:** 833 líneas con TODO/FIXME/WARNING
+**Severidad:** 🟡 MEDIO
 **Impacto:** Confusión sobre qué está implementado y qué no
 
 **Problema:** Los TODOs se acumulan pero nunca se resuelven. No hay proceso para priorizarlos o cerrarlos.
@@ -207,21 +207,21 @@ const response = await fetch('http://localhost:7001/api/workflows/...')
 ## Compromisos Técnicos Documentados
 
 ### Compromiso #1: Threading en lugar de Celery
-**Razón:** Implementación rápida sin dependencias externas  
-**Costo:** Jobs perdidos en restart, sin persistencia, sin observabilidad  
-**Estado:** Documentado en `docs/archive/celery/WORKFLOWS_ROUTER_TODOS.md`  
+**Razón:** Implementación rápida sin dependencias externas
+**Costo:** Jobs perdidos en restart, sin persistencia, sin observabilidad
+**Estado:** Documentado en `docs/archive/celery/WORKFLOWS_ROUTER_TODOS.md`
 **Recomendación:** Migrar a Celery + Redis cuando sea crítico
 
 ### Compromiso #2: In-memory WorkflowTracker
-**Razón:** Simplicidad inicial  
-**Costo:** Estado perdido en restart, no escalable horizontalmente  
-**Estado:** `backend/services/workflow_tracker.py`  
+**Razón:** Simplicidad inicial
+**Costo:** Estado perdido en restart, no escalable horizontalmente
+**Estado:** `backend/services/workflow_tracker.py`
 **Recomendación:** Persistir en HDF5 o Redis cuando se requiera HA
 
 ### Compromiso #3: Mock Emotion Analysis
-**Razón:** LLM integration pendiente  
-**Costo:** Funcionalidad falsa en producción  
-**Estado:** `backend/workers/tasks/emotion_worker.py:156`  
+**Razón:** LLM integration pendiente
+**Costo:** Funcionalidad falsa en producción
+**Estado:** `backend/workers/tasks/emotion_worker.py:156`
 **Recomendación:** **URGENTE** - Implementar o remover
 
 ---
@@ -261,4 +261,3 @@ const response = await fetch('http://localhost:7001/api/workflows/...')
 **Conclusión:** Este sistema necesita **cirugía arquitectónica urgente**, no parches. Los problemas son sistémicos y requieren refactorización profunda, no solo bug fixes.
 
 **Recomendación:** Pausar features nuevas hasta resolver P0 y P1. La deuda técnica está comprometiendo la viabilidad del sistema.
-

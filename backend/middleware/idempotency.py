@@ -189,9 +189,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 )
                 return JSONResponse(
                     status_code=400,
-                    content={
-                        "error": "Idempotency-Key header required for POST operations"
-                    },
+                    content={"error": "Idempotency-Key header required for POST operations"},
                 )
             else:
                 # Allow request without key (non-enforced mode)

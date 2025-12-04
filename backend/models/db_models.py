@@ -12,8 +12,6 @@ Card: FI-DATA-DB-001, FI-UI-DESIGN-003
 
 from __future__ import annotations
 
-from uuid import uuid4
-
 from sqlalchemy import (
     CHAR,
     Boolean,
@@ -27,6 +25,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
+from uuid import uuid4
 
 Base = declarative_base()
 
@@ -47,6 +46,7 @@ class Patient(Base):
         nombre: First name(s)
         apellido: Last name(s) - paterno + materno
         fecha_nacimiento: Date of birth
+        genero: Gender (Masculino/Femenino/Otro/No especificado)
         curp: CURP (Clave Única de Registro de Población) - Mexican ID
         created_at: Record creation timestamp
         updated_at: Last update timestamp
@@ -58,6 +58,11 @@ class Patient(Base):
     nombre = Column(String(100), nullable=False, index=True)
     apellido = Column(String(100), nullable=False, index=True)
     fecha_nacimiento = Column(DateTime(timezone=False), nullable=False)
+    genero = Column(
+        Enum(GenderEnum, name="gender_enum", create_type=True),
+        nullable=True,
+        default=GenderEnum.NO_ESPECIFICADO,
+    )
     curp = Column(CHAR(18), unique=True, nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
@@ -77,6 +82,7 @@ class Patient(Base):
             "fecha_nacimiento": self.fecha_nacimiento.isoformat()
             if self.fecha_nacimiento is not None
             else None,
+            "genero": self.genero.value if self.genero else None,
             "curp": self.curp,
             "created_at": self.created_at.isoformat() if self.created_at is not None else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at is not None else None,

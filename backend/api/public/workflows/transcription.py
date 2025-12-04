@@ -152,8 +152,13 @@ async def stream_chunk(
 
     # Validate audio content type
     allowed_content_types = [
-        "audio/webm", "audio/wav", "audio/mp3", "audio/mpeg",
-        "audio/ogg", "audio/flac", "audio/aac"
+        "audio/webm",
+        "audio/wav",
+        "audio/mp3",
+        "audio/mpeg",
+        "audio/ogg",
+        "audio/flac",
+        "audio/aac",
     ]
     if audio.content_type and audio.content_type not in allowed_content_types:
         raise HTTPException(
@@ -384,8 +389,13 @@ async def end_session(
 
     # Validate audio content type
     allowed_content_types = [
-        "audio/webm", "audio/wav", "audio/mp3", "audio/mpeg",
-        "audio/ogg", "audio/flac", "audio/aac"
+        "audio/webm",
+        "audio/wav",
+        "audio/mp3",
+        "audio/mpeg",
+        "audio/ogg",
+        "audio/flac",
+        "audio/aac",
     ]
     if full_audio.content_type and full_audio.content_type not in allowed_content_types:
         raise HTTPException(
@@ -414,7 +424,7 @@ async def end_session(
         except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid webspeech format: {str(e)}",
+                detail=f"Invalid webspeech format: {e!s}",
             )
 
     try:

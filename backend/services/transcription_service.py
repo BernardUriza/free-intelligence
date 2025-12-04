@@ -287,7 +287,9 @@ class TranscriptionService:
 
         try:
             # Get provider config from policy
-            provider_config = balancer.policy.get("stt", {}).get("providers", {}).get(provider_name, {})
+            provider_config = (
+                balancer.policy.get("stt", {}).get("providers", {}).get(provider_name, {})
+            )
 
             # Transcribe in thread pool (blocking call)
             def _do_transcribe():

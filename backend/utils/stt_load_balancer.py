@@ -31,9 +31,10 @@ Author: Claude Code
 from __future__ import annotations
 
 import threading
-import yaml
 from collections import defaultdict, deque
 from pathlib import Path
+
+import yaml
 
 from backend.logger import get_logger
 
@@ -132,7 +133,9 @@ class STTLoadBalancer:
             threshold_mb = routing_rules.get("large_file_threshold_mb", 5.0)
 
             if size_mb > threshold_mb:
-                provider = routing_rules.get("large_file_provider", "deepgram")  # Default changed from azure_whisper
+                provider = routing_rules.get(
+                    "large_file_provider", "deepgram"
+                )  # Default changed from azure_whisper
                 reason = f"file_size_{size_mb:.1f}MB_exceeds_{threshold_mb}MB"
 
                 logger.info(
@@ -149,7 +152,9 @@ class STTLoadBalancer:
             threshold_seconds = routing_rules.get("long_duration_threshold_seconds", 300)
 
             if duration_seconds > threshold_seconds:
-                provider = routing_rules.get("long_duration_provider", "deepgram")  # Default changed from azure_whisper
+                provider = routing_rules.get(
+                    "long_duration_provider", "deepgram"
+                )  # Default changed from azure_whisper
                 reason = f"duration_{duration_seconds}s_exceeds_{threshold_seconds}s"
 
                 logger.info(

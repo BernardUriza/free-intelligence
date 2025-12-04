@@ -22,10 +22,11 @@ import functools
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Type
+from typing import Any, Type
 
 from backend.logger import get_logger
 
@@ -342,9 +343,7 @@ class CircuitBreaker:
                 "failure_rate": self.failure_rate,
                 "recent_calls_count": len(recent_calls),
                 "opened_at": (
-                    datetime.fromtimestamp(self._opened_at).isoformat()
-                    if self._opened_at
-                    else None
+                    datetime.fromtimestamp(self._opened_at).isoformat() if self._opened_at else None
                 ),
                 "time_until_recovery": (
                     max(0, self.recovery_timeout - (now - (self._opened_at or 0)))

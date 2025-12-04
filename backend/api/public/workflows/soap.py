@@ -14,7 +14,6 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
-import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
@@ -40,13 +39,13 @@ class SOAPUpdateRequest(BaseModel):
 
     soap: SOAPNote = Field(..., description="Complete validated SOAP data structure")
 
-    @field_validator('soap', mode='before')
+    @field_validator("soap", mode="before")
     @classmethod
     def validate_soap_structure(cls, v: Any) -> dict:
         """Validate SOAP structure before creating the model."""
         if isinstance(v, dict):
             # Check if required sections exist
-            required_sections = ['subjective', 'objective', 'assessment', 'plan']
+            required_sections = ["subjective", "objective", "assessment", "plan"]
             for section in required_sections:
                 if section not in v:
                     raise ValueError(f"Missing required section: {section}")
@@ -59,7 +58,7 @@ class SOAPUpdateRequest(BaseModel):
                     raise ValueError(f"SOAP note validation failed: {'; '.join(validation_errors)}")
                 return soap_note
             except Exception as e:
-                raise ValueError(f"Invalid SOAP structure: {str(e)}")
+                raise ValueError(f"Invalid SOAP structure: {e!s}")
         return v
 
 

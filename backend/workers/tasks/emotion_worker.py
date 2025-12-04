@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import h5py
 import json
 import time
 from datetime import UTC, datetime
 from typing import Any
+
+import h5py
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
@@ -42,7 +43,9 @@ def analyze_emotion_worker(
 
         # Check EMOTION_ANALYSIS task exists
         if not task_exists(session_id, TaskType.EMOTION_ANALYSIS):
-            raise ValueError(f"EMOTION_ANALYSIS task not found for {session_id}. Must create first.")
+            raise ValueError(
+                f"EMOTION_ANALYSIS task not found for {session_id}. Must create first."
+            )
 
         # Load emotion_analyzer preset
         try:
@@ -162,7 +165,9 @@ def analyze_emotion_worker(
                 prompt_parts.append("\n\n## Examples:")
                 for example in preset.examples[:2]:  # Limit to 2 examples to save tokens
                     prompt_parts.append(f"\nInput: {example.get('input', '')}")
-                    prompt_parts.append(f"Output: {json.dumps(example.get('output', {}), ensure_ascii=False)}")
+                    prompt_parts.append(
+                        f"Output: {json.dumps(example.get('output', {}), ensure_ascii=False)}"
+                    )
 
             # Add actual patient text
             prompt_parts.append(f"\n\n## Patient Speech to Analyze:\n{patient_text}")
@@ -204,11 +209,16 @@ def analyze_emotion_worker(
                 )
                 # Fallback: try to extract JSON from markdown code blocks
                 import re
-                json_match = re.search(r"```json\s*(\{.*?\})\s*```", llm_response.content, re.DOTALL)
+
+                json_match = re.search(
+                    r"```json\s*(\{.*?\})\s*```", llm_response.content, re.DOTALL
+                )
                 if json_match:
                     result = json.loads(json_match.group(1))
                 else:
-                    raise ValueError(f"LLM response is not valid JSON: {llm_response.content[:200]}") from e
+                    raise ValueError(
+                        f"LLM response is not valid JSON: {llm_response.content[:200]}"
+                    ) from e
 
             # Validate result structure (basic validation)
             required_fields = ["primary_emotion", "confidence", "detected_emotions"]

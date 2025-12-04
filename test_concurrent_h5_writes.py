@@ -9,15 +9,10 @@ Expected result: All 4 workers complete successfully without corruption.
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
-from backend.storage.session_h5_manager import (
-    ensure_session_h5_exists,
-    get_session_h5_path,
-    get_storage_stats,
-)
+from backend.storage.session_h5_manager import get_session_h5_path, get_storage_stats
 from backend.storage.task_repository import (
     add_full_audio,
     add_full_transcription,
@@ -124,7 +119,7 @@ def main():
     workers = 4
     sessions = [f"test-session-{i}" for i in range(1, workers + 1)]
 
-    print(f"📋 Test Setup:")
+    print("📋 Test Setup:")
     print(f"  Workers: {workers}")
     print(f"  Sessions: {', '.join(sessions)}")
     print()
@@ -160,7 +155,7 @@ def main():
     failures = sum(1 for r in results if not r["success"])
 
     print(f"Total elapsed:  {round(total_elapsed, 3)}s")
-    print(f"Success rate:   {successes}/{workers} ({successes/workers*100:.0f}%)")
+    print(f"Success rate:   {successes}/{workers} ({successes / workers * 100:.0f}%)")
     print(f"✅ Successes:   {successes}")
     print(f"❌ Failures:    {failures}")
 

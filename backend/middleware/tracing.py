@@ -43,16 +43,12 @@ logger = get_logger(__name__)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Context variables for tracing (thread-safe, async-safe)
-_trace_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "trace_id", default=None
-)
+_trace_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("trace_id", default=None)
 _span_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("span_id", default=None)
 _parent_span_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "parent_span_id", default=None
 )
-_session_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "session_id", default=None
-)
+_session_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("session_id", default=None)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

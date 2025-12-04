@@ -37,6 +37,7 @@ policy_loader = get_policy_loader()
 
 # Initialize audit service for persona metrics tracking
 from pathlib import Path
+
 CORPUS_PATH = Path(__file__).parent.parent.parent.parent.parent / "storage" / "corpus.h5"
 audit_repo = AuditRepository(CORPUS_PATH)
 audit_service = AuditService(audit_repo)

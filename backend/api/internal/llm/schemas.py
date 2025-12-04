@@ -35,7 +35,9 @@ class ChatRequest(BaseModel):
         default=False,
         description="Enable conversation memory (requires doctor_id)",
     )
-    provider: str | None = Field(default=None, description="Nombre del proveedor LLM (por defecto usa el de policy)")
+    provider: str | None = Field(
+        default=None, description="Nombre del proveedor LLM (por defecto usa el de policy)"
+    )
 
 
 class ChatResponse(BaseModel):
@@ -46,7 +48,9 @@ class ChatResponse(BaseModel):
     tokens_used: int
     latency_ms: int
     model: str
-    voice: str = Field(description="Azure TTS voice for this persona (nova, alloy, echo, fable, onyx, shimmer)")
+    voice: str = Field(
+        description="Azure TTS voice for this persona (nova, alloy, echo, fable, onyx, shimmer)"
+    )
 
     # Observability metadata
     prompt_hash: str = Field(description="SHA256 del prompt enviado (primeros 12 chars)")
@@ -67,7 +71,9 @@ class StructuredRequest(BaseModel):
     context: dict[str, Any] = Field(..., description="Contexto necesario (ej: current_soap)")
     output_schema: dict[str, str] = Field(..., description="Schema esperado del JSON de salida")
     session_id: str | None = Field(default=None, description="Session ID para audit")
-    provider: str | None = Field(default=None, description="Nombre del proveedor LLM (por defecto usa el de policy)")
+    provider: str | None = Field(
+        default=None, description="Nombre del proveedor LLM (por defecto usa el de policy)"
+    )
 
 
 class StructuredResponse(BaseModel):

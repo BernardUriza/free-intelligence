@@ -43,7 +43,7 @@
       "status": "VALID",
       "card_id": "FI-POLICY-001",
       "artifact": "config/fi.policy.yaml",
-      "size_kb": 1.75,
+      "size_kb": 3.25,
       "message": "\u2705 Artifact valid and executable"
     },
     {

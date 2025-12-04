@@ -119,7 +119,8 @@ Respond with JSON in this exact format:
         try:
             # First, try to find JSON between ```json ... ``` or ``` ... ```
             import re
-            json_match = re.search(r'```(?:json)?\s*({.*?})\s*```', response_text, re.DOTALL)
+
+            json_match = re.search(r"```(?:json)?\s*({.*?})\s*```", response_text, re.DOTALL)
             if json_match:
                 json_str = json_match.group(1)
             else:
@@ -142,7 +143,7 @@ Respond with JSON in this exact format:
                     # and handling edge cases where model might include extra text
                     try:
                         parsed_response = json.loads(json_str)
-                    except json.JSONDecodeError as e:
+                    except json.JSONDecodeError:
                         # If parsing fails, try to clean the string more aggressively
                         # Remove potential control characters and invalid escape sequences
                         cleaned_json_str = json_str.strip()
@@ -166,7 +167,7 @@ Respond with JSON in this exact format:
             logger.warning(
                 "INTERNAL_LLM_STRUCTURED_PARSING_ERROR",
                 error=str(e),
-                response_text=response_text[:500]
+                response_text=response_text[:500],
             )
             # If any parsing fails, we'll create a response based on the schema and text
             parsed_response = {}
@@ -176,7 +177,7 @@ Respond with JSON in this exact format:
             logger.warning(
                 "INTERNAL_LLM_STRUCTURED_MISSING_DATA",
                 keys=list(parsed_response.keys()),
-                original_response=response_text[:200]
+                original_response=response_text[:200],
             )
             # Create default data structure based on expected schema
             parsed_response["data"] = {}

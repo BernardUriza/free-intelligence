@@ -27,7 +27,7 @@ stt:
   # Provider-specific configurations
   providers:
     # azure_whisper: REMOVED - endpoint no longer available
-    
+
     deepgram:
       enabled: true
       timeout_seconds: 30

@@ -35,19 +35,13 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, Union
 
 import h5py
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
-from backend.storage.session_h5_manager import (
-    CORPUS_PATH,
-    ensure_session_h5_exists,
-    get_h5_file_for_session,
-    get_session_h5_path,
-)
+from backend.storage.session_h5_manager import CORPUS_PATH, get_session_h5_path
 from backend.storage.session_locks import locked_session_h5
 
 logger = get_logger(__name__)
