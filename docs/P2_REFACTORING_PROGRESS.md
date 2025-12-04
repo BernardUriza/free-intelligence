@@ -41,7 +41,7 @@ Crear hooks especializados siguiendo el principio Single Responsibility:
 
 ---
 
-## Hooks Creados (Fase 1)
+## ✅ Hooks Creados - COMPLETADO (6/6)
 
 ### 1. `useWorkflowSession.ts` ✅
 **Propósito:** Gestionar el estado completo de una sesión
@@ -188,5 +188,88 @@ Crear hooks especializados siguiendo el principio Single Responsibility:
 
 ---
 
-**Próxima sesión:** Completar hooks #4-#6 y refactorizar ConversationCapture para usarlos.
+---
+
+### 4. `useWorkflowOrchestrator.ts` ✅
+**Propósito:** Coordinar el flujo completo del workflow
+
+**Responsabilidades:**
+- Iniciar/detener/pausar/reanudar grabación
+- Trigger diarization workflow
+- Trigger SOAP generation
+- Finalizar workflow
+- State queries (canStart, canPause, etc.)
+
+**Helpers principales:**
+- `startRecording()`, `stopRecording()`, `pauseRecording()`, `resumeRecording()`
+- `startDiarization()`, `startSOAPGeneration()`, `finalizeWorkflow()`
+- `createCheckpoint()`
+- `canStartRecording()`, `canPauseRecording()`, etc.
+
+**Líneas:** ~250
+**Impacto:** Orquestación centralizada, reduce complejidad en ConversationCapture
+
+---
+
+### 5. `useCheckpointManager.ts` ✅
+**Propósito:** Gestionar checkpoints en pause/resume
+
+**Responsabilidades:**
+- Crear checkpoint (concatenar audio)
+- Progress tracking (0-100%)
+- Generar URL de preview
+- Error handling específico
+
+**Estado gestionado:**
+- `isCreating`, `progress`, `lastCheckpoint`, `error`
+
+**Helpers:**
+- `createCheckpoint()` - Con simulación de progreso
+- `getPreviewUrl()` - URL para audio preview
+- `reset()` - Limpiar estado
+
+**Líneas:** ~120
+**Impacto:** Lógica de checkpoint aislada, fácil de testear
+
+---
+
+### 6. `useDemoMode.ts` ✅
+**Propósito:** Modo demo con datos simulados
+
+**Responsabilidades:**
+- Gestionar estado de demo mode
+- Proveer datos mock (transcripts, diarization, SOAP)
+- Simulación de delays realistas
+- Skip de llamadas API
+
+**Demo consultations incluidas:**
+- `pediatric_fever` - Consulta pediátrica
+- `hypertension_control` - Control de hipertensión
+
+**Helpers:**
+- `enableDemoMode()`, `disableDemoMode()`
+- `loadDemoConsultation()` - Carga demos predefinidos
+- `getMockTranscript()`, `getMockDiarizationSegments()`, `getMockSOAPNote()`
+- `simulateDelay()`, `shouldSkipAPI()`
+
+**Líneas:** ~200
+**Impacto:** Demos realistas sin backend, ideal para presentaciones
+
+---
+
+## ✅ FASE 1 COMPLETADA
+
+**6/6 hooks especializados creados:**
+1. ✅ useWorkflowSession (~260 LOC)
+2. ✅ useWorkflowMetrics (~175 LOC)
+3. ✅ useAudioUpload (~145 LOC)
+4. ✅ useWorkflowOrchestrator (~250 LOC)
+5. ✅ useCheckpointManager (~120 LOC)
+6. ✅ useDemoMode (~200 LOC)
+
+**Total:** ~1,150 LOC de lógica extraída y organizada
+
+---
+
+**Próximo paso:** Integrar hooks en ConversationCapture y reducir de 1178 LOC a <400 LOC.
 
