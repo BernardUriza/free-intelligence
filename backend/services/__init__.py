@@ -25,6 +25,7 @@ from backend.services.corpus_service import CorpusService
 from backend.services.export_service import ExportService
 from backend.services.session_service import SessionService
 from backend.services.transcription_service import TranscriptionService
+from backend.services.triage_service import TriageService
 
 __all__ = [
     "AuditService",
@@ -32,4 +33,5 @@ __all__ = [
     "ExportService",
     "SessionService",
     "TranscriptionService",
+    "TriageService",
 ]

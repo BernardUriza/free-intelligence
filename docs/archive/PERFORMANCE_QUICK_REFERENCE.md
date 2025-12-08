@@ -205,7 +205,7 @@ Size Range      Processing Time    Recommendation
 - **Atomic writes:** fsync + rename
 
 ### 5. LLM Speaker Classification
-- **Model:** qwen2.5:7b-instruct-q4_0 (default)
+- **Model:** qwen2:1.5b-instruct (default)
 - **Backend:** Ollama (http://localhost:11434)
 - **Timeout:** 60s (configurable)
 - **Impact:** 63% of total diarization time
@@ -301,7 +301,7 @@ All logs contain timing information:
 ### LLM Timeout Errors
 1. Increase timeout: `LLM_TIMEOUT_MS=90000` (90s)
 2. Check Ollama: `curl http://localhost:11434/api/tags`
-3. Use smaller model: `qwen2.5:3b-instruct` (faster)
+3. Use smaller model: `qwen2:1.5b-instruct` (faster)
 4. Disable LLM: `ENABLE_LLM_CLASSIFICATION=false`
 
 ---

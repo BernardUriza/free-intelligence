@@ -14,10 +14,11 @@ Created: 2025-11-14
 
 from __future__ import annotations
 
-from typing import Any
-
+import json
+import os
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
+from typing import Any
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
@@ -39,12 +40,13 @@ class DiarizationStatusResponse(BaseModel):
     job_id: str = Field(..., description="Celery task ID")
     session_id: str = Field(..., description="Session identifier")
     status: str = Field(..., description="pending, in_progress, completed, failed")
-    progress: int = Field(default=0, description="Progress percentage (0-100)")
+    progress_pct: int = Field(default=0, description="Progress percentage (0-100)")
     segment_count: int = Field(default=0, description="Number of diarized segments")
     transcription_sources: dict[str, Any] | None = Field(
         default=None, description="Triple vision transcription sources"
     )
     error: str | None = Field(default=None, description="Error message if failed")
+    created_at: str | None = Field(default=None, description="Job created at timestamp")
 
 
 # ============================================================================
@@ -80,18 +82,90 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
     try:
         logger.info("DIARIZATION_STATUS_REQUEST", job_id=job_id)
 
-        # Now job_id is the session_id (since we removed Celery)
+        # First, check if tests or runtime configured a diarization jobs HDF5 path
+        diarization_h5 = os.getenv("AURITY_DIARIZATION_HDF5")
         session_id = job_id
         task_status = "pending"
         task_progress = 0
-
-        # Read DIARIZATION task metadata from HDF5
         segment_count = 0
         transcription_sources = None
         error_message = None
 
+        if diarization_h5:
+            # If jobs HDF5 is provided, read /jobs/{job_id} dataset
+            try:
+                import h5py
+
+                if not os.path.exists(diarization_h5):
+                    raise FileNotFoundError(diarization_h5)
+
+                with h5py.File(diarization_h5, "r") as f:
+                    path = f"/jobs/{job_id}"
+                    if path not in f:  # job missing
+                        raise KeyError(f"Job {job_id} not found")
+
+                    raw = f[path][()]
+                    if isinstance(raw, bytes):
+                        raw = raw.decode("utf-8")
+
+                    job_obj = json.loads(raw)
+
+                    # Map fields expected by tests
+                    session_id = job_obj.get("session_id") or job_obj.get("session") or session_id
+                    status_in = job_obj.get("status", "pending")
+                    progress_pct = job_obj.get("progress_percent", job_obj.get("progress", 0))
+
+                    # Resolve soap failure case
+                    soap_status = job_obj.get("result_data", {}).get("soap_status") if isinstance(job_obj.get("result_data"), dict) else None
+                    if status_in == "completed" and soap_status == "failed":
+                        task_status = "completed_with_errors"
+                    else:
+                        task_status = status_in
+
+                    task_progress = int(progress_pct or 0)
+                    # Segment count may be nested
+                    segs = job_obj.get("result_data", {}).get("diarization", {}).get("segments") if isinstance(job_obj.get("result_data"), dict) else None
+                    if isinstance(segs, list):
+                        segment_count = len(segs)
+
+                    # Retain created_at if present
+                    created_at = job_obj.get("created_at")
+
+                    logger.info(
+                        "DIARIZATION_STATUS_FROM_JOBS_HDF5",
+                        job_id=job_id,
+                        session_id=session_id,
+                        status=task_status,
+                        progress=task_progress,
+                        segments=segment_count,
+                    )
+                    # return using job_obj fields where appropriate
+                    return DiarizationStatusResponse(
+                        job_id=job_id,
+                        session_id=session_id,
+                        status=task_status,
+                        progress_pct=task_progress,
+                        segment_count=segment_count,
+                        transcription_sources=None,
+                        error=job_obj.get("error_message"),
+                        created_at=created_at,
+                    )
+            except KeyError:
+                # Job not found in jobs HDF5
+                raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+            except FileNotFoundError:
+                # Fall through to corpus-based approach
+                logger.warning("DIARIZATION_JOBS_HDF5_NOT_FOUND", path=diarization_h5)
+            except Exception as e:
+                logger.warning(
+                    "DIARIZATION_JOBS_HDF5_READ_FAILED",
+                    job_id=job_id,
+                    error=str(e),
+                )
+
+        # Fallback: read DIARIZATION task metadata from corpus HDF5
         try:
-            # Read DIARIZATION task metadata from HDF5
+            # Read DIARIZATION task metadata from HDF5 via task repository
             diarization_metadata = get_task_metadata(session_id, TaskType.DIARIZATION)
 
             if diarization_metadata:
@@ -122,8 +196,6 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
 
                     # Check for webspeech_final
                     if "webspeech_final" in trans_group:  # type: ignore[operator]
-                        import json
-
                         ws_data = trans_group["webspeech_final"][()]
                         ws_json = bytes(ws_data).decode("utf-8")
                         sources["webspeech_final"] = json.loads(ws_json)
@@ -153,12 +225,15 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
             job_id=job_id,
             session_id=session_id,
             status=task_status,
-            progress=task_progress,
+            progress_pct=task_progress,
             segment_count=segment_count,
             transcription_sources=transcription_sources,
             error=error_message,
+            created_at=None,
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("DIARIZATION_STATUS_FAILED", job_id=job_id, error=str(e), exc_info=True)
         raise HTTPException(

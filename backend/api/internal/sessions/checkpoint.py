@@ -18,50 +18,19 @@ Author: Bernard Uriza Orozco
 Created: 2025-11-14
 """
 
-from __future__ import annotations
-
-import shutil
-import subprocess
-import tempfile
 from datetime import UTC, datetime
-from pathlib import Path
-
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
-from backend.storage.task_repository import (
-    CORPUS_PATH,
-    add_full_audio,
-    get_task_metadata,
-    update_task_metadata,
-)
+from backend.storage.task_repository import add_full_audio, get_task_metadata, update_task_metadata
+
+from .checkpoint_logic import perform_checkpoint_concatenation
+from .checkpoint_models import CheckpointRequest, CheckpointResponse
 
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["internal-sessions"])
-
-
-# ============================================================================
-# Request/Response Models
-# ============================================================================
-
-
-class CheckpointRequest(BaseModel):
-    """Request for session checkpoint."""
-
-    last_chunk_idx: int = Field(..., description="Last chunk index to include in checkpoint")
-
-
-class CheckpointResponse(BaseModel):
-    """Response for session checkpoint."""
-
-    session_id: str = Field(..., description="Session identifier")
-    checkpoint_at: str = Field(..., description="ISO timestamp")
-    chunks_concatenated: int = Field(..., description="Number of chunks added")
-    full_audio_size: int = Field(..., description="Total size of full_audio.webm in bytes")
-    message: str = Field(..., description="Human-readable message")
 
 
 # ============================================================================
@@ -123,97 +92,14 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
             new_checkpoint=request.last_chunk_idx,
         )
 
-        # 2. Read chunks in range (last_checkpoint+1 to request.last_chunk_idx)
-        import h5py
+        # 2. Perform concatenation
+        chunks_concatenated, full_audio_bytes = perform_checkpoint_concatenation(
+            session_id=session_id,
+            last_checkpoint_idx=last_checkpoint_idx,
+            new_checkpoint_idx=request.last_chunk_idx,
+        )
 
-        temp_dir = Path(tempfile.mkdtemp(prefix="checkpoint_"))
-        audio_files = []
-        chunks_concatenated = 0
-
-        with h5py.File(CORPUS_PATH, "r") as f:
-            # Get all chunk keys from HDF5 (don't assume sequential from 0)
-            chunks_group_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/chunks"
-
-            if chunks_group_path not in f:
-                logger.warning(
-                    "NO_CHUNKS_GROUP",
-                    session_id=session_id,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"No chunks found for session {session_id}",
-                )
-
-            chunks_group = f[chunks_group_path]
-
-            # Extract chunk numbers and sort them
-            chunk_numbers = []
-            for key in chunks_group.keys():
-                if key.startswith("chunk_"):
-                    try:
-                        chunk_num = int(key.split("_")[1])
-                        chunk_numbers.append(chunk_num)
-                    except (ValueError, IndexError):
-                        logger.warning("INVALID_CHUNK_KEY", key=key)
-                        continue
-
-            chunk_numbers.sort()
-
-            logger.info(
-                "CHECKPOINT_CHUNK_DISCOVERY",
-                session_id=session_id,
-                available_chunks=chunk_numbers,
-                last_checkpoint=last_checkpoint_idx,
-                requested_checkpoint=request.last_chunk_idx,
-            )
-
-            # Filter chunks in checkpoint range
-            for chunk_idx in chunk_numbers:
-                if last_checkpoint_idx < chunk_idx <= request.last_chunk_idx:
-                    chunk_path = (
-                        f"/sessions/{session_id}/tasks/TRANSCRIPTION/chunks/chunk_{chunk_idx}"
-                    )
-                    chunk_group = f[chunk_path]
-
-                    # Check if audio exists and is not empty
-                    if "audio.webm" in chunk_group:  # type: ignore[operator]
-                        audio_data = chunk_group["audio.webm"][()]
-
-                        # Convert numpy array to bytes properly
-                        if hasattr(audio_data, "tobytes"):
-                            audio_bytes = audio_data.tobytes()
-                        elif isinstance(audio_data, bytes):
-                            audio_bytes = audio_data
-                        else:
-                            audio_bytes = bytes(audio_data)
-
-                        # Skip empty audio files
-                        if len(audio_bytes) == 0:
-                            logger.warning(
-                                "CHUNK_AUDIO_EMPTY",
-                                session_id=session_id,
-                                chunk_idx=chunk_idx,
-                            )
-                            continue
-
-                        # Save to temp file
-                        temp_audio = temp_dir / f"chunk_{chunk_idx:03d}.webm"
-                        temp_audio.write_bytes(audio_bytes)
-                        audio_files.append(temp_audio)
-                        chunks_concatenated += 1
-                    else:
-                        logger.warning(
-                            "CHUNK_NO_AUDIO",
-                            session_id=session_id,
-                            chunk_idx=chunk_idx,
-                        )
-
-        if not audio_files:
-            logger.warning(
-                "NO_NEW_CHUNKS_TO_CONCATENATE",
-                session_id=session_id,
-                range=f"{last_checkpoint_idx + 1} to {request.last_chunk_idx}",
-            )
+        if chunks_concatenated == 0:
             return CheckpointResponse(
                 session_id=session_id,
                 checkpoint_at=datetime.now(UTC).isoformat(),
@@ -222,70 +108,7 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
                 message="No new chunks to concatenate",
             )
 
-        # 3. Check if full_audio.webm exists (read from HDF5)
-        existing_audio_bytes = None
-        with h5py.File(CORPUS_PATH, "r") as f:
-            full_audio_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/full_audio.webm"
-            if full_audio_path in f:
-                existing_audio_data = f[full_audio_path][()]
-
-                # Convert numpy array to bytes properly
-                if hasattr(existing_audio_data, "tobytes"):
-                    existing_audio_bytes = existing_audio_data.tobytes()
-                elif isinstance(existing_audio_data, bytes):
-                    existing_audio_bytes = existing_audio_data
-                else:
-                    existing_audio_bytes = bytes(existing_audio_data)
-
-                logger.info(
-                    "EXISTING_AUDIO_FOUND",
-                    session_id=session_id,
-                    size_bytes=len(existing_audio_bytes),
-                )
-
-        # 4. Concatenate: existing + new chunks
-        concat_list_files = []
-
-        if existing_audio_bytes:
-            # Save existing audio to temp
-            existing_audio_file = temp_dir / "existing_audio.webm"
-            existing_audio_file.write_bytes(existing_audio_bytes)
-            concat_list_files.append(existing_audio_file)
-
-        concat_list_files.extend(audio_files)
-
-        # Create ffmpeg concat file list
-        concat_list = temp_dir / "concat_list.txt"
-        with open(concat_list, "w") as f:
-            for audio_file in concat_list_files:
-                f.write(f"file '{audio_file}'\n")
-
-        # Concatenate using ffmpeg (re-encode to WebM/Opus for consistency)
-        output_file = temp_dir / "full_audio_new.webm"
-        ffmpeg_cmd = [
-            "ffmpeg",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(concat_list),
-            "-c:a",
-            "libopus",  # Encode to Opus codec (WebM standard)
-            "-b:a",
-            "128k",  # 128 kbps bitrate
-            str(output_file),
-            "-loglevel",
-            "error",
-            "-y",
-        ]
-
-        subprocess.run(ffmpeg_cmd, check=True, timeout=60)
-
-        # Read concatenated audio
-        full_audio_bytes = output_file.read_bytes()
-
-        # 5. Save to HDF5 (overwrites full_audio.webm with new concatenated version)
+        # 3. Save to HDF5 (overwrites full_audio.webm with new concatenated version)
         add_full_audio(
             session_id=session_id,
             audio_bytes=full_audio_bytes,
@@ -293,13 +116,10 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
             task_type=TaskType.TRANSCRIPTION,
         )
 
-        # 6. Update task metadata with new checkpoint
+        # 4. Update task metadata with new checkpoint
         task_metadata["last_checkpoint_idx"] = request.last_chunk_idx
         task_metadata["last_checkpoint_at"] = datetime.now(UTC).isoformat()
         update_task_metadata(session_id, TaskType.TRANSCRIPTION, task_metadata)
-
-        # Cleanup temp files
-        shutil.rmtree(temp_dir)
 
         logger.info(
             "CHECKPOINT_COMPLETED",

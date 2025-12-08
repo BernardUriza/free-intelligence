@@ -42,7 +42,7 @@ class AuditService:
         user_id: str,
         resource: str,
         result: str,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any] | None = None,
     ) -> str:
         """Log an action to the audit trail.
 
@@ -230,7 +230,7 @@ class AuditService:
         user_id: str,
         document_id: str,
         size_bytes: int,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any] | None = None,
     ) -> str:
         """Log document creation event.
 

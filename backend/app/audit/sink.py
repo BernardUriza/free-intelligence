@@ -10,13 +10,12 @@ Created: 2025-11-09
 from __future__ import annotations
 
 import os
+import pyarrow as pa
+import pyarrow.parquet as pq
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict
-
-import pyarrow as pa
-import pyarrow.parquet as pq
 
 from backend.logger import get_logger
 
@@ -29,7 +28,7 @@ AUDIT_ROOT = Path(os.getenv("AUDIT_ROOT", "storage/audit"))
 AUDIT_SCHEMA = pa.schema(
     [
         ("event_id", pa.string()),
-        ("timestamp", pa.timestamp("us", tz="timezone.utc")),
+        ("timestamp", pa.timestamp("us", tz="UTC")),
         ("action", pa.string()),
         ("user_id", pa.string()),
         ("resource", pa.string()),
@@ -135,8 +134,9 @@ def read_audit_events(
         >>> events = read_audit_events(start_date="2025-11-09", action="TIMELINE_HASH_VERIFIED")
     """
     import json
+    from typing import Any
 
-    events = []
+    events: list[dict[str, Any]] = []
 
     # Scan partitions
     if not AUDIT_ROOT.exists():

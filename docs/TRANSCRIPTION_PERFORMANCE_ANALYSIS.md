@@ -240,7 +240,7 @@ For each segment:
 |-----------|---------|--------|
 | `ENABLE_LLM_CLASSIFICATION` | true | Enable/disable LLM calls |
 | `FI_ENRICHMENT` | on | Kill switch (on/off) |
-| `LLM_MODEL` | qwen2.5:7b-instruct-q4_0 | Larger = slower, more accurate |
+| `LLM_MODEL` | qwen2:1.5b-instruct | Larger = slower, more accurate |
 | `LLM_TIMEOUT_MS` | 60000 | 60s timeout on CPU |
 | `DIARIZATION_LLM_TEMP` | 0.1 | 0.1 = deterministic |
 
@@ -361,7 +361,7 @@ NUM_WORKERS = int(os.getenv("ASR_NUM_WORKERS", "1"))
 CHUNK_DURATION_SEC = int(os.getenv("DIARIZATION_CHUNK_SEC", "30"))
 MIN_SEGMENT_DURATION = float(os.getenv("MIN_SEGMENT_SEC", "0.5"))
 OLLAMA_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("LLM_MODEL", "qwen2.5:7b-instruct-q4_0")
+OLLAMA_MODEL = os.getenv("LLM_MODEL", "qwen2:1.5b-instruct")
 LLM_TEMPERATURE = float(os.getenv("DIARIZATION_LLM_TEMP", "0.1"))
 LLM_TIMEOUT_MS = int(os.getenv("LLM_TIMEOUT_MS", "60000"))
 FI_ENRICHMENT = os.getenv("FI_ENRICHMENT", "on").lower() == "on"
@@ -587,8 +587,8 @@ Frontend (API)
 **Idea:** Use smaller quantized versions of LLM
 
 ```bash
-# Current: qwen2.5:7b-instruct-q4_0 (8s per segment)
-# Faster:  qwen2.5:3b-instruct (2s per segment)
+# Current: qwen2:1.5b-instruct (8s per segment)
+# Faster:  qwen2:1.5b-instruct (2s per segment)
 ```
 
 **Tradeoff:** Accuracy ↓ by ~10%, speed ↑ by 4x
@@ -625,7 +625,7 @@ export DIARIZATION_CHUNK_SEC=30
 export ENABLE_LLM_CLASSIFICATION=true
 export FI_ENRICHMENT=on
 export LLM_TIMEOUT_MS=60000
-export DIARIZATION_LLM_MODEL=qwen2.5:7b-instruct-q4_0
+export DIARIZATION_LLM_MODEL=qwen2:1.5b-instruct
 export ASR_CPU_THREADS=3
 export ASR_NUM_WORKERS=1
 export DIARIZATION_PARALLEL_CHUNKS=2

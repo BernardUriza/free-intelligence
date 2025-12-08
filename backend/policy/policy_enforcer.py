@@ -10,10 +10,9 @@ Provides guard functions for sovereignty, privacy, cost, and feature flags
 
 import hashlib
 import re
+import yaml
 from pathlib import Path
 from typing import Any
-
-import yaml
 
 from backend.logger import get_logger
 
@@ -79,17 +78,23 @@ class PolicyEnforcer:
         )
 
     def _load_yaml(self, path: Path) -> dict[str, Any]:
-        """Load YAML file with error handling"""
+        """Load YAML file with validation and error handling"""
         if not path.exists():
             logger.warning(f"Policy file not found: {path}")
             return {}
 
         try:
             with open(path) as f:
-                return yaml.safe_load(f) or {}
+                data = yaml.safe_load(f) or {}
+                # Validate YAML structure
+                if not isinstance(data, dict):
+                    raise ValueError("Invalid YAML structure: Expected a dictionary at the root")
+                return data
+        except yaml.YAMLError as e:
+            logger.error(f"YAML parsing error in {path}: {e}")
         except Exception as e:
             logger.error(f"Failed to load {path}: {e}")
-            return {}
+        return {}
 
     def get_policy_digest(self) -> str:
         """
@@ -101,17 +106,35 @@ class PolicyEnforcer:
         with open(self.policy_path, "rb") as f:
             return hashlib.sha256(f.read()).hexdigest()
 
+    def _is_url_allowed(self, url: str, allowlist: list[str]) -> bool:
+        """Check if a URL is allowed based on the allowlist"""
+        from urllib.parse import urlparse
+
+        parsed = urlparse(url)
+        host = parsed.netloc.lower() if parsed.netloc else ""
+        domain = parsed.hostname.lower() if parsed.hostname else ""
+
+        for entry in allowlist:
+            entry_lower = entry.lower().lstrip(".")
+
+            # Wildcard match: .example.com matches *.example.com
+            if entry.startswith("."):
+                if domain == entry_lower or domain.endswith("." + entry_lower):
+                    logger.debug(f"Egress allowed by wildcard: {url} (matched: {entry})")
+                    return True
+            else:
+                # Exact match: host or domain must match exactly
+                if host == entry_lower or domain == entry_lower:
+                    logger.debug(f"Egress allowed by exact match: {url} (matched: {entry})")
+                    return True
+
+        return False
+
     # === Sovereignty Guards ===
 
     def check_egress(self, url: str, run_id: str | None = None) -> None:
         """
         Check if external egress is allowed
-
-        Supports allowlist when default=deny.
-        Allowlist entries can be:
-        - Domain: "api.anthropic.com"
-        - Host:port: "127.0.0.1:11434", "localhost:11434"
-        - URL prefix: "https://api.anthropic.com"
 
         Args:
             url: Target URL for egress
@@ -120,44 +143,25 @@ class PolicyEnforcer:
         Raises:
             PolicyViolation: If egress is denied by policy
         """
-        from urllib.parse import urlparse
+        if not url or not isinstance(url, str):
+            raise ValueError("Invalid URL provided")
 
         egress_policy = self.policy.get("sovereignty", {}).get("egress", {})
         default_action = egress_policy.get("default", "allow")
         allowlist = egress_policy.get("allowlist", [])
 
-        if default_action == "deny":
-            # Parse URL to extract domain/host
+        if default_action == "deny" and not self._is_url_allowed(url, allowlist):
+            from urllib.parse import urlparse
             parsed = urlparse(url)
             host = parsed.netloc.lower() if parsed.netloc else ""
-            domain = parsed.hostname.lower() if parsed.hostname else ""
 
-            # Check if URL/host is in allowlist (strict matching)
-            allowed = False
-            for entry in allowlist:
-                entry_lower = entry.lower().lstrip(".")
-
-                # Wildcard match: .example.com matches *.example.com
-                if entry.startswith("."):
-                    if domain == entry_lower or domain.endswith("." + entry_lower):
-                        allowed = True
-                        logger.debug(f"Egress allowed by wildcard: {url} (matched: {entry})")
-                        break
-                else:
-                    # Exact match: host or domain must match exactly
-                    if host == entry_lower or domain == entry_lower:
-                        allowed = True
-                        logger.debug(f"Egress allowed by exact match: {url} (matched: {entry})")
-                        break
-
-            if not allowed:
-                metadata = {"url": url, "host": host, "run_id": run_id, "allowlist": allowlist}
-                logger.warning(f"Egress blocked by policy: {url} (run_id={run_id})")
-                raise PolicyViolation(
-                    rule="sovereignty.egress",
-                    message=f"External egress denied by policy: {url}",
-                    metadata=metadata,
-                )
+            metadata = {"url": url, "host": host, "run_id": run_id, "allowlist": allowlist}
+            logger.warning(f"Egress blocked by policy: {url} (run_id={run_id})")
+            raise PolicyViolation(
+                rule="sovereignty.egress",
+                message=f"External egress denied by policy: {url}",
+                metadata=metadata,
+            )
         else:
             logger.debug(f"Egress allowed (default=allow): {url}")
 

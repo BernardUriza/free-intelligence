@@ -296,7 +296,7 @@ WHISPER_VAD_FILTER=true
 
 - **Performance Analysis:** See `PERFORMANCE_QUICK_WINS.yaml` for detailed breakdown
 - **Whisper Docs:** https://github.com/openai/whisper
-- **Qwen LLM:** https://huggingface.co/Qwen/Qwen2.5-7B-Instruct
+- **Qwen LLM:** https://huggingface.co/Qwen/Qwen2-1.5B-Instruct
 - **Backend Config:** `backend/diarization_service.py`, `backend/whisper_service.py`
 
 ---

@@ -17,12 +17,12 @@
     "DEBUG": true
   },
   "stubPath": "typings",
-  "pythonVersion": "3.9",
+  "pythonVersion": "3.14",
   "pythonPlatform": "Darwin",
   "executionEnvironments": [
     {
       "root": ".",
-      "pythonVersion": "3.9",
+      "pythonVersion": "3.14",
       "pythonPlatform": "Darwin",
       "extraPaths": [
         "${workspaceFolder}",

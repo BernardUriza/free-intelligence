@@ -97,10 +97,10 @@ def require_audit_log(func: Callable) -> Callable:
         - Fase 2: Runtime validation (verificar que se llamó append_audit_log)
         - Por ahora solo sirve para detección estática
     """
-    import asyncio
+    import inspect
 
     # Check if function is async
-    if asyncio.iscoroutinefunction(func):
+    if inspect.iscoroutinefunction(func):
 
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):

@@ -12,11 +12,10 @@ from __future__ import annotations
 
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from backend.database import get_db_dependency
 from backend.logger import get_logger
@@ -86,8 +85,7 @@ class ClinicResponse(BaseModel):
     created_at: str
     updated_at: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DoctorCreate(BaseModel):
@@ -134,8 +132,7 @@ class DoctorResponse(BaseModel):
     created_at: str
     updated_at: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AppointmentCreate(BaseModel):
@@ -167,8 +164,7 @@ class AppointmentResponse(BaseModel):
     notes: Optional[str] = None
     created_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ClinicListResponse(BaseModel):

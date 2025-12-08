@@ -16,10 +16,9 @@ Date: 2025-11-14
 # pyright: reportPrivateUsage=false
 from __future__ import annotations
 
+import pytest
 import tempfile
 from pathlib import Path
-
-import pytest
 
 from backend.repositories.session_repository import SessionRepository
 
@@ -95,7 +94,7 @@ class TestSessionRepositoryRefactor:
         # Verify primitives pass through unchanged
         assert metadata["simple_string"] == "value"
         assert metadata["simple_int"] == 42
-        assert metadata["simple_bool"] is True
+        assert metadata["simple_bool"] == True
         assert metadata["simple_list"] == [1, 2, 3]
 
     def test_update_with_dict_metadata(self, repo: SessionRepository) -> None:
@@ -109,7 +108,7 @@ class TestSessionRepositoryRefactor:
         update_metadata = {
             "diarization_metadata": {
                 "segment_count": 10,
-                "model": "qwen2.5:3b",
+                "model": "qwen2:1.5b-instruct",
                 "speakers": ["MEDICO", "PACIENTE"],
             }
         }
@@ -127,7 +126,7 @@ class TestSessionRepositoryRefactor:
         # CRITICAL: Must be dict, not string
         assert isinstance(diarization, dict)
         assert diarization["segment_count"] == 10
-        assert diarization["model"] == "qwen2.5:3b"
+        assert diarization["model"] == "qwen2:1.5b-instruct"
         assert diarization["speakers"] == ["MEDICO", "PACIENTE"]
 
     def test_serialize_value_helper(self) -> None:

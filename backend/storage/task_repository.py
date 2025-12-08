@@ -29,6 +29,7 @@ Card: Architecture refactor - task-based HDF5
 
 from __future__ import annotations
 
+import h5py
 import json
 import threading
 import time
@@ -36,8 +37,6 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any, Union
-
-import h5py
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
@@ -188,6 +187,8 @@ def ensure_task_exists(
 def task_exists(session_id: str, task_type: Union[TaskType, str]) -> bool:
     """Check if task exists for session.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files.
+
     Args:
         session_id: Session identifier
         task_type: Type of task
@@ -195,14 +196,17 @@ def task_exists(session_id: str, task_type: Union[TaskType, str]) -> bool:
     Returns:
         True if task exists, False otherwise
     """
-    if not CORPUS_PATH.exists():
+    from backend.storage.session_h5_manager import get_session_h5_path
+
+    session_file = get_session_h5_path(session_id)
+    if not session_file.exists():
         return False
 
     task_type_str = task_type.value if isinstance(task_type, TaskType) else task_type
     task_path = f"/sessions/{session_id}/tasks/{task_type_str}"
 
     try:
-        with h5py.File(CORPUS_PATH, "r") as f:
+        with locked_session_h5(session_id, mode="r") as f:
             return task_path in f  # type: ignore[operator]
     except OSError:
         # File exists but is not a valid HDF5 file
@@ -212,19 +216,24 @@ def task_exists(session_id: str, task_type: Union[TaskType, str]) -> bool:
 def list_session_tasks(session_id: str) -> list[str]:
     """List all task types for a session.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files.
+
     Args:
         session_id: Session identifier
 
     Returns:
         List of task type strings (e.g., ["TRANSCRIPTION", "DIARIZATION"])
     """
-    if not CORPUS_PATH.exists():
+    from backend.storage.session_h5_manager import get_session_h5_path
+
+    session_file = get_session_h5_path(session_id)
+    if not session_file.exists():
         return []
 
     tasks_path = f"/sessions/{session_id}/tasks"
 
     try:
-        with h5py.File(CORPUS_PATH, "r") as f:
+        with locked_session_h5(session_id, mode="r") as f:
             if tasks_path not in f:  # type: ignore[operator]
                 return []
 
@@ -247,6 +256,11 @@ def update_task_metadata(
 ) -> None:
     """Update job metadata for a task.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files.
+    
+    WARNING: Contains del operation violating append-only pattern.
+    See docs/CRITICAL_TECH_DEBT_EVENT_SOURCING.md for remediation plan.
+
     Args:
         session_id: Session identifier
         task_type: Type of task
@@ -265,47 +279,48 @@ def update_task_metadata(
 
     task_path = f"/sessions/{session_id}/tasks/{task_type_str}"
 
-    with _h5_lock:  # Lock H5 file to prevent concurrent access errors
-        with h5py.File(CORPUS_PATH, "a") as f:
-            task_group = f[task_path]  # type: ignore[index]
+    with locked_session_h5(session_id, mode="a") as f:
+        task_group = f[task_path]  # type: ignore[index]
 
-            # Read existing metadata
-            if "job_metadata" in task_group:  # type: ignore[operator]
-                existing_json = task_group["job_metadata"][()]  # type: ignore[index]
-                if isinstance(existing_json, bytes):
-                    existing_json = existing_json.decode("utf-8")
-                existing_metadata = json.loads(existing_json)
-            else:
-                existing_metadata = {}
+        # Read existing metadata
+        if "job_metadata" in task_group:  # type: ignore[operator]
+            existing_json = task_group["job_metadata"][()]  # type: ignore[index]
+            if isinstance(existing_json, bytes):
+                existing_json = existing_json.decode("utf-8")
+            existing_metadata = json.loads(existing_json)
+        else:
+            existing_metadata = {}
 
-            # Merge with new metadata
-            existing_metadata.update(metadata)
-            existing_metadata["updated_at"] = datetime.now(UTC).isoformat()
+        # Merge with new metadata
+        existing_metadata.update(metadata)
+        existing_metadata["updated_at"] = datetime.now(UTC).isoformat()
 
-            # Write back
-            metadata_json = json.dumps(existing_metadata)
+        # Write back
+        metadata_json = json.dumps(existing_metadata)
 
-            # Delete old dataset
-            if "job_metadata" in task_group:  # type: ignore[operator]
-                del task_group["job_metadata"]  # type: ignore[index]
+        # Delete old dataset (VIOLATION: append-only)
+        if "job_metadata" in task_group:  # type: ignore[operator]
+            del task_group["job_metadata"]  # type: ignore[index]
 
-            # Create new dataset
-            task_group.create_dataset(  # type: ignore[attr-defined]
-                "job_metadata",
-                data=metadata_json,
-                dtype=h5py.string_dtype(encoding="utf-8"),
-            )
+        # Create new dataset
+        task_group.create_dataset(  # type: ignore[attr-defined]
+            "job_metadata",
+            data=metadata_json,
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
 
-            logger.info(
-                "TASK_METADATA_UPDATED",
-                session_id=session_id,
-                task_type=task_type_str,
-                metadata_keys=list(metadata.keys()),
-            )
+        logger.info(
+            "TASK_METADATA_UPDATED",
+            session_id=session_id,
+            task_type=task_type_str,
+            metadata_keys=list(metadata.keys()),
+        )
 
 
 def get_task_metadata(session_id: str, task_type: Union[TaskType, str]) -> dict[str, Any] | None:
     """Get job metadata for a task.
+
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files.
 
     Args:
         session_id: Session identifier
@@ -321,7 +336,7 @@ def get_task_metadata(session_id: str, task_type: Union[TaskType, str]) -> dict[
     task_path = f"/sessions/{session_id}/tasks/{task_type_str}"
 
     try:
-        with h5py.File(CORPUS_PATH, "r") as f:
+        with locked_session_h5(session_id, mode="r") as f:
             task_group = f[task_path]  # type: ignore[index]
 
             if "job_metadata" not in task_group:  # type: ignore[operator]
@@ -398,74 +413,73 @@ def append_chunk_to_task(
     chunk_path = f"{task_path}/chunks/chunk_{chunk_idx}"
     created_at = datetime.now(UTC).isoformat()
 
-    with _h5_lock:  # Lock H5 file to prevent concurrent access errors
-        with h5py.File(CORPUS_PATH, "a") as f:
-            task_group = f[task_path]  # type: ignore[index]
+    with locked_session_h5(session_id, mode="a") as f:
+        task_group = f[task_path]  # type: ignore[index]
 
-            # Create chunks group if not exists
-            if "chunks" not in task_group:  # type: ignore[operator]
-                task_group.create_group("chunks")  # type: ignore[index]
+        # Create chunks group if not exists
+        if "chunks" not in task_group:  # type: ignore[operator]
+            task_group.create_group("chunks")  # type: ignore[index]
 
-            chunks_group = task_group["chunks"]  # type: ignore[index]
+        chunks_group = task_group["chunks"]  # type: ignore[index]
 
-            # Check if chunk already exists (append-only)
-            if f"chunk_{chunk_idx}" in chunks_group:  # type: ignore[operator]
-                raise ValueError(
-                    f"Chunk {chunk_idx} already exists for task {task_type_str} "
-                    f"(append-only violation)"
-                )
-
-            # Create chunk group
-            chunk_group = chunks_group.create_group(f"chunk_{chunk_idx}")  # type: ignore[attr-defined]
-
-            # Write datasets
-            chunk_group.create_dataset(  # type: ignore[attr-defined]
-                "transcript",
-                data=transcript,
-                dtype=h5py.string_dtype(encoding="utf-8"),
+        # Check if chunk already exists (append-only)
+        if f"chunk_{chunk_idx}" in chunks_group:  # type: ignore[operator]
+            raise ValueError(
+                f"Chunk {chunk_idx} already exists for task {task_type_str} "
+                f"(append-only violation)"
             )
-            chunk_group.create_dataset(  # type: ignore[attr-defined]
-                "audio_hash",
-                data=audio_hash,
-                dtype=h5py.string_dtype(encoding="utf-8"),
-            )
-            chunk_group.create_dataset("duration", data=duration, dtype="float64")  # type: ignore[attr-defined]
-            chunk_group.create_dataset(  # type: ignore[attr-defined]
-                "language",
-                data=language,
-                dtype=h5py.string_dtype(encoding="utf-8"),
-            )
-            chunk_group.create_dataset("timestamp_start", data=timestamp_start, dtype="float64")  # type: ignore[attr-defined]
-            chunk_group.create_dataset("timestamp_end", data=timestamp_end, dtype="float64")  # type: ignore[attr-defined]
-            chunk_group.create_dataset("confidence", data=confidence, dtype="float32")  # type: ignore[attr-defined]
-            chunk_group.create_dataset("audio_quality", data=audio_quality, dtype="float32")  # type: ignore[attr-defined]
-            chunk_group.create_dataset(  # type: ignore[attr-defined]
-                "created_at",
-                data=created_at,
-                dtype=h5py.string_dtype(encoding="utf-8"),
-            )
-            # NEW: Transcription metrics
-            chunk_group.create_dataset(  # type: ignore[attr-defined]
-                "provider",
-                data=provider,
-                dtype=h5py.string_dtype(encoding="utf-8"),
-            )
-            chunk_group.create_dataset("polling_attempts", data=polling_attempts, dtype="int32")  # type: ignore[attr-defined]
-            chunk_group.create_dataset(
-                "resolution_time_seconds", data=resolution_time_seconds, dtype="float32"
-            )  # type: ignore[attr-defined]
-            chunk_group.create_dataset("retry_attempts", data=retry_attempts, dtype="int32")  # type: ignore[attr-defined]
 
-        logger.info(
-            "CHUNK_APPENDED_TO_TASK",
-            session_id=session_id,
-            task_type=task_type_str,
-            chunk_idx=chunk_idx,
-            chunk_path=chunk_path,
-            transcript_length=len(transcript),
-            duration=duration,
-            provider=provider,
-            polling_attempts=polling_attempts,
+        # Create chunk group
+        chunk_group = chunks_group.create_group(f"chunk_{chunk_idx}")  # type: ignore[attr-defined]
+
+        # Write datasets
+        chunk_group.create_dataset(  # type: ignore[attr-defined]
+            "transcript",
+            data=transcript,
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        chunk_group.create_dataset(  # type: ignore[attr-defined]
+            "audio_hash",
+            data=audio_hash,
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        chunk_group.create_dataset("duration", data=duration, dtype="float64")  # type: ignore[attr-defined]
+        chunk_group.create_dataset(  # type: ignore[attr-defined]
+            "language",
+            data=language,
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        chunk_group.create_dataset("timestamp_start", data=timestamp_start, dtype="float64")  # type: ignore[attr-defined]
+        chunk_group.create_dataset("timestamp_end", data=timestamp_end, dtype="float64")  # type: ignore[attr-defined]
+        chunk_group.create_dataset("confidence", data=confidence, dtype="float32")  # type: ignore[attr-defined]
+        chunk_group.create_dataset("audio_quality", data=audio_quality, dtype="float32")  # type: ignore[attr-defined]
+        chunk_group.create_dataset(  # type: ignore[attr-defined]
+            "created_at",
+            data=created_at,
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        # NEW: Transcription metrics
+        chunk_group.create_dataset(  # type: ignore[attr-defined]
+            "provider",
+            data=provider,
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        chunk_group.create_dataset("polling_attempts", data=polling_attempts, dtype="int32")  # type: ignore[attr-defined]
+        chunk_group.create_dataset(
+            "resolution_time_seconds", data=resolution_time_seconds, dtype="float32"
+        )  # type: ignore[attr-defined]
+        chunk_group.create_dataset("retry_attempts", data=retry_attempts, dtype="int32")  # type: ignore[attr-defined]
+
+    logger.info(
+        "CHUNK_APPENDED_TO_TASK",
+        session_id=session_id,
+        task_type=task_type_str,
+        chunk_idx=chunk_idx,
+        chunk_path=chunk_path,
+        transcript_length=len(transcript),
+        duration=duration,
+        provider=provider,
+        polling_attempts=polling_attempts,
             resolution_time_seconds=resolution_time_seconds,
             retry_attempts=retry_attempts,
         )
@@ -498,7 +512,7 @@ def count_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> tuple
         # Count actual chunks in HDF5 (fast: just count group keys)
         chunks_path = f"/sessions/{session_id}/tasks/{task_type_str}/chunks"
 
-        with h5py.File(CORPUS_PATH, "r") as f:
+        with locked_session_h5(session_id, mode="r") as f:
             if chunks_path not in f:  # type: ignore[operator]
                 # Task exists but no chunks yet
                 return (expected_total, 0)
@@ -554,7 +568,7 @@ def get_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> list[di
     chunks_path = f"/sessions/{session_id}/tasks/{task_type_str}/chunks"
 
     try:
-        with h5py.File(CORPUS_PATH, "r") as f:
+        with locked_session_h5(session_id, mode="r") as f:
             if chunks_path not in f:  # type: ignore[operator]
                 return []
 
@@ -666,7 +680,7 @@ def get_session_chunks_compat(session_id: str) -> list[dict[str, Any]]:
     # Try old production/ schema
     production_path = f"/sessions/{session_id}/production/chunks"
     if CORPUS_PATH.exists():
-        with h5py.File(CORPUS_PATH, "r") as f:
+        with locked_session_h5(session_id, mode="r") as f:
             if production_path in f:  # type: ignore[operator]
                 # Read from old schema (same logic as get_task_chunks)
                 chunks_group = f[production_path]  # type: ignore[index]
@@ -692,7 +706,7 @@ def get_session_chunks_compat(session_id: str) -> list[dict[str, Any]]:
     # Try legacy schema (very old)
     legacy_path = f"/sessions/{session_id}/chunks"
     if CORPUS_PATH.exists():
-        with h5py.File(CORPUS_PATH, "r") as f:
+        with locked_session_h5(session_id, mode="r") as f:
             if legacy_path in f:  # type: ignore[operator]
                 logger.warning(
                     "USING_LEGACY_SCHEMA",
@@ -885,7 +899,7 @@ def create_empty_chunk(
     chunk_path = f"{task_path}/chunks/chunk_{chunk_idx}"
 
     with _h5_lock:  # Lock H5 file to prevent concurrent access errors
-        with h5py.File(CORPUS_PATH, "a") as f:
+        with locked_session_h5(session_id, mode="a") as f:
             task_group = f[task_path]  # type: ignore[index]
 
             # Create chunks group if not exists
@@ -971,7 +985,7 @@ def add_audio_to_chunk(
     CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     with _h5_lock:  # Lock H5 file to prevent concurrent access errors
-        with h5py.File(CORPUS_PATH, "a") as f:
+        with locked_session_h5(session_id, mode="a") as f:
             chunk_path = f"/sessions/{session_id}/tasks/{task_type.value}/chunks/chunk_{chunk_idx}"
 
             if chunk_path not in f:  # type: ignore[operator]
@@ -1026,7 +1040,7 @@ def get_chunk_audio_bytes(
     CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        with h5py.File(CORPUS_PATH, "r") as f:
+        with locked_session_h5(session_id, mode="r") as f:
             chunk_path = f"/sessions/{session_id}/tasks/{task_type.value}/chunks/chunk_{chunk_idx}"
 
             if chunk_path not in f:  # type: ignore[operator]
@@ -1104,7 +1118,7 @@ def update_chunk_dataset(
 
     try:
         with _h5_lock:  # Lock H5 file to prevent concurrent access errors
-            with h5py.File(CORPUS_PATH, "a") as f:
+            with locked_session_h5(session_id, mode="a") as f:
                 if chunk_path not in f:  # type: ignore[operator]
                     logger.warning(
                         "CHUNK_NOT_FOUND",
@@ -1209,7 +1223,7 @@ def batch_update_chunk_datasets(
     for attempt in range(max_retries):
         try:
             with _h5_lock:  # Lock H5 file to prevent concurrent access errors
-                with h5py.File(CORPUS_PATH, "a") as f:
+                with locked_session_h5(session_id, mode="a") as f:
                     if chunk_path not in f:  # type: ignore[operator]
                         logger.warning(
                             "CHUNK_NOT_FOUND",
@@ -1526,6 +1540,10 @@ def save_soap_data(
 ) -> str:
     """Save SOAP data to HDF5.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files.
+    
+    WARNING: Contains del operation violating append-only pattern.
+
     Args:
         session_id: Session identifier
         soap_data: SOAP note data (subjective, objective, assessment, plan)
@@ -1534,9 +1552,12 @@ def save_soap_data(
     Returns:
         HDF5 path to SOAP data
     """
-    CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    from backend.storage.session_h5_manager import get_session_h5_path
+    
+    session_file = get_session_h5_path(session_id)
+    session_file.parent.mkdir(parents=True, exist_ok=True)
 
-    with _h5_lock, h5py.File(CORPUS_PATH, "a") as f:
+    with locked_session_h5(session_id, mode="a") as f:
         task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
         # Create task if doesn't exist
@@ -1548,7 +1569,7 @@ def save_soap_data(
         # Save SOAP data as JSON
         soap_json = json.dumps(soap_data)
 
-        # Delete existing if present
+        # Delete existing if present (VIOLATION: append-only)
         if "soap_data" in task_group:  # type: ignore[operator]
             del task_group["soap_data"]  # type: ignore[index]
 
@@ -1648,7 +1669,7 @@ def create_order(
     order_id = f"order_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S_%f')}"
 
     with _h5_lock:
-        with h5py.File(CORPUS_PATH, "a") as f:
+        with locked_session_h5(session_id, mode="a") as f:
             task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
             # Create task if doesn't exist
@@ -1745,7 +1766,7 @@ def update_order(
         ValueError: If order not found
     """
     with _h5_lock:
-        with h5py.File(CORPUS_PATH, "a") as f:
+        with locked_session_h5(session_id, mode="a") as f:
             task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
             if task_path not in f:  # type: ignore[operator]
@@ -1787,6 +1808,10 @@ def delete_order(
 ) -> None:
     """Delete an order.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files.
+    
+    WARNING: Contains del operation violating append-only pattern.
+
     Args:
         session_id: Session identifier
         order_id: Order ID
@@ -1795,7 +1820,7 @@ def delete_order(
     Raises:
         ValueError: If order not found
     """
-    with _h5_lock, h5py.File(CORPUS_PATH, "a") as f:
+    with locked_session_h5(session_id, mode="a") as f:
         task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
         if task_path not in f:  # type: ignore[operator]
@@ -1811,7 +1836,7 @@ def delete_order(
         if order_id not in orders_group:  # type: ignore[operator]
             raise ValueError(f"Order {order_id} not found")
 
-        del orders_group[order_id]  # type: ignore[index]
+        del orders_group[order_id]  # type: ignore[index] # VIOLATION: append-only
 
         logger.info(
             "ORDER_DELETED",
@@ -1823,13 +1848,22 @@ def delete_order(
 def get_session_metadata(session_id: str) -> dict[str, Any] | None:
     """Get session-level metadata from HDF5 attributes.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files.
+
     Args:
         session_id: Session identifier
 
     Returns:
         Dictionary containing session metadata, or None if session not found
     """
-    with _h5_lock, h5py.File(CORPUS_PATH, "r") as f:
+    from backend.storage.session_h5_manager import get_session_h5_path
+    
+    session_file = get_session_h5_path(session_id)
+    if not session_file.exists():
+        logger.warning("SESSION_NOT_FOUND", session_id=session_id)
+        return None
+
+    with locked_session_h5(session_id, mode="r") as f:
         session_path = f"/sessions/{session_id}"
 
         if session_path not in f:  # type: ignore[operator]
@@ -1864,6 +1898,8 @@ def get_session_metadata(session_id: str) -> dict[str, Any] | None:
 def update_session_metadata(session_id: str, updates: dict[str, Any]) -> None:
     """Update session-level metadata in HDF5 attributes.
 
+    P0 ARCHITECTURE FIX: Uses session-level HDF5 files.
+
     Args:
         session_id: Session identifier
         updates: Dictionary of metadata fields to update
@@ -1871,7 +1907,7 @@ def update_session_metadata(session_id: str, updates: dict[str, Any]) -> None:
     Raises:
         ValueError: If session not found
     """
-    with _h5_lock, h5py.File(CORPUS_PATH, "a") as f:
+    with locked_session_h5(session_id, mode="a") as f:
         session_path = f"/sessions/{session_id}"
 
         if session_path not in f:  # type: ignore[operator]

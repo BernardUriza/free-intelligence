@@ -27,13 +27,12 @@ Created: 2025-11-20
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
-from typing import Any
-
 import structlog
 from auth0.authentication import GetToken
 from auth0.management import Auth0
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from typing import Any
 
 # Load environment variables from .env file
 load_dotenv()
@@ -181,7 +180,7 @@ class Auth0ManagementService:
             client = self._get_client()
             user = client.users.get(user_id)
 
-            logger.info("USER_RETRIEVED", user_id=user_id, email=user.get("email"))
+            logger.info("USER_RETRIEVED", user_id=user_id)
             return user  # type: ignore[no-any-return]
 
         except Exception as e:
@@ -243,7 +242,7 @@ class Auth0ManagementService:
             return user  # type: ignore[no-any-return]
 
         except Exception as e:
-            logger.error("FAILED_TO_CREATE_USER", email=email, error=str(e))
+            logger.error("FAILED_TO_CREATE_USER", error=str(e))
             raise
 
     def update_user(self, user_id: str, updates: dict[str, Any]) -> dict[str, Any]:

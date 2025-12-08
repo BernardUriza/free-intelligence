@@ -13,11 +13,10 @@ Card: Architecture refactor - task-based HDF5
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import h5py
 import pytest
+import tempfile
+from pathlib import Path
 
 from backend.models.task_type import TaskStatus, TaskType
 from backend.storage.task_repository import (
@@ -45,10 +44,29 @@ def temp_corpus():
         corpus_path.unlink()
 
 
-def test_ensure_task_exists_creates_new(temp_corpus, monkeypatch):
-    """Test creating a new task."""
-    monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
+@pytest.fixture
+def temp_session_storage(tmp_path):
+    """Create temporary session storage directory."""
+    sessions_dir = tmp_path / "sessions"
+    sessions_dir.mkdir()
 
+    # Mock the storage paths
+    import backend.storage.session_h5_manager as session_h5_manager
+    original_storage_dir = session_h5_manager.STORAGE_DIR
+    original_sessions_dir = session_h5_manager.SESSIONS_DIR
+
+    session_h5_manager.STORAGE_DIR = tmp_path
+    session_h5_manager.SESSIONS_DIR = sessions_dir
+
+    yield tmp_path
+
+    # Restore original paths
+    session_h5_manager.STORAGE_DIR = original_storage_dir
+    session_h5_manager.SESSIONS_DIR = original_sessions_dir
+
+
+def test_ensure_task_exists_creates_new(temp_session_storage):
+    """Test creating a new task."""
     session_id = "test_session_001"
     task_type = TaskType.TRANSCRIPTION
 
@@ -57,15 +75,15 @@ def test_ensure_task_exists_creates_new(temp_corpus, monkeypatch):
 
     assert task_path == f"/sessions/{session_id}/tasks/{task_type.value}"
 
-    # Verify task exists in HDF5
-    with h5py.File(temp_corpus, "r") as f:
+    # Verify task exists in session HDF5 file
+    from backend.storage.session_h5_manager import get_session_h5_path
+    session_file = get_session_h5_path(session_id)
+    with h5py.File(session_file, "r") as f:
         assert f"sessions/{session_id}/tasks/{task_type.value}" in f
 
 
-def test_ensure_task_exists_rejects_duplicate(temp_corpus, monkeypatch):
+def test_ensure_task_exists_rejects_duplicate(temp_session_storage):
     """Test that duplicate tasks are rejected."""
-    monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
-
     session_id = "test_session_002"
     task_type = TaskType.TRANSCRIPTION
 
@@ -77,10 +95,8 @@ def test_ensure_task_exists_rejects_duplicate(temp_corpus, monkeypatch):
         ensure_task_exists(session_id, task_type, allow_existing=False)
 
 
-def test_ensure_task_exists_allows_existing(temp_corpus, monkeypatch):
+def test_ensure_task_exists_allows_existing(temp_session_storage):
     """Test that allow_existing=True doesn't raise on duplicate."""
-    monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
-
     session_id = "test_session_003"
     task_type = TaskType.TRANSCRIPTION
 
@@ -91,11 +107,9 @@ def test_ensure_task_exists_allows_existing(temp_corpus, monkeypatch):
     assert path1 == path2
 
 
-def test_append_chunk_to_task(temp_corpus, monkeypatch):
+def test_append_chunk_to_task(temp_session_storage):
     """Test appending chunks to a task."""
-    monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
-
-    session_id = "test_session_004"
+    session_id = "test_session_004_unique"
     task_type = TaskType.TRANSCRIPTION
 
     # Create task
@@ -118,19 +132,21 @@ def test_append_chunk_to_task(temp_corpus, monkeypatch):
 
     assert "chunk_0" in chunk_path
 
-    # Verify chunk in HDF5
-    with h5py.File(temp_corpus, "r") as f:
+    # Verify chunk in session HDF5 file
+    from backend.storage.session_h5_manager import get_session_h5_path
+    
+    session_file = get_session_h5_path(session_id)
+    with h5py.File(session_file, "r") as f:
         chunk_group = f[chunk_path]
         assert chunk_group["transcript"][()] == b"Hola, soy el paciente."
         assert chunk_group["duration"][()] == 3.5
         assert chunk_group["language"][()] == b"es"
 
 
-def test_get_task_chunks(temp_corpus, monkeypatch):
+def test_get_task_chunks(temp_session_storage):
     """Test retrieving chunks from a task."""
-    monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
 
-    session_id = "test_session_005"
+    session_id = "test_session_005_unique"
     task_type = TaskType.TRANSCRIPTION
 
     # Create task and add chunks
@@ -170,11 +186,10 @@ def test_get_task_chunks(temp_corpus, monkeypatch):
     assert chunks[1]["transcript"] == "Chunk 1"
 
 
-def test_get_task_transcript(temp_corpus, monkeypatch):
+def test_get_task_transcript(temp_session_storage):
     """Test concatenated transcript retrieval."""
-    monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
 
-    session_id = "test_session_006"
+    session_id = "test_session_006_unique"
     task_type = TaskType.TRANSCRIPTION
 
     # Create task and add chunks
@@ -214,7 +229,7 @@ def test_update_and_get_task_metadata(temp_corpus, monkeypatch):
     """Test task metadata operations."""
     monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
 
-    session_id = "test_session_007"
+    session_id = "test_session_007_unique"
     task_type = TaskType.TRANSCRIPTION
 
     # Create task
@@ -246,7 +261,7 @@ def test_task_exists(temp_corpus, monkeypatch):
     """Test task existence check."""
     monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
 
-    session_id = "test_session_008"
+    session_id = "test_session_008_unique"
     task_type = TaskType.TRANSCRIPTION
 
     # Check non-existent task
@@ -259,11 +274,10 @@ def test_task_exists(temp_corpus, monkeypatch):
     assert task_exists(session_id, task_type)
 
 
-def test_list_session_tasks(temp_corpus, monkeypatch):
+def test_list_session_tasks(temp_session_storage):
     """Test listing all tasks for a session."""
-    monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
 
-    session_id = "test_session_009"
+    session_id = "test_session_009_unique"
 
     # Create multiple tasks
     ensure_task_exists(session_id, TaskType.TRANSCRIPTION, allow_existing=False)
@@ -279,11 +293,9 @@ def test_list_session_tasks(temp_corpus, monkeypatch):
     assert TaskType.ENCRYPTION.value in tasks
 
 
-def test_append_chunk_creates_chunks_group(temp_corpus, monkeypatch):
+def test_append_chunk_creates_chunks_group(temp_session_storage):
     """Test that appending chunk creates chunks/ group automatically."""
-    monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
-
-    session_id = "test_session_010"
+    session_id = "test_session_010_unique"
     task_type = TaskType.TRANSCRIPTION
 
     # Create task (without chunks group)
@@ -303,15 +315,16 @@ def test_append_chunk_creates_chunks_group(temp_corpus, monkeypatch):
     )
 
     # Verify chunks group exists
-    with h5py.File(temp_corpus, "r") as f:
+    from backend.storage.session_h5_manager import get_session_h5_path
+    session_file = get_session_h5_path(session_id)
+    with h5py.File(session_file, "r") as f:
         assert f"sessions/{session_id}/tasks/{task_type.value}/chunks" in f
 
 
-def test_get_task_chunks_empty(temp_corpus, monkeypatch):
+def test_get_task_chunks_empty(temp_session_storage):
     """Test retrieving chunks from task with no chunks."""
-    monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
 
-    session_id = "test_session_011"
+    session_id = "test_session_011_unique"
     task_type = TaskType.TRANSCRIPTION
 
     # Create task without chunks
@@ -323,11 +336,10 @@ def test_get_task_chunks_empty(temp_corpus, monkeypatch):
     assert chunks == []
 
 
-def test_get_task_metadata_nonexistent(temp_corpus, monkeypatch):
-    """Test getting metadata from non-existent task."""
-    monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
+def test_get_task_metadata_nonexistent(temp_session_storage):
+    """Test getting metadata from nonexistent task."""
 
-    session_id = "test_session_012"
+    session_id = "test_session_012_unique"
     task_type = TaskType.TRANSCRIPTION
 
     # Get metadata without creating task
@@ -336,11 +348,10 @@ def test_get_task_metadata_nonexistent(temp_corpus, monkeypatch):
     assert metadata is None
 
 
-def test_chunk_ordering(temp_corpus, monkeypatch):
-    """Test that chunks are returned in correct order."""
-    monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
+def test_chunk_ordering(temp_session_storage):
+    """Test that chunks are retrieved in correct order."""
 
-    session_id = "test_session_013"
+    session_id = "test_session_013_unique"
     task_type = TaskType.TRANSCRIPTION
 
     ensure_task_exists(session_id, task_type, allow_existing=False)

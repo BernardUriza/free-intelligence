@@ -17,6 +17,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Enum,
     Float,
     Integer,
     String,
@@ -24,15 +25,30 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 from uuid import uuid4
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Base class for all SQLAlchemy models."""
+
+    pass
 
 
 def generate_uuid() -> str:
     """Generate UUID4 as string."""
     return str(uuid4())
+
+
+# Gender enumeration for patient records
+GenderEnum = Enum(
+    "MASCULINO",
+    "FEMENINO",
+    "OTRO",
+    "NO_ESPECIFICADO",
+    name="gender_enum",
+    create_type=True,
+)
 
 
 class Patient(Base):
@@ -59,9 +75,9 @@ class Patient(Base):
     apellido = Column(String(100), nullable=False, index=True)
     fecha_nacimiento = Column(DateTime(timezone=False), nullable=False)
     genero = Column(
-        Enum(GenderEnum, name="gender_enum", create_type=True),
+        GenderEnum,
         nullable=True,
-        default=GenderEnum.NO_ESPECIFICADO,
+        default="NO_ESPECIFICADO",
     )
     curp = Column(CHAR(18), unique=True, nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

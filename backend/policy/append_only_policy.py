@@ -10,10 +10,9 @@ Direct mutation, modification, or deletion of existing data is forbidden.
 FI-DATA-FEAT-005
 """
 
+import h5py
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-import h5py
 
 if TYPE_CHECKING:
     pass
@@ -229,7 +228,7 @@ def get_dataset_size(corpus_path: str, group_name: str, dataset_name: str) -> in
 
 if __name__ == "__main__":
     """Demo: Append-only policy enforcement"""
-    from config_loader import load_config
+    from backend.config_loader import load_config
 
     config = load_config()
     corpus_path = config["storage"]["corpus_path"]

@@ -59,7 +59,7 @@ diarization:
 
     ollama:
       enabled: true
-      model: "qwen2.5:7b-instruct-q4_0"
+      model: "qwen2:1.5b-instruct"
       base_url: "http://localhost:11434"
 
 # LLM Provider Configuration

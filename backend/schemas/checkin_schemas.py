@@ -9,13 +9,11 @@ Card: FI-CHECKIN-001
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from enum import Enum
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import List, Optional
-
-from pydantic import BaseModel, Field, field_validator
-import re
-
 
 # =============================================================================
 # ENUMS (match TypeScript exactly)
@@ -108,8 +106,7 @@ class PendingActionResponse(BaseModel):
 
     completed_at: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CompleteActionRequest(BaseModel):
@@ -168,8 +165,7 @@ class AppointmentResponse(BaseModel):
     created_at: str
     updated_at: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # =============================================================================
@@ -222,8 +218,7 @@ class CheckinSessionResponse(BaseModel):
 
     expires_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # =============================================================================

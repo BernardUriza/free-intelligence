@@ -26,10 +26,9 @@ Endpoints:
 """
 
 from datetime import UTC, datetime
-from uuid import uuid4
-
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
+from uuid import uuid4
 
 from backend.container import get_container
 from backend.logger import get_logger
@@ -154,7 +153,7 @@ async def list_sessions(
 
     except Exception as e:
         logger.error("LIST_SESSIONS_FAILED", error=str(e))
-        return error_response("Failed to list sessions", code=500)
+        raise HTTPException(status_code=500, detail="Failed to list sessions")
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
@@ -181,11 +180,12 @@ async def get_session(session_id: str):
         audit_service = get_container().get_audit_service()
 
         # Delegate to service for retrieval
-        session = session_service.get_session(session_id)
+        # SessionService exposes `get_session_info`; use it here.
+        session = await session_service.get_session_info(session_id)
 
         if not session:
             logger.warning("SESSION_NOT_FOUND", session_id=session_id)
-            return error_response(f"Session {session_id} not found", code=404)
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
         # Log audit trail
         audit_service.log_action(
@@ -197,9 +197,12 @@ async def get_session(session_id: str):
 
         return SessionResponse(**session)
 
+    except ValueError as e:
+        logger.warning("GET_SESSION_NOT_FOUND", session_id=session_id, error=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error("GET_SESSION_FAILED", session_id=session_id, error=str(e))
-        return error_response("Failed to retrieve session", code=500)
+        raise HTTPException(status_code=500, detail="Failed to retrieve session")
 
 
 @router.post("", response_model=SessionResponse, status_code=201)
@@ -271,10 +274,10 @@ async def create_session(request: CreateSessionRequest):
             result="failed",
             details={"error": str(e)},
         )
-        return error_response(str(e), code=400)
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error("SESSION_CREATION_FAILED", error=str(e))
-        return error_response("Failed to create session", code=500)
+        raise HTTPException(status_code=500, detail="Failed to create session")
 
 
 @router.patch("/{session_id}", response_model=SessionResponse)
@@ -322,10 +325,10 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
 
         if not success:
             logger.warning("SESSION_NOT_FOUND_FOR_UPDATE", session_id=session_id)
-            return error_response(f"Session {session_id} not found", code=404)
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
         # Retrieve updated session
-        session = session_service.get_session(session_id)
+        session = await session_service.get_session_info(session_id)
 
         # Log audit trail
         audit_service.log_action(
@@ -345,10 +348,10 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
 
     except ValueError as e:
         logger.warning("SESSION_UPDATE_VALIDATION_FAILED", session_id=session_id, error=str(e))
-        return error_response(str(e), code=400)
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error("SESSION_UPDATE_FAILED", session_id=session_id, error=str(e))
-        return error_response("Failed to update session", code=500)
+        raise HTTPException(status_code=500, detail="Failed to update session")
 
 
 # ============================================================================

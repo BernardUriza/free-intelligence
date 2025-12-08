@@ -87,7 +87,7 @@ Combinamos las 3 opciones solicitadas en una sola solución modular:
 │             ▼                                               │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │  Ollama (speaker classification)                     │   │
-│  │  qwen2.5:7b-instruct-q4_0 (local, privacy)          │   │
+│  │  qwen2:1.5b-instruct (local, privacy)          │   │
 │  └──────────┬───────────────────────────────────────────┘   │
 │             │                                               │
 │             ▼                                               │

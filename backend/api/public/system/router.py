@@ -9,10 +9,9 @@ Reorganized: 2025-11-08 (moved from backend/api/system.py)
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, Dict
-
 from fastapi import APIRouter
 from pydantic import BaseModel
+from typing import Any, Dict
 
 from backend.container import get_container
 from backend.logger import get_logger
@@ -44,7 +43,7 @@ async def get_system_health() -> SystemHealthResponse:
       "services": {
         "backend": true,
         "diarization": { "whisper": true, "ffmpeg": true },
-        "llm": { "ollama": true, "models": ["qwen2.5:7b-instruct-q4_0"] },
+        "llm": { "ollama": true, "models": ["qwen2:1.5b-instruct"] },
         "policy": true
       },
       "version": "v0.3.x",

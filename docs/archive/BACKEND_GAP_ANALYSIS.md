@@ -420,7 +420,7 @@ class GenerateTimelineRequest:
     session_id: str
     mode: str                # auto | assisted
     provider: str            # ollama | claude (default: ollama)
-    model: Optional[str]     # qwen2.5:7b-instruct-q4_0
+    model: Optional[str]     # qwen2:1.5b-instruct
 
 class GenerateTimelineResponse:
     job_id: str
@@ -437,7 +437,7 @@ class GenerateTimelineResponse:
 - Background job queue
 
 **AC**:
-- ✅ Auto-generation usa Ollama (qwen2.5 o deepseek-r1-distill-7b)
+- ✅ Auto-generation usa Ollama (qwen2 o deepseek-r1-distill-7b)
 - ✅ Timeout 8s, fallback a manual+assist si falla
 - ✅ Background job para sesiones grandes (>50 eventos)
 - ✅ Progress tracking

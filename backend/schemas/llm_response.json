@@ -14,7 +14,7 @@
       "description": "Model that generated the response",
       "examples": [
         "claude-3-5-sonnet-20241022",
-        "qwen2.5:7b-instruct-q4_0"
+        "qwen2:1.5b-instruct"
       ]
     },
     "provider": {

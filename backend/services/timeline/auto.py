@@ -2,7 +2,7 @@
 """Free Intelligence - Auto-Timeline Generator.
 
 Heurística v1 para generar timeline automáticamente desde event store.
-Usa Ollama (qwen2.5 / deepseek-r1-distill-7b) para resumir eventos en lenguaje natural.
+Usa Ollama (qwen2 / deepseek-r1-distill-7b) para resumir eventos en lenguaje natural.
 Sin spoilers de audio crudo - solo hash + summary.
 
 Card: [P0][Área: UX/UI][Tipo: feature] Memoria legible — Timeline AURITY
@@ -11,12 +11,11 @@ Sprint: SPR-2025W44
 
 from __future__ import annotations
 
+import yaml  # type: ignore[import-untyped]
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict
-
-import yaml  # type: ignore[import-untyped]
 
 from backend.logger import get_logger
 from backend.providers.llm import llm_generate
@@ -52,7 +51,7 @@ def load_timeline_config() -> dict[str, Any]:
             "auto": {
                 "enabled": False,
                 "provider": "ollama",
-                "model": "qwen2.5:7b-instruct-q4_0",
+                "model": "qwen2:1.5b-instruct",
                 "fallback_to_manual": True,
                 "timeout_seconds": 8,
                 "selected_events": [
@@ -312,9 +311,9 @@ class AutoTimelineGenerator:
         Returns:
             (summary, success) - summary string and success flag
         """
-        if not self.llm:
+        if not self.enabled:
             logger.warning(
-                "AUTO_TIMELINE_LLM_NOT_AVAILABLE",
+                "AUTO_TIMELINE_DISABLED",
                 event_type=event_type,
                 details={"fallback": "manual mode"},
             )

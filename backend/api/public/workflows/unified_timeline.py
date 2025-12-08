@@ -1,4 +1,4 @@
-"""Unified Timeline API - Memoria Longitudinal Unificada.
+"""Longitudinal Memory API - Memoria Longitudinal.
 
 Single endpoint that combines:
 - Chat messages (from conversation memory)
@@ -15,13 +15,12 @@ Card: FI-PHIL-DOC-014
 
 from __future__ import annotations
 
+import h5py
 from datetime import datetime
 from enum import Enum
-from typing import Literal
-
-import h5py
 from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, Field
+from typing import Literal
 
 from backend.logger import get_logger
 from backend.services.llm.conversation_memory import get_memory_manager
@@ -325,11 +324,11 @@ def _get_audio_events(
 
 
 @router.get(
-    "/timeline/unified",
+    "/timeline/memory",
     response_model=UnifiedTimelineResponse,
     status_code=status.HTTP_200_OK,
 )
-async def get_unified_timeline(
+async def get_longitudinal_memory(
     doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
     offset: int = Query(0, ge=0, description="Number of events to skip"),
     limit: int = Query(
@@ -447,11 +446,11 @@ async def get_unified_timeline(
 
 
 @router.get(
-    "/timeline/unified/stats",
+    "/timeline/memory/stats",
     response_model=TimelineStatsResponse,
     status_code=status.HTTP_200_OK,
 )
-async def get_timeline_stats(
+async def get_memory_stats(
     doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
 ) -> TimelineStatsResponse:
     """Get statistics for the unified timeline.

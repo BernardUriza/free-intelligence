@@ -21,7 +21,7 @@ Successfully consolidated hardcoded constants into a centralized `backend/consta
 Created `/backend/constants.py` with:
 - **LLM Models**:
   - `DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-5-20250929"`
-  - `DEFAULT_OLLAMA_MODEL = "qwen2.5:7b-instruct-q4_0"`
+  - `DEFAULT_OLLAMA_MODEL = "qwen2:1.5b-instruct"`
 - **API Endpoints**:
   - `OLLAMA_BASE_URL = "http://localhost:11434"`
   - `OLLAMA_API_CHAT_ENDPOINT = "/api/chat"`
@@ -65,7 +65,7 @@ Created `/backend/constants.py` with:
 >>> print(DEFAULT_CLAUDE_MODEL)
 claude-sonnet-4-5-20250929
 >>> print(DEFAULT_OLLAMA_MODEL)
-qwen2.5:7b-instruct-q4_0
+qwen2:1.5b-instruct
 ```
 **Result**: ✅ PASS
 
@@ -73,7 +73,7 @@ qwen2.5:7b-instruct-q4_0
 ```python
 >>> from backend.services.diarization.llm_diarizer import OLLAMA_MODEL
 >>> print(OLLAMA_MODEL)
-qwen2.5:7b-instruct-q4_0
+qwen2:1.5b-instruct
 ```
 **Result**: ✅ PASS (with env override support)
 

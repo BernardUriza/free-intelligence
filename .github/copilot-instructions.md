@@ -3,14 +3,24 @@
 ## Project Overview
 
 **AURITY** (Advanced Universal Reliable Intelligence for Telemedicine Yield) is a production medical telemedicine system built with:
-- **Backend**: Python 3.11+, FastAPI, HDF5 event sourcing
+- **Backend**: Python 3.14 ONLY, FastAPI, HDF5 event sourcing
 - **Frontend**: Next.js, TypeScript, React
 - **Auth**: Auth0 with RBAC
 - **Deployment**: DigitalOcean (app.aurity.io)
 
 **Version**: 0.3.0 | **Owner**: Bernard Uriza Orozco
 
-## Architecture Constraints (ENFORCE STRICTLY)
+**CRITICAL**: This project uses **Python 3.14 exclusively**. All code must be compatible with Python 3.14 syntax and features. Use modern syntax (union types with `|`, `match/case`, etc.) and always include `from __future__ import annotations` for forward compatibility.
+
+## 📁 Path-Specific Instructions
+
+For detailed, context-specific guidance, see:
+- **Python Backend**: `.github/instructions/python-backend.instructions.md`
+- **TypeScript Frontend**: `.github/instructions/typescript-frontend.instructions.md`
+- **HDF5 Storage**: `.github/instructions/hdf5-storage.instructions.md`
+- **Security/HIPAA**: `.github/instructions/security-hipaa.instructions.md`
+
+## Quick Reference
 
 ### 1. Three-Layer Architecture (CRITICAL)
 

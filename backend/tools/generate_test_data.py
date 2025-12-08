@@ -9,17 +9,15 @@ Usage:
     python3 scripts/generate_test_data.py
 """
 
+import numpy as np
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import numpy as np
-
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
-from config_loader import load_config
 from corpus_ops import (  # type: ignore[import]
     append_embedding,
     append_interaction,
@@ -27,6 +25,8 @@ from corpus_ops import (  # type: ignore[import]
     read_interactions,
 )
 from logger import init_logger_from_config
+
+from backend.config_loader import load_config
 
 # Test data: realistic conversations about Free Intelligence
 TEST_CONVERSATIONS = [

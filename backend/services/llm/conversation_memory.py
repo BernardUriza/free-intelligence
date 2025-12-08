@@ -35,15 +35,13 @@ Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 
 from __future__ import annotations
 
+import h5py
+import numpy as np
 import threading
 import time
 from dataclasses import dataclass
-from pathlib import Path
-
-import h5py
-import numpy as np
-
 from datetime import UTC, datetime
+from pathlib import Path
 
 # Optional: sentence_transformers (heavy ML dependency, not required in production)
 try:
@@ -95,7 +93,7 @@ def get_embedding_model() -> SentenceTransformer:
     return _embedding_model
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Interaction:
     """Single conversation interaction (message + response).
 
@@ -120,7 +118,7 @@ class Interaction:
     similarity: float = 0.0
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ConversationContext:
     """Retrieved conversation context for LLM prompt.
 
@@ -555,6 +553,7 @@ class ConversationMemoryManager:
                 "total_interactions": 0,
                 "unique_sessions": 0,
                 "memory_index_exists": False,
+                "doctor_id": self.doctor_id,
             }
 
         with h5py.File(self.memory_path, "r") as f:
@@ -564,6 +563,7 @@ class ConversationMemoryManager:
                     "total_interactions": 0,
                     "unique_sessions": 0,
                     "memory_index_exists": True,
+                    "doctor_id": self.doctor_id,
                 }
 
             session_ids = f["/metadata/session_ids"][:].astype(str)

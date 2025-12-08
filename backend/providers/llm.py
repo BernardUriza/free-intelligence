@@ -11,17 +11,16 @@ Provides a unified interface for LLM interactions, supporting multiple providers
 Philosophy: Provider-agnostic design. No vendor lock-in.
 """
 
+import anthropic
 import asyncio
+import numpy as np
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from dotenv import load_dotenv
 from enum import Enum
 from typing import Any
-
-import anthropic
-import numpy as np
-from dotenv import load_dotenv
 
 # Load environment variables from .env
 load_dotenv()
@@ -324,7 +323,7 @@ class OllamaProvider(LLMProvider):
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.base_url: str = str(self.config.get("base_url") or "http://localhost:11434")
-        self.default_model: str = str(self.config.get("model") or "qwen2.5:7b-instruct-q4_0")
+        self.default_model: str = str(self.config.get("model") or "qwen2:1.5b-instruct")
         self.embed_model: str = str(self.config.get("embed_model") or "nomic-embed-text")
         self.timeout: int = int(self.config.get("timeout_seconds") or 120)
 

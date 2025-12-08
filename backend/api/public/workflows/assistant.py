@@ -1,30 +1,42 @@
 """
 Free-Intelligence Assistant Workflow - AURITY
 
-Conversational endpoints for Free-Intelligence AI persona.
+OpenAI-compatible chat completion endpoints for Free-Intelligence AI personas.
 
 Architecture:
   PUBLIC (this file) -> InternalLLMClient -> /internal/llm/* -> PersonaManager -> llm_generate
 
 Endpoints:
 - POST /workflows/aurity/assistant/introduction - Onboarding presentation
-- POST /workflows/aurity/assistant/chat - General conversation (Auth0 required for memory)
-- POST /workflows/aurity/assistant/public-chat - Public anonymous chat (rate-limited, DEPRECATED)
+- POST /workflows/aurity/assistant/chat - OpenAI-style chat completions with AURITY extensions
+- POST /workflows/aurity/assistant/chat/stream - OpenAI-style streaming chat completions
+
+OpenAI Compatibility:
+- Messages array with roles: system, user, assistant
+- Standard parameters: temperature, max_tokens, top_p, etc.
+- Response format: choices array with message objects
+- Token usage statistics
+- AURITY extensions: persona, emotional_analysis, behavior_metrics
 
 Modules:
-- assistant_schemas.py - Pydantic request/response models
+- assistant_schemas.py - Pydantic request/response models (OpenAI-compatible)
 - emotional_analysis.py - Hybrid LLM + heuristic emotional detection
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-18
-Refactored: 2025-11-26
+Refactored: 2025-12-07 (OpenAI conventions)
 """
 
 from __future__ import annotations
 
+import asyncio
+import json
 import os
-
+import time
+import uuid
 from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
+from typing import AsyncGenerator
 
 from backend.clients import get_llm_client
 from backend.logger import get_logger
@@ -32,11 +44,12 @@ from backend.security.rate_limiter import ip_rate_limiter, session_rate_limiter
 
 # Import schemas from dedicated module
 from .assistant_schemas import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ChatCompletionStreamResponse,
     IntroductionRequest,
     IntroductionResponse,
-    ChatRequest,
-    ChatResponse,
-    PublicChatResponse,
+    Message,
 )
 
 # Import emotional analysis from dedicated module
@@ -161,43 +174,76 @@ def _build_introduction_message(request: IntroductionRequest) -> str:
 # ============================================================================
 
 
-@router.post("/assistant/chat", response_model=ChatResponse)
-async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
-    """General chat endpoint for Free-Intelligence conversations.
+@router.post("/assistant/chat", response_model=ChatCompletionResponse)
+async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionResponse:
+    """OpenAI-style chat completion endpoint for Free-Intelligence conversations.
 
-    This is a general-purpose endpoint for conversational interactions
-    with Free-Intelligence outside of specific workflows.
+    Follows OpenAI Chat Completions API conventions with AURITY-specific extensions.
 
-    Enables infinite memory when doctor_id is provided in context.
-    Supports hybrid emotional analysis when behavior_metrics is provided.
+    Supports:
+    - Multi-turn conversations with message history
+    - System messages for persona configuration
+    - User and assistant message roles
+    - AURITY-specific persona selection
+    - Emotional analysis with behavior metrics
+    - Memory persistence with doctor_id
 
     Args:
-        request: Message, optional context, and optional behavior_metrics
+        request: OpenAI-style chat completion request with AURITY extensions
 
     Returns:
-        Free-Intelligence's response with optional emotional_analysis
+        OpenAI-style chat completion response with AURITY extensions
 
     Raises:
-        500: If internal LLM call fails
+        400: Invalid request format
+        500: Internal LLM processing failed
     """
+    import time
+    import uuid
+
     try:
-        # Extract doctor_id and persona from context (Auth0 user.sub)
-        doctor_id = None
-        persona = "general_assistant"  # Default persona
-        if request.context:
-            if "doctor_id" in request.context:
-                doctor_id = request.context["doctor_id"]
-            if "persona" in request.context:
-                persona = request.context["persona"]
+        # Extract the last user message for processing
+        last_message = request.messages[-1]
+        if last_message.role != "user":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Last message must be from user",
+            )
+
+        # Extract system message if present
+        system_message = None
+        for msg in request.messages:
+            if msg.role == "system":
+                system_message = msg.content
+                break
+
+        # Extract doctor_id from user field or generate anonymous session
+        doctor_id = request.user if request.user else None
+
+        # Build context for internal LLM client
+        context = {
+            "persona": request.persona,
+            "system_message": system_message,
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+            "top_p": request.top_p,
+            "frequency_penalty": request.frequency_penalty,
+            "presence_penalty": request.presence_penalty,
+            "stop": request.stop,
+        }
+
+        if doctor_id:
+            context["doctor_id"] = doctor_id
 
         logger.info(
             "ASSISTANT_CHAT_START",
-            message_length=len(request.message),
-            has_context=request.context is not None,
+            message_count=len(request.messages),
+            has_system=system_message is not None,
             has_behavior_metrics=request.behavior_metrics is not None,
             session_id=request.session_id,
             doctor_id=doctor_id,
-            persona=persona,
+            persona=request.persona,
+            model=request.model,
             memory_enabled=doctor_id is not None,
         )
 
@@ -207,7 +253,7 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
         emotional_analysis = None
         if request.behavior_metrics is not None:
             emotional_analysis = await analyze_emotional_state(
-                message=request.message,
+                message=last_message.content,
                 metrics=request.behavior_metrics,
                 llm_client=llm_client,
             )
@@ -218,30 +264,80 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
                 suggested_tone=emotional_analysis.suggested_tone if emotional_analysis else "none",
             )
 
+        # Convert OpenAI messages to internal format
+        # For now, we'll use the last user message and system context
         result = await llm_client.chat(
-            persona=persona,  # Use persona from context (frontend dropdown)
-            message=request.message,
-            context=request.context,
+            persona=request.persona,
+            message=last_message.content,
+            context=context,
             session_id=request.session_id,
-            doctor_id=doctor_id,  # Pass doctor_id for memory
-            use_memory=doctor_id is not None,  # Auto-enable memory if doctor_id present
+            doctor_id=doctor_id,
+            use_memory=doctor_id is not None,
+        )
+
+        # Create OpenAI-style response
+        completion_id = f"chatcmpl-{uuid.uuid4().hex}"
+        created_timestamp = int(time.time())
+
+        # Build assistant message
+        assistant_message = Message(
+            role="assistant",
+            content=result["response"]
+        )
+
+        choice = ChatCompletionChoice(
+            index=0,
+            message=assistant_message,
+            finish_reason="stop"
+        )
+
+        # Estimate token usage (simplified)
+        prompt_tokens = len(last_message.content.split()) * 4  # Rough estimate
+        completion_tokens = len(result["response"].split()) * 4
+        total_tokens = prompt_tokens + completion_tokens
+
+        usage = ChatCompletionUsage(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens
         )
 
         logger.info(
             "ASSISTANT_CHAT_SUCCESS",
-            tokens=result.get("tokens_used", 0),
+            completion_id=completion_id,
+            tokens=total_tokens,
             latency=result.get("latency_ms", 0),
             session_id=request.session_id,
         )
 
-        return ChatResponse(
-            message=result["response"],
+        # Build receptionist state if config provided
+        receptionist_state = None
+        if request.receptionist_config:
+            # Basic receptionist state - in production this would be more sophisticated
+            receptionist_state = {
+                "state": "active",
+                "quick_replies": ["Yes", "No", "I need help"],
+                "actions": [],
+                "metadata": {
+                    "clinic_id": request.receptionist_config.get("clinic_id"),
+                    "clinic_name": request.receptionist_config.get("clinic_name"),
+                    "session_id": request.session_id,
+                }
+            }
+
+        return ChatCompletionResponse(
+            id=completion_id,
+            created=created_timestamp,
+            model=request.model,
+            choices=[choice],
+            usage=usage,
             persona=result["persona"],
-            tokens_used=result.get("tokens_used", 0),
-            latency_ms=result.get("latency_ms", 0),
             emotional_analysis=emotional_analysis,
+            receptionist_state=receptionist_state,
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(
             "ASSISTANT_CHAT_FAILED",
@@ -252,148 +348,163 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Chat with assistant failed: {e!s}",
+            detail=f"Chat completion failed: {e!s}",
         ) from e
 
 
 # ============================================================================
-# Public Chat Endpoint (DEPRECATED)
+# Streaming Chat Endpoint
 # ============================================================================
 
 
-@router.post("/assistant/public-chat", response_model=PublicChatResponse, deprecated=True)
-async def public_chat(request_body: ChatRequest, http_request: Request) -> PublicChatResponse:
-    """
-    DEPRECATED: Use /assistant/chat instead.
+@router.post("/assistant/chat/stream")
+async def stream_chat_with_assistant(request: ChatCompletionRequest) -> StreamingResponse:
+    """OpenAI-style streaming chat completion endpoint.
 
-    Public anonymous chat endpoint with rate-limiting.
-
-    **DEPRECATION NOTICE**: This endpoint is deprecated and will be removed in a
-    future version. Please use `/assistant/chat` instead, which handles both
-    authenticated (with memory) and anonymous (ephemeral) conversations automatically.
-
-    Architecture:
-        - NO Auth0 required (doctor_id always None)
-        - Rate-limit: 20 req/min per IP, 10 req/min per session
-        - NO persistent memory (ephemeral conversation)
-        - Kill-switch support via KILL_SWITCH_PUBLIC_CHAT env var
+    Returns Server-Sent Events (SSE) stream following OpenAI streaming format.
+    Each chunk contains partial response data that can be concatenated.
 
     Args:
-        request_body: Chat request (message, context, session_id)
-        http_request: FastAPI Request object (for IP extraction)
+        request: Chat completion request with stream=True
 
     Returns:
-        ChatResponse with remaining_requests and retry_after
+        StreamingResponse with SSE chunks
 
     Raises:
-        503: If kill-switch is active
-        429: If rate limit exceeded
-        500: If internal LLM call fails
+        400: Invalid request or streaming not supported
+        500: Internal processing failed
     """
-    logger.warning(
-        "PUBLIC_CHAT_DEPRECATED",
-        message="Endpoint /assistant/public-chat is deprecated. Use /assistant/chat instead.",
-        session_id=request_body.session_id,
+    if not request.stream:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Use /assistant/chat for non-streaming requests. Set stream=true for this endpoint.",
+        )
+
+    async def generate_stream() -> AsyncGenerator[str, None]:
+        """Generate SSE stream chunks."""
+        try:
+            # Validate request
+            if not request.messages:
+                yield f"data: {json.dumps({'error': 'At least one message is required'})}\n\n"
+                return
+
+            last_message = request.messages[-1]
+            if last_message.role != "user":
+                yield f"data: {json.dumps({'error': 'Last message must be from user'})}\n\n"
+                return
+
+            # Extract system message
+            system_message = None
+            for msg in request.messages:
+                if msg.role == "system":
+                    system_message = msg.content
+                    break
+
+            doctor_id = request.user if request.user else None
+
+            # Build context
+            context = {
+                "persona": request.persona,
+                "system_message": system_message,
+                "temperature": request.temperature,
+                "max_tokens": request.max_tokens,
+                "top_p": request.top_p,
+                "frequency_penalty": request.frequency_penalty,
+                "presence_penalty": request.presence_penalty,
+                "stop": request.stop,
+            }
+
+            if doctor_id:
+                context["doctor_id"] = doctor_id
+
+            completion_id = f"chatcmpl-{uuid.uuid4().hex}"
+            created_timestamp = int(time.time())
+
+            llm_client = get_llm_client()
+
+            # Send initial chunk with role
+            initial_chunk = ChatCompletionStreamResponse(
+                id=completion_id,
+                created=created_timestamp,
+                model=request.model,
+                choices=[{
+                    "index": 0,
+                    "delta": {"role": "assistant"},
+                    "finish_reason": None
+                }]
+            )
+            yield f"data: {initial_chunk.model_dump_json()}\n\n"
+
+            # For now, simulate streaming by sending the full response in chunks
+            # In a real implementation, you'd need streaming support from the LLM provider
+            result = await llm_client.chat(
+                persona=request.persona,
+                message=last_message.content,
+                context=context,
+                session_id=request.session_id,
+                doctor_id=doctor_id,
+                use_memory=doctor_id is not None,
+            )
+
+            # Split response into chunks for streaming simulation
+            response_text = result["response"]
+            chunk_size = 10  # Characters per chunk
+
+            for i in range(0, len(response_text), chunk_size):
+                chunk_text = response_text[i:i + chunk_size]
+
+                stream_chunk = ChatCompletionStreamResponse(
+                    id=completion_id,
+                    created=created_timestamp,
+                    model=request.model,
+                    choices=[{
+                        "index": 0,
+                        "delta": {"content": chunk_text},
+                        "finish_reason": None
+                    }]
+                )
+                yield f"data: {stream_chunk.model_dump_json()}\n\n"
+
+                # Small delay to simulate real streaming
+                await asyncio.sleep(0.05)
+
+            # Send final chunk with finish_reason
+            final_chunk = ChatCompletionStreamResponse(
+                id=completion_id,
+                created=created_timestamp,
+                model=request.model,
+                choices=[{
+                    "index": 0,
+                    "delta": {},
+                    "finish_reason": "stop"
+                }]
+            )
+            yield f"data: {final_chunk.model_dump_json()}\n\n"
+
+            # Send [DONE] marker
+            yield "data: [DONE]\n\n"
+
+        except Exception as e:
+            logger.error(
+                "STREAM_CHAT_FAILED",
+                error=str(e),
+                error_type=type(e).__name__,
+                session_id=request.session_id,
+                exc_info=True,
+            )
+            error_chunk = json.dumps({
+                "error": {
+                    "message": f"Stream failed: {e!s}",
+                    "type": "internal_error"
+                }
+            })
+            yield f"data: {error_chunk}\n\n"
+
+            # Send [DONE] marker even on error
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/plain",
+        headers={"Content-Type": "text/event-stream; charset=utf-8"}
     )
-
-    # 1. Kill-switch check
-    if os.getenv("KILL_SWITCH_PUBLIC_CHAT", "false").lower() == "true":
-        logger.warning("PUBLIC_CHAT_KILL_SWITCH_ACTIVE")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Public chat is temporarily unavailable. Please try again later.",
-            headers={"Retry-After": "60"},
-        )
-
-    # 2. Rate-limit: IP-based
-    client_ip = http_request.client.host if http_request.client else "unknown"
-
-    if not ip_rate_limiter.allow(client_ip):
-        retry_after = ip_rate_limiter.get_retry_after(client_ip)
-        logger.warning(
-            "PUBLIC_CHAT_IP_RATE_LIMITED",
-            ip=client_ip,
-            retry_after=retry_after,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Rate limit exceeded for IP {client_ip}. Retry after {retry_after}s.",
-            headers={"Retry-After": str(retry_after)},
-        )
-
-    # 3. Rate-limit: Session-based
-    session_id = request_body.session_id or "anonymous"
-
-    if not session_rate_limiter.allow(session_id):
-        retry_after = session_rate_limiter.get_retry_after(session_id)
-        logger.warning(
-            "PUBLIC_CHAT_SESSION_RATE_LIMITED",
-            session_id=session_id,
-            retry_after=retry_after,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Too many requests for this session. Retry after {retry_after}s.",
-            headers={"Retry-After": str(retry_after)},
-        )
-
-    # 4. Call LLM
-    try:
-        persona = "general_assistant"
-        if request_body.context and "persona" in request_body.context:
-            persona = request_body.context["persona"]
-
-        logger.info(
-            "PUBLIC_CHAT_START",
-            message_length=len(request_body.message),
-            session_id=session_id,
-            client_ip=client_ip,
-            persona=persona,
-            memory_enabled=False,
-        )
-
-        llm_client = get_llm_client()
-
-        result = await llm_client.chat(
-            persona=persona,
-            message=request_body.message,
-            context=request_body.context or {},
-            session_id=session_id,
-            doctor_id=None,  # NO persistent memory
-            use_memory=False,
-        )
-
-        # Calculate remaining requests
-        remaining_ip = ip_rate_limiter.get_remaining(client_ip)
-        remaining_session = session_rate_limiter.get_remaining(session_id)
-        remaining = min(remaining_ip, remaining_session)
-
-        logger.info(
-            "PUBLIC_CHAT_SUCCESS",
-            tokens=result.get("tokens_used", 0),
-            latency=result.get("latency_ms", 0),
-            session_id=session_id,
-            remaining_requests=remaining,
-        )
-
-        return PublicChatResponse(
-            message=result["response"],
-            persona=result["persona"],
-            tokens_used=result.get("tokens_used", 0),
-            latency_ms=result.get("latency_ms", 0),
-            remaining_requests=remaining,
-            retry_after=None,
-        )
-
-    except Exception as e:
-        logger.error(
-            "PUBLIC_CHAT_FAILED",
-            error=str(e),
-            error_type=type(e).__name__,
-            session_id=session_id,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Public chat failed: {e!s}",
-        ) from e

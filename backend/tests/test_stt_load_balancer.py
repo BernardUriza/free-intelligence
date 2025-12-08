@@ -135,7 +135,7 @@ class TestSTTLoadBalancer:
         # Verify averages (all deepgram now)
         deepgram_stats = stats["performance"]["deepgram"]
         assert deepgram_stats["avg_resolution_time"] == pytest.approx(
-            3.5, rel=0.01
+            4.5, rel=0.01
         )  # (2.5+3.0+8.0)/3
         assert deepgram_stats["avg_retries"] == pytest.approx(0.33, rel=0.01)  # (0+1+0)/3
         assert deepgram_stats["total_chunks"] == 3

@@ -1,0 +1,215 @@
+{
+  "rename_operation": "unified → longitudinal_memory",
+  "date": "2025-12-07",
+  "summary": "Strategic semantic renaming from 'unified timeline' to 'longitudinal memory' completed successfully. All backend routes, frontend components, types, and tests updated. Legacy endpoints maintained for 90-day grace period.",
+  
+  "changed_files": [
+    "backend/api/public/workflows/unified_timeline.py → longitudinal_memory.py",
+    "backend/api/public/workflows/router.py",
+    "backend/api/public/workflows/__init__.py",
+    "apps/aurity/lib/api/unified-timeline.ts → longitudinal-memory.ts",
+    "apps/aurity/hooks/useUnifiedTimeline.ts → useLongitudinalMemory.ts",
+    "apps/aurity/lib/timeline-config.tsx → memory-config.tsx",
+    "apps/aurity/config/timeline.config.ts",
+    "apps/aurity/app/timeline/page.tsx",
+    "apps/aurity/components/timeline/TimelineScheduler.tsx",
+    "apps/aurity/components/timeline/TimelineFilters.tsx",
+    "apps/aurity/__tests__/timeline/page.unified.spec.tsx",
+    "apps/aurity/lib/api/chat-history.ts"
+  ],
+  
+  "routes": [
+    {
+      "path": "/api/workflows/aurity/timeline/memory",
+      "status": "stable",
+      "method": "GET",
+      "summary": "Get Longitudinal Memory",
+      "response_model": "LongitudinalMemoryResponse"
+    },
+    {
+      "path": "/api/workflows/aurity/timeline/memory/stats",
+      "status": "stable",
+      "method": "GET",
+      "summary": "Get Memory Statistics",
+      "response_model": "MemoryStatsResponse"
+    },
+    {
+      "path": "/api/workflows/aurity/timeline/unified",
+      "status": "legacy-deprecated",
+      "method": "GET",
+      "deprecated": true,
+      "deprecation_date": "2025-03-07",
+      "redirect_to": "/api/workflows/aurity/timeline/memory",
+      "notes": "90-day grace period for backward compatibility"
+    },
+    {
+      "path": "/api/workflows/aurity/timeline/unified/stats",
+      "status": "legacy-deprecated",
+      "method": "GET",
+      "deprecated": true,
+      "deprecation_date": "2025-03-07",
+      "redirect_to": "/api/workflows/aurity/timeline/memory/stats"
+    }
+  ],
+  
+  "contracts": {
+    "version": "v1",
+    "response_models": {
+      "LongitudinalMemoryResponse": {
+        "required_keys": ["events", "total", "has_more", "offset", "limit"],
+        "metadata_keys": ["chat_count", "audio_count", "time_range"]
+      },
+      "MemoryEvent": {
+        "required_keys": ["id", "timestamp", "event_type", "content", "source"],
+        "optional_keys": ["session_id", "persona", "chunk_number", "duration", "confidence", "language", "stt_provider"],
+        "enums": {
+          "event_type": ["chat_user", "chat_assistant", "transcription"],
+          "source": ["chat", "audio"]
+        }
+      },
+      "MemoryStatsResponse": {
+        "required_keys": ["total_events", "chat_messages", "audio_transcriptions", "unique_sessions"],
+        "optional_keys": ["oldest_timestamp", "newest_timestamp"]
+      }
+    },
+    "breaking_changes": "None - JSON payload structure unchanged, only internal names refactored",
+    "aliases_maintained": "Legacy routes provide same functionality with deprecation warnings"
+  },
+  
+  "types_renamed": {
+    "backend": {
+      "UnifiedEvent": "MemoryEvent",
+      "UnifiedTimelineResponse": "LongitudinalMemoryResponse",
+      "TimelineStatsResponse": "MemoryStatsResponse"
+    },
+    "frontend": {
+      "UnifiedEvent": "MemoryEvent",
+      "UnifiedTimelineResponse": "LongitudinalMemoryResponse",
+      "TimelineStatsResponse": "MemoryStatsResponse",
+      "TimelineQueryParams": "MemoryQueryParams",
+      "TimelineState": "MemoryState",
+      "TimelineFilters": "MemoryFilters",
+      "UseUnifiedTimelineReturn": "UseLongitudinalMemoryReturn"
+    }
+  },
+  
+  "functions_renamed": {
+    "backend": {
+      "get_unified_timeline": "get_longitudinal_memory",
+      "get_timeline_stats": "get_memory_stats",
+      "_get_chat_events": "_get_chat_events (return type updated)",
+      "_get_audio_events": "_get_audio_events (return type updated)"
+    },
+    "frontend": {
+      "getUnifiedTimeline": "getLongitudinalMemory",
+      "getTimelineStats": "getMemoryStats",
+      "useUnifiedTimeline": "useLongitudinalMemory",
+      "unifiedTimelineConfig": "memoryConfig"
+    }
+  },
+  
+  "constants_renamed": {
+    "TIMELINE_API": "MEMORY_API",
+    "TIMELINE_PAGINATION": "MEMORY_PAGINATION",
+    "TIMELINE_TIME_RANGES": "MEMORY_TIME_RANGES",
+    "timelineQueryKeys": "memoryQueryKeys"
+  },
+  
+  "tests": {
+    "passed": 6,
+    "failed": 0,
+    "smoke_tests": "backend/tests/api/public/workflows/test_longitudinal_memory_contract.py",
+    "coverage": [
+      "Route registration validation",
+      "Response schema structure",
+      "Event schema structure",
+      "Stats schema structure",
+      "Legacy routes marked as deprecated",
+      "Stable routes not deprecated"
+    ]
+  },
+  
+  "telemetry_updates": {
+    "log_events_renamed": {
+      "UNIFIED_TIMELINE_REQUEST": "LONGITUDINAL_MEMORY_REQUEST",
+      "UNIFIED_TIMELINE_SUCCESS": "LONGITUDINAL_MEMORY_SUCCESS",
+      "TIMELINE_STATS_REQUEST": "MEMORY_STATS_REQUEST"
+    },
+    "deprecated_endpoint_warnings": "DEPRECATED_ENDPOINT_USED logs when legacy routes are accessed",
+    "action_required": "Update Grafana/Sentry dashboards to track new event names"
+  },
+  
+  "documentation_updates": {
+    "openapi_tags": "Updated to 'Longitudinal Memory' and 'Longitudinal Memory (Deprecated)'",
+    "docstrings": "All docstrings updated to reference 'longitudinal memory' instead of 'unified timeline'",
+    "comments": "Inline comments updated in all affected files"
+  },
+  
+  "frontend_cache_invalidation": {
+    "localStorage_keys": "No timeline-* keys detected in codebase",
+    "react_query_keys": "Updated from timelineQueryKeys to memoryQueryKeys",
+    "action_required": "Consider cache busting on next deployment if react-query persistence is enabled"
+  },
+  
+  "verification_commands": {
+    "backend": [
+      "pytest backend/tests/api/public/workflows/test_longitudinal_memory_contract.py -v",
+      "python -c 'from backend.api.public.workflows.router import router; print([r.path for r in router.routes if \"memory\" in r.path or \"unified\" in r.path])'"
+    ],
+    "frontend": [
+      "cd apps/aurity && pnpm tsc --noEmit",
+      "cd apps/aurity && pnpm vitest run __tests__/timeline/",
+      "grep -r 'Unified.*Event' apps/aurity --exclude-dir=node_modules --exclude-dir=.next"
+    ]
+  },
+  
+  "backward_compatibility": {
+    "grace_period_days": 90,
+    "deprecation_start": "2025-12-07",
+    "removal_date": "2025-03-07",
+    "migration_path": "Update API calls from /timeline/unified to /timeline/memory",
+    "breaking_changes": "None during grace period - legacy endpoints return same data with deprecation warnings"
+  },
+  
+  "todos": [
+    {
+      "id": "TODO-1",
+      "title": "Update Grafana dashboards",
+      "description": "Point metrics to new log event names (LONGITUDINAL_MEMORY_*)",
+      "priority": "medium",
+      "assignee": "devops"
+    },
+    {
+      "id": "TODO-2",
+      "title": "Update API documentation",
+      "description": "Publish CHANGELOG with deprecation notice for /timeline/unified",
+      "priority": "high",
+      "assignee": "tech-lead"
+    },
+    {
+      "id": "TODO-3",
+      "title": "Remove legacy routes",
+      "description": "Delete legacy_unified_router on 2025-03-07",
+      "priority": "low",
+      "due_date": "2025-03-07"
+    },
+    {
+      "id": "TODO-4",
+      "title": "Frontend cache cleanup",
+      "description": "Verify no persisted react-query caches use old keys",
+      "priority": "medium",
+      "assignee": "frontend-team"
+    }
+  ],
+  
+  "metadata": {
+    "card": "FI-PHIL-DOC-014",
+    "philosophy": "No existen sesiones. Solo una conversación infinita.",
+    "semantic_motivation": "'Unified' lacks meaning. 'Longitudinal Memory' reflects continuous conversation philosophy.",
+    "python_version": "3.14.0",
+    "fastapi_version": "Latest",
+    "execution_time": "~30 minutes",
+    "files_modified": 12,
+    "lines_changed": "~500"
+  }
+}

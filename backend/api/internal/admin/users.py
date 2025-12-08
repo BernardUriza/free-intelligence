@@ -22,6 +22,7 @@ from __future__ import annotations
 import structlog
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
+from typing import Any
 
 from backend.services.auth0_management import get_auth0_service
 
@@ -319,14 +320,13 @@ async def create_user(
         logger.info(
             "USER_CREATED_VIA_API",
             user_id=user_id,
-            email=request.email,
-            admin_email=admin.get("email"),
+            admin_user_id=admin.get("sub"),
         )
 
         return user
 
     except Exception as e:
-        logger.error("CREATE_USER_FAILED", email=request.email, error=str(e))
+        logger.error("CREATE_USER_FAILED", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create user: {e!s}",
@@ -358,7 +358,7 @@ async def update_user(
         service = get_auth0_service()
 
         # Build updates dict (only include provided fields)
-        updates = {}
+        updates: dict[str, Any] = {}
         if request.name is not None:
             updates["name"] = request.name
         if request.email is not None:

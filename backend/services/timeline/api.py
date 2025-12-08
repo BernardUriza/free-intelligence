@@ -24,15 +24,14 @@ Usage:
 
 import time
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any, List
-
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query, status
 from fastapi import Path as PathParam
-from fastapi import Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 from pydantic import BaseModel, Field
+from typing import Any, List
 
 from backend.logger import get_logger
 from backend.schemas.timeline_models import (
@@ -158,10 +157,35 @@ class HealthResponse(BaseModel):
 # FASTAPI APP INITIALIZATION
 # ============================================================================
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown events."""
+    # Startup
+    init_mock_data()
+    
+    logger.info(
+        "TIMELINE_API_STARTUP",
+        port=9002,
+        storage_path=str(STORAGE_PATH),
+        mock_sessions=len(MOCK_TIMELINES),
+    )
+
+    print("🚀 FI Timeline API starting on port 9002")
+    print(f"📁 Storage path: {STORAGE_PATH}")
+    print(f"📊 Mock sessions: {len(MOCK_TIMELINES)}")
+    
+    yield
+    
+    # Shutdown
+    logger.info("TIMELINE_API_SHUTDOWN")
+    print("🛑 FI Timeline API shutting down")
+
+
 app = FastAPI(
     title="Free Intelligence - Timeline API",
     description="Timeline UI backend with session management and policy badges",
     version="0.1.0",
+    lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -754,35 +778,6 @@ async def get_stats():
         generation_modes=dict(generation_modes),
         date_range=date_range,
     )
-
-
-# ============================================================================
-# STARTUP/SHUTDOWN
-# ============================================================================
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize mock data and log startup"""
-    init_mock_data()
-
-    logger.info(
-        "TIMELINE_API_STARTUP",
-        port=9002,
-        storage_path=str(STORAGE_PATH),
-        mock_sessions=len(MOCK_TIMELINES),
-    )
-
-    print("🚀 FI Timeline API starting on port 9002")
-    print(f"📁 Storage path: {STORAGE_PATH}")
-    print(f"📊 Mock sessions: {len(MOCK_TIMELINES)}")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Log shutdown"""
-    logger.info("TIMELINE_API_SHUTDOWN")
-    print("🛑 FI Timeline API shutting down")
 
 
 # ============================================================================

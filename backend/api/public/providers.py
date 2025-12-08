@@ -10,11 +10,10 @@ Card: FI-DATA-DB-001
 
 from __future__ import annotations
 
-from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
+from typing import List
 
 from backend.database import get_db_dependency
 from backend.logger import get_logger
@@ -58,8 +57,7 @@ class ProviderResponse(BaseModel):
     created_at: str
     updated_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -106,7 +104,7 @@ def create_provider(provider: ProviderCreate, db: Session = Depends(get_db_depen
         db.commit()
         db.refresh(db_provider)
 
-        logger.info("PROVIDER_CREATED", provider_id=db_provider.provider_id, nombre=provider.nombre)
+        logger.info("PROVIDER_CREATED", provider_id=db_provider.provider_id)
         return db_provider.to_dict()
 
     except HTTPException:

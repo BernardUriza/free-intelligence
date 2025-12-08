@@ -20,7 +20,6 @@ Card: Architecture unification
 from __future__ import annotations
 
 from datetime import UTC, datetime
-
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 

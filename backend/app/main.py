@@ -13,16 +13,37 @@ Refactored: 2025-11-14 (Pruned unused endpoints)
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 from datetime import UTC
-from pathlib import Path
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from backend.middleware.idempotency import IdempotencyMiddleware
 from backend.middleware.internal_only import InternalOnlyMiddleware
 from backend.middleware.tracing import TracingMiddleware
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan context manager for startup/shutdown events."""
+    # Startup
+    from backend.database import init_db
+    from backend.logger import get_logger
+
+    logger = get_logger(__name__)
+    try:
+        init_db()
+        logger.info("DATABASE_INITIALIZED", status="success")
+    except Exception as e:
+        logger.error("DATABASE_INIT_FAILED", error=str(e))
+        # Don't fail startup - continue with other services
+    
+    yield
+    
+    # Shutdown (if needed in the future)
+    # Add cleanup code here
 
 
 def create_app() -> FastAPI:
@@ -130,6 +151,7 @@ Requires environment variables:
         description=description,
         version="0.1.0",
         openapi_tags=tags_metadata,
+        lifespan=lifespan,
         swagger_ui_parameters={
             "defaultModelsExpandDepth": -1,
             "docExpansion": "list",
@@ -256,6 +278,8 @@ Requires environment variables:
             internal.diarization.router, prefix="/diarization", tags=["diarization"]
         )
         internal_app.include_router(internal.exports.router, prefix="/exports", tags=["exports"])
+        # Timeline internal compatibility router (verify-hash)
+        internal_app.include_router(internal.timeline.router)  # No hasattr check - let it fail if missing
         internal_app.include_router(internal.kpis.router, prefix="/kpis", tags=["kpis"])
         internal_app.include_router(internal.sessions.router, prefix="/sessions", tags=["sessions"])
         internal_app.include_router(
@@ -286,20 +310,6 @@ Requires environment variables:
         import traceback
 
         traceback.print_exc()
-
-    @app.on_event("startup")
-    async def startup_event():
-        """Initialize database on app startup."""
-        from backend.database import init_db
-        from backend.logger import get_logger
-
-        logger = get_logger(__name__)
-        try:
-            init_db()
-            logger.info("DATABASE_INITIALIZED", status="success")
-        except Exception as e:
-            logger.error("DATABASE_INIT_FAILED", error=str(e))
-            # Don't fail startup - continue with other services
 
     @app.get("/")
     async def root() -> dict:

@@ -56,7 +56,7 @@ Diarization V2 is an optimized offline pipeline that solves the CPU exhaustion p
          ▼
 ┌────────────────────────┐
 │ Ollama (speaker class) │
-│ qwen2.5:7b (local)     │
+│ qwen2:1.5b (local)     │
 └────────────────────────┘
 ```
 
