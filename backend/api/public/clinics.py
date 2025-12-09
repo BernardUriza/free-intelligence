@@ -11,11 +11,11 @@ Card: FI-CHECKIN-002
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
-from typing import Optional
 
 from backend.database import get_db_dependency
 from backend.logger import get_logger
@@ -43,9 +43,9 @@ class ClinicCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     specialty: str = Field(default="general", max_length=100)
     timezone: str = Field(default="America/Mexico_City", max_length=50)
-    welcome_message: Optional[str] = Field(default=None, max_length=500)
-    primary_color: Optional[str] = Field(default="#6366f1", max_length=20)
-    logo_url: Optional[str] = None
+    welcome_message: str | None = Field(default=None, max_length=500)
+    primary_color: str | None = Field(default="#6366f1", max_length=20)
+    logo_url: str | None = None
     checkin_qr_enabled: bool = True
     chat_enabled: bool = True
     payments_enabled: bool = False
@@ -55,16 +55,16 @@ class ClinicCreate(BaseModel):
 class ClinicUpdate(BaseModel):
     """Schema for updating a clinic."""
 
-    name: Optional[str] = Field(default=None, max_length=200)
-    specialty: Optional[str] = Field(default=None, max_length=100)
-    timezone: Optional[str] = Field(default=None, max_length=50)
-    welcome_message: Optional[str] = Field(default=None, max_length=500)
-    primary_color: Optional[str] = Field(default=None, max_length=20)
-    logo_url: Optional[str] = None
-    checkin_qr_enabled: Optional[bool] = None
-    chat_enabled: Optional[bool] = None
-    payments_enabled: Optional[bool] = None
-    subscription_plan: Optional[str] = Field(default=None, max_length=50)
+    name: str | None = Field(default=None, max_length=200)
+    specialty: str | None = Field(default=None, max_length=100)
+    timezone: str | None = Field(default=None, max_length=50)
+    welcome_message: str | None = Field(default=None, max_length=500)
+    primary_color: str | None = Field(default=None, max_length=20)
+    logo_url: str | None = None
+    checkin_qr_enabled: bool | None = None
+    chat_enabled: bool | None = None
+    payments_enabled: bool | None = None
+    subscription_plan: str | None = Field(default=None, max_length=50)
 
 
 class ClinicResponse(BaseModel):
@@ -74,16 +74,16 @@ class ClinicResponse(BaseModel):
     name: str
     specialty: str
     timezone: str
-    welcome_message: Optional[str] = None
-    primary_color: Optional[str] = None
-    logo_url: Optional[str] = None
+    welcome_message: str | None = None
+    primary_color: str | None = None
+    logo_url: str | None = None
     checkin_qr_enabled: bool
     chat_enabled: bool
     payments_enabled: bool
     subscription_plan: str
     is_active: bool
     created_at: str
-    updated_at: Optional[str] = None
+    updated_at: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -93,26 +93,22 @@ class DoctorCreate(BaseModel):
 
     nombre: str = Field(..., min_length=1, max_length=100)
     apellido: str = Field(..., min_length=1, max_length=100)
-    display_name: Optional[str] = Field(default=None, max_length=100)
-    especialidad: Optional[str] = Field(default=None, max_length=100)
-    cedula_profesional: Optional[str] = Field(default=None, max_length=20)
-    email: Optional[str] = Field(default=None, max_length=200)
-    phone: Optional[str] = Field(default=None, max_length=20)
+    display_name: str | None = Field(default=None, max_length=100)
+    especialidad: str | None = Field(default=None, max_length=100)
+    cedula_profesional: str | None = Field(default=None, max_length=20)
     avg_consultation_minutes: int = Field(default=20, ge=5, le=180)
 
 
 class DoctorUpdate(BaseModel):
     """Schema for updating a doctor."""
 
-    nombre: Optional[str] = Field(default=None, max_length=100)
-    apellido: Optional[str] = Field(default=None, max_length=100)
-    display_name: Optional[str] = Field(default=None, max_length=100)
-    especialidad: Optional[str] = Field(default=None, max_length=100)
-    cedula_profesional: Optional[str] = Field(default=None, max_length=20)
-    email: Optional[str] = Field(default=None, max_length=200)
-    phone: Optional[str] = Field(default=None, max_length=20)
-    avg_consultation_minutes: Optional[int] = Field(default=None, ge=5, le=180)
-    is_active: Optional[bool] = None
+    nombre: str | None = Field(default=None, max_length=100)
+    apellido: str | None = Field(default=None, max_length=100)
+    display_name: str | None = Field(default=None, max_length=100)
+    especialidad: str | None = Field(default=None, max_length=100)
+    cedula_profesional: str | None = Field(default=None, max_length=20)
+    avg_consultation_minutes: int | None = Field(default=None, ge=5, le=180)
+    is_active: bool | None = None
 
 
 class DoctorResponse(BaseModel):
@@ -122,15 +118,13 @@ class DoctorResponse(BaseModel):
     clinic_id: str
     nombre: str
     apellido: str
-    display_name: Optional[str] = None
-    especialidad: Optional[str] = None
-    cedula_profesional: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
+    display_name: str | None = None
+    especialidad: str | None = None
+    cedula_profesional: str | None = None
     avg_consultation_minutes: int
     is_active: bool
     created_at: str
-    updated_at: Optional[str] = None
+    updated_at: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -143,8 +137,20 @@ class AppointmentCreate(BaseModel):
     scheduled_at: str = Field(..., description="ISO datetime")
     appointment_type: AppointmentType = AppointmentType.FOLLOW_UP
     estimated_duration: int = Field(default=20, ge=5, le=180)
-    reason: Optional[str] = Field(default=None, max_length=500)
-    notes: Optional[str] = Field(default=None, max_length=1000)
+    reason: str | None = Field(default=None, max_length=500)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class AppointmentUpdate(BaseModel):
+    """Schema for updating an appointment."""
+
+    scheduled_at: str | None = Field(default=None, description="ISO datetime")
+    estimated_duration: int | None = Field(default=None, ge=5, le=180)
+    doctor_id: str | None = Field(default=None, min_length=1)
+    appointment_type: AppointmentType | None = None
+    status: AppointmentStatus | None = None
+    reason: str | None = Field(default=None, max_length=500)
+    notes: str | None = Field(default=None, max_length=1000)
 
 
 class AppointmentResponse(BaseModel):
@@ -160,8 +166,8 @@ class AppointmentResponse(BaseModel):
     status: str
     checkin_code: str
     checkin_code_expires_at: str
-    reason: Optional[str] = None
-    notes: Optional[str] = None
+    reason: str | None = None
+    notes: str | None = None
     created_at: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -270,7 +276,7 @@ def update_clinic(
     for field, value in update_data.items():
         setattr(clinic, field, value)
 
-    clinic.updated_at = datetime.now(timezone.utc)
+    clinic.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(clinic)
 
@@ -289,7 +295,7 @@ def delete_clinic(
         raise HTTPException(status_code=404, detail="Clinic not found")
 
     clinic.is_active = False
-    clinic.updated_at = datetime.now(timezone.utc)
+    clinic.updated_at = datetime.now(UTC)
     db.commit()
 
     logger.info("CLINIC_DELETED", clinic_id=clinic_id)
@@ -395,7 +401,7 @@ def update_doctor(
     for field, value in update_data.items():
         setattr(doctor, field, value)
 
-    doctor.updated_at = datetime.now(timezone.utc)
+    doctor.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(doctor)
 
@@ -419,7 +425,7 @@ def delete_doctor(
         raise HTTPException(status_code=404, detail="Doctor not found")
 
     doctor.is_active = False
-    doctor.updated_at = datetime.now(timezone.utc)
+    doctor.updated_at = datetime.now(UTC)
     db.commit()
 
     logger.info("DOCTOR_DELETED", doctor_id=doctor_id, clinic_id=clinic_id)
@@ -430,9 +436,7 @@ def delete_doctor(
 # =============================================================================
 
 
-@router.post(
-    "/{clinic_id}/appointments", response_model=AppointmentResponse, status_code=201
-)
+@router.post("/{clinic_id}/appointments", response_model=AppointmentResponse, status_code=201)
 def create_appointment(
     clinic_id: str,
     request: AppointmentCreate,
@@ -475,9 +479,7 @@ def create_appointment(
             .filter(
                 Appointment.clinic_id == clinic_id,
                 Appointment.checkin_code == checkin_code,
-                Appointment.status.in_(
-                    [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED]
-                ),
+                Appointment.status.in_([AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED]),
             )
             .first()
         )
@@ -535,9 +537,9 @@ def create_appointment(
 @router.get("/{clinic_id}/appointments", response_model=dict)
 def list_appointments(
     clinic_id: str,
-    date: Optional[str] = None,
-    doctor_id: Optional[str] = None,
-    status: Optional[str] = None,
+    date: str | None = None,
+    doctor_id: str | None = None,
+    status: str | None = None,
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db_dependency),  # noqa: B008
@@ -558,9 +560,7 @@ def list_appointments(
         try:
             filter_date = datetime.fromisoformat(date).date()
             query = query.filter(
-                Appointment.scheduled_at >= datetime.combine(
-                    filter_date, datetime.min.time()
-                ),
+                Appointment.scheduled_at >= datetime.combine(filter_date, datetime.min.time()),
                 Appointment.scheduled_at
                 < datetime.combine(filter_date, datetime.min.time()) + timedelta(days=1),
             )
@@ -601,3 +601,98 @@ def list_appointments(
         ],
         "total": total,
     }
+
+
+@router.patch("/{clinic_id}/appointments/{appointment_id}", response_model=AppointmentResponse)
+def update_appointment(
+    clinic_id: str,
+    appointment_id: str,
+    request: AppointmentUpdate,
+    db: Session = Depends(get_db_dependency),  # noqa: B008
+) -> AppointmentResponse:
+    """Update an appointment (drag/drop, resize, edit)."""
+    # Fetch appointment
+    appointment = (
+        db.query(Appointment)
+        .filter(
+            Appointment.appointment_id == appointment_id,
+            Appointment.clinic_id == clinic_id,
+            Appointment.is_deleted.is_(False),
+        )
+        .first()
+    )
+
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+
+    # Prevent editing completed/cancelled appointments
+    if appointment.status in [AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot update appointment with status {appointment.status.value}",
+        )
+
+    # Update fields
+    update_data = request.model_dump(exclude_unset=True)
+
+    # Validate doctor belongs to clinic if doctor_id is being updated
+    if "doctor_id" in update_data:
+        doctor = (
+            db.query(Doctor)
+            .filter(
+                Doctor.doctor_id == update_data["doctor_id"],
+                Doctor.clinic_id == clinic_id,
+                Doctor.is_active.is_(True),
+            )
+            .first()
+        )
+        if not doctor:
+            raise HTTPException(
+                status_code=400, detail="Doctor not found or not active in this clinic"
+            )
+
+    # Parse scheduled_at if provided
+    if "scheduled_at" in update_data:
+        try:
+            scheduled_at = datetime.fromisoformat(update_data["scheduled_at"])
+            if scheduled_at.tzinfo is None:
+                scheduled_at = scheduled_at.replace(tzinfo=UTC)
+            update_data["scheduled_at"] = scheduled_at
+
+            # Regenerate checkin code expiration (2 hours after new scheduled time)
+            appointment.checkin_code_expires_at = scheduled_at + timedelta(hours=2)
+        except (ValueError, TypeError) as e:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid scheduled_at format: {e!s}"
+            ) from e
+
+    # Apply updates
+    for field, value in update_data.items():
+        setattr(appointment, field, value)
+
+    appointment.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(appointment)
+
+    logger.info(
+        "APPOINTMENT_UPDATED",
+        appointment_id=str(appointment.appointment_id),
+        clinic_id=clinic_id,
+        updated_fields=list(update_data.keys()),
+    )
+
+    return AppointmentResponse(
+        appointment_id=str(appointment.appointment_id),
+        clinic_id=str(appointment.clinic_id),
+        patient_id=str(appointment.patient_id),
+        doctor_id=str(appointment.doctor_id),
+        scheduled_at=appointment.scheduled_at.isoformat(),
+        estimated_duration=appointment.estimated_duration,
+        appointment_type=appointment.appointment_type.value,
+        status=appointment.status.value,
+        checkin_code=appointment.checkin_code,
+        checkin_code_expires_at=appointment.checkin_code_expires_at.isoformat(),
+        reason=appointment.reason,
+        notes=appointment.notes,
+        created_at=appointment.created_at.isoformat(),
+    )

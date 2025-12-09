@@ -31,22 +31,23 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import time
 import uuid
-from fastapi import APIRouter, HTTPException, Request, status
+from collections.abc import AsyncGenerator
+
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
-from typing import AsyncGenerator
 
 from backend.clients import get_llm_client
 from backend.logger import get_logger
-from backend.security.rate_limiter import ip_rate_limiter, session_rate_limiter
 
 # Import schemas from dedicated module
 from .assistant_schemas import (
+    ChatCompletionChoice,
     ChatCompletionRequest,
     ChatCompletionResponse,
     ChatCompletionStreamResponse,
+    ChatCompletionUsage,
     IntroductionRequest,
     IntroductionResponse,
     Message,
@@ -264,6 +265,18 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
                 suggested_tone=emotional_analysis.suggested_tone if emotional_analysis else "none",
             )
 
+        # RAG: Search for relevant documents
+        rag_context = await _get_rag_context(
+            query=last_message.content,
+            persona=request.persona,
+        )
+        if rag_context:
+            context["rag_context"] = rag_context
+            logger.info(
+                "RAG_CONTEXT_INJECTED",
+                chunks_count=len(rag_context.split("---")),
+            )
+
         # Convert OpenAI messages to internal format
         # For now, we'll use the last user message and system context
         result = await llm_client.chat(
@@ -280,16 +293,9 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
         created_timestamp = int(time.time())
 
         # Build assistant message
-        assistant_message = Message(
-            role="assistant",
-            content=result["response"]
-        )
+        assistant_message = Message(role="assistant", content=result["response"])
 
-        choice = ChatCompletionChoice(
-            index=0,
-            message=assistant_message,
-            finish_reason="stop"
-        )
+        choice = ChatCompletionChoice(index=0, message=assistant_message, finish_reason="stop")
 
         # Estimate token usage (simplified)
         prompt_tokens = len(last_message.content.split()) * 4  # Rough estimate
@@ -299,7 +305,7 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
         usage = ChatCompletionUsage(
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
-            total_tokens=total_tokens
+            total_tokens=total_tokens,
         )
 
         logger.info(
@@ -322,7 +328,7 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
                     "clinic_id": request.receptionist_config.get("clinic_id"),
                     "clinic_name": request.receptionist_config.get("clinic_name"),
                     "session_id": request.session_id,
-                }
+                },
             }
 
         return ChatCompletionResponse(
@@ -427,11 +433,7 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                 id=completion_id,
                 created=created_timestamp,
                 model=request.model,
-                choices=[{
-                    "index": 0,
-                    "delta": {"role": "assistant"},
-                    "finish_reason": None
-                }]
+                choices=[{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}],
             )
             yield f"data: {initial_chunk.model_dump_json()}\n\n"
 
@@ -451,17 +453,13 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
             chunk_size = 10  # Characters per chunk
 
             for i in range(0, len(response_text), chunk_size):
-                chunk_text = response_text[i:i + chunk_size]
+                chunk_text = response_text[i : i + chunk_size]
 
                 stream_chunk = ChatCompletionStreamResponse(
                     id=completion_id,
                     created=created_timestamp,
                     model=request.model,
-                    choices=[{
-                        "index": 0,
-                        "delta": {"content": chunk_text},
-                        "finish_reason": None
-                    }]
+                    choices=[{"index": 0, "delta": {"content": chunk_text}, "finish_reason": None}],
                 )
                 yield f"data: {stream_chunk.model_dump_json()}\n\n"
 
@@ -473,11 +471,7 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                 id=completion_id,
                 created=created_timestamp,
                 model=request.model,
-                choices=[{
-                    "index": 0,
-                    "delta": {},
-                    "finish_reason": "stop"
-                }]
+                choices=[{"index": 0, "delta": {}, "finish_reason": "stop"}],
             )
             yield f"data: {final_chunk.model_dump_json()}\n\n"
 
@@ -492,12 +486,9 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                 session_id=request.session_id,
                 exc_info=True,
             )
-            error_chunk = json.dumps({
-                "error": {
-                    "message": f"Stream failed: {e!s}",
-                    "type": "internal_error"
-                }
-            })
+            error_chunk = json.dumps(
+                {"error": {"message": f"Stream failed: {e!s}", "type": "internal_error"}}
+            )
             yield f"data: {error_chunk}\n\n"
 
             # Send [DONE] marker even on error
@@ -506,5 +497,71 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
     return StreamingResponse(
         generate_stream(),
         media_type="text/plain",
-        headers={"Content-Type": "text/event-stream; charset=utf-8"}
+        headers={"Content-Type": "text/event-stream; charset=utf-8"},
     )
+
+
+# ============================================================================
+# RAG Helper Functions
+# ============================================================================
+
+
+async def _get_rag_context(
+    query: str,
+    persona: str,
+    top_k: int = 5,
+    min_similarity: float = 0.35,
+) -> str | None:
+    """Search documents and build RAG context for the LLM.
+
+    Args:
+        query: User's question/message
+        persona: Current persona (for filtering documents)
+        top_k: Number of chunks to retrieve
+        min_similarity: Minimum similarity threshold
+
+    Returns:
+        Formatted context string or None if no relevant documents
+    """
+    try:
+        from backend.api.public.workflows.documents import _get_embedding
+        from backend.storage.document_repository import (
+            get_document,
+            search_documents_by_embedding,
+        )
+
+        # Generate embedding for query
+        query_embedding = await _get_embedding(query)
+
+        # Search documents
+        results = search_documents_by_embedding(
+            query_embedding=query_embedding,
+            top_k=top_k,
+            persona_filter=persona,
+        )
+
+        # Filter by minimum similarity
+        relevant_results = [r for r in results if r[2] >= min_similarity]
+
+        if not relevant_results:
+            return None
+
+        # Build context string with clear structure
+        context_parts = []
+        for idx, (doc_id, chunk_id, similarity, chunk_text) in enumerate(relevant_results, 1):
+            doc = get_document(doc_id)
+            if doc:
+                context_parts.append(
+                    f"### Fragmento {idx} (Relevancia: {similarity:.0%})\n"
+                    f"**Fuente:** {doc.metadata.title}\n"
+                    f"**Contenido:**\n{chunk_text}"
+                )
+
+        if not context_parts:
+            return None
+
+        return "\n\n---\n\n".join(context_parts)
+
+    except Exception as e:
+        logger.warning("RAG_CONTEXT_FAILED", error=str(e))
+        return None

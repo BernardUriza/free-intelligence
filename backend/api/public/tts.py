@@ -1,20 +1,27 @@
 """
 Public TTS Router - Text-to-Speech API
 
-Provides Azure OpenAI TTS endpoint for demo mode and accessibility.
+Provides multi-provider TTS endpoint for demo mode and accessibility.
+
+Supports:
+- OpenAI TTS (natural, expressive voices) - DEFAULT
+- Azure Speech Services (Spanish Mexico neural voices)
 
 Endpoints:
 - POST /api/tts/synthesize - Generate speech from text
 
 Created: 2025-11-17
+Updated: 2025-12-08 (Added OpenAI TTS support)
 """
+
+from typing import Literal
 
 import structlog
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from backend.services.tts_service import OutputFormat, VoiceType, get_tts_service
+from backend.services.tts_unified import get_unified_tts_service
 
 logger = structlog.get_logger(__name__)
 
@@ -31,11 +38,15 @@ class TTSRequest(BaseModel):
         description="Text to synthesize (max 4096 characters)",
         examples=["Buenos días, ¿cómo se encuentra hoy?"],
     )
-    voice: VoiceType = Field(
+    voice: str = Field(
         default="nova",
-        description="Voice to use (nova = female, alloy = neutral male)",
+        description="Voice name (OpenAI: nova, alloy, etc. | Azure: es-MX-DaliaNeural, etc.)",
     )
-    response_format: OutputFormat = Field(
+    provider: Literal["openai", "azure"] | None = Field(
+        default=None,
+        description="TTS provider (auto-detect based on voice if not specified)",
+    )
+    response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
         default="mp3",
         description="Audio output format (mp3 recommended for web)",
     )
@@ -50,30 +61,52 @@ class TTSRequest(BaseModel):
 @router.post(
     "/synthesize",
     response_class=Response,
-    summary="Synthesize Speech",
+    summary="Synthesize Speech (Multi-Provider)",
     description="""
-    Generate speech audio from text using Azure OpenAI TTS.
+    Generate speech audio from text using OpenAI TTS or Azure Speech Services.
 
     **Use Cases:**
     - Demo mode consultation audio
     - Accessibility features (text-to-speech)
     - Training materials
 
-    **Voices:**
-    - `nova` - Female (default, medical context)
-    - `alloy` - Neutral male
+    **Provider Selection:**
+    - Automatic: Use voice name (es-MX-* = Azure, others = OpenAI)
+    - Manual: Set `provider` to "openai" or "azure"
+
+    **🎙️ OpenAI TTS Voices (Natural, Expressive - DEFAULT):**
+    - `nova` ⭐ - Female, warm (default, recommended)
+    - `alloy` - Neutral, versatile
+    - `shimmer` - Female, clear
     - `echo` - Male
-    - `fable` - British male
-    - `onyx` - Deep male
-    - `shimmer` - Female
+    - `fable` - Male, British
+    - `onyx` - Male, deep
+    - `ash` - New 2025
+    - `ballad` - New 2025
+    - `coral` - New 2025
+    - `sage` - New 2025
+    - `verse` - New 2025
+
+    **🌍 Azure Speech Services (Spanish Mexico Neural):**
+
+    Female:
+    - `es-MX-DaliaNeural` - Female (medical context)
+    - `es-MX-BeatrizNeural`, `es-MX-CandelaNeural` (child)
+    - `es-MX-CarlotaNeural`, `es-MX-DaliaMultilingualNeural`
+    - `es-MX-LarissaNeural`, `es-MX-MarinaNeural`
+    - `es-MX-NuriaNeural`, `es-MX-RenataNeural`
+
+    Male:
+    - `es-MX-JorgeNeural`, `es-MX-CecilioNeural`
+    - `es-MX-GerardoNeural`, `es-MX-JorgeMultilingualNeural`
+    - `es-MX-LibertoNeural`, `es-MX-LucianoNeural`
+    - `es-MX-PelayoNeural`, `es-MX-YagoNeural`
 
     **Formats:**
     - `mp3` - Web-compatible (default)
-    - `opus` - High compression
-    - `aac` - Apple devices
+    - `opus`, `aac` - Compressed
     - `flac` - Lossless
-    - `wav` - Uncompressed
-    - `pcm` - Raw audio
+    - `wav`, `pcm` - Uncompressed
 
     **Response:**
     Binary audio data with appropriate Content-Type header.
@@ -95,16 +128,17 @@ class TTSRequest(BaseModel):
 )
 async def synthesize_speech(request: TTSRequest) -> Response:
     """
-    Synthesize speech from text.
+    Synthesize speech from text using OpenAI or Azure TTS.
 
     Returns audio file in specified format.
     """
     try:
-        tts_service = get_tts_service()
+        tts_service = get_unified_tts_service()
 
         audio_bytes = await tts_service.synthesize(
             text=request.text,
             voice=request.voice,
+            provider=request.provider,
             response_format=request.response_format,
             speed=request.speed,
         )

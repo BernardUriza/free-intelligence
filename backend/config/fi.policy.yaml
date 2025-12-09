@@ -99,10 +99,10 @@ stt:
 # ===== LLM Provider Configuration =====
 llm:
   # Primary provider for production workloads
-  primary_provider: ollama  # Using local Ollama for offline-first operation
+  primary_provider: claude  # Claude for high-quality RAG responses
 
   # Fallback provider if primary fails
-  fallback_provider: claude
+  fallback_provider: ollama
 
   # Offline-first mode (prefer local inference)
   enable_offline: false  # Set to true when NAS deployment is ready
@@ -119,11 +119,12 @@ llm:
 
     # Ollama - Local inference (offline-first)
     ollama:
-      model: qwen2:1.5b-instruct  # Local model (available in Ollama)
+      model: qwen3:4b  # Qwen3 4B - optimized for RAG on 8GB RAM
       base_url: http://localhost:11434  # Ollama server
       timeout_seconds: 120  # Longer timeout for CPU inference
       max_tokens: 2048  # Max output tokens
-      temperature: 0.7  # Default temperature
+      temperature: 0.5  # Lower temp for more factual RAG responses
+      num_ctx: 8192  # Larger context for RAG (critical!)
       embed_model: nomic-embed-text  # Embedding model (768-dim)
 
     # Azure OpenAI - Cloud-based LLM (GPT-4, GPT-4o)

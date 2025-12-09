@@ -1,0 +1,15 @@
+# Tests curl ignorados
+.env.curl
+temp/
+*.wav
+*.mp3
+*.webm
+*.png
+*.jpg
+*.pdf
+*.docx
+*.json
+*.txt
+
+# Excepciones
+!webspeech.json

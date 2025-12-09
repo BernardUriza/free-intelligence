@@ -39,7 +39,13 @@ python3 backend/corpus_schema.py init bernard@example.com
 # 3. Ejecutar tests
 ./scripts/quick_test.sh
 
-# 4. Ver estadísticas
+# 4. Tests con cURL (API endpoints)
+cd tests/curl
+./setup.sh          # Configuración inicial
+./quick_test.sh     # Test rápido (30s)
+./run_all_tests.sh  # Suite completa
+
+# 5. Ver estadísticas
 python3 backend/corpus_ops.py
 ```
 
@@ -346,14 +352,69 @@ Eventos admiten método y limitaciones (SCAN_COMPLETED, not VALIDATION_PASSED).
 
 ## 📚 Stack Tecnológico
 
-- **Backend**: Python 3.11+
-- **Storage**: HDF5 (h5py) con compresión gzip
+- **Backend**: Python 3.14 (FastAPI)
+- **Frontend**: Next.js 14, TypeScript, React
+- **Storage**: HDF5 (h5py) con compresión gzip + PostgreSQL
 - **Logging**: structlog (JSON structured logs)
 - **Config**: YAML con validación
-- **Testing**: unittest (230 tests)
-- **CI/CD**: pre-commit hooks (6 validators)
+- **Testing**: pytest + unittest + cURL tests
+- **CI/CD**: pre-commit hooks + GitHub Actions
 - **Git**: Trunk-based development, semantic versioning
-- **Future**: FastAPI (HTTP API), React 19 (UI)
+- **Auth**: Auth0 JWT con RBAC
+- **Deployment**: DigitalOcean (app.aurity.io)
+
+---
+
+## 🧪 Testing
+
+### Tests Automatizados
+```bash
+# Backend (pytest)
+pytest backend/tests/
+
+# Frontend (TypeScript)
+cd apps/aurity && pnpm test
+
+# Type checking
+pyright backend/
+```
+
+### Tests con cURL (API Endpoints)
+
+Suite completa para probar endpoints de producción:
+
+```bash
+cd tests/curl
+
+# 1. Configuración inicial (solo una vez)
+./setup.sh
+
+# 2. Test rápido (30 segundos)
+./quick_test.sh
+
+# 3. Tests individuales
+./test_medical_session.sh   # Sesión médica E2E
+./test_checkin.sh            # Check-in receptionist
+./test_chat_mode.sh          # Modo chat
+./verify_h5_integrity.sh     # Verificar HDF5
+
+# 4. Suite completa
+./run_all_tests.sh
+```
+
+**Documentación**:
+- `tests/curl/README.md` - Guía completa de tests
+- `tests/curl/CURL_TESTS.md` - Todos los endpoints
+- `tests/curl/EXAMPLES.md` - Ejemplos de uso común
+
+**Qué se prueba**:
+- ✅ Upload de audio y transcripción (Deepgram)
+- ✅ Diarización (identificación de speakers)
+- ✅ Generación de notas SOAP (LLM)
+- ✅ Check-in de pacientes (QR codes)
+- ✅ Integridad de archivos HDF5 (checksums)
+- ✅ Event sourcing y append-only pattern
+- ✅ Autenticación Auth0
 
 ---
 

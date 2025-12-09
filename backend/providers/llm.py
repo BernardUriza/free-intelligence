@@ -11,16 +11,17 @@ Provides a unified interface for LLM interactions, supporting multiple providers
 Philosophy: Provider-agnostic design. No vendor lock-in.
 """
 
-import anthropic
 import asyncio
-import numpy as np
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from dotenv import load_dotenv
 from enum import Enum
 from typing import Any
+
+import anthropic
+import numpy as np
+from dotenv import load_dotenv
 
 # Load environment variables from .env
 load_dotenv()
@@ -318,7 +319,14 @@ class ClaudeProvider(LLMProvider):
 
 
 class OllamaProvider(LLMProvider):
-    """Ollama local inference provider for offline-first operation"""
+    """
+    Ollama local inference provider for offline-first operation.
+
+    Features (FI-BACKEND-REF-005):
+    - Exponential backoff retry for transient failures
+    - Circuit breaker to prevent cascade failures
+    - Configurable thresholds: failure_threshold=5, window=60s
+    """
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
@@ -326,6 +334,31 @@ class OllamaProvider(LLMProvider):
         self.default_model: str = str(self.config.get("model") or "qwen2:1.5b-instruct")
         self.embed_model: str = str(self.config.get("embed_model") or "nomic-embed-text")
         self.timeout: int = int(self.config.get("timeout_seconds") or 120)
+
+        # Retry configuration (FI-BACKEND-REF-005)
+        from backend.providers.retry import (
+            CircuitBreakerConfig,
+            RetryConfig,
+            get_circuit_breaker,
+        )
+
+        self.retry_config = RetryConfig(
+            max_retries=int(self.config.get("max_retries") or 3),
+            base_delay=float(self.config.get("retry_base_delay") or 1.0),
+            max_delay=float(self.config.get("retry_max_delay") or 30.0),
+            exponential_base=2.0,
+            jitter=True,
+        )
+
+        # Circuit breaker: threshold=5 failures, 60s recovery window
+        self.circuit_breaker = get_circuit_breaker(
+            name=f"ollama_{self.base_url}",
+            config=CircuitBreakerConfig(
+                failure_threshold=int(self.config.get("circuit_failure_threshold") or 5),
+                recovery_timeout=float(self.config.get("circuit_recovery_timeout") or 60.0),
+                success_threshold=2,
+            ),
+        )
 
         # Import ollama library
         try:
@@ -341,11 +374,13 @@ class OllamaProvider(LLMProvider):
             base_url=self.base_url,
             model=self.default_model,
             embed_model=self.embed_model,
+            retry_config=self.retry_config.__dict__,
+            circuit_breaker_config=self.circuit_breaker.config.__dict__,
         )
 
     def generate(self, prompt: str, **kwargs) -> LLMResponse:
         """
-        Generate completion using Ollama API.
+        Generate completion using Ollama API with retry and circuit breaker.
 
         Args:
             prompt: Input text prompt
@@ -358,7 +393,12 @@ class OllamaProvider(LLMProvider):
             - Runs locally on CPU/GPU (no API costs)
             - Supports Chinese models (Qwen, DeepSeek)
             - 100% offline operation
+            - FI-BACKEND-REF-005: Exponential backoff + circuit breaker
         """
+        import time
+
+        from backend.providers.retry import CircuitOpenError, calculate_backoff_delay
+
         model: str = str(kwargs.get("model", self.default_model))
         max_tokens: int = int(kwargs.get("max_tokens") or self.config.get("max_tokens") or 2048)
         temperature: float = float(
@@ -372,65 +412,126 @@ class OllamaProvider(LLMProvider):
             base_url=self.base_url,
         )
 
+        # Check circuit breaker before attempting
+        if not self.circuit_breaker.can_execute():
+            raise CircuitOpenError(
+                self.circuit_breaker.name,
+                f"Ollama service unavailable, retry after {self.circuit_breaker.config.recovery_timeout}s",
+            )
+
         start_time = datetime.now(UTC)
+        last_exception: Exception | None = None
 
-        try:
-            # Call Ollama API
-            response = self.client.chat(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                options={
-                    "temperature": temperature,
-                    "num_predict": max_tokens,  # Ollama uses num_predict instead of max_tokens
-                },
-            )
+        for attempt in range(self.retry_config.max_retries + 1):
+            try:
+                # Call Ollama API
+                response = self.client.chat(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                    options={
+                        "temperature": temperature,
+                        "num_predict": max_tokens,  # Ollama uses num_predict instead of max_tokens
+                    },
+                )
 
-            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
+                latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
-            # Extract response
-            content = response["message"]["content"]
+                # Extract response
+                content = response["message"]["content"]
 
-            # Estimate tokens (Ollama doesn't always provide exact counts)
-            # Use approximate: ~4 chars per token
-            prompt_tokens = len(prompt) // 4
-            completion_tokens = len(content) // 4
-            total_tokens = prompt_tokens + completion_tokens
+                # Estimate tokens (Ollama doesn't always provide exact counts)
+                # Use approximate: ~4 chars per token
+                prompt_tokens = len(prompt) // 4
+                completion_tokens = len(content) // 4
+                total_tokens = prompt_tokens + completion_tokens
 
-            # If response has actual token counts, use them
-            if "eval_count" in response:
-                completion_tokens = response["eval_count"]
-                total_tokens = response.get("prompt_eval_count", prompt_tokens) + completion_tokens
+                # If response has actual token counts, use them
+                if "eval_count" in response:
+                    completion_tokens = response["eval_count"]
+                    total_tokens = (
+                        response.get("prompt_eval_count", prompt_tokens) + completion_tokens
+                    )
 
-            self.logger.info(
-                "OLLAMA_GENERATE_COMPLETED",
-                model=model,
-                tokens_used=total_tokens,
-                cost_usd=0.0,  # Local inference = free!
-                latency_ms=round(latency_ms, 2),
-            )
+                # Success: record in circuit breaker
+                self.circuit_breaker.record_success()
 
-            return LLMResponse(
-                content=content,
-                model=model,
-                provider="ollama",
-                tokens_used=total_tokens,
-                cost_usd=0.0,  # Free!
-                latency_ms=latency_ms,
-                metadata={
-                    "prompt_tokens": prompt_tokens,
-                    "completion_tokens": completion_tokens,
-                    "base_url": self.base_url,
-                    "eval_count": response.get("eval_count"),
-                    "eval_duration": response.get("eval_duration"),
-                },
-            )
+                if attempt > 0:
+                    self.logger.info(
+                        "OLLAMA_RETRY_SUCCEEDED",
+                        model=model,
+                        attempt=attempt + 1,
+                        total_attempts=self.retry_config.max_retries + 1,
+                    )
 
-        except Exception as e:
-            sanitized_error = sanitize_error_message(str(e))
-            self.logger.error(
-                "OLLAMA_GENERATE_FAILED", error=sanitized_error, model=model, base_url=self.base_url
-            )
-            raise
+                self.logger.info(
+                    "OLLAMA_GENERATE_COMPLETED",
+                    model=model,
+                    tokens_used=total_tokens,
+                    cost_usd=0.0,  # Local inference = free!
+                    latency_ms=round(latency_ms, 2),
+                    retry_attempts=attempt,
+                )
+
+                return LLMResponse(
+                    content=content,
+                    model=model,
+                    provider="ollama",
+                    tokens_used=total_tokens,
+                    cost_usd=0.0,  # Free!
+                    latency_ms=latency_ms,
+                    metadata={
+                        "prompt_tokens": prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "base_url": self.base_url,
+                        "eval_count": response.get("eval_count"),
+                        "eval_duration": response.get("eval_duration"),
+                        "retry_attempts": attempt,
+                    },
+                )
+
+            except Exception as e:
+                last_exception = e
+                sanitized_error = sanitize_error_message(str(e))
+
+                # Record failure in circuit breaker
+                self.circuit_breaker.record_failure()
+
+                # Check if we have retries left
+                if attempt < self.retry_config.max_retries:
+                    delay = calculate_backoff_delay(attempt, self.retry_config)
+
+                    self.logger.warning(
+                        "OLLAMA_RETRY_ATTEMPT",
+                        model=model,
+                        attempt=attempt + 1,
+                        max_retries=self.retry_config.max_retries,
+                        delay_seconds=round(delay, 2),
+                        error=sanitized_error[:100],
+                        circuit_state=self.circuit_breaker.state.value,
+                    )
+
+                    time.sleep(delay)
+
+                    # Re-check circuit breaker after delay
+                    if not self.circuit_breaker.can_execute():
+                        raise CircuitOpenError(
+                            self.circuit_breaker.name,
+                            "Circuit opened during retry sequence",
+                        )
+                else:
+                    self.logger.error(
+                        "OLLAMA_GENERATE_FAILED",
+                        error=sanitized_error,
+                        model=model,
+                        base_url=self.base_url,
+                        total_attempts=self.retry_config.max_retries + 1,
+                        circuit_state=self.circuit_breaker.state.value,
+                    )
+
+        # All retries exhausted
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("Unexpected retry loop exit")
 
     def embed(self, text: str) -> np.ndarray:
         """

@@ -43,6 +43,7 @@ from backend.api.public.workflows import (
     assistant_history,
     assistant_websocket,
     clinic_media,
+    documents,
     evidence,
     kpis,
     longitudinal_memory,
@@ -114,6 +115,9 @@ router.include_router(tv_content_seeds.router, tags=["TV Content"])
 
 # WIDGET CONFIGS: Configurable widget data (trivia, breathing, tips)
 router.include_router(widget_configs.router, tags=["Widget Configs"])
+
+# DOCUMENTS: Knowledge Base document upload and RAG (FI-API-FEAT-020)
+router.include_router(documents.router, tags=["Knowledge Base"])
 
 logger.info(
     "WORKFLOWS_ROUTER_INITIALIZED",

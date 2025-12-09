@@ -8,34 +8,41 @@ description: "Policy-driven provider selection with size-based routing"
 # STT Provider Configuration
 stt:
   # Primary provider for standard chunks
-  primary_provider: "deepgram"  # Deepgram as primary (Azure Whisper endpoint removed)
+  primary_provider: "azure_speech"  # Azure Speech Services (pay-as-you-go)
 
   # Fallback providers in priority order
   fallback_providers:
-    - "deepgram"  # No Azure fallback - endpoint removed
+    - "deepgram"  # Deepgram as fallback
 
   # Size-based routing rules
   routing_rules:
-    # Large files use Deepgram (Azure endpoint removed)
-    large_file_threshold_mb: 5.0  # Files > 5MB still use Deepgram
-    large_file_provider: "deepgram"
+    # Large files use Azure Speech
+    large_file_threshold_mb: 5.0  # Files > 5MB
+    large_file_provider: "azure_speech"
 
     # Duration-based routing (if duration is known)
-    long_duration_threshold_seconds: 300  # Audio > 5 min uses Deepgram
-    long_duration_provider: "deepgram"
+    long_duration_threshold_seconds: 300  # Audio > 5 min
+    long_duration_provider: "azure_speech"
 
   # Provider-specific configurations
   providers:
     # azure_whisper: REMOVED - endpoint no longer available
+
+    azure_speech:
+      enabled: true
+      timeout_seconds: 30
+      language: "es-MX"
+      max_file_size_mb: 25
+      retry_on_empty: true
+      use_simple_mime: false  # false = UI chunk breaker format, true = simple MIME for curl
 
     deepgram:
       enabled: true
       timeout_seconds: 30
       model: "nova-2"
       language: "es"
-      max_file_size_mb: 25  # Increased limit (was 10, now matches Azure's old limit)
+      max_file_size_mb: 25
       retry_on_empty: true
-      # No fallback to Azure - endpoint removed
 
   # Automatic retry configuration
   retry_policy:
