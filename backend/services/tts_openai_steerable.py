@@ -24,11 +24,10 @@ Created: 2025-12-08
 from __future__ import annotations
 
 import base64
-import os
-from typing import Literal
-
 import httpx
+import os
 import structlog
+from typing import Literal
 
 logger = structlog.get_logger(__name__)
 

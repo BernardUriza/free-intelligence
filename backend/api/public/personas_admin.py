@@ -250,6 +250,7 @@ async def update_persona(
     update: PersonaUpdateRequest,
     user_id: str | None = Query(None, description="User ID for personalized update"),
     db: Session = Depends(get_db_dependency),
+    current_user: User = Depends(get_current_user),
 ) -> PersonaResponse:
     """Update persona configuration.
 
@@ -327,7 +328,7 @@ async def update_persona(
     # Increment version
     yaml_data["version"] = yaml_data.get("version", 1) + 1
     yaml_data["updated_at"] = datetime.now(UTC).isoformat()
-    yaml_data["updated_by"] = "Dr. Uriza"  # TODO: Get from auth context
+    yaml_data["updated_by"] = current_user.email or current_user.sub
 
     # Save updated YAML
     with open(yaml_path, "w", encoding="utf-8") as f:
