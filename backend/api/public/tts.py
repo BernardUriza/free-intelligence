@@ -42,9 +42,13 @@ class TTSRequest(BaseModel):
         default="nova",
         description="Voice name (OpenAI: nova, alloy, etc. | Azure: es-MX-DaliaNeural, etc.)",
     )
-    provider: Literal["openai", "azure"] | None = Field(
+    provider: Literal["openai", "openai-steerable", "azure"] | None = Field(
         default=None,
-        description="TTS provider (auto-detect based on voice if not specified)",
+        description="TTS provider (auto-detect: Spanish + steerable voice = openai-steerable)",
+    )
+    accent: str | None = Field(
+        default=None,
+        description="Accent for steerable TTS (e.g., 'Mexican Spanish', 'neutral Spanish')",
     )
     response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
         default="mp3",
@@ -61,33 +65,38 @@ class TTSRequest(BaseModel):
 @router.post(
     "/synthesize",
     response_class=Response,
-    summary="Synthesize Speech (Multi-Provider)",
+    summary="Synthesize Speech (Multi-Provider with Accent Control)",
     description="""
-    Generate speech audio from text using OpenAI TTS or Azure Speech Services.
+    Generate speech audio from text using OpenAI TTS, OpenAI Steerable TTS, or Azure Speech Services.
 
     **Use Cases:**
     - Demo mode consultation audio
     - Accessibility features (text-to-speech)
     - Training materials
+    - Multilingual content with accent control
 
-    **Provider Selection:**
-    - Automatic: Use voice name (es-MX-* = Azure, others = OpenAI)
-    - Manual: Set `provider` to "openai" or "azure"
+    **Provider Selection (Auto-detect):**
+    - Spanish text + steerable voice (alloy/echo/shimmer) → `openai-steerable` (Mexican accent)
+    - Azure voice (es-MX-*) → `azure`
+    - Other voices → `openai`
 
-    **🎙️ OpenAI TTS Voices (Natural, Expressive - DEFAULT):**
-    - `nova` ⭐ - Female, warm (default, recommended)
-    - `alloy` - Neutral, versatile
-    - `shimmer` - Female, clear
-    - `echo` - Male
+    **Manual Override:**
+    Set `provider` to "openai", "openai-steerable", or "azure"
+
+    **🎯 OpenAI Steerable TTS (Accent Control - BEST FOR SPANISH):**
+    - `alloy` ⭐ - Neutral, versatile (supports Mexican Spanish accent)
+    - `echo` - Male (supports Mexican Spanish accent)
+    - `shimmer` - Female, clear (supports Mexican Spanish accent)
+
+    Use with `accent="Mexican Spanish"` for natural Mexican accent!
+
+    **🎙️ OpenAI TTS Standard (English/General):**
+    - `nova` - Female, warm
+    - `ash`, `ballad`, `coral`, `sage`, `verse` - New 2025
     - `fable` - Male, British
     - `onyx` - Male, deep
-    - `ash` - New 2025
-    - `ballad` - New 2025
-    - `coral` - New 2025
-    - `sage` - New 2025
-    - `verse` - New 2025
 
-    **🌍 Azure Speech Services (Spanish Mexico Neural):**
+    **🌍 Azure Speech Services (Native Spanish Mexico):**
 
     Female:
     - `es-MX-DaliaNeural` - Female (medical context)
@@ -128,7 +137,7 @@ class TTSRequest(BaseModel):
 )
 async def synthesize_speech(request: TTSRequest) -> Response:
     """
-    Synthesize speech from text using OpenAI or Azure TTS.
+    Synthesize speech from text using OpenAI, OpenAI Steerable, or Azure TTS.
 
     Returns audio file in specified format.
     """
@@ -139,6 +148,7 @@ async def synthesize_speech(request: TTSRequest) -> Response:
             text=request.text,
             voice=request.voice,
             provider=request.provider,
+            accent=request.accent,
             response_format=request.response_format,
             speed=request.speed,
         )

@@ -258,7 +258,9 @@ async def get_history_stats(
         memory = get_memory_manager(doctor_id)
         stats = memory.get_stats()
 
-        logger.info("HISTORY_STATS_RETRIEVED", doctor_id=doctor_id, **stats)
+        # Remove doctor_id from stats to avoid duplicate kwarg
+        stats_log = {k: v for k, v in stats.items() if k != "doctor_id"}
+        logger.info("HISTORY_STATS_RETRIEVED", doctor_id=doctor_id, **stats_log)
 
         return stats
 

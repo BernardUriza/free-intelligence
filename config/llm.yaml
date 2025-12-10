@@ -3,12 +3,13 @@
 # Card: FI-CORE-FEAT-001
 
 # Default provider for LLM operations
-provider_default: azure
+provider_default: ollama
 
 # Ollama provider configuration (local-only)
 ollama:
   base_url: "http://127.0.0.1:11434"
-  timeout_ms: 8000
+  model: "qwen2:1.5b-instruct"
+  timeout_ms: 300000
   retry: 1
   ttl_cache_min: 30
 

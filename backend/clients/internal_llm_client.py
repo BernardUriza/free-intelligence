@@ -35,7 +35,7 @@ class InternalLLMClient:
             base_url: Base URL del backend (default: localhost:7001)
         """
         self.base_url = base_url
-        self.client = httpx.AsyncClient(base_url=base_url, timeout=60.0)
+        self.client = httpx.AsyncClient(base_url=base_url, timeout=300.0)
 
     async def chat(
         self,

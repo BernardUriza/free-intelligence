@@ -99,10 +99,10 @@ stt:
 # ===== LLM Provider Configuration =====
 llm:
   # Primary provider for production workloads
-  primary_provider: claude  # Claude for high-quality RAG responses
+  primary_provider: ollama  # Ollama local for testing with Qwen3
 
   # Fallback provider if primary fails
-  fallback_provider: ollama
+  fallback_provider: claude
 
   # Offline-first mode (prefer local inference)
   enable_offline: false  # Set to true when NAS deployment is ready
@@ -119,7 +119,7 @@ llm:
 
     # Ollama - Local inference (offline-first)
     ollama:
-      model: qwen3:4b  # Qwen3 4B - optimized for RAG on 8GB RAM
+      model: qwen2:1.5b-instruct  # Qwen2 1.5B - faster responses
       base_url: http://localhost:11434  # Ollama server
       timeout_seconds: 120  # Longer timeout for CPU inference
       max_tokens: 2048  # Max output tokens

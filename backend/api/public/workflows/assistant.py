@@ -218,8 +218,19 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
                 system_message = msg.content
                 break
 
-        # Extract doctor_id from user field or generate anonymous session
-        doctor_id = request.user if request.user else None
+        # Extract doctor_id from user field
+        # If not provided, use "anonymous" for public storage (still persists, but shared)
+        is_anonymous = not request.user
+        doctor_id = request.user if request.user else "anonymous"
+
+        if is_anonymous:
+            logger.warning(
+                "ASSISTANT_CHAT_ANONYMOUS",
+                message="No doctor_id provided, using anonymous storage. "
+                "Messages will be saved but not tied to a specific user. "
+                "Frontend should pass 'user' field with Auth0 user.sub for persistent history.",
+                session_id=request.session_id,
+            )
 
         # Build context for internal LLM client
         context = {
@@ -231,10 +242,8 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
             "frequency_penalty": request.frequency_penalty,
             "presence_penalty": request.presence_penalty,
             "stop": request.stop,
+            "doctor_id": doctor_id,
         }
-
-        if doctor_id:
-            context["doctor_id"] = doctor_id
 
         logger.info(
             "ASSISTANT_CHAT_START",
@@ -243,9 +252,10 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
             has_behavior_metrics=request.behavior_metrics is not None,
             session_id=request.session_id,
             doctor_id=doctor_id,
+            is_anonymous=is_anonymous,
             persona=request.persona,
             model=request.model,
-            memory_enabled=doctor_id is not None,
+            memory_enabled=True,  # Always enabled now (anonymous or authenticated)
         )
 
         llm_client = get_llm_client()
@@ -279,13 +289,14 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
 
         # Convert OpenAI messages to internal format
         # For now, we'll use the last user message and system context
+        # Memory is ALWAYS enabled - uses "anonymous" storage if no doctor_id
         result = await llm_client.chat(
             persona=request.persona,
             message=last_message.content,
             context=context,
             session_id=request.session_id,
             doctor_id=doctor_id,
-            use_memory=doctor_id is not None,
+            use_memory=True,  # Always persist (anonymous or authenticated)
         )
 
         # Create OpenAI-style response
@@ -340,6 +351,7 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
             persona=result["persona"],
             emotional_analysis=emotional_analysis,
             receptionist_state=receptionist_state,
+            is_anonymous=is_anonymous,
         )
 
     except HTTPException:
@@ -548,7 +560,7 @@ async def _get_rag_context(
 
         # Build context string with clear structure
         context_parts = []
-        for idx, (doc_id, chunk_id, similarity, chunk_text) in enumerate(relevant_results, 1):
+        for idx, (doc_id, _chunk_id, similarity, chunk_text) in enumerate(relevant_results, 1):
             doc = get_document(doc_id)
             if doc:
                 context_parts.append(
