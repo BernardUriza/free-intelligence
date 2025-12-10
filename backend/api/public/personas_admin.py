@@ -22,14 +22,15 @@ Updated: 2025-11-20 (Multi-tenant support)
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from typing import Any
-
 import yaml
+from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from typing import Any
 
+from backend.auth.dependencies import get_current_user
+from backend.auth.models import User
 from backend.database import get_db_dependency
 from backend.services.llm.persona_manager import PersonaManager
 from backend.services.persona_metrics_service import get_persona_metrics_service
@@ -273,7 +274,7 @@ async def update_persona(
     # USER-SPECIFIC UPDATE (to database)
     if user_id:
         try:
-            updated_config = persona_manager.update_user_persona(
+            persona_manager.update_user_persona(
                 user_id=user_id,
                 persona_id=persona_id,
                 db=db,
@@ -342,7 +343,10 @@ async def update_persona(
 
 
 @router.post("/{persona_id}/test", response_model=PersonaTestResponse)
-async def test_persona(persona_id: str, test_request: PersonaTestRequest) -> PersonaTestResponse:
+async def test_persona(
+    persona_id: str,
+    _test_request: PersonaTestRequest,  # Prefixed unused parameter
+) -> PersonaTestResponse:
     """Test a persona with sample input.
 
     Args:
