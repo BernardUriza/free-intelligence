@@ -34,7 +34,6 @@ import json
 import time
 import uuid
 from collections.abc import AsyncGenerator
-
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
