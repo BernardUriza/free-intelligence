@@ -134,7 +134,6 @@ def read_audit_events(
         >>> events = read_audit_events(start_date="2025-11-09", action="TIMELINE_HASH_VERIFIED")
     """
     import json
-    from typing import Any
 
     events: list[dict[str, Any]] = []
 

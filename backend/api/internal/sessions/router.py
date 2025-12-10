@@ -32,7 +32,6 @@ from uuid import uuid4
 
 from backend.container import get_container
 from backend.logger import get_logger
-from backend.schemas.schemas import error_response
 
 logger = get_logger(__name__)
 
