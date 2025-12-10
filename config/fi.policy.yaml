@@ -1,150 +1,231 @@
-# Free Intelligence — Master Policy Configuration
-# Consolidates all executable policies
+# Free Intelligence - Policy Configuration
+# Controls LLM provider routing, export policies, audit policies, and budgets
+#
+# Owner: Bernard Uriza Orozco
+# Version: 0.1.0
+# Created: 2025-11-14
 
-version: "1.0"
-
-# Metadata about this policy
-metadata:
-  version: "1.0.0"
-  last_updated: "2024-12-02"
-  owner: "Free Intelligence Team"
-  environment: "development"
-
-# Diarization policy
+# ===== Diarization (Speaker Identification) Configuration =====
 diarization:
-  primary_provider: "pyannote"
-  fallback_providers: ["deepgram"]
-  providers:
-    pyannote:
-      model: "pyannote/speaker-diarization"
-      auth_token: "YOUR_HUGGING_FACE_TOKEN" # Set via HF_TOKEN
-    deepgram:
-      api_key: "YOUR_DEEPGRAM_KEY" # Set via DEEPGRAM_API_KEY
-      model: "dual-channel"
+  # Primary provider for speaker identification
+  primary_provider: azure_gpt4  # Azure GPT-4 text-based diarization (high accuracy)
 
-# STT policy
-stt:
-  primary_provider: "deepgram"  # Azure Whisper endpoint removed
-  fallback_providers: ["deepgram"]  # No Azure fallback available
-  providers:
-    # azure_whisper: REMOVED - endpoint no longer available
-    deepgram:
-      api_key: "YOUR_DEEPGRAM_KEY" # Set via DEEPGRAM_API_KEY
-      model: "nova-2-conversationalai"
+  # Fallback providers in order (local → cloud)
+  fallback_providers:
+    - azure_gpt4
+    - deepgram
+    - aws_transcribe
+    - google_speech
 
-# LLM policy
-llm:
-  primary_provider: "ollama"
-  fallback_provider: "claude"
+  # Provider-specific configurations
   providers:
-    ollama:
-      base_url: "http://127.0.0.1:11434"
-      model: "qwen2:1.5b-instruct"
-      embed_model: "nomic-embed-text"
-      timeout_seconds: 30
-      max_tokens: 2048
-    claude:
-      model: "claude-3-5-sonnet-20241022"
+    # Azure GPT-4 - Text-based diarization (high accuracy, medical context)
+    azure_gpt4:
+      model: gpt-4o
+      deployment: gpt-4o
+      api_version: "2024-02-15-preview"
       timeout_seconds: 60
       max_tokens: 4096
-    azure:
-      endpoint: "https://your-instance.openai.azure.com"
-      deployment: "gpt-4o"
+      temperature: 0.3
+      # Credentials from environment:
+      # - AZURE_OPENAI_ENDPOINT: https://resource.openai.azure.com/
+      # - AZURE_OPENAI_KEY: your-api-key
+
+    # Pyannote - Local speaker diarization (free, offline)
+    pyannote:
+      model: "pyannote/speaker-diarization-3.1"
+      device: cpu  # cpu or cuda
+      timeout_seconds: 120
+      # No credentials needed - uses HuggingFace models
+
+    # Deepgram - Cloud speaker diarization (fast, low cost)
+    deepgram:
+      model: "nova-2"
+      timeout_seconds: 30
+      # Credentials from environment:
+      # - DEEPGRAM_API_KEY: your-api-key
+
+    # AWS Transcribe - Cloud speaker diarization (high accuracy)
+    aws_transcribe:
+      region: "us-east-1"
+      timeout_seconds: 300
+      # Credentials from environment:
+      # - AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+
+    # Google Speech-to-Text - Cloud speaker diarization (multilingual)
+    google_speech:
+      language_code: "es-ES"
+      timeout_seconds: 60
+      # Credentials from environment:
+      # - GOOGLE_APPLICATION_CREDENTIALS: path/to/credentials.json
+
+  # For medical consultations: identify doctor vs patient
+  expected_num_speakers: 2
+
+# ===== STT Provider Configuration =====
+stt:
+  # Primary provider for transcription
+  primary_provider: deepgram  # Deepgram as primary (Azure Whisper endpoint removed)
+
+  # Fallback providers in order (cloud only)
+  fallback_providers:
+    - deepgram
+    # Note: azure_whisper removed - endpoint no longer available
+
+  # Provider-specific configurations
+  providers:
+    # Azure Whisper - Cloud-based STT (fastest, requires API key)
+    azure_whisper:
       api_version: "2024-02-15-preview"
       timeout_seconds: 30
-      max_tokens: 2048
+      # Rate limiting (S0 tier: ~3 requests/min)
+      retry_max_attempts: 3
+      retry_base_delay_seconds: 15  # Azure recommended retry delay
+      retry_backoff_multiplier: 2   # Exponential backoff: 15s, 30s, 60s
+      # Credentials from environment:
+      # - AZURE_OPENAI_ENDPOINT: https://resource.openai.azure.com/
+      # - AZURE_OPENAI_KEY: your-api-key
+
+    # Deepgram - Cloud-based STT (very fast, nova-2 model)
+    deepgram:
+      model: nova-2
+      timeout_seconds: 30
+      language_default: es
+      # Retry on empty transcript (no fallback to Azure - endpoint removed)
+      retry_on_empty: true
+      # Credentials from environment:
+      # - DEEPGRAM_API_KEY: your-api-key
+
+# ===== LLM Provider Configuration =====
+llm:
+  # Primary provider for production workloads
+  primary_provider: ollama  # Ollama local for testing with Qwen3
+
+  # Fallback provider if primary fails
+  fallback_provider: claude
+
+  # Offline-first mode (prefer local inference)
+  enable_offline: false  # Set to true when NAS deployment is ready
+
+  # Provider-specific configurations
+  providers:
+    # Anthropic Claude - Production LLM (cloud)
+    claude:
+      model: claude-sonnet-4-5-20250929  # Claude Sonnet 4.5 (latest official version)
+      timeout_seconds: 60  # API timeout
+      max_tokens: 8192  # Max output tokens
+      temperature: 0.3  # Balanced between deterministic and creative
+      # API key loaded from environment: CLAUDE_API_KEY
+
+    # Ollama - Local inference (offline-first)
+    ollama:
+      model: qwen2:1.5b-instruct  # Qwen2 1.5B - faster responses
+      base_url: http://localhost:11434  # Ollama server
+      timeout_seconds: 120  # Longer timeout for CPU inference
+      max_tokens: 2048  # Max output tokens
+      temperature: 0.5  # Lower temp for more factual RAG responses
+      num_ctx: 8192  # Larger context for RAG (critical!)
+      embed_model: nomic-embed-text  # Embedding model (768-dim)
+
+    # Azure OpenAI - Cloud-based LLM (GPT-4, GPT-4o)
+    azure:
+      model: gpt-4o  # GPT-4 Optimized (latest)
+      deployment: gpt-4o  # Azure deployment name (may differ from model)
+      api_version: "2024-02-15-preview"  # Azure API version
+      timeout_seconds: 30  # API timeout
+      max_tokens: 1024  # Max output tokens
+      temperature: 0.7  # Default temperature
+      # Credentials from environment:
+      # - AZURE_OPENAI_ENDPOINT: https://resource.openai.azure.com/
+      # - AZURE_OPENAI_KEY: your-api-key
+
+    # OpenAI - Future optional provider
+    # openai:
+    #   model: gpt-4-turbo
+    #   timeout_seconds: 30
+    #   max_tokens: 4096
+    #   temperature: 0.7
+
+  # Budget controls (cost management)
   budgets:
-    max_cost_per_day: 20.0
-    max_requests_per_hour: 100
+    max_cost_per_day: 10.0  # USD - Demo budget
+    max_requests_per_hour: 100  # Rate limiting
+    alert_threshold: 0.8  # Alert at 80% budget usage
+
+  # Fallback rules (provider selection logic)
   fallback_rules:
-    - condition: "primary_provider_unavailable"
-      action: "use_fallback_provider"
-    - condition: "budget_exceeded"
-      action: "switch_to_offline_mode"
-  enable_offline: true
+    - condition: rate_limit_exceeded
+      action: switch_to_fallback
+    - condition: timeout
+      action: switch_to_fallback
+    - condition: api_error
+      action: retry_with_backoff
 
-# Export policy
+# ===== Export Policy =====
 export:
+  # Require manifest.json for all exports
   require_manifest: true
+
+  # Compute SHA256 hashes for verification
   compute_sha256: true
-  allowed_formats: ["json", "markdown", "hdf5"]
 
-# Audit policy
+  # Allowed export formats
+  allowed_formats:
+    - json
+    - markdown
+    - txt
+    - csv
+    - yaml
+
+  # Redact sensitive fields in exports
+  redact_fields:
+    - api_key
+    - session_token
+    - password
+
+  # Export destination restrictions
+  allowed_destinations:
+    - local  # Local filesystem
+    - nas    # NAS storage (DS923+)
+    # - cloud  # Disabled for LAN-only policy
+
+# ===== Audit Policy =====
 audit:
+  # Log all LLM operations to audit trail
   log_all_operations: true
-  retention_days: 90
-  hash_payloads: true
-  hash_results: true
 
-# Sovereignty Policy
-sovereignty:
-  egress:
-    default: deny
-    allowlist:
-      - "api.anthropic.com"
-      - "127.0.0.1:11434"
-      - "localhost:11434"
-      - "127.0.0.1:5000"
-      - "localhost:5000"
+  # Retention period for audit logs
+  retention_days: 365  # 1 year
 
-# Privacy Policy
-privacy:
-  phi:
-    enabled: true
-  redaction:
-    spoilers: true
-    style_file: "config/redaction_style.yaml"
+  # Hash payloads (prompts) for privacy
+  hash_payloads: true  # SHA256 hash instead of full text
 
-# Integrity Policy
-integrity:
-  segment_seconds: 60
-  hash: sha256
-  snapshots:
-    ready:
-      daily: 7
+  # Hash results (responses) for privacy
+  hash_results: true  # SHA256 hash instead of full text
 
-# Timeline Policy
-timeline:
-  auto:
-    enabled: false  # Feature flag
-  auto_archive_days: 180
-  max_interactions_per_query: 1000
-  pagination_default: 50
+  # Log levels for different operations
+  log_levels:
+    llm_generate: info
+    llm_embed: info
+    export: warning
+    search: warning
+    delete: error  # Critical operation
 
-# Agents Policy
-agents:
-  enabled: false
+  # PII detection (future)
+  detect_pii: false  # Enable when PII detection is implemented
 
-# Reactions to Policy Violations
-reactions:
-  policy_violation: ["quarantine", "audit", "alert_warn"]
+# ===== Metadata =====
+metadata:
+  version: 0.1.0
+  last_updated: 2025-11-14
+  owner: Bernard Uriza Orozco
+  description: Free Intelligence policy configuration for Claude-based diarization demo
 
-# Mutation Policy
-mutation:
-  append_only: true
-  validator: "backend.mutation_validator"
-  event_required: true
+  # Environment
+  environment: development  # development | staging | production
 
-# Corpus Policy
-corpus:
-  identity_required: true
-  owner_hash_algorithm: "sha256"
-  lock_timeout_seconds: 30
-
-# Retention Policy
-retention:
-  audit_logs_days: 90
-  session_min_days: 365
-  export_manifests_days: 730
-
-# Security Policy
-security:
-  lan_only: true
-  auth_required: true
-  rbac_enabled: true
-
-# Observability Policy
-observability:
-  error_budgets_file: "observability/error_budgets.yaml"
-  alerts_file: "observability/alerts.prom"
-  chaos_drills_enabled: true
+  # Compliance
+  compliance:
+    - LAN_ONLY  # No cloud dependencies in runtime
+    - APPEND_ONLY  # HDF5 corpus is append-only
+    - AUDIT_TRAIL  # All operations logged
