@@ -33,15 +33,18 @@ import asyncio
 import hashlib
 import json
 import time
-import ulid
 import uuid
 import uuid as _uuid
 from collections.abc import AsyncGenerator
+
+import ulid
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from backend.clients import get_llm_client
 from backend.logger import get_logger
+from backend.observability import chat_events
+from backend.observability.logging import CTX_REQUEST_ID
 from backend.services.trace_store import get_trace_store
 from backend.utils.redactor import redact_and_hash_once
 
@@ -86,6 +89,8 @@ def _make_log_entry(level: str, **kwargs):
     }
     base.update({k: v for k, v in kwargs.items() if k not in base})
     return base
+
+
 router = APIRouter()
 
 
@@ -232,6 +237,10 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
     import uuid
 
     try:
+        # Create and set request_id in contextvars for observability
+        request_id = str(_uuid.uuid4())
+        CTX_REQUEST_ID.set(request_id)
+
         # Extract the last user message for processing
         last_message = request.messages[-1]
         if last_message.role != "user":
@@ -289,6 +298,19 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
 
         llm_client = get_llm_client()
 
+        # Log chat request event
+        chat_ctx = {
+            "request_id": request_id,
+            "trace_id": None,
+            "persona": request.persona,
+            "response_mode": None,
+            "prompt_chars": len(last_message.content) if last_message.content else 0,
+            "rag_chars": len(context.get("rag_context", "")) if context.get("rag_context") else 0,
+            "model": request.model,
+            "provider": None,
+        }
+        chat_events.log_chat_request(chat_ctx)
+
         # Run emotional analysis if metrics provided
         emotional_analysis = None
         if request.behavior_metrics is not None:
@@ -326,7 +348,20 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
             session_id=request.session_id,
             doctor_id=doctor_id,
             use_memory=True,  # Always persist (anonymous or authenticated)
+            request_id=request_id,
+            caller="public",
         )
+
+        # After LLM returns, log LLM_CALL
+        usage = None
+        try:
+            usage = {
+                "prompt_tokens": result.get("prompt_tokens", 0),
+                "completion_tokens": result.get("completion_tokens", 0),
+            }
+        except Exception:
+            usage = None
+        chat_events.log_llm_call(chat_ctx, usage, llm_ms=result.get("latency_ms", 0))
 
         # Create OpenAI-style response
         completion_id = f"chatcmpl-{uuid.uuid4().hex}"
@@ -348,12 +383,8 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
             total_tokens=total_tokens,
         )
 
-        logger.info(
-            "ASSISTANT_CHAT_SUCCESS",
-            completion_id=completion_id,
-            tokens=total_tokens,
-            latency=result.get("latency_ms", 0),
-            session_id=request.session_id,
+        chat_events.log_chat_response(
+            chat_ctx, total_ms=result.get("latency_ms", 0), truncated=False
         )
 
         # Build receptionist state if config provided
@@ -417,7 +448,6 @@ async def assistant_chat_dry_run(
     Resolves persona, response_mode (from messages/system), builds system prompt markers,
     and returns metadata without including user message text (only hash and length).
     """
-    import uuid
 
     # Generate request id
     request_id = str(_uuid.uuid4())
@@ -451,7 +481,7 @@ async def assistant_chat_dry_run(
     # Build a safe truncated system prompt
     full_prompt = pm.build_system_prompt(request.persona, context)
     max_rag_chars = 2048
-    truncated_prompt = full_prompt[: max_rag_chars]
+    truncated_prompt = full_prompt[:max_rag_chars]
     redacted_prompt, meta = redact_and_hash_once(truncated_prompt, redact_rules)
 
     # Save trace entry
@@ -475,8 +505,12 @@ async def assistant_chat_dry_run(
         "persona_id": persona_cfg.persona,
         "response_mode_resolved": response_mode or "explanatory",
         "system_markers": {
-            "concise": "<!--MODE:CONCISE-->" if (response_mode or "").lower() == "concise" else None,
-            "explanatory": "<!--MODE:EXPLANATORY-->" if (response_mode or "").lower() == "explanatory" else "<!--MODE:EXPLANATORY-->",
+            "concise": "<!--MODE:CONCISE-->"
+            if (response_mode or "").lower() == "concise"
+            else None,
+            "explanatory": "<!--MODE:EXPLANATORY-->"
+            if (response_mode or "").lower() == "explanatory"
+            else "<!--MODE:EXPLANATORY-->",
             "rag_begin": "<!--RAG:BEGIN-->",
             "rag_end": "<!--RAG:END-->",
         },
@@ -565,6 +599,10 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
 
             llm_client = get_llm_client()
 
+            # Set request id for stream
+            request_id = str(_uuid.uuid4())
+            CTX_REQUEST_ID.set(request_id)
+
             # Send initial chunk with role
             initial_chunk = ChatCompletionStreamResponse(
                 id=completion_id,
@@ -583,6 +621,8 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                 session_id=request.session_id,
                 doctor_id=doctor_id,
                 use_memory=doctor_id is not None,
+                request_id=request_id,
+                caller="public",
             )
 
             # Split response into chunks for streaming simulation

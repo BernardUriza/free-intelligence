@@ -16,8 +16,10 @@ Ventajas:
 
 from __future__ import annotations
 
-import httpx
+import os
 from typing import Any
+
+import httpx
 
 from backend.logger import get_logger
 
@@ -45,6 +47,8 @@ class InternalLLMClient:
         doctor_id: str | None = None,
         use_memory: bool = False,
         request_id: str | None = None,
+        trace_id: str | None = None,
+        caller: str = "public",
     ) -> dict:
         """Conversación con Free-Intelligence.
 
@@ -83,6 +87,19 @@ class InternalLLMClient:
             headers = {}
             if request_id:
                 headers["x-fi-request-id"] = request_id
+            if trace_id:
+                headers["x-fi-trace-id"] = trace_id
+
+            # Security guard: if enforcement enabled, raise; otherwise warn.
+            if caller != "internal":
+                logger.warning(
+                    "SECURITY_GUARD_CHECK",
+                    reason="non_internal_caller",
+                    caller=caller,
+                )
+                if os.getenv("FI_ENFORCE_GUARD", "0") == "1":
+                    logger.error("SECURITY_GUARD_HIT", caller=caller)
+                    raise AssertionError("Public layer must not call internal endpoints directly")
 
             response = await self.client.post(
                 "/internal/llm/chat",

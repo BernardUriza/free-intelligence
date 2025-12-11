@@ -559,12 +559,21 @@ def list_appointments(
     if date:
         try:
             filter_date = datetime.fromisoformat(date).date()
+            # FIXED: Use UTC timezone to match database timestamps
+            start_of_day = datetime.combine(filter_date, datetime.min.time(), tzinfo=UTC)
+            end_of_day = start_of_day + timedelta(days=1)
             query = query.filter(
-                Appointment.scheduled_at >= datetime.combine(filter_date, datetime.min.time()),
-                Appointment.scheduled_at
-                < datetime.combine(filter_date, datetime.min.time()) + timedelta(days=1),
+                Appointment.scheduled_at >= start_of_day,
+                Appointment.scheduled_at < end_of_day,
             )
-        except ValueError:
+            logger.debug(
+                "DATE_FILTER",
+                date=date,
+                start=start_of_day.isoformat(),
+                end=end_of_day.isoformat(),
+            )
+        except ValueError as e:
+            logger.warning("INVALID_DATE_FORMAT", date=date, error=str(e))
             pass  # Ignore invalid date
 
     if doctor_id:
@@ -695,4 +704,41 @@ def update_appointment(
         reason=appointment.reason,
         notes=appointment.notes,
         created_at=appointment.created_at.isoformat(),
+    )
+
+
+@router.delete("/{clinic_id}/appointments/{appointment_id}", status_code=204)
+def delete_appointment(
+    clinic_id: str,
+    appointment_id: str,
+    db: Session = Depends(get_db_dependency),  # noqa: B008
+) -> None:
+    """Soft delete an appointment."""
+    # Fetch appointment
+    appointment = (
+        db.query(Appointment)
+        .filter(
+            Appointment.appointment_id == appointment_id,
+            Appointment.clinic_id == clinic_id,
+            Appointment.is_deleted.is_(False),
+        )
+        .first()
+    )
+
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+
+    # Prevent deleting completed appointments
+    if appointment.status == AppointmentStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="Cannot delete completed appointments")
+
+    # Soft delete
+    appointment.is_deleted = True
+    appointment.updated_at = datetime.now(UTC)
+    db.commit()
+
+    logger.info(
+        "APPOINTMENT_DELETED",
+        appointment_id=str(appointment.appointment_id),
+        clinic_id=clinic_id,
     )

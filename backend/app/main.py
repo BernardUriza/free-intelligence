@@ -15,10 +15,11 @@ from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
 from datetime import UTC
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
 from backend.middleware.idempotency import IdempotencyMiddleware
 from backend.middleware.internal_only import InternalOnlyMiddleware
@@ -32,6 +33,14 @@ async def lifespan(app: FastAPI):
     from backend.database import init_db
     from backend.logger import get_logger
 
+    # Configure structured JSON logging for chat observability
+    try:
+        from backend.observability.logging import setup_json_logging
+
+        setup_json_logging()
+    except Exception:
+        pass
+
     logger = get_logger(__name__)
     try:
         init_db()
@@ -39,9 +48,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("DATABASE_INIT_FAILED", error=str(e))
         # Don't fail startup - continue with other services
-    
+
     yield
-    
+
     # Shutdown (if needed in the future)
     # Add cleanup code here
 
@@ -159,6 +168,28 @@ Requires environment variables:
         },
     )
 
+    # Development-friendly fallback CORS: ensure browser dev servers (e.g. Next.js on :9000)
+    # can access backend even if sub-app mounting fails during fast-refresh. This is
+    # intentionally only enabled in non-production environments to avoid loosening CORS
+    # in production.
+    _env = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
+    if _env != "production":
+        _dev_origins = [
+            "http://localhost:9000",
+            "http://127.0.0.1:9000",
+            "http://localhost:9050",
+            "http://127.0.0.1:9050",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=_dev_origins,
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_headers=["*"],
+        )
+
     # Sub-app: Public API (orchestrators, CORS enabled)
     public_app = FastAPI(title="Public API")
 
@@ -270,7 +301,9 @@ Requires environment variables:
         public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
         public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
         public_app.include_router(clinics.router)  # Clinic/Doctor CRUD (FI-CHECKIN-002)
-        public_app.include_router(user_clinic.router)  # User-Clinic membership (link Auth0 user to clinic)
+        public_app.include_router(
+            user_clinic.router
+        )  # User-Clinic membership (link Auth0 user to clinic)
         public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 
@@ -281,7 +314,9 @@ Requires environment variables:
         )
         internal_app.include_router(internal.exports.router, prefix="/exports", tags=["exports"])
         # Timeline internal compatibility router (verify-hash)
-        internal_app.include_router(internal.timeline.router)  # No hasattr check - let it fail if missing
+        internal_app.include_router(
+            internal.timeline.router
+        )  # No hasattr check - let it fail if missing
         internal_app.include_router(internal.kpis.router, prefix="/kpis", tags=["kpis"])
         internal_app.include_router(internal.sessions.router, prefix="/sessions", tags=["sessions"])
         internal_app.include_router(
@@ -308,10 +343,44 @@ Requires environment variables:
         # If routers fail to load, log and continue with health check only
         import sys
 
-        print(f"WARNING: Failed to load routers: {e}", file=sys.stderr)
+        # Provide clearer guidance for missing dependencies or import errors
+        print("WARNING: Failed to load API routers during startup.", file=sys.stderr)
+        print(
+            "This usually means a required Python package is missing or an import failed.",
+            file=sys.stderr,
+        )
+        print(
+            "Try: `pip install -r backend/requirements.txt` and restart the server.",
+            file=sys.stderr,
+        )
+        print(f"Error: {e}", file=sys.stderr)
         import traceback
 
         traceback.print_exc()
+
+    # Development-only debug route: list all mounted routes and methods
+    # This helps frontend devs discover available endpoints without opening FastAPI docs.
+    if environment != "production":
+
+        @app.get("/__debug_routes")
+        async def _debug_routes() -> dict:
+            routes = []
+            for r in app.routes:
+                try:
+                    path = getattr(r, "path", None) or getattr(r, "url", None) or str(r)
+                    methods = sorted([m for m in getattr(r, "methods", []) if m not in ("HEAD",)])
+                    routes.append(
+                        {
+                            "path": path,
+                            "methods": methods,
+                            "name": getattr(r, "name", None),
+                        }
+                    )
+                except Exception:
+                    continue
+            # Sort for stable output
+            routes = sorted(routes, key=lambda x: (x.get("path") or ""))
+            return {"routes": routes, "count": len(routes)}
 
     @app.get("/")
     async def root() -> dict:

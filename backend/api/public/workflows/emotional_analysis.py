@@ -17,6 +17,8 @@ import json
 import re
 
 from backend.logger import get_logger
+from backend.observability.logging import CTX_REQUEST_ID
+
 from .assistant_schemas import BehaviorMetrics, EmotionalAnalysis
 
 logger = get_logger(__name__)
@@ -72,6 +74,7 @@ Respond in JSON format ONLY:
 {{"state": "...", "confidence": 0.X, "suggested_tone": "...", "reason": "..."}}"""
 
     try:
+        request_id = CTX_REQUEST_ID.get() or None
         result = await llm_client.chat(
             persona="general_assistant",
             message=analysis_prompt,
@@ -79,11 +82,13 @@ Respond in JSON format ONLY:
             session_id=None,
             doctor_id=None,
             use_memory=False,
+            request_id=request_id,
+            caller="public",
         )
 
         response_text = result.get("response", "{}")
         # Extract JSON from response (in case there's extra text)
-        json_match = re.search(r'\{[^{}]+\}', response_text)
+        json_match = re.search(r"\{[^{}]+\}", response_text)
         if json_match:
             analysis_data = json.loads(json_match.group())
             return EmotionalAnalysis(
@@ -110,13 +115,29 @@ Respond in JSON format ONLY:
 
 # Keyword dictionaries for heuristic analysis
 FRUSTRATION_KEYWORDS = [
-    "no entiendo", "confuso", "difícil", "no funciona", "error",
-    "ayuda", "frustrado", "imposible", "problema", "falla"
+    "no entiendo",
+    "confuso",
+    "difícil",
+    "no funciona",
+    "error",
+    "ayuda",
+    "frustrado",
+    "imposible",
+    "problema",
+    "falla",
 ]
 
 SUCCESS_KEYWORDS = [
-    "genial", "perfecto", "gracias", "entendí", "funciona",
-    "excelente", "listo", "bien", "correcto", "sí"
+    "genial",
+    "perfecto",
+    "gracias",
+    "entendí",
+    "funciona",
+    "excelente",
+    "listo",
+    "bien",
+    "correcto",
+    "sí",
 ]
 
 

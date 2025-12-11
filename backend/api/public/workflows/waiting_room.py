@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 
 from backend.clients import get_llm_client
 from backend.logger import get_logger
+from backend.observability.logging import CTX_REQUEST_ID
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -111,6 +112,12 @@ async def generate_health_tip(request: GenerateTipRequest) -> GenerateTipRespons
     start_time = time.perf_counter()
 
     try:
+        request_id = CTX_REQUEST_ID.get() or None
+        if not request_id:
+            import uuid
+
+            request_id = str(uuid.uuid4())
+            CTX_REQUEST_ID.set(request_id)
         # Build simple natural language message
         category_prompts = {
             "nutrition": "nutrición saludable y alimentación balanceada",
@@ -136,6 +143,8 @@ async def generate_health_tip(request: GenerateTipRequest) -> GenerateTipRespons
             persona="general_assistant",  # Use existing persona
             message=message,
             context={"category": request.category, "purpose": "health_tip_generation"},
+            request_id=request_id,
+            caller="public",
         )
 
         tip_text = response.get("response", "")

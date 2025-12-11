@@ -14,9 +14,10 @@ Propósito:
 import hashlib
 import json
 import time
-import ulid
 import uuid as _uuid
 from datetime import UTC, datetime
+
+import ulid
 from fastapi import APIRouter, HTTPException, Request, status
 
 from backend.api.public.workflows.assistant_websocket import broadcast_new_message
@@ -230,6 +231,26 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
             max_tokens=persona_config.max_tokens,
         )
 
+        # Record LLM_CALL in trace timeline
+        try:
+            llm_event = {
+                "event": "LLM_CALL",
+                "ts": int(time.time()),
+                "provider": policy_loader.get_primary_provider(),
+                "model": getattr(llm_response, "model", "unknown"),
+                "tokens_used": getattr(llm_response, "usage", {}).total_tokens
+                if hasattr(getattr(llm_response, "usage", None), "total_tokens")
+                else 0,
+                "latency_ms": int((time.time() - start_time) * 1000),
+            }
+            te = trace_store.get(incoming_request_id) or trace_entry
+            te_events = te.get("events", [])
+            te_events.append(llm_event)
+            te["events"] = te_events
+            trace_store.put(incoming_request_id, te)
+        except Exception:
+            pass
+
         response_text = llm_response.content.strip()
         response_hash = hashlib.sha256(response_text.encode()).hexdigest()
 
@@ -296,6 +317,24 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
             )
 
         # Ultra detailed logging
+
+        # Append CHAT_RESPONSE event to trace
+        try:
+            resp_event = {
+                "event": "CHAT_RESPONSE",
+                "ts": int(time.time()),
+                "latency_ms": latency_ms,
+                "tokens_used": tokens_used,
+                "model": model_name,
+            }
+            te = trace_store.get(incoming_request_id) or trace_entry
+            te_events = te.get("events", [])
+            te_events.append(resp_event)
+            te["events"] = te_events
+            trace_store.put(incoming_request_id, te)
+        except Exception:
+            pass
+
         logger.info(
             "INTERNAL_LLM_CHAT_SUCCESS",
             persona=request.persona,
