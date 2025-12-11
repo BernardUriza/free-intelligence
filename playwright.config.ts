@@ -35,9 +35,12 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'cd apps/aurity && pnpm dev',
+    command: 'cd apps/aurity && NEXT_PUBLIC_USE_MOCK_AUTH=true pnpm dev',
     url: 'http://localhost:9000',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true, // Always reuse existing server
     timeout: 120 * 1000,
+    env: {
+      NEXT_PUBLIC_USE_MOCK_AUTH: 'true',
+    },
   },
 });

@@ -11,10 +11,11 @@ Card: FI-DATA-DB-001
 from __future__ import annotations
 
 from datetime import datetime
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
-from typing import List
 
 from backend.database import get_db_dependency
 from backend.logger import get_logger
@@ -147,8 +148,10 @@ def list_patients(
         return [p.to_dict() for p in patients]
 
     except Exception as e:
-        logger.error("PATIENTS_LIST_FAILED", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to list patients")
+        logger.error("PATIENTS_LIST_FAILED", error=str(e), error_type=type(e).__name__)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list patients: {type(e).__name__}: {e!s}"
+        )
 
 
 @router.get("/{patient_id}", response_model=PatientResponse)

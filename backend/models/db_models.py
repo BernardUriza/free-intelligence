@@ -12,6 +12,8 @@ Card: FI-DATA-DB-001, FI-UI-DESIGN-003
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 from sqlalchemy import (
     CHAR,
     Boolean,
@@ -26,7 +28,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase
-from uuid import uuid4
 
 
 class Base(DeclarativeBase):
@@ -98,7 +99,7 @@ class Patient(Base):
             "fecha_nacimiento": self.fecha_nacimiento.isoformat()
             if self.fecha_nacimiento is not None
             else None,
-            "genero": self.genero.value if self.genero else None,
+            "genero": self.genero.value if hasattr(self.genero, "value") else self.genero,
             "curp": self.curp,
             "created_at": self.created_at.isoformat() if self.created_at is not None else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at is not None else None,
@@ -176,7 +177,9 @@ class UserPersonaConfig(Base):
     custom_prompt = Column(Text, nullable=True)  # NULL = use template
     temperature = Column(Float, nullable=True)  # NULL = use template
     max_tokens = Column(Integer, nullable=True)  # NULL = use template
-    voice = Column(String(20), nullable=True)  # NULL = use template (nova, alloy, echo, fable, onyx, shimmer)
+    voice = Column(
+        String(20), nullable=True
+    )  # NULL = use template (nova, alloy, echo, fable, onyx, shimmer)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
