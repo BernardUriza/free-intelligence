@@ -272,6 +272,7 @@ Requires environment variables:
             audit,
             checkin,
             clinics,
+            llm_models_admin,
             notifications,
             patients,
             payments,
@@ -305,6 +306,7 @@ Requires environment variables:
             user_clinic.router
         )  # User-Clinic membership (link Auth0 user to clinic)
         public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
+        public_app.include_router(llm_models_admin.router)  # LLM Models Admin (superadmin CRUD)
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 
         # INTERNAL API (atomic resources, AURITY-only)

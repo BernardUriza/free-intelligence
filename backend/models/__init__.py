@@ -10,13 +10,10 @@ Exports:
     - SessionStatus: Session lifecycle status
     - EncryptionMetadata: Encryption metadata for sessions
     - Checkin models: Appointment, PendingAction, CheckinSession, Clinic, Doctor
+    - LLM models: LLMModel, LLMProvider, CostTier
 """
 
 from __future__ import annotations
-
-from backend.models.job import Job, JobStatus, JobType
-from backend.models.session import EncryptionMetadata, Session, SessionStatus
-from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
 
 # FI Receptionist Check-in models
 from backend.models.checkin_models import (
@@ -33,6 +30,19 @@ from backend.models.checkin_models import (
     PendingActionType,
     WaitingRoomEvent,
 )
+from backend.models.job import Job, JobStatus, JobType
+
+# LLM Model configuration
+from backend.models.llm_model import (
+    CostTier,
+    LLMModel,
+    LLMModelCreate,
+    LLMModelResponse,
+    LLMModelUpdate,
+    LLMProvider,
+)
+from backend.models.session import EncryptionMetadata, Session, SessionStatus
+from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
 
 __all__ = [
     # Core models
@@ -57,4 +67,11 @@ __all__ = [
     "PendingActionStatus",
     "PendingActionType",
     "WaitingRoomEvent",
+    # LLM models
+    "CostTier",
+    "LLMModel",
+    "LLMModelCreate",
+    "LLMModelResponse",
+    "LLMModelUpdate",
+    "LLMProvider",
 ]
