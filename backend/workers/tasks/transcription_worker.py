@@ -209,7 +209,36 @@ def _transcribe_audio(audio_bytes: bytes, provider_name: str) -> dict[str, Any]:
     """
     retry_attempts = 0  # Track if fallback was used
 
-    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
+    # Detect format from magic bytes
+    # WebM starts with 0x1A45DFA3 (EBML header)
+    # MP3 starts with 0xFFFA or 0xFFFB or ID3
+    # WAV starts with RIFF
+    ext = ".webm"  # default
+    magic_bytes = audio_bytes[:8] if len(audio_bytes) > 8 else audio_bytes
+    logger.info(
+        "AUDIO_FORMAT_DETECTION",
+        magic_bytes_hex=magic_bytes.hex(),
+        audio_size=len(audio_bytes),
+    )
+
+    if len(audio_bytes) > 4:
+        if audio_bytes[:4] == b"RIFF":
+            ext = ".wav"
+        elif audio_bytes[:3] == b"ID3" or (
+            audio_bytes[0] == 0xFF and audio_bytes[1] in (0xFA, 0xFB, 0xF3, 0xF2)
+        ):
+            ext = ".mp3"
+        elif audio_bytes[:4] == b"OggS":
+            ext = ".ogg"
+        elif audio_bytes[:4] == b"fLaC":
+            ext = ".flac"
+        # WebM/Matroska check: EBML header 0x1A45DFA3
+        elif audio_bytes[0:4] == bytes([0x1A, 0x45, 0xDF, 0xA3]):
+            ext = ".webm"
+
+    logger.info("AUDIO_FORMAT_DETECTED", extension=ext)
+
+    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
         tmp.write(audio_bytes)
         tmp_path = tmp.name
 

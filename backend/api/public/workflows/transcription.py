@@ -24,6 +24,10 @@ from pydantic import BaseModel, Field
 
 from backend.dependencies import get_transcription_service
 from backend.logger import get_logger
+from backend.services.transcription.validators import (
+    AudioFileValidator,
+    ValidationError,
+)
 from backend.services.transcription_service import TranscriptionService
 from backend.validators import validate_session_id
 
@@ -143,28 +147,15 @@ async def stream_chunk(
             detail=f"Invalid mode: must be 'medical' or 'chat', got '{mode}'",
         )
 
-    # Validate audio file size (prevent extremely large uploads)
-    if audio.size and audio.size > 50 * 1024 * 1024:  # 50MB limit
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Audio file too large: maximum 50MB allowed",
+    # Validate audio using centralized validator (MIME type, extension, size)
+    try:
+        AudioFileValidator.validate(
+            filename=audio.filename or "audio.webm",
+            content_type=audio.content_type or "audio/webm",
+            file_size=audio.size or 0,
         )
-
-    # Validate audio content type
-    allowed_content_types = [
-        "audio/webm",
-        "audio/wav",
-        "audio/mp3",
-        "audio/mpeg",
-        "audio/ogg",
-        "audio/flac",
-        "audio/aac",
-    ]
-    if audio.content_type and audio.content_type not in allowed_content_types:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid audio format: allowed formats are {', '.join(allowed_content_types)}",
-        )
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     # Validate timestamps
     if timestamp_start is not None and timestamp_end is not None:
@@ -387,28 +378,15 @@ async def end_session(
     # Validate inputs
     validate_session_id(session_id)
 
-    # Validate audio content type
-    allowed_content_types = [
-        "audio/webm",
-        "audio/wav",
-        "audio/mp3",
-        "audio/mpeg",
-        "audio/ogg",
-        "audio/flac",
-        "audio/aac",
-    ]
-    if full_audio.content_type and full_audio.content_type not in allowed_content_types:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid audio format: allowed formats are {', '.join(allowed_content_types)}",
+    # Validate audio using centralized validator (MIME type, extension, size)
+    try:
+        AudioFileValidator.validate(
+            filename=full_audio.filename or "audio.webm",
+            content_type=full_audio.content_type or "audio/webm",
+            file_size=full_audio.size or 0,
         )
-
-    # Validate audio file size (prevent extremely large uploads)
-    if full_audio.size and full_audio.size > 100 * 1024 * 1024:  # 100MB limit for final session
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Audio file too large: maximum 100MB allowed for final session",
-        )
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     # Validate webspeech JSON if provided
     if webspeech_final:

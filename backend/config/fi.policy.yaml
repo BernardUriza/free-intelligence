@@ -65,7 +65,7 @@ diarization:
 # ===== STT Provider Configuration =====
 stt:
   # Primary provider for transcription
-  primary_provider: deepgram  # Deepgram as primary (Azure Whisper endpoint removed)
+  primary_provider: openai_whisper  # OpenAI Whisper as primary (best quality)
 
   # Fallback providers in order (cloud only)
   fallback_providers:
@@ -74,7 +74,14 @@ stt:
 
   # Provider-specific configurations
   providers:
-    # Azure Whisper - Cloud-based STT (fastest, requires API key)
+    # OpenAI Whisper - Cloud-based STT (best quality, uses whisper-1)
+    openai_whisper:
+      model: whisper-1
+      timeout_seconds: 30
+      # Credentials from environment:
+      # - OPENAI_API_KEY: your-api-key
+
+    # Azure Whisper - Cloud-based STT (DEPRECATED - endpoint removed)
     azure_whisper:
       api_version: "2024-02-15-preview"
       timeout_seconds: 30

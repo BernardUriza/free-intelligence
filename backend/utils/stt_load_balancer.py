@@ -73,9 +73,23 @@ class STTLoadBalancer:
         Returns:
             Policy configuration dict, or empty dict if file not found
         """
-        policy_path = Path("policy.yaml")
-        if not policy_path.exists():
-            logger.warning("NO_POLICY_FILE", message="policy.yaml not found, using defaults")
+        # Try multiple paths (backend/config/fi.policy.yaml is the canonical location)
+        policy_paths = [
+            Path(__file__).parent.parent
+            / "config"
+            / "fi.policy.yaml",  # backend/config/fi.policy.yaml
+            Path("backend/config/fi.policy.yaml"),
+            Path("policy.yaml"),  # Legacy fallback
+        ]
+
+        policy_path = None
+        for p in policy_paths:
+            if p.exists():
+                policy_path = p
+                break
+
+        if not policy_path:
+            logger.warning("NO_POLICY_FILE", message="fi.policy.yaml not found, using defaults")
             return {}
 
         with open(policy_path) as f:

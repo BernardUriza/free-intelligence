@@ -50,10 +50,12 @@ class AudioFileValidator:
         "audio/mp4",
         "audio/m4a",
         "audio/ogg",
+        "audio/flac",
+        "audio/aac",
     }
 
     # Allowed file extensions
-    ALLOWED_EXTENSIONS = {"webm", "wav", "mp3", "m4a", "ogg"}
+    ALLOWED_EXTENSIONS = {"webm", "wav", "mp3", "m4a", "ogg", "flac", "aac"}
 
     # File size limit (100 MB)
     MAX_FILE_SIZE_MB = 100
@@ -77,10 +79,17 @@ class AudioFileValidator:
 
     @classmethod
     def _validate_mime_type(cls, content_type: str) -> None:
-        """Validate MIME type."""
-        if content_type not in cls.ALLOWED_MIME_TYPES:
+        """Validate MIME type.
+
+        Note: Browsers may send MIME types with parameters like 'audio/webm;codecs=opus'.
+        We normalize by taking only the base type before any semicolon.
+        """
+        # Normalize: "audio/webm;codecs=opus" -> "audio/webm"
+        base_mime = content_type.split(";")[0].strip().lower() if content_type else ""
+
+        if base_mime not in cls.ALLOWED_MIME_TYPES:
             raise ValidationError(
-                f"Invalid audio format. Allowed MIME types: "
+                f"Invalid audio format: {content_type}. Allowed MIME types: "
                 f"{', '.join(sorted(cls.ALLOWED_MIME_TYPES))}"
             )
 

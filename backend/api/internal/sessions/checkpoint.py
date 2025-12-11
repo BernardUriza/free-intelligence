@@ -14,19 +14,50 @@ Benefits:
 - Resilient (audio saved even if session interrupted)
 - Distributed workload (small batches per pause)
 
+Architecture: Uses Clean Architecture checkpoint service.
+The endpoint is a thin adapter that translates HTTP to use case calls.
+
 Author: Bernard Uriza Orozco
 Created: 2025-11-14
+Updated: 2025-12-11 - Refactored to Clean Architecture
 """
 
 from datetime import UTC, datetime
+
 from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
-from backend.storage.task_repository import add_full_audio, get_task_metadata, update_task_metadata
+from backend.services.checkpoint import (
+    CheckpointError,
+    CheckpointRequest,
+    NoChunksToProcessError,
+    TooManyChunksError,
+    create_checkpoint_service,
+)
+from backend.storage.task_repository import get_task_metadata
 
-from .checkpoint_logic import perform_checkpoint_concatenation
-from .checkpoint_models import CheckpointRequest, CheckpointResponse
+# ============================================================================
+# DTOs (Pydantic models for FastAPI)
+# ============================================================================
+
+
+class CheckpointRequestDTO(BaseModel):
+    """Request DTO for session checkpoint endpoint."""
+
+    last_chunk_idx: int = Field(..., description="Last chunk index to include in checkpoint")
+
+
+class CheckpointResponse(BaseModel):
+    """Response for session checkpoint."""
+
+    session_id: str = Field(..., description="Session identifier")
+    checkpoint_at: str = Field(..., description="ISO timestamp")
+    chunks_concatenated: int = Field(..., description="Number of chunks added")
+    full_audio_size: int = Field(..., description="Total size of full_audio.webm in bytes")
+    message: str = Field(..., description="Human-readable message")
+
 
 logger = get_logger(__name__)
 
@@ -43,7 +74,7 @@ router = APIRouter(tags=["internal-sessions"])
     response_model=CheckpointResponse,
     status_code=status.HTTP_200_OK,
 )
-async def checkpoint_session(session_id: str, request: CheckpointRequest) -> CheckpointResponse:
+async def checkpoint_session(session_id: str, request: CheckpointRequestDTO) -> CheckpointResponse:
     """Create checkpoint: concatenate audio chunks incrementally.
 
     Called by frontend on each PAUSE. Concatenates audio chunks since last
@@ -58,7 +89,7 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
 
     Args:
         session_id: Session UUID
-        request: CheckpointRequest with last_chunk_idx
+        request: CheckpointRequestDTO with last_chunk_idx
 
     Returns:
         CheckpointResponse with concatenation status
@@ -69,7 +100,7 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
     """
     try:
         logger.info(
-            "CHECKPOINT_STARTED",
+            "CHECKPOINT_ENDPOINT_CALLED",
             session_id=session_id,
             last_chunk_idx=request.last_chunk_idx,
         )
@@ -92,56 +123,73 @@ async def checkpoint_session(session_id: str, request: CheckpointRequest) -> Che
             new_checkpoint=request.last_chunk_idx,
         )
 
-        # 2. Perform concatenation
-        chunks_concatenated, full_audio_bytes = perform_checkpoint_concatenation(
-            session_id=session_id,
-            last_checkpoint_idx=last_checkpoint_idx,
-            new_checkpoint_idx=request.last_chunk_idx,
-        )
-
-        if chunks_concatenated == 0:
-            return CheckpointResponse(
+        # 2. Create service request (validates input)
+        try:
+            service_request = CheckpointRequest(
                 session_id=session_id,
-                checkpoint_at=datetime.now(UTC).isoformat(),
-                chunks_concatenated=0,
-                full_audio_size=0,
-                message="No new chunks to concatenate",
+                last_checkpoint_idx=last_checkpoint_idx,
+                new_checkpoint_idx=request.last_chunk_idx,
             )
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            ) from e
 
-        # 3. Save to HDF5 (overwrites full_audio.webm with new concatenated version)
-        add_full_audio(
-            session_id=session_id,
-            audio_bytes=full_audio_bytes,
-            filename="full_audio.webm",
-            task_type=TaskType.TRANSCRIPTION,
-        )
-
-        # 4. Update task metadata with new checkpoint
-        task_metadata["last_checkpoint_idx"] = request.last_chunk_idx
-        task_metadata["last_checkpoint_at"] = datetime.now(UTC).isoformat()
-        update_task_metadata(session_id, TaskType.TRANSCRIPTION, task_metadata)
+        # 3. Execute checkpoint via clean architecture service
+        service = create_checkpoint_service()
+        result = service.execute(service_request)
 
         logger.info(
             "CHECKPOINT_COMPLETED",
             session_id=session_id,
-            chunks_concatenated=chunks_concatenated,
-            full_audio_size=len(full_audio_bytes),
+            chunks_concatenated=result.chunks_concatenated,
+            full_audio_size=len(result.audio_bytes),
             checkpoint_idx=request.last_chunk_idx,
         )
 
         return CheckpointResponse(
             session_id=session_id,
             checkpoint_at=datetime.now(UTC).isoformat(),
-            chunks_concatenated=chunks_concatenated,
-            full_audio_size=len(full_audio_bytes),
-            message=f"Checkpoint created: {chunks_concatenated} chunks concatenated, {len(full_audio_bytes):,} bytes total",
+            chunks_concatenated=result.chunks_concatenated,
+            full_audio_size=len(result.audio_bytes),
+            message=f"Checkpoint created: {result.chunks_concatenated} chunks concatenated, {len(result.audio_bytes):,} bytes total",
         )
 
+    except NoChunksToProcessError:
+        return CheckpointResponse(
+            session_id=session_id,
+            checkpoint_at=datetime.now(UTC).isoformat(),
+            chunks_concatenated=0,
+            full_audio_size=0,
+            message="No new chunks to concatenate",
+        )
+    except TooManyChunksError as e:
+        logger.error(
+            "CHECKPOINT_TOO_MANY_CHUNKS",
+            session_id=session_id,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
     except HTTPException:
         raise
-    except Exception as e:
+    except CheckpointError as e:
         logger.error(
             "CHECKPOINT_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Checkpoint failed: {e!s}",
+        ) from e
+    except Exception as e:
+        logger.error(
+            "CHECKPOINT_UNEXPECTED_ERROR",
             session_id=session_id,
             error=str(e),
             exc_info=True,
