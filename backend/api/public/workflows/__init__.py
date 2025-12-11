@@ -24,6 +24,7 @@ from backend.api.public.workflows import (
     orders,
     sessions,
     soap,
+    system,
     timeline,
     transcription,
 )
@@ -37,6 +38,7 @@ __all__ = [
     "router",
     "sessions",
     "soap",
+    "system",
     "timeline",
     "transcription",
 ]

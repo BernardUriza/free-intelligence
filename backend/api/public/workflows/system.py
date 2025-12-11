@@ -9,16 +9,13 @@ Created: 2025-12-11
 
 from __future__ import annotations
 
-import os
 import shutil
-from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from pathlib import Path
 from pydantic import BaseModel
 
-from backend.auth.jwt import get_current_user
 from backend.logger import get_logger
-from backend.schemas import User
 
 logger = get_logger(__name__)
 
@@ -44,11 +41,8 @@ class DiskUsageResponse(BaseModel):
 
 
 @router.get("/disk-usage", response_model=DiskUsageResponse)
-async def get_disk_usage(user: User = Depends(get_current_user)) -> DiskUsageResponse:
+async def get_disk_usage() -> DiskUsageResponse:
     """Get disk usage for storage directory.
-
-    Args:
-        user: Authenticated user (injected)
 
     Returns:
         Disk usage statistics
@@ -81,7 +75,6 @@ async def get_disk_usage(user: User = Depends(get_current_user)) -> DiskUsageRes
 
         logger.info(
             "DISK_USAGE_RETRIEVED",
-            user_id=user.sub,
             used_bytes=total_size,
             total_bytes=disk_stat.total,
             percent=percent,
@@ -90,13 +83,13 @@ async def get_disk_usage(user: User = Depends(get_current_user)) -> DiskUsageRes
         return DiskUsageResponse(used=used, total=total, percent=round(percent, 2))
 
     except Exception as e:
-        logger.error("DISK_USAGE_FAILED", error=str(e), user_id=user.sub)
+        logger.error("DISK_USAGE_FAILED", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to get disk usage")
 
 
 @router.post("/clear-memory")
 async def clear_longitudinal_memory(
-    user: User = Depends(get_current_user),
+    user_id: str = Query(..., description="User ID (Auth0 sub) for audit logging"),
 ) -> dict[str, str]:
     """Clear all longitudinal memory (HDF5 sessions and chat messages).
 
@@ -111,7 +104,7 @@ async def clear_longitudinal_memory(
     - Provider data
 
     Args:
-        user: Authenticated user (injected)
+        user_id: User identifier for audit logging
 
     Returns:
         Success message with deletion count
@@ -125,7 +118,7 @@ async def clear_longitudinal_memory(
             for h5_file in sessions_path.glob("*.h5"):
                 h5_file.unlink()
                 deleted_files += 1
-                logger.info("SESSION_FILE_DELETED", file=str(h5_file), user_id=user.sub)
+                logger.info("SESSION_FILE_DELETED", file=str(h5_file), user_id=user_id)
 
         # Delete session metadata
         data_sessions_path = Path("data/sessions")
@@ -135,7 +128,7 @@ async def clear_longitudinal_memory(
                     shutil.rmtree(session_dir)
                     deleted_files += 1
                     logger.info(
-                        "SESSION_DIR_DELETED", dir=str(session_dir), user_id=user.sub
+                        "SESSION_DIR_DELETED", dir=str(session_dir), user_id=user_id
                     )
 
         # Delete chat message cache (if exists)
@@ -148,7 +141,7 @@ async def clear_longitudinal_memory(
 
         logger.warning(
             "LONGITUDINAL_MEMORY_CLEARED",
-            user_id=user.sub,
+            user_id=user_id,
             files_deleted=deleted_files,
         )
 
@@ -158,5 +151,5 @@ async def clear_longitudinal_memory(
         }
 
     except Exception as e:
-        logger.error("CLEAR_MEMORY_FAILED", error=str(e), user_id=user.sub)
+        logger.error("CLEAR_MEMORY_FAILED", error=str(e), user_id=user_id)
         raise HTTPException(status_code=500, detail=f"Failed to clear memory: {e!s}")

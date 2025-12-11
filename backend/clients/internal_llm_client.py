@@ -16,9 +16,8 @@ Ventajas:
 
 from __future__ import annotations
 
-from typing import Any
-
 import httpx
+from typing import Any
 
 from backend.logger import get_logger
 
@@ -45,6 +44,7 @@ class InternalLLMClient:
         session_id: str | None = None,
         doctor_id: str | None = None,
         use_memory: bool = False,
+        request_id: str | None = None,
     ) -> dict:
         """Conversación con Free-Intelligence.
 
@@ -80,6 +80,10 @@ class InternalLLMClient:
                 session_id=session_id,
             )
 
+            headers = {}
+            if request_id:
+                headers["x-fi-request-id"] = request_id
+
             response = await self.client.post(
                 "/internal/llm/chat",
                 json={
@@ -90,6 +94,7 @@ class InternalLLMClient:
                     "doctor_id": doctor_id,
                     "use_memory": use_memory,
                 },
+                headers=headers or None,
             )
 
             response.raise_for_status()

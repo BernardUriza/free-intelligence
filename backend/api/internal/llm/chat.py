@@ -14,9 +14,10 @@ Propósito:
 import hashlib
 import json
 import time
+import ulid
+import uuid as _uuid
 from datetime import UTC, datetime
-
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 
 from backend.api.public.workflows.assistant_websocket import broadcast_new_message
 from backend.logger import get_logger
@@ -27,6 +28,7 @@ from backend.schemas.llm_audit_policy import require_audit_log
 from backend.services.audit_service import AuditService
 from backend.services.llm.conversation_memory import get_memory_manager
 from backend.services.llm.persona_manager import PersonaManager
+from backend.services.trace_store import get_trace_store
 
 from .schemas import ChatRequest, ChatResponse
 
@@ -34,6 +36,7 @@ router = APIRouter()
 logger = get_logger(__name__)
 persona_mgr = PersonaManager()
 policy_loader = get_policy_loader()
+trace_store = get_trace_store()
 
 # Initialize audit service for persona metrics tracking
 from pathlib import Path
@@ -45,7 +48,7 @@ audit_service = AuditService(audit_repo)
 
 @router.post("/chat", response_model=ChatResponse)
 @require_audit_log
-async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
+async def internal_llm_chat(request: ChatRequest, http_request: Request) -> ChatResponse:
     """INTERNAL: Conversación con Free-Intelligence (ultra observable).
 
     Este endpoint provee logging ultra detallado de TODA interacción:
@@ -69,6 +72,31 @@ async def internal_llm_chat(request: ChatRequest) -> ChatResponse:
     """
     start_time = time.time()
     prompt = ""  # Initialize for exception handling
+
+    # Propagate request_id if provided by public layer
+    incoming_request_id = http_request.headers.get("x-fi-request-id")
+    if not incoming_request_id:
+        incoming_request_id = str(_uuid.uuid4())
+
+    trace_id = ulid.new().str
+
+    # Initialize trace entry
+    trace_entry = {
+        "request_id": incoming_request_id,
+        "trace_id": trace_id,
+        "persona": request.persona,
+        "ts": int(time.time()),
+        "events": [],
+    }
+    trace_store.put(incoming_request_id, trace_entry)
+
+    logger.info(
+        "CHAT_REQUEST",
+        request_id=incoming_request_id,
+        trace_id=trace_id,
+        persona=request.persona,
+        message_len=len(request.message),
+    )
 
     try:
         # Auto-enable memory for Azure GPT-4 (infinite conversation policy)

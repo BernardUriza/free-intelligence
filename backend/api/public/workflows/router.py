@@ -51,6 +51,7 @@ from backend.api.public.workflows import (
     sessions,
     sessions_list,
     soap,
+    system,
     timeline,
     transcription,
     tv_content_seeds,
@@ -118,6 +119,9 @@ router.include_router(widget_configs.router, tags=["Widget Configs"])
 
 # DOCUMENTS: Knowledge Base document upload and RAG (FI-API-FEAT-020)
 router.include_router(documents.router, tags=["Knowledge Base"])
+
+# SYSTEM: Disk usage and memory management
+router.include_router(system.router, tags=["System"])
 
 logger.info(
     "WORKFLOWS_ROUTER_INITIALIZED",

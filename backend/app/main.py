@@ -246,7 +246,6 @@ Requires environment variables:
             payments,
             policy,
             providers,
-            system,
             tts,
             user_clinic,
         )
@@ -261,7 +260,7 @@ Requires environment variables:
         public_app.include_router(timeline.router)  # Timeline/sessions listing
         public_app.include_router(patients.router)  # Patient CRUD (FI-DATA-DB-001)
         public_app.include_router(providers.router)  # Provider CRUD (FI-DATA-DB-001)
-        public_app.include_router(system.router)  # System info (disk usage, memory clear)
+        # NOTE: System router moved to workflows/system.py (/api/workflows/aurity/system/*)
         public_app.include_router(
             audit.router, prefix="/audit", tags=["Audit"]
         )  # Audit logs (FI-UI-FEAT-206)
