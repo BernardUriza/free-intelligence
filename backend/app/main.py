@@ -248,6 +248,7 @@ Requires environment variables:
             providers,
             system,
             tts,
+            user_clinic,
         )
         from backend.api.public.workflows import timeline
         from backend.auth.auth0_router import (
@@ -266,11 +267,11 @@ Requires environment variables:
         )  # Audit logs (FI-UI-FEAT-206)
         public_app.include_router(policy.router)  # Policy viewer (FI-UI-FEAT-204)
         public_app.include_router(public.personas_admin.router)  # Personas Admin (FI-UI-DESIGN-003)
-        public_app.include_router(public.system.router, prefix="/system", tags=["System"])
         public_app.include_router(tts.router)  # Text-to-Speech (Azure OpenAI)
         public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
         public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
         public_app.include_router(clinics.router)  # Clinic/Doctor CRUD (FI-CHECKIN-002)
+        public_app.include_router(user_clinic.router)  # User-Clinic membership (link Auth0 user to clinic)
         public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 

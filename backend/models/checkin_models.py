@@ -208,10 +208,10 @@ class Clinic(Base):
 class ClinicRole(str, enum.Enum):
     """Roles within a clinic."""
 
-    OWNER = "owner"  # Full control, can delete clinic
-    ADMIN = "admin"  # Can manage doctors, appointments, settings
-    DOCTOR = "doctor"  # Can see own appointments, patients
-    STAFF = "staff"  # Reception, can manage check-ins
+    OWNER = "OWNER"  # Full control, can delete clinic
+    ADMIN = "ADMIN"  # Can manage doctors, appointments, settings
+    DOCTOR = "DOCTOR"  # Can see own appointments, patients
+    STAFF = "STAFF"  # Reception, can manage check-ins
 
 
 class Doctor(Base):
