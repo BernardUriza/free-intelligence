@@ -205,13 +205,30 @@ class Clinic(Base):
         }
 
 
+class ClinicRole(str, enum.Enum):
+    """Roles within a clinic."""
+
+    OWNER = "owner"  # Full control, can delete clinic
+    ADMIN = "admin"  # Can manage doctors, appointments, settings
+    DOCTOR = "doctor"  # Can see own appointments, patients
+    STAFF = "staff"  # Reception, can manage check-ins
+
+
 class Doctor(Base):
-    """Doctor/healthcare provider for appointments."""
+    """Doctor/healthcare provider for appointments.
+
+    Also serves as the user-clinic membership table when auth0_user_id is set.
+    """
 
     __tablename__ = "doctors"
 
     doctor_id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
     clinic_id = Column(UUID(as_uuid=False), ForeignKey("clinics.clinic_id"), nullable=False)
+
+    # Auth0 User Linking (nullable for legacy/unlinked doctors)
+    auth0_user_id = Column(String(255), nullable=True, unique=True, index=True)
+    email = Column(String(255), nullable=True)  # Cached from Auth0 for display
+    clinic_role = Column(Enum(ClinicRole), nullable=False, default=ClinicRole.DOCTOR)
 
     # Identity
     nombre = Column(String(100), nullable=False)
@@ -249,6 +266,9 @@ class Doctor(Base):
         return {
             "doctor_id": str(self.doctor_id),
             "clinic_id": str(self.clinic_id),
+            "auth0_user_id": self.auth0_user_id,
+            "email": self.email,
+            "clinic_role": self.clinic_role.value if self.clinic_role else None,
             "nombre": self.nombre,
             "apellido": self.apellido,
             "display_name": self.full_display_name,
@@ -256,6 +276,7 @@ class Doctor(Base):
             "cedula_profesional": self.cedula_profesional,
             "photo_url": self.photo_url,
             "avg_consultation_minutes": self.avg_consultation_minutes,
+            "is_linked": self.auth0_user_id is not None,
         }
 
 

@@ -246,6 +246,7 @@ Requires environment variables:
             payments,
             policy,
             providers,
+            system,
             tts,
         )
         from backend.api.public.workflows import timeline
@@ -259,6 +260,7 @@ Requires environment variables:
         public_app.include_router(timeline.router)  # Timeline/sessions listing
         public_app.include_router(patients.router)  # Patient CRUD (FI-DATA-DB-001)
         public_app.include_router(providers.router)  # Provider CRUD (FI-DATA-DB-001)
+        public_app.include_router(system.router)  # System info (disk usage, memory clear)
         public_app.include_router(
             audit.router, prefix="/audit", tags=["Audit"]
         )  # Audit logs (FI-UI-FEAT-206)
