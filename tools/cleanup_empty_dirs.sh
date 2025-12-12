@@ -17,6 +17,13 @@ exclude_patterns=(
   'coverage'
   '.svn'
   '.hg'
+  '.pytest_cache'
+  '.mypy_cache'
+  '.ruff_cache'
+  'logs'
+  'data'
+  'apps/aurity/.next'
+  'apps/aurity/out'
 )
 
 tmp_list=$(mktemp)
@@ -24,7 +31,9 @@ tmp_list=$(mktemp)
 pushd "$ROOT_DIR" >/dev/null
 
 # List empty directories excluding common special folders (no eval to avoid zsh parsing issues)
-find . -type d \( -name .git -o -name node_modules -o -name .next -o -name .venv -o -name .idea -o -name .vscode -o -name playwright-report -o -name dist -o -name build -o -name coverage -o -name .svn -o -name .hg \) -prune -o -type d -empty -print | sed 's#^./##' | sort > "$tmp_list"
+find . -type d \
+  \( -name .git -o -name node_modules -o -name .next -o -name .venv -o -name .idea -o -name .vscode -o -name playwright-report -o -name dist -o -name build -o -name coverage -o -name .svn -o -name .hg -o -name .pytest_cache -o -name .mypy_cache -o -name .ruff_cache -o -name logs -o -name data -o -path ./apps/aurity/.next -o -path ./apps/aurity/out \) \
+  -prune -o -type d -empty -print | sed 's#^./##' | sort > "$tmp_list"
 
 count=$(wc -l < "$tmp_list")
 echo "Found $count empty directories under $ROOT_DIR"
