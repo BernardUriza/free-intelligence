@@ -64,6 +64,7 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
         context = {
             "persona": request.persona,
             "system_message": system_message,
+            "model": request.model,  # Pass model to internal LLM endpoint
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
             "top_p": request.top_p,

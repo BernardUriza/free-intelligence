@@ -299,8 +299,21 @@ export class SessionAPI {
 
     ### Testing & Validation
     - SSE Curl: Validate meta-first ordering and clean termination:
-      - `curl -N -s -X POST "${BACKEND_URL}/api/workflows/aurity/assistant/chat/stream" -H "Content-Type: application/json" -d '{"model":"qwen3:4b","persona":"clinical_advisor","messages":[{"role":"user","content":"Explica qué es la fiebre"}],"stream":true}'` 
+      - `curl -N -s -X POST "${BACKEND_URL}/api/workflows/aurity/assistant/chat/stream" -H "Content-Type: application/json" -d '{"model":"qwen3:4b","persona":"clinical_advisor","messages":[{"role":"user","content":"Explica qué es la fiebre"}],"stream":true}'`
     - Internal Debug: Confirm model and presence of `thinking` via `/internal/llm/chat/debug`.
+
+    ### Curl Recipes (zsh-friendly)
+    - Stream Assistant (SSE, meta first):
+      - `curl -N -s -X POST "${BACKEND_URL:-http://localhost:7001}/api/workflows/aurity/assistant/chat/stream" -H "Content-Type: application/json" -d '{"model":"qwen3:4b","persona":"clinical_advisor","messages":[{"role":"user","content":"Explica qué es la fiebre"}],"stream":true}'`
+    - Stream + Inspect first lines:
+      - `curl -N -s -X POST "${BACKEND_URL:-http://localhost:7001}/api/workflows/aurity/assistant/chat/stream" -H "Content-Type: application/json" -d '{"model":"qwen3:4b","persona":"clinical_advisor","messages":[{"role":"user","content":"Explica qué es la fiebre"}],"stream":true}' | sed -n '1,60p'`
+    - Internal Debug (thinking vs response):
+      - `curl -s -X POST "${BACKEND_URL:-http://localhost:7001}/internal/llm/chat/debug" -H "Content-Type: application/json" -d '{"persona":"clinical_advisor","message":"¿Qué es la fiebre?","context":{"model":"qwen3:4b"},"provider":"ollama"}' | jq '{thinking, response, model, provider, latency_ms, metadata_keys}'`
+    - Timeout Path Validation:
+      - Expect role → optional meta → concise timeout message → stop → `[DONE]` within configured seconds.
+    - Notes:
+      - Use `-N` to disable buffering; `-s` for silent progress; pipe to `sed`/`jq` to inspect.
+      - On macOS zsh, quote JSON payloads with single quotes; escape inner quotes properly.
 
     ### Content & Style
     - Tone: Clinical, clear, precise; no emojis.
@@ -368,6 +381,24 @@ export class SessionAPI {
 - **`backend/app/main.py`** - FastAPI entry point, CORS configuration
 - **`backend/auth/jwt.py`** - Auth0 JWT verification
 - **`apps/aurity/.env.production`** - Frontend environment config
+
+## Kernel Context Highlights (from `claude.md`)
+
+- **Layering & Routes**: PUBLIC `/api/workflows/aurity/*` only; INTERNAL `/api/internal/*` blocked by `InternalOnlyMiddleware`; WORKER via `ThreadPoolExecutor`.
+- **Production URLs**: Frontend `https://app.aurity.io`; Backend base `https://app.aurity.io/api/`; Nginx terminates SSL and proxies `/api/*` to FastAPI:7001.
+- **CORS**: Allowed origins include `http://localhost:9000`, `http://localhost:9050`, `https://app.aurity.io` (see `backend/app/main.py`).
+- **Storage (HDF5) Invariants**: One `.h5` per session; append-only; SHA256 integrity per session; atomic write via `.h5.part` → fsync → rename; SWMR for live read optional; task types include TRANSCRIPTION, DIARIZATION, SOAP_GENERATION, EMOTION_ANALYSIS, ENCRYPTION.
+- **RealtimeTalk Pipeline**: Frontend uploads audio; worker performs ASR→LLM→TTS, persists to `talk-<sid>.h5.part`; finalize consolidates messages to longitudinal H5 and deletes temp. Events: `user.audio`, `asr.partial`, `asr.final`, `assistant.delta`, `assistant.text`, `tts.audio`, `interrupt`.
+- **Security Policies**:
+  - Zero Trust + RBAC (Auth0) with roles claim `https://aurity.app/roles`; ADMIN requires `FI-superadmin`.
+  - Production SSH: strictly read-only; no edits, installs, or quick fixes; all deploys via CI/CD. Claude must never suggest direct prod changes; always suggest GitHub + CI.
+  - Secret Management: never commit or document real keys/tokens; use env vars and `.env.example`; sanitize logs and errors; rotate if exposure suspected.
+- **SLOs & Observability**: PUBLIC API p95 ≤ 800ms (<1% errors); RealtimeTalk p95 ≤ 5s; SOAP Gen p95 ≤ 1500ms. Dashboards and alerts enforce SLOs; tracing uses `workflow_id`, `session_id`, `idempotency_key`.
+- **Dev & Ops**: `make dev-all`, `make test`, `make type-check`, `pnpm dev`; production deploy via scripts under `/scripts` (reverse proxy, HTTPS setup).
+- **Repo Layout**: FastAPI entry at `backend/app/main.py`; PUBLIC routes in `backend/api/public/workflows`; INTERNAL in `backend/api/internal`; HDF5 ops in `backend/storage`.
+- **Frontend Primitives**: Chat widget supports modes, autoscroll, response_mode; uses absolute imports `@/`; banner communicates policy.
+- **Troubleshooting**: Clear caches, enforce absolute imports, verify Auth0 role claim, use local refs for scroll, free ports.
+- **Conventions & Communication**: Prefer technical bullets, executable docs, Conventional Commits + Task IDs; keep markdown length reasonable except for key files.
 
 ## Testing & Validation
 

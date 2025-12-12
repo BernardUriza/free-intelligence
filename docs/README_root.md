@@ -1,4 +1,4 @@
-# Free Intelligence
+# Free Intelligence Documentation Index
 
 **AURITY** = **A**dvanced **U**niversal **R**eliable **I**ntelligence for **T**elemedicine **Y**ield
 
@@ -61,6 +61,8 @@ pm2 start ecosystem.config.js  # Start services
 
 # Access: http://your-nas-ip:9000
 ```
+
+Nota: `.claude/` está listado en `.gitignore`; la referencia del sistema para asistentes vive en `.claude/CLAUDE.md` pero puede no estar presente en clones limpios.
 
 **📖 Deployment Guide**: [NAS_DEPLOYMENT.md](NAS_DEPLOYMENT.md)
 **📖 Quickstart**: [QUICKSTART.md](QUICKSTART.md)
@@ -203,6 +205,17 @@ npm run dev
 - **Docs**: 15+ documentos técnicos
 - **LOC**: ~6,500 líneas
 - **Velocity Sprint 2**: 0.20 (3.3x mejora vs Sprint 1)
+
+---
+
+## 📖 Copilot Instructions (Autoritativas)
+
+Consulta `.github/copilot-instructions.md` para:
+- UX “Thinking” colapsable y contrato SSE (meta primero, luego contenido, `stop` + `[DONE]`)
+- Seguridad: Zero Trust + RBAC, sin PHI en logs, manejo de secretos
+- Arquitectura: Capas PUBLIC/INTERNAL/WORKER y políticas HDF5 append-only
+- Performance: chunking ≥ 60, `max_tokens` inicial para Qwen3 ≤ 128, timeouts
+- Testing: recetas `curl` (zsh-friendly) para meta/content/timeout y endpoint interno de debug
 
 ---
 
