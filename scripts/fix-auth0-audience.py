@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Fix Auth0 API Identifier mismatch"""
-import paramiko
+
 import time
+
+import paramiko
 
 HOST = "104.131.175.65"
 USER = "root"
@@ -17,7 +19,9 @@ try:
     # Check current environment
     print("🔍 Verificando variable actual:")
     print("=" * 80)
-    stdin, stdout, stderr = client.exec_command("printenv | grep AUTH0_API_IDENTIFIER || echo 'Not set'")
+    stdin, stdout, stderr = client.exec_command(
+        "printenv | grep AUTH0_API_IDENTIFIER || echo 'Not set'"
+    )
     current = stdout.read().decode().strip()
     print(f"   Actual: {current}\n")
 
@@ -73,7 +77,7 @@ try:
     for i in range(10):
         stdin, stdout, stderr = client.exec_command("ss -tlnp | grep :7001")
         if stdout.read().decode().strip():
-            print(f"✅ Puerto 7001 escuchando (después de {i+1}s)\n")
+            print(f"✅ Puerto 7001 escuchando (después de {i + 1}s)\n")
             break
         time.sleep(1)
 
@@ -111,6 +115,7 @@ Prueba el login desde tu celular ahora.
 except Exception as e:
     print(f"\n❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

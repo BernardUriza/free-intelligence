@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Patch auth0_config.py directly on server"""
-import paramiko
+
 import time
+
+import paramiko
 
 HOST = "104.131.175.65"
 USER = "root"
@@ -26,7 +28,7 @@ try:
     print("🔧 Aplicando patch...")
     new_content = current_content.replace(
         'AUTH0_API_IDENTIFIER = os.getenv("AUTH0_API_IDENTIFIER", "https://api.fi-aurity.duckdns.org")',
-        'AUTH0_API_IDENTIFIER = os.getenv("AUTH0_API_IDENTIFIER", "https://api.app.aurity.io")'
+        'AUTH0_API_IDENTIFIER = os.getenv("AUTH0_API_IDENTIFIER", "https://api.app.aurity.io")',
     )
 
     if new_content == current_content:
@@ -40,7 +42,7 @@ try:
     escaped_content = new_content.replace("$", "\\$").replace('"', '\\"').replace("`", "\\`")
 
     stdin, stdout, stderr = client.exec_command(
-        f'cat > /opt/free-intelligence/backend/auth/auth0_config.py << \'ENDOFFILE\'\n{new_content}\nENDOFFILE'
+        f"cat > /opt/free-intelligence/backend/auth/auth0_config.py << 'ENDOFFILE'\n{new_content}\nENDOFFILE"
     )
     stdout.channel.recv_exit_status()
     print("✅ Archivo actualizado\n")
@@ -94,6 +96,7 @@ Prueba el login desde tu celular ahora.
 except Exception as e:
     print(f"\n❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

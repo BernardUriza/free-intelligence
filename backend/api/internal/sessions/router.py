@@ -26,9 +26,10 @@ Endpoints:
 """
 
 from datetime import UTC, datetime
+from uuid import uuid4
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
-from uuid import uuid4
 
 from backend.container import get_container
 from backend.logger import get_logger

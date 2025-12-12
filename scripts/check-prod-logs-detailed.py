@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Check production backend logs in detail"""
+
 import paramiko
 
 HOST = "104.131.175.65"
@@ -48,7 +49,9 @@ try:
     print("\n" + "=" * 80)
     print("🔍 BUSCANDO ERRORES RECIENTES:")
     print("=" * 80)
-    stdin, stdout, stderr = client.exec_command("tail -n 200 /tmp/backend.log | grep -i -E '(error|exception|traceback|failed|crash)' | tail -20")
+    stdin, stdout, stderr = client.exec_command(
+        "tail -n 200 /tmp/backend.log | grep -i -E '(error|exception|traceback|failed|crash)' | tail -20"
+    )
     errors = stdout.read().decode()
 
     if errors:
@@ -59,6 +62,7 @@ try:
 except Exception as e:
     print(f"❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

@@ -111,7 +111,7 @@ def get_notification_service() -> NotificationService:
 
 @router.get("/status", response_model=NotificationStatusResponse)
 async def get_notification_status(
-    service: Annotated[NotificationService, Depends(get_notification_service)],  # noqa: B008
+    service: Annotated[NotificationService, Depends(get_notification_service)],
 ) -> NotificationStatusResponse:
     """Get notification service configuration status.
 
@@ -123,7 +123,7 @@ async def get_notification_status(
 @router.post("/send", response_model=SendNotificationResponse)
 async def send_notification(
     request: SendNotificationRequest,
-    service: Annotated[NotificationService, Depends(get_notification_service)],  # noqa: B008
+    service: Annotated[NotificationService, Depends(get_notification_service)],
 ) -> SendNotificationResponse:
     """Send a notification via available channels.
 
@@ -280,7 +280,7 @@ async def send_appointment_reminder(
 @router.post("/schedule-reminders", response_model=ScheduleRemindersResponse)
 async def schedule_reminders(
     request: ScheduleRemindersRequest,
-    service: Annotated[NotificationService, Depends(get_notification_service)],  # noqa: B008
+    service: Annotated[NotificationService, Depends(get_notification_service)],
 ) -> ScheduleRemindersResponse:
     """Schedule automatic reminders for an appointment.
 
@@ -313,7 +313,7 @@ async def schedule_reminders(
 @router.post("/test/sms")
 async def test_sms(
     phone: str,
-    service: Annotated[NotificationService, Depends(get_notification_service)],  # noqa: B008
+    service: Annotated[NotificationService, Depends(get_notification_service)],
 ) -> dict:
     """Test SMS delivery (dev/staging only).
 
@@ -341,7 +341,7 @@ async def test_sms(
 @router.post("/test/email")
 async def test_email(
     email: EmailStr,
-    service: Annotated[NotificationService, Depends(get_notification_service)],  # noqa: B008
+    service: Annotated[NotificationService, Depends(get_notification_service)],
 ) -> dict:
     """Test email delivery (dev/staging only).
 

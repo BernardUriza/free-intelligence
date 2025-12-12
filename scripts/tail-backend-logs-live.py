@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tail backend logs in real-time"""
+
 import paramiko
 
 HOST = "104.131.175.65"
@@ -39,6 +40,7 @@ try:
 except Exception as e:
     print(f"❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

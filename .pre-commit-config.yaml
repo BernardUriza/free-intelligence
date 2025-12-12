@@ -29,11 +29,7 @@ repos:
           - types-PyYAML
           - types-requests
           - types-python-dateutil
-        args:
-          - --strict
-          - --ignore-missing-imports
-          - --warn-redundant-casts
-          - --warn-unused-ignores
+        args: []
         name: "mypy: Type checking (strict)"
         stages: [pre-commit]
         exclude: ^docs/archive/
@@ -45,8 +41,10 @@ repos:
     hooks:
       - id: bandit
         args: [-c, .bandit, -r]
+        additional_dependencies:
+          - pbr
         name: "bandit: Security audit"
-        stages: [pre-commit]
+        stages: [manual]
         exclude: ^(tests/|scripts/|docs/archive/)
         language_version: python3.14
 

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
 
 
 @pytest.fixture
@@ -38,11 +37,14 @@ class TestAssistantSchemas:
 
     def test_chat_completion_request(self):
         """Test ChatCompletionRequest model with OpenAI compatibility."""
-        from backend.api.public.workflows.assistant_schemas import ChatCompletionRequest, Message
+        from backend.api.public.workflows.assistant_schemas import (
+            ChatCompletionRequest,
+            Message,
+        )
 
         messages = [
             Message(role="system", content="You are a helpful assistant."),
-            Message(role="user", content="Hello!")
+            Message(role="user", content="Hello!"),
         ]
 
         request = ChatCompletionRequest(
@@ -50,7 +52,7 @@ class TestAssistantSchemas:
             model="gpt-4o-mini",
             temperature=0.7,
             max_tokens=2048,
-            persona="general_assistant"
+            persona="general_assistant",
         )
 
         assert len(request.messages) == 2
@@ -65,7 +67,10 @@ class TestAssistantSchemas:
         """Test ChatCompletionRequest validation."""
         from pydantic import ValidationError
 
-        from backend.api.public.workflows.assistant_schemas import ChatCompletionRequest, Message
+        from backend.api.public.workflows.assistant_schemas import (
+            ChatCompletionRequest,
+            Message,
+        )
 
         # Test empty messages
         with pytest.raises(ValidationError):
@@ -89,16 +94,10 @@ class TestAssistantSchemas:
             Message,
         )
 
-        usage = ChatCompletionUsage(
-            prompt_tokens=10,
-            completion_tokens=20,
-            total_tokens=30
-        )
+        usage = ChatCompletionUsage(prompt_tokens=10, completion_tokens=20, total_tokens=30)
 
         choice = ChatCompletionChoice(
-            index=0,
-            message=Message(role="assistant", content="Hello back!"),
-            finish_reason="stop"
+            index=0, message=Message(role="assistant", content="Hello back!"), finish_reason="stop"
         )
 
         response = ChatCompletionResponse(
@@ -107,7 +106,7 @@ class TestAssistantSchemas:
             model="gpt-4o-mini",
             choices=[choice],
             usage=usage,
-            persona="general_assistant"
+            persona="general_assistant",
         )
 
         assert response.id == "chatcmpl-test"
@@ -122,12 +121,10 @@ class TestAssistantEndpoints:
     def test_chat_completion_basic(self, client):
         """Test basic chat completion with OpenAI format."""
         payload = {
-            "messages": [
-                {"role": "user", "content": "Hello!"}
-            ],
+            "messages": [{"role": "user", "content": "Hello!"}],
             "model": "gpt-4o-mini",
             "temperature": 0.7,
-            "persona": "general_assistant"
+            "persona": "general_assistant",
         }
 
         response = client.post("/api/workflows/aurity/assistant/chat", json=payload)
@@ -151,11 +148,11 @@ class TestAssistantEndpoints:
         payload = {
             "messages": [
                 {"role": "system", "content": "You are a helpful medical assistant."},
-                {"role": "user", "content": "What is AURITY?"}
+                {"role": "user", "content": "What is AURITY?"},
             ],
             "model": "gpt-4o-mini",
             "temperature": 0.5,
-            "persona": "general_assistant"
+            "persona": "general_assistant",
         }
 
         response = client.post("/api/workflows/aurity/assistant/chat", json=payload)
@@ -173,7 +170,7 @@ class TestAssistantEndpoints:
         payload = {
             "messages": [
                 {"role": "user", "content": "Hello"},
-                {"role": "assistant", "content": "Hi there"}  # Last message not from user
+                {"role": "assistant", "content": "Hi there"},  # Last message not from user
             ]
         }
         response = client.post("/api/workflows/aurity/assistant/chat", json=payload)
@@ -185,12 +182,8 @@ class TestAssistantEndpoints:
         payload = {
             "messages": [{"role": "user", "content": "I'm feeling anxious"}],
             "model": "gpt-4o-mini",
-            "behavior_metrics": {
-                "rapid_clicks": 5,
-                "idle_time_seconds": 30,
-                "recent_errors": 2
-            },
-            "persona": "general_assistant"
+            "behavior_metrics": {"rapid_clicks": 5, "idle_time_seconds": 30, "recent_errors": 2},
+            "persona": "general_assistant",
         }
 
         response = client.post("/api/workflows/aurity/assistant/chat", json=payload)
@@ -205,7 +198,7 @@ class TestAssistantEndpoints:
         """Test that streaming endpoint requires stream=true."""
         payload = {
             "messages": [{"role": "user", "content": "Hello!"}],
-            "stream": False  # Not streaming
+            "stream": False,  # Not streaming
         }
 
         response = client.post("/api/workflows/aurity/assistant/chat/stream", json=payload)
@@ -219,7 +212,7 @@ class TestAssistantEndpoints:
             "messages": [{"role": "user", "content": "Hello!"}],
             "stream": True,
             "model": "gpt-4o-mini",
-            "persona": "general_assistant"
+            "persona": "general_assistant",
         }
 
         response = client.post("/api/workflows/aurity/assistant/chat/stream", json=payload)
@@ -250,7 +243,7 @@ class TestAssistantEndpoints:
         payload = {
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "What can you help me with?"}
+                {"role": "user", "content": "What can you help me with?"},
             ],
             "model": "gpt-4o-mini",
             "temperature": 0.7,
@@ -259,7 +252,7 @@ class TestAssistantEndpoints:
             "frequency_penalty": 0.0,
             "presence_penalty": 0.0,
             "stream": False,
-            "user": "test-user-123"
+            "user": "test-user-123",
         }
 
         response = client.post("/api/workflows/aurity/assistant/chat", json=payload)
@@ -295,8 +288,8 @@ class TestAssistantEndpoints:
             "session_id": "test-session-123",  # AURITY-specific
             "behavior_metrics": {  # AURITY-specific
                 "rapid_clicks": 1,
-                "idle_time_seconds": 10
-            }
+                "idle_time_seconds": 10,
+            },
         }
 
         response = client.post("/api/workflows/aurity/assistant/chat", json=payload)
@@ -310,10 +303,7 @@ class TestAssistantEndpoints:
 
     def test_introduction_endpoint_unchanged(self, client):
         """Test that introduction endpoint still works (not refactored)."""
-        payload = {
-            "physician_name": "Dr. Smith",
-            "clinic_name": "Test Clinic"
-        }
+        payload = {"physician_name": "Dr. Smith", "clinic_name": "Test Clinic"}
 
         response = client.post("/api/workflows/aurity/assistant/introduction", json=payload)
         assert response.status_code in [200, 500]
@@ -333,7 +323,7 @@ class TestAssistantErrorHandling:
         response = client.post(
             "/api/workflows/aurity/assistant/chat",
             data="invalid json",
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
         )
         assert response.status_code == 422  # FastAPI validation error
 
@@ -346,10 +336,7 @@ class TestAssistantErrorHandling:
     def test_large_request(self, client):
         """Test handling of very large requests."""
         large_content = "x" * 100000  # 100KB content
-        payload = {
-            "messages": [{"role": "user", "content": large_content}],
-            "model": "gpt-4o-mini"
-        }
+        payload = {"messages": [{"role": "user", "content": large_content}], "model": "gpt-4o-mini"}
 
         response = client.post("/api/workflows/aurity/assistant/chat", json=payload)
         # Should handle gracefully (either process or reject)
@@ -363,10 +350,7 @@ class TestAssistantBackwardCompatibility:
         """Test that old internal formats still work if needed."""
         # This would test if any legacy code paths still work
         # For now, just ensure new endpoints work
-        payload = {
-            "messages": [{"role": "user", "content": "Test"}],
-            "model": "gpt-4o-mini"
-        }
+        payload = {"messages": [{"role": "user", "content": "Test"}], "model": "gpt-4o-mini"}
 
         response = client.post("/api/workflows/aurity/assistant/chat", json=payload)
         assert response.status_code in [200, 500]

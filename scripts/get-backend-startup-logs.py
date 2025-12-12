@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Get backend startup logs"""
+
 import paramiko
 
 HOST = "104.131.175.65"

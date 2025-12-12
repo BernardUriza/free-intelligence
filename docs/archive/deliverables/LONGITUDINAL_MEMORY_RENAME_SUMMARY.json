@@ -2,7 +2,7 @@
   "rename_operation": "unified → longitudinal_memory",
   "date": "2025-12-07",
   "summary": "Strategic semantic renaming from 'unified timeline' to 'longitudinal memory' completed successfully. All backend routes, frontend components, types, and tests updated. Legacy endpoints maintained for 90-day grace period.",
-  
+
   "changed_files": [
     "backend/api/public/workflows/unified_timeline.py → longitudinal_memory.py",
     "backend/api/public/workflows/router.py",
@@ -17,7 +17,7 @@
     "apps/aurity/__tests__/timeline/page.unified.spec.tsx",
     "apps/aurity/lib/api/chat-history.ts"
   ],
-  
+
   "routes": [
     {
       "path": "/api/workflows/aurity/timeline/memory",
@@ -51,7 +51,7 @@
       "redirect_to": "/api/workflows/aurity/timeline/memory/stats"
     }
   ],
-  
+
   "contracts": {
     "version": "v1",
     "response_models": {
@@ -75,7 +75,7 @@
     "breaking_changes": "None - JSON payload structure unchanged, only internal names refactored",
     "aliases_maintained": "Legacy routes provide same functionality with deprecation warnings"
   },
-  
+
   "types_renamed": {
     "backend": {
       "UnifiedEvent": "MemoryEvent",
@@ -92,7 +92,7 @@
       "UseUnifiedTimelineReturn": "UseLongitudinalMemoryReturn"
     }
   },
-  
+
   "functions_renamed": {
     "backend": {
       "get_unified_timeline": "get_longitudinal_memory",
@@ -107,14 +107,14 @@
       "unifiedTimelineConfig": "memoryConfig"
     }
   },
-  
+
   "constants_renamed": {
     "TIMELINE_API": "MEMORY_API",
     "TIMELINE_PAGINATION": "MEMORY_PAGINATION",
     "TIMELINE_TIME_RANGES": "MEMORY_TIME_RANGES",
     "timelineQueryKeys": "memoryQueryKeys"
   },
-  
+
   "tests": {
     "passed": 6,
     "failed": 0,
@@ -128,7 +128,7 @@
       "Stable routes not deprecated"
     ]
   },
-  
+
   "telemetry_updates": {
     "log_events_renamed": {
       "UNIFIED_TIMELINE_REQUEST": "LONGITUDINAL_MEMORY_REQUEST",
@@ -138,19 +138,19 @@
     "deprecated_endpoint_warnings": "DEPRECATED_ENDPOINT_USED logs when legacy routes are accessed",
     "action_required": "Update Grafana/Sentry dashboards to track new event names"
   },
-  
+
   "documentation_updates": {
     "openapi_tags": "Updated to 'Longitudinal Memory' and 'Longitudinal Memory (Deprecated)'",
     "docstrings": "All docstrings updated to reference 'longitudinal memory' instead of 'unified timeline'",
     "comments": "Inline comments updated in all affected files"
   },
-  
+
   "frontend_cache_invalidation": {
     "localStorage_keys": "No timeline-* keys detected in codebase",
     "react_query_keys": "Updated from timelineQueryKeys to memoryQueryKeys",
     "action_required": "Consider cache busting on next deployment if react-query persistence is enabled"
   },
-  
+
   "verification_commands": {
     "backend": [
       "pytest backend/tests/api/public/workflows/test_longitudinal_memory_contract.py -v",
@@ -162,7 +162,7 @@
       "grep -r 'Unified.*Event' apps/aurity --exclude-dir=node_modules --exclude-dir=.next"
     ]
   },
-  
+
   "backward_compatibility": {
     "grace_period_days": 90,
     "deprecation_start": "2025-12-07",
@@ -170,7 +170,7 @@
     "migration_path": "Update API calls from /timeline/unified to /timeline/memory",
     "breaking_changes": "None during grace period - legacy endpoints return same data with deprecation warnings"
   },
-  
+
   "todos": [
     {
       "id": "TODO-1",
@@ -201,7 +201,7 @@
       "assignee": "frontend-team"
     }
   ],
-  
+
   "metadata": {
     "card": "FI-PHIL-DOC-014",
     "philosophy": "No existen sesiones. Solo una conversación infinita.",

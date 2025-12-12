@@ -28,7 +28,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from backend.fi_event_store import EventStore  # type: ignore[import] EventStore
+from backend.fi_event_store import EventStore  # type: ignore[import]
 from backend.logger import get_logger
 from backend.providers.adapters import ReduxAdapter, validate_redux_action
 from backend.providers.models import Consultation

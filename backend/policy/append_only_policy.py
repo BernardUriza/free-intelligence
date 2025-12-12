@@ -10,9 +10,10 @@ Direct mutation, modification, or deletion of existing data is forbidden.
 FI-DATA-FEAT-005
 """
 
-import h5py
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+import h5py
 
 if TYPE_CHECKING:
     pass

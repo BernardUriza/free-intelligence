@@ -42,25 +42,27 @@ async def transcribe_chunk_direct(audio_bytes: bytes, api_key: str) -> str:
         "Content-Type": "audio/wav",
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
+    async with (
+        aiohttp.ClientSession() as session,
+        session.post(
             url,
             params=params,
             headers=headers,
             data=audio_bytes,
             timeout=aiohttp.ClientTimeout(total=30),
-        ) as response:
-            response.raise_for_status()
-            result = await response.json()
+        ) as response,
+    ):
+        response.raise_for_status()
+        result = await response.json()
 
-            # Extract transcript
-            transcript = (
-                result.get("results", {})
-                .get("channels", [{}])[0]
-                .get("alternatives", [{}])[0]
-                .get("transcript", "")
-            )
-            return transcript
+        # Extract transcript
+        transcript = (
+            result.get("results", {})
+            .get("channels", [{}])[0]
+            .get("alternatives", [{}])[0]
+            .get("transcript", "")
+        )
+        return transcript
 
 
 async def transcribe_missing_chunks(session_id: str) -> None:

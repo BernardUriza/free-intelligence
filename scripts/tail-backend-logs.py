@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Monitor de logs del backend en tiempo real"""
+
 import paramiko
-import sys
 
 HOST = "104.131.175.65"
 USER = "root"
@@ -40,11 +40,11 @@ try:
             break
         # Highlight errors and warnings
         line_lower = line.lower()
-        if 'error' in line_lower or 'exception' in line_lower:
+        if "error" in line_lower or "exception" in line_lower:
             print(f"🔴 {line.rstrip()}")
-        elif 'warning' in line_lower or 'warn' in line_lower:
+        elif "warning" in line_lower or "warn" in line_lower:
             print(f"🟡 {line.rstrip()}")
-        elif 'http' in line_lower or 'request' in line_lower:
+        elif "http" in line_lower or "request" in line_lower:
             print(f"🔵 {line.rstrip()}")
         else:
             print(f"   {line.rstrip()}")
@@ -54,6 +54,7 @@ except KeyboardInterrupt:
 except Exception as e:
     print(f"\n❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

@@ -12,8 +12,9 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from enum import Enum
+from typing import List
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import List, Optional
 
 # =============================================================================
 # ENUMS (match TypeScript exactly)
@@ -86,25 +87,25 @@ class PendingActionResponse(BaseModel):
     status: PendingActionStatus
 
     title: str
-    description: Optional[str] = None
-    icon: Optional[str] = None
+    description: str | None = None
+    icon: str | None = None
 
     is_required: bool
     is_blocking: bool
 
     # For payments
-    amount: Optional[float] = None
-    currency: Optional[str] = "MXN"
+    amount: float | None = None
+    currency: str | None = "MXN"
 
     # For documents
-    document_type: Optional[str] = None
-    document_url: Optional[str] = None
-    signed_at: Optional[str] = None
+    document_type: str | None = None
+    document_url: str | None = None
+    signed_at: str | None = None
 
     # For uploads
-    uploaded_file_id: Optional[str] = None
+    uploaded_file_id: str | None = None
 
-    completed_at: Optional[str] = None
+    completed_at: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -113,13 +114,13 @@ class CompleteActionRequest(BaseModel):
     """Request to complete a pending action."""
 
     # For signatures
-    signature_data: Optional[str] = None  # Base64
+    signature_data: str | None = None  # Base64
 
     # For payments
-    payment_intent_id: Optional[str] = None
+    payment_intent_id: str | None = None
 
     # For uploads
-    file_id: Optional[str] = None
+    file_id: str | None = None
 
 
 # =============================================================================
@@ -149,21 +150,21 @@ class AppointmentResponse(BaseModel):
     appointment_type: AppointmentType
 
     status: AppointmentStatus
-    checked_in_at: Optional[str] = None
-    called_at: Optional[str] = None
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
+    checked_in_at: str | None = None
+    called_at: str | None = None
+    started_at: str | None = None
+    completed_at: str | None = None
 
     checkin_code: str
     checkin_code_expires_at: str
 
-    reason: Optional[str] = None
-    notes: Optional[str] = None
+    reason: str | None = None
+    notes: str | None = None
 
     pending_actions: List[PendingActionResponse] = []
 
     created_at: str
-    updated_at: Optional[str] = None
+    updated_at: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -207,12 +208,12 @@ class CheckinSessionResponse(BaseModel):
 
     current_step: CheckinStep
     started_at: str
-    completed_at: Optional[str] = None
+    completed_at: str | None = None
 
-    identification_method: Optional[str] = None
+    identification_method: str | None = None
 
-    appointment_id: Optional[str] = None
-    patient_id: Optional[str] = None
+    appointment_id: str | None = None
+    patient_id: str | None = None
 
     device_type: DeviceType
 
@@ -279,17 +280,17 @@ class PatientBrief(BaseModel):
 
     patient_id: str
     full_name: str
-    masked_curp: Optional[str] = None
+    masked_curp: str | None = None
 
 
 class IdentifyPatientResponse(BaseModel):
     """Response for patient identification matching TypeScript."""
 
     success: bool
-    patient: Optional[PatientBrief] = None
-    appointment: Optional[AppointmentBrief] = None
-    pending_actions: Optional[List[PendingActionResponse]] = None
-    error: Optional[str] = None
+    patient: PatientBrief | None = None
+    appointment: AppointmentBrief | None = None
+    pending_actions: List[PendingActionResponse] | None = None
+    error: str | None = None
 
 
 # =============================================================================
@@ -314,7 +315,7 @@ class CompleteCheckinResponse(BaseModel):
     position_in_queue: int
     estimated_wait_minutes: int
     message: str
-    error: Optional[str] = None
+    error: str | None = None
 
 
 # =============================================================================
@@ -351,7 +352,7 @@ class WaitingRoomState(BaseModel):
     avg_wait_time_minutes: int
     patients_seen_today: int
 
-    next_available_slot: Optional[str] = None
+    next_available_slot: str | None = None
 
     updated_at: str
 

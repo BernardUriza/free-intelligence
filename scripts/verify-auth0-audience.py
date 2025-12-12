@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Verify Auth0 audience configuration"""
-import paramiko
+
 import json
+
+import paramiko
 
 HOST = "104.131.175.65"
 USER = "root"
@@ -14,9 +16,7 @@ try:
     client.connect(HOST, username=USER, password=PASSWORD, look_for_keys=False, timeout=30)
 
     # Get full response
-    stdin, stdout, stderr = client.exec_command(
-        "curl -s http://localhost:7001/api/auth/config"
-    )
+    stdin, stdout, stderr = client.exec_command("curl -s http://localhost:7001/api/auth/config")
     response = stdout.read().decode()
 
     print("📋 Respuesta completa:")

@@ -10,9 +10,10 @@ Provides guard functions for sovereignty, privacy, cost, and feature flags
 
 import hashlib
 import re
-import yaml
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 from backend.logger import get_logger
 
@@ -152,6 +153,7 @@ class PolicyEnforcer:
 
         if default_action == "deny" and not self._is_url_allowed(url, allowlist):
             from urllib.parse import urlparse
+
             parsed = urlparse(url)
             host = parsed.netloc.lower() if parsed.netloc else ""
 

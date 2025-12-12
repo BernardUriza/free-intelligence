@@ -12,16 +12,12 @@ Uses chunks 5-7 for realistic medical case testing.
 
 from __future__ import annotations
 
-import pytest
 import time
 from pathlib import Path
 
-from backend.models.task_type import TaskType
-from backend.storage.task_repository import (
-    get_session_metadata,
-    get_soap_data,
-    get_task_metadata,
-)
+import pytest
+
+from backend.storage.task_repository import get_session_metadata, get_soap_data
 
 
 @pytest.fixture
@@ -65,6 +61,7 @@ class TestAuditWorkflowE2E:
         8. Verify feedback is saved
         """
         from fastapi.testclient import TestClient
+
         from backend.app.main import app
 
         client = TestClient(app)
@@ -86,7 +83,7 @@ class TestAuditWorkflowE2E:
             print(f"  ✓ Chunk {chunk_num} uploaded")
 
         # Step 2: Checkpoint audio
-        print(f"[Test] Checkpointing audio (last_chunk_idx=7)")
+        print("[Test] Checkpointing audio (last_chunk_idx=7)")
         response = client.post(
             f"/api/workflows/aurity/sessions/{session_id}/checkpoint",
             json={"last_chunk_idx": 7},
@@ -97,7 +94,7 @@ class TestAuditWorkflowE2E:
         print(f"  ✓ Audio checkpointed: {checkpoint_data['full_audio_size']} bytes")
 
         # Step 3: Finalize session (triggers SOAP)
-        print(f"[Test] Finalizing session (starts SOAP generation)")
+        print("[Test] Finalizing session (starts SOAP generation)")
         response = client.post(
             f"/api/workflows/aurity/sessions/{session_id}/finalize",
             json={
@@ -105,10 +102,10 @@ class TestAuditWorkflowE2E:
                     "webspeech_final": [],
                     "transcription_per_chunks": [],
                     "full_transcription": "Paciente con dolor torácico de 2 horas de evolución. "
-                                         "Presión arterial 160/95, frecuencia cardíaca 110 lpm. "
-                                         "Antecedentes: diabetes tipo 2, hipertensión. "
-                                         "Medicamentos: metformina, enalapril, losartán. "
-                                         "Plan: aspirina, clopidogrel, cateterismo urgente.",
+                    "Presión arterial 160/95, frecuencia cardíaca 110 lpm. "
+                    "Antecedentes: diabetes tipo 2, hipertensión. "
+                    "Medicamentos: metformina, enalapril, losartán. "
+                    "Plan: aspirina, clopidogrel, cateterismo urgente.",
                 }
             },
         )
@@ -117,7 +114,7 @@ class TestAuditWorkflowE2E:
         print(f"  ✓ Session finalized: {finalize_data['status']}")
 
         # Step 4: Wait for SOAP completion (poll monitor endpoint)
-        print(f"[Test] Waiting for SOAP generation (max 60s)...")
+        print("[Test] Waiting for SOAP generation (max 60s)...")
         soap_completed = False
         for attempt in range(60):  # Max 60 seconds
             time.sleep(1)
@@ -132,13 +129,15 @@ class TestAuditWorkflowE2E:
                     print(f"  ✓ SOAP generation completed (took {attempt + 1}s)")
                     break
                 elif soap_status == "FAILED":
-                    pytest.fail(f"SOAP generation failed: {monitor_data.get('soap', {}).get('error')}")
+                    pytest.fail(
+                        f"SOAP generation failed: {monitor_data.get('soap', {}).get('error')}"
+                    )
 
         if not soap_completed:
             pytest.fail("SOAP generation timed out after 60 seconds")
 
         # Step 5: GET /audit endpoint
-        print(f"[Test] Fetching audit data...")
+        print("[Test] Fetching audit data...")
         response = client.get(f"/api/sessions/{session_id}/audit")
         assert response.status_code == 200
         audit_data = response.json()
@@ -151,7 +150,7 @@ class TestAuditWorkflowE2E:
         assert "soap_note" in audit_data
         assert "flags" in audit_data
 
-        print(f"  ✓ Audit data fetched")
+        print("  ✓ Audit data fetched")
         print(f"    - Strategy: {audit_data['orchestration']['strategy']}")
         print(f"    - Personas: {audit_data['orchestration']['personas_invoked']}")
         print(f"    - Confidence: {audit_data['orchestration']['confidence_score']:.2%}")
@@ -160,20 +159,19 @@ class TestAuditWorkflowE2E:
 
         # Step 6: Verify flags are detected
         flags = audit_data["flags"]
-        assert len(flags) > 0, "Expected at least one flag (medication interaction or low confidence)"
+        assert len(flags) > 0, (
+            "Expected at least one flag (medication interaction or low confidence)"
+        )
 
         # Check for medication interaction flag (enalapril + losartán)
-        interaction_flag = next(
-            (f for f in flags if f["type"] == "medication_interaction"),
-            None
-        )
+        interaction_flag = next((f for f in flags if f["type"] == "medication_interaction"), None)
         if interaction_flag:
-            print(f"  ✓ Medication interaction flag detected:")
+            print("  ✓ Medication interaction flag detected:")
             print(f"    - Severity: {interaction_flag['severity']}")
             print(f"    - Message: {interaction_flag['message']}")
 
         # Step 7: POST /feedback with corrections
-        print(f"[Test] Submitting doctor feedback...")
+        print("[Test] Submitting doctor feedback...")
         response = client.post(
             f"/api/sessions/{session_id}/feedback",
             json={
@@ -197,13 +195,13 @@ class TestAuditWorkflowE2E:
         assert feedback_response["audit_status"] == "approved"
         assert feedback_response["corrections_applied"] >= 1
 
-        print(f"  ✓ Doctor feedback submitted")
-        print(f"    - Rating: 4/5")
-        print(f"    - Decision: approved")
+        print("  ✓ Doctor feedback submitted")
+        print("    - Rating: 4/5")
+        print("    - Decision: approved")
         print(f"    - Corrections applied: {feedback_response['corrections_applied']}")
 
         # Step 8: Verify feedback is saved
-        print(f"[Test] Verifying feedback persistence...")
+        print("[Test] Verifying feedback persistence...")
         session_meta = get_session_metadata(session_id)
 
         assert session_meta is not None
@@ -216,22 +214,23 @@ class TestAuditWorkflowE2E:
         assert doctor_feedback["decision"] == "approved"
         assert len(doctor_feedback["corrections"]) == 1
 
-        print(f"  ✓ Feedback persisted correctly")
+        print("  ✓ Feedback persisted correctly")
 
         # Verify SOAP was updated with correction
         soap_data = get_soap_data(session_id)
         plan_str = str(soap_data.get("plan", {}))
 
         # Note: Correction might be in medications list or as metadata
-        print(f"  ✓ SOAP data structure preserved")
+        print("  ✓ SOAP data structure preserved")
 
-        print(f"\n[Test] ✅ Complete audit workflow test PASSED")
+        print("\n[Test] ✅ Complete audit workflow test PASSED")
         print(f"Session ID: {session_id}")
         print(f"You can inspect with: GET /api/sessions/{session_id}/audit")
 
     def test_audit_endpoint_with_nonexistent_session(self):
         """Test audit endpoint returns 404 for nonexistent session."""
         from fastapi.testclient import TestClient
+
         from backend.app.main import app
 
         client = TestClient(app)
@@ -243,6 +242,7 @@ class TestAuditWorkflowE2E:
     def test_feedback_endpoint_validation(self):
         """Test feedback endpoint validates required fields."""
         from fastapi.testclient import TestClient
+
         from backend.app.main import app
 
         client = TestClient(app)
@@ -277,7 +277,7 @@ class TestAuditWorkflowE2E:
         # Test low confidence flag
         flags = _analyze_session_flags(
             soap_data={"subjective": "Test", "objective": "Test"},
-            orchestration={"confidence_score": 0.85, "complexity_score": 30}
+            orchestration={"confidence_score": 0.85, "complexity_score": 30},
         )
 
         assert any(f["type"] == "low_confidence" for f in flags)
@@ -292,9 +292,9 @@ class TestAuditWorkflowE2E:
                         {"name": "Enalapril 10mg"},
                         {"name": "Losartán 50mg"},
                     ]
-                }
+                },
             },
-            orchestration={"confidence_score": 0.95, "complexity_score": 40}
+            orchestration={"confidence_score": 0.95, "complexity_score": 40},
         )
 
         assert any(f["type"] == "medication_interaction" for f in flags)
@@ -306,7 +306,7 @@ class TestAuditWorkflowE2E:
                 "subjective": "Test",
                 "objective": "",  # Empty
             },
-            orchestration={"confidence_score": 0.95, "complexity_score": 40}
+            orchestration={"confidence_score": 0.95, "complexity_score": 40},
         )
 
         assert any(f["type"] == "missing_objective_data" for f in flags)

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Deploy corrected Auth0 config with app.aurity.io (no api subdomain)"""
-import paramiko
+
 import time
+
+import paramiko
 
 HOST = "104.131.175.65"
 USER = "root"
@@ -23,7 +25,9 @@ try:
     # Upload corrected file
     print("📤 Subiendo auth0_config.py corregido...")
     sftp = client.open_sftp()
-    local_path = "/Users/bernardurizaorozco/Documents/free-intelligence/backend/auth/auth0_config.py"
+    local_path = (
+        "/Users/bernardurizaorozco/Documents/free-intelligence/backend/auth/auth0_config.py"
+    )
     remote_path = "/opt/free-intelligence/backend/auth/auth0_config.py"
     sftp.put(local_path, remote_path)
     sftp.close()
@@ -48,7 +52,7 @@ try:
     process = stdout.read().decode().strip()
 
     if process:
-        print(f"✅ Backend corriendo\n")
+        print("✅ Backend corriendo\n")
 
         # Test endpoint
         print("🧪 Probando /api/auth/config...")
@@ -73,6 +77,7 @@ try:
 except Exception as e:
     print(f"❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

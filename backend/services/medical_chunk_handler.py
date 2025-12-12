@@ -210,7 +210,9 @@ class MedicalChunkHandler(ChunkHandler):
             # Calculate progress
             total_chunks = len(chunks)
             completed_chunks = sum(1 for c in chunks if c.get("status") == "completed")
-            progress_percent = int((completed_chunks / total_chunks) * 100) if total_chunks > 0 else 0
+            progress_percent = (
+                int((completed_chunks / total_chunks) * 100) if total_chunks > 0 else 0
+            )
 
             # Determine overall status
             if all(c.get("status") == "completed" for c in chunks):

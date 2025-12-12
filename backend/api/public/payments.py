@@ -11,8 +11,9 @@ Card: FI-CHECKIN-002
 from __future__ import annotations
 
 import os
-import stripe
 from datetime import UTC, datetime
+
+import stripe
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session

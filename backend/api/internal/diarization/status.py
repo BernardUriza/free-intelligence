@@ -16,9 +16,10 @@ from __future__ import annotations
 
 import json
 import os
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
-from typing import Any
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
@@ -116,7 +117,11 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
                     progress_pct = job_obj.get("progress_percent", job_obj.get("progress", 0))
 
                     # Resolve soap failure case
-                    soap_status = job_obj.get("result_data", {}).get("soap_status") if isinstance(job_obj.get("result_data"), dict) else None
+                    soap_status = (
+                        job_obj.get("result_data", {}).get("soap_status")
+                        if isinstance(job_obj.get("result_data"), dict)
+                        else None
+                    )
                     if status_in == "completed" and soap_status == "failed":
                         task_status = "completed_with_errors"
                     else:
@@ -124,7 +129,11 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
 
                     task_progress = int(progress_pct or 0)
                     # Segment count may be nested
-                    segs = job_obj.get("result_data", {}).get("diarization", {}).get("segments") if isinstance(job_obj.get("result_data"), dict) else None
+                    segs = (
+                        job_obj.get("result_data", {}).get("diarization", {}).get("segments")
+                        if isinstance(job_obj.get("result_data"), dict)
+                        else None
+                    )
                     if isinstance(segs, list):
                         segment_count = len(segs)
 

@@ -14,13 +14,14 @@ from __future__ import annotations
 import base64
 import io
 import json
-import qrcode
 import secrets
 from datetime import UTC, datetime
+from typing import List
+
+import qrcode
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
-from typing import List
 
 from backend.database import get_db_dependency
 from backend.logger import get_logger

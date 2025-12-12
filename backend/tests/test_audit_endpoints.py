@@ -12,6 +12,7 @@ import pytest
 def existing_session_id():
     """Get a session ID that has SOAP data."""
     import h5py
+
     from backend.storage.task_repository import CORPUS_PATH
 
     with h5py.File(CORPUS_PATH, "r") as f:
@@ -35,9 +36,9 @@ def existing_session_id():
         return "session_complete_test"
 
     for session_id in ["session_complete_test"]:
-            session_path = f"/sessions/{session_id}/tasks/SOAP_GENERATION"
-            if session_path in f:
-                return session_id
+        session_path = f"/sessions/{session_id}/tasks/SOAP_GENERATION"
+        if session_path in f:
+            return session_id
 
     pytest.skip("No sessions with SOAP data found")
 
@@ -48,6 +49,7 @@ class TestAuditEndpoints:
     def test_get_audit_endpoint(self, existing_session_id):
         """Test GET /api/workflows/aurity/sessions/{id}/audit endpoint."""
         from fastapi.testclient import TestClient
+
         from backend.app.main import app
 
         client = TestClient(app)
@@ -68,7 +70,7 @@ class TestAuditEndpoints:
         assert "soap_note" in audit_data
         assert "flags" in audit_data
 
-        print(f"  ✓ Audit data fetched successfully")
+        print("  ✓ Audit data fetched successfully")
         print(f"    - Orchestration strategy: {audit_data['orchestration'].get('strategy', 'N/A')}")
         print(f"    - Confidence: {audit_data['orchestration'].get('confidence_score', 0):.2%}")
         print(f"    - Flags detected: {len(audit_data['flags'])}")
@@ -80,9 +82,11 @@ class TestAuditEndpoints:
 
     def test_submit_feedback_endpoint(self, existing_session_id):
         """Test POST /api/workflows/aurity/sessions/{id}/feedback endpoint."""
-        from fastapi.testclient import TestClient
-        from backend.app.main import app
         import time
+
+        from fastapi.testclient import TestClient
+
+        from backend.app.main import app
 
         client = TestClient(app)
 
@@ -115,7 +119,7 @@ class TestAuditEndpoints:
         assert feedback_response["audit_status"] == "approved"
         assert feedback_response["corrections_applied"] >= 0
 
-        print(f"  ✓ Feedback submitted successfully")
+        print("  ✓ Feedback submitted successfully")
         print(f"    - Rating: {feedback_payload['rating']}/5")
         print(f"    - Decision: {feedback_payload['decision']}")
         print(f"    - Corrections applied: {feedback_response['corrections_applied']}")
@@ -130,11 +134,12 @@ class TestAuditEndpoints:
         assert audit_data["doctor_feedback"]["rating"] == 4
         assert audit_data["session_metadata"]["status"] == "approved"
 
-        print(f"  ✓ Feedback persisted correctly")
+        print("  ✓ Feedback persisted correctly")
 
     def test_audit_endpoint_404(self):
         """Test audit endpoint returns 404 for nonexistent session."""
         from fastapi.testclient import TestClient
+
         from backend.app.main import app
 
         client = TestClient(app)
@@ -146,6 +151,7 @@ class TestAuditEndpoints:
     def test_feedback_validation(self):
         """Test feedback endpoint validates required fields."""
         from fastapi.testclient import TestClient
+
         from backend.app.main import app
 
         client = TestClient(app)
@@ -180,7 +186,7 @@ class TestAuditEndpoints:
         # Test low confidence flag
         flags = _analyze_session_flags(
             soap_data={"subjective": "Test", "objective": "Test"},
-            orchestration={"confidence_score": 0.85, "complexity_score": 30}
+            orchestration={"confidence_score": 0.85, "complexity_score": 30},
         )
         assert any(f["type"] == "low_confidence" for f in flags)
 
@@ -194,9 +200,9 @@ class TestAuditEndpoints:
                         {"name": "Enalapril 10mg"},
                         {"name": "Losartán 50mg"},
                     ]
-                }
+                },
             },
-            orchestration={"confidence_score": 0.95, "complexity_score": 40}
+            orchestration={"confidence_score": 0.95, "complexity_score": 40},
         )
         assert any(f["type"] == "medication_interaction" for f in flags)
         assert any(f["severity"] == "critical" for f in flags)
@@ -207,7 +213,7 @@ class TestAuditEndpoints:
                 "subjective": "Test",
                 "objective": "",  # Empty
             },
-            orchestration={"confidence_score": 0.95, "complexity_score": 40}
+            orchestration={"confidence_score": 0.95, "complexity_score": 40},
         )
         assert any(f["type"] == "missing_objective_data" for f in flags)
 

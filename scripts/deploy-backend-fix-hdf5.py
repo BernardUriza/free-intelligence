@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Deploy backend fix for HDF5 path and restart"""
-import paramiko
+
 import time
+
+import paramiko
 
 HOST = "104.131.175.65"
 USER = "root"
@@ -39,7 +41,7 @@ try:
         remote_path = "/opt/free-intelligence/backend/api/internal/sessions/finalize.py"
 
         sftp.put(local_path, remote_path)
-        print(f"✅ Archivo desplegado: finalize.py\n")
+        print("✅ Archivo desplegado: finalize.py\n")
 
     finally:
         sftp.close()
@@ -89,7 +91,7 @@ try:
         stdin, stdout, stderr = client.exec_command("ss -tlnp | grep :7001")
         port = stdout.read().decode().strip()
         if ":7001" in port:
-            print(f"✅ Puerto 7001 escuchando (después de {i+1}s)\n")
+            print(f"✅ Puerto 7001 escuchando (después de {i + 1}s)\n")
             break
         time.sleep(1)
     else:
@@ -104,7 +106,7 @@ try:
     if "HTTP:200" in response:
         print("✅ API respondiendo correctamente!\n")
         # Show first line of response
-        first_line = response.split('\n')[0][:100]
+        first_line = response.split("\n")[0][:100]
         print(f"   Response: {first_line}...\n")
     else:
         print(f"⚠️  API response:\n{response}\n")
@@ -123,6 +125,7 @@ try:
 except Exception as e:
     print(f"\n❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

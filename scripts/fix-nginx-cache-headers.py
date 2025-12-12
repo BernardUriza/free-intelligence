@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Fix Nginx cache headers to prevent stale HTML"""
-import paramiko
+
 import time
+
+import paramiko
 
 HOST = "104.131.175.65"
 USER = "root"
@@ -148,6 +150,7 @@ Los archivos JS/CSS deberían cargar correctamente.
 except Exception as e:
     print(f"\n❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

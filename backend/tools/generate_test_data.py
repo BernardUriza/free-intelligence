@@ -9,11 +9,12 @@ Usage:
     python3 scripts/generate_test_data.py
 """
 
-import numpy as np
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+import numpy as np
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))

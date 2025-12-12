@@ -5,12 +5,13 @@ Provides reusable fixtures for testing with DI container, repositories, and serv
 
 from __future__ import annotations
 
-import pytest
 import tempfile
 from collections.abc import Generator
 from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Union
+
+import pytest
 
 if TYPE_CHECKING:
     from packages.fi_common.infrastructure.container import DIContainer

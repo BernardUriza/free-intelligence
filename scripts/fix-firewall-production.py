@@ -3,12 +3,13 @@
 Diagnóstico y solución de firewall en producción
 Migra de iptables manual a UFW persistente
 """
+
 import paramiko
-import sys
 
 HOST = "104.131.175.65"
 USER = "root"
 PASSWORD = "FreeIntel2024DO!"
+
 
 def run_command(client, command, description):
     """Ejecuta comando y muestra resultado"""
@@ -26,6 +27,7 @@ def run_command(client, command, description):
 
     return output, error, exit_code
 
+
 def main():
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -40,20 +42,18 @@ def main():
         print("=" * 60)
 
         # 1. Check iptables policy
-        run_command(client, "iptables -L INPUT -n -v | head -3",
-                   "Política actual de iptables INPUT")
+        run_command(
+            client, "iptables -L INPUT -n -v | head -3", "Política actual de iptables INPUT"
+        )
 
         # 2. Check UFW status
-        ufw_status, _, _ = run_command(client, "ufw status verbose",
-                                       "Estado de UFW")
+        ufw_status, _, _ = run_command(client, "ufw status verbose", "Estado de UFW")
 
         # 3. Check listening ports
-        run_command(client, "netstat -tlnp | grep -E ':(80|443|7001)'",
-                   "Puertos en escucha")
+        run_command(client, "netstat -tlnp | grep -E ':(80|443|7001)'", "Puertos en escucha")
 
         # 4. Check nginx status
-        run_command(client, "systemctl status nginx --no-pager | head -5",
-                   "Estado de Nginx")
+        run_command(client, "systemctl status nginx --no-pager | head -5", "Estado de Nginx")
 
         print("\n" + "=" * 60)
         print("PASO 2: CONFIGURACIÓN DE UFW")
@@ -67,7 +67,7 @@ def main():
             print("   3. Esto REEMPLAZARÁ las reglas de iptables actuales")
 
             response = input("\n¿Continuar? (si/no): ")
-            if response.lower() not in ['si', 's', 'yes', 'y']:
+            if response.lower() not in ["si", "s", "yes", "y"]:
                 print("❌ Operación cancelada")
                 return
 
@@ -76,22 +76,19 @@ def main():
             run_command(client, "yes | ufw reset", "Reset UFW")
 
             # Set default policies
-            run_command(client, "ufw default deny incoming",
-                       "Denegar tráfico entrante por defecto")
-            run_command(client, "ufw default allow outgoing",
-                       "Permitir tráfico saliente por defecto")
+            run_command(client, "ufw default deny incoming", "Denegar tráfico entrante por defecto")
+            run_command(
+                client, "ufw default allow outgoing", "Permitir tráfico saliente por defecto"
+            )
 
             # Allow SSH (critical!)
-            run_command(client, "ufw allow 22/tcp comment 'SSH'",
-                       "Permitir SSH (puerto 22)")
+            run_command(client, "ufw allow 22/tcp comment 'SSH'", "Permitir SSH (puerto 22)")
 
             # Allow HTTP
-            run_command(client, "ufw allow 80/tcp comment 'HTTP'",
-                       "Permitir HTTP (puerto 80)")
+            run_command(client, "ufw allow 80/tcp comment 'HTTP'", "Permitir HTTP (puerto 80)")
 
             # Allow HTTPS
-            run_command(client, "ufw allow 443/tcp comment 'HTTPS'",
-                       "Permitir HTTPS (puerto 443)")
+            run_command(client, "ufw allow 443/tcp comment 'HTTPS'", "Permitir HTTPS (puerto 443)")
 
             # Enable UFW
             print("\n🔥 Activando UFW...")
@@ -112,14 +109,19 @@ def main():
         run_command(client, "ufw status numbered", "Reglas UFW activas")
 
         # Show iptables (should now be managed by UFW)
-        run_command(client, "iptables -L INPUT -n -v | head -10",
-                   "Nueva política de iptables (gestionada por UFW)")
+        run_command(
+            client,
+            "iptables -L INPUT -n -v | head -10",
+            "Nueva política de iptables (gestionada por UFW)",
+        )
 
         # Test HTTP access
         print("\n🧪 Probando acceso HTTP desde el servidor...")
-        http_test, _, _ = run_command(client,
-                                      "curl -s -o /dev/null -w '%{http_code}' http://localhost/ || echo 'FAIL'",
-                                      "Test HTTP local")
+        http_test, _, _ = run_command(
+            client,
+            "curl -s -o /dev/null -w '%{http_code}' http://localhost/ || echo 'FAIL'",
+            "Test HTTP local",
+        )
 
         print("\n" + "=" * 60)
         print("PASO 4: VERIFICAR CLOUD FIREWALL (MANUAL)")
@@ -156,11 +158,13 @@ Estado actual:
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
 
     finally:
         client.close()
         print("\n🔌 Conexión cerrada")
+
 
 if __name__ == "__main__":
     main()

@@ -104,11 +104,11 @@ class ComplexityMetrics:
         if self.complexity_score >= 75:
             return "CRITICAL"  # Needs multi-persona orchestration + doctor validation
         elif self.complexity_score >= 50:
-            return "COMPLEX"   # Needs multi-persona orchestration
+            return "COMPLEX"  # Needs multi-persona orchestration
         elif self.complexity_score >= 25:
             return "MODERATE"  # Single persona with review
         else:
-            return "SIMPLE"    # Single persona, direct generation
+            return "SIMPLE"  # Single persona, direct generation
 
 
 class ComplexityAnalyzer:
@@ -125,20 +125,49 @@ class ComplexityAnalyzer:
     # Medical terminology indicators (expandable)
     MEDICAL_TERMS = {
         # Diagnoses
-        "diabetes", "hipertensión", "insuficiencia", "cardíaca", "renal", "hepática",
-        "crónica", "aguda", "oncológico", "cáncer", "tumor", "metástasis",
-
+        "diabetes",
+        "hipertensión",
+        "insuficiencia",
+        "cardíaca",
+        "renal",
+        "hepática",
+        "crónica",
+        "aguda",
+        "oncológico",
+        "cáncer",
+        "tumor",
+        "metástasis",
         # Symptoms/Signs
-        "disnea", "taquicardia", "bradicardia", "hipotensión", "hipertensión",
-        "fiebre", "cefalea", "náusea", "vómito", "diarrea", "estreñimiento",
-
+        "disnea",
+        "taquicardia",
+        "bradicardia",
+        "hipotensión",
+        "fiebre",
+        "cefalea",
+        "náusea",
+        "vómito",
+        "diarrea",
+        "estreñimiento",
         # Medications
-        "metformina", "insulina", "enalapril", "losartán", "atorvastatina",
-        "omeprazol", "paracetamol", "ibuprofeno", "amoxicilina",
-
+        "metformina",
+        "insulina",
+        "enalapril",
+        "losartán",
+        "atorvastatina",
+        "omeprazol",
+        "paracetamol",
+        "ibuprofeno",
+        "amoxicilina",
         # Lab/Imaging
-        "glucosa", "hemoglobina", "creatinina", "radiografía", "tomografía",
-        "resonancia", "ultrasonido", "electrocardiograma", "ecocardiograma",
+        "glucosa",
+        "hemoglobina",
+        "creatinina",
+        "radiografía",
+        "tomografía",
+        "resonancia",
+        "ultrasonido",
+        "electrocardiograma",
+        "ecocardiograma",
     }
 
     def __init__(self) -> None:
@@ -169,10 +198,9 @@ class ComplexityAnalyzer:
         speaker_turn_count = len(segments) if segments else self._estimate_turns(transcript)
 
         # Medical vocabulary
-        unique_medical_terms = len([
-            term for term in self.MEDICAL_TERMS
-            if term in transcript_lower
-        ])
+        unique_medical_terms = len(
+            [term for term in self.MEDICAL_TERMS if term in transcript_lower]
+        )
 
         # Clinical indicators (heuristic keyword matching)
         diagnosis_count = self._count_diagnoses(transcript_lower)
@@ -211,14 +239,21 @@ class ComplexityAnalyzer:
     def _estimate_turns(self, transcript: str) -> int:
         """Estimate speaker turns from transcript (if no diarization)."""
         # Heuristic: Count lines or paragraph breaks
-        lines = [line.strip() for line in transcript.split('\n') if line.strip()]
+        lines = [line.strip() for line in transcript.split("\n") if line.strip()]
         return len(lines)
 
     def _count_diagnoses(self, transcript: str) -> int:
         """Count potential diagnoses mentioned."""
         diagnosis_indicators = [
-            "diagnóstico", "diagnosis", "padece", "sufre de", "tiene",
-            "diabetes", "hipertensión", "insuficiencia", "cáncer",
+            "diagnóstico",
+            "diagnosis",
+            "padece",
+            "sufre de",
+            "tiene",
+            "diabetes",
+            "hipertensión",
+            "insuficiencia",
+            "cáncer",
         ]
         count = sum(1 for indicator in diagnosis_indicators if indicator in transcript)
         return min(count, 5)  # Cap at 5 to avoid over-counting
@@ -226,8 +261,17 @@ class ComplexityAnalyzer:
     def _count_symptoms(self, transcript: str) -> int:
         """Count symptoms mentioned."""
         symptom_keywords = [
-            "dolor", "fiebre", "tos", "náusea", "vómito", "diarrea",
-            "cefalea", "mareo", "debilidad", "fatiga", "disnea",
+            "dolor",
+            "fiebre",
+            "tos",
+            "náusea",
+            "vómito",
+            "diarrea",
+            "cefalea",
+            "mareo",
+            "debilidad",
+            "fatiga",
+            "disnea",
         ]
         count = sum(1 for symptom in symptom_keywords if symptom in transcript)
         return min(count, 10)
@@ -235,8 +279,14 @@ class ComplexityAnalyzer:
     def _count_medications(self, transcript: str) -> int:
         """Count medications mentioned."""
         medication_keywords = [
-            "medicamento", "toma", "prescrib", "receta",
-            "metformina", "insulina", "enalapril", "losartán",
+            "medicamento",
+            "toma",
+            "prescrib",
+            "receta",
+            "metformina",
+            "insulina",
+            "enalapril",
+            "losartán",
         ]
         count = sum(1 for med in medication_keywords if med in transcript)
         return min(count, 8)
@@ -244,33 +294,56 @@ class ComplexityAnalyzer:
     def _detect_comorbidity(self, transcript: str) -> bool:
         """Detect if multiple comorbid conditions mentioned."""
         comorbidity_indicators = [
-            "también padece", "además tiene", "comorbilidad",
-            "múltiples condiciones", "antecedentes de",
+            "también padece",
+            "además tiene",
+            "comorbilidad",
+            "múltiples condiciones",
+            "antecedentes de",
         ]
         return any(indicator in transcript for indicator in comorbidity_indicators)
 
     def _has_physical_exam(self, transcript: str) -> bool:
         """Detect if physical exam findings mentioned."""
         exam_keywords = [
-            "exploración física", "examen físico", "auscultación",
-            "palpación", "presión arterial", "frecuencia cardíaca",
-            "temperatura", "peso", "talla", "imc",
+            "exploración física",
+            "examen físico",
+            "auscultación",
+            "palpación",
+            "presión arterial",
+            "frecuencia cardíaca",
+            "temperatura",
+            "peso",
+            "talla",
+            "imc",
         ]
         return any(keyword in transcript for keyword in exam_keywords)
 
     def _has_lab_results(self, transcript: str) -> bool:
         """Detect if lab results mentioned."""
         lab_keywords = [
-            "laboratorio", "análisis", "glucosa", "hemoglobina",
-            "creatinina", "colesterol", "triglicéridos", "hba1c",
+            "laboratorio",
+            "análisis",
+            "glucosa",
+            "hemoglobina",
+            "creatinina",
+            "colesterol",
+            "triglicéridos",
+            "hba1c",
         ]
         return any(keyword in transcript for keyword in lab_keywords)
 
     def _has_imaging(self, transcript: str) -> bool:
         """Detect if imaging studies mentioned."""
         imaging_keywords = [
-            "radiografía", "rayos x", "tomografía", "tac", "resonancia",
-            "rm", "ultrasonido", "ecografía", "ecocardiograma",
+            "radiografía",
+            "rayos x",
+            "tomografía",
+            "tac",
+            "resonancia",
+            "rm",
+            "ultrasonido",
+            "ecografía",
+            "ecocardiograma",
         ]
         return any(keyword in transcript for keyword in imaging_keywords)
 

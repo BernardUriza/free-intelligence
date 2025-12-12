@@ -66,6 +66,4 @@ def get_chunk_handler(mode: str) -> ChunkHandler:
 
     else:
         logger.error("INVALID_CHUNK_HANDLER_MODE", mode=mode, valid_modes=["medical", "chat"])
-        raise ValueError(
-            f"Invalid mode: '{mode}'. Expected 'medical' or 'chat'."
-        )
+        raise ValueError(f"Invalid mode: '{mode}'. Expected 'medical' or 'chat'.")

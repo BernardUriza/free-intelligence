@@ -7,9 +7,10 @@ import pytest
 
 def test_get_audit_endpoint_direct():
     """Test GET /api/sessions/{id}/audit endpoint directly."""
-    from fastapi.testclient import TestClient
-    from backend.app.main import app
     import h5py
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
     from backend.storage.task_repository import CORPUS_PATH
 
     client = TestClient(app)
@@ -17,7 +18,7 @@ def test_get_audit_endpoint_direct():
     # Find a session with SOAP data
     with h5py.File(CORPUS_PATH, "r") as f:
         sessions = list(f["sessions"].keys())[:50]
-        
+
         session_id = None
         for sid in sessions:
             tasks_path = f"/sessions/{sid}/tasks"
@@ -30,7 +31,7 @@ def test_get_audit_endpoint_direct():
             if "soap_note" in soap_group or "soap_data" in soap_group:
                 session_id = sid
                 break
-        
+
         if not session_id:
             pytest.skip("No sessions with SOAP data found")
 
@@ -50,7 +51,7 @@ def test_get_audit_endpoint_direct():
     assert "soap_note" in audit_data
     assert "flags" in audit_data
 
-    print(f"  ✓ Audit data fetched successfully")
+    print("  ✓ Audit data fetched successfully")
     print(f"    - Orchestration strategy: {audit_data['orchestration'].get('strategy', 'N/A')}")
     print(f"    - Confidence: {audit_data['orchestration'].get('confidence_score', 0):.2%}")
     print(f"    - Flags detected: {len(audit_data['flags'])}")

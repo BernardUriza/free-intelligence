@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Deploy frontend with Eruda to production"""
-import paramiko
+
 import os
+
+import paramiko
 
 HOST = "104.131.175.65"
 USER = "root"
@@ -81,6 +83,7 @@ try:
 except Exception as e:
     print(f"\n❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

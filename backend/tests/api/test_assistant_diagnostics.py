@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import hashlib
-import json
 import pytest
-import re
 from fastapi.testclient import TestClient
 
 
@@ -38,18 +35,24 @@ def test_public_does_not_call_internal_endpoint(client: TestClient, monkeypatch)
 
     def fake_post(url, *args, **kwargs):
         calls.append(url)
+
         class R:
             status_code = 200
+
             def raise_for_status(self):
                 return
+
             def json(self):
                 return {}
+
         return R()
 
     # Monkeypatch httpx.AsyncClient.post used in internal_llm_client
     import backend.clients.internal_llm_client as clientmod
 
-    monkeypatch.setattr(clientmod.httpx.AsyncClient, "post", lambda self, url, *a, **k: fake_post(url, *a, **k))
+    monkeypatch.setattr(
+        clientmod.httpx.AsyncClient, "post", lambda self, url, *a, **k: fake_post(url, *a, **k)
+    )
 
     payload = {"messages": [{"role": "user", "content": "Hello"}], "persona": "general_assistant"}
     resp = client.post("/api/workflows/aurity/assistant/chat", json=payload)
@@ -60,7 +63,10 @@ def test_public_does_not_call_internal_endpoint(client: TestClient, monkeypatch)
 
 
 def test_trace_propagation_on_dry_run(client: TestClient):
-    payload = {"messages": [{"role": "user", "content": "Hello trace"}], "persona": "general_assistant"}
+    payload = {
+        "messages": [{"role": "user", "content": "Hello trace"}],
+        "persona": "general_assistant",
+    }
     resp = client.post("/api/workflows/aurity/assistant/chat/_dry-run", json=payload)
     assert resp.status_code == 200
     data = resp.json()

@@ -232,9 +232,13 @@ class HuggingFaceCatalogSource(CatalogSourceBase):
 
                 # Obtener tamaño del archivo (priorizar lfs.size si existe)
                 size_bytes = 0
-                if hasattr(sibling, 'lfs') and sibling.lfs:
-                    size_bytes = sibling.lfs.get('size', 0) if isinstance(sibling.lfs, dict) else getattr(sibling.lfs, 'size', 0)
-                if not size_bytes and hasattr(sibling, 'size'):
+                if hasattr(sibling, "lfs") and sibling.lfs:
+                    size_bytes = (
+                        sibling.lfs.get("size", 0)
+                        if isinstance(sibling.lfs, dict)
+                        else getattr(sibling.lfs, "size", 0)
+                    )
+                if not size_bytes and hasattr(sibling, "size"):
                     size_bytes = sibling.size or 0
 
                 # Aplicar filtro de tamaño

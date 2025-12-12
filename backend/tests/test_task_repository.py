@@ -13,10 +13,11 @@ Card: Architecture refactor - task-based HDF5
 
 from __future__ import annotations
 
-import h5py
-import pytest
 import tempfile
 from pathlib import Path
+
+import h5py
+import pytest
 
 from backend.models.task_type import TaskStatus, TaskType
 from backend.storage.task_repository import (
@@ -52,6 +53,7 @@ def temp_session_storage(tmp_path):
 
     # Mock the storage paths
     import backend.storage.session_h5_manager as session_h5_manager
+
     original_storage_dir = session_h5_manager.STORAGE_DIR
     original_sessions_dir = session_h5_manager.SESSIONS_DIR
 
@@ -77,6 +79,7 @@ def test_ensure_task_exists_creates_new(temp_session_storage):
 
     # Verify task exists in session HDF5 file
     from backend.storage.session_h5_manager import get_session_h5_path
+
     session_file = get_session_h5_path(session_id)
     with h5py.File(session_file, "r") as f:
         assert f"sessions/{session_id}/tasks/{task_type.value}" in f
@@ -134,7 +137,7 @@ def test_append_chunk_to_task(temp_session_storage):
 
     # Verify chunk in session HDF5 file
     from backend.storage.session_h5_manager import get_session_h5_path
-    
+
     session_file = get_session_h5_path(session_id)
     with h5py.File(session_file, "r") as f:
         chunk_group = f[chunk_path]
@@ -316,6 +319,7 @@ def test_append_chunk_creates_chunks_group(temp_session_storage):
 
     # Verify chunks group exists
     from backend.storage.session_h5_manager import get_session_h5_path
+
     session_file = get_session_h5_path(session_id)
     with h5py.File(session_file, "r") as f:
         assert f"sessions/{session_id}/tasks/{task_type.value}/chunks" in f

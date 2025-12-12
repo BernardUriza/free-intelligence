@@ -96,11 +96,13 @@ class ConversationContext:
 
     def add_message(self, role: str, content: str) -> None:
         """Add a message to conversation history."""
-        self.messages.append({
-            "role": role,
-            "content": content,
-            "timestamp": datetime.now(UTC).isoformat(),
-        })
+        self.messages.append(
+            {
+                "role": role,
+                "content": content,
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
         self.last_updated = datetime.now(UTC)
 
 
@@ -131,9 +133,7 @@ RESPONSES = {
         "Por favor ingrese su código de cita de 6 dígitos.\n\n"
         "_Puede encontrarlo en el SMS o email de confirmación._"
     ),
-    ConversationState.CODE_VERIFY: (
-        "Verificando código **{code}**... ⏳"
-    ),
+    ConversationState.CODE_VERIFY: ("Verificando código **{code}**... ⏳"),
     ConversationState.NAME_INPUT: (
         "Entendido. Por favor ingrese su **nombre completo** como aparece en su identificación."
     ),
@@ -203,7 +203,9 @@ def recognize_intent(text: str, current_state: ConversationState) -> tuple[UserI
     yes_keywords = ["sí", "si", "correcto", "exacto", "yes", "ok", "confirmo", "listo"]
     no_keywords = ["no", "incorrecto", "error", "mal", "equivocado"]
 
-    if any(kw in text_lower for kw in yes_keywords) and not any(kw in text_lower for kw in no_keywords):
+    if any(kw in text_lower for kw in yes_keywords) and not any(
+        kw in text_lower for kw in no_keywords
+    ):
         return UserIntent.CONFIRM_YES, entities
     if any(kw in text_lower for kw in no_keywords):
         return UserIntent.CONFIRM_NO, entities
@@ -247,6 +249,7 @@ class CheckinConversationService:
         if self._claude_client is None and CLAUDE_API_KEY:
             try:
                 from anthropic import Anthropic
+
                 self._claude_client = Anthropic(api_key=CLAUDE_API_KEY)
             except ImportError:
                 logger.warning("ANTHROPIC_NOT_INSTALLED")
@@ -640,10 +643,7 @@ class CheckinConversationService:
         """)
 
         try:
-            result = db_session.execute(
-                query,
-                {"code": code, "clinic_id": clinic_id}
-            ).fetchone()
+            result = db_session.execute(query, {"code": code, "clinic_id": clinic_id}).fetchone()
 
             if result:
                 return {
@@ -693,8 +693,7 @@ class CheckinConversationService:
 
         try:
             result = db_session.execute(
-                query,
-                {"name": f"%{name}%", "clinic_id": clinic_id}
+                query, {"name": f"%{name}%", "clinic_id": clinic_id}
             ).fetchone()
 
             if result:

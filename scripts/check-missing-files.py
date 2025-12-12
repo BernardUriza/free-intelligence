@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Check which files are missing from the server"""
+
 import paramiko
 
 HOST = "104.131.175.65"
@@ -23,10 +24,7 @@ try:
     print(server_css if server_css else "❌ No hay archivos CSS\n")
 
     # Check for specific missing files
-    missing_files = [
-        "2787eb3c5de6dde5.js",
-        "abb749a40dfb2eb5.css"
-    ]
+    missing_files = ["2787eb3c5de6dde5.js", "abb749a40dfb2eb5.css"]
 
     print("\n🔍 Verificando archivos específicos que fallan:")
     print("=" * 80)
@@ -68,6 +66,7 @@ Solución:
 except Exception as e:
     print(f"❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

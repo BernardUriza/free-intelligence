@@ -1,8 +1,8 @@
 # CRITICAL TECHNICAL DEBT: Event Sourcing Violations
 
-**Severity**: 🔴 CRITICAL  
-**Impact**: Data integrity, audit compliance, HIPAA violations  
-**Created**: 2025-12-07  
+**Severity**: 🔴 CRITICAL
+**Impact**: Data integrity, audit compliance, HIPAA violations
+**Created**: 2025-12-07
 **Author**: AI Technical Auditor
 
 ## Executive Summary
@@ -122,7 +122,7 @@ from typing import Any
 
 class VersionedDatasetWriter:
     """Writes datasets with automatic versioning (append-only)."""
-    
+
     def write(
         self,
         f: h5py.File,
@@ -132,41 +132,41 @@ class VersionedDatasetWriter:
     ) -> str:
         """
         Write data with automatic versioning.
-        
+
         Args:
             f: Open HDF5 file handle
             base_path: Base path like '/sessions/{id}/tasks/TRANSCRIPTION/result'
             data: Data to write
             metadata: Optional metadata dict
-            
+
         Returns:
             Version path where data was written
         """
         timestamp = datetime.now(UTC).isoformat()
         version_path = f"{base_path}/versions/{timestamp}"
-        
+
         # Append new version
         f.create_dataset(version_path, data=data)
-        
+
         # Update metadata
         if metadata:
             for key, value in metadata.items():
                 f[version_path].attrs[key] = value
-        
+
         # Mark as latest
         parent = base_path.rsplit('/', 1)[0]
         f[parent].attrs[f"{base_path.split('/')[-1]}_latest_version"] = timestamp
-        
+
         return version_path
-    
+
     def read_latest(self, f: h5py.File, base_path: str) -> tuple[Any, str]:
         """Read latest version of a dataset."""
         parent = base_path.rsplit('/', 1)[0]
         key = f"{base_path.split('/')[-1]}_latest_version"
-        
+
         if key not in f[parent].attrs:
             raise KeyError(f"No versions found for {base_path}")
-        
+
         latest = f[parent].attrs[key]
         version_path = f"{base_path}/versions/{latest}"
         return f[version_path][()], latest
@@ -188,6 +188,6 @@ class VersionedDatasetWriter:
 
 ---
 
-**Status**: 🔴 OPEN  
-**Priority**: P0 - Bloquea compliance HIPAA  
+**Status**: 🔴 OPEN
+**Priority**: P0 - Bloquea compliance HIPAA
 **Assignee**: TBD

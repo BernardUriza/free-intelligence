@@ -24,7 +24,17 @@ Removed (FI-STRIDE deprecated):
 
 from __future__ import annotations
 
-from . import audit, diarization, exports, kpis, llm, sessions, timeline, transcribe, triage
+from . import (
+    audit,
+    diarization,
+    exports,
+    kpis,
+    llm,
+    sessions,
+    timeline,
+    transcribe,
+    triage,
+)
 
 __all__ = [
     "audit",
@@ -33,7 +43,7 @@ __all__ = [
     "kpis",
     "llm",
     "sessions",
+    "timeline",
     "transcribe",
     "triage",
-    "timeline",
 ]

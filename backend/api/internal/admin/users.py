@@ -19,10 +19,11 @@ Created: 2025-11-20
 
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
-from typing import Any
 
 from backend.services.auth0_management import get_auth0_service
 

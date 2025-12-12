@@ -15,12 +15,13 @@ Card: FI-PHIL-DOC-014
 
 from __future__ import annotations
 
-import h5py
 from datetime import datetime
 from enum import Enum
+from typing import Literal
+
+import h5py
 from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, Field
-from typing import Literal
 
 from backend.logger import get_logger
 from backend.services.llm.conversation_memory import get_memory_manager
@@ -34,6 +35,7 @@ router = APIRouter(prefix="/timeline/memory")
 # ============================================================================
 # Configuration (no hardcoding)
 # ============================================================================
+
 
 class TimelineConfig:
     """Centralized configuration for timeline limits."""
@@ -374,7 +376,7 @@ async def get_longitudinal_memory(
         start_time=start_time,
         end_time=end_time,
     )
-    
+
     # Audit log for HIPAA compliance - track who accesses timeline
     logger.info(
         "PHI_ACCESS",
@@ -424,8 +426,10 @@ async def get_longitudinal_memory(
     if event_type == EventType.ALL:
         all_events = all_events[offset : offset + limit]
 
-    total = chat_total + audio_total if event_type == EventType.ALL else (
-        chat_total if event_type == EventType.CHAT else audio_total
+    total = (
+        chat_total + audio_total
+        if event_type == EventType.ALL
+        else (chat_total if event_type == EventType.CHAT else audio_total)
     )
 
     logger.info(
@@ -466,10 +470,10 @@ async def search_memory(
     offset: int = Query(0, ge=0),
 ) -> LongitudinalMemoryResponse:
     """Search longitudinal memory by text query.
-    
+
     Uses case-insensitive substring matching across content.
     Searches both chat messages and audio transcriptions.
-    
+
     Returns results sorted by timestamp (newest first).
     Future enhancement: Semantic search with embeddings.
     """
@@ -480,7 +484,7 @@ async def search_memory(
         limit=limit,
         offset=offset,
     )
-    
+
     # Audit log for HIPAA compliance
     logger.info(
         "PHI_ACCESS",
@@ -489,10 +493,10 @@ async def search_memory(
         query_length=len(query),
         timestamp=datetime.utcnow().isoformat(),
     )
-    
+
     query_lower = query.lower()
     matching_events: list[MemoryEvent] = []
-    
+
     # Search chat messages
     try:
         memory = get_memory_manager(doctor_id)
@@ -501,12 +505,12 @@ async def search_memory(
             limit=1000,  # Search larger window
             session_id=None,
         )
-        
+
         for idx, interaction in enumerate(result["interactions"]):
             # Check if query matches in user or assistant message
             user_match = query_lower in interaction.user_message.lower()
             assistant_match = query_lower in interaction.assistant_message.lower()
-            
+
             if user_match:
                 matching_events.append(
                     MemoryEvent(
@@ -518,7 +522,7 @@ async def search_memory(
                         persona=None,
                     )
                 )
-            
+
             if assistant_match:
                 matching_events.append(
                     MemoryEvent(
@@ -532,35 +536,35 @@ async def search_memory(
                 )
     except Exception as e:
         logger.warning("CHAT_SEARCH_ERROR", error=str(e))
-    
+
     # Search audio transcriptions
     try:
         with h5py.File(CORPUS_PATH, "r") as f:
             if "sessions" in f:
                 for session_key in f["sessions"].keys():
                     session_grp = f["sessions"][session_key]
-                    
+
                     if "tasks" not in session_grp:
                         continue
-                    
+
                     tasks_grp = session_grp["tasks"]
                     if "TRANSCRIPTION" not in tasks_grp:
                         continue
-                    
+
                     trans_grp = tasks_grp["TRANSCRIPTION"]
-                    
+
                     for chunk_key in trans_grp.keys():
                         chunk_ds = trans_grp[chunk_key]
-                        
+
                         if "transcript" not in chunk_ds.attrs:
                             continue
-                        
+
                         transcript = chunk_ds.attrs["transcript"]
-                        
+
                         # Check if query matches
                         if query_lower in transcript.lower():
                             ts = chunk_ds.attrs.get("timestamp", 0)
-                            
+
                             matching_events.append(
                                 MemoryEvent(
                                     id=f"audio_{session_key}_{chunk_key}",
@@ -569,7 +573,9 @@ async def search_memory(
                                     content=transcript,
                                     source="audio",
                                     session_id=session_key,
-                                    chunk_number=int(chunk_key.split("_")[-1]) if "_" in chunk_key else None,
+                                    chunk_number=int(chunk_key.split("_")[-1])
+                                    if "_" in chunk_key
+                                    else None,
                                     duration=chunk_ds.attrs.get("duration"),
                                     confidence=chunk_ds.attrs.get("confidence"),
                                     language=chunk_ds.attrs.get("language"),
@@ -578,14 +584,14 @@ async def search_memory(
                             )
     except Exception as e:
         logger.warning("AUDIO_SEARCH_ERROR", error=str(e))
-    
+
     # Sort by timestamp (newest first)
     matching_events.sort(key=lambda e: e.timestamp, reverse=True)
-    
+
     # Apply pagination
     total = len(matching_events)
     paginated = matching_events[offset : offset + limit]
-    
+
     logger.info(
         "MEMORY_SEARCH_SUCCESS",
         doctor_id=doctor_id,
@@ -593,7 +599,7 @@ async def search_memory(
         total_matches=total,
         returned=len(paginated),
     )
-    
+
     return LongitudinalMemoryResponse(
         events=paginated,
         total=total,

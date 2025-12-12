@@ -32,11 +32,13 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import time
-import ulid
 import uuid
 import uuid as _uuid
 from collections.abc import AsyncGenerator
+
+import ulid
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
@@ -590,6 +592,18 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                 "stop": request.stop,
             }
 
+            # Propagar modelo solicitado para evitar overrides por policy/persona
+            if request.model:
+                context["model"] = request.model
+
+            # Reduce latency for Qwen3 thinking models by limiting tokens
+            try:
+                if isinstance(request.model, str) and request.model.lower().startswith("qwen3"):
+                    # Cap max_tokens to a smaller value to avoid long waits
+                    context["max_tokens"] = min(int(context.get("max_tokens") or 256), 256)
+            except Exception:
+                pass
+
             if doctor_id:
                 context["doctor_id"] = doctor_id
 
@@ -611,28 +625,95 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
             )
             yield f"data: {initial_chunk.model_dump_json()}\n\n"
 
+            # Optimistic early meta/event to reduce perceived latency
+            try:
+                if isinstance(request.model, str) and request.model.lower().startswith("qwen3"):
+                    # Emit placeholder meta while backend processes
+                    early_meta = {"thinking": "…"}
+                    yield f"event: meta\ndata: {json.dumps(early_meta)}\n\n"
+
+                    # Emit a quick typing indicator delta
+                    typing_chunk = ChatCompletionStreamResponse(
+                        id=completion_id,
+                        created=created_timestamp,
+                        model=request.model,
+                        choices=[{"index": 0, "delta": {"content": "…"}, "finish_reason": None}],
+                    )
+                    yield f"data: {typing_chunk.model_dump_json()}\n\n"
+            except Exception:
+                pass
+
             # For now, simulate streaming by sending the full response in chunks
             # In a real implementation, you'd need streaming support from the LLM provider
-            result = await llm_client.chat(
-                persona=request.persona,
-                message=last_message.content,
-                context=context,
-                session_id=request.session_id,
-                doctor_id=doctor_id,
-                use_memory=doctor_id is not None,
-                request_id=request_id,
-                caller="public",
-            )
+            # Add timeout guard to avoid hanging streams
+            try:
+                result = await asyncio.wait_for(
+                    llm_client.chat(
+                        persona=request.persona,
+                        message=last_message.content,
+                        context=context,
+                        session_id=request.session_id,
+                        doctor_id=doctor_id,
+                        use_memory=doctor_id is not None,
+                        request_id=request_id,
+                        caller="public",
+                    ),
+                    timeout=12,
+                )
+            except TimeoutError:
+                # Gracefully end with a timeout message
+                timeout_msg = "El modelo está tardando más de lo esperado. Intenta nuevamente o reduce la complejidad."
+                stream_chunk = ChatCompletionStreamResponse(
+                    id=completion_id,
+                    created=created_timestamp,
+                    model=request.model,
+                    choices=[
+                        {"index": 0, "delta": {"content": timeout_msg}, "finish_reason": None}
+                    ],
+                )
+                yield f"data: {stream_chunk.model_dump_json()}\n\n"
+
+                final_chunk = ChatCompletionStreamResponse(
+                    id=completion_id,
+                    created=created_timestamp,
+                    model=request.model,
+                    choices=[{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                )
+                yield f"data: {final_chunk.model_dump_json()}\n\n"
+                yield "data: [DONE]\n\n"
+                return
 
             # If backend provided reasoning, emit it first via meta
+            # Honor LLM_FORCE_THINKING to ensure meta emission path is verified end-to-end
             thinking = result.get("thinking")
-            if thinking:
+            try:
+                force_thinking = os.getenv("LLM_FORCE_THINKING", "false").lower() in {
+                    "1",
+                    "true",
+                    "yes",
+                }
+            except Exception:
+                force_thinking = False
+            if thinking and (force_thinking or True):
                 meta_event = {"thinking": thinking}
                 yield f"event: meta\ndata: {json.dumps(meta_event)}\n\n"
 
             # Split response into chunks for streaming simulation
-            response_text = result["response"]
-            chunk_size = 10  # Characters per chunk
+            response_text = result.get("response", "")
+
+            # If response is empty but thinking was emitted, finish quickly
+            if not response_text:
+                final_chunk = ChatCompletionStreamResponse(
+                    id=completion_id,
+                    created=created_timestamp,
+                    model=request.model,
+                    choices=[{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                )
+                yield f"data: {final_chunk.model_dump_json()}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+            # Speed up perceived latency: larger chunks, no artificial delay
+            chunk_size = 60  # Characters per chunk
 
             for i in range(0, len(response_text), chunk_size):
                 chunk_text = response_text[i : i + chunk_size]
@@ -645,8 +726,7 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                 )
                 yield f"data: {stream_chunk.model_dump_json()}\n\n"
 
-                # Small delay to simulate real streaming
-                await asyncio.sleep(0.05)
+                # No delay to reduce end-to-end latency
 
             # Send final chunk with finish_reason
             final_chunk = ChatCompletionStreamResponse(

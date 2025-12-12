@@ -19,12 +19,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.logger import get_logger
-from backend.models.db_models import Base
 
 # Import all models so they register with Base.metadata
 # This ensures create_all() creates all tables
-from backend.models import db_models  # noqa: F401 - Patient, Provider, UserPersonaConfig
-from backend.models import checkin_models  # noqa: F401 - Clinic, Doctor, Appointment, etc.
+from backend.models import (  # noqa: F401 - Clinic, Doctor, Appointment, etc.  # noqa: F401 - Patient, Provider, UserPersonaConfig
+    checkin_models,
+    db_models,
+)
+from backend.models.db_models import Base
 
 # Load .env file BEFORE reading environment variables
 load_dotenv()

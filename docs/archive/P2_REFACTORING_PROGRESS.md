@@ -1,7 +1,7 @@
 # P2 Refactoring - Progreso
 
-**Fecha:** 2025-01-XX  
-**Estado:** 🟡 EN PROGRESO  
+**Fecha:** 2025-01-XX
+**Estado:** 🟡 EN PROGRESO
 **Objetivo:** Reducir ConversationCapture de 1178 LOC a <400 LOC mediante extracción de hooks
 
 ---
@@ -272,4 +272,3 @@ Crear hooks especializados siguiendo el principio Single Responsibility:
 ---
 
 **Próximo paso:** Integrar hooks en ConversationCapture y reducir de 1178 LOC a <400 LOC.
-

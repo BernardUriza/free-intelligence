@@ -14,9 +14,10 @@ Propósito:
 import hashlib
 import json
 import time
-import ulid
 import uuid as _uuid
 from datetime import UTC, datetime
+
+import ulid
 from fastapi import APIRouter, HTTPException, Request, status
 
 from backend.api.public.workflows.assistant_websocket import broadcast_new_message
@@ -223,12 +224,38 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
         )
 
         # Call LLM via router - use request provider or default from policy
+        # Honrar override de modelo si viene en el contexto
+        model_override = None
+        try:
+            if isinstance(request.context, dict):
+                m = request.context.get("model")
+                if isinstance(m, str) and m.strip():
+                    model_override = m.strip()
+        except Exception:
+            model_override = None
+
+        logger.info(
+            "INTERNAL_LLM_MODEL_SELECTION",
+            requested_model=model_override,
+            provider=request.provider or policy_loader.get_primary_provider(),
+        )
+
         llm_response = llm_generate(
             prompt,
             provider=request.provider,  # Use provider from request, or None to use policy default
             temperature=persona_config.temperature,
             max_tokens=persona_config.max_tokens,
+            model=model_override if model_override else None,
         )
+
+        try:
+            logger.info(
+                "INTERNAL_LLM_MODEL_EFFECTIVE",
+                effective_model=getattr(llm_response, "model", "unknown"),
+                provider=request.provider or policy_loader.get_primary_provider(),
+            )
+        except Exception:
+            pass
 
         # Record LLM_CALL in trace timeline
         try:
@@ -389,3 +416,76 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"LLM chat failed: {e!s}",
         ) from e
+
+
+@router.post("/chat/debug")
+async def internal_llm_chat_debug(request: ChatRequest) -> dict:
+    """INTERNAL: Debug del flujo de chat. Devuelve response vs thinking.
+
+    Construye el mismo prompt y llama `llm_generate` como el endpoint principal,
+    pero responde con campos mínimos para inspección: `response` y `metadata.thinking`.
+    """
+    try:
+        # Persona config
+        # In main chat flow, se usa PersonaManager de forma conveniente; aquí optamos
+        # por parámetros por defecto si no existe método específico.
+        try:
+            persona_config = persona_mgr.get_persona_config(request.persona)  # type: ignore[attr-defined]
+        except Exception:
+
+            class _Cfg:
+                temperature = 0.7
+                max_tokens = 512
+
+            persona_config = _Cfg()
+        effective_persona = request.persona
+
+        start_time = time.time()
+
+        # Prompt sin memoria (suficiente para introspección)
+        prompt = persona_mgr.build_system_prompt(effective_persona, request.context)
+        if request.context:
+            prompt += f"\n\nContext:\n{json.dumps(request.context, indent=2)}"
+        prompt += f"\n\nUser: {request.message}\n\nAssistant:"
+
+        # Honor explicit model override from request.context
+        model_override = None
+        try:
+            if isinstance(request.context, dict):
+                m = request.context.get("model")
+                if isinstance(m, str) and m.strip():
+                    model_override = m.strip()
+        except Exception:
+            model_override = None
+
+        llm_response = llm_generate(
+            prompt,
+            provider=request.provider,
+            temperature=persona_config.temperature,
+            max_tokens=persona_config.max_tokens,
+            model=model_override if model_override else None,
+        )
+
+        latency_ms = int((time.time() - start_time) * 1000)
+
+        # Extraer reasoning
+        thinking = None
+        meta = getattr(llm_response, "metadata", None)
+        if isinstance(meta, dict):
+            t = meta.get("thinking")
+            if isinstance(t, str) and t.strip():
+                thinking = t.strip()
+
+        return {
+            "model": getattr(llm_response, "model", "unknown"),
+            "provider": request.provider or policy_loader.get_primary_provider(),
+            "latency_ms": latency_ms,
+            "response": llm_response.content.strip(),
+            "thinking": thinking,
+            "metadata_keys": list((meta or {}).keys()),
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"LLM chat debug failed: {e!s}",
+        )

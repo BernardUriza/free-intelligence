@@ -26,12 +26,14 @@ import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from fastapi import FastAPI, HTTPException, Query, status
-from fastapi import Path as PathParam
-from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
-from pydantic import BaseModel, Field
 from typing import Any, List
+
+from fastapi import FastAPI, HTTPException
+from fastapi import Path as PathParam
+from fastapi import Query, status
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
 from backend.schemas.timeline_models import (
@@ -157,12 +159,13 @@ class HealthResponse(BaseModel):
 # FASTAPI APP INITIALIZATION
 # ============================================================================
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown events."""
     # Startup
     init_mock_data()
-    
+
     logger.info(
         "TIMELINE_API_STARTUP",
         port=9002,
@@ -173,9 +176,9 @@ async def lifespan(app: FastAPI):
     print("🚀 FI Timeline API starting on port 9002")
     print(f"📁 Storage path: {STORAGE_PATH}")
     print(f"📊 Mock sessions: {len(MOCK_TIMELINES)}")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("TIMELINE_API_SHUTDOWN")
     print("🛑 FI Timeline API shutting down")

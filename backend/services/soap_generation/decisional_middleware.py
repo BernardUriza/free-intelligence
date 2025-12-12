@@ -275,12 +275,14 @@ class DecisionalMiddleware:
                 raise ValueError(f"Unknown persona: {persona_name}")
 
             # Store intermediate result
-            intermediate_outputs.append({
-                "step": step_num,
-                "persona": persona_name,
-                "output": output,
-                "timestamp": datetime.now(UTC).isoformat(),
-            })
+            intermediate_outputs.append(
+                {
+                    "step": step_num,
+                    "persona": persona_name,
+                    "output": output,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            )
 
             # Update final SOAP note if this is a generation step
             if persona_name in ["soap_generator", "soap_editor"]:
@@ -325,6 +327,7 @@ class DecisionalMiddleware:
 
             # Try to parse as JSON (SOAP note)
             import json
+
             try:
                 return json.loads(response.content)
             except json.JSONDecodeError:
@@ -354,6 +357,7 @@ class DecisionalMiddleware:
 
         # Try to parse as JSON
         import json
+
         try:
             return json.loads(response.content)
         except json.JSONDecodeError:

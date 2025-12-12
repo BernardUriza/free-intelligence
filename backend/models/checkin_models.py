@@ -13,6 +13,9 @@ from __future__ import annotations
 import enum
 import secrets
 from datetime import datetime, timedelta
+from typing import List  # noqa: F401 - referenced in string annotations
+from uuid import uuid4
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -28,8 +31,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from typing import List  # noqa: F401 - referenced in string annotations
-from uuid import uuid4
 
 from backend.models.db_models import Base
 

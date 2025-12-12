@@ -29,7 +29,6 @@ Card: Architecture refactor - task-based HDF5
 
 from __future__ import annotations
 
-import h5py
 import json
 import threading
 import time
@@ -37,6 +36,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any, Union
+
+import h5py
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
@@ -257,7 +258,7 @@ def update_task_metadata(
     """Update job metadata for a task.
 
     P0 ARCHITECTURE FIX: Uses session-level HDF5 files.
-    
+
     WARNING: Contains del operation violating append-only pattern.
     See docs/CRITICAL_TECH_DEBT_EVENT_SOURCING.md for remediation plan.
 
@@ -425,8 +426,7 @@ def append_chunk_to_task(
         # Check if chunk already exists (append-only)
         if f"chunk_{chunk_idx}" in chunks_group:  # type: ignore[operator]
             raise ValueError(
-                f"Chunk {chunk_idx} already exists for task {task_type_str} "
-                f"(append-only violation)"
+                f"Chunk {chunk_idx} already exists for task {task_type_str} (append-only violation)"
             )
 
         # Create chunk group
@@ -480,9 +480,9 @@ def append_chunk_to_task(
         duration=duration,
         provider=provider,
         polling_attempts=polling_attempts,
-            resolution_time_seconds=resolution_time_seconds,
-            retry_attempts=retry_attempts,
-        )
+        resolution_time_seconds=resolution_time_seconds,
+        retry_attempts=retry_attempts,
+    )
 
     return chunk_path
 
@@ -1035,7 +1035,6 @@ def get_chunk_audio_bytes(
     Returns:
         Audio bytes or None if not found
     """
-    import h5py
 
     CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1541,7 +1540,7 @@ def save_soap_data(
     """Save SOAP data to HDF5.
 
     P0 ARCHITECTURE FIX: Uses session-level HDF5 files.
-    
+
     WARNING: Contains del operation violating append-only pattern.
 
     Args:
@@ -1553,7 +1552,7 @@ def save_soap_data(
         HDF5 path to SOAP data
     """
     from backend.storage.session_h5_manager import get_session_h5_path
-    
+
     session_file = get_session_h5_path(session_id)
     session_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1809,7 +1808,7 @@ def delete_order(
     """Delete an order.
 
     P0 ARCHITECTURE FIX: Uses session-level HDF5 files.
-    
+
     WARNING: Contains del operation violating append-only pattern.
 
     Args:
@@ -1857,7 +1856,7 @@ def get_session_metadata(session_id: str) -> dict[str, Any] | None:
         Dictionary containing session metadata, or None if session not found
     """
     from backend.storage.session_h5_manager import get_session_h5_path
-    
+
     session_file = get_session_h5_path(session_id)
     if not session_file.exists():
         logger.warning("SESSION_NOT_FOUND", session_id=session_id)

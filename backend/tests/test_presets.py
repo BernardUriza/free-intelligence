@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.schemas.preset_loader import PresetLoader, get_preset_loader
+from backend.schemas.preset_loader import get_preset_loader
 
 
 class TestPresetLoader:
@@ -37,9 +37,7 @@ class TestPresetLoader:
             "emotion_analyzer",
         ]
         for preset_id in expected_presets:
-            assert (
-                preset_id in presets
-            ), f"Expected preset '{preset_id}' not found in {presets}"
+            assert preset_id in presets, f"Expected preset '{preset_id}' not found in {presets}"
 
     def test_load_diarization_analyst(self):
         """Test loading diarization_analyst preset"""

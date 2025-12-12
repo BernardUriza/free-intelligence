@@ -15,12 +15,13 @@ Card: FI-PHIL-DOC-014
 
 from __future__ import annotations
 
-import h5py
 from datetime import datetime
 from enum import Enum
+from typing import Literal
+
+import h5py
 from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, Field
-from typing import Literal
 
 from backend.logger import get_logger
 from backend.services.llm.conversation_memory import get_memory_manager
@@ -34,6 +35,7 @@ router = APIRouter()
 # ============================================================================
 # Configuration (no hardcoding)
 # ============================================================================
+
 
 class TimelineConfig:
     """Centralized configuration for timeline limits."""
@@ -415,8 +417,10 @@ async def get_longitudinal_memory(
     if event_type == EventType.ALL:
         all_events = all_events[offset : offset + limit]
 
-    total = chat_total + audio_total if event_type == EventType.ALL else (
-        chat_total if event_type == EventType.CHAT else audio_total
+    total = (
+        chat_total + audio_total
+        if event_type == EventType.ALL
+        else (chat_total if event_type == EventType.CHAT else audio_total)
     )
 
     logger.info(

@@ -1,7 +1,7 @@
 # CRITICAL TECH DEBT: Task Repository Storage Architecture Chaos
 
-**Date**: 2025-12-07  
-**Severity**: P0 - BLOCKS ALL TESTS  
+**Date**: 2025-12-07
+**Severity**: P0 - BLOCKS ALL TESTS
 **Status**: IN REMEDIATION
 
 ## Problem Statement
@@ -24,10 +24,10 @@
 
 ```python
 # Test scenario (FAILS)
-ensure_task_exists("session-123", TaskType.TRANSCRIPTION)  
+ensure_task_exists("session-123", TaskType.TRANSCRIPTION)
 # → Writes to storage/sessions/session-123.h5
 
-task_exists("session-123", TaskType.TRANSCRIPTION)  
+task_exists("session-123", TaskType.TRANSCRIPTION)
 # → Reads from storage/corpus.h5
 # → Returns False (WRONG!)
 

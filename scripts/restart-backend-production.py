@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Reiniciar backend en producción y verificar logs"""
-import paramiko
-import time
+
 import sys
+import time
+
+import paramiko
 
 HOST = "104.131.175.65"
 USER = "root"
@@ -17,7 +19,9 @@ try:
 
     # Stop old backend process
     print("🛑 Deteniendo backend anterior...")
-    stdin, stdout, stderr = client.exec_command("pkill -f 'python.*main.py' || echo 'No process found'")
+    stdin, stdout, stderr = client.exec_command(
+        "pkill -f 'python.*main.py' || echo 'No process found'"
+    )
     stdout.channel.recv_exit_status()
     time.sleep(2)
     print("✅ Proceso detenido\n")
@@ -80,11 +84,7 @@ try:
     print("\n🧪 Probando endpoints de la API:")
     print("=" * 60)
 
-    test_endpoints = [
-        "/api/health",
-        "/api/auth/config",
-        "/api/workflows/aurity/sessions"
-    ]
+    test_endpoints = ["/api/health", "/api/auth/config", "/api/workflows/aurity/sessions"]
 
     for endpoint in test_endpoints:
         stdin, stdout, stderr = client.exec_command(
@@ -114,6 +114,7 @@ try:
 except Exception as e:
     print(f"❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

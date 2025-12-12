@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Ver logs del backend en producción"""
+
 import paramiko
 
 HOST = "104.131.175.65"
@@ -43,7 +44,9 @@ try:
 
     # Check if port 7001 is listening
     print("\n🔍 Verificando puerto 7001 (backend):")
-    stdin, stdout, stderr = client.exec_command("ss -tlnp | grep :7001 || lsof -i :7001 || echo 'Puerto 7001 NO está en escucha'")
+    stdin, stdout, stderr = client.exec_command(
+        "ss -tlnp | grep :7001 || lsof -i :7001 || echo 'Puerto 7001 NO está en escucha'"
+    )
     print(stdout.read().decode())
 
     # Test backend API from server
@@ -56,6 +59,7 @@ try:
 except Exception as e:
     print(f"❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

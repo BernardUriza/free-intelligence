@@ -1,16 +1,17 @@
 #!/usr/bin/env python3.14
 """Migrate task_repository.py from CORPUS_PATH to locked_session_h5().
 
-This script performs surgical replacement of all h5py.File(CORPUS_PATH) 
+This script performs surgical replacement of all h5py.File(CORPUS_PATH)
 instances with locked_session_h5(session_id, mode=X).
 
 Author: AI Agent (Autonomous Remediation)
 Date: 2025-12-07
 """
+
 import re
 
 # Read file
-with open('backend/storage/task_repository.py', 'r') as f:
+with open("backend/storage/task_repository.py") as f:
     content = f.read()
 
 # Replace pattern: with h5py.File(CORPUS_PATH, "r") as f:
@@ -32,7 +33,7 @@ print(f"Migrated {count_a} write operations")
 print(f"Total: {count_r + count_a} migrations")
 
 # Write back
-with open('backend/storage/task_repository.py', 'w') as f:
+with open("backend/storage/task_repository.py", "w") as f:
     f.write(content)
 
 print("✅ Migration complete")

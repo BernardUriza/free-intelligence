@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Setup HTTPS with Let's Encrypt for app.aurity.io"""
+
 import paramiko
 
 HOST = "104.131.175.65"
@@ -24,7 +25,7 @@ try:
         "snap install core",
         "snap refresh core",
         "snap install --classic certbot",
-        "ln -sf /snap/bin/certbot /usr/bin/certbot"
+        "ln -sf /snap/bin/certbot /usr/bin/certbot",
     ]
 
     for cmd in commands:

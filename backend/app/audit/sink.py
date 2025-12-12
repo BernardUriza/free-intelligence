@@ -10,12 +10,13 @@ Created: 2025-11-09
 from __future__ import annotations
 
 import os
-import pyarrow as pa
-import pyarrow.parquet as pq
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict
+
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from backend.logger import get_logger
 

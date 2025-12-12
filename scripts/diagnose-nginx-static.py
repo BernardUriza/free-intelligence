@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Diagnosticar problema de archivos estáticos en Nginx"""
+
 import paramiko
 
 HOST = "104.131.175.65"
@@ -62,6 +63,7 @@ try:
 except Exception as e:
     print(f"❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

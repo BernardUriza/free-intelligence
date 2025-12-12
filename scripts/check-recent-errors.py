@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Ver errores recientes del backend y nginx"""
+
 import paramiko
 
 HOST = "104.131.175.65"
@@ -40,9 +41,7 @@ try:
     print("\n" + "=" * 80)
     print("📊 ESTADO DEL BACKEND")
     print("=" * 80)
-    stdin, stdout, stderr = client.exec_command(
-        "ps aux | grep '[u]vicorn' | head -1"
-    )
+    stdin, stdout, stderr = client.exec_command("ps aux | grep '[u]vicorn' | head -1")
     process = stdout.read().decode().strip()
     if process:
         print(f"✅ Proceso activo:\n   {process}\n")
@@ -60,6 +59,7 @@ try:
 except Exception as e:
     print(f"❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

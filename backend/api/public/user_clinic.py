@@ -92,11 +92,7 @@ async def get_clinic_membership(
     )
 
     # Find doctor record linked to this Auth0 user
-    doctor = (
-        db.query(Doctor)
-        .filter(Doctor.auth0_user_id == auth0_user_id)
-        .first()
-    )
+    doctor = db.query(Doctor).filter(Doctor.auth0_user_id == auth0_user_id).first()
 
     if not doctor:
         return {"linked": False, "message": "User is not linked to any clinic"}
@@ -155,11 +151,7 @@ async def link_to_clinic(
     )
 
     # Check if user is already linked to a clinic
-    existing = (
-        db.query(Doctor)
-        .filter(Doctor.auth0_user_id == auth0_user_id)
-        .first()
-    )
+    existing = db.query(Doctor).filter(Doctor.auth0_user_id == auth0_user_id).first()
 
     if existing:
         raise HTTPException(
@@ -243,11 +235,7 @@ async def unlink_from_clinic(
         auth0_user_id=auth0_user_id,
     )
 
-    doctor = (
-        db.query(Doctor)
-        .filter(Doctor.auth0_user_id == auth0_user_id)
-        .first()
-    )
+    doctor = db.query(Doctor).filter(Doctor.auth0_user_id == auth0_user_id).first()
 
     if not doctor:
         raise HTTPException(
@@ -346,21 +334,23 @@ async def admin_assign_user_to_clinic(
         )
 
     # Check if user is already linked to a clinic
-    existing = (
-        db.query(Doctor)
-        .filter(Doctor.auth0_user_id == request.auth0_user_id)
-        .first()
-    )
+    existing = db.query(Doctor).filter(Doctor.auth0_user_id == request.auth0_user_id).first()
 
     if existing:
         # Update existing assignment
         existing.clinic_id = request.clinic_id
         existing.email = request.email
-        existing.clinic_role = ClinicRole(request.role) if isinstance(request.role, str) else request.role
+        existing.clinic_role = (
+            ClinicRole(request.role) if isinstance(request.role, str) else request.role
+        )
         existing.nombre = request.nombre
         existing.apellido = request.apellido
         existing.especialidad = request.especialidad
-        existing.display_name = f"Dr. {request.apellido}" if request.role in [ClinicRole.DOCTOR, "DOCTOR"] else request.nombre
+        existing.display_name = (
+            f"Dr. {request.apellido}"
+            if request.role in [ClinicRole.DOCTOR, "DOCTOR"]
+            else request.nombre
+        )
         existing.is_active = True
         db.commit()
         db.refresh(existing)
@@ -383,7 +373,9 @@ async def admin_assign_user_to_clinic(
             nombre=request.nombre,
             apellido=request.apellido,
             especialidad=request.especialidad,
-            display_name=f"Dr. {request.apellido}" if request.role in [ClinicRole.DOCTOR, "DOCTOR"] else request.nombre,
+            display_name=f"Dr. {request.apellido}"
+            if request.role in [ClinicRole.DOCTOR, "DOCTOR"]
+            else request.nombre,
             is_active=True,
         )
 
@@ -436,11 +428,7 @@ async def admin_unassign_user_from_clinic(
         target_auth0_user_id=auth0_user_id,
     )
 
-    doctor = (
-        db.query(Doctor)
-        .filter(Doctor.auth0_user_id == auth0_user_id)
-        .first()
-    )
+    doctor = db.query(Doctor).filter(Doctor.auth0_user_id == auth0_user_id).first()
 
     if not doctor:
         return {
@@ -482,11 +470,7 @@ async def admin_get_user_clinic_info(
     Returns:
         User's clinic assignment info
     """
-    doctor = (
-        db.query(Doctor)
-        .filter(Doctor.auth0_user_id == auth0_user_id)
-        .first()
-    )
+    doctor = db.query(Doctor).filter(Doctor.auth0_user_id == auth0_user_id).first()
 
     if not doctor:
         return AdminUserClinicInfo(

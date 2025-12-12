@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 DEFAULT_REDACT_RULES = [r"\b\d{5,}\b", r"\bCURP|RFC\b"]
 

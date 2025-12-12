@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Fix permissions for images and static files"""
+
 import paramiko
 
 HOST = "104.131.175.65"
@@ -40,6 +41,7 @@ try:
 except Exception as e:
     print(f"❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

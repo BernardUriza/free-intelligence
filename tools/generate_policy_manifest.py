@@ -10,8 +10,9 @@ import hashlib
 import json
 import subprocess
 import sys
-from backend.compat import UTC, datetime
 from pathlib import Path
+
+from backend.compat import UTC, datetime
 
 UTC = UTC
 

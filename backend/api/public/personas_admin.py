@@ -22,12 +22,13 @@ Updated: 2025-11-20 (Multi-tenant support)
 
 from __future__ import annotations
 
-import yaml
 from datetime import UTC, datetime
+from typing import Any
+
+import yaml
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from typing import Any
 
 from backend.auth.dependencies import get_current_user
 from backend.auth.models import User

@@ -12,10 +12,11 @@ from __future__ import annotations
 
 import sys
 import time
-from backend.compat import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
+
+from backend.compat import UTC, datetime, timedelta
 
 # ============================================================================
 # Configuration

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Verificar salud del backend"""
-import paramiko
+
 import time
+
+import paramiko
 
 HOST = "104.131.175.65"
 USER = "root"
@@ -29,11 +31,11 @@ try:
         stdin, stdout, stderr = client.exec_command("ss -tlnp | grep :7001")
         port_output = stdout.read().decode().strip()
         if ":7001" in port_output:
-            print(f"✅ Puerto 7001 escuchando (después de {i+1}s)")
+            print(f"✅ Puerto 7001 escuchando (después de {i + 1}s)")
             print(f"   {port_output}\n")
             break
         time.sleep(1)
-        print(f"   Esperando... ({i+1}/15)")
+        print(f"   Esperando... ({i + 1}/15)")
     else:
         print("❌ Puerto 7001 NO responde después de 15s\n")
         print("📋 Últimos logs:")
@@ -54,19 +56,19 @@ try:
         response = stdout.read().decode()
 
         # Parse response
-        lines = response.split('\n')
-        status_line = [l for l in lines if l.startswith('STATUS:')]
-        status = status_line[0].replace('STATUS:', '') if status_line else 'TIMEOUT'
+        lines = response.split("\n")
+        status_line = [l for l in lines if l.startswith("STATUS:")]
+        status = status_line[0].replace("STATUS:", "") if status_line else "TIMEOUT"
 
         # Get response body (everything before STATUS line)
         body_lines = []
         for line in lines:
-            if line.startswith('STATUS:'):
+            if line.startswith("STATUS:"):
                 break
             body_lines.append(line)
-        body = '\n'.join(body_lines).strip()[:200]  # First 200 chars
+        body = "\n".join(body_lines).strip()[:200]  # First 200 chars
 
-        if status == '200':
+        if status == "200":
             print(f"✅ {name} ({path}): HTTP {status}")
             if body:
                 print(f"   Response: {body}")
@@ -86,6 +88,7 @@ try:
 except Exception as e:
     print(f"❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()

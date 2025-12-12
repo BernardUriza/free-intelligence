@@ -9,8 +9,9 @@ Created: 2025-12-11
 
 from __future__ import annotations
 
-import httpx
 import random
+
+import httpx
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
@@ -38,11 +39,13 @@ MEDICAL_TEST_PROMPTS = [
 
 class ModelTestResponse(BaseModel):
     """Response from testing an LLM model."""
+
     success: bool
     model_id: str
     prompt: str
     response: str
     error: str | None = None
+
 
 router = APIRouter(prefix="/admin/llm-models", tags=["LLM Models Admin"])
 
@@ -235,6 +238,7 @@ async def _test_ollama_model(model_id: str, prompt: str) -> str:
     that use a separate thinking field.
     """
     import os
+
     ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
     async with httpx.AsyncClient() as client:
@@ -262,7 +266,7 @@ async def _test_ollama_model(model_id: str, prompt: str) -> str:
 
         # Get response; if think mode active and response empty, return raw thinking
         result = data.get("response", "").strip()
-        if (is_qwen3 or force_thinking):
+        if is_qwen3 or force_thinking:
             t = (data.get("thinking") or "").strip()
             if t and not result:
                 result = t
@@ -273,6 +277,7 @@ async def _test_ollama_model(model_id: str, prompt: str) -> str:
 async def _test_openai_model(model_id: str, prompt: str) -> str:
     """Test a model via OpenAI API."""
     import os
+
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY not configured")
@@ -284,7 +289,10 @@ async def _test_openai_model(model_id: str, prompt: str) -> str:
             json={
                 "model": model_id,
                 "messages": [
-                    {"role": "system", "content": "Eres un asistente médico. Responde de forma concisa y profesional."},
+                    {
+                        "role": "system",
+                        "content": "Eres un asistente médico. Responde de forma concisa y profesional.",
+                    },
                     {"role": "user", "content": prompt},
                 ],
                 "max_tokens": 256,
@@ -300,6 +308,7 @@ async def _test_openai_model(model_id: str, prompt: str) -> str:
 async def _test_anthropic_model(model_id: str, prompt: str) -> str:
     """Test a model via Anthropic API."""
     import os
+
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
         raise ValueError("ANTHROPIC_API_KEY not configured")

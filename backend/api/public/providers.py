@@ -10,10 +10,11 @@ Card: FI-DATA-DB-001
 
 from __future__ import annotations
 
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
-from typing import List
 
 from backend.database import get_db_dependency
 from backend.logger import get_logger

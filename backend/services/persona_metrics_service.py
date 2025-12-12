@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -214,7 +213,7 @@ class PersonaMetricsService:
                         persona_timestamps[persona].append(timestamp)
 
                 # Compute averages for each persona
-                for persona in all_stats.keys():
+                for persona in all_stats:
                     if persona in persona_latencies:
                         latencies = persona_latencies[persona]
                         all_stats[persona]["avg_latency_ms"] = sum(latencies) / len(latencies)

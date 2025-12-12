@@ -10,9 +10,9 @@ Created: 2025-12-11
 from __future__ import annotations
 
 import shutil
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
-from pathlib import Path
 from pydantic import BaseModel
 
 from backend.logger import get_logger
@@ -54,9 +54,7 @@ async def get_disk_usage() -> DiskUsageResponse:
             storage_path.mkdir(parents=True, exist_ok=True)
 
         # Calculate directory size
-        total_size = sum(
-            f.stat().st_size for f in storage_path.rglob("*") if f.is_file()
-        )
+        total_size = sum(f.stat().st_size for f in storage_path.rglob("*") if f.is_file())
 
         # Get disk usage for the mount point
         disk_stat = shutil.disk_usage(storage_path)
@@ -127,9 +125,7 @@ async def clear_longitudinal_memory(
                 if session_dir.is_dir():
                     shutil.rmtree(session_dir)
                     deleted_files += 1
-                    logger.info(
-                        "SESSION_DIR_DELETED", dir=str(session_dir), user_id=user_id
-                    )
+                    logger.info("SESSION_DIR_DELETED", dir=str(session_dir), user_id=user_id)
 
         # Delete chat message cache (if exists)
         chat_cache_path = Path("data/llm_cache")

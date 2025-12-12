@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Iniciar backend en producción con PYTHONPATH correcto"""
-import paramiko
-import time
+
 import sys
+import time
+
+import paramiko
 
 HOST = "104.131.175.65"
 USER = "root"
@@ -17,7 +19,9 @@ try:
 
     # Stop old backend process
     print("🛑 Deteniendo backend anterior...")
-    stdin, stdout, stderr = client.exec_command("pkill -f 'python.*main' || echo 'No process found'")
+    stdin, stdout, stderr = client.exec_command(
+        "pkill -f 'python.*main' || echo 'No process found'"
+    )
     stdout.channel.recv_exit_status()
     time.sleep(2)
 
@@ -55,7 +59,7 @@ try:
 
     if process:
         print("✅ Backend corriendo:")
-        for line in process.split('\n'):
+        for line in process.split("\n"):
             print(f"   {line}")
         print()
     else:
@@ -68,7 +72,9 @@ try:
 
     # Check port
     print("🔍 Verificando puerto 7001...")
-    stdin, stdout, stderr = client.exec_command("ss -tlnp | grep :7001 || echo 'Puerto no escuchando'")
+    stdin, stdout, stderr = client.exec_command(
+        "ss -tlnp | grep :7001 || echo 'Puerto no escuchando'"
+    )
     port_info = stdout.read().decode().strip()
     if ":7001" in port_info:
         print(f"✅ Puerto 7001 escuchando\n   {port_info}\n")
@@ -80,7 +86,7 @@ try:
     test_cases = [
         ("Health check", "http://localhost:7001/api/health"),
         ("Auth config", "http://localhost:7001/api/auth/config"),
-        ("Workflows", "http://localhost:7001/api/workflows/aurity/sessions")
+        ("Workflows", "http://localhost:7001/api/workflows/aurity/sessions"),
     ]
 
     for name, url in test_cases:
@@ -89,11 +95,11 @@ try:
         )
         response = stdout.read().decode()
         # Extract HTTP code
-        lines = response.split('\n')
-        http_code = [l for l in lines if l.startswith('HTTP:')]
-        status = http_code[0].replace('HTTP:', '') if http_code else 'TIMEOUT'
+        lines = response.split("\n")
+        http_code = [l for l in lines if l.startswith("HTTP:")]
+        status = http_code[0].replace("HTTP:", "") if http_code else "TIMEOUT"
 
-        if status == '200':
+        if status == "200":
             print(f"   ✅ {name}: {status}")
         else:
             print(f"   ⚠️  {name}: {status}")
@@ -118,12 +124,13 @@ try:
     print("=" * 60)
     print("✅ BACKEND INICIADO CORRECTAMENTE")
     print("=" * 60)
-    print(f"\n🌐 Prueba desde tu celular:")
-    print(f"   https://app.aurity.io/\n")
+    print("\n🌐 Prueba desde tu celular:")
+    print("   https://app.aurity.io/\n")
 
 except Exception as e:
     print(f"\n❌ Error: {e}")
     import traceback
+
     traceback.print_exc()
 finally:
     client.close()
