@@ -44,6 +44,8 @@ class LLMModel(BaseModel):
     context_window: int = Field(128000, description="Context window size")
     is_active: bool = Field(True, description="Available for selection")
     description: str | None = Field(None, description="Optional model description")
+    size_bytes: int | None = Field(None, description="Model size in bytes (for local models)")
+    ram_required_gb: float | None = Field(None, description="Estimated RAM required in GB")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -62,6 +64,8 @@ class LLMModelCreate(BaseModel):
     context_window: int = Field(128000, ge=1024, le=2000000)
     is_active: bool = True
     description: str | None = None
+    size_bytes: int | None = Field(None, ge=0, description="Model size in bytes")
+    ram_required_gb: float | None = Field(None, ge=0, description="Estimated RAM required in GB")
 
     class Config:
         use_enum_values = True
@@ -77,6 +81,8 @@ class LLMModelUpdate(BaseModel):
     context_window: int | None = Field(None, ge=1024, le=2000000)
     is_active: bool | None = None
     description: str | None = None
+    size_bytes: int | None = Field(None, ge=0, description="Model size in bytes")
+    ram_required_gb: float | None = Field(None, ge=0, description="Estimated RAM required in GB")
 
     class Config:
         use_enum_values = True
@@ -93,6 +99,8 @@ class LLMModelResponse(BaseModel):
     context_window: int
     is_active: bool
     description: str | None = None
+    size_bytes: int | None = None
+    ram_required_gb: float | None = None
     created_at: str
     updated_at: str
 
@@ -110,6 +118,8 @@ class LLMModelResponse(BaseModel):
             context_window=model.context_window,
             is_active=model.is_active,
             description=model.description,
+            size_bytes=model.size_bytes,
+            ram_required_gb=model.ram_required_gb,
             created_at=model.created_at.isoformat(),
             updated_at=model.updated_at.isoformat(),
         )

@@ -88,6 +88,8 @@ class LLMModelService:
                     context_window=item.get("context_window", 128000),
                     is_active=item.get("is_active", True),
                     description=item.get("description"),
+                    size_bytes=item.get("size_bytes"),
+                    ram_required_gb=item.get("ram_required_gb"),
                     created_at=self._parse_datetime(item.get("created_at")),
                     updated_at=self._parse_datetime(item.get("updated_at")),
                 )
@@ -111,6 +113,8 @@ class LLMModelService:
                     "context_window": m.context_window,
                     "is_active": m.is_active,
                     "description": m.description,
+                    "size_bytes": m.size_bytes,
+                    "ram_required_gb": m.ram_required_gb,
                     "created_at": m.created_at.isoformat() + "Z",
                     "updated_at": m.updated_at.isoformat() + "Z",
                 }
@@ -200,6 +204,8 @@ class LLMModelService:
             context_window=data.context_window,
             is_active=data.is_active,
             description=data.description,
+            size_bytes=data.size_bytes,
+            ram_required_gb=data.ram_required_gb,
             created_at=now,
             updated_at=now,
         )
