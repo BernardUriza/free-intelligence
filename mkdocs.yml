@@ -1,0 +1,26 @@
+site_name: Free Intelligence Docs
+repo_url: https://github.com/BernardUriza/free-intelligence
+docs_dir: docs
+nav:
+  - Home: README.md
+  - Index: _index.md
+  - Architecture:
+      - Overview: architecture/aurity_overview.md
+  - Guides:
+      - Quickstart: DEV_WORKFLOW_QUICKSTART.md
+      - CI/CD: CI-CD-SETUP.md
+      - Clean Code: CLEAN_CODE_QUICKSTART.md
+  - Ops:
+      - Ports: infra/ports.md
+      - Audit 2025: ops/audit/AUD_20251029_215314_REPORT.md
+  - QA:
+      - Policy STR-001: qa/FI-POLICY-STR-001_QA.md
+      - Reliability STR-001: qa/FI-RELIABILITY-STR-001.md
+  - Runbooks:
+      - NAS Deployment: runbooks/NAS_DEPLOYMENT_DO.md
+      - QA Validation: runbooks/QA_VALIDATION_DO.md
+theme:
+  name: mkdocs
+markdown_extensions:
+  - toc:
+      permalink: "#"
