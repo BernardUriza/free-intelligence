@@ -106,6 +106,8 @@ jobs:
 
       - name: Checkout submodules
         run: |
+          # Convert HTTPS URLs to SSH for private submodules
+          git config --global url."git@github.com:".insteadOf "https://github.com/"
           git submodule sync --recursive
           git submodule update --init --recursive
 
@@ -160,8 +162,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Setup SSH key
         run: |
@@ -336,6 +336,8 @@ jobs:
 
       - name: Checkout submodules
         run: |
+          # Convert HTTPS URLs to SSH for private submodules
+          git config --global url."git@github.com:".insteadOf "https://github.com/"
           git submodule sync --recursive
           git submodule update --init --recursive
 
