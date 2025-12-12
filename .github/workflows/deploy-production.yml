@@ -96,16 +96,18 @@ jobs:
     needs: integrity-check
     if: always() && (needs.integrity-check.result == 'success' || needs.integrity-check.result == 'skipped')
     steps:
+      - name: Checkout code (main repo)
+        uses: actions/checkout@v4
+
       - name: Setup SSH for private submodules
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.AURITY_DEPLOY_KEY }}
 
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          ssh-key: ${{ secrets.AURITY_DEPLOY_KEY }}
+      - name: Checkout submodules
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -322,17 +324,20 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.rollback_to != ''
     steps:
+      - name: Checkout at Tag (main repo)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.rollback_to }}
+
       - name: Setup SSH for private submodules
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.AURITY_DEPLOY_KEY }}
 
-      - name: Checkout at Tag
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.rollback_to }}
-          submodules: recursive
-          ssh-key: ${{ secrets.AURITY_DEPLOY_KEY }}
+      - name: Checkout submodules
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive
 
       - name: Setup SSH key
         run: |
