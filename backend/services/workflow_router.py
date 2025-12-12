@@ -223,8 +223,8 @@ Output JSON:
         reasoning_parts = []
 
         # 1. Transcription (always required if not done)
-        if TaskType.TRANSCRIPTION.value not in existing_tasks:
-            workflows.append(TaskType.TRANSCRIPTION.value)
+        if TaskType.TRANSCRIPTION.name.lower() not in existing_tasks:
+            workflows.append(TaskType.TRANSCRIPTION.name.lower())
             reasoning_parts.append("Transcription required (not yet completed)")
         else:
             tasks_skipped += 1
@@ -232,8 +232,8 @@ Output JSON:
 
         # 2. Diarization (only if audio > 30s)
         if audio_duration_seconds > 30:
-            if TaskType.DIARIZATION.value not in existing_tasks:
-                workflows.append(TaskType.DIARIZATION.value)
+            if TaskType.DIARIZATION.name.lower() not in existing_tasks:
+                workflows.append(TaskType.DIARIZATION.name.lower())
                 reasoning_parts.append(
                     f"Diarization needed (audio {audio_duration_seconds}s > 30s threshold)"
                 )
@@ -247,9 +247,9 @@ Output JSON:
             )
 
         # 3. SOAP Generation (requires diarization)
-        if TaskType.DIARIZATION.value in workflows or TaskType.DIARIZATION.value in existing_tasks:
-            if TaskType.SOAP_GENERATION.value not in existing_tasks:
-                workflows.append(TaskType.SOAP_GENERATION.value)
+        if TaskType.DIARIZATION.name.lower() in workflows or TaskType.DIARIZATION.name.lower() in existing_tasks:
+            if TaskType.SOAP_GENERATION.name.lower() not in existing_tasks:
+                workflows.append(TaskType.SOAP_GENERATION.name.lower())
                 reasoning_parts.append("SOAP notes extraction (has speaker context)")
             else:
                 tasks_skipped += 1
@@ -259,9 +259,9 @@ Output JSON:
             reasoning_parts.append("SOAP skipped (no diarization context)")
 
         # 4. Emotion Analysis (requires diarization)
-        if TaskType.DIARIZATION.value in workflows or TaskType.DIARIZATION.value in existing_tasks:
-            if TaskType.EMOTION_ANALYSIS.value not in existing_tasks:
-                workflows.append(TaskType.EMOTION_ANALYSIS.value)
+        if TaskType.DIARIZATION.name.lower() in workflows or TaskType.DIARIZATION.name.lower() in existing_tasks:
+            if TaskType.EMOTION_ANALYSIS.name.lower() not in existing_tasks:
+                workflows.append(TaskType.EMOTION_ANALYSIS.name.lower())
                 reasoning_parts.append("Emotion analysis (patient segments available)")
             else:
                 tasks_skipped += 1

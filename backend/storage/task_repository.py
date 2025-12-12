@@ -29,6 +29,7 @@ Card: Architecture refactor - task-based HDF5
 
 from __future__ import annotations
 
+import h5py
 import json
 import threading
 import time
@@ -37,11 +38,14 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any, Union
 
-import h5py
-
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.storage.session_h5_manager import CORPUS_PATH, get_session_h5_path
+
+# Explicit exports for consumers that import constants from this module
+__all__ = [
+    "CORPUS_PATH",
+]
 from backend.storage.session_locks import locked_session_h5
 
 logger = get_logger(__name__)

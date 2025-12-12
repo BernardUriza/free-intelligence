@@ -36,7 +36,12 @@ class InternalLLMClient:
             base_url: Base URL del backend (default: localhost:7001)
         """
         self.base_url = base_url
-        self.client = httpx.AsyncClient(base_url=base_url, timeout=300.0)
+        # Timeout config: must be longer than asyncio.timeout in stream.py (30s)
+        # to allow asyncio to handle timeout gracefully
+        self.client = httpx.AsyncClient(
+            base_url=base_url,
+            timeout=httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=10.0),
+        )
 
     async def chat(
         self,

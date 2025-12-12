@@ -168,6 +168,10 @@ class ChatCompletionResponse(BaseModel):
         default=False,
         description="True if no doctor_id was provided. Messages saved to 'anonymous' storage.",
     )
+    thinking: str | None = Field(
+        None,
+        description="Model reasoning/thinking process (Qwen3 thinking mode). Only populated when model supports it.",
+    )
 
 
 class ChatCompletionDelta(BaseModel):

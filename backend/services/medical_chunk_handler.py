@@ -25,9 +25,8 @@ Card: Voice chat integration (medical handler)
 
 from __future__ import annotations
 
-from typing import Any
-
 import h5py
+from typing import Any
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
@@ -314,7 +313,7 @@ class MedicalChunkHandler(ChunkHandler):
         """
         CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
         with h5py.File(CORPUS_PATH, "a") as f:
-            audio_path = f"/sessions/{session_id}/tasks/{TaskType.TRANSCRIPTION.value}/chunks/chunk_{chunk_number}/audio"
+            audio_path = f"/sessions/{session_id}/tasks/{TaskType.TRANSCRIPTION.name.lower()}/chunks/chunk_{chunk_number}/audio"
 
             # Delete if exists (overwrite)
             if audio_path in f:  # type: ignore[operator]

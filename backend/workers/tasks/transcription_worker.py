@@ -136,9 +136,11 @@ def transcribe_chunk_worker(
                 "processed_chunks": processed,
                 "progress_percent": progress,
                 "last_chunk": chunk_number,
-                "status": TaskStatus.COMPLETED.value
-                if processed >= total
-                else TaskStatus.IN_PROGRESS.value,
+                "status": (
+                    TaskStatus.COMPLETED.name.lower()
+                    if processed >= total
+                    else TaskStatus.IN_PROGRESS.name.lower()
+                ),
                 "estimated_seconds_remaining": estimated_seconds_remaining,
                 "provider": stt_provider,
             },

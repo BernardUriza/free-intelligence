@@ -48,7 +48,6 @@ from backend.api.public.workflows import (
     kpis,
     longitudinal_memory,
     orders,
-    sessions,
     sessions_list,
     soap,
     system,
@@ -57,6 +56,9 @@ from backend.api.public.workflows import (
     tv_content_seeds,
     waiting_room,
     widget_configs,
+)
+from backend.api.public.workflows import (
+    sessions_pkg as sessions,
 )
 from backend.logger import get_logger
 

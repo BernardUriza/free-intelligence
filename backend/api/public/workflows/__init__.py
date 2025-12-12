@@ -22,11 +22,13 @@ from backend.api.public.workflows import (
     evidence,
     kpis,
     orders,
-    sessions,
     soap,
     system,
     timeline,
     transcription,
+)
+from backend.api.public.workflows import (
+    sessions_pkg as sessions,
 )
 from backend.api.public.workflows.router import router
 

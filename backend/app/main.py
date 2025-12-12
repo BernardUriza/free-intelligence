@@ -279,6 +279,7 @@ Requires environment variables:
             payments,
             policy,
             providers,
+            system_resources,
             tts,
             user_clinic,
         )
@@ -311,6 +312,9 @@ Requires environment variables:
         public_app.include_router(
             catalog_admin.router
         )  # Model Catalog (GPT4All, HuggingFace, Ollama)
+        public_app.include_router(
+            system_resources.router
+        )  # System Resources Monitor (RAM, Running Models)
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 
         # INTERNAL API (atomic resources, AURITY-only)

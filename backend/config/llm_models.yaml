@@ -89,12 +89,12 @@ models:
   cost_tier: low
   max_tokens: 4096
   context_window: 32768
-  is_active: true
+  is_active: false
   description: Local Qwen3 4B via Ollama. Free, fast, private.
   size_bytes: 2500000000
   ram_required_gb: 5.0
   created_at: 2025-01-01T00:00:00+00:00Z
-  updated_at: 2025-12-12T20:20:23.191427+00:00Z
+  updated_at: 2025-12-12T22:44:40.609598+00:00Z
 - id: qwen2:1.5b-instruct
   label: Qwen2 1.5B Instruct (Local)
   provider: ollama
@@ -106,7 +106,7 @@ models:
   size_bytes: 934000000
   ram_required_gb: 2.0
   created_at: 2025-01-01T00:00:00+00:00Z
-  updated_at: '2025-12-12T20:20:23.209775Z'
+  updated_at: 2025-12-12T20:20:23.209775+00:00Z
 - id: llama3:8b
   label: Llama 3 8B (Local)
   provider: ollama
@@ -137,9 +137,21 @@ models:
   cost_tier: low
   max_tokens: 4096
   context_window: 4096
-  is_active: true
+  is_active: false
   description: Custom local model (Q4K quantization)
   size_bytes: 1700000000
   ram_required_gb: 3.0
   created_at: 2025-12-12T20:15:54.554767+00:00Z
-  updated_at: 2025-12-12T20:20:23.153199+00:00Z
+  updated_at: 2025-12-12T22:25:56.622619+00:00Z
+- id: qwen3:1.7b
+  label: Qwen3 1.7B (Thinking)
+  provider: ollama
+  cost_tier: low
+  max_tokens: 8192
+  context_window: 40000
+  is_active: true
+  description: Modelo compacto con thinking mode nativo
+  size_bytes: null
+  ram_required_gb: 2.5
+  created_at: '2025-12-12T22:48:03.553386Z'
+  updated_at: '2025-12-12T22:48:03.553386Z'

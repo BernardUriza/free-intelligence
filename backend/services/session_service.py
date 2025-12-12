@@ -126,20 +126,20 @@ class SessionService:
             Overall status string
         """
         if not tasks_metadata:
-            return TaskStatus.PENDING.value
+            return TaskStatus.PENDING.name.lower()
 
         statuses = [
-            meta.get("status", TaskStatus.PENDING.value) for meta in tasks_metadata.values()
+            meta.get("status", TaskStatus.PENDING.name.lower()) for meta in tasks_metadata.values()
         ]
 
         # Priority: FAILED > IN_PROGRESS > COMPLETED > PENDING
-        if TaskStatus.FAILED.value in statuses:
-            return TaskStatus.FAILED.value
+        if TaskStatus.FAILED.name.lower() in statuses:
+            return TaskStatus.FAILED.name.lower()
 
-        if TaskStatus.IN_PROGRESS.value in statuses:
-            return TaskStatus.IN_PROGRESS.value
+        if TaskStatus.IN_PROGRESS.name.lower() in statuses:
+            return TaskStatus.IN_PROGRESS.name.lower()
 
-        if all(s == TaskStatus.COMPLETED.value for s in statuses):
-            return TaskStatus.COMPLETED.value
+        if all(s == TaskStatus.COMPLETED.name.lower() for s in statuses):
+            return TaskStatus.COMPLETED.name.lower()
 
-        return TaskStatus.PENDING.value
+        return TaskStatus.PENDING.name.lower()

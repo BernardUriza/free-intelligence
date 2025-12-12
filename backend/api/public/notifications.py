@@ -10,10 +10,9 @@ Created: 2025-11-22
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
+from typing import Annotated
 
 from backend.database import get_db
 from backend.logger import get_logger
@@ -44,9 +43,9 @@ class NotificationStatusResponse(BaseModel):
 class SendNotificationRequest(BaseModel):
     """Request to send a notification."""
 
-    notification_type: str = Field(
+    notification_type: NotificationType = Field(
         ...,
-        description="Type: checkin_code, appointment_reminder_24h, appointment_reminder_1h, appointment_confirmation, appointment_cancelled",
+        description="NotificationType enum",
     )
     patient_name: str = Field(..., min_length=1, max_length=100)
     clinic_name: str = Field(..., min_length=1, max_length=100)
@@ -137,14 +136,8 @@ async def send_notification(
         )
 
     # Validate notification type
-    try:
-        notification_type = NotificationType(request.notification_type)
-    except ValueError:
-        valid_types = [t.value for t in NotificationType]
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid notification_type. Valid types: {valid_types}",
-        ) from None
+    # Already validated by Pydantic as NotificationType
+    notification_type = request.notification_type
 
     # Build context
     context = NotificationContext(

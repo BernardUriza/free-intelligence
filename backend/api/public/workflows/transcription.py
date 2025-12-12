@@ -15,11 +15,10 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import h5py
+import json
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from pathlib import Path
 from pydantic import BaseModel, Field
 
 from backend.dependencies import get_transcription_service
@@ -474,7 +473,7 @@ async def end_session(
 
                 # Save to TRANSCRIPTION task
                 with h5py.File(CORPUS_PATH, "a") as f:
-                    webspeech_path = f"/sessions/{session_id}/tasks/{TaskType.TRANSCRIPTION.value}/webspeech_final"
+                    webspeech_path = f"/sessions/{session_id}/tasks/{TaskType.TRANSCRIPTION.name.lower()}/webspeech_final"
 
                     # Delete if exists (overwrite)
                     if webspeech_path in f:

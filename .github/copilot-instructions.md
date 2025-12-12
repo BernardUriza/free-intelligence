@@ -12,6 +12,15 @@
 
 **CRITICAL**: This project uses **Python 3.14 exclusively**. All code must be compatible with Python 3.14 syntax and features. Use modern syntax (union types with `|`, `match/case`, etc.) and always include `from __future__ import annotations` for forward compatibility.
 
+## Owner & Collaboration Style
+
+- Identity: Bernard Uriza Orozco (Founder/Owner). Clinical-grade, reliability-first mindset.
+- Personality: Direct, concise, and pragmatic. Prefers actionable fixes over long explanations.
+- Communication: Spanish-friendly (concise español ok). Avoid emojis; use app icons and clinical tone.
+- Expectations: Proactive changes with clear reasoning, minimal ceremony. Honor SOLID/DRY, security, and privacy.
+- Workflow: Move fast but safely. If blocked, propose precise alternatives. Validate with quick tests (`curl`, small unit checks).
+- UX Preferences: Clean, accessible UI; collapsable reasoning block; meta-first streaming; zero PHI leakage in logs.
+
 ## 📁 Path-Specific Instructions
 
 For detailed, context-specific guidance, see:
@@ -243,6 +252,110 @@ export class SessionAPI {
       throw new Error(`Failed to create session: ${response.status}`);
     }
 
+    ## UX Reasoning & Streaming Guidelines (2025-12-12)
+
+    ### Product & UX Principles
+    - Reasoning Visibility: Render “Thinking” (model reasoning) as a collapsable block above assistant content.
+    - Privacy by Default: Do not persist “Thinking” in logs/analytics; show only in UI for live sessions.
+    - Accessibility: Keyboard navigable, ARIA-annotated toggle; avoid semantic ambiguity.
+    - No Emojis: Use app’s icon set for visual affordances; keep typography clean.
+
+    ### Streaming Contract (SSE)
+    - Ordering: Emit `event: meta` with `{"thinking": "<string>"}` first when available; stream `content` chunks afterward; then `finish_reason: "stop"` and `data: [DONE]`.
+    - No Placeholders: Do not emit placeholder meta or typing deltas; only send real provider signals.
+    - Timeouts: If upstream doesn’t return content within the configured guard, finish cleanly with `stop` + `[DONE]` and a concise message.
+    - Performance: Chunk size ≥ 60 chars, no artificial delays; cap initial `max_tokens` for `qwen3*` (e.g., 128) to reduce latency.
+
+    ### Frontend UI Guidelines
+    - ReasoningBlock: Collapsable component placed before assistant content; default collapsed; preserves whitespace; uses app icons (e.g., “insight” icon) for the toggle.
+    - Message Anatomy (Reusable Naming):
+      - Header: role, timestamp, indicators (streaming/finished).
+      - Meta: optional `thinking` block (collapsable).
+      - Body: streamed `content` concatenated in order.
+      - Footer: actions (copy, cite), status indicators (done/timeout).
+    - State Management:
+      - On `event: meta`: attach `thinking` to the current assistant message; do not append to `content`.
+      - On `data` with `delta.content`: append to `content` buffer.
+      - On final `finish_reason`: mark message complete; stop stream.
+    - Error UX: Show concise inline status (e.g., “El modelo tardó más de lo esperado…”), keep session responsive, allow retry.
+
+    ### Backend Architecture (SOLID/DRY)
+    - Three-Layer Rule: Frontend must only call `/api/workflows/aurity/*`; internal routes remain private.
+    - Provider Logic:
+      - Qwen3: use generate endpoint with `think:true`; map provider `thinking` to `metadata.thinking`; never log the raw reasoning.
+      - Respect `model` override passed via public → internal → provider; policy defaults are advisory.
+    - Streaming Endpoint:
+      - Emit role chunk, real meta only if present, content chunks, final stop, `[DONE]`.
+      - Guard with `asyncio.wait_for`; on timeout or empty response, finish gracefully.
+    - Code Quality:
+      - Python 3.14, `from __future__ import annotations`.
+      - Type-safe DTOs; clear dependency injection; redaction for sensitive data.
+      - No PHI/PII in logs; structured logging with request_id; environment-based secrets.
+
+    ### Security & Compliance
+    - Zero Trust: Auth0 JWT with RBAC; no internal route exposure.
+    - PHI Safety: Never log names/emails/medical data; use hash/length for diagnostics.
+    - Config Hygiene: All secrets via env; no hardcoding.
+
+    ### Testing & Validation
+    - SSE Curl: Validate meta-first ordering and clean termination:
+      - `curl -N -s -X POST "${BACKEND_URL}/api/workflows/aurity/assistant/chat/stream" -H "Content-Type: application/json" -d '{"model":"qwen3:4b","persona":"clinical_advisor","messages":[{"role":"user","content":"Explica qué es la fiebre"}],"stream":true}'` 
+    - Internal Debug: Confirm model and presence of `thinking` via `/internal/llm/chat/debug`.
+
+    ### Content & Style
+    - Tone: Clinical, clear, precise; no emojis.
+    - Icons: Use app’s icon components for affordances (collapse/expand, copy, status).
+    - Reusability: Follow the message anatomy naming across components, tests, and telemetry.
+
+    ### Success Criteria
+    - Meta-first reasoning appears as a collapsable block with no placeholders.
+    - Stream never hangs: always finishes with stop + `[DONE]` or returns content quickly.
+    - Requested model (`qwen3*`) honored end-to-end when specified.
+    - No PHI in logs; UI responsive and accessible.
+
+    ## Additional Context & Guardrails (2025-12-12)
+
+    ### Architecture Guardrails
+    - Three-Layer Enforcement: PUBLIC `/api/workflows/aurity/*` → INTERNAL `/api/internal/*` → WORKER pool. The frontend must never call internal routes directly.
+    - Dependency Injection: Access Auth, Persona, Memory, and Provider via injected services; avoid tight coupling or singletons leaking across layers.
+    - DRY: Centralize streaming, persona prompts, and provider routing; prefer shared helpers over duplicating logic per endpoint.
+
+    ### Provider & Model Selection
+    - Qwen3 `thinking`: Use Ollama `/api/generate` with `think:true` to surface reasoning cleanly; map to `LLMResponse.metadata.thinking`.
+    - Model Override: Honor `request.model` end-to-end (public → internal → provider). Policy defaults are advisory, not mandatory.
+    - Fallback Models: If `qwen3*` unavailable, gracefully fall back (e.g., `qwen2:1.5b-instruct`) and disable `thinking` block; still stream content promptly.
+
+    ### Logging, Privacy, and PHI
+    - Structured Logging: Use `request_id` and redact content; log lengths/hashes, not raw text.
+    - No PHI: Never log names, emails, medical content, or raw reasoning. Prefer `hash8`, `length`, and `truncated_preview` (≤ 60 chars) when necessary.
+    - Error Redaction: Sanitize API keys and bearer tokens; keep errors concise and actionable.
+
+    ### Frontend Components & Naming
+    - Components: `ReasoningBlock`, `MessageHeader`, `MessageBody`, `MessageFooter` with consistent props and test IDs.
+    - Accessibility: Toggle is focusable; `aria-expanded`, `aria-controls`; keyboard navigation (Enter/Space); no emoji usage.
+    - State: `message.metadata.thinking` attached via `event: meta`; `message.content` grows via streamed deltas; final stop marks completion.
+
+    ### Performance & Resilience
+    - Stream Chunking: ≥ 60 chars; avoid artificial delays; flush quickly.
+    - Token Caps: For `qwen3*`, start with `max_tokens <= 128`; adjust based on latency.
+    - Timeout Guards: Use `asyncio.wait_for` around internal calls; on timeout, stream a brief message and finish cleanly.
+    - Empty Response Handling: If only `thinking` arrives, emit meta then finish (`stop` + `[DONE]`) without hanging.
+
+    ### Testing Recipes
+    - SSE Happy Path: Meta-first, then content, then stop + `[DONE]`.
+    - SSE Timeout Path: Role → (optional meta) → concise timeout message → stop + `[DONE]`.
+    - Internal Debug: `/internal/llm/chat/debug` confirms `model` and `thinking` propagation.
+    - Frontend E2E: Verify `ReasoningBlock` renders real thinking only; ensure copy actions and status indicators work.
+
+    ### Failure Modes & Mitigations
+    - Model Mismatch: If internal flow picks a different model, ensure context `model` wins; log both requested/effective.
+    - Provider Unavailable: Circuit breaker in Ollama; show concise UI status and allow retry.
+    - Long Thinking, No Content: Emit real meta only; finish cleanly if content doesn’t arrive within timeout.
+
+    ### Style & Tone
+    - Clinical, direct, precise; short sentences; no marketing.
+    - Icons from app library for affordances; no emojis.
+    - Reusable naming across components, tests, telemetry for maintainability.
     return response.json();
   }
 }

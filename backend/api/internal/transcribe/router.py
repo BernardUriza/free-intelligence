@@ -20,7 +20,6 @@ Card: Architecture unification
 from __future__ import annotations
 
 from datetime import UTC, datetime
-
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
@@ -129,7 +128,7 @@ async def upload_chunk(
         if not metadata:
             metadata = {
                 "job_id": session_id,
-                "status": TaskStatus.PENDING.value,
+                "status": TaskStatus.PENDING.name.lower(),
                 "total_chunks": 0,
                 "processed_chunks": 0,
                 "progress_percent": 0,
@@ -240,11 +239,11 @@ async def get_transcription_job(session_id: str) -> TranscriptionJobResponse:
 
         # Determine overall status
         if processed_chunks == 0:
-            job_status = TaskStatus.PENDING.value
+            job_status = TaskStatus.PENDING.name.lower()
         elif processed_chunks < total_chunks:
-            job_status = TaskStatus.IN_PROGRESS.value
+            job_status = TaskStatus.IN_PROGRESS.name.lower()
         else:
-            job_status = TaskStatus.COMPLETED.value
+            job_status = TaskStatus.COMPLETED.name.lower()
 
         # Update metadata with current stats
         metadata.update(

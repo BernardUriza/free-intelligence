@@ -219,17 +219,19 @@ class WorkflowOrchestrator:
         Raises:
             ValueError: If workflow type is unknown
         """
+        # Normalize workflow keying: use lowercase enum names for consistency
         workflow_map = {
-            TaskType.DIARIZATION.value: self.dispatch_diarization,
-            TaskType.SOAP_GENERATION.value: self.dispatch_soap_generation,
-            TaskType.EMOTION_ANALYSIS.value: self.dispatch_emotion_analysis,
-            TaskType.ENCRYPTION.value: self.dispatch_encryption,
+            TaskType.DIARIZATION.name.lower(): self.dispatch_diarization,
+            TaskType.SOAP_GENERATION.name.lower(): self.dispatch_soap_generation,
+            TaskType.EMOTION_ANALYSIS.name.lower(): self.dispatch_emotion_analysis,
+            TaskType.ENCRYPTION.name.lower(): self.dispatch_encryption,
         }
 
-        if workflow not in workflow_map:
+        key = workflow.lower()
+        if key not in workflow_map:
             raise ValueError(f"Unknown workflow type: {workflow}")
 
-        return workflow_map[workflow](session_id)
+        return workflow_map[key](session_id)
 
 
 # ============================================================================
