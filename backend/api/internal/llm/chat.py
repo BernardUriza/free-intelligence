@@ -14,10 +14,9 @@ Propósito:
 import hashlib
 import json
 import time
+import ulid
 import uuid as _uuid
 from datetime import UTC, datetime
-
-import ulid
 from fastapi import APIRouter, HTTPException, Request, status
 
 from backend.api.public.workflows.assistant_websocket import broadcast_new_message
@@ -351,8 +350,20 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
             cost_usd=round(cost_usd, 6),
         )
 
+        # Optional reasoning from provider metadata
+        thinking = None
+        try:
+            meta = getattr(llm_response, "metadata", None)
+            if isinstance(meta, dict):
+                t = meta.get("thinking")
+                if isinstance(t, str) and t.strip():
+                    thinking = t.strip()
+        except Exception:
+            thinking = None
+
         return ChatResponse(
             response=response_text,
+            thinking=thinking,
             persona=effective_persona,  # Return effective persona (may differ if auto-routed)
             tokens_used=tokens_used,
             latency_ms=latency_ms,

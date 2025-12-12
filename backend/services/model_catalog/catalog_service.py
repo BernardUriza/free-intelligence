@@ -367,6 +367,7 @@ class CatalogService:
                 "max_tokens": model.context_length or 4096,
                 "context_window": model.context_length or 4096,
                 "is_active": True,
+                "size_bytes": model.size_bytes,  # RAM footprint for local models
             }
 
             return service.create_model(crud_data)

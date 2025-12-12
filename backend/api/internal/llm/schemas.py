@@ -4,9 +4,8 @@ Pydantic schemas para Internal LLM API
 
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, Field
+from typing import Any
 
 # ============================================================================
 # CHAT ENDPOINTS
@@ -44,6 +43,7 @@ class ChatResponse(BaseModel):
     """Response con logging ultra detallado."""
 
     response: str
+    thinking: str | None = Field(default=None, description="Razonamiento opcional del modelo (si disponible)")
     persona: str
     tokens_used: int
     latency_ms: int

@@ -11,17 +11,16 @@ Provides a unified interface for LLM interactions, supporting multiple providers
 Philosophy: Provider-agnostic design. No vendor lock-in.
 """
 
+import anthropic
 import asyncio
+import numpy as np
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from dotenv import load_dotenv
 from enum import Enum
 from typing import Any
-
-import anthropic
-import numpy as np
-from dotenv import load_dotenv
 
 # Load environment variables from .env
 load_dotenv()
@@ -422,22 +421,54 @@ class OllamaProvider(LLMProvider):
         start_time = datetime.now(UTC)
         last_exception: Exception | None = None
 
+        # Optional override to force thinking mode regardless of model
+        force_thinking = os.getenv("LLM_FORCE_THINKING", "false").lower() in {"1", "true", "yes"}
+
         for attempt in range(self.retry_config.max_retries + 1):
             try:
                 # Call Ollama API
-                response = self.client.chat(
-                    model=model,
-                    messages=[{"role": "user", "content": prompt}],
-                    options={
-                        "temperature": temperature,
-                        "num_predict": max_tokens,  # Ollama uses num_predict instead of max_tokens
-                    },
-                )
+                is_qwen3 = str(model).lower().startswith("qwen3")
+                use_generate_with_think = is_qwen3 or force_thinking
+                if use_generate_with_think:
+                    # Use generate endpoint for Qwen3 to expose separate thinking
+                    response = self.client.generate(
+                        model=model,
+                        prompt=prompt,
+                        options={
+                            "temperature": temperature,
+                            "num_predict": max_tokens,
+                            "think": True,
+                        },
+                    )
+                else:
+                    response = self.client.chat(
+                        model=model,
+                        messages=[{"role": "user", "content": prompt}],
+                        options={
+                            "temperature": temperature,
+                            "num_predict": max_tokens,  # Ollama uses num_predict instead of max_tokens
+                            # Disable separate thinking mode; capture if provider returns it
+                            "think": False,
+                        },
+                    )
 
                 latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
                 # Extract response
-                content = response["message"]["content"]
+                # Extract response content and optional reasoning depending on endpoint
+                thinking_text = None
+                if use_generate_with_think:
+                    content = str(response.get("response", ""))
+                    t = response.get("thinking")
+                    if isinstance(t, str) and t.strip():
+                        thinking_text = t.strip()
+                else:
+                    content = response["message"]["content"]
+                    message_obj = response.get("message", {})
+                    if isinstance(message_obj, dict):
+                        t = message_obj.get("thinking")
+                        if isinstance(t, str) and t.strip():
+                            thinking_text = t.strip()
 
                 # Estimate tokens (Ollama doesn't always provide exact counts)
                 # Use approximate: ~4 chars per token
@@ -486,6 +517,8 @@ class OllamaProvider(LLMProvider):
                         "eval_count": response.get("eval_count"),
                         "eval_duration": response.get("eval_duration"),
                         "retry_attempts": attempt,
+                        # Expose optional provider reasoning without logging
+                        **({"thinking": thinking_text} if thinking_text else {}),
                     },
                 )
 

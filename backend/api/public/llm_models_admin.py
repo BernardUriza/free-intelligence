@@ -9,7 +9,10 @@ Created: 2025-12-11
 
 from __future__ import annotations
 
+import httpx
+import random
 from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel
 
 from backend.models.llm_model import (
     CostTier,
@@ -19,6 +22,27 @@ from backend.models.llm_model import (
     LLMProvider,
 )
 from backend.services.llm_model_service import llm_model_service
+
+# Medical test prompts for model validation
+MEDICAL_TEST_PROMPTS = [
+    "Explica brevemente qué es la presión arterial y por qué es importante medirla.",
+    "¿Qué es la diabetes tipo 2 y cuáles son sus síntomas principales?",
+    "Describe en 2-3 oraciones qué es una frecuencia cardíaca normal en adultos.",
+    "¿Qué significa tener el colesterol alto y cómo afecta la salud?",
+    "Explica qué es la hemoglobina y por qué se mide en análisis de sangre.",
+    "¿Qué es un electrocardiograma (ECG) y para qué se utiliza?",
+    "Describe brevemente qué es la saturación de oxígeno en sangre.",
+    "¿Qué son las vacunas y cómo protegen al cuerpo de enfermedades?",
+]
+
+
+class ModelTestResponse(BaseModel):
+    """Response from testing an LLM model."""
+    success: bool
+    model_id: str
+    prompt: str
+    response: str
+    error: str | None = None
 
 router = APIRouter(prefix="/admin/llm-models", tags=["LLM Models Admin"])
 
@@ -147,3 +171,154 @@ async def list_cost_tiers() -> list[str]:
         List of cost tier names
     """
     return [t.value for t in CostTier]
+
+
+@router.post("/{model_id}/test", response_model=ModelTestResponse)
+async def test_llm_model(model_id: str) -> ModelTestResponse:
+    """Test an LLM model with a random medical prompt.
+
+    Sends a simple medical question to the model and returns the response.
+    Useful for validating model installation and basic functionality.
+
+    Args:
+        model_id: Model identifier (e.g., 'llama3:8b')
+
+    Returns:
+        Test result with prompt and model response
+    """
+    model = llm_model_service.get_model(model_id)
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model '{model_id}' not found",
+        )
+
+    # Select random medical prompt
+    prompt = random.choice(MEDICAL_TEST_PROMPTS)
+
+    try:
+        if model.provider == LLMProvider.OLLAMA:
+            response_text = await _test_ollama_model(model_id, prompt)
+        elif model.provider == LLMProvider.OPENAI:
+            response_text = await _test_openai_model(model_id, prompt)
+        elif model.provider == LLMProvider.ANTHROPIC:
+            response_text = await _test_anthropic_model(model_id, prompt)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Testing not supported for provider: {model.provider}",
+            )
+
+        return ModelTestResponse(
+            success=True,
+            model_id=model_id,
+            prompt=prompt,
+            response=response_text,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        return ModelTestResponse(
+            success=False,
+            model_id=model_id,
+            prompt=prompt,
+            response="",
+            error=str(e),
+        )
+
+
+async def _test_ollama_model(model_id: str, prompt: str) -> str:
+    """Test a model via Ollama API.
+
+    Handles both regular models and "thinking" models (like Qwen3)
+    that use a separate thinking field.
+    """
+    import os
+    ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+
+    async with httpx.AsyncClient() as client:
+        # Allow forcing thinking via env for debugging
+        force_thinking = os.getenv("LLM_FORCE_THINKING", "false").lower() in {"1", "true", "yes"}
+        is_qwen3 = model_id.lower().startswith("qwen3")
+
+        response = await client.post(
+            f"{ollama_host}/api/generate",
+            json={
+                "model": model_id,
+                "prompt": f"Eres un asistente médico. Responde de forma concisa y profesional.\n\n{prompt}",
+                "stream": False,
+                # For Qwen3 or when forcing, enable separate thinking to surface raw field
+                "think": True if (is_qwen3 or force_thinking) else False,
+                "options": {
+                    "num_predict": 512,  # Increased for thinking models that reason first
+                    "temperature": 0.7,
+                },
+            },
+            timeout=300.0,  # 5 min for local models (first load is slow)
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        # Get response; if think mode active and response empty, return raw thinking
+        result = data.get("response", "").strip()
+        if (is_qwen3 or force_thinking):
+            t = (data.get("thinking") or "").strip()
+            if t and not result:
+                result = t
+
+        return result
+
+
+async def _test_openai_model(model_id: str, prompt: str) -> str:
+    """Test a model via OpenAI API."""
+    import os
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY not configured")
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": model_id,
+                "messages": [
+                    {"role": "system", "content": "Eres un asistente médico. Responde de forma concisa y profesional."},
+                    {"role": "user", "content": prompt},
+                ],
+                "max_tokens": 256,
+                "temperature": 0.7,
+            },
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data["choices"][0]["message"]["content"].strip()
+
+
+async def _test_anthropic_model(model_id: str, prompt: str) -> str:
+    """Test a model via Anthropic API."""
+    import os
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY not configured")
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": model_id,
+                "max_tokens": 256,
+                "system": "Eres un asistente médico. Responde de forma concisa y profesional.",
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data["content"][0]["text"].strip()

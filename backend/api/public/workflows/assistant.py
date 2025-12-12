@@ -33,11 +33,10 @@ import asyncio
 import hashlib
 import json
 import time
+import ulid
 import uuid
 import uuid as _uuid
 from collections.abc import AsyncGenerator
-
-import ulid
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
@@ -624,6 +623,12 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                 request_id=request_id,
                 caller="public",
             )
+
+            # If backend provided reasoning, emit it first via meta
+            thinking = result.get("thinking")
+            if thinking:
+                meta_event = {"thinking": thinking}
+                yield f"event: meta\ndata: {json.dumps(meta_event)}\n\n"
 
             # Split response into chunks for streaming simulation
             response_text = result["response"]

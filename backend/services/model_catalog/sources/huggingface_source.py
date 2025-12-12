@@ -23,17 +23,31 @@ def _extract_quantization_from_filename(filename: str) -> QuantizationType:
     """Extrae el tipo de cuantización del nombre del archivo GGUF."""
     filename_upper = filename.upper()
 
-    # Orden de búsqueda: más específico primero
-    if "Q4_K_M" in filename_upper:
-        return QuantizationType.Q4_K_M
-    if "Q5_K_M" in filename_upper:
-        return QuantizationType.Q5_K_M
-    if "Q8_0" in filename_upper:
-        return QuantizationType.Q8_0
-    if "Q4_0" in filename_upper:
-        return QuantizationType.Q4_0
-    if "F16" in filename_upper:
-        return QuantizationType.F16
+    # Patrones de cuantización (orden: más específico primero)
+    patterns = {
+        "Q4_K_M": QuantizationType.Q4_K_M,
+        "Q4-K-M": QuantizationType.Q4_K_M,
+        "Q4KM": QuantizationType.Q4_K_M,
+        "Q5_K_M": QuantizationType.Q5_K_M,
+        "Q5-K-M": QuantizationType.Q5_K_M,
+        "Q5KM": QuantizationType.Q5_K_M,
+        "Q8_0": QuantizationType.Q8_0,
+        "Q8-0": QuantizationType.Q8_0,
+        "Q80": QuantizationType.Q8_0,
+        "Q4_0": QuantizationType.Q4_0,
+        "Q4-0": QuantizationType.Q4_0,
+        "Q40": QuantizationType.Q4_0,
+        "Q4K": QuantizationType.Q4_K_M,  # Common shorthand
+        "Q5K": QuantizationType.Q5_K_M,
+        "Q3K": QuantizationType.Q4_0,  # Approximate to Q4
+        "Q2K": QuantizationType.Q4_0,  # Approximate to Q4
+        "F16": QuantizationType.F16,
+        "FP16": QuantizationType.F16,
+    }
+
+    for pattern, quant_type in patterns.items():
+        if pattern in filename_upper:
+            return quant_type
 
     return QuantizationType.UNKNOWN
 
@@ -207,7 +221,8 @@ class HuggingFaceCatalogSource(CatalogSourceBase):
         """Obtiene todos los archivos GGUF de un repo."""
         try:
             api = self._get_api()
-            info = api.model_info(repo_id)
+            # Solicitar metadata de archivos para obtener tamaños
+            info = api.model_info(repo_id, files_metadata=True)
 
             models = []
             for sibling in info.siblings or []:
@@ -215,7 +230,12 @@ class HuggingFaceCatalogSource(CatalogSourceBase):
                 if not filename.lower().endswith(".gguf"):
                     continue
 
-                size_bytes = sibling.size or 0
+                # Obtener tamaño del archivo (priorizar lfs.size si existe)
+                size_bytes = 0
+                if hasattr(sibling, 'lfs') and sibling.lfs:
+                    size_bytes = sibling.lfs.get('size', 0) if isinstance(sibling.lfs, dict) else getattr(sibling.lfs, 'size', 0)
+                if not size_bytes and hasattr(sibling, 'size'):
+                    size_bytes = sibling.size or 0
 
                 # Aplicar filtro de tamaño
                 if params and params.max_size_gb:
