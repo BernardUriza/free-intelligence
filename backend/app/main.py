@@ -270,6 +270,7 @@ Requires environment variables:
         # Import TTS router, Check-in router, Payments router, Clinics router, Notifications router
         from backend.api.public import (
             audit,
+            catalog_admin,
             checkin,
             clinics,
             llm_models_admin,
@@ -307,6 +308,9 @@ Requires environment variables:
         )  # User-Clinic membership (link Auth0 user to clinic)
         public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
         public_app.include_router(llm_models_admin.router)  # LLM Models Admin (superadmin CRUD)
+        public_app.include_router(
+            catalog_admin.router
+        )  # Model Catalog (GPT4All, HuggingFace, Ollama)
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 
         # INTERNAL API (atomic resources, AURITY-only)

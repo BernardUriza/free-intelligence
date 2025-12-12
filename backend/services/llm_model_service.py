@@ -39,6 +39,32 @@ class LLMModelService:
             cls._instance = super().__new__(cls)
         return cls._instance
 
+    def _parse_datetime(self, value: str | datetime | None) -> datetime:
+        """Parse datetime from various formats (robust to YAML serialization quirks)."""
+        if value is None:
+            return datetime.utcnow()
+        if isinstance(value, datetime):
+            return value
+        if not isinstance(value, str):
+            return datetime.utcnow()
+
+        # Normalize: remove trailing Z if there's already a timezone offset
+        # e.g., "2025-01-01T00:00:00+00:00Z" -> "2025-01-01T00:00:00+00:00"
+        normalized = value.rstrip("Z")
+
+        # If no timezone info, add UTC
+        if "+" not in normalized and "-" not in normalized[10:]:
+            normalized += "+00:00"
+
+        try:
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            # Fallback: try replacing Z with +00:00 for simple ISO format
+            try:
+                return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                return datetime.utcnow()
+
     def _load_from_yaml(self) -> dict[str, LLMModel]:
         """Load models from YAML file."""
         if not LLM_MODELS_FILE.exists():
@@ -62,12 +88,8 @@ class LLMModelService:
                     context_window=item.get("context_window", 128000),
                     is_active=item.get("is_active", True),
                     description=item.get("description"),
-                    created_at=datetime.fromisoformat(item["created_at"].replace("Z", "+00:00"))
-                    if isinstance(item.get("created_at"), str)
-                    else datetime.utcnow(),
-                    updated_at=datetime.fromisoformat(item["updated_at"].replace("Z", "+00:00"))
-                    if isinstance(item.get("updated_at"), str)
-                    else datetime.utcnow(),
+                    created_at=self._parse_datetime(item.get("created_at")),
+                    updated_at=self._parse_datetime(item.get("updated_at")),
                 )
                 models[model.id] = model
             except (KeyError, ValueError) as e:
