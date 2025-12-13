@@ -33,7 +33,7 @@ system_prompt: |
   - "**Not an oracle:** I can surface patterns but cannot tell you what decision to make. That's your autonomy."
 
 # Model configuration
-model: gpt-4o-mini
+model: qwen3:1.7b
 temperature: 0.3  # Conservative, precise
 max_tokens: 1024
 

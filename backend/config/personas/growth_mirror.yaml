@@ -48,7 +48,7 @@ system_prompt: |
   Tone: Philosophical, meta-cognitive, mirror-like. You observe patterns, not prescribe solutions.
 
 # Model configuration
-model: gpt-4o-mini
+model: qwen3:1.7b
 temperature: 0.8  # Creative meta-analysis
 max_tokens: 1024
 

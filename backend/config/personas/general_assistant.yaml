@@ -30,7 +30,7 @@ system_prompt: 'You are Free-Intelligence, a general medical AI assistant within
   Tone: Helpful, professional, honest about limitations.
 
   '
-model: gpt-4o-mini
+model: qwen3:1.7b
 voice: nova
 temperature: 0.7
 max_tokens: 1500

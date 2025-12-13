@@ -60,6 +60,7 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                 "frequency_penalty": request.frequency_penalty,
                 "presence_penalty": request.presence_penalty,
                 "stop": request.stop,
+                "enable_thinking": request.enable_thinking,  # Toggle thinking/reasoning mode
             }
 
             if request.model:

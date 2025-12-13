@@ -122,6 +122,10 @@ class ChatCompletionRequest(BaseModel):
     receptionist_config: dict | None = Field(
         None, description="Receptionist-specific configuration for check-in flows"
     )
+    enable_thinking: bool = Field(
+        default=True,
+        description="Enable model reasoning/thinking (Qwen3). Set false to skip thinking phase and save compute.",
+    )
 
 
 class ChatCompletionChoice(BaseModel):

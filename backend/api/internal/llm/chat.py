@@ -226,11 +226,15 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
         # Call LLM via router - use request provider or default from policy
         # Honrar override de modelo si viene en el contexto
         model_override = None
+        enable_thinking = True  # Default: enable thinking for Qwen3 models
         try:
             if isinstance(request.context, dict):
                 m = request.context.get("model")
                 if isinstance(m, str) and m.strip():
                     model_override = m.strip()
+                # Respect enable_thinking toggle from context
+                if "enable_thinking" in request.context:
+                    enable_thinking = bool(request.context.get("enable_thinking", True))
         except Exception:
             model_override = None
 
@@ -238,6 +242,7 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
             "INTERNAL_LLM_MODEL_SELECTION",
             requested_model=model_override,
             provider=request.provider or policy_loader.get_primary_provider(),
+            enable_thinking=enable_thinking,
         )
 
         llm_response = llm_generate(
@@ -246,6 +251,7 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
             temperature=persona_config.temperature,
             max_tokens=persona_config.max_tokens,
             model=model_override if model_override else None,
+            enable_thinking=enable_thinking,  # Toggle thinking/reasoning mode
         )
 
         try:

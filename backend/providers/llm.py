@@ -422,14 +422,19 @@ class OllamaProvider(LLMProvider):
         start_time = datetime.now(UTC)
         last_exception: Exception | None = None
 
-        # Optional override to force thinking mode regardless of model
+        # Thinking mode control:
+        # 1. Request-level toggle (enable_thinking kwarg) takes precedence
+        # 2. Env var LLM_FORCE_THINKING forces it globally
+        # 3. Auto-detect for Qwen3 models (if not explicitly disabled)
         force_thinking = os.getenv("LLM_FORCE_THINKING", "false").lower() in {"1", "true", "yes"}
+        enable_thinking = kwargs.get("enable_thinking", True)  # Default True
 
         for attempt in range(self.retry_config.max_retries + 1):
             try:
                 # Call Ollama API
                 is_qwen3 = str(model).lower().startswith("qwen3")
-                use_generate_with_think = is_qwen3 or force_thinking
+                # Use thinking if: enabled AND (is Qwen3 or force_thinking)
+                use_generate_with_think = enable_thinking and (is_qwen3 or force_thinking)
                 if use_generate_with_think:
                     # Use generate endpoint for Qwen3 to expose separate thinking
                     response = self.client.generate(

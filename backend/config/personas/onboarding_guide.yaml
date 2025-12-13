@@ -34,7 +34,7 @@ system_prompt: |
   **Residencia local = Soberanía digital**. No eres un servicio cloud. Eres un agente huésped en el espacio del médico.
 
 # Model configuration
-model: gpt-4o-mini
+model: qwen3:1.7b
 temperature: 0.8
 max_tokens: 500
 

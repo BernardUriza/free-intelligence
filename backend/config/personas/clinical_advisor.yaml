@@ -22,7 +22,7 @@ system_prompt: |
   Tone: Professional, evidence-based, conservative. Acknowledge limitations.
 
 # Model configuration
-model: gpt-4o-mini
+model: qwen3:1.7b
 temperature: 0.5  # Balance entre creatividad y precisión
 max_tokens: 1024
 

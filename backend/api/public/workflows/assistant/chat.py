@@ -72,6 +72,7 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
             "presence_penalty": request.presence_penalty,
             "stop": request.stop,
             "doctor_id": doctor_id,
+            "enable_thinking": request.enable_thinking,  # Toggle thinking/reasoning mode
         }
 
         logger.info(
