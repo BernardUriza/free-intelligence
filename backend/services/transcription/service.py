@@ -31,7 +31,7 @@ from backend.services.transcription.whisper import (
     WHISPER_LANGUAGE,
     WHISPER_MODEL_SIZE,
 )
-from packages.fi_common.storage.audio_storage import (
+from backend.common.fi_common.storage.audio_storage import (
     save_audio_file,
     validate_session_id,
 )
@@ -541,7 +541,7 @@ class TranscriptionService:
         )
 
         # Get absolute path to audio file
-        from packages.fi_common.storage.audio_storage import AUDIO_STORAGE_DIR
+        from backend.common.fi_common.storage.audio_storage import AUDIO_STORAGE_DIR
 
         audio_path = AUDIO_STORAGE_DIR.parent / audio_metadata["file_path"]
 

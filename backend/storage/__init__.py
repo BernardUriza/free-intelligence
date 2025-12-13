@@ -15,7 +15,7 @@ Provides:
 from __future__ import annotations
 
 # Re-export audio_storage functions
-from packages.fi_common.storage.audio_storage import (
+from backend.common.fi_common.storage.audio_storage import (
     compute_sha256,
     get_audio_manifest,
     save_audio_file,
@@ -23,7 +23,7 @@ from packages.fi_common.storage.audio_storage import (
 )
 
 # Re-export corpus_identity functions
-from packages.fi_common.storage.corpus_identity import (
+from backend.common.fi_common.storage.corpus_identity import (
     add_corpus_identity,
     generate_corpus_id,
     generate_owner_hash,
@@ -33,7 +33,7 @@ from packages.fi_common.storage.corpus_identity import (
 
 # Re-export corpus_ops functions (lazy import to avoid llm_router dependency)
 try:
-    from packages.fi_common.storage.corpus_ops import (
+    from backend.common.fi_common.storage.corpus_ops import (
         append_embedding,
         append_interaction,
         append_interaction_with_embedding,
@@ -45,7 +45,7 @@ except ImportError:
     pass
 
 # Re-export corpus_schema functions and classes
-from packages.fi_common.storage.corpus_schema import (
+from backend.common.fi_common.storage.corpus_schema import (
     CorpusSchema,
     init_corpus,
     init_corpus_from_config,
@@ -54,7 +54,7 @@ from packages.fi_common.storage.corpus_schema import (
 
 # Re-export search functions (lazy import to avoid llm_router dependency)
 try:
-    from packages.fi_common.storage.search import (
+    from backend.common.fi_common.storage.search import (
         cosine_similarity,
         search_by_session,
         semantic_search,
@@ -64,7 +64,7 @@ except ImportError:
     pass
 
 # Re-export sessions_store functions and classes
-from packages.fi_common.storage.sessions_store import (
+from backend.common.fi_common.storage.sessions_store import (
     Session,
     SessionsStore,
     generate_ulid,

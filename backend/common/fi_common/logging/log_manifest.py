@@ -17,8 +17,8 @@ import json
 from datetime import datetime, timedelta
 from typing import Any
 
-from packages.fi_common.logging.log_rotation import LogRotation
-from packages.fi_common.logging.logger_structured import ServiceChannel
+from backend.common.fi_common.logging.log_rotation import LogRotation
+from backend.common.fi_common.logging.logger_structured import ServiceChannel
 
 
 class LogManifest:

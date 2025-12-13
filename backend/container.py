@@ -5,6 +5,6 @@ Re-exports from packages.fi_common.infrastructure.container for backward compati
 
 from __future__ import annotations
 
-from packages.fi_common.infrastructure.container import get_container
+from backend.common.fi_common.infrastructure.container import get_container
 
 __all__ = ["get_container"]

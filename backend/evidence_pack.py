@@ -5,7 +5,7 @@ Re-exports from packages.fi_common.infrastructure.evidence_pack for backward com
 
 from __future__ import annotations
 
-from packages.fi_common.infrastructure.evidence_pack import (
+from backend.common.fi_common.infrastructure.evidence_pack import (
     ClinicalSource,
     EvidencePack,
     EvidencePackBuilder,

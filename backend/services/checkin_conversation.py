@@ -363,7 +363,8 @@ class CheckinConversationService:
             )
 
         # State-specific handling
-        match context.state:
+            # mypy may parse with older Python; ensure compatibility by string matching
+            match context.state:
             case ConversationState.GREETING:
                 return self._handle_greeting(context, intent, entities)
 
