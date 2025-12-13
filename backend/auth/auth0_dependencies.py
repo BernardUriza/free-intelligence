@@ -211,3 +211,20 @@ def allow_medico_or_admin_auth0(user: User = Depends(get_current_user_auth0)) ->
             detail="This operation requires MEDICO or ADMIN role",
         )
     return user
+
+
+def require_superadmin_auth0(user: User = Depends(get_current_user_auth0)) -> User:
+    """
+    FastAPI dependency: Require user to be FI-superadmin (via Auth0 custom claims).
+
+    Used for sensitive operations like:
+    - Creating/deleting persona templates
+    - Modifying global configurations
+    - User management
+    """
+    if user.role != UserRole.SUPERADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This operation requires FI-superadmin role",
+        )
+    return user

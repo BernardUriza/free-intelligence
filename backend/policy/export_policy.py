@@ -82,13 +82,13 @@ except ImportError:
 # ============================================================================
 
 
-class ExportPolicyViolation(Exception):
+class ExportPolicyError(Exception):
     """Raised when export policy is violated."""
 
     pass
 
 
-class InvalidManifest(Exception):
+class InvalidManifestError(Exception):
     """Raised when manifest schema is invalid."""
 
     pass
@@ -157,6 +157,31 @@ class ExportManifest:
     includes_pii: bool = True
     metadata: dict[str, Any] | None = None
 
+    def __init__(
+        self,
+        *,
+        export_id: str,
+        timestamp: str,
+        exported_by: str,
+        data_source: str,
+        data_hash: str,
+        format: str,
+        purpose: str,
+        retention_days: int | None = None,
+        includes_pii: bool = True,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        self.export_id = export_id
+        self.timestamp = timestamp
+        self.exported_by = exported_by
+        self.data_source = data_source
+        self.data_hash = data_hash
+        self.format = format
+        self.purpose = purpose
+        self.retention_days = retention_days
+        self.includes_pii = includes_pii
+        self.metadata = metadata
+
     def to_dict(self) -> dict[str, Any]:
         """Convierte a dict (para JSON serialization)."""
         data = asdict(self)
@@ -190,33 +215,39 @@ def validate_manifest_schema(manifest: ExportManifest) -> bool:
     missing_fields = REQUIRED_FIELDS - set(manifest_dict.keys())
 
     if missing_fields:
-        raise InvalidManifest(f"Missing required fields: {', '.join(missing_fields)}")
+        raise InvalidManifestError(f"Missing required fields: {', '.join(missing_fields)}")
 
     # Validate export_id is UUID
     try:
         uuid.UUID(manifest.export_id)
-    except ValueError:
-        raise InvalidManifest(f"export_id must be valid UUID v4: {manifest.export_id}")
+    except ValueError as err:
+        raise InvalidManifestError(
+            f"export_id must be valid UUID v4: {manifest.export_id}"
+        ) from err
 
     # Validate timestamp is ISO 8601
     try:
         datetime.fromisoformat(manifest.timestamp.replace("Z", "+00:00"))
-    except ValueError:
-        raise InvalidManifest(f"timestamp must be ISO 8601: {manifest.timestamp}")
+    except ValueError as err:
+        raise InvalidManifestError(f"timestamp must be ISO 8601: {manifest.timestamp}") from err
 
     # Validate format
     if manifest.format not in ALLOWED_FORMATS:
-        raise InvalidManifest(f"format must be one of {ALLOWED_FORMATS}, got: {manifest.format}")
+        raise InvalidManifestError(
+            f"format must be one of {ALLOWED_FORMATS}, got: {manifest.format}"
+        )
 
     # Validate purpose
     if manifest.purpose not in ALLOWED_PURPOSES:
-        raise InvalidManifest(f"purpose must be one of {ALLOWED_PURPOSES}, got: {manifest.purpose}")
+        raise InvalidManifestError(
+            f"purpose must be one of {ALLOWED_PURPOSES}, got: {manifest.purpose}"
+        )
 
     # Validate data_hash is SHA256 (64 hex chars)
     if len(manifest.data_hash) != 64 or not all(
         c in "0123456789abcdef" for c in manifest.data_hash
     ):
-        raise InvalidManifest(f"data_hash must be SHA256 (64 hex chars): {manifest.data_hash}")
+        raise InvalidManifestError(f"data_hash must be SHA256 (64 hex chars): {manifest.data_hash}")
 
     logger.info(
         "MANIFEST_HASH_COMPARED",
@@ -264,14 +295,14 @@ def validate_export(manifest: ExportManifest, export_filepath: Path) -> bool:
 
     # 2. Validate export file exists
     if not export_filepath.exists():
-        raise ExportPolicyViolation(f"Export file does not exist: {export_filepath}")
+        raise ExportPolicyError(f"Export file does not exist: {export_filepath}")
 
     # 3. Compute actual file hash
     actual_hash = compute_file_hash(export_filepath)
 
     # 4. Verify hash matches manifest
     if actual_hash != manifest.data_hash:
-        raise ExportPolicyViolation(
+        raise ExportPolicyError(
             "Data hash mismatch! " + f"Manifest: {manifest.data_hash}, " + f"Actual: {actual_hash}"
         )
 
@@ -294,7 +325,7 @@ def create_export_manifest(
     exported_by: str,
     data_source: str,
     export_filepath: Path,
-    format: str,
+    format_: str,
     purpose: str,
     retention_days: int | None = None,
     includes_pii: bool = True,
@@ -332,7 +363,7 @@ def create_export_manifest(
         exported_by=exported_by,
         data_source=data_source,
         data_hash=data_hash,
-        format=format,
+        format=format_,
         purpose=purpose,
         retention_days=retention_days,
         includes_pii=includes_pii,
@@ -346,7 +377,7 @@ def create_export_manifest(
         "EXPORT_MANIFEST_CREATED",
         export_id=export_id,
         data_source=data_source,
-        format=format,
+        format=format_,
         purpose=purpose,
     )
 
@@ -426,7 +457,7 @@ if __name__ == "__main__":
             exported_by=user_id,
             data_source=data_source,
             export_filepath=export_file,
-            format=format_type,
+            format_=format_type,
             purpose=purpose,
         )
 
@@ -459,7 +490,7 @@ if __name__ == "__main__":
             print(f"   Data hash: {manifest.data_hash[:16]}... ✓")
             print("   Schema: Valid ✓")
 
-        except (InvalidManifest, ExportPolicyViolation) as e:
+        except (InvalidManifestError, ExportPolicyError) as e:
             print("\n❌ EXPORT VALIDATION FAILED")
             print(f"   Error: {e!s}")
             sys.exit(1)
@@ -479,7 +510,7 @@ if __name__ == "__main__":
             print("\n✅ Manifest loaded:")
             print(json.dumps(manifest.to_dict(), indent=2))
 
-        except (FileNotFoundError, InvalidManifest) as e:
+        except (FileNotFoundError, InvalidManifestError) as e:
             print("\n❌ Failed to load manifest")
             print(f"   Error: {e!s}")
             sys.exit(1)

@@ -283,7 +283,7 @@ Requires environment variables:
             tts,
             user_clinic,
         )
-        from backend.api.public.workflows import timeline
+        from backend.api.public.workflows import aurity_personas, timeline
         from backend.auth.auth0_router import (
             router as auth_router,  # HIPAA G-003 (Auth0)
         )
@@ -292,6 +292,7 @@ Requires environment variables:
         public_app.include_router(auth_router)  # Auth0 Authentication (HIPAA G-003)
         public_app.include_router(public.workflows.router)  # AURITY orchestrator
         public_app.include_router(timeline.router)  # Timeline/sessions listing
+        public_app.include_router(aurity_personas.router)  # Personas list (public)
         public_app.include_router(patients.router)  # Patient CRUD (FI-DATA-DB-001)
         public_app.include_router(providers.router)  # Provider CRUD (FI-DATA-DB-001)
         # NOTE: System router moved to workflows/system.py (/api/workflows/aurity/system/*)

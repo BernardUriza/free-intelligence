@@ -1,6 +1,6 @@
 """Logger utilities.
 
-Re-exports from packages.fi_common.logging.logger for backward compatibility.
+Re-exports from backend.common.fi_common.logging.logger for backward compatibility.
 """
 
 from __future__ import annotations

@@ -18,8 +18,8 @@ Design Philosophy:
 """
 
 from __future__ import annotations
-# mypy: ignore-errors
 
+# mypy: ignore-errors
 import os
 import re
 from dataclasses import dataclass, field

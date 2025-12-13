@@ -17,6 +17,7 @@ class PersonaConfig:
     Attributes:
         persona: Unique identifier
         system_prompt: The system prompt to use
+        model: LLM model ID (e.g., 'qwen3:1.7b', 'gpt-4o')
         temperature: LLM sampling temperature
         max_tokens: Maximum tokens for response
         description: Human-readable description
@@ -27,6 +28,7 @@ class PersonaConfig:
 
     persona: str
     system_prompt: str
+    model: str = "qwen3:1.7b"
     temperature: float = 0.7
     max_tokens: int = 2048
     description: str = ""

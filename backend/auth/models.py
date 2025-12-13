@@ -26,6 +26,7 @@ class UserRole(str, Enum):
     MEDICO = "MEDICO"  # Doctor: read/write SOAP notes
     ENFERMERA = "ENFERMERA"  # Nurse: read-only access
     ADMIN = "ADMIN"  # Admin: full access to all resources
+    SUPERADMIN = "FI-superadmin"  # Superadmin: template management + full access
 
 
 class Permission(str, Enum):
@@ -47,6 +48,7 @@ ROLE_PERMISSIONS = {
     UserRole.MEDICO: [Permission.READ, Permission.WRITE],
     UserRole.ENFERMERA: [Permission.READ],
     UserRole.ADMIN: [Permission.READ, Permission.WRITE, Permission.DELETE, Permission.ADMIN],
+    UserRole.SUPERADMIN: [Permission.READ, Permission.WRITE, Permission.DELETE, Permission.ADMIN],
 }
 
 

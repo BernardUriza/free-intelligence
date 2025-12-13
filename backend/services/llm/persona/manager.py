@@ -106,6 +106,7 @@ class PersonaManager:
             config = PersonaConfig(
                 persona=validated.persona,
                 system_prompt=validated.system_prompt,
+                model=validated.model or "qwen3:1.7b",
                 temperature=validated.temperature,
                 max_tokens=validated.max_tokens,
                 description=validated.description,
@@ -305,6 +306,7 @@ class PersonaManager:
         template = self.get_persona(persona)
 
         # Collect override values
+        model = template.model
         system_prompt = template.system_prompt
         temperature = template.temperature
         max_tokens = template.max_tokens
@@ -322,6 +324,8 @@ class PersonaManager:
                 )
 
                 if user_override:
+                    if user_override.model:
+                        model = user_override.model
                     if user_override.custom_prompt:
                         system_prompt = user_override.custom_prompt
                     if user_override.temperature is not None:
@@ -336,6 +340,8 @@ class PersonaManager:
 
         # Layer 2: Runtime overrides (highest precedence)
         if runtime_overrides:
+            if "model" in runtime_overrides:
+                model = runtime_overrides["model"]
             if "system_prompt" in runtime_overrides:
                 system_prompt = runtime_overrides["system_prompt"]
             if "temperature" in runtime_overrides:
@@ -348,6 +354,7 @@ class PersonaManager:
         return PersonaConfig(
             persona=persona,
             system_prompt=system_prompt,
+            model=model,
             temperature=temperature,
             max_tokens=max_tokens,
             description=template.description,
@@ -401,6 +408,7 @@ class PersonaManager:
         user_id: str,
         persona_id: str,
         db: Session,
+        model: str | None = None,
         custom_prompt: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
@@ -420,6 +428,7 @@ class PersonaManager:
             config = UserPersonaConfig(
                 user_id=user_id,
                 persona_id=persona_id,
+                model=model,
                 custom_prompt=custom_prompt,
                 temperature=temperature,
                 max_tokens=max_tokens,
@@ -428,6 +437,8 @@ class PersonaManager:
             )
             db.add(config)
         else:
+            if model is not None:
+                config.model = model
             if custom_prompt is not None:
                 config.custom_prompt = custom_prompt
             if temperature is not None:

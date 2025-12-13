@@ -162,6 +162,7 @@ class UserPersonaConfig(Base):
     Attributes:
         user_id: UUID of user (provider_id FK)
         persona_id: Persona identifier (soap_editor, clinical_advisor, etc.)
+        model: LLM model ID override (NULL = use template, e.g., 'gpt-4o', 'qwen3:1.7b')
         custom_prompt: Full system prompt override (NULL = use template)
         temperature: LLM temperature override (NULL = use template)
         max_tokens: Max tokens override (NULL = use template)
@@ -174,6 +175,7 @@ class UserPersonaConfig(Base):
 
     user_id = Column(UUID(as_uuid=False), primary_key=True)
     persona_id = Column(String(50), primary_key=True)
+    model = Column(String(50), nullable=True)  # NULL = use template (e.g., 'gpt-4o', 'qwen3:1.7b')
     custom_prompt = Column(Text, nullable=True)  # NULL = use template
     temperature = Column(Float, nullable=True)  # NULL = use template
     max_tokens = Column(Integer, nullable=True)  # NULL = use template
@@ -195,6 +197,7 @@ class UserPersonaConfig(Base):
         return {
             "user_id": str(self.user_id),
             "persona_id": self.persona_id,
+            "model": self.model,
             "custom_prompt": self.custom_prompt,
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
