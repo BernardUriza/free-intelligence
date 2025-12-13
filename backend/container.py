@@ -1,6 +1,6 @@
 """Dependency injection container.
 
-Re-exports from packages.fi_common.infrastructure.container for backward compatibility.
+Re-exports from backend.common.fi_common.infrastructure.container for backward compatibility.
 """
 
 from __future__ import annotations

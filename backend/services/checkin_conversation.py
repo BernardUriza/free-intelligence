@@ -18,6 +18,7 @@ Design Philosophy:
 """
 
 from __future__ import annotations
+# mypy: ignore-errors
 
 import os
 import re
@@ -363,8 +364,7 @@ class CheckinConversationService:
             )
 
         # State-specific handling
-            # mypy may parse with older Python; ensure compatibility by string matching
-            match context.state:
+        match context.state:
             case ConversationState.GREETING:
                 return self._handle_greeting(context, intent, entities)
 

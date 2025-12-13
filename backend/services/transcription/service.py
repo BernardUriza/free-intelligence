@@ -21,6 +21,10 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
+from backend.common.fi_common.storage.audio_storage import (
+    save_audio_file,
+    validate_session_id,
+)
 from backend.logger import get_logger
 from backend.services.transcription.whisper import (
     CPU_THREADS,
@@ -30,10 +34,6 @@ from backend.services.transcription.whisper import (
     WHISPER_DEVICE,
     WHISPER_LANGUAGE,
     WHISPER_MODEL_SIZE,
-)
-from backend.common.fi_common.storage.audio_storage import (
-    save_audio_file,
-    validate_session_id,
 )
 
 logger = get_logger(__name__)

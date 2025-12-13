@@ -1,9 +1,9 @@
-"""Backward compatibility shim: Storage layer moved to packages/fi_common/storage
+"""Backward compatibility shim: Storage layer moved to backend/common/fi_common/storage
 
-This module provides re-exports from packages.fi_common.storage for backward compatibility.
+This module provides re-exports from backend.common.fi_common.storage for backward compatibility.
 All storage utilities have been moved to the shared fi_common package.
 
-Deprecated: Use fi_common.storage.* directly instead.
+Deprecated: Use backend.common.fi_common.storage.* directly instead.
 
 Provides:
   - audio_storage: Audio file storage with session-based organization

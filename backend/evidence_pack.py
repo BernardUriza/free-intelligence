@@ -1,6 +1,6 @@
 """Evidence pack module - wrapper for fi_common.
 
-Re-exports from packages.fi_common.infrastructure.evidence_pack for backward compatibility.
+Re-exports from backend.common.fi_common.infrastructure.evidence_pack for backward compatibility.
 """
 
 from __future__ import annotations

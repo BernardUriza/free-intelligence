@@ -1,6 +1,6 @@
 """Type definitions.
 
-Re-exports from packages.fi_common.types.type_defs for backward compatibility.
+Re-exports from backend.common.fi_common.types.type_defs for backward compatibility.
 """
 
 from __future__ import annotations
