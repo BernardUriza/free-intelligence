@@ -243,6 +243,8 @@ class Doctor(Base):
 
     # Availability
     avg_consultation_minutes = Column(Integer, default=30)
+    work_start_time = Column(String(5), nullable=True)  # e.g., "09:00" (HH:MM format)
+    work_end_time = Column(String(5), nullable=True)  # e.g., "18:00" (HH:MM format)
     is_active = Column(Boolean, default=True)
 
     # Timestamps
