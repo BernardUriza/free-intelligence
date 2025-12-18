@@ -22,17 +22,15 @@ Updated: 2025-11-20 (Multi-tenant support)
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from typing import Any
-
 import yaml
+from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from typing import Any
 
-from backend.auth.auth0_dependencies import get_current_user_auth0
-from backend.auth.models import User, UserRole
 from backend.database import get_db_dependency
+from backend.packages.fi_auth import User, UserRole, get_current_user
 from backend.services.llm.persona_manager import PersonaManager
 from backend.services.persona_metrics_service import get_persona_metrics_service
 
@@ -275,7 +273,7 @@ async def update_persona(
     update: PersonaUpdateRequest,
     user_id: str | None = Query(None, description="User ID for personalized update"),
     db: Session = Depends(get_db_dependency),
-    current_user: User = Depends(get_current_user_auth0),
+    current_user: User = Depends(get_current_user),
 ) -> PersonaResponse:
     """Update persona configuration.
 
@@ -495,7 +493,7 @@ PROTECTED_PERSONAS = {"general_assistant", "soap_editor"}
 async def create_persona(
     create_request: PersonaCreateRequest,
     db: Session = Depends(get_db_dependency),
-    current_user: User = Depends(get_current_user_auth0),
+    current_user: User = Depends(get_current_user),
 ) -> PersonaResponse:
     """Create a new persona (FI-superadmin only).
 
@@ -580,7 +578,7 @@ async def create_persona(
 async def delete_persona(
     persona_id: str,
     db: Session = Depends(get_db_dependency),
-    current_user: User = Depends(get_current_user_auth0),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     """Delete a persona (FI-superadmin only).
 

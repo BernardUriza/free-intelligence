@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Any
 
 from backend.api.public.workflows.models import (
     DoctorFeedbackRequest,
     DoctorFeedbackResponse,
 )
-from backend.auth.auth0_dependencies import get_current_user_auth0
-from backend.auth.models import User
 from backend.logger import get_logger
+from backend.packages.fi_auth import User, get_current_user
 from backend.validators import validate_session_id
 
 router = APIRouter()
@@ -169,7 +167,7 @@ def _analyze_session_flags(
 async def submit_doctor_feedback(
     session_id: str,
     feedback: DoctorFeedbackRequest,
-    current_user: User | None = Depends(get_current_user_auth0),
+    current_user: User | None = Depends(get_current_user),
 ) -> DoctorFeedbackResponse:
     """Submit doctor's audit feedback for a session."""
     from backend.api.public.workflows.models import DoctorFeedbackResponse

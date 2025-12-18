@@ -1,14 +1,12 @@
 from __future__ import annotations
 
+import yaml
+from fastapi import APIRouter, Depends, HTTPException, status
 from pathlib import Path
 from typing import Any
 
-import yaml
-from fastapi import APIRouter, Depends, HTTPException, status
-
-from backend.auth.auth0_dependencies import get_current_user_auth0
-from backend.auth.models import User
 from backend.logger import get_logger
+from backend.packages.fi_auth import User, get_current_user
 
 logger = get_logger(__name__)
 
@@ -37,7 +35,7 @@ def _load_persona_file(path: Path) -> dict[str, Any]:
 
 
 @router.get("/personas")
-async def list_personas(user: User = Depends(get_current_user_auth0)) -> dict[str, Any]:
+async def list_personas(user: User = Depends(get_current_user)) -> dict[str, Any]:
     if not PERSONAS_DIR.exists():
         logger.error("personas_dir_missing", dir=str(PERSONAS_DIR))
         raise HTTPException(

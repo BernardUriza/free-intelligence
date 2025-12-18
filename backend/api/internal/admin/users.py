@@ -19,12 +19,12 @@ Created: 2025-11-20
 
 from __future__ import annotations
 
+import structlog
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr, Field
 from typing import Any
 
-import structlog
-from fastapi import APIRouter, Depends, Header, HTTPException, status
-from pydantic import BaseModel, EmailStr, Field
-
+from backend.packages.fi_auth import User, UserRole, require_roles
 from backend.services.auth0_management import get_auth0_service
 
 logger = structlog.get_logger(__name__)
@@ -82,74 +82,15 @@ class UpdateRolesRequest(BaseModel):
 # ============================================================================
 
 
-async def require_superadmin(authorization: str = Header(None)) -> dict:
-    """
-    Verify user has SUPERADMIN role via JWT token.
-
-    Performs:
-    1. Extract JWT token from Authorization header
-    2. Verify token signature with Auth0 JWKS
-    3. Check token expiration
-    4. Verify 'https://aurity.app/roles' contains 'FI-superadmin'
-
-    Args:
-        authorization: Bearer token from Authorization header
-
-    Returns:
-        dict: User information (user_id, email, roles)
-
-    Raises:
-        HTTPException: 401 if token missing/invalid, 403 if not superadmin
-    """
-    from backend.auth.jwt_verifier import get_jwt_verifier
-
-    if not authorization:
-        logger.warning("SUPERADMIN_AUTH_MISSING")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Authorization header",
-        )
-
-    if not authorization.startswith("Bearer "):
-        logger.warning("SUPERADMIN_AUTH_INVALID_FORMAT")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Authorization header format. Expected: Bearer <token>",
-        )
-
-    token = authorization[7:]  # Remove "Bearer " prefix
-
-    try:
-        verifier = get_jwt_verifier()
-        user = verifier.verify_superadmin(token)
-        return user
-
-    except ValueError as e:
-        # JWT verification failed or not superadmin
-        error_msg = str(e)
-
-        if "expired" in error_msg.lower():
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token has expired. Please login again.",
-            )
-        elif "superadmin" in error_msg.lower():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions. Superadmin role required.",
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Token verification failed: {error_msg}",
-            )
-
-    except Exception as e:
-        logger.error("SUPERADMIN_AUTH_ERROR", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal authentication error",
-        )
+async def require_superadmin(
+    current_user: User = Depends(require_roles([UserRole.SUPERADMIN])),
+) -> dict:
+    """FastAPI dependency ensuring FI-superadmin role."""
+    return {
+        "sub": current_user.user_id,
+        "email": current_user.email,
+        "roles": [role.value for role in current_user.roles],
+    }
 
 
 # ============================================================================
