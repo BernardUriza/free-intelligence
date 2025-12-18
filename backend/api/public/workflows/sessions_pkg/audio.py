@@ -23,7 +23,7 @@ async def get_session_audio_workflow(session_id: str) -> FileResponse:
     """Serve full audio file from completed session (PUBLIC endpoint)."""
     validate_session_id(session_id)
 
-    from backend.storage.task_repository import CORPUS_PATH
+    from backend.packages.fi_storage.infrastructure.hdf5.task_repository import CORPUS_PATH
 
     temp_file_path = None
     try:

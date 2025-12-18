@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
-from backend.storage.task_repository import (
+from backend.packages.fi_storage.infrastructure.hdf5.task_repository import (
     ensure_task_exists,
     get_task_chunks,
     get_task_metadata,

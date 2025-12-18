@@ -9,7 +9,7 @@ from typing import Any
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.providers.stt import get_stt_provider
-from backend.storage.task_repository import (
+from backend.packages.fi_storage.infrastructure.hdf5.task_repository import (
     batch_update_chunk_datasets,
     get_chunk_audio_bytes,
     get_task_chunks,

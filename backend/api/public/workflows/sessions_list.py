@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
-from backend.storage.task_repository import CORPUS_PATH
+from backend.packages.fi_storage.infrastructure.hdf5.task_repository import CORPUS_PATH
 
 logger = get_logger(__name__)
 

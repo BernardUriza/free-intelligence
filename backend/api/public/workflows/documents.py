@@ -25,7 +25,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
-from backend.storage.document_repository import (
+from backend.packages.fi_storage.infrastructure.hdf5.document_repository import (
     Document,
     DocumentOrigin,
     DocumentStatus,
@@ -341,7 +341,7 @@ async def search_documents(request: DocumentSearchRequest) -> DocumentSearchResp
 
     Returns chunks of text that are most relevant to the query.
     """
-    from backend.storage.document_repository import search_documents_by_embedding
+    from backend.packages.fi_storage.infrastructure.hdf5.document_repository import search_documents_by_embedding
 
     # Generate query embedding
     try:
@@ -392,7 +392,7 @@ def _process_document(doc_id: str) -> None:
 
     This runs in a thread pool worker.
     """
-    from backend.storage.document_repository import (
+    from backend.packages.fi_storage.infrastructure.hdf5.document_repository import (
         DocumentChunk,
         save_document_chunks,
         save_document_text,
@@ -459,7 +459,7 @@ def _process_document(doc_id: str) -> None:
 
 def _extract_text(doc: Document) -> str | None:
     """Extract text from document based on type."""
-    from backend.storage.document_repository import DocumentType
+    from backend.packages.fi_storage.infrastructure.hdf5.document_repository import DocumentType
 
     if doc.content is None:
         return None

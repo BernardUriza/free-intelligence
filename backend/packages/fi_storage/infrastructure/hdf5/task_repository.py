@@ -40,13 +40,13 @@ from typing import Any, Union
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
-from backend.storage.session_h5_manager import CORPUS_PATH, get_session_h5_path
+from backend.packages.fi_storage.infrastructure.hdf5.session_h5_manager import CORPUS_PATH, get_session_h5_path
 
 # Explicit exports for consumers that import constants from this module
 __all__ = [
     "CORPUS_PATH",
 ]
-from backend.storage.session_locks import locked_session_h5
+from backend.packages.fi_storage.infrastructure.hdf5.session_locks import locked_session_h5
 
 logger = get_logger(__name__)
 
@@ -201,7 +201,7 @@ def task_exists(session_id: str, task_type: Union[TaskType, str]) -> bool:
     Returns:
         True if task exists, False otherwise
     """
-    from backend.storage.session_h5_manager import get_session_h5_path
+    from backend.packages.fi_storage.infrastructure.hdf5.session_h5_manager import get_session_h5_path
 
     session_file = get_session_h5_path(session_id)
     if not session_file.exists():
@@ -229,7 +229,7 @@ def list_session_tasks(session_id: str) -> list[str]:
     Returns:
         List of task type strings (e.g., ["TRANSCRIPTION", "DIARIZATION"])
     """
-    from backend.storage.session_h5_manager import get_session_h5_path
+    from backend.packages.fi_storage.infrastructure.hdf5.session_h5_manager import get_session_h5_path
 
     session_file = get_session_h5_path(session_id)
     if not session_file.exists():
@@ -1555,7 +1555,7 @@ def save_soap_data(
     Returns:
         HDF5 path to SOAP data
     """
-    from backend.storage.session_h5_manager import get_session_h5_path
+    from backend.packages.fi_storage.infrastructure.hdf5.session_h5_manager import get_session_h5_path
 
     session_file = get_session_h5_path(session_id)
     session_file.parent.mkdir(parents=True, exist_ok=True)
@@ -1859,7 +1859,7 @@ def get_session_metadata(session_id: str) -> dict[str, Any] | None:
     Returns:
         Dictionary containing session metadata, or None if session not found
     """
-    from backend.storage.session_h5_manager import get_session_h5_path
+    from backend.packages.fi_storage.infrastructure.hdf5.session_h5_manager import get_session_h5_path
 
     session_file = get_session_h5_path(session_id)
     if not session_file.exists():

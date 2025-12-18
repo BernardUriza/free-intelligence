@@ -19,8 +19,8 @@ import tempfile
 from pathlib import Path
 
 from backend.models.task_type import TaskStatus, TaskType
-from backend.storage.session_h5_manager import get_session_h5_path
-from backend.storage.task_repository import (
+from backend.packages.fi_storage.infrastructure.hdf5.session_h5_manager import get_session_h5_path
+from backend.packages.fi_storage.infrastructure.hdf5.task_repository import (
     append_chunk_to_task,
     ensure_task_exists,
     get_task_chunks,
@@ -78,7 +78,7 @@ def test_ensure_task_exists_creates_new(temp_session_storage):
     assert task_path == f"/sessions/{session_id}/tasks/{task_type.value}"
 
     # Verify task exists in session HDF5 file
-    from backend.storage.session_h5_manager import get_session_h5_path
+    from backend.packages.fi_storage.infrastructure.hdf5.session_h5_manager import get_session_h5_path
 
     session_file = get_session_h5_path(session_id)
     with h5py.File(session_file, "r") as f:
@@ -136,7 +136,7 @@ def test_append_chunk_to_task(temp_session_storage):
     assert "chunk_0" in chunk_path
 
     # Verify chunk in session HDF5 file
-    from backend.storage.session_h5_manager import get_session_h5_path
+    from backend.packages.fi_storage.infrastructure.hdf5.session_h5_manager import get_session_h5_path
 
     session_file = get_session_h5_path(session_id)
     with h5py.File(session_file, "r") as f:
@@ -328,7 +328,7 @@ def test_append_chunk_creates_chunks_group(temp_session_storage):
     )
 
     # Verify chunks group exists
-    from backend.storage.session_h5_manager import get_session_h5_path
+    from backend.packages.fi_storage.infrastructure.hdf5.session_h5_manager import get_session_h5_path
 
     session_file = get_session_h5_path(session_id)
     with h5py.File(session_file, "r") as f:

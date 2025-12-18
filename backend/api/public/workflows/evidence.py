@@ -107,7 +107,7 @@ async def generate_evidence_pack_from_session(session_id: str) -> dict:
     from datetime import UTC, datetime
 
     from backend.models.task_type import TaskType
-    from backend.storage.task_repository import (
+    from backend.packages.fi_storage.infrastructure.hdf5.task_repository import (
         get_diarization_segments,
         get_soap_data,
         task_exists,

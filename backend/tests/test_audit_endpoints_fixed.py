@@ -11,7 +11,7 @@ def test_get_audit_endpoint_direct():
     from fastapi.testclient import TestClient
 
     from backend.app.main import app
-    from backend.storage.task_repository import CORPUS_PATH
+    from backend.packages.fi_storage.infrastructure.hdf5.task_repository import CORPUS_PATH
 
     client = TestClient(app)
 

@@ -30,7 +30,7 @@ from typing import Iterator
 import h5py
 
 from backend.logger import get_logger
-from backend.storage.session_h5_manager import ensure_session_h5_exists, get_session_h5_path
+from backend.packages.fi_storage.infrastructure.hdf5.session_h5_manager import ensure_session_h5_exists, get_session_h5_path
 
 logger = get_logger(__name__)
 

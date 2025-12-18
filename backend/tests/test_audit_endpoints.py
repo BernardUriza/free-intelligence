@@ -13,7 +13,7 @@ def existing_session_id():
     """Get a session ID that has SOAP data."""
     import h5py
 
-    from backend.storage.task_repository import CORPUS_PATH
+    from backend.packages.fi_storage.infrastructure.hdf5.task_repository import CORPUS_PATH
 
     with h5py.File(CORPUS_PATH, "r") as f:
         sessions = list(f["sessions"].keys())

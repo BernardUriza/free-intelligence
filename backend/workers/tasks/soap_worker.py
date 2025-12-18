@@ -10,7 +10,7 @@ from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.policy.policy_loader import get_policy_loader
 from backend.services.workflow_tracker import get_workflow_tracker
-from backend.storage.task_repository import (
+from backend.packages.fi_storage.infrastructure.hdf5.task_repository import (
     create_order,
     get_diarization_segments,
     get_orders,

@@ -440,7 +440,7 @@ async def end_session(
         )
 
         # 2. Get session info from HDF5
-        from backend.storage.session_chunks_schema import (
+        from backend.packages.fi_storage.infrastructure.hdf5.session_chunks_schema import (
             get_session_chunks,
             save_full_audio_metadata,
         )
@@ -461,7 +461,7 @@ async def end_session(
         # 4. Save webspeech_final to HDF5 (Triple Vision source)
         if webspeech_final:
             from backend.models.task_type import TaskType
-            from backend.storage.task_repository import CORPUS_PATH
+            from backend.packages.fi_storage.infrastructure.hdf5.task_repository import CORPUS_PATH
 
             try:
                 webspeech_list = json.loads(webspeech_final)

@@ -29,7 +29,7 @@ from typing import Any
 
 from backend.logger import get_logger
 from backend.services.chunk_handler import ChunkHandler
-from backend.storage.chat_sessions_store import (
+from backend.packages.fi_storage.infrastructure.hdf5.chat_sessions_store import (
     add_chat_chunk,
     clear_chat_session,
     get_chat_session,

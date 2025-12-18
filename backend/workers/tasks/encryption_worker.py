@@ -59,7 +59,7 @@ try:
     from backend.logger import get_logger  # type: ignore[assignment]
     from backend.models.task_type import TaskStatus  # type: ignore[assignment]
     from backend.models.task_type import TaskType  # type: ignore[assignment]
-    from backend.storage.task_repository import update_task_metadata
+    from backend.packages.fi_storage.infrastructure.hdf5.task_repository import update_task_metadata
 
     HAS_BACKEND_IMPORTS = True
 except ImportError:
