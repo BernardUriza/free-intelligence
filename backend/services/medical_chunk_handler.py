@@ -25,13 +25,14 @@ Card: Voice chat integration (medical handler)
 
 from __future__ import annotations
 
-import h5py
 from typing import Any
+
+import h5py
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
 from backend.services.chunk_handler import ChunkHandler
-from backend.packages.fi_storage.infrastructure.hdf5.task_repository import (
+from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     CORPUS_PATH,
     append_chunk_to_task,
     ensure_task_exists,

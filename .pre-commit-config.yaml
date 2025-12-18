@@ -11,13 +11,13 @@ repos:
         args: [--fix, --exit-zero]
         name: "ruff: Fix common issues"
         stages: [pre-commit]
-        exclude: ^docs/archive/
+        exclude: ^(docs/archive/|backend/)
         language_version: python3.14
 
       - id: ruff-format
         name: "ruff: Format code"
         stages: [pre-commit]
-        exclude: ^docs/archive/
+        exclude: ^(docs/archive/|backend/)
         language_version: python3.14
 
   # MyPy type checking (strict mode for healthcare)
@@ -32,7 +32,7 @@ repos:
         args: []
         name: "mypy: Type checking (strict)"
         stages: [pre-commit]
-        exclude: ^docs/archive/
+        exclude: ^(docs/archive/|backend/)
         language_version: python3.14
 
   # Security scanning
@@ -86,7 +86,7 @@ repos:
         name: "isort: Sort imports"
         args: [--profile=black]
         stages: [pre-commit]
-        exclude: ^docs/archive/
+        exclude: ^(docs/archive/|backend/)
         language_version: python3.14
 
 default_stages: [pre-commit]

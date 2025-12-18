@@ -16,7 +16,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
-from backend.packages.fi_storage.infrastructure.hdf5 import task_repository
+from backend.src.fi_storage.infrastructure.hdf5 import task_repository
 
 logger = get_logger(__name__)
 

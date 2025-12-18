@@ -413,7 +413,7 @@ class WorkflowTracker:
         def consolidate_in_background():
             """Background consolidation with error handling."""
             try:
-                from backend.packages.fi_storage.infrastructure.hdf5.session_h5_manager import (
+                from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (
                     consolidate_session_to_corpus,
                 )
 

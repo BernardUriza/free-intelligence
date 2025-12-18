@@ -17,7 +17,10 @@ from pathlib import Path
 
 import pytest
 
-from backend.packages.fi_storage.infrastructure.hdf5.task_repository import get_session_metadata, get_soap_data
+from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
+    get_session_metadata,
+    get_soap_data,
+)
 
 
 @pytest.fixture

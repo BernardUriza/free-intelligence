@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import yaml
-from fastapi import APIRouter, Depends, HTTPException, status
 from pathlib import Path
 from typing import Any
 
+import yaml
+from fastapi import APIRouter, Depends, HTTPException, status
+
 from backend.logger import get_logger
-from backend.packages.fi_auth import User, get_current_user
+from backend.src.fi_auth import User, get_current_user
 
 logger = get_logger(__name__)
 

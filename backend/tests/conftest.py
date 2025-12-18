@@ -5,19 +5,20 @@ Provides reusable fixtures for testing with DI container, repositories, and serv
 
 from __future__ import annotations
 
-import pytest
 import tempfile
 from collections.abc import Generator
 from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Union
 
+import pytest
+
 if TYPE_CHECKING:
-    from backend.packages.fi_common.infrastructure.container import DIContainer
+    from backend.src.fi_common.infrastructure.container import DIContainer
 
 
 @pytest.fixture
-def temp_h5_file() -> Generator[Path, None, None]:
+def temp_h5_file() -> Generator[Path]:
     """Create temporary HDF5 file for testing.
 
     Yields:
@@ -34,7 +35,7 @@ def temp_h5_file() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def di_container(temp_h5_file: Path) -> Generator[DIContainer, None, None]:
+def di_container(temp_h5_file: Path) -> Generator[DIContainer]:
     """Create DI container with temporary HDF5 database.
 
     Args:
@@ -46,7 +47,7 @@ def di_container(temp_h5_file: Path) -> Generator[DIContainer, None, None]:
     # Initialize HDF5 with minimal schema
     import h5py
 
-    from backend.packages.fi_common.infrastructure.container import DIContainer
+    from backend.src.fi_common.infrastructure.container import DIContainer
 
     with h5py.File(temp_h5_file, "w") as f:
         # Create minimal groups for testing

@@ -15,10 +15,11 @@ from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
 from datetime import UTC
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
 from backend.middleware.idempotency import IdempotencyMiddleware
 from backend.middleware.internal_only import InternalOnlyMiddleware
@@ -283,7 +284,7 @@ Requires environment variables:
             user_clinic,
         )
         from backend.api.public.workflows import aurity_personas, timeline
-        from backend.packages.fi_auth.adapters.fastapi_adapter import auth_router
+        from backend.src.fi_auth.adapters.fastapi_adapter import auth_router
 
         # PUBLIC API (CORS enabled, orchestrators)
         public_app.include_router(auth_router)  # Auth0 Authentication (HIPAA G-003)

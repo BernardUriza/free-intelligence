@@ -14,7 +14,7 @@ from backend.models.task_type import TaskStatus, TaskType
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.diarization import get_diarization_provider
 from backend.services.workflow_tracker import get_workflow_tracker
-from backend.packages.fi_storage.infrastructure.hdf5.task_repository import (
+from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     CORPUS_PATH,
     get_task_chunks,
     save_diarization_segments,

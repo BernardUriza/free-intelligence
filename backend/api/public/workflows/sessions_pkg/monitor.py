@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 async def monitor_session_progress(session_id: str, request: Request) -> dict:
     validate_session_id(session_id)
     from backend.models.task_type import TaskType
-    from backend.packages.fi_storage.infrastructure.hdf5.task_repository import count_task_chunks, get_task_metadata
+    from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
+        count_task_chunks,
+        get_task_metadata,
+    )
 
     accept_header = request.headers.get("accept", "")
     wants_json = "application/json" in accept_header

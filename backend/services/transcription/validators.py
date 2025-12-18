@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.packages.fi_storage.infrastructure.hdf5.audio_storage import (
+from backend.src.fi_storage.infrastructure.hdf5.audio_storage import (
     validate_session_id as storage_validate_session_id,
 )
 

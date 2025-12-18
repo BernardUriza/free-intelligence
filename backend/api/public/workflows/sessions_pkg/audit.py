@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.api.public.workflows.models import (
     DoctorFeedbackRequest,
     DoctorFeedbackResponse,
 )
 from backend.logger import get_logger
-from backend.packages.fi_auth import User, get_current_user
+from backend.src.fi_auth import User, get_current_user
 from backend.validators import validate_session_id
 
 router = APIRouter()
@@ -21,7 +22,7 @@ async def get_session_audit(session_id: str) -> dict[str, Any]:
     validate_session_id(session_id)
 
     from backend.models.task_type import TaskType
-    from backend.packages.fi_storage.infrastructure.hdf5.task_repository import (
+    from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
         get_diarization_segments,
         get_session_metadata,
         get_soap_data,
@@ -171,7 +172,7 @@ async def submit_doctor_feedback(
 ) -> DoctorFeedbackResponse:
     """Submit doctor's audit feedback for a session."""
     from backend.api.public.workflows.models import DoctorFeedbackResponse
-    from backend.packages.fi_storage.infrastructure.hdf5.task_repository import (
+    from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
         get_soap_data,
         save_soap_data,
         update_session_metadata,

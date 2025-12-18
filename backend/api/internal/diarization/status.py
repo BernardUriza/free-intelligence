@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
-from backend.packages.fi_storage.infrastructure.hdf5.task_repository import get_task_metadata
+from backend.src.fi_storage.infrastructure.hdf5.task_repository import get_task_metadata
 
 logger = get_logger(__name__)
 
@@ -195,7 +195,9 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
             # Try to get transcription sources (triple vision)
             import h5py
 
-            from backend.packages.fi_storage.infrastructure.hdf5.task_repository import CORPUS_PATH
+            from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
+                CORPUS_PATH,
+            )
 
             with h5py.File(CORPUS_PATH, "r") as f:
                 trans_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION"

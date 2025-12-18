@@ -59,7 +59,7 @@ async def get_diarization_segments_workflow(session_id: str) -> dict[str, Any]:
     validate_session_id(session_id)
 
     from backend.models.task_type import TaskType
-    from backend.packages.fi_storage.infrastructure.hdf5.task_repository import (
+    from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
         get_diarization_segments,
         get_task_metadata,
     )
@@ -131,7 +131,9 @@ async def update_diarization_segment_workflow(
     request: UpdateSegmentRequest,
 ) -> dict[str, Any]:
     """Update text of a diarization segment (PUBLIC orchestrator)."""
-    from backend.packages.fi_storage.infrastructure.hdf5.task_repository import update_diarization_segment_text
+    from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
+        update_diarization_segment_text,
+    )
 
     try:
         logger.info(

@@ -21,7 +21,7 @@ import h5py
 import numpy as np
 import pytest
 
-from backend.packages.fi_storage.infrastructure.hdf5.document_repository import (
+from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     DocumentChunk,
     DocumentStatus,
     create_document,

@@ -3,7 +3,7 @@
 Implements AudioRepositoryPort using HDF5 for storage.
 Uses session-specific HDF5 files (not global corpus.h5).
 
-Thread-safety: Uses session locks from backend.packages.fi_storage.infrastructure.hdf5.session_locks
+Thread-safety: Uses session locks from backend.src.fi_storage.infrastructure.hdf5.session_locks
 """
 
 from __future__ import annotations
@@ -15,7 +15,9 @@ import h5py
 import numpy as np
 
 from backend.logger import get_logger
-from backend.packages.fi_storage.infrastructure.hdf5.session_h5_manager import get_session_h5_path
+from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (
+    get_session_h5_path,
+)
 
 from ..domain import AudioChunk, AudioFormat, CheckpointRange, SessionId
 from ..ports.audio_repository import (

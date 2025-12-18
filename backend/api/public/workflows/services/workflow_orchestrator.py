@@ -17,7 +17,9 @@ from typing import Any
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
-from backend.packages.fi_storage.infrastructure.hdf5.task_repository import ensure_task_exists
+from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
+    ensure_task_exists,
+)
 from backend.workers.executor_pool import spawn_worker
 
 logger = get_logger(__name__)

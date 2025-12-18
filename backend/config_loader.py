@@ -1,4 +1,4 @@
-"""Compatibility wrapper - re-exports from backend.packages.fi_common.config.config_loader"""
+"""Compatibility wrapper - re-exports from backend.src.fi_common.config.config_loader"""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ if str(packages_dir) not in sys.path:
     sys.path.insert(0, str(packages_dir))
 
 try:
-    from backend.packages.fi_common.config.config_loader import *  # noqa: F403  # type: ignore[import]
+    from backend.src.fi_common.config.config_loader import *  # noqa: F403  # type: ignore[import]
 except ImportError:
     # Fallback: provide minimal config functionality
     def load_config(config_path=None):

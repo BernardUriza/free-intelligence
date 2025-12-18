@@ -36,7 +36,7 @@ from backend.services.checkpoint import (
     TooManyChunksError,
     create_checkpoint_service,
 )
-from backend.packages.fi_storage.infrastructure.hdf5.task_repository import get_task_metadata
+from backend.src.fi_storage.infrastructure.hdf5.task_repository import get_task_metadata
 
 # ============================================================================
 # DTOs (Pydantic models for FastAPI)

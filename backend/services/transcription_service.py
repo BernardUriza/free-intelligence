@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
-from backend.packages.fi_storage.infrastructure.hdf5.task_repository import (
+from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     ensure_task_exists,
     get_task_chunks,
     get_task_metadata,
@@ -127,7 +127,7 @@ class TranscriptionService:
         import hashlib
 
         from backend.models.task_type import CHUNK_DURATION_SECONDS
-        from backend.packages.fi_storage.infrastructure.hdf5.task_repository import (
+        from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
             add_audio_to_chunk,
             append_chunk_to_task,
             update_task_metadata,
@@ -333,7 +333,9 @@ class TranscriptionService:
         Raises:
             ValueError: If session not found
         """
-        from backend.packages.fi_storage.infrastructure.hdf5.task_repository import task_exists
+        from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
+            task_exists,
+        )
 
         if not task_exists(session_id, TaskType.TRANSCRIPTION):
             raise ValueError(f"Transcription task not found for session {session_id}")
