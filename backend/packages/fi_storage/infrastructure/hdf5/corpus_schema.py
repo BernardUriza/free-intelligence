@@ -120,8 +120,8 @@ def init_corpus(
         >>> init_corpus("storage/corpus.h5", "bernard@example.com", force=True)
         True  # Overwrites existing file
     """
-    from backend.common.fi_common.logging.logger import get_logger
-    from backend.common.fi_common.storage.corpus_identity import (
+    from backend.packages.fi_common.logging.logger import get_logger
+    from backend.packages.fi_common.storage.corpus_identity import (
         generate_corpus_id,
         generate_owner_hash,
     )
@@ -259,7 +259,7 @@ def validate_corpus(corpus_path: str | None = None) -> dict[str, Any]:
         >>> if result["valid"]:
         ...     print("Corpus is valid")
     """
-    from backend.common.fi_common.logging.logger import get_logger
+    from backend.packages.fi_common.logging.logger import get_logger
 
     logger = get_logger()
 
@@ -308,7 +308,7 @@ if __name__ == "__main__":
             print(f"   Valid: {result['valid']}")
 
             # Show identity
-            from backend.common.fi_common.storage.corpus_identity import get_corpus_identity
+            from backend.packages.fi_common.storage.corpus_identity import get_corpus_identity
 
             identity = get_corpus_identity(result["path"])
             if identity:

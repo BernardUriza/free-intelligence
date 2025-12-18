@@ -39,7 +39,7 @@ def client(test_h5_path: str, monkeypatch) -> TestClient:
     monkeypatch.setenv("AURITY_DIARIZATION_PERSIST_RESOLVED_STATUS", "false")
 
     # Force container reset to pick up new env vars
-    from backend.common.fi_common.infrastructure.container import reset_container
+    from backend.packages.fi_common.infrastructure.container import reset_container
 
     reset_container()
 

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from backend.common.fi_common.infrastructure.container import DIContainer
+    from backend.packages.fi_common.infrastructure.container import DIContainer
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def di_container(temp_h5_file: Path) -> Generator[DIContainer, None, None]:
     # Initialize HDF5 with minimal schema
     import h5py
 
-    from backend.common.fi_common.infrastructure.container import DIContainer
+    from backend.packages.fi_common.infrastructure.container import DIContainer
 
     with h5py.File(temp_h5_file, "w") as f:
         # Create minimal groups for testing

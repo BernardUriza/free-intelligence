@@ -13,9 +13,9 @@ FI-CORE-FEAT-003
 from pathlib import Path
 from typing import Any, Literal
 
-from backend.common.fi_common.logging.log_manifest import LogManifest
-from backend.common.fi_common.logging.log_rotation import LogRotation
-from backend.common.fi_common.logging.logger_structured import (
+from backend.packages.fi_common.logging.log_manifest import LogManifest
+from backend.packages.fi_common.logging.log_rotation import LogRotation
+from backend.packages.fi_common.logging.logger_structured import (
     BaseLogEvent,
     ServiceChannel,
     UserRole,

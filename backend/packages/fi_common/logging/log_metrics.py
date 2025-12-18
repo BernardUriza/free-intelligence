@@ -21,8 +21,8 @@ import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from backend.common.fi_common.logging.log_rotation import LogRotation
-from backend.common.fi_common.logging.logger_structured import ServiceChannel
+from backend.packages.fi_common.logging.log_rotation import LogRotation
+from backend.packages.fi_common.logging.logger_structured import ServiceChannel
 
 
 class LogMetrics:

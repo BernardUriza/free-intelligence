@@ -1,11 +1,11 @@
 """Type definitions.
 
-Re-exports from backend.common.fi_common.types.type_defs for backward compatibility.
+Re-exports from backend.packages.fi_common.types.type_defs for backward compatibility.
 """
 
 from __future__ import annotations
 
-from backend.common.fi_common.types.type_defs import *
+from backend.packages.fi_common.types.type_defs import *
 
 __all__ = [
     "AuditLogDict",

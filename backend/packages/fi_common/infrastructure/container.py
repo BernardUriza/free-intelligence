@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 # NOTE: Defer logger import to avoid circular dependency:
-# backend.logger -> backend.common.logger -> backend.common.__init__ -> backend.common.container
+# backend.logger -> backend.packages.logger -> backend.packages.__init__ -> backend.packages.container
 # Logger is accessed via get_logger() function call below
 from backend.repositories import AuditRepository, CorpusRepository, SessionRepository
 
