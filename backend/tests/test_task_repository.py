@@ -13,13 +13,13 @@ Card: Architecture refactor - task-based HDF5
 
 from __future__ import annotations
 
+import h5py
+import pytest
 import tempfile
 from pathlib import Path
 
-import h5py
-import pytest
-
 from backend.models.task_type import TaskStatus, TaskType
+from backend.storage.session_h5_manager import get_session_h5_path
 from backend.storage.task_repository import (
     append_chunk_to_task,
     ensure_task_exists,
@@ -235,8 +235,8 @@ def test_update_and_get_task_metadata(temp_corpus, monkeypatch):
     session_id = "test_session_007_unique"
     task_type = TaskType.TRANSCRIPTION
 
-    # Ensure clean state - remove file if it exists from previous test
-    session_file = temp_corpus.parent / "sessions" / f"{session_id}.h5"
+    # Ensure clean state - remove session file if it exists
+    session_file = get_session_h5_path(session_id)
     if session_file.exists():
         session_file.unlink()
 
@@ -272,8 +272,8 @@ def test_task_exists(temp_corpus, monkeypatch):
     session_id = "test_session_008_unique"
     task_type = TaskType.TRANSCRIPTION
 
-    # Ensure clean state - remove file if it exists from previous test
-    session_file = temp_corpus.parent / "sessions" / f"{session_id}.h5"
+    # Ensure clean state - remove session file if it exists
+    session_file = get_session_h5_path(session_id)
     if session_file.exists():
         session_file.unlink()
 
