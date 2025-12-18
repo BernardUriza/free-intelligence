@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-import h5py
+import contextlib
 import hashlib
 import os
-import structlog
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+import h5py
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -34,17 +36,18 @@ def atomic_write_session_file(
     - Renames to final path atomically (POSIX)
     - Stores checksum to `<final>.sha256`
     """
+    resolved_path: Path
     if final_path is None:
-        final_path = Path("storage/sessions") / f"{session_id}.h5"
+        resolved_path = Path("storage/sessions") / f"{session_id}.h5"
     else:
-        final_path = Path(final_path)
+        resolved_path = Path(final_path)
 
-    final_path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = final_path.with_suffix(final_path.suffix + ".part")
+    resolved_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = resolved_path.with_suffix(resolved_path.suffix + ".part")
 
     try:
         with h5py.File(str(temp_path), "w", libver="latest") as f:
-            dset = f.create_dataset(
+            f.create_dataset(
                 f"/sessions/{session_id}/audio",
                 data=audio_bytes,
                 compression="gzip",
@@ -57,12 +60,12 @@ def atomic_write_session_file(
             f.flush()
             os.fsync(f.fileno())
 
-        os.rename(str(temp_path), str(final_path))
+        os.rename(str(temp_path), str(resolved_path))
 
-        checksum = compute_sha256(final_path)
-        checksum_path = Path(str(final_path) + ".sha256")
+        checksum = compute_sha256(resolved_path)
+        checksum_path = Path(str(resolved_path) + ".sha256")
         with checksum_path.open("w") as cf:
-            cf.write(f"{checksum}  {final_path.name}\n")
+            cf.write(f"{checksum}  {resolved_path.name}\n")
             cf.flush()
             os.fsync(cf.fileno())
 
@@ -71,11 +74,11 @@ def atomic_write_session_file(
             session_id=session_id,
             size_bytes=len(audio_bytes),
             checksum=checksum[:16],
-            path=str(final_path),
+            path=str(resolved_path),
         )
         return {
             "session_id": session_id,
-            "path": str(final_path),
+            "path": str(resolved_path),
             "checksum": checksum,
         }
 
@@ -85,7 +88,5 @@ def atomic_write_session_file(
 
     finally:
         if temp_path.exists():
-            try:
+            with contextlib.suppress(OSError):
                 temp_path.unlink()
-            except OSError:
-                pass

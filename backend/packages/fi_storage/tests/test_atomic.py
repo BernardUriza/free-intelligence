@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.storage_core.atomic import atomic_write_session_file, compute_sha256
+from backend.packages.fi_storage.infrastructure.atomic import (
+    atomic_write_session_file,
+    compute_sha256,
+)
 
 
 def test_atomic_write_and_checksum(tmp_path: Path):
