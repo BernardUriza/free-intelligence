@@ -1,0 +1,20 @@
+[importlinter]
+root_package = backend
+
+[contract: services_may_not_depend_on_infrastructure]
+name = Services no depende de Infra
+type = forbidden
+source_modules =
+    backend.services
+forbidden_modules =
+    backend.infrastructure
+    backend.storage
+    backend.providers
+
+[contract: web_only_uses_application]
+name = API solo usa application
+type = layers
+layers =
+    backend.api
+    backend.application
+    backend.domain

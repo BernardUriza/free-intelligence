@@ -1,0 +1,645 @@
+backend/api/internal/admin/users.py:28:from backend.services.auth0_management import get_auth0_service
+backend/api/internal/admin/users.py:104:    from backend.auth.jwt_verifier import get_jwt_verifier
+backend/api/internal/audit/router.py:24:from backend.container import get_container
+backend/api/internal/audit/router.py:25:from backend.logger import get_logger
+backend/api/internal/diarization/status.py:24:from backend.logger import get_logger
+backend/api/internal/diarization/status.py:25:from backend.models.task_type import TaskType
+backend/api/internal/diarization/status.py:26:from backend.storage.task_repository import get_task_metadata
+backend/api/internal/diarization/status.py:198:            from backend.storage.task_repository import CORPUS_PATH
+backend/api/internal/exports/config.py:12:from backend.logger import get_logger
+backend/api/internal/exports/handlers.py:14:from backend.container import get_container
+backend/api/internal/kpis/router.py:14:from backend.logger import get_logger
+backend/api/internal/kpis/router.py:15:from backend.services.kpis_aggregator import get_kpis_aggregator
+backend/api/internal/llm/chat.py:23:from backend.api.public.workflows.assistant_websocket import broadcast_new_message
+backend/api/internal/llm/chat.py:24:from backend.logger import get_logger
+backend/api/internal/llm/chat.py:25:from backend.policy.policy_loader import get_policy_loader
+backend/api/internal/llm/chat.py:26:from backend.providers.llm import llm_generate
+backend/api/internal/llm/chat.py:27:from backend.repositories.audit_repository import AuditRepository
+backend/api/internal/llm/chat.py:28:from backend.schemas.llm_audit_policy import require_audit_log
+backend/api/internal/llm/chat.py:29:from backend.services.audit_service import AuditService
+backend/api/internal/llm/chat.py:30:from backend.services.llm.conversation_memory import get_memory_manager
+backend/api/internal/llm/chat.py:31:from backend.services.llm.persona_manager import PersonaManager
+backend/api/internal/llm/chat.py:32:from backend.services.trace_store import get_trace_store
+backend/api/internal/llm/structured.py:15:from backend.logger import get_logger
+backend/api/internal/llm/structured.py:16:from backend.providers.llm import llm_generate
+backend/api/internal/llm/structured.py:17:from backend.schemas.llm_audit_policy import require_audit_log
+backend/api/internal/llm/structured.py:18:from backend.services.llm.persona_manager import PersonaManager
+backend/api/internal/sessions/checkpoint.py:30:from backend.logger import get_logger
+backend/api/internal/sessions/checkpoint.py:31:from backend.models.task_type import TaskType
+backend/api/internal/sessions/checkpoint.py:32:from backend.services.checkpoint import (
+backend/api/internal/sessions/checkpoint.py:39:from backend.storage.task_repository import get_task_metadata
+backend/api/internal/sessions/finalize.py:50:from backend.logger import get_logger
+backend/api/internal/sessions/finalize.py:51:from backend.models import EncryptionMetadata, Session
+backend/api/internal/sessions/finalize.py:52:from backend.models.task_type import TaskStatus, TaskType
+backend/api/internal/sessions/finalize.py:53:from backend.repositories.session_repository import SessionRepository
+backend/api/internal/sessions/finalize.py:54:from backend.storage.task_repository import (
+backend/api/internal/sessions/finalize.py:62:from backend.workers.executor_pool import spawn_worker
+backend/api/internal/sessions/finalize.py:63:from backend.workers.tasks.encryption_worker import encrypt_session_worker
+backend/api/internal/sessions/finalize.py:264:        from backend.storage.task_repository import ensure_task_exists
+backend/api/internal/sessions/finalize.py:487:        from backend.storage.task_repository import CORPUS_PATH
+backend/api/internal/sessions/router.py:34:from backend.container import get_container
+backend/api/internal/sessions/router.py:35:from backend.logger import get_logger
+backend/api/internal/timeline/router.py:12:from backend.logger import get_logger
+backend/api/internal/transcribe/router.py:26:from backend.logger import get_logger
+backend/api/internal/transcribe/router.py:27:from backend.models.task_type import TaskStatus, TaskType
+backend/api/internal/transcribe/router.py:28:from backend.storage.task_repository import (
+backend/api/internal/transcribe/router.py:172:        from backend.workers.sync_workers import transcribe_chunk_worker
+backend/api/internal/triage/router.py:17:from backend.container import get_container
+backend/api/internal/triage/router.py:18:from backend.logger import get_logger
+backend/api/public/audit.py:29:from backend.container import get_container
+backend/api/public/audit.py:30:from backend.logger import get_logger
+backend/api/public/catalog_admin.py:12:from backend.models.catalog_model import (
+backend/api/public/catalog_admin.py:19:from backend.services.model_catalog.catalog_service import CatalogService
+backend/api/public/catalog_admin.py:249:    from backend.services.model_catalog.sources.ollama_source import OllamaCatalogSource
+backend/api/public/checkin.py:26:from backend.database import get_db_dependency
+backend/api/public/checkin.py:27:from backend.logger import get_logger
+backend/api/public/checkin.py:28:from backend.models.checkin_models import (
+backend/api/public/checkin.py:39:from backend.models.db_models import Patient
+backend/api/public/checkin.py:40:from backend.schemas.checkin_schemas import (
+backend/api/public/checkin.py:890:    from backend.services.checkin_conversation import checkin_conversation_service
+backend/api/public/checkin.py:934:    from backend.services.checkin_conversation import checkin_conversation_service
+backend/api/public/checkin.py:958:    from backend.services.checkin_conversation import checkin_conversation_service
+backend/api/public/checkin.py:981:    from backend.services.checkin_conversation import checkin_conversation_service
+backend/api/public/clinics.py:20:from backend.database import get_db_dependency
+backend/api/public/clinics.py:21:from backend.logger import get_logger
+backend/api/public/clinics.py:22:from backend.models.checkin_models import (
+backend/api/public/llm_models_admin.py:18:from backend.models.llm_model import (
+backend/api/public/llm_models_admin.py:25:from backend.services.llm_model_service import llm_model_service
+backend/api/public/notifications.py:17:from backend.database import get_db
+backend/api/public/notifications.py:18:from backend.logger import get_logger
+backend/api/public/notifications.py:19:from backend.services.notifications import (
+backend/api/public/notifications.py:287:    from backend.services.notifications import schedule_appointment_reminders
+backend/api/public/patients.py:20:from backend.database import get_db_dependency
+backend/api/public/patients.py:21:from backend.logger import get_logger
+backend/api/public/patients.py:22:from backend.models.db_models import Patient
+backend/api/public/payments.py:21:from backend.database import get_db_dependency
+backend/api/public/payments.py:22:from backend.logger import get_logger
+backend/api/public/payments.py:23:from backend.models.checkin_models import (
+backend/api/public/personas_admin.py:33:from backend.auth.auth0_dependencies import get_current_user_auth0
+backend/api/public/personas_admin.py:34:from backend.auth.models import User, UserRole
+backend/api/public/personas_admin.py:35:from backend.database import get_db_dependency
+backend/api/public/personas_admin.py:36:from backend.services.llm.persona_manager import PersonaManager
+backend/api/public/personas_admin.py:37:from backend.services.persona_metrics_service import get_persona_metrics_service
+backend/api/public/personas_admin.py:429:    from backend.providers.llm import llm_generate
+backend/api/public/personas_admin.py:601:    from backend.models.db_models import UserPersonaConfig
+backend/api/public/policy.py:12:from backend.logger import get_logger
+backend/api/public/policy.py:13:from backend.policy.policy_loader import get_policy_loader
+backend/api/public/providers.py:19:from backend.database import get_db_dependency
+backend/api/public/providers.py:20:from backend.logger import get_logger
+backend/api/public/providers.py:21:from backend.models.db_models import Provider
+backend/api/public/system/router.py:17:from backend.container import get_container
+backend/api/public/system/router.py:18:from backend.logger import get_logger
+backend/api/public/system_resources.py:181:    from backend.services.llm_model_service import llm_model_service
+backend/api/public/tts.py:24:from backend.services.tts_unified import get_unified_tts_service
+backend/api/public/user_clinic.py:16:from backend.database import get_db_dependency
+backend/api/public/user_clinic.py:17:from backend.logger import get_logger
+backend/api/public/user_clinic.py:18:from backend.models.checkin_models import Clinic, ClinicRole, Doctor
+backend/api/public/workflows/__init__.py:20:from backend.api.public.workflows import (
+backend/api/public/workflows/__init__.py:30:from backend.api.public.workflows import (
+backend/api/public/workflows/__init__.py:33:from backend.api.public.workflows.router import router
+backend/api/public/workflows/assistant/chat.py:7:from backend.clients import get_llm_client
+backend/api/public/workflows/assistant/chat.py:8:from backend.logger import get_logger
+backend/api/public/workflows/assistant/chat.py:9:from backend.observability import chat_events
+backend/api/public/workflows/assistant/chat.py:10:from backend.observability.logging import CTX_REQUEST_ID
+backend/api/public/workflows/assistant/diagnostics.py:10:from backend.logger import get_logger
+backend/api/public/workflows/assistant/diagnostics.py:11:from backend.services.trace_store import get_trace_store
+backend/api/public/workflows/assistant/diagnostics.py:12:from backend.utils.redactor import redact_and_hash_once
+backend/api/public/workflows/assistant/diagnostics.py:42:        from backend.services.llm.persona.manager import PersonaManager
+backend/api/public/workflows/assistant/introduction.py:5:from backend.clients import get_llm_client
+backend/api/public/workflows/assistant/introduction.py:6:from backend.logger import get_logger
+backend/api/public/workflows/assistant/rag.py:3:from backend.logger import get_logger
+backend/api/public/workflows/assistant/rag.py:16:        from backend.api.public.workflows.documents import _get_embedding
+backend/api/public/workflows/assistant/rag.py:17:        from backend.storage.document_repository import (
+backend/api/public/workflows/assistant/stream.py:12:from backend.clients import get_llm_client
+backend/api/public/workflows/assistant/stream.py:13:from backend.logger import get_logger
+backend/api/public/workflows/assistant/stream.py:14:from backend.observability.logging import CTX_REQUEST_ID
+backend/api/public/workflows/assistant_history.py:17:from backend.logger import get_logger
+backend/api/public/workflows/assistant_history.py:18:from backend.services.llm.conversation_memory import get_memory_manager
+backend/api/public/workflows/assistant_websocket.py:24:from backend.logger import get_logger
+backend/api/public/workflows/aurity_personas.py:9:from backend.auth.auth0_dependencies import get_current_user_auth0
+backend/api/public/workflows/aurity_personas.py:10:from backend.auth.models import User
+backend/api/public/workflows/aurity_personas.py:11:from backend.logger import get_logger
+backend/api/public/workflows/clinic_media.py:32:from backend.logger import get_logger
+backend/api/public/workflows/documents.py:27:from backend.logger import get_logger
+backend/api/public/workflows/documents.py:28:from backend.storage.document_repository import (
+backend/api/public/workflows/documents.py:344:    from backend.storage.document_repository import search_documents_by_embedding
+backend/api/public/workflows/documents.py:395:    from backend.storage.document_repository import (
+backend/api/public/workflows/documents.py:462:    from backend.storage.document_repository import DocumentType
+backend/api/public/workflows/emotional_analysis.py:19:from backend.logger import get_logger
+backend/api/public/workflows/emotional_analysis.py:20:from backend.observability.logging import CTX_REQUEST_ID
+backend/api/public/workflows/evidence.py:17:from backend.logger import get_logger
+backend/api/public/workflows/evidence.py:109:    from backend.models.task_type import TaskType
+backend/api/public/workflows/evidence.py:110:    from backend.storage.task_repository import (
+backend/api/public/workflows/kpis.py:13:from backend.logger import get_logger
+backend/api/public/workflows/kpis.py:14:from backend.services.kpis_aggregator import get_kpis_aggregator
+backend/api/public/workflows/longitudinal_memory.py:26:from backend.logger import get_logger
+backend/api/public/workflows/longitudinal_memory.py:27:from backend.services.llm.conversation_memory import get_memory_manager
+backend/api/public/workflows/longitudinal_memory.py:28:from backend.storage.task_repository import CORPUS_PATH
+backend/api/public/workflows/orders.py:21:from backend.logger import get_logger
+backend/api/public/workflows/orders.py:73:    from backend.storage.task_repository import get_orders
+backend/api/public/workflows/orders.py:122:    from backend.storage.task_repository import create_order
+backend/api/public/workflows/orders.py:189:    from backend.storage.task_repository import update_order
+backend/api/public/workflows/orders.py:261:    from backend.storage.task_repository import delete_order
+backend/api/public/workflows/router.py:41:from backend.api.public.workflows import (
+backend/api/public/workflows/router.py:60:from backend.api.public.workflows import (
+backend/api/public/workflows/router.py:63:from backend.logger import get_logger
+backend/api/public/workflows/services/workflow_orchestrator.py:18:from backend.logger import get_logger
+backend/api/public/workflows/services/workflow_orchestrator.py:19:from backend.models.task_type import TaskType
+backend/api/public/workflows/services/workflow_orchestrator.py:20:from backend.storage.task_repository import ensure_task_exists
+backend/api/public/workflows/services/workflow_orchestrator.py:21:from backend.workers.executor_pool import spawn_worker
+backend/api/public/workflows/services/workflow_orchestrator.py:55:        from backend.workers.tasks.diarization_worker import diarization_worker
+backend/api/public/workflows/services/workflow_orchestrator.py:96:        from backend.workers.tasks.soap_worker import generate_soap_worker
+backend/api/public/workflows/services/workflow_orchestrator.py:137:        from backend.workers.tasks.emotion_worker import analyze_emotion_worker
+backend/api/public/workflows/services/workflow_orchestrator.py:178:        from backend.workers.tasks.encryption_worker import encrypt_session_worker
+backend/api/public/workflows/sessions_list.py:16:from backend.logger import get_logger
+backend/api/public/workflows/sessions_list.py:17:from backend.storage.task_repository import CORPUS_PATH
+backend/api/public/workflows/sessions_pkg/audio.py:11:from backend.logger import get_logger
+backend/api/public/workflows/sessions_pkg/audio.py:12:from backend.validators import validate_session_id
+backend/api/public/workflows/sessions_pkg/audio.py:26:    from backend.storage.task_repository import CORPUS_PATH
+backend/api/public/workflows/sessions_pkg/audit.py:7:from backend.api.public.workflows.models import (
+backend/api/public/workflows/sessions_pkg/audit.py:11:from backend.auth.auth0_dependencies import get_current_user_auth0
+backend/api/public/workflows/sessions_pkg/audit.py:12:from backend.auth.models import User
+backend/api/public/workflows/sessions_pkg/audit.py:13:from backend.logger import get_logger
+backend/api/public/workflows/sessions_pkg/audit.py:14:from backend.validators import validate_session_id
+backend/api/public/workflows/sessions_pkg/audit.py:25:    from backend.models.task_type import TaskType
+backend/api/public/workflows/sessions_pkg/audit.py:26:    from backend.storage.task_repository import (
+backend/api/public/workflows/sessions_pkg/audit.py:175:    from backend.api.public.workflows.models import DoctorFeedbackResponse
+backend/api/public/workflows/sessions_pkg/audit.py:176:    from backend.storage.task_repository import (
+backend/api/public/workflows/sessions_pkg/diarization.py:7:from backend.logger import get_logger
+backend/api/public/workflows/sessions_pkg/diarization.py:8:from backend.validators import validate_session_id
+backend/api/public/workflows/sessions_pkg/diarization.py:23:    from backend.api.internal.diarization.status import get_diarization_status
+backend/api/public/workflows/sessions_pkg/diarization.py:61:    from backend.models.task_type import TaskType
+backend/api/public/workflows/sessions_pkg/diarization.py:62:    from backend.storage.task_repository import (
+backend/api/public/workflows/sessions_pkg/diarization.py:121:from backend.api.public.workflows.models import UpdateSegmentRequest
+backend/api/public/workflows/sessions_pkg/diarization.py:134:    from backend.storage.task_repository import update_diarization_segment_text
+backend/api/public/workflows/sessions_pkg/monitor.py:8:from backend.logger import get_logger
+backend/api/public/workflows/sessions_pkg/monitor.py:9:from backend.validators import validate_session_id
+backend/api/public/workflows/sessions_pkg/monitor.py:18:    from backend.models.task_type import TaskType
+backend/api/public/workflows/sessions_pkg/monitor.py:19:    from backend.storage.task_repository import count_task_chunks, get_task_metadata
+backend/api/public/workflows/sessions_pkg/transcription_sources.py:8:from backend.api.public.workflows.models import TranscriptionSourcesModel
+backend/api/public/workflows/sessions_pkg/transcription_sources.py:9:from backend.logger import get_logger
+backend/api/public/workflows/sessions_pkg/transcription_sources.py:10:from backend.validators import validate_session_id
+backend/api/public/workflows/sessions_pkg/transcription_sources.py:22:    from backend.models.task_type import TaskType
+backend/api/public/workflows/sessions_pkg/transcription_sources.py:23:    from backend.storage.task_repository import CORPUS_PATH, get_task_chunks
+backend/api/public/workflows/sessions_pkg/workflows.py:7:from backend.logger import get_logger
+backend/api/public/workflows/sessions_pkg/workflows.py:8:from backend.validators import validate_session_id
+backend/api/public/workflows/sessions_pkg/workflows.py:11:    from backend.api.public.workflows.models import (
+backend/api/public/workflows/sessions_pkg/workflows.py:25:    from backend.api.public.workflows.services import get_workflow_orchestrator
+backend/api/public/workflows/sessions_pkg/workflows.py:45:    from backend.api.public.workflows.services import get_workflow_orchestrator
+backend/api/public/workflows/sessions_pkg/workflows.py:62:    from backend.api.public.workflows.services import get_workflow_orchestrator
+backend/api/public/workflows/sessions_pkg/workflows.py:85:    from backend.models.task_type import TaskStatus, TaskType
+backend/api/public/workflows/sessions_pkg/workflows.py:86:    from backend.services.workflow_router import get_workflow_router
+backend/api/public/workflows/sessions_pkg/workflows.py:87:    from backend.storage.task_repository import (
+backend/api/public/workflows/sessions_pkg/workflows.py:92:    from backend.workers.executor_pool import spawn_worker
+backend/api/public/workflows/sessions_pkg/workflows.py:173:                from backend.workers.tasks.diarization_worker import diarization_worker
+backend/api/public/workflows/sessions_pkg/workflows.py:178:                from backend.workers.tasks.soap_worker import generate_soap_worker
+backend/api/public/workflows/sessions_pkg/workflows.py:183:                from backend.workers.tasks.emotion_worker import analyze_emotion_worker
+backend/api/public/workflows/sessions_pkg/workflows.py:224:    from backend.api.internal.sessions.finalize import (
+backend/api/public/workflows/sessions_pkg/workflows.py:240:        from backend.api.public.workflows.models import FinalizeSessionResponse
+backend/api/public/workflows/sessions_pkg/workflows.py:259:    from backend.api.internal.sessions.checkpoint import (
+backend/api/public/workflows/sessions_pkg/workflows.py:283:        from backend.api.public.workflows.models import CheckpointResponse
+backend/api/public/workflows/soap.py:22:from backend.clients import get_llm_client
+backend/api/public/workflows/soap.py:23:from backend.logger import get_logger
+backend/api/public/workflows/soap.py:24:from backend.services.soap_generation.soap_models import SOAPNote
+backend/api/public/workflows/soap.py:25:from backend.validators import validate_session_id
+backend/api/public/workflows/soap.py:118:    from backend.storage.task_repository import get_soap_data
+backend/api/public/workflows/soap.py:135:            from backend.models.task_type import TaskType
+backend/api/public/workflows/soap.py:136:            from backend.storage.task_repository import ensure_task_exists
+backend/api/public/workflows/soap.py:137:            from backend.workers.tasks.soap_worker import generate_soap_worker
+backend/api/public/workflows/soap.py:197:    from backend.storage.task_repository import create_order, get_orders, save_soap_data
+backend/api/public/workflows/system.py:18:from backend.logger import get_logger
+backend/api/public/workflows/timeline.py:18:from backend.logger import get_logger
+backend/api/public/workflows/timeline.py:19:from backend.storage import task_repository
+backend/api/public/workflows/transcription.py:24:from backend.dependencies import get_transcription_service
+backend/api/public/workflows/transcription.py:25:from backend.logger import get_logger
+backend/api/public/workflows/transcription.py:26:from backend.services.transcription.validators import (
+backend/api/public/workflows/transcription.py:30:from backend.services.transcription_service import TranscriptionService
+backend/api/public/workflows/transcription.py:31:from backend.validators import validate_session_id
+backend/api/public/workflows/transcription.py:179:        from backend.services.chunk_handler_factory import get_chunk_handler
+backend/api/public/workflows/transcription.py:339:        from backend.services.chunk_handler_factory import get_chunk_handler
+backend/api/public/workflows/transcription.py:443:        from backend.storage.session_chunks_schema import (
+backend/api/public/workflows/transcription.py:463:            from backend.models.task_type import TaskType
+backend/api/public/workflows/transcription.py:464:            from backend.storage.task_repository import CORPUS_PATH
+backend/api/public/workflows/tv_content_seeds.py:32:from backend.logger import get_logger
+backend/api/public/workflows/unified_timeline.py:26:from backend.logger import get_logger
+backend/api/public/workflows/unified_timeline.py:27:from backend.services.llm.conversation_memory import get_memory_manager
+backend/api/public/workflows/unified_timeline.py:28:from backend.storage.task_repository import CORPUS_PATH
+backend/api/public/workflows/waiting_room.py:25:from backend.clients import get_llm_client
+backend/api/public/workflows/waiting_room.py:26:from backend.logger import get_logger
+backend/api/public/workflows/waiting_room.py:27:from backend.observability.logging import CTX_REQUEST_ID
+backend/api/public/workflows/widget_configs.py:25:from backend.logger import get_logger
+backend/app/__init__.py:5:from backend.app.main import app, create_app
+backend/app/audit/__init__.py:8:from backend.app.audit.sink import write_audit_event
+backend/app/audit/sink.py:21:from backend.logger import get_logger
+backend/app/gateways/aurity.py:31:from backend.fi_event_store import EventStore  # type: ignore[import]
+backend/app/gateways/aurity.py:32:from backend.logger import get_logger
+backend/app/gateways/aurity.py:33:from backend.providers.adapters import ReduxAdapter, validate_redux_action
+backend/app/gateways/aurity.py:34:from backend.providers.models import Consultation
+backend/app/main.py:24:from backend.middleware.idempotency import IdempotencyMiddleware
+backend/app/main.py:25:from backend.middleware.internal_only import InternalOnlyMiddleware
+backend/app/main.py:26:from backend.middleware.tracing import TracingMiddleware
+backend/app/main.py:33:    from backend.database import init_db
+backend/app/main.py:34:    from backend.logger import get_logger
+backend/app/main.py:38:        from backend.observability.logging import setup_json_logging
+backend/app/main.py:267:        from backend.api import internal, public
+backend/app/main.py:268:        from backend.api.internal.admin import users_router  # Admin user management
+backend/app/main.py:271:        from backend.api.public import (
+backend/app/main.py:286:        from backend.api.public.workflows import aurity_personas, timeline
+backend/app/main.py:287:        from backend.auth.auth0_router import (
+backend/app/main.py:529:    from backend.utils.metrics import setup_metrics_endpoint
+backend/audit_logs.py:10:    from backend.services.audit_service import AuditService
+backend/auth/__init__.py:16:    from backend.auth import get_current_user_auth0, User
+backend/auth/__init__.py:23:from backend.auth.auth0_dependencies import (
+backend/auth/__init__.py:28:from backend.auth.auth0_router import router as auth_router
+backend/auth/__init__.py:29:from backend.auth.models import Permission, User, UserRole
+backend/auth/auth0_dependencies.py:17:from backend.auth.auth0_validator import (
+backend/auth/auth0_dependencies.py:23:from backend.auth.models import User, UserRole
+backend/auth/auth0_router.py:17:from backend.auth.auth0_config import (
+backend/auth/auth0_router.py:25:from backend.auth.auth0_dependencies import get_current_user_auth0
+backend/auth/auth0_router.py:26:from backend.auth.models import User, UserPublic
+backend/auth/auth0_router.py:27:from backend.auth.rbac import export_rbac_matrix_csv
+backend/auth/auth0_router.py:199:    from backend.auth.auth0_config import JWKS_URL
+backend/auth/auth0_router.py:203:        from backend.auth.auth0_validator import get_jwks
+backend/auth/auth0_validator.py:18:from backend.auth.auth0_config import (
+backend/auth/auth0_validator.py:25:from backend.auth.models import UserRole
+backend/auth/dependencies.py:16:from backend.auth.jwt import decode_token
+backend/auth/dependencies.py:17:from backend.auth.models import TokenData, User, UserRole
+backend/auth/dependencies.py:18:from backend.auth.user_store import get_user_by_id
+backend/auth/jwt.py:19:from backend.auth.models import TokenData, User, UserRole
+backend/auth/jwt.py:20:from backend.logger import get_logger
+backend/auth/rbac.py:17:from backend.auth.models import ROLE_PERMISSIONS, Permission, User, UserRole
+backend/auth/router.py:17:from backend.auth.dependencies import get_current_user
+backend/auth/router.py:18:from backend.auth.jwt import (
+backend/auth/router.py:26:from backend.auth.models import (
+backend/auth/router.py:33:from backend.auth.rbac import export_rbac_matrix_csv
+backend/auth/router.py:34:from backend.auth.user_store import get_user_by_id, get_users_db, init_demo_users
+backend/auth/user_store.py:17:from backend.auth.jwt import get_password_hash
+backend/auth/user_store.py:18:from backend.auth.models import User, UserRole
+backend/cli/fi_test.py:37:from backend.logger import get_logger
+backend/cli/fi_test.py:38:from backend.providers.llm import llm_generate
+backend/cli/fi_test.py:39:from backend.storage.corpus_ops import append_interaction
+backend/clients/internal_llm_client.py:24:from backend.logger import get_logger
+backend/common/__init__.py:27:        from backend.common.fi_common.logging.logger import get_logger
+backend/common/__init__.py:31:        from backend.common.fi_common.logging.logger import init_logger_from_config
+backend/common/__init__.py:35:        from backend.common.fi_common.cache.cache import LLMCache
+backend/common/__init__.py:39:        from backend.common.fi_common.metrics.metrics import MetricsCollector
+backend/common/__init__.py:43:        from backend.common.fi_common.infrastructure.container import get_container
+backend/common/__init__.py:47:        from backend.common.fi_common.config.config_loader import load_config
+backend/common/fi_common/cache/cache.py:23:from backend.logger import get_logger
+backend/common/fi_common/infrastructure/boot_map.py:21:from backend.logger import get_logger
+backend/common/fi_common/infrastructure/buffered_writer.py:24:from backend.append_only_policy import AppendOnlyPolicy
+backend/common/fi_common/infrastructure/buffered_writer.py:25:from backend.logger import get_logger
+backend/common/fi_common/infrastructure/buffered_writer.py:272:        from backend.config_loader import load_config
+backend/common/fi_common/infrastructure/buffered_writer.py:273:        from backend.corpus_schema import init_corpus
+backend/common/fi_common/infrastructure/container.py:20:from backend.repositories import AuditRepository, CorpusRepository, SessionRepository
+backend/common/fi_common/infrastructure/container.py:24:    from backend.services import (
+backend/common/fi_common/infrastructure/container.py:43:        import backend.services as services
+backend/common/fi_common/infrastructure/container.py:66:    from backend.logger import get_logger
+backend/common/fi_common/infrastructure/container.py:265:                from backend.services.diarization.job_service import (
+backend/common/fi_common/infrastructure/dependencies.py:13:from backend.policy_enforcer import PolicyEnforcer
+backend/common/fi_common/infrastructure/h5py_utils.py:18:from backend.logger import get_logger
+backend/common/fi_common/logging/log_manifest.py:20:from backend.common.fi_common.logging.log_rotation import LogRotation
+backend/common/fi_common/logging/log_manifest.py:21:from backend.common.fi_common.logging.logger_structured import ServiceChannel
+backend/common/fi_common/logging/log_metrics.py:24:from backend.common.fi_common.logging.log_rotation import LogRotation
+backend/common/fi_common/logging/log_metrics.py:25:from backend.common.fi_common.logging.logger_structured import ServiceChannel
+backend/common/fi_common/logging/log_rotation.py:22:from backend.common.fi_common.logging.logger_structured import ServiceChannel
+backend/common/fi_common/logging/log_writer.py:16:from backend.common.fi_common.logging.log_manifest import LogManifest
+backend/common/fi_common/logging/log_writer.py:17:from backend.common.fi_common.logging.log_rotation import LogRotation
+backend/common/fi_common/logging/log_writer.py:18:from backend.common.fi_common.logging.logger_structured import (
+backend/common/fi_common/logging/logger.py:52:            from backend.config_loader import load_config
+backend/common/fi_common/logging/logger.py:114:        from backend.config_loader import load_config
+backend/common/fi_common/metrics/metrics.py:25:from backend.logger import get_logger
+backend/common/fi_common/storage/audio_storage.py:31:from backend.common.fi_common.logging.logger import get_logger
+backend/common/fi_common/storage/corpus_ops.py:57:    from backend.append_only_policy import AppendOnlyPolicy
+backend/common/fi_common/storage/corpus_ops.py:58:    from backend.common.fi_common.logging.logger import get_logger
+backend/common/fi_common/storage/corpus_ops.py:128:    from backend.append_only_policy import AppendOnlyPolicy
+backend/common/fi_common/storage/corpus_ops.py:129:    from backend.common.fi_common.logging.logger import get_logger
+backend/common/fi_common/storage/corpus_ops.py:210:    from backend.common.fi_common.logging.logger import get_logger
+backend/common/fi_common/storage/corpus_ops.py:211:    from backend.llm_router import llm_embed, pad_embedding_to_768
+backend/common/fi_common/storage/corpus_ops.py:279:    from backend.common.fi_common.logging.logger import get_logger
+backend/common/fi_common/storage/corpus_ops.py:357:        from backend.common.fi_common.logging.logger import get_logger
+backend/common/fi_common/storage/corpus_ops.py:366:    from backend.config_loader import load_config
+backend/common/fi_common/storage/corpus_schema.py:123:    from backend.common.fi_common.logging.logger import get_logger
+backend/common/fi_common/storage/corpus_schema.py:124:    from backend.common.fi_common.storage.corpus_identity import (
+backend/common/fi_common/storage/corpus_schema.py:262:    from backend.common.fi_common.logging.logger import get_logger
+backend/common/fi_common/storage/corpus_schema.py:311:            from backend.common.fi_common.storage.corpus_identity import get_corpus_identity
+backend/common/fi_common/storage/search.py:15:from backend.common.fi_common.logging.logger import get_logger
+backend/common/fi_common/storage/search.py:16:from backend.llm_router import llm_embed, pad_embedding_to_768
+backend/common/fi_common/storage/search.py:220:    from backend.config_loader import load_config
+backend/config/secrets.py:7:    from backend.config.secrets import get_secret, secrets
+backend/config/secrets.py:134:        from backend.config.secrets import secrets
+backend/config_loader.py:15:    from backend.common.fi_common.config.config_loader import *  # noqa: F403  # type: ignore[import]
+backend/constants.py:97:    from backend.constants import DEFAULT_CLAUDE_MODEL, OLLAMA_BASE_URL
+backend/container.py:8:from backend.common.fi_common.infrastructure.container import get_container
+backend/database.py:21:from backend.logger import get_logger
+backend/database.py:25:from backend.models import (  # noqa: F401 - Clinic, Doctor, Appointment, etc.  # noqa: F401 - Patient, Provider, UserPersonaConfig
+backend/database.py:29:from backend.models.db_models import Base
+backend/dependencies.py:13:from backend.services.session_service import SessionService
+backend/dependencies.py:14:from backend.services.transcription_service import TranscriptionService
+backend/evidence_pack.py:8:from backend.common.fi_common.infrastructure.evidence_pack import (
+backend/llm_middleware.py:27:from backend.providers.llm import llm_generate
+backend/llm_middleware.py:28:from backend.schemas.llm_audit_policy import require_audit_log
+backend/logger.py:8:from backend.common.fi_common.logging.logger import get_logger
+backend/middleware/idempotency.py:31:from backend.logger import get_logger
+backend/middleware/internal_only.py:56:                from backend.logger import get_logger
+backend/middleware/tracing.py:36:from backend.logger import get_logger
+backend/models/__init__.py:19:from backend.models.checkin_models import (
+backend/models/__init__.py:33:from backend.models.job import Job, JobStatus, JobType
+backend/models/__init__.py:36:from backend.models.llm_model import (
+backend/models/__init__.py:44:from backend.models.session import EncryptionMetadata, Session, SessionStatus
+backend/models/__init__.py:45:from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
+backend/models/checkin_models.py:35:from backend.models.db_models import Base
+backend/models/transcription_job.py:25:from backend.models.job import Job, JobStatus, JobType
+backend/observability/chat_events.py:5:from backend.observability.log_spec import REQUIRED_FIELDS, ChatEvent
+backend/policy/append_only_policy.py:232:    from backend.config_loader import load_config
+backend/policy/policy_enforcer.py:18:from backend.logger import get_logger
+backend/policy/policy_loader.py:18:from backend.logger import get_logger
+backend/providers/adapters.py:18:  from backend.providers.adapters import ReduxAdapter
+backend/providers/adapters.py:29:from backend.logger import get_logger
+backend/providers/adapters.py:30:from backend.providers.models import ConsultationEvent, EventMetadata, EventType
+backend/providers/adapters.py:278:        from backend.schemas.fi_event_store import calculate_sha256
+backend/providers/diarization.py:23:from backend.logger import get_logger
+backend/providers/diarization.py:510:        from backend.schemas.preset_loader import get_preset_loader
+backend/providers/llm.py:33:from backend.logger import get_logger
+backend/providers/llm.py:34:from backend.policy.policy_loader import get_policy_loader
+backend/providers/llm.py:35:from backend.schemas.llm_audit_policy import require_audit_log
+backend/providers/llm.py:339:        from backend.providers.retry import (
+backend/providers/llm.py:400:        from backend.providers.retry import CircuitOpenError, calculate_backoff_delay
+backend/providers/retry.py:23:from backend.logger import get_logger
+backend/providers/stt.py:23:from backend.logger import get_logger
+backend/providers/stt.py:182:        from backend.utils.rate_limiter import azure_whisper_rate_limiter
+backend/repositories/audit_repository.py:18:from backend.logger import get_logger
+backend/repositories/audit_repository.py:19:from backend.type_defs import AuditLogDict
+backend/repositories/base_repository.py:22:from backend.logger import get_logger
+backend/repositories/corpus_repository.py:19:from backend.logger import get_logger
+backend/repositories/corpus_repository.py:20:from backend.type_defs import DiarizationChunkDict
+backend/repositories/session_repository.py:25:from backend.logger import get_logger
+backend/repositories/soap_repository.py:15:from backend.logger import get_logger
+backend/schemas/__init__.py:5:from backend.schemas.schemas import *  # noqa: F403
+backend/schemas/decision_mw.py:22:from backend.logger import get_logger
+backend/schemas/fi_backup.py:26:from backend.logger import get_logger
+backend/schemas/fi_event_store.py:42:from backend.logger import get_logger
+backend/schemas/fi_event_store.py:43:from backend.providers.models import ConsultationEvent
+backend/schemas/kpis_middleware.py:19:from backend.logger import get_logger
+backend/schemas/kpis_middleware.py:20:from backend.services.kpis_aggregator import get_kpis_aggregator
+backend/schemas/llm_cache.py:25:from backend.logger import get_logger
+backend/schemas/medical_validators.py:28:from backend.logger import get_logger
+backend/schemas/preset_loader.py:24:from backend.constants import DEFAULT_OLLAMA_MODEL, LLMProvider
+backend/schemas/preset_loader.py:25:from backend.logger import get_logger
+backend/schemas/schema_normalizer.py:21:from backend.logger import get_logger
+backend/scripts/create_example_evidence_pack.py:17:from backend.common.fi_common.infrastructure.evidence_pack import (
+backend/scripts/init_checkin_db.py:26:from backend.database import SessionLocal, engine
+backend/scripts/init_checkin_db.py:27:from backend.models.checkin_models import (
+backend/scripts/init_checkin_db.py:36:from backend.models.db_models import Base, Patient
+backend/scripts/migrate_doctor_auth0.py:27:from backend.database import engine
+backend/security/__init__.py:5:from backend.security.ip_validator import IPValidator
+backend/security/lan_guard.py:26:from backend.logger import get_logger
+backend/security/lan_guard.py:27:from backend.security.ip_validator import IPValidator
+backend/services/__init__.py:23:from backend.services.audit_service import AuditService
+backend/services/__init__.py:24:from backend.services.corpus_service import CorpusService
+backend/services/__init__.py:25:from backend.services.export_service import ExportService
+backend/services/__init__.py:26:from backend.services.session_service import SessionService
+backend/services/__init__.py:27:from backend.services.transcription_service import TranscriptionService
+backend/services/__init__.py:28:from backend.services.triage_service import TriageService
+backend/services/audit_service.py:15:from backend.logger import get_logger
+backend/services/audit_service.py:16:from backend.repositories import AuditRepository
+backend/services/audit_service.py:17:from backend.type_defs import AuditLogDict
+backend/services/chat_chunk_handler.py:30:from backend.logger import get_logger
+backend/services/chat_chunk_handler.py:31:from backend.services.chunk_handler import ChunkHandler
+backend/services/chat_chunk_handler.py:32:from backend.storage.chat_sessions_store import (
+backend/services/checkin_conversation.py:30:from backend.logger import get_logger
+backend/services/checkpoint/__init__.py:13:    from backend.services.checkpoint import create_checkpoint_service
+backend/services/checkpoint/__init__.py:19:    from backend.services.checkpoint import CheckpointRequest, AudioFormat
+backend/services/checkpoint/adapters/ffmpeg_concatenator.py:18:from backend.logger import get_logger
+backend/services/checkpoint/adapters/hdf5_repository.py:17:from backend.logger import get_logger
+backend/services/checkpoint/adapters/hdf5_repository.py:18:from backend.storage.session_h5_manager import get_session_h5_path
+backend/services/checkpoint/usecases/checkpoint_use_case.py:19:from backend.logger import get_logger
+backend/services/chunk_handler_factory.py:15:  from backend.services.chunk_handler_factory import get_chunk_handler
+backend/services/chunk_handler_factory.py:27:from backend.logger import get_logger
+backend/services/chunk_handler_factory.py:28:from backend.services.chat_chunk_handler import ChatChunkHandler
+backend/services/chunk_handler_factory.py:29:from backend.services.chunk_handler import ChunkHandler
+backend/services/chunk_handler_factory.py:30:from backend.services.medical_chunk_handler import MedicalChunkHandler
+backend/services/corpus_service.py:15:from backend.logger import get_logger
+backend/services/corpus_service.py:16:from backend.repositories import CorpusRepository
+backend/services/corpus_service.py:17:from backend.type_defs import DiarizationChunkDict
+backend/services/deepgram_service.py:22:from backend.logger import get_logger
+backend/services/diagnostics_service.py:18:from backend.logger import get_logger
+backend/services/evidence_service.py:13:from backend.evidence_pack import EvidencePackBuilder, create_evidence_pack_from_sources
+backend/services/evidence_service.py:14:from backend.logger import get_logger
+backend/services/export_service.py:20:from backend.logger import get_logger
+backend/services/gatekeeper.py:20:from backend.logger import get_logger
+backend/services/gatekeeper.py:21:from backend.policy_loader import get_policy_loader  # type: ignore[import]
+backend/services/kpis_aggregator.py:24:from backend.logger import get_logger
+backend/services/llm/conversation_memory.py:56:from backend.logger import get_logger
+backend/services/llm/persona/__init__.py:13:    from backend.services.llm.persona import PersonaManager, PersonaConfig, PersonaNotFound
+backend/services/llm/persona/manager.py:318:                from backend.models.db_models import UserPersonaConfig
+backend/services/llm/persona/manager.py:377:        from backend.models.db_models import UserPersonaConfig
+backend/services/llm/persona/manager.py:418:        from backend.models.db_models import UserPersonaConfig
+backend/services/llm/persona_manager.py:8:    from backend.services.llm.persona import PersonaManager, PersonaConfig, PersonaNotFound
+backend/services/llm/persona_manager.py:12:from backend.services.llm.persona import (
+backend/services/llm_model_service.py:16:from backend.models.llm_model import (
+backend/services/medical_chunk_handler.py:31:from backend.logger import get_logger
+backend/services/medical_chunk_handler.py:32:from backend.models.task_type import TaskType
+backend/services/medical_chunk_handler.py:33:from backend.services.chunk_handler import ChunkHandler
+backend/services/medical_chunk_handler.py:34:from backend.storage.task_repository import (
+backend/services/medical_chunk_handler.py:269:            from backend.lib.api.medical_workflow import medicalWorkflowApi
+backend/services/model_catalog/__init__.py:15:        from backend.services.model_catalog.catalog_service import CatalogService
+backend/services/model_catalog/catalog_service.py:18:from backend.models.catalog_model import (
+backend/services/model_catalog/catalog_service.py:24:from backend.services.model_catalog.sources.base import CatalogSourceBase
+backend/services/model_catalog/catalog_service.py:25:from backend.services.model_catalog.sources.gpt4all_source import GPT4AllCatalogSource
+backend/services/model_catalog/catalog_service.py:26:from backend.services.model_catalog.sources.huggingface_source import (
+backend/services/model_catalog/catalog_service.py:29:from backend.services.model_catalog.sources.ollama_source import OllamaCatalogSource
+backend/services/model_catalog/catalog_service.py:355:            from backend.services.llm_model_service import LLMModelService
+backend/services/model_catalog/sources/__init__.py:10:from backend.services.model_catalog.sources.base import CatalogSourceBase
+backend/services/model_catalog/sources/__init__.py:23:        from backend.services.model_catalog.sources.gpt4all_source import (
+backend/services/model_catalog/sources/__init__.py:29:        from backend.services.model_catalog.sources.huggingface_source import (
+backend/services/model_catalog/sources/__init__.py:35:        from backend.services.model_catalog.sources.ollama_source import (
+backend/services/model_catalog/sources/base.py:10:from backend.models.catalog_model import (
+backend/services/model_catalog/sources/gpt4all_source.py:12:from backend.models.catalog_model import (
+backend/services/model_catalog/sources/gpt4all_source.py:19:from backend.services.model_catalog.sources.base import CatalogSourceBase
+backend/services/model_catalog/sources/huggingface_source.py:12:from backend.models.catalog_model import (
+backend/services/model_catalog/sources/huggingface_source.py:19:from backend.services.model_catalog.sources.base import CatalogSourceBase
+backend/services/model_catalog/sources/ollama_source.py:15:from backend.models.catalog_model import (
+backend/services/model_catalog/sources/ollama_source.py:21:from backend.services.model_catalog.sources.base import CatalogSourceBase
+backend/services/notifications.py:27:from backend.logger import get_logger
+backend/services/persona_metrics_service.py:30:from backend.logger import get_logger
+backend/services/session_service.py:19:from backend.logger import get_logger
+backend/services/session_service.py:20:from backend.models.task_type import TaskStatus, TaskType
+backend/services/session_service.py:21:from backend.storage.task_repository import get_task_metadata, task_exists
+backend/services/soap_generation/USAGE_EXAMPLES.py:18:    from backend.services.soap_generation.llm_client import OllamaClient
+backend/services/soap_generation/USAGE_EXAMPLES.py:44:    from backend.services.soap_generation.llm_client import OllamaClient
+backend/services/soap_generation/USAGE_EXAMPLES.py:45:    from backend.services.soap_generation.soap_models import SOAPNote
+backend/services/soap_generation/USAGE_EXAMPLES.py:81:    from backend.logger import get_logger
+backend/services/soap_generation/USAGE_EXAMPLES.py:82:    from backend.services.soap_generation.llm_client import OllamaClient
+backend/services/soap_generation/USAGE_EXAMPLES.py:83:    from backend.services.soap_generation.response_parser import OllamaExtractionError
+backend/services/soap_generation/USAGE_EXAMPLES.py:107:    from backend.services.soap_generation.llm_client import OllamaClient
+backend/services/soap_generation/USAGE_EXAMPLES.py:128:    from backend.services.soap_generation.llm_client import OllamaClient
+backend/services/soap_generation/USAGE_EXAMPLES.py:175:    from backend.logger import get_logger
+backend/services/soap_generation/USAGE_EXAMPLES.py:176:    from backend.services.soap_generation.llm_client import OllamaClient
+backend/services/soap_generation/USAGE_EXAMPLES.py:177:    from backend.services.soap_generation.response_parser import OllamaExtractionError
+backend/services/soap_generation/USAGE_EXAMPLES.py:228:    from backend.services.soap_generation.llm_client import OllamaClient
+backend/services/soap_generation/USAGE_EXAMPLES.py:229:    from backend.services.soap_generation.response_parser import OllamaExtractionError
+backend/services/soap_generation/USAGE_EXAMPLES.py:263:    from backend.services.soap_generation.response_parser import OllamaResponseParser
+backend/services/soap_generation/USAGE_EXAMPLES.py:307:    from backend.services.soap_generation.prompt_builder import OllamaPromptBuilder
+backend/services/soap_generation/__init__.py:17:    from backend.services.soap_generation import SOAPGenerationService
+backend/services/soap_generation/completeness.py:9:from backend.providers.models import Analisis, Objetivo, Plan, Subjetivo
+backend/services/soap_generation/complexity_analyzer.py:17:from backend.logger import get_logger
+backend/services/soap_generation/decisional_middleware.py:26:from backend.logger import get_logger
+backend/services/soap_generation/decisional_middleware.py:27:from backend.providers.llm import llm_generate
+backend/services/soap_generation/decisional_middleware.py:28:from backend.schemas.preset_loader import get_preset_loader
+backend/services/soap_generation/decisional_middleware.py:29:from backend.services.llm.persona_manager import PersonaManager
+backend/services/soap_generation/decisional_middleware.py:30:from backend.services.soap_generation.complexity_analyzer import (
+backend/services/soap_generation/llm_client.py:11:from backend.logger import get_logger
+backend/services/soap_generation/llm_client.py:12:from backend.providers.llm import llm_generate
+backend/services/soap_generation/llm_client.py:13:from backend.services.soap_generation.prompt_builder import OllamaPromptBuilder
+backend/services/soap_generation/llm_client.py:14:from backend.services.soap_generation.response_parser import (
+backend/services/soap_generation/prompt_builder.py:12:from backend.logger import get_logger
+backend/services/soap_generation/prompt_builder.py:45:                from backend.schemas.preset_loader import get_preset_loader
+backend/services/soap_generation/reader.py:11:from backend.logger import get_logger
+backend/services/soap_generation/reader.py:12:from backend.repositories.soap_repository import (
+backend/services/soap_generation/response_parser.py:15:from backend.logger import get_logger
+backend/services/soap_generation/response_parser.py:16:from backend.services.soap_generation.soap_models import SOAPNote
+backend/services/soap_generation/soap_builder.py:14:from backend.logger import get_logger
+backend/services/soap_generation/soap_builder.py:15:from backend.providers.models import (
+backend/services/soap_generation/soap_builder.py:280:        from backend.providers.models import Seguimiento
+backend/services/soap_generation/soap_generation_service.py:14:from backend.logger import get_logger
+backend/services/soap_generation/soap_generation_service.py:15:from backend.providers.models import SOAPNote
+backend/services/soap_generation/tests.py:20:from backend.providers.models import Analisis, Objetivo, Plan, Subjetivo
+backend/services/soap_generation/tests.py:43:        from backend.repositories.soap_repository import SoapRepository
+backend/services/soap_generation/tests.py:100:        from backend.services.soap_generation.prompt_builder import OllamaPromptBuilder
+backend/services/system_health_service.py:15:from backend.logger import get_logger
+backend/services/system_health_service.py:57:            from backend.whisper_service import is_whisper_available
+backend/services/system_health_service.py:125:            from backend.policy.policy_enforcer import PolicyEnforcer
+backend/services/timeline/api.py:38:from backend.logger import get_logger
+backend/services/timeline/api.py:39:from backend.schemas.timeline_models import (
+backend/services/timeline/api.py:432:    from backend.schemas.timeline_models import (
+backend/services/timeline/auto.py:21:from backend.logger import get_logger
+backend/services/timeline/auto.py:22:from backend.providers.llm import llm_generate
+backend/services/timeline/auto.py:23:from backend.schemas.timeline_models import (
+backend/services/timeline/demo.py:17:from backend.schemas.timeline_models import (
+backend/services/transcription/__init__.py:19:from backend.services.transcription.service import TranscriptionService
+backend/services/transcription/service.py:24:from backend.common.fi_common.storage.audio_storage import (
+backend/services/transcription/service.py:28:from backend.logger import get_logger
+backend/services/transcription/service.py:29:from backend.services.transcription.whisper import (
+backend/services/transcription/service.py:544:        from backend.common.fi_common.storage.audio_storage import AUDIO_STORAGE_DIR
+backend/services/transcription/validators.py:12:from backend.common.fi_common.storage.audio_storage import (
+backend/services/transcription/whisper.py:22:from backend.logger import get_logger
+backend/services/transcription_service.py:16:from backend.logger import get_logger
+backend/services/transcription_service.py:17:from backend.models.task_type import TaskType
+backend/services/transcription_service.py:18:from backend.storage.task_repository import (
+backend/services/transcription_service.py:129:        from backend.models.task_type import CHUNK_DURATION_SECONDS
+backend/services/transcription_service.py:130:        from backend.storage.task_repository import (
+backend/services/transcription_service.py:188:        from backend.utils.stt_load_balancer import get_stt_load_balancer
+backend/services/transcription_service.py:189:        from backend.workers.executor_pool import spawn_worker
+backend/services/transcription_service.py:190:        from backend.workers.sync_workers import transcribe_chunk_worker
+backend/services/transcription_service.py:265:        from backend.providers.stt import get_stt_provider
+backend/services/transcription_service.py:266:        from backend.utils.stt_load_balancer import get_stt_load_balancer
+backend/services/transcription_service.py:336:        from backend.storage.task_repository import task_exists
+backend/services/triage_service.py:19:from backend.logger import get_logger
+backend/services/tts_unified.py:43:from backend.services.tts_openai import get_openai_tts_service
+backend/services/tts_unified.py:44:from backend.services.tts_openai_steerable import get_steerable_tts_service
+backend/services/tts_unified.py:45:from backend.services.tts_service import get_tts_service
+backend/services/workflow_router.py:21:from backend.logger import get_logger
+backend/services/workflow_router.py:22:from backend.models.task_type import TaskType
+backend/services/workflow_tracker.py:33:from backend.logger import get_logger
+backend/services/workflow_tracker.py:34:from backend.models.task_type import TaskStatus, TaskType
+backend/services/workflow_tracker.py:416:                from backend.storage.session_h5_manager import (
+backend/storage/__init__.py:18:from backend.common.fi_common.storage.audio_storage import (
+backend/storage/__init__.py:26:from backend.common.fi_common.storage.corpus_identity import (
+backend/storage/__init__.py:36:    from backend.common.fi_common.storage.corpus_ops import (
+backend/storage/__init__.py:48:from backend.common.fi_common.storage.corpus_schema import (
+backend/storage/__init__.py:57:    from backend.common.fi_common.storage.search import (
+backend/storage/__init__.py:67:from backend.common.fi_common.storage.sessions_store import (
+backend/storage/audio_storage.py:31:from backend.logger import get_logger
+backend/storage/chat_sessions_store.py:46:from backend.logger import get_logger
+backend/storage/corpus_ops.py:58:    from backend.logger import get_logger
+backend/storage/corpus_ops.py:59:    from backend.policy.append_only_policy import AppendOnlyPolicy
+backend/storage/corpus_ops.py:129:    from backend.logger import get_logger
+backend/storage/corpus_ops.py:130:    from backend.policy.append_only_policy import AppendOnlyPolicy
+backend/storage/corpus_ops.py:211:    from backend.logger import get_logger
+backend/storage/corpus_ops.py:212:    from backend.providers.llm import llm_embed, pad_embedding_to_768
+backend/storage/corpus_ops.py:280:    from backend.logger import get_logger
+backend/storage/corpus_ops.py:358:        from backend.logger import get_logger
+backend/storage/corpus_ops.py:367:    from backend.config_loader import load_config
+backend/storage/corpus_schema.py:124:    from backend.logger import get_logger
+backend/storage/corpus_schema.py:125:    from backend.storage.corpus_identity import generate_corpus_id, generate_owner_hash
+backend/storage/corpus_schema.py:260:    from backend.logger import get_logger
+backend/storage/corpus_schema.py:309:            from backend.storage.corpus_identity import get_corpus_identity
+backend/storage/document_repository.py:43:from backend.logger import get_logger
+backend/storage/document_repository.py:44:from backend.storage.session_h5_manager import CORPUS_PATH
+backend/storage/search.py:16:from backend.llm_router import (  # type: ignore[import] llm_embed, pad_embedding_to_768
+backend/storage/search.py:20:from backend.logger import get_logger
+backend/storage/search.py:224:    from backend.config_loader import load_config
+backend/storage/session_chunks_schema.py:23:from backend.logger import get_logger
+backend/storage/session_chunks_schema.py:24:from backend.models.task_type import TaskType
+backend/storage/session_h5_manager.py:34:from backend.logger import get_logger
+backend/storage/session_locks.py:32:from backend.logger import get_logger
+backend/storage/session_locks.py:33:from backend.storage.session_h5_manager import ensure_session_h5_exists, get_session_h5_path
+backend/storage/task_repository.py:41:from backend.logger import get_logger
+backend/storage/task_repository.py:42:from backend.models.task_type import TaskStatus, TaskType
+backend/storage/task_repository.py:43:from backend.storage.session_h5_manager import CORPUS_PATH, get_session_h5_path
+backend/storage/task_repository.py:49:from backend.storage.session_locks import locked_session_h5
+backend/storage/task_repository.py:204:    from backend.storage.session_h5_manager import get_session_h5_path
+backend/storage/task_repository.py:232:    from backend.storage.session_h5_manager import get_session_h5_path
+backend/storage/task_repository.py:1558:    from backend.storage.session_h5_manager import get_session_h5_path
+backend/storage/task_repository.py:1862:    from backend.storage.session_h5_manager import get_session_h5_path
+backend/tools/generate_test_data.py:30:from backend.config_loader import load_config
+backend/type_defs.py:8:from backend.common.fi_common.types.type_defs import *
+backend/utils/__init__.py:5:from backend.utils.token_counter import TokenCounter
+backend/utils/circuit_breaker.py:31:from backend.logger import get_logger
+backend/utils/exception_handler.py:6:    from backend.utils.exception_handler import handle_exception
+backend/utils/exception_handler.py:7:    from backend.exceptions import SessionNotFoundError
+backend/utils/exception_handler.py:22:from backend.exceptions import FIException
+backend/utils/exception_handler.py:23:from backend.logger import get_logger
+backend/utils/exception_handler.py:24:from backend.schemas.schemas import StatusCode, error_response
+backend/utils/metrics.py:37:from backend.logger import get_logger
+backend/utils/metrics.py:355:        from backend.app.main import create_app
+backend/utils/metrics.py:356:        from backend.utils.metrics import setup_metrics_endpoint
+backend/utils/rate_limiter.py:9:    from backend.utils.rate_limiter import RateLimiter
+backend/utils/rate_limiter.py:21:from backend.logger import get_logger
+backend/utils/retry.py:28:from backend.logger import get_logger
+backend/utils/stt_load_balancer.py:39:from backend.logger import get_logger
+backend/validators/__init__.py:10:from backend.validators.session import validate_session_id
+backend/whisper_service.py:8:from backend.services.whisper_service import *  # type: ignore[import]  # noqa: F403
+backend/workers/executor_pool.py:22:from backend.logger import get_logger
+backend/workers/sync_workers.py:15:from backend.workers.tasks.audit_worker import log_audit_event_worker
+backend/workers/sync_workers.py:16:from backend.workers.tasks.diarization_worker import diarize_session_worker
+backend/workers/sync_workers.py:17:from backend.workers.tasks.soap_worker import generate_soap_worker
+backend/workers/sync_workers.py:18:from backend.workers.tasks.transcription_worker import transcribe_chunk_worker
+backend/workers/tasks/__init__.py:3:from backend.workers.tasks.audit_worker import log_audit_event_worker
+backend/workers/tasks/__init__.py:4:from backend.workers.tasks.diarization_worker import diarize_session_worker
+backend/workers/tasks/__init__.py:5:from backend.workers.tasks.transcription_worker import transcribe_chunk_worker
+backend/workers/tasks/audit_worker.py:7:from backend.app.audit.sink import write_audit_event
+backend/workers/tasks/audit_worker.py:8:from backend.logger import get_logger
+backend/workers/tasks/audit_worker.py:9:from backend.workers.tasks.base_worker import WorkerResult
+backend/workers/tasks/base_worker.py:8:from backend.logger import get_logger
+backend/workers/tasks/diarization_worker.py:12:from backend.logger import get_logger
+backend/workers/tasks/diarization_worker.py:13:from backend.models.task_type import TaskStatus, TaskType
+backend/workers/tasks/diarization_worker.py:14:from backend.policy.policy_loader import get_policy_loader
+backend/workers/tasks/diarization_worker.py:15:from backend.providers.diarization import get_diarization_provider
+backend/workers/tasks/diarization_worker.py:16:from backend.services.workflow_tracker import get_workflow_tracker
+backend/workers/tasks/diarization_worker.py:17:from backend.storage.task_repository import (
+backend/workers/tasks/diarization_worker.py:24:from backend.workers.tasks.base_worker import WorkerResult, measure_time
+backend/workers/tasks/emotion_worker.py:12:from backend.logger import get_logger
+backend/workers/tasks/emotion_worker.py:13:from backend.models.task_type import TaskStatus, TaskType
+backend/workers/tasks/emotion_worker.py:14:from backend.schemas.preset_loader import get_preset_loader
+backend/workers/tasks/emotion_worker.py:15:from backend.storage.task_repository import (
+backend/workers/tasks/emotion_worker.py:20:from backend.workers.tasks.base_worker import measure_time
+backend/workers/tasks/emotion_worker.py:158:            from backend.providers.llm import llm_generate
+backend/workers/tasks/encryption_worker.py:59:    from backend.logger import get_logger  # type: ignore[assignment]
+backend/workers/tasks/encryption_worker.py:60:    from backend.models.task_type import TaskStatus  # type: ignore[assignment]
+backend/workers/tasks/encryption_worker.py:61:    from backend.models.task_type import TaskType  # type: ignore[assignment]
+backend/workers/tasks/encryption_worker.py:62:    from backend.storage.task_repository import update_task_metadata
+backend/workers/tasks/soap_worker.py:9:from backend.logger import get_logger
+backend/workers/tasks/soap_worker.py:10:from backend.models.task_type import TaskStatus, TaskType
+backend/workers/tasks/soap_worker.py:11:from backend.policy.policy_loader import get_policy_loader
+backend/workers/tasks/soap_worker.py:12:from backend.services.workflow_tracker import get_workflow_tracker
+backend/workers/tasks/soap_worker.py:13:from backend.storage.task_repository import (
+backend/workers/tasks/soap_worker.py:22:from backend.workers.tasks.base_worker import WorkerResult, measure_time
+backend/workers/tasks/soap_worker.py:121:        from backend.services.soap_generation.decisional_middleware import (
+backend/workers/tasks/transcription_worker.py:9:from backend.logger import get_logger
+backend/workers/tasks/transcription_worker.py:10:from backend.models.task_type import TaskStatus, TaskType
+backend/workers/tasks/transcription_worker.py:11:from backend.providers.stt import get_stt_provider
+backend/workers/tasks/transcription_worker.py:12:from backend.storage.task_repository import (
+backend/workers/tasks/transcription_worker.py:19:from backend.utils.stt_load_balancer import get_stt_load_balancer
+backend/workers/tasks/transcription_worker.py:20:from backend.workers.tasks.base_worker import WorkerResult, measure_time

@@ -1,0 +1,50 @@
+name: Monorepo CI (Temporary)
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  monorepo-checks:
+    name: Ruff + MyPy + Pytest + Import-Linter
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+
+      - name: Install dependencies (editable)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+          pip install -e packages/fi_common
+          pip install import-linter
+
+      - name: Ruff
+        run: |
+          ruff check backend/ packages/ tools/
+          ruff format backend/ packages/ tools/ --check
+
+      - name: MyPy
+        run: |
+          mypy backend/ packages/ --ignore-missing-imports
+
+      - name: Import contracts (import-linter)
+        run: |
+          lint-imports
+
+      - name: Pytest
+        run: |
+          pytest -q backend/tests/
+
+      - name: Smoke import packages
+        run: |
+          python -c "import fi_common; print('fi_common OK')"
