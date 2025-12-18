@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
 from typing import Any
+
+from fastapi import APIRouter, HTTPException, status
 
 from backend.logger import get_logger
 from backend.validators import validate_session_id
@@ -161,7 +162,9 @@ async def update_diarization_segment_workflow(
             "session_id": session_id,
             "segment_index": segment_index,
             "segment": updated_segment,
-            "updated_at": str(__import__("datetime").datetime.now(__import__("datetime").UTC).isoformat()),
+            "updated_at": str(
+                __import__("datetime").datetime.now(__import__("datetime").UTC).isoformat()
+            ),
         }
 
     except HTTPException:

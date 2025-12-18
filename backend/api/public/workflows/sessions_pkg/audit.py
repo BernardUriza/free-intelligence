@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Any
 
-from backend.api.public.workflows.models import DoctorFeedbackRequest, DoctorFeedbackResponse
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from backend.api.public.workflows.models import (
+    DoctorFeedbackRequest,
+    DoctorFeedbackResponse,
+)
 from backend.auth.auth0_dependencies import get_current_user_auth0
 from backend.auth.models import User
 from backend.logger import get_logger
@@ -31,7 +35,9 @@ async def get_session_audit(session_id: str) -> dict[str, Any]:
 
         session_meta = get_session_metadata(session_id)
         if not session_meta:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found"
+            )
 
         soap_data = get_soap_data(session_id)
         soap_task_meta = get_task_metadata(session_id, TaskType.SOAP_GENERATION)
@@ -50,10 +56,20 @@ async def get_session_audit(session_id: str) -> dict[str, Any]:
                 "status": session_meta.get("audit_status", "pending_review"),
             },
             "orchestration": {
-                "strategy": (soap_task_meta.get("orchestration_strategy", "UNKNOWN") if soap_task_meta else "UNKNOWN"),
-                "personas_invoked": (soap_task_meta.get("personas_invoked", []) if soap_task_meta else []),
-                "confidence_score": (soap_task_meta.get("confidence_score", 0.0) if soap_task_meta else 0.0),
-                "complexity_score": (soap_task_meta.get("complexity_score", 0.0) if soap_task_meta else 0.0),
+                "strategy": (
+                    soap_task_meta.get("orchestration_strategy", "UNKNOWN")
+                    if soap_task_meta
+                    else "UNKNOWN"
+                ),
+                "personas_invoked": (
+                    soap_task_meta.get("personas_invoked", []) if soap_task_meta else []
+                ),
+                "confidence_score": (
+                    soap_task_meta.get("confidence_score", 0.0) if soap_task_meta else 0.0
+                ),
+                "complexity_score": (
+                    soap_task_meta.get("complexity_score", 0.0) if soap_task_meta else 0.0
+                ),
                 "steps": (soap_task_meta.get("intermediate_outputs", []) if soap_task_meta else []),
             },
             "soap_note": soap_data or {},
@@ -75,7 +91,10 @@ async def get_session_audit(session_id: str) -> dict[str, Any]:
         raise
     except Exception as e:
         logger.error("SESSION_AUDIT_GET_FAILED", session_id=session_id, error=str(e), exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get session audit: {e!s}") from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get session audit: {e!s}",
+        ) from e
 
 
 def _analyze_session_flags(
@@ -102,7 +121,9 @@ def _analyze_session_flags(
     plan = soap_data.get("plan", {})
     medications = plan.get("medications", [])
 
-    has_enalapril = any("enalapril" in med.get("name", "").lower() for med in medications if isinstance(med, dict))
+    has_enalapril = any(
+        "enalapril" in med.get("name", "").lower() for med in medications if isinstance(med, dict)
+    )
     has_losartan = any(
         "losartán" in med.get("name", "").lower() or "losartan" in med.get("name", "").lower()
         for med in medications
@@ -144,9 +165,6 @@ def _analyze_session_flags(
     return flags
 
 
-from backend.api.public.workflows.models import DoctorFeedbackRequest, DoctorFeedbackResponse
-
-
 @router.post("/sessions/{session_id}/feedback")
 async def submit_doctor_feedback(
     session_id: str,
@@ -154,7 +172,7 @@ async def submit_doctor_feedback(
     current_user: User | None = Depends(get_current_user_auth0),
 ) -> DoctorFeedbackResponse:
     """Submit doctor's audit feedback for a session."""
-    from backend.api.public.workflows.models import DoctorFeedbackRequest, DoctorFeedbackResponse
+    from backend.api.public.workflows.models import DoctorFeedbackResponse
     from backend.storage.task_repository import (
         get_soap_data,
         save_soap_data,
@@ -191,7 +209,9 @@ async def submit_doctor_feedback(
             "comments": feedback.comments,
             "corrections": [corr.dict() for corr in feedback.corrections],
             "decision": feedback.decision,
-            "submitted_at": __import__("datetime").datetime.now(__import__("datetime").UTC).isoformat(),
+            "submitted_at": __import__("datetime")
+            .datetime.now(__import__("datetime").UTC)
+            .isoformat(),
             "submitted_by": user_identifier,
             "submitted_by_display": user_display_name,
         }
@@ -202,7 +222,9 @@ async def submit_doctor_feedback(
                 "doctor_feedback": feedback_data,
                 "audit_status": feedback.decision,
                 "audit_rating": feedback.rating,
-                "audited_at": __import__("datetime").datetime.now(__import__("datetime").UTC).isoformat(),
+                "audited_at": __import__("datetime")
+                .datetime.now(__import__("datetime").UTC)
+                .isoformat(),
                 "audited_by": user_identifier,
                 "audited_by_display": user_display_name,
             },
@@ -245,5 +267,10 @@ async def submit_doctor_feedback(
         )
 
     except Exception as e:
-        logger.error("DOCTOR_FEEDBACK_SUBMIT_FAILED", session_id=session_id, error=str(e), exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to submit doctor feedback: {e!s}") from e
+        logger.error(
+            "DOCTOR_FEEDBACK_SUBMIT_FAILED", session_id=session_id, error=str(e), exc_info=True
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to submit doctor feedback: {e!s}",
+        ) from e

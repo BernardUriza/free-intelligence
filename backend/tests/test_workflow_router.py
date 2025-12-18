@@ -94,12 +94,13 @@ class TestWorkflowRouter:
         )
 
         # Should skip transcription and diarization (already done)
-        assert TaskType.TRANSCRIPTION.value not in decision["workflows"]
-        assert TaskType.DIARIZATION.value not in decision["workflows"]
+        assert "transcription" not in decision["workflows"]
+        assert "diarization" not in decision["workflows"]
 
         # Should include SOAP and EMOTION (depends on diarization, which exists)
-        assert TaskType.SOAP_GENERATION.value in decision["workflows"]
-        assert TaskType.EMOTION_ANALYSIS.value in decision["workflows"]
+        # Note: workflow_router returns lowercase task names
+        assert "soap_generation" in decision["workflows"]
+        assert "emotion_analysis" in decision["workflows"]
 
     def test_transcription_always_first_if_needed(self):
         """Test that transcription is prioritized if not completed"""

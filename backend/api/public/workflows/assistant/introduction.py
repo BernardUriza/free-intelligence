@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import time
-import uuid as _uuid
 from fastapi import APIRouter, HTTPException, status
 
 from backend.clients import get_llm_client

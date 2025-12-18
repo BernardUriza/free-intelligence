@@ -93,7 +93,9 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
 
             try:
                 timeout_seconds = 30  # Production timeout for slow models like Qwen3
-                logger.info("SSE_TIMEOUT_START", timeout_seconds=timeout_seconds, model=request.model)
+                logger.info(
+                    "SSE_TIMEOUT_START", timeout_seconds=timeout_seconds, model=request.model
+                )
                 # Use asyncio.timeout() context manager for more reliable cancellation
                 async with asyncio.timeout(timeout_seconds):
                     result = await llm_client.chat(
@@ -112,15 +114,17 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                     response_length=len(result.get("response", "")),
                 )
             except TimeoutError:
-                logger.warning("SSE_TIMEOUT_FIRED", model=request.model, timeout_seconds=timeout_seconds)
-                timeout_msg = (
-                    "El modelo está tardando más de lo esperado. Intenta nuevamente o reduce la complejidad."
+                logger.warning(
+                    "SSE_TIMEOUT_FIRED", model=request.model, timeout_seconds=timeout_seconds
                 )
+                timeout_msg = "El modelo está tardando más de lo esperado. Intenta nuevamente o reduce la complejidad."
                 stream_chunk = ChatCompletionStreamResponse(
                     id=completion_id,
                     created=created_timestamp,
                     model=request.model,
-                    choices=[{"index": 0, "delta": {"content": timeout_msg}, "finish_reason": None}],
+                    choices=[
+                        {"index": 0, "delta": {"content": timeout_msg}, "finish_reason": None}
+                    ],
                 )
                 yield f"data: {stream_chunk.model_dump_json()}\n\n"
 
@@ -180,7 +184,9 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                 session_id=request.session_id,
                 exc_info=True,
             )
-            error_chunk = json.dumps({"error": {"message": f"Stream failed: {e!s}", "type": "internal_error"}})
+            error_chunk = json.dumps(
+                {"error": {"message": f"Stream failed: {e!s}", "type": "internal_error"}}
+            )
             yield f"data: {error_chunk}\n\n"
             yield "data: [DONE]\n\n"
 

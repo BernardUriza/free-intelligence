@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import h5py
 import json
+
+import h5py
 from fastapi import APIRouter, HTTPException, status
-from typing import Any
 
 from backend.api.public.workflows.models import TranscriptionSourcesModel
 from backend.logger import get_logger

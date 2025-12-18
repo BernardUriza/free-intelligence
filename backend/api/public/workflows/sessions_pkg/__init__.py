@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from . import workflows, monitor, diarization, transcription_sources, audio, audit
+from . import audio, audit, diarization, monitor, transcription_sources, workflows
 
 router = APIRouter()
 router.include_router(workflows.router)

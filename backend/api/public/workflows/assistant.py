@@ -5,5 +5,3 @@ which contains split endpoints for introduction, chat, diagnostics, and streamin
 """
 
 from __future__ import annotations
-
-from .assistant import router  # re-export aggregated router

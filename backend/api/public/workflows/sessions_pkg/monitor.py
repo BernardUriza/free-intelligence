@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Request, status
 from typing import cast
+
+from fastapi import APIRouter, HTTPException, Request, status
 
 from backend.logger import get_logger
 from backend.validators import validate_session_id
@@ -21,15 +22,27 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
     wants_json = "application/json" in accept_header
 
     try:
-        transcription_data = {"status": "not_started", "progress": 0, "chunks_processed": 0, "chunks_total": 0}
-        diarization_data = {"status": "not_started", "progress": 0, "segment_count": 0, "provider": "unknown"}
+        transcription_data = {
+            "status": "not_started",
+            "progress": 0,
+            "chunks_processed": 0,
+            "chunks_total": 0,
+        }
+        diarization_data = {
+            "status": "not_started",
+            "progress": 0,
+            "segment_count": 0,
+            "provider": "unknown",
+        }
         soap_data = {"status": "not_started"}
 
         try:
             transcription_meta = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
             total, processed = count_task_chunks(session_id, TaskType.TRANSCRIPTION)
             progress = int((processed / total) * 100) if total > 0 else 0
-            status_val = transcription_meta.get("status", "in_progress" if processed > 0 else "pending")
+            status_val = transcription_meta.get(
+                "status", "in_progress" if processed > 0 else "pending"
+            )
             if processed == total and total > 0:
                 status_val = "completed"
             transcription_data = {
@@ -37,7 +50,9 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
                 "progress": progress,
                 "chunks_processed": processed,
                 "chunks_total": total,
-                "estimated_seconds_remaining": transcription_meta.get("estimated_seconds_remaining", 0),
+                "estimated_seconds_remaining": transcription_meta.get(
+                    "estimated_seconds_remaining", 0
+                ),
                 "provider": transcription_meta.get("provider", "unknown"),
             }
         except ValueError:
@@ -86,7 +101,11 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
             encryption_meta = get_task_metadata(session_id, TaskType.ENCRYPTION) or {}
             encryption_status = encryption_meta.get("status", "pending")
             encryption_progress = encryption_meta.get("progress_percent", 0)
-            encryption_data = {"status": encryption_status, "progress": encryption_progress, "queued_at": encryption_meta.get("queued_at", "")}
+            encryption_data = {
+                "status": encryption_status,
+                "progress": encryption_progress,
+                "queued_at": encryption_meta.get("queued_at", ""),
+            }
         except ValueError:
             pass
 
@@ -120,11 +139,17 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
         status_val = transcription_data["status"]
         progress = cast(int, transcription_data["progress"])
         processed = cast(int, transcription_data["chunks_processed"])
-        total = cast(int, transcription_data["chunks_total"]) 
+        total = cast(int, transcription_data["chunks_total"])
         if status_val == "not_started":
             output_lines.append(f"{bold}🎙️  TRANSCRIPTION:{reset} {red}NOT STARTED{reset}\n")
         else:
-            status_color = (green if status_val == "completed" else yellow if status_val == "in_progress" else blue)
+            status_color = (
+                green
+                if status_val == "completed"
+                else yellow
+                if status_val == "in_progress"
+                else blue
+            )
             bar_width = 30
             filled = int((progress / 100) * bar_width)
             bar = f"[{green}{'█' * filled}{reset}{'░' * (bar_width - filled)}]"
@@ -143,13 +168,25 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
         if status_val == "not_started":
             output_lines.append(f"{bold}👥 DIARIZATION:{reset} {red}NOT STARTED{reset}\n")
         else:
-            status_color = (green if status_val == "completed" else yellow if status_val == "in_progress" else blue)
-            elapsed_str = (f"{elapsed_seconds / 60:.1f}m" if elapsed_seconds >= 60 else f"{elapsed_seconds:.0f}s")
+            status_color = (
+                green
+                if status_val == "completed"
+                else yellow
+                if status_val == "in_progress"
+                else blue
+            )
+            elapsed_str = (
+                f"{elapsed_seconds / 60:.1f}m"
+                if elapsed_seconds >= 60
+                else f"{elapsed_seconds:.0f}s"
+            )
             progress_bar = ""
             if status_val == "in_progress" and progress_percent > 0:
                 bar_width = 20
                 filled = int((progress_percent / 100) * bar_width)
-                progress_bar = (f" {green}{'█' * filled}{reset}{'░' * (bar_width - filled)} {progress_percent}%")
+                progress_bar = (
+                    f" {green}{'█' * filled}{reset}{'░' * (bar_width - filled)} {progress_percent}%"
+                )
             output_lines.append(f"{bold}👥 DIARIZATION:{reset}")
             status_text = str(status_val).upper()
             output_lines.append(f"   Status: {status_color}{status_text}{reset}{progress_bar}")
@@ -163,7 +200,13 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
         if status_val == "not_started":
             output_lines.append(f"{bold}📋 SOAP GENERATION:{reset} {red}NOT STARTED{reset}\n")
         else:
-            status_color = (green if status_val == "completed" else yellow if status_val == "in_progress" else blue)
+            status_color = (
+                green
+                if status_val == "completed"
+                else yellow
+                if status_val == "in_progress"
+                else blue
+            )
             output_lines.append(f"{bold}📋 SOAP GENERATION:{reset}")
             status_text = str(status_val).upper()
             output_lines.append(f"   Status: {status_color}{status_text}{reset}")
@@ -173,7 +216,13 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
         if status_val == "not_started":
             output_lines.append(f"{bold}🔐 ENCRYPTION:{reset} {red}NOT STARTED{reset}\n")
         else:
-            status_color = (green if status_val == "completed" else yellow if status_val == "in_progress" else blue)
+            status_color = (
+                green
+                if status_val == "completed"
+                else yellow
+                if status_val == "in_progress"
+                else blue
+            )
             progress_val = cast(int, encryption_data["progress"])
             output_lines.append(f"{bold}🔐 ENCRYPTION:{reset}")
             status_text = str(status_val).upper()
@@ -184,8 +233,21 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
 
         output_lines.append(f"{bold}{cyan}{'=' * 60}{reset}\n")
         ascii_output = "\n".join(output_lines)
-        return {"session_id": session_id, "ascii_display": ascii_output, "plain_text": ascii_output.replace(reset, "").replace(bold, "").replace(green, "").replace(yellow, "").replace(blue, "").replace(cyan, "").replace(red, "")}
+        return {
+            "session_id": session_id,
+            "ascii_display": ascii_output,
+            "plain_text": ascii_output.replace(reset, "")
+            .replace(bold, "")
+            .replace(green, "")
+            .replace(yellow, "")
+            .replace(blue, "")
+            .replace(cyan, "")
+            .replace(red, ""),
+        }
 
     except Exception as e:
         logger.error("MONITOR_SESSION_FAILED", session_id=session_id, error=str(e))
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to monitor session: {e!s}") from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to monitor session: {e!s}",
+        ) from e

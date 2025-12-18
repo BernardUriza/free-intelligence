@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import time
-import ulid
 import uuid as _uuid
+
+import ulid
 from fastapi import APIRouter, HTTPException
 
 from backend.logger import get_logger
@@ -80,8 +81,12 @@ async def assistant_chat_dry_run(
         "persona_id": persona_cfg.persona,
         "response_mode_resolved": response_mode or "explanatory",
         "system_markers": {
-            "concise": "<!--MODE:CONCISE-->" if (response_mode or "").lower() == "concise" else None,
-            "explanatory": "<!--MODE:EXPLANATORY-->" if (response_mode or "").lower() == "explanatory" else "<!--MODE:EXPLANATORY-->",
+            "concise": "<!--MODE:CONCISE-->"
+            if (response_mode or "").lower() == "concise"
+            else None,
+            "explanatory": "<!--MODE:EXPLANATORY-->"
+            if (response_mode or "").lower() == "explanatory"
+            else "<!--MODE:EXPLANATORY-->",
             "rag_begin": "<!--RAG:BEGIN-->",
             "rag_end": "<!--RAG:END-->",
         },

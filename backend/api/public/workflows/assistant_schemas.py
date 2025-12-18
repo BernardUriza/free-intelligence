@@ -103,7 +103,9 @@ class ChatCompletionRequest(BaseModel):
     messages: list[Message] = Field(
         ..., min_length=1, description="List of messages in the conversation"
     )
-    model: str = Field(default="qwen3:1.7b", description="Model to use for completion (Ollama local)")
+    model: str = Field(
+        default="qwen3:1.7b", description="Model to use for completion (Ollama local)"
+    )
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
     max_tokens: int = Field(default=2048, ge=1, le=4096, description="Maximum tokens to generate")
     top_p: float = Field(default=1.0, ge=0.0, le=1.0, description="Nucleus sampling parameter")

@@ -247,7 +247,10 @@ Output JSON:
             )
 
         # 3. SOAP Generation (requires diarization)
-        if TaskType.DIARIZATION.name.lower() in workflows or TaskType.DIARIZATION.name.lower() in existing_tasks:
+        if (
+            TaskType.DIARIZATION.name.lower() in workflows
+            or TaskType.DIARIZATION.name.lower() in existing_tasks
+        ):
             if TaskType.SOAP_GENERATION.name.lower() not in existing_tasks:
                 workflows.append(TaskType.SOAP_GENERATION.name.lower())
                 reasoning_parts.append("SOAP notes extraction (has speaker context)")
@@ -259,7 +262,10 @@ Output JSON:
             reasoning_parts.append("SOAP skipped (no diarization context)")
 
         # 4. Emotion Analysis (requires diarization)
-        if TaskType.DIARIZATION.name.lower() in workflows or TaskType.DIARIZATION.name.lower() in existing_tasks:
+        if (
+            TaskType.DIARIZATION.name.lower() in workflows
+            or TaskType.DIARIZATION.name.lower() in existing_tasks
+        ):
             if TaskType.EMOTION_ANALYSIS.name.lower() not in existing_tasks:
                 workflows.append(TaskType.EMOTION_ANALYSIS.name.lower())
                 reasoning_parts.append("Emotion analysis (patient segments available)")

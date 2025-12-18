@@ -1,0 +1,15 @@
+[project]
+name = "fi_common"
+version = "0.1.0"
+description = "Shared domain/application/infrastructure core for Free Intelligence"
+authors = [{name = "Free Intelligence", email = "dev@free-intelligence.local"}]
+requires-python = ">=3.14"
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["fi_common*"]

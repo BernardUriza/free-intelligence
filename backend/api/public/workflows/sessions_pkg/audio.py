@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+
 import h5py
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
@@ -53,7 +54,9 @@ async def get_session_audio_workflow(session_id: str) -> FileResponse:
                 )
 
         try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".webm", prefix=f"session_{session_id}_") as temp_file:
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=".webm", prefix=f"session_{session_id}_"
+            ) as temp_file:
                 temp_file.write(audio_bytes)
                 temp_file_path = temp_file.name
 
@@ -72,7 +75,9 @@ async def get_session_audio_workflow(session_id: str) -> FileResponse:
                         os.unlink(temp_file_path)
                         logger.debug("TEMP_FILE_CLEANUP_ATEXIT", path=temp_file_path)
                     except Exception as e:
-                        logger.warning("TEMP_FILE_CLEANUP_ATEXIT_FAILED", path=temp_file_path, error=str(e))
+                        logger.warning(
+                            "TEMP_FILE_CLEANUP_ATEXIT_FAILED", path=temp_file_path, error=str(e)
+                        )
 
             atexit.register(cleanup_temp_file)
 

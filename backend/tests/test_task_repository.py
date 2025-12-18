@@ -235,6 +235,11 @@ def test_update_and_get_task_metadata(temp_corpus, monkeypatch):
     session_id = "test_session_007_unique"
     task_type = TaskType.TRANSCRIPTION
 
+    # Ensure clean state - remove file if it exists from previous test
+    session_file = temp_corpus.parent / "sessions" / f"{session_id}.h5"
+    if session_file.exists():
+        session_file.unlink()
+
     # Create task
     ensure_task_exists(session_id, task_type, allow_existing=False)
 
@@ -266,6 +271,11 @@ def test_task_exists(temp_corpus, monkeypatch):
 
     session_id = "test_session_008_unique"
     task_type = TaskType.TRANSCRIPTION
+
+    # Ensure clean state - remove file if it exists from previous test
+    session_file = temp_corpus.parent / "sessions" / f"{session_id}.h5"
+    if session_file.exists():
+        session_file.unlink()
 
     # Check non-existent task
     assert not task_exists(session_id, task_type)
