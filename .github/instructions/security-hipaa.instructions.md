@@ -1,6 +1,6 @@
 ---
 applyTo: "backend/**/*.py,apps/**/*.ts,apps/**/*.tsx"
-excludeAgent: "code-review"
+excludeAgent: []
 ---
 
 # Security & HIPAA Compliance - AURITY
