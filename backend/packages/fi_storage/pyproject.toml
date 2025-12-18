@@ -2,7 +2,7 @@
 name = "fi_storage"
 version = "0.1.0"
 description = "Free Intelligence - Storage Layer (HDF5, repositories)"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 classifiers = ["Typing :: Typed"]

@@ -3,7 +3,7 @@ name = "fi-auth"
 version = "0.1.0"
 description = "Authentication and RBAC utilities for AURITY"
 authors = [{name = "Free Intelligence"}]
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 dependencies = [
   "pyjwt[crypto]>=2.9.0",
   "httpx>=0.27.0",
