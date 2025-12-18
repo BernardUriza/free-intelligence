@@ -121,7 +121,7 @@ def init_corpus(
         True  # Overwrites existing file
     """
     from backend.packages.fi_common.logging.logger import get_logger
-    from backend.packages.fi_common.storage.corpus_identity import (
+    from backend.packages.fi_storage.infrastructure.hdf5.corpus_identity import (
         generate_corpus_id,
         generate_owner_hash,
     )
@@ -308,7 +308,7 @@ if __name__ == "__main__":
             print(f"   Valid: {result['valid']}")
 
             # Show identity
-            from backend.packages.fi_common.storage.corpus_identity import get_corpus_identity
+            from backend.packages.fi_storage.infrastructure.hdf5.corpus_identity import get_corpus_identity
 
             identity = get_corpus_identity(result["path"])
             if identity:

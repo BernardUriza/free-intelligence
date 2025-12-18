@@ -21,7 +21,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
-from backend.packages.fi_common.storage.audio_storage import (
+from backend.packages.fi_storage.infrastructure.hdf5.audio_storage import (
     save_audio_file,
     validate_session_id,
 )
@@ -541,7 +541,7 @@ class TranscriptionService:
         )
 
         # Get absolute path to audio file
-        from backend.packages.fi_common.storage.audio_storage import AUDIO_STORAGE_DIR
+        from backend.packages.fi_storage.infrastructure.hdf5.audio_storage import AUDIO_STORAGE_DIR
 
         audio_path = AUDIO_STORAGE_DIR.parent / audio_metadata["file_path"]
 
