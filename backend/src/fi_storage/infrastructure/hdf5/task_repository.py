@@ -996,9 +996,8 @@ def add_audio_to_chunk(
     """
     CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    with _h5_lock:  # Lock H5 file to prevent concurrent access errors
-        with locked_session_h5(session_id, mode="a") as f:
-            chunk_path = f"/sessions/{session_id}/tasks/{task_type.value}/chunks/chunk_{chunk_idx}"
+    with _h5_lock, locked_session_h5(session_id, mode="a") as f:  # Lock H5 file to prevent concurrent access errors
+        chunk_path = f"/sessions/{session_id}/tasks/{task_type.value}/chunks/chunk_{chunk_idx}"
 
             if chunk_path not in f:  # type: ignore[operator]
                 raise ValueError(f"Chunk {chunk_idx} does not exist for session {session_id}")
@@ -1232,9 +1231,8 @@ def batch_update_chunk_datasets(
 
     for attempt in range(max_retries):
         try:
-            with _h5_lock:  # Lock H5 file to prevent concurrent access errors
-                with locked_session_h5(session_id, mode="a") as f:
-                    if chunk_path not in f:  # type: ignore[operator]
+            with _h5_lock, locked_session_h5(session_id, mode="a") as f:  # Lock H5 file to prevent concurrent access errors
+                if chunk_path not in f:  # type: ignore[operator]
                         logger.warning(
                             "CHUNK_NOT_FOUND",
                             session_id=session_id,
