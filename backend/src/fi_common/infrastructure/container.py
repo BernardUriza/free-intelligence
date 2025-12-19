@@ -19,6 +19,12 @@ from typing import TYPE_CHECKING, Any
 # Logger is accessed via get_logger() function call below
 from backend.repositories import AuditRepository, CorpusRepository, SessionRepository
 
+# Import interfaces and implementations for DI
+from backend.src.fi_coder.models.interfaces.ilogger import ILogger
+from backend.src.fi_coder.models.interfaces.itask_repository import ITaskRepository
+from backend.src.fi_coder.storage.hdf5_task_repository import HDF5TaskRepository
+from backend.src.fi_coder.utils.structured_logger import StructuredLogger
+
 # Type checking imports - Pylance uses these for type information
 if TYPE_CHECKING:
     from backend.services import (
@@ -34,6 +40,7 @@ if TYPE_CHECKING:
         TranscriptionService,
         TriageService,
     )
+    from backend.src.fi_coder.services.session_service import SessionService as DISessionService
 else:
     # Runtime imports - accessed via __getattr__ on services module
     def _import_service(name: str) -> Any:
@@ -61,6 +68,9 @@ else:
     SystemHealthService = _import_service("SystemHealthService")  # type: ignore[assignment]
     TranscriptionService = _import_service("TranscriptionService")  # type: ignore[assignment]
     TriageService = _import_service("TriageService")  # type: ignore[assignment]
+
+    # Import DI SessionService
+    from backend.src.fi_coder.services.session_service import SessionService as DISessionService
 
 
 def _get_logger() -> Any:
@@ -94,6 +104,10 @@ class DIContainer:
         self._session_repository: SessionRepository | None = None
         self._audit_repository: AuditRepository | None = None
 
+        # DI dependencies
+        self._logger: ILogger | None = None
+        self._task_repository: ITaskRepository | None = None
+
         self._audit_service: AuditService | None = None
         self._corpus_service: CorpusService | None = None
         self._diarization_service: DiarizationService | None = None
@@ -102,6 +116,7 @@ class DIContainer:
         self._evidence_service: EvidenceService | None = None
         self._export_service: ExportService | None = None
         self._session_service: SessionService | None = None
+        self._di_session_service: DISessionService | None = None
         self._system_health_service: SystemHealthService | None = None
         self._transcription_service: TranscriptionService | None = None
         self._triage_service: TriageService | None = None
