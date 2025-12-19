@@ -588,7 +588,7 @@ def get_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> list[di
             chunks_group = f[chunks_path]  # type: ignore[index]
             chunks = []
 
-            for chunk_name in sorted(chunks_group.keys()):  # type: ignore[union-attr]
+            for chunk_name in sorted(chunks_group):  # type: ignore[union-attr]
                 chunk_group = chunks_group[chunk_name]  # type: ignore[index]
                 chunk_idx = int(chunk_name.split("_")[1])
                 transcript = chunk_group["transcript"][()].decode("utf-8")  # type: ignore[index]
@@ -698,7 +698,7 @@ def get_session_chunks_compat(session_id: str) -> list[dict[str, Any]]:
                 # Read from old schema (same logic as get_task_chunks)
                 chunks_group = f[production_path]  # type: ignore[index]
                 chunks = []
-                for chunk_name in sorted(chunks_group.keys()):  # type: ignore[union-attr]
+                for chunk_name in sorted(chunks_group):  # type: ignore[union-attr]
                     chunk_group = chunks_group[chunk_name]  # type: ignore[index]
                     chunks.append(
                         {
@@ -1128,9 +1128,8 @@ def update_chunk_dataset(
     chunk_path = f"/sessions/{session_id}/tasks/{task_type_str}/chunks/chunk_{chunk_idx}"
 
     try:
-        with _h5_lock:  # Lock H5 file to prevent concurrent access errors
-            with locked_session_h5(session_id, mode="a") as f:
-                if chunk_path not in f:  # type: ignore[operator]
+        with _h5_lock, locked_session_h5(session_id, mode="a") as f:  # Lock H5 file to prevent concurrent access errors
+            if chunk_path not in f:  # type: ignore[operator]
                     logger.warning(
                         "CHUNK_NOT_FOUND",
                         session_id=session_id,
@@ -1430,7 +1429,7 @@ def get_diarization_segments(
         segments = []
 
         # Read all segments in order
-        segment_keys = sorted(segments_group.keys(), key=lambda x: int(x.split("_")[1]))
+        segment_keys = sorted(segments_group, key=lambda x: int(x.split("_")[1]))
 
         for seg_key in segment_keys:
             seg_group = segments_group[seg_key]  # type: ignore[index]
