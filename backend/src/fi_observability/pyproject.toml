@@ -1,0 +1,11 @@
+[project]
+name = "fi-observability"
+version = "0.1.0"
+description = "Read-only on-demand observability tools for AURITY"
+authors = [{name = "Free Intelligence"}]
+requires-python = ">=3.14"
+dependencies = []
+
+[tool.pytest.ini_options]
+pythonpath = ["../../.."]
+addopts = "-q"
