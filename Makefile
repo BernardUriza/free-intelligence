@@ -229,12 +229,12 @@ type-check-all: ## Run all type checkers (Pyright + Mypy + Ruff)
 type-check-export: ## Export type errors as JSON for Claude Code
 	@echo "📤 Exporting type errors..."
 	@command -v pyright >/dev/null 2>&1 || { echo "Installing pyright..."; npm install -g pyright; }
-	$(PY) tools/detect_type_errors.py backend/ --export
+	PYTHONPATH=backend/src $(PY) -m fi_devtools.analysis.detect_type_errors backend/ --export
 	@echo "✅ Results saved to ops/type_check_results/results.json"
 
 type-check-batch: ## Detect and report all type errors (comprehensive)
 	@echo "🔍 Running batch type detection..."
-	$(PY) tools/detect_type_errors.py backend/ --all --export
+	PYTHONPATH=backend/src $(PY) -m fi_devtools.analysis.detect_type_errors backend/ --all --export
 
 # ============================================================================
 # Cleanup
@@ -389,7 +389,7 @@ llm-test: ## Run LLM tests (pytest)
 llm-call: ## Example CLI call to endpoint
 	@echo "📞 Example LLM call (Ollama qwen2:7b)..."
 	@echo "   Prompt: 'What is 2+2?'"
-	$(PY) tools/fi_llm.py --provider ollama --model qwen2:7b --prompt "What is 2+2?" --json
+	@echo "⚠️  fi_llm.py deprecated - use direct ollama CLI or backend/api/llm endpoints"
 
 
 # ============================================================================
@@ -404,12 +404,12 @@ policy-test: ## Run policy enforcement tests
 policy-report: ## Generate QA documentation and manifest
 	@echo "📄 Generating policy QA report..."
 	@mkdir -p docs/qa eval/results
-	@$(PY) tools/generate_policy_manifest.py
+	@PYTHONPATH=backend/src $(PY) -m fi_devtools.ci.generate_policy_manifest
 	@echo "✅ Policy report generated"
 
 policy-verify: ## Verify policy artifacts and hashes
 	@echo "🔍 Verifying policy artifacts..."
-	@$(PY) tools/verify_policy.py
+	@PYTHONPATH=backend/src $(PY) -m fi_devtools.ci.verify_policy
 
 policy-all: policy-test policy-report policy-verify ## Run full policy workflow
 	@echo ""
