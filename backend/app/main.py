@@ -15,11 +15,10 @@ from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
 from datetime import UTC
-from pathlib import Path
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from backend.middleware.idempotency import IdempotencyMiddleware
 from backend.middleware.internal_only import InternalOnlyMiddleware
@@ -344,6 +343,9 @@ Requires environment variables:
         internal_app.include_router(
             users_router, tags=["admin"]
         )  # Admin user management (Auth0 Management API)
+        internal_app.include_router(
+            internal.fi_coder.router, prefix="/fi_coder", tags=["fi_coder"]
+        )  # FI Coder task orchestrator
 
         # Mount sub-apps
         app.mount("/api", public_app)

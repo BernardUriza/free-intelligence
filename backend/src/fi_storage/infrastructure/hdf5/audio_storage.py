@@ -1,5 +1,15 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import os
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import Any
+from uuid import UUID
+
+from backend.logger import get_logger
+
 """
 Audio Storage Module
 Card: FI-BACKEND-FEAT-003
@@ -19,16 +29,6 @@ Features:
 File: backend/audio_storage.py
 Created: 2025-10-30
 """
-
-import hashlib
-import json
-import os
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
-from typing import Any
-from uuid import UUID
-
-from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -82,7 +82,7 @@ def save_audio_file(
     session_id: str,
     audio_content: bytes,
     file_extension: str,
-    metadata: dict[str, Any | None] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Save audio file to storage with atomic write and manifest.
@@ -184,7 +184,7 @@ def save_audio_file(
     }
 
 
-def get_audio_manifest(session_id: str, timestamp_ms: int) -> dict[str, Any | None] | None:
+def get_audio_manifest(session_id: str, timestamp_ms: int) -> dict[str, Any] | None:
     """
     Retrieve audio manifest by session_id and timestamp.
 

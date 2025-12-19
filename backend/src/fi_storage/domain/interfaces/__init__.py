@@ -1,6 +1,6 @@
 """Repository interfaces (ABCs)."""
 
-from fi_storage.domain.interfaces.repositories import (
+from .repositories import (
     IAudioRepository,
     ISessionRepository,
     ITaskRepository,

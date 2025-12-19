@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+import h5py
+
 """
 Free Intelligence - HDF5 Corpus Schema
 
@@ -10,21 +16,15 @@ Structure: /interactions/, /embeddings/, /metadata/
 FI-DATA-FEAT-001
 """
 
-from datetime import datetime
-from pathlib import Path
-from typing import Any
-
-import h5py
-
 
 class CorpusSchema:
     """HDF5 corpus schema definition and validation."""
 
     # Required top-level groups
-    REQUIRED_GROUPS = ["interactions", "embeddings", "metadata"]
+    REQUIRED_GROUPS: list[str] = ["interactions", "embeddings", "metadata"]
 
     # Dataset specifications for interactions
-    INTERACTION_DATASETS = {
+    INTERACTION_DATASETS: dict[str, dict[str, Any]] = {
         "session_id": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
         "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
         "timestamp": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
@@ -35,7 +35,7 @@ class CorpusSchema:
     }
 
     # Dataset specifications for embeddings
-    EMBEDDING_DATASETS = {
+    EMBEDDING_DATASETS: dict[str, dict[str, Any]] = {
         "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
         "vector": {"dtype": "float32"},  # Will be 2D array
         "model": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
@@ -234,7 +234,7 @@ def init_corpus_from_config(
         >>> init_corpus_from_config("bernard@example.com")
         True
     """
-    from config_loader import load_config
+    from src.fi_coder.utils.config_loader import load_config
 
     config = load_config(config_path)
     corpus_path = config["storage"]["corpus_path"]
@@ -265,7 +265,7 @@ def validate_corpus(corpus_path: str | None = None) -> dict[str, Any]:
     logger = get_logger()
 
     if corpus_path is None:
-        from config_loader import load_config
+        from src.fi_coder.utils.config_loader import load_config
 
         config = load_config()
         corpus_path = config["storage"]["corpus_path"]

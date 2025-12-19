@@ -20,15 +20,14 @@ from __future__ import annotations
 
 import warnings
 
+from backend.logger import get_logger
+from backend.models.task_type import TaskType
 from fi_common.infrastructure.persistence.hdf5.task_repository import (
     append_chunk_to_task,
     ensure_task_exists,
     get_task_chunks,
     get_task_transcript,
 )
-
-from backend.logger import get_logger
-from backend.models.task_type import TaskType
 
 logger = get_logger(__name__)
 

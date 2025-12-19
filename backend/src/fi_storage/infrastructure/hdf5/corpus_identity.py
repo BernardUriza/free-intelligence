@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import h5py
+import hashlib
+import uuid
+from pathlib import Path
+
 """
 Free Intelligence - Corpus Identity Management
 
@@ -9,12 +14,6 @@ Ensures every corpus has a unique identifier and traceable ownership.
 
 FI-DATA-FEAT-004
 """
-
-import hashlib
-import uuid
-from pathlib import Path
-
-import h5py
 
 
 def generate_corpus_id() -> str:
@@ -252,8 +251,7 @@ def get_corpus_identity(corpus_path: str) -> dict | None:
 if __name__ == "__main__":
     # CLI demonstration
     import sys
-
-    from config_loader import load_config
+    from src.fi_coder.utils.config_loader import load_config
 
     config = load_config()
     corpus_path = config["storage"]["corpus_path"]

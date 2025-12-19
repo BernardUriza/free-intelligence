@@ -328,7 +328,7 @@ def list_all_sessions() -> list[str]:
     if CORPUS_PATH.exists():
         with h5py.File(CORPUS_PATH, "r") as f:
             if "/sessions" in f:
-                for session_id in f["/sessions"].keys():
+                for session_id in f["/sessions"]:
                     session_ids.add(session_id)
 
     return sorted(session_ids)

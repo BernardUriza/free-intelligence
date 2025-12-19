@@ -219,7 +219,7 @@ async def get_corpus_stats():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to read corpus: {e!s}",
-        )
+        ) from e
 
 
 @app.get("/api/sessions/summary", response_model=list[SessionSummary], tags=["sessions"])
@@ -318,7 +318,7 @@ async def get_sessions_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to read sessions: {e!s}",
-        )
+        ) from e
 
 
 @app.get("/api/sessions/{session_id}", response_model=SessionDetail, tags=["sessions"])
@@ -414,7 +414,7 @@ async def get_session_detail(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to read session: {e!s}",
-        )
+        ) from e
 
 
 # ============================================================================

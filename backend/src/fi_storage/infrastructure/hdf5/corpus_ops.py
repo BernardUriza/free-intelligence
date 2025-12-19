@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from datetime import datetime
+from pathlib import Path
+import uuid
+
+import h5py
+import numpy as np
+
 """
 Free Intelligence - Corpus Operations
 
@@ -9,13 +16,6 @@ Demonstrates end-to-end flow: config → logger → corpus storage.
 
 FI-DATA-OPS (Test/Demo)
 """
-
-import uuid
-from datetime import datetime
-from pathlib import Path
-
-import h5py
-import numpy as np
 
 
 def append_interaction(
@@ -76,7 +76,7 @@ def append_interaction(
             new_size = current_size + 1
 
             # Resize all datasets
-            for dataset_name in interactions.keys():  # type: ignore[attr-defined]
+            for dataset_name in interactions:  # type: ignore[attr-defined]
                 interactions[dataset_name].resize((new_size,))  # type: ignore[attr-defined]
 
             # Append data

@@ -46,11 +46,12 @@ from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (
     get_session_h5_path,
 )
 
+from backend.src.fi_storage.infrastructure.hdf5.session_locks import locked_session_h5
+
 # Explicit exports for consumers that import constants from this module
 __all__ = [
     "CORPUS_PATH",
 ]
-from backend.src.fi_storage.infrastructure.hdf5.session_locks import locked_session_h5
 
 logger = get_logger(__name__)
 
@@ -534,7 +535,7 @@ def count_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> tuple
             # Count chunks that have VALID transcripts (non-empty)
             # Fix: Cannot trust chunk existence alone - must verify transcript content
             processed = 0
-            for chunk_key in chunks_group.keys():  # type: ignore[union-attr]
+            for chunk_key in chunks_group:  # type: ignore[union-attr]
                 chunk_group = chunks_group[chunk_key]  # type: ignore[index]
 
                 # Check if transcript exists and is non-empty
@@ -910,13 +911,12 @@ def create_empty_chunk(
     task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
     chunk_path = f"{task_path}/chunks/chunk_{chunk_idx}"
 
-    with _h5_lock:  # Lock H5 file to prevent concurrent access errors
-        with locked_session_h5(session_id, mode="a") as f:
-            task_group = f[task_path]  # type: ignore[index]
+    with _h5_lock, locked_session_h5(session_id, mode="a") as f:  # Lock H5 file to prevent concurrent access errors
+        task_group = f[task_path]  # type: ignore[index]
 
-            # Create chunks group if not exists
-            if "chunks" not in task_group:  # type: ignore[operator]
-                task_group.create_group("chunks")  # type: ignore[index]
+        # Create chunks group if not exists
+        if "chunks" not in task_group:  # type: ignore[operator]
+            task_group.create_group("chunks")  # type: ignore[index]
 
             chunks_group = task_group["chunks"]  # type: ignore[index]
 
@@ -1747,7 +1747,7 @@ def get_orders(
         orders_group = task_group["orders"]  # type: ignore[index]
         orders = []
 
-        for order_key in orders_group.keys():
+        for order_key in orders_group:
             order_json = orders_group[order_key][()].decode("utf-8")  # type: ignore[index]
             order_data = json.loads(order_json)
             orders.append(order_data)

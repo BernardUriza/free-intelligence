@@ -15,15 +15,15 @@ from __future__ import annotations
 # Re-export main classes (lazy imports to avoid circular deps)
 def __getattr__(name: str):
     if name == "TaskRepository":
-        from fi_storage.infrastructure.hdf5.task_repository import TaskRepository
+        from .infrastructure.hdf5.task_repository import TaskRepository
 
         return TaskRepository
     if name == "SessionH5Manager":
-        from fi_storage.infrastructure.hdf5.session_h5_manager import SessionH5Manager
+        from .infrastructure.hdf5.session_h5_manager import SessionH5Manager
 
         return SessionH5Manager
     if name == "SessionsStore":
-        from fi_storage.infrastructure.hdf5.sessions_store import SessionsStore
+        from .infrastructure.hdf5.sessions_store import SessionsStore
 
         return SessionsStore
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -344,7 +344,7 @@ class SessionsStore:
         if owner_hash:
             # Need to count owner_hash in unique sessions
             unique_sessions = set()
-            for session_id in index.keys():
+            for session_id in index:
                 session = self.get(session_id)
                 if session and session.owner_hash == owner_hash:
                     unique_sessions.add(session_id)

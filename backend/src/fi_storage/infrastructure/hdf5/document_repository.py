@@ -308,7 +308,7 @@ def get_document(doc_id: str, include_content: bool = False) -> Document | None:
         chunks = []
         if "chunks" in doc_group:
             chunks_group = doc_group["chunks"]
-            for chunk_name in sorted(chunks_group.keys(), key=lambda x: int(x.split("_")[1])):
+            for chunk_name in sorted(chunks_group, key=lambda x: int(x.split("_")[1])):
                 chunk_group = chunks_group[chunk_name]
                 chunk_text = chunk_group["text"][()].decode("utf-8")
                 chunk_embedding = None
@@ -356,7 +356,7 @@ def list_documents(
 
         docs_group = f["documents"]
 
-        for doc_id in docs_group.keys():
+        for doc_id in docs_group:
             doc_group = docs_group[doc_id]
             metadata_json = doc_group.attrs["metadata"]
             metadata = DocumentMetadata.from_dict(json.loads(metadata_json))
@@ -640,7 +640,7 @@ def search_documents_by_embedding(
 
         docs_group = f["documents"]
 
-        for doc_id in docs_group.keys():
+        for doc_id in docs_group:
             doc_group = docs_group[doc_id]
 
             # Check persona filter
@@ -656,7 +656,7 @@ def search_documents_by_embedding(
 
             chunks_group = doc_group["chunks"]
 
-            for chunk_name in chunks_group.keys():
+            for chunk_name in chunks_group:
                 chunk_group = chunks_group[chunk_name]
 
                 if "embedding" not in chunk_group:
