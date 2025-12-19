@@ -999,14 +999,14 @@ def add_audio_to_chunk(
     with _h5_lock, locked_session_h5(session_id, mode="a") as f:  # Lock H5 file to prevent concurrent access errors
         chunk_path = f"/sessions/{session_id}/tasks/{task_type.value}/chunks/chunk_{chunk_idx}"
 
-            if chunk_path not in f:  # type: ignore[operator]
-                raise ValueError(f"Chunk {chunk_idx} does not exist for session {session_id}")
+        if chunk_path not in f:  # type: ignore[operator]
+            raise ValueError(f"Chunk {chunk_idx} does not exist for session {session_id}")
 
-            chunk_group = f[chunk_path]  # type: ignore[index]
+        chunk_group = f[chunk_path]  # type: ignore[index]
 
-            # Delete existing audio if present
-            if filename in chunk_group:  # type: ignore[operator]
-                del chunk_group[filename]  # type: ignore[index]
+        # Delete existing audio if present
+        if filename in chunk_group:  # type: ignore[operator]
+            del chunk_group[filename]  # type: ignore[index]
 
             # Create audio dataset (binary data with opaque dtype)
             import numpy as np
@@ -1678,13 +1678,12 @@ def create_order(
 
     order_id = f"order_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S_%f')}"
 
-    with _h5_lock:
-        with locked_session_h5(session_id, mode="a") as f:
-            task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+    with _h5_lock, locked_session_h5(session_id, mode="a") as f:
+        task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
-            # Create task if doesn't exist
-            if task_path not in f:  # type: ignore[operator]
-                f.create_group(task_path)  # type: ignore[union-attr]
+        # Create task if doesn't exist
+        if task_path not in f:  # type: ignore[operator]
+            f.create_group(task_path)  # type: ignore[union-attr]
 
             task_group = f[task_path]  # type: ignore[index]
 
@@ -1775,14 +1774,13 @@ def update_order(
     Raises:
         ValueError: If order not found
     """
-    with _h5_lock:
-        with locked_session_h5(session_id, mode="a") as f:
-            task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
+    with _h5_lock, locked_session_h5(session_id, mode="a") as f:
+        task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
 
-            if task_path not in f:  # type: ignore[operator]
-                raise ValueError(f"No orders found for session {session_id}")
+        if task_path not in f:  # type: ignore[operator]
+            raise ValueError(f"No orders found for session {session_id}")
 
-            task_group = f[task_path]  # type: ignore[index]
+        task_group = f[task_path]  # type: ignore[index]
 
             if "orders" not in task_group:  # type: ignore[operator]
                 raise ValueError(f"No orders found for session {session_id}")
