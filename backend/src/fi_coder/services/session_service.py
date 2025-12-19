@@ -16,9 +16,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from backend.models.task_type import TaskStatus, TaskType
+
+from ..models.interfaces.ievent_bus import IEventBus
 from ..models.interfaces.ilogger import ILogger
 from ..models.interfaces.itask_repository import ITaskRepository
-from ..models.task_type import TaskStatus, TaskType
 
 
 class SessionService:
@@ -27,15 +29,17 @@ class SessionService:
     Provides unified view of session state across all task types.
     """
 
-    def __init__(self, logger: ILogger, task_repository: ITaskRepository):
+    def __init__(self, logger: ILogger, task_repository: ITaskRepository, event_bus: IEventBus):
         """Initialize SessionService with dependencies.
 
         Args:
             logger: Logger instance
             task_repository: Task repository instance
+            event_bus: Event bus instance
         """
         self.logger = logger
         self.task_repository = task_repository
+        self.event_bus = event_bus
 
     async def get_session_info(self, session_id: str) -> dict:
         """Get complete session information (all tasks).
@@ -102,6 +106,14 @@ class SessionService:
         updated_at = latest_updated.isoformat() if latest_updated else now.isoformat()
 
         self.logger.info("SESSION_INFO_RETRIEVED", session_id=session_id, task_count=len(tasks_metadata))
+
+        # Publish event for decoupled communication
+        self.event_bus.publish("session.info_retrieved", {
+            "session_id": session_id,
+            "overall_status": overall_status,
+            "task_count": len(tasks_metadata),
+            "timestamp": updated_at,
+        })
 
         return {
             "session_id": session_id,

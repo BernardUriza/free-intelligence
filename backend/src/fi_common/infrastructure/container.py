@@ -18,11 +18,13 @@ from typing import TYPE_CHECKING, Any
 # backend.logger -> backend.src.logger -> backend.src.__init__ -> backend.src.fi_common.infrastructure.container
 # Logger is accessed via get_logger() function call below
 from backend.repositories import AuditRepository, CorpusRepository, SessionRepository
+from backend.src.fi_coder.models.interfaces.ievent_bus import IEventBus
 
 # Import interfaces and implementations for DI
 from backend.src.fi_coder.models.interfaces.ilogger import ILogger
 from backend.src.fi_coder.models.interfaces.itask_repository import ITaskRepository
 from backend.src.fi_coder.storage.hdf5_task_repository import HDF5TaskRepository
+from backend.src.fi_coder.utils.in_memory_event_bus import InMemoryEventBus
 from backend.src.fi_coder.utils.structured_logger import StructuredLogger
 
 # Type checking imports - Pylance uses these for type information
@@ -46,14 +48,13 @@ else:
     def _import_service(name: str) -> Any:
         """Helper to import services at runtime, accessing via module __getattr__.
 
-        Returns a stub if the service has unmet dependencies.
+        Returns a stub if the service has unmet dependencies or import fails.
         """
-        import backend.services as services
-
         try:
+            import backend.services as services
             return getattr(services, name)
-        except AttributeError:
-            # Service has unmet dependencies - return a stub class
+        except (ImportError, AttributeError):
+            # Service has unmet dependencies or module import failed - return a stub class
             # Type information still comes from TYPE_CHECKING imports above
             return type(name, (), {})
 
@@ -69,8 +70,11 @@ else:
     TranscriptionService = _import_service("TranscriptionService")  # type: ignore[assignment]
     TriageService = _import_service("TriageService")  # type: ignore[assignment]
 
-    # Import DI SessionService
+    # Import DI services
+    from backend.src.fi_coder.services.audit_service import DIAuditService
     from backend.src.fi_coder.services.session_service import SessionService as DISessionService
+    from backend.src.fi_coder.services.system_health_service import DISystemHealthService
+    from backend.src.fi_coder.services.transcription_service import DITranscriptionService
 
 
 def _get_logger() -> Any:
@@ -107,6 +111,7 @@ class DIContainer:
         # DI dependencies
         self._logger: ILogger | None = None
         self._task_repository: ITaskRepository | None = None
+        self._event_bus: IEventBus | None = None
 
         self._audit_service: AuditService | None = None
         self._corpus_service: CorpusService | None = None
@@ -117,6 +122,9 @@ class DIContainer:
         self._export_service: ExportService | None = None
         self._session_service: SessionService | None = None
         self._di_session_service: DISessionService | None = None
+        self._di_audit_service: DIAuditService | None = None
+        self._di_system_health_service: DISystemHealthService | None = None
+        self._di_transcription_service: DITranscriptionService | None = None
         self._system_health_service: SystemHealthService | None = None
         self._transcription_service: TranscriptionService | None = None
         self._triage_service: TriageService | None = None
@@ -423,6 +431,130 @@ class DIContainer:
 
         return self._diagnostics_service
 
+    def get_logger(self) -> ILogger:
+        """Get or create ILogger singleton.
+
+        Returns:
+            ILogger instance
+        """
+        if self._logger is None:
+            self._logger = StructuredLogger()
+            _get_logger().info("ILogger (StructuredLogger) initialized")
+        return self._logger
+
+    def get_task_repository(self) -> ITaskRepository:
+        """Get or create ITaskRepository singleton.
+
+        Returns:
+            ITaskRepository instance
+
+        Raises:
+            IOError: If repository initialization fails
+        """
+        if self._task_repository is None:
+            try:
+                self._task_repository = HDF5TaskRepository(self.h5_file_path)
+                _get_logger().info("ITaskRepository (HDF5TaskRepository) initialized")
+            except OSError as e:
+                _get_logger().error(f"TASK_REPOSITORY_INIT_FAILED: {e!s}")
+                raise OSError(f"Failed to initialize ITaskRepository: {e}") from e
+        return self._task_repository
+
+    def get_event_bus(self) -> IEventBus:
+        """Get or create IEventBus singleton.
+
+        Returns:
+            IEventBus instance
+        """
+        if self._event_bus is None:
+            self._event_bus = InMemoryEventBus()
+            _get_logger().info("IEventBus (InMemoryEventBus) initialized")
+        return self._event_bus
+
+    def get_di_session_service(self) -> DISessionService:
+        """Get or create DI SessionService singleton with injected dependencies.
+
+        Returns:
+            DISessionService instance with ILogger and ITaskRepository injected
+
+        Raises:
+            IOError: If service initialization fails
+        """
+        if self._di_session_service is None:
+            try:
+                logger: ILogger = self.get_logger()
+                task_repository: ITaskRepository = self.get_task_repository()
+                event_bus: IEventBus = self.get_event_bus()
+                self._di_session_service = DISessionService(logger, task_repository, event_bus)
+                _get_logger().info("DISessionService initialized with DI")
+            except OSError as e:
+                _get_logger().error(f"DI_SESSION_SERVICE_INIT_FAILED: {e!s}")
+                raise OSError(f"Failed to initialize DISessionService: {e}") from e
+
+        return self._di_session_service
+
+    def get_di_audit_service(self) -> DIAuditService:
+        """Get or create DI AuditService singleton with injected dependencies.
+
+        Returns:
+            DIAuditService instance with ILogger and AuditRepository injected
+
+        Raises:
+            IOError: If service initialization fails
+        """
+        if self._di_audit_service is None:
+            try:
+                logger: ILogger = self.get_logger()
+                audit_repository: AuditRepository = self.get_audit_repository()
+                self._di_audit_service = DIAuditService(logger, audit_repository)
+                _get_logger().info("DIAuditService initialized with DI")
+            except OSError as e:
+                _get_logger().error(f"DI_AUDIT_SERVICE_INIT_FAILED: {e!s}")
+                raise OSError(f"Failed to initialize DIAuditService: {e}") from e
+
+        return self._di_audit_service
+
+    def get_di_system_health_service(self) -> DISystemHealthService:
+        """Get or create DI SystemHealthService singleton with injected dependencies.
+
+        Returns:
+            DISystemHealthService instance with ILogger injected
+
+        Raises:
+            IOError: If service initialization fails
+        """
+        if self._di_system_health_service is None:
+            try:
+                logger: ILogger = self.get_logger()
+                self._di_system_health_service = DISystemHealthService(logger)
+                _get_logger().info("DISystemHealthService initialized with DI")
+            except OSError as e:
+                _get_logger().error(f"DI_SYSTEM_HEALTH_SERVICE_INIT_FAILED: {e!s}")
+                raise OSError(f"Failed to initialize DISystemHealthService: {e}") from e
+
+        return self._di_system_health_service
+
+    def get_di_transcription_service(self) -> DITranscriptionService:
+        """Get or create DI TranscriptionService singleton with injected dependencies.
+
+        Returns:
+            DITranscriptionService instance with ILogger and ITaskRepository injected
+
+        Raises:
+            IOError: If service initialization fails
+        """
+        if self._di_transcription_service is None:
+            try:
+                logger: ILogger = self.get_logger()
+                task_repository: ITaskRepository = self.get_task_repository()
+                self._di_transcription_service = DITranscriptionService(logger, task_repository)
+                _get_logger().info("DITranscriptionService initialized with DI")
+            except OSError as e:
+                _get_logger().error(f"DI_TRANSCRIPTION_SERVICE_INIT_FAILED: {e!s}")
+                raise OSError(f"Failed to initialize DITranscriptionService: {e}") from e
+
+        return self._di_transcription_service
+
     def reset(self) -> None:
         """Reset all singletons (useful for testing).
 
@@ -434,6 +566,11 @@ class DIContainer:
         self._corpus_repository = None
         self._session_repository = None
 
+        # DI dependencies
+        self._logger = None
+        self._task_repository = None
+        self._event_bus = None
+
         self._audit_service = None
         self._corpus_service = None
         self._diarization_service = None
@@ -442,6 +579,10 @@ class DIContainer:
         self._evidence_service = None
         self._export_service = None
         self._session_service = None
+        self._di_session_service = None
+        self._di_audit_service = None
+        self._di_system_health_service = None
+        self._di_transcription_service = None
         self._system_health_service = None
         self._transcription_service = None
         self._triage_service = None

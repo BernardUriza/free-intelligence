@@ -673,7 +673,7 @@ def consolidate_sessions(
         sys.path.insert(0, str(backend_path))
     
     try:
-        from backend.logger import get_logger
+        from backend.src.fi_coder.observability.logger import get_logger
         from backend.storage.session_h5_manager import (
             SESSIONS_DIR,
             consolidate_all_sessions,
@@ -793,7 +793,7 @@ def process_remaining_chunks(
         sys.path.insert(0, str(backend_path))
     
     try:
-        from backend.logger import get_logger
+        from backend.src.fi_coder.observability.logger import get_logger
         
         logger = get_logger(__name__)
         

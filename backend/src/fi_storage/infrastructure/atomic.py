@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import contextlib
+import h5py
 import hashlib
 import os
+import structlog
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
-import h5py
-import structlog
 
 logger = structlog.get_logger(__name__)
 

@@ -392,7 +392,7 @@ COMMAND_TEMPLATES: Dict[str, str] = {
     "typecheck": "pyright backend/",
     "test": "python -m pytest tests/ -v",
     "qwen-code": "qwen-code {args}",
-    "fix_lint": "node /opt/homebrew/lib/node_modules/@qwen-code/qwen-code/cli.js \"fix lint errors in {modules}\"",
+    "fix_lint": "echo \"fix lint errors in {modules}\"",
     "refactor": "qwen-code \"refactor {scope} in {modules}\"",
     "fix_and_test": "qwen-code \"fix issues in {modules} and run tests\"",
     "analyze_code": "qwen-code \"analyze code in {modules} without changes\"",

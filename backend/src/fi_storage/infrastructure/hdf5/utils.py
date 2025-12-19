@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import h5py
 import hashlib
 import os
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, TypedDict
-
-import h5py
 
 
 class AtomicWriteResult(TypedDict):
@@ -81,7 +81,5 @@ def atomic_write_session_file(
     finally:
         # Ensure temp file is cleaned up on any path
         if temp_path.exists():
-            try:
+            with suppress(OSError):
                 temp_path.unlink()
-            except OSError:
-                pass

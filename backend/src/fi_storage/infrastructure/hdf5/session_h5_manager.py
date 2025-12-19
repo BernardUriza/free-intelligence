@@ -25,9 +25,8 @@ Pattern: Session-Isolated Storage
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import h5py
+from pathlib import Path
 
 from backend.logger import get_logger
 

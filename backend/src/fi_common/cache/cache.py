@@ -20,7 +20,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from backend.logger import get_logger
+from backend.src.fi_coder.observability.logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -8,10 +8,9 @@ Semantic search over interactions using cosine similarity on embeddings.
 FI-SEARCH-FEAT-001
 """
 
-from pathlib import Path
-
 import h5py
 import numpy as np
+from pathlib import Path
 
 from backend.llm_router import (  # type: ignore[import] llm_embed, pad_embedding_to_768
     llm_embed,
@@ -221,7 +220,7 @@ if __name__ == "__main__":
     """Demo script"""
     import sys
 
-    from backend.config_loader import load_config
+    from backend.src.fi_coder.utils.config_loader import load_config
 
     config = load_config()
     corpus_path = config["storage"]["corpus_path"]

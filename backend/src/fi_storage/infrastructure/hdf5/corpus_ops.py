@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from datetime import datetime
-from pathlib import Path
-import uuid
-
 import h5py
 import numpy as np
+import uuid
+from datetime import datetime
+from pathlib import Path
 
 """
 Free Intelligence - Corpus Operations
@@ -364,7 +363,7 @@ def read_interactions(corpus_path: str, limit: int = 10) -> list[dict]:
 
 if __name__ == "__main__":
     # Demo
-    from backend.config_loader import load_config
+    from backend.src.fi_coder.utils.config_loader import load_config
 
     config = load_config()
     corpus_path = config["storage"]["corpus_path"]

@@ -19,18 +19,16 @@ Usage:
   uvicorn backend.fi_corpus_api:app --reload --port 9001 --host 0.0.0.0
 """
 
+import h5py
 import os
 from collections import defaultdict
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
-
-import h5py
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query, status
 from fastapi import Path as PathParam
-from fastapi import Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 from pydantic import BaseModel, Field
+from typing import Any
 
 # ============================================================================
 # PYDANTIC MODELS

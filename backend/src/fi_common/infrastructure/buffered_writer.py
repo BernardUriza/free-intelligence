@@ -269,7 +269,7 @@ class BufferedHDF5Writer:
         self.corpus_path.rename(archived_path)
 
         # Initialize new corpus
-        from backend.config_loader import load_config
+        from backend.src.fi_coder.utils.config_loader import load_config
         from backend.corpus_schema import init_corpus
 
         config = load_config()

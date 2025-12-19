@@ -1,7 +1,5 @@
-"""Task repository interface for dependency injection."""
-
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class ITaskRepository(ABC):
@@ -15,4 +13,19 @@ class ITaskRepository(ABC):
     @abstractmethod
     def task_exists(self, session_id: str, task_type: str) -> bool:
         """Check if task exists."""
+        pass
+
+    @abstractmethod
+    def ensure_task_exists(self, session_id: str, task_type: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+        """Ensure task exists, create if not."""
+        pass
+
+    @abstractmethod
+    def get_task_chunks(self, session_id: str, task_type: str) -> List[Dict[str, Any]]:
+        """Get task chunks."""
+        pass
+
+    @abstractmethod
+    def save_task_metadata(self, session_id: str, task_type: str, metadata: Dict[str, Any]) -> None:
+        """Save task metadata."""
         pass

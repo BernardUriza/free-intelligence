@@ -49,7 +49,7 @@ def get_logger(
     # Load log level from config if not provided
     if log_level is None:
         try:
-            from backend.config_loader import load_config
+            from backend.src.fi_coder.utils.config_loader import load_config
 
             config = load_config()
             log_level = config["system"]["log_level"]
@@ -111,7 +111,7 @@ def init_logger_from_config(config_path: str | None = None) -> structlog.BoundLo
         >>> logger.info("application_started")
     """
     try:
-        from backend.config_loader import load_config
+        from backend.src.fi_coder.utils.config_loader import load_config
 
         config = load_config(config_path)
 

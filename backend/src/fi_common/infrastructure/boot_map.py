@@ -18,7 +18,7 @@ from datetime import datetime
 import h5py
 import numpy as np
 
-from backend.logger import get_logger
+from backend.src.fi_coder.observability.logger import get_logger
 
 logger = get_logger(__name__)
 

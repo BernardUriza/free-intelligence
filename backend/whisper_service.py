@@ -1,1 +1,0 @@
-from src.fi_coder.services.whisper_service import *

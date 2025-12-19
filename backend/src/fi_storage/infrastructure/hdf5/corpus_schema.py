@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import h5py
 from datetime import datetime
 from pathlib import Path
-from typing import Any
-
-import h5py
+from typing import Any, ClassVar
 
 """
 Free Intelligence - HDF5 Corpus Schema
@@ -21,10 +20,10 @@ class CorpusSchema:
     """HDF5 corpus schema definition and validation."""
 
     # Required top-level groups
-    REQUIRED_GROUPS: list[str] = ["interactions", "embeddings", "metadata"]
+    REQUIRED_GROUPS: ClassVar[list[str]] = ["interactions", "embeddings", "metadata"]
 
     # Dataset specifications for interactions
-    INTERACTION_DATASETS: dict[str, dict[str, Any]] = {
+    INTERACTION_DATASETS: ClassVar[dict[str, dict[str, Any]]] = {
         "session_id": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
         "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
         "timestamp": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
@@ -35,7 +34,7 @@ class CorpusSchema:
     }
 
     # Dataset specifications for embeddings
-    EMBEDDING_DATASETS: dict[str, dict[str, Any]] = {
+    EMBEDDING_DATASETS: ClassVar[dict[str, dict[str, Any]]] = {
         "interaction_id": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]
         "vector": {"dtype": "float32"},  # Will be 2D array
         "model": {"dtype": h5py.string_dtype(encoding="utf-8")},  # type: ignore[attr-defined]

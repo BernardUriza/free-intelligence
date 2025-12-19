@@ -29,6 +29,7 @@ Card: Architecture refactor - task-based HDF5
 
 from __future__ import annotations
 
+import h5py
 import json
 import threading
 import time
@@ -37,15 +38,12 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any, Union
 
-import h5py
-
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (
     CORPUS_PATH,
     get_session_h5_path,
 )
-
 from backend.src.fi_storage.infrastructure.hdf5.session_locks import locked_session_h5
 
 # Explicit exports for consumers that import constants from this module
@@ -911,7 +909,10 @@ def create_empty_chunk(
     task_path = f"/sessions/{session_id}/tasks/{task_type.value}"
     chunk_path = f"{task_path}/chunks/chunk_{chunk_idx}"
 
-    with _h5_lock, locked_session_h5(session_id, mode="a") as f:  # Lock H5 file to prevent concurrent access errors
+    with (
+        _h5_lock,
+        locked_session_h5(session_id, mode="a") as f,
+    ):  # Lock H5 file to prevent concurrent access errors
         task_group = f[task_path]  # type: ignore[index]
 
         # Create chunks group if not exists
@@ -996,7 +997,10 @@ def add_audio_to_chunk(
     """
     CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    with _h5_lock, locked_session_h5(session_id, mode="a") as f:  # Lock H5 file to prevent concurrent access errors
+    with (
+        _h5_lock,
+        locked_session_h5(session_id, mode="a") as f,
+    ):  # Lock H5 file to prevent concurrent access errors
         chunk_path = f"/sessions/{session_id}/tasks/{task_type.value}/chunks/chunk_{chunk_idx}"
 
         if chunk_path not in f:  # type: ignore[operator]
@@ -1127,21 +1131,24 @@ def update_chunk_dataset(
     chunk_path = f"/sessions/{session_id}/tasks/{task_type_str}/chunks/chunk_{chunk_idx}"
 
     try:
-        with _h5_lock, locked_session_h5(session_id, mode="a") as f:  # Lock H5 file to prevent concurrent access errors
+        with (
+            _h5_lock,
+            locked_session_h5(session_id, mode="a") as f,
+        ):  # Lock H5 file to prevent concurrent access errors
             if chunk_path not in f:  # type: ignore[operator]
-                    logger.warning(
-                        "CHUNK_NOT_FOUND",
-                        session_id=session_id,
-                        task_type=task_type_str,
-                        chunk_idx=chunk_idx,
-                    )
-                    return False
+                logger.warning(
+                    "CHUNK_NOT_FOUND",
+                    session_id=session_id,
+                    task_type=task_type_str,
+                    chunk_idx=chunk_idx,
+                )
+                return False
 
-                chunk_group = f[chunk_path]  # type: ignore[index]
+            chunk_group = f[chunk_path]  # type: ignore[index]
 
-                # Delete existing dataset if present
-                if field in chunk_group:  # type: ignore[operator]
-                    del chunk_group[field]  # type: ignore[index]
+            # Delete existing dataset if present
+            if field in chunk_group:  # type: ignore[operator]
+                del chunk_group[field]  # type: ignore[index]
 
                 # Create new dataset with appropriate dtype
                 if isinstance(value, str):
@@ -1231,23 +1238,26 @@ def batch_update_chunk_datasets(
 
     for attempt in range(max_retries):
         try:
-            with _h5_lock, locked_session_h5(session_id, mode="a") as f:  # Lock H5 file to prevent concurrent access errors
+            with (
+                _h5_lock,
+                locked_session_h5(session_id, mode="a") as f,
+            ):  # Lock H5 file to prevent concurrent access errors
                 if chunk_path not in f:  # type: ignore[operator]
-                        logger.warning(
-                            "CHUNK_NOT_FOUND",
-                            session_id=session_id,
-                            task_type=task_type_str,
-                            chunk_idx=chunk_idx,
-                        )
-                        return False
+                    logger.warning(
+                        "CHUNK_NOT_FOUND",
+                        session_id=session_id,
+                        task_type=task_type_str,
+                        chunk_idx=chunk_idx,
+                    )
+                    return False
 
-                    chunk_group = f[chunk_path]  # type: ignore[index]
+                chunk_group = f[chunk_path]  # type: ignore[index]
 
-                    # Update all fields atomically
-                    for field, value in updates.items():
-                        # Delete existing dataset if present
-                        if field in chunk_group:  # type: ignore[operator]
-                            del chunk_group[field]  # type: ignore[index]
+                # Update all fields atomically
+                for field, value in updates.items():
+                    # Delete existing dataset if present
+                    if field in chunk_group:  # type: ignore[operator]
+                        del chunk_group[field]  # type: ignore[index]
 
                         # Create new dataset with appropriate dtype
                         if isinstance(value, str):
@@ -1782,31 +1792,31 @@ def update_order(
 
         task_group = f[task_path]  # type: ignore[index]
 
-            if "orders" not in task_group:  # type: ignore[operator]
-                raise ValueError(f"No orders found for session {session_id}")
+        if "orders" not in task_group:  # type: ignore[operator]
+            raise ValueError(f"No orders found for session {session_id}")
 
-            orders_group = task_group["orders"]  # type: ignore[index]
+        orders_group = task_group["orders"]  # type: ignore[index]
 
-            if order_id not in orders_group:  # type: ignore[operator]
-                raise ValueError(f"Order {order_id} not found")
+        if order_id not in orders_group:  # type: ignore[operator]
+            raise ValueError(f"Order {order_id} not found")
 
-            # Update order
-            order_data = {
-                "id": order_id,
-                "updated_at": datetime.now(UTC).isoformat(),
-                **order,
-            }
-            order_json = json.dumps(order_data)
+        # Update order
+        order_data = {
+            "id": order_id,
+            "updated_at": datetime.now(UTC).isoformat(),
+            **order,
+        }
+        order_json = json.dumps(order_data)
 
-            # Delete and recreate (HDF5 doesn't support in-place update)
-            del orders_group[order_id]  # type: ignore[index]
-            orders_group.create_dataset(order_id, data=order_json.encode("utf-8"))  # type: ignore[union-attr]
+        # Delete and recreate (HDF5 doesn't support in-place update)
+        del orders_group[order_id]  # type: ignore[index]
+        orders_group.create_dataset(order_id, data=order_json.encode("utf-8"))  # type: ignore[union-attr]
 
-            logger.info(
-                "ORDER_UPDATED",
-                session_id=session_id,
-                order_id=order_id,
-            )
+        logger.info(
+            "ORDER_UPDATED",
+            session_id=session_id,
+            order_id=order_id,
+        )
 
 
 def delete_order(

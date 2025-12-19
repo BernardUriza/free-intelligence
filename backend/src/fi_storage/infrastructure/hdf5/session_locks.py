@@ -22,12 +22,11 @@ Author: Claude Code (P0.5 Concurrency Fix)
 
 from __future__ import annotations
 
+import h5py
 import threading
 from collections import defaultdict
 from collections.abc import Iterator
 from contextlib import contextmanager
-
-import h5py
 
 from backend.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (

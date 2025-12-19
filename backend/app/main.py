@@ -29,8 +29,8 @@ from backend.middleware.tracing import TracingMiddleware
 async def lifespan(app: FastAPI):
     """FastAPI lifespan context manager for startup/shutdown events."""
     # Startup
-    from backend.database import init_db
-    from backend.logger import get_logger
+    from backend.src.fi_coder.storage.database import init_db
+    from backend.src.fi_coder.observability.logger import get_logger
 
     # Configure structured JSON logging for chat observability
     try:
