@@ -36,7 +36,7 @@ make dev-all
 ```bash
 make dev-kill
 # O directamente:
-./scripts/kill-all-fi.sh
+python -m fi_cli dev kill-all
 ```
 
 **Qué hace:**
@@ -56,30 +56,6 @@ make dev-restart
 
 ---
 
-### 4️⃣ Monitorear Procesos (Detectar Código Congelado)
-
-```bash
-./scripts/dev-watch.sh
-```
-
-**Qué hace:**
-- Monitorea cada 30 segundos:
-  - ¿Está respondiendo el backend?
-  - ¿Está respondiendo el frontend?
-  - ⚠️ **Detecta código STALE**: Si modificaste archivos pero el proceso NO se reinició
-- Imprime alertas si detecta procesos zombies
-
-**Output ejemplo:**
-```
-[Backend] ⚠️  STALE CODE DETECTED!
-  └─ Process started: 2025-11-14 01:36:00
-  └─ Code modified:   2025-11-14 08:45:12
-  └─ File: backend/services/diarization/diarization_service.py
-  └─ ACTION: Restart required (make dev-restart)
-```
-
----
-
 ## 🛠️ Troubleshooting
 
 ### Problema: "Hot reload no funciona"
@@ -95,8 +71,8 @@ make dev-restart
 # 1. Verificar si hay procesos zombies
 lsof -ti:7001,9000,9050
 
-# 2. Verificar si el código está congelado
-./scripts/dev-watch.sh
+# 2. Verificar procesos activos
+ps aux | grep -E "(uvicorn|next-dev)"
 ```
 
 **Solución:**
@@ -148,7 +124,6 @@ make dev-all
 | **Arrancar todo** | `make dev-all` | Cleanup + Start (Docker o Native) |
 | **Matar todo** | `make dev-kill` | Nuclear cleanup de procesos |
 | **Reiniciar** | `make dev-restart` | Kill + Start |
-| **Monitorear** | `./scripts/dev-watch.sh` | Detectar código congelado |
 | **Backend solo** | `make run` | Backend nativo (port 7001) |
 | **Frontend solo** | `cd apps/aurity && pnpm dev` | Next.js (port 9000) |
 
@@ -163,9 +138,6 @@ make dev-kill
 
 # 2. Arranca fresh
 make dev-all
-
-# 3. En otra terminal, monitorea (opcional)
-./scripts/dev-watch.sh
 ```
 
 ### Durante desarrollo:
@@ -224,7 +196,6 @@ Si ves estos síntomas, ejecuta `make dev-restart`:
 2. ❌ Browser dice "Connection refused" pero `lsof -ti:9000` imprime un PID
 3. ❌ Backend responde pero con código de hace 2 horas
 4. ❌ Error "Address already in use" al arrancar
-5. ❌ `./scripts/dev-watch.sh` reporta "STALE CODE DETECTED"
 
 ---
 

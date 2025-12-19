@@ -9,7 +9,7 @@ No es gestión documental genérica. Es optimización de rendimiento clínico.
 ## Core Metrics
 
 ### Ingestion Performance
-- **p95 ingest latency**: <2000ms (target per `observability/error_budgets.yaml`)
+- **p95 ingest latency**: <2000ms (target per `policies/error_budgets.yml`)
 - **Objects with verified SHA256**: 100% (integrity guarantee)
 
 ### Clinical Workflow
@@ -32,7 +32,7 @@ Ejemplo:
 
 ## Measurement
 
-Ver: `observability/error_budgets.yaml` (SLOs y alertas Prometheus)
+Ver: `policies/error_budgets.yml` (SLOs y presupuestos de error)
 
 Dashboard Grafana:
 - Timeline API latency (p50/p95/p99)

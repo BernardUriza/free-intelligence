@@ -289,8 +289,8 @@ app.add_middleware(
 ### CRITICAL: Read-Only Production Access
 
 This policy is **MACHINE-ENFORCED** via:
-- `scripts/hooks/pre-receive-prod` (blocks direct git push)
-- `scripts/hooks/prod-integrity-check.sh` (cron every 5min)
+- `.git/hooks/pre-receive-prod` (blocks direct git push)
+- `.git/hooks/prod-integrity-check.sh` (cron every 5min)
 - `.github/workflows/deploy-production.yml` (pre-deploy integrity check)
 
 ### ✅ ALLOWED on Production Server

@@ -247,9 +247,15 @@ pnpm dev        # Next.js
 
 Prod Deploy
 
-cd apps/aurity && pnpm build && python3 ../../scripts/deploy-scp.py
-python3 scripts/deploy-backend-cors-fix.py
-python3 scripts/setup-https-letsencrypt.py
+# Frontend deployment
+cd apps/aurity && pnpm build
+PYTHONPATH=backend/src python3 -m fi_cli deploy deploy-frontend-eruda
+
+# Backend config/restart
+PYTHONPATH=backend/src python3 -m fi_cli deploy restart-backend-production
+
+# HTTPS/SSL setup
+PYTHONPATH=backend/src python3 -m fi_cli deploy setup-https-production
 
 Nginx (/etc/nginx/sites-enabled/aurity)
 

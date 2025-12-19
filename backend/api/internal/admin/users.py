@@ -83,8 +83,15 @@ class UpdateRolesRequest(BaseModel):
 # ============================================================================
 
 
+# Create a module-level variable for the superadmin dependency
+superadmin_dependency = Depends(require_roles([UserRole.SUPERADMIN]))
+
+# Create a module-level variable for require_superadmin dependency
+require_superadmin_dependency = Depends(require_superadmin)
+
+
 async def require_superadmin(
-    current_user: User = Depends(require_roles([UserRole.SUPERADMIN])),
+    current_user: User = superadmin_dependency,
 ) -> dict:
     """FastAPI dependency ensuring FI-superadmin role."""
     return {
@@ -104,7 +111,7 @@ async def list_users(
     page: int = 0,
     per_page: int = 50,
     search: str | None = None,
-    admin: dict = Depends(require_superadmin),
+    admin: dict = require_superadmin_dependency,
 ):
     """
     List all users with pagination and search.
@@ -162,7 +169,7 @@ async def list_users(
 @router.get("/{user_id}")
 async def get_user(
     user_id: str,
-    admin: dict = Depends(require_superadmin),
+    admin: dict = require_superadmin_dependency,
 ):
     """
     Get user details by ID.
@@ -197,7 +204,7 @@ async def get_user(
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_user(
     request: CreateUserRequest,
-    admin: dict = Depends(require_superadmin),
+    admin: dict = require_superadmin_dependency,
 ):
     """
     Create new user and send invitation email.
@@ -280,7 +287,7 @@ async def create_user(
 async def update_user(
     user_id: str,
     request: UpdateUserRequest,
-    admin: dict = Depends(require_superadmin),
+    admin: dict = require_superadmin_dependency,
 ):
     """
     Update user attributes.
@@ -341,7 +348,7 @@ async def update_user(
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: str,
-    admin: dict = Depends(require_superadmin),
+    admin: dict = require_superadmin_dependency,
 ):
     """
     Delete user permanently.
@@ -381,7 +388,7 @@ async def delete_user(
 async def block_user(
     user_id: str,
     request: BlockUserRequest,
-    admin: dict = Depends(require_superadmin),
+    admin: dict = require_superadmin_dependency,
 ):
     """
     Block or unblock a user.
@@ -425,7 +432,7 @@ async def block_user(
 async def update_user_roles(
     user_id: str,
     request: UpdateRolesRequest,
-    admin: dict = Depends(require_superadmin),
+    admin: dict = require_superadmin_dependency,
 ):
     """
     Replace user's roles with new set.
@@ -493,7 +500,7 @@ async def update_user_roles(
 
 @router.get("/roles")
 async def list_available_roles(
-    admin: dict = Depends(require_superadmin),
+    admin: dict = require_superadmin_dependency,
 ):
     """
     List all available roles in the system.

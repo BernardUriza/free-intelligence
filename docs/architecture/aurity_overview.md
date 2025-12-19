@@ -36,6 +36,6 @@ Fuentes → Collectors (SMB/HL7/FHIR/RTSP) → Ingestor NAS (SHA256 + append-onl
 ## Reference
 
 - Config: `config/fi.policy.yaml`, `config/agent.yaml`, `config/sources.yaml`
-- Observability: `observability/error_budgets.yaml`
+- Observability: `policies/error_budgets.yml` + herramientas on-demand en `backend/src/fi_observability/`
 - Policy: `docs/policy/identity_contract.md`
 - Telemedicine: `docs/telemedicine/yield_metrics.md`

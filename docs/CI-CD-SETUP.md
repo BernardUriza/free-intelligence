@@ -103,10 +103,10 @@ Manual changes required via SSH.
 # Build frontend locally and deploy
 cd apps/aurity
 pnpm build
-python3 scripts/deploy-scp.py
+python -m fi_cli deploy scp
 
 # Deploy backend
-python3 scripts/deploy-backend-cors-fix.py
+python -m fi_cli deploy backend-fix-cors
 ```
 
 ### Manual Deployment (SSH)

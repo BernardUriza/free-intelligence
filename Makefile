@@ -33,6 +33,22 @@ ALLOW_BREAK ?= 0
 # Set ALLOW_BREAK=1 to allow --break-system-packages (non-strict envs)
 # Use `make uv-install` for no-global installs (creates project .venv)
 
+# ==========================================================================
+# Observability (On-demand, read-only)
+# ==========================================================================
+OBS_ENV ?= local
+OBS_SLO_POLICY ?= policies/error_budgets.yml
+OBS_OUT_DIR ?= artifacts/fi_observability
+OBS_LOG_SOURCE ?=
+OBS_BASE_URL ?= http://localhost:$(BACKEND_PORT)
+OBS_HEALTH_SHALLOW_PATHS ?= /health
+OBS_HEALTH_DEEP_PATHS ?=
+OBS_HEALTH_TIMEOUT_SECONDS ?= 5
+OBS_HEALTH_LOAD_PATH ?= /health
+OBS_HEALTH_REQUESTS ?= 30
+OBS_HEALTH_CONCURRENCY ?= 5
+OBS_ALERTS_SERVICE ?= public_api
+
 # ============================================================================
 # PHONY Declarations (all targets)
 # ============================================================================
@@ -45,6 +61,7 @@ ALLOW_BREAK ?= 0
 .PHONY: type-check type-check-mypy type-check-all type-check-export type-check-batch
 .PHONY: clean clean-all
 .PHONY: health-check corpus-stats audit-logs trello-status info
+.PHONY: observability-metrics observability-traces observability-health observability-alerts
 .PHONY: dev-all dev-kill dev-restart
 .PHONY: stride-dev stride-build stride-preview stride-lint stride-type-check
 .PHONY: turbo-build turbo-lint turbo-clean
@@ -278,6 +295,59 @@ audit-logs: ## Show recent audit logs
 	@echo "📜 Recent Audit Logs"
 	@$(PY) backend/audit_logs.py show
 
+# ==========================================================================
+# Observability (On-demand, read-only)
+# ==========================================================================
+
+observability-metrics: ## Analyze metrics from structured JSON logs (JSONL)
+	@if [ -z "$(strip $(OBS_LOG_SOURCE))" ]; then \
+		echo "❌ Missing OBS_LOG_SOURCE (JSONL)."; \
+		echo "   Example: make $@ OBS_LOG_SOURCE=/tmp/backend.jsonl"; \
+		exit 1; \
+	fi
+	@PYTHONPATH=backend/src $(PY) -m fi_observability.metrics_analyzer \
+		--base-path "$(PWD)" \
+		--log-source "$(OBS_LOG_SOURCE)" \
+		--slo-policy "$(OBS_SLO_POLICY)" \
+		--environment "$(OBS_ENV)" \
+		--out-dir "$(OBS_OUT_DIR)"
+
+observability-traces: ## Inspect traces/correlation from structured JSON logs (JSONL)
+	@if [ -z "$(strip $(OBS_LOG_SOURCE))" ]; then \
+		echo "❌ Missing OBS_LOG_SOURCE (JSONL)."; \
+		echo "   Example: make $@ OBS_LOG_SOURCE=/tmp/backend.jsonl"; \
+		exit 1; \
+	fi
+	@PYTHONPATH=backend/src $(PY) -m fi_observability.trace_inspector \
+		--base-path "$(PWD)" \
+		--log-source "$(OBS_LOG_SOURCE)" \
+		--slo-policy "$(OBS_SLO_POLICY)" \
+		--environment "$(OBS_ENV)" \
+		--out-dir "$(OBS_OUT_DIR)"
+
+observability-health: ## Validate health endpoints (GET only) + finite load simulation
+	@PYTHONPATH=backend/src $(PY) -m fi_observability.health_validator \
+		--base-path "$(PWD)" \
+		--slo-policy "$(OBS_SLO_POLICY)" \
+		--environment "$(OBS_ENV)" \
+		--out-dir "$(OBS_OUT_DIR)" \
+		--base-url "$(OBS_BASE_URL)" \
+		--shallow-paths "$(OBS_HEALTH_SHALLOW_PATHS)" \
+		--deep-paths "$(OBS_HEALTH_DEEP_PATHS)" \
+		--timeout-seconds "$(OBS_HEALTH_TIMEOUT_SECONDS)" \
+		--load-path "$(OBS_HEALTH_LOAD_PATH)" \
+		--requests "$(OBS_HEALTH_REQUESTS)" \
+		--concurrency "$(OBS_HEALTH_CONCURRENCY)"
+
+observability-alerts: ## Simulate alert logic (dry-run only)
+	@PYTHONPATH=backend/src $(PY) -m fi_observability.alerts_simulator \
+		--base-path "$(PWD)" \
+		--slo-policy "$(OBS_SLO_POLICY)" \
+		--environment "$(OBS_ENV)" \
+		--out-dir "$(OBS_OUT_DIR)" \
+		--dry-run \
+		--service "$(OBS_ALERTS_SERVICE)"
+
 trello-status: ## Show Trello sprint status
 	@echo "📋 Trello Sprint Status"
 	@command -v $(TRELLO_CLI) >/dev/null 2>&1 \
@@ -314,10 +384,10 @@ info: ## Show project information
 # ============================================================================
 
 dev-all: ## Start all services (Python 3.14 Native + Frontend in single terminal)
-	@./scripts/dev-all.sh
+	@PYTHONPATH=backend/src $(PY) -m fi_cli dev all
 
 dev-kill: ## Nuclear cleanup - kill ALL FI processes
-	@./scripts/kill-all-fi.sh
+	@PYTHONPATH=backend/src $(PY) -m fi_cli dev kill-all
 
 dev-restart: dev-kill dev-all ## Restart everything (kill + start)
 
