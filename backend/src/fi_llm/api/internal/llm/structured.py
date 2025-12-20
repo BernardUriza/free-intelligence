@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, status
 from backend.logger import get_logger
 from backend.providers.llm import llm_generate
 from backend.schemas.llm_audit_policy import require_audit_log
-from backend.services.llm.persona_manager import PersonaManager
+from backend.src.fi_llm.services.persona_manager import PersonaManager
 
 from .schemas import StructuredRequest, StructuredResponse
 

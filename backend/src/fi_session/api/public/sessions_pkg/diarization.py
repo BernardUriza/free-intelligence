@@ -20,7 +20,7 @@ async def get_diarization_status_workflow(job_id: str) -> dict[str, Any]:
 
     Calls INTERNAL diarization status function directly and returns combined status.
     """
-    from backend.api.internal.diarization.status import get_diarization_status
+    from backend.src.fi_transcription.api.internal.diarization.status import get_diarization_status
 
     try:
         result = await get_diarization_status(job_id)
@@ -118,7 +118,7 @@ async def get_diarization_segments_workflow(session_id: str) -> dict[str, Any]:
         ) from e
 
 
-from backend.api.public.workflows.models import UpdateSegmentRequest
+from backend.src.fi_common.api.public.models import UpdateSegmentRequest
 
 
 @router.patch(

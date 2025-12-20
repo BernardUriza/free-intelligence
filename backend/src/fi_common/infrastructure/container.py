@@ -291,7 +291,7 @@ class DIContainer:
             try:
                 import os
 
-                from backend.services.diarization.job_service import (
+                from backend.src.fi_common.services.diarization.job_service import (
                     DiarizationJobService,
                 )
 

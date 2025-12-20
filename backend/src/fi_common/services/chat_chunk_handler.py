@@ -28,7 +28,7 @@ from __future__ import annotations
 from typing import Any
 
 from backend.logger import get_logger
-from backend.services.chunk_handler import ChunkHandler
+from backend.src.fi_common.services.chunk_handler import ChunkHandler
 from backend.src.fi_storage.infrastructure.hdf5.chat_sessions_store import (
     add_chat_chunk,
     clear_chat_session,

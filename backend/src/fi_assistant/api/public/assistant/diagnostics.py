@@ -8,7 +8,7 @@ import ulid
 from fastapi import APIRouter, HTTPException
 
 from backend.logger import get_logger
-from backend.services.trace_store import get_trace_store
+from backend.src.fi_storage.services.trace_store import get_trace_store
 from backend.utils.redactor import redact_and_hash_once
 
 from ..assistant_schemas import ChatCompletionRequest
@@ -39,7 +39,7 @@ async def assistant_chat_dry_run(
     user_hash = hashlib.sha256((last_message.content or "").encode()).hexdigest()[:8]
 
     try:
-        from backend.services.llm.persona.manager import PersonaManager
+        from backend.src.fi_llm.services.persona.manager import PersonaManager
 
         pm = PersonaManager()
         persona_cfg = pm.get_effective_persona(request.persona, user_id=request.user)

@@ -13,7 +13,7 @@ async def _get_rag_context(
 ) -> str | None:
     """Search documents and build RAG context for the LLM."""
     try:
-        from backend.api.public.workflows.documents import _get_embedding
+        from backend.src.fi_document.api.public.documents import _get_embedding
         from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
             get_document,
             search_documents_by_embedding,

@@ -12,7 +12,7 @@ def assign_superadmin(
 	email: Annotated[str, typer.Argument(help="User email (input only; not printed)")],
 ) -> None:
 	"""Assign FI-superadmin role to user identified by email."""
-	from backend.services.auth0_management import get_auth0_service
+	from backend.src.fi_auth.services.auth0_management import get_auth0_service
 
 	service = get_auth0_service()
 
@@ -92,7 +92,7 @@ def link_accounts(
 	typer.echo("🔧 Procesando...")
 	typer.echo("")
 	try:
-		from backend.services.auth0_management import get_auth0_service
+		from backend.src.fi_auth.services.auth0_management import get_auth0_service
 		service = get_auth0_service()
 		service.link_user_account(primary_user_id=primary_user_id, secondary_user_id=secondary_user_id)
 		typer.echo("=" * 60)
@@ -266,7 +266,7 @@ exports.onExecutePostLogin = async (event, api) => {
 			return response.json()
 
 	# Get credentials from environment (same as auth0_management service)
-	from backend.services.auth0_management import get_auth0_service
+	from backend.src.fi_auth.services.auth0_management import get_auth0_service
 	service = get_auth0_service()
 	
 	# Extract domain and credentials from service
@@ -352,7 +352,7 @@ def migrate_roles(
 	# Superadmin email
 	SUPERADMIN_EMAIL = "bernarduriza@gmail.com"
 
-	from backend.services.auth0_management import get_auth0_service
+	from backend.src.fi_auth.services.auth0_management import get_auth0_service
 	service = get_auth0_service()
 
 	typer.echo("=" * 70)
@@ -985,7 +985,7 @@ def migrate_roles_fm_to_fi(
     Maps FM-* roles to FI-* equivalents, removes old roles, assigns new ones.
     Assigns FI-superadmin to bernarduriza@gmail.com.
     """
-    from backend.services.auth0_management import get_auth0_service
+    from backend.src.fi_auth.services.auth0_management import get_auth0_service
     
     typer.echo("🔄 Migrating Auth0 roles: FM-* → FI-*")
     typer.echo("=" * 70)

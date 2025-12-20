@@ -2,14 +2,14 @@
 PersonaManager - Free Intelligence v2.0
 
 DEPRECATED: This file is maintained for backward compatibility.
-Import from backend.services.llm.persona instead.
+Import from backend.src.fi_common.services.llm.persona instead.
 
 Example:
-    from backend.services.llm.persona import PersonaManager, PersonaConfig, PersonaNotFound
+    from backend.src.fi_common.services.llm.persona import PersonaManager, PersonaConfig, PersonaNotFound
 """
 
 # Re-export everything from the new modular structure
-from backend.services.llm.persona import (
+from backend.src.fi_common.services.llm.persona import (
     DEFAULT_CACHE_TTL_S,
     DEFAULT_MAX_RAG_CHARS,
     MODE_MARKERS,

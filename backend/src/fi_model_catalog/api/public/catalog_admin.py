@@ -16,7 +16,7 @@ from backend.models.catalog_model import (
     ModelInstallProgress,
     ModelInstallRequest,
 )
-from backend.services.model_catalog.catalog_service import CatalogService
+from backend.src.fi_model_catalog.services.catalog_service import CatalogService
 
 router = APIRouter(prefix="/admin/catalog", tags=["catalog"])
 
@@ -246,7 +246,7 @@ async def delete_installed_model(model_id: str):
         raise HTTPException(status_code=400, detail="El modelo no está instalado")
 
     # Eliminar de Ollama
-    from backend.services.model_catalog.sources.ollama_source import OllamaCatalogSource
+    from backend.src.fi_model_catalog.services.sources.ollama_source import OllamaCatalogSource
 
     ollama = OllamaCatalogSource()
     success = await ollama.delete_model(model.filename)

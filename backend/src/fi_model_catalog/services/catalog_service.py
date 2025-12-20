@@ -21,12 +21,12 @@ from backend.models.catalog_model import (
     CatalogSource,
     ModelInstallProgress,
 )
-from backend.services.model_catalog.sources.base import CatalogSourceBase
-from backend.services.model_catalog.sources.gpt4all_source import GPT4AllCatalogSource
-from backend.services.model_catalog.sources.huggingface_source import (
+from backend.src.fi_model_catalog.services.sources.base import CatalogSourceBase
+from backend.src.fi_model_catalog.services.sources.gpt4all_source import GPT4AllCatalogSource
+from backend.src.fi_model_catalog.services.sources.huggingface_source import (
     HuggingFaceCatalogSource,
 )
-from backend.services.model_catalog.sources.ollama_source import OllamaCatalogSource
+from backend.src.fi_model_catalog.services.sources.ollama_source import OllamaCatalogSource
 
 
 class CatalogService:
@@ -352,7 +352,7 @@ class CatalogService:
         y pueda ser usado por las Personas.
         """
         try:
-            from backend.services.llm_model_service import LLMModelService
+            from backend.src.fi_llm.services.llm_model_service import LLMModelService
 
             service = LLMModelService()
 

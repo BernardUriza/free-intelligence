@@ -20,13 +20,13 @@ Card: Clean Architecture Refactor
 
 from __future__ import annotations
 
-from backend.services.audit_service import AuditService
-from backend.services.corpus_service import CorpusService
-from backend.services.export_service import ExportService
+from backend.src.fi_audit.services.audit_service import AuditService
+from backend.src.fi_storage.services.corpus_service import CorpusService
+from backend.src.fi_common.services.export_service import ExportService
 
-# from backend.services.session_service import SessionService  # Temporarily commented due to import issues
-from backend.services.transcription_service import TranscriptionService
-from backend.services.triage_service import TriageService
+# from backend.src.fi_session.services.session_service import SessionService  # Temporarily commented due to import issues
+from backend.src.fi_transcription.services.transcription_service import TranscriptionService
+from backend.src.fi_workflow.services.triage_service import TriageService
 
 __all__ = [
     "AuditService",

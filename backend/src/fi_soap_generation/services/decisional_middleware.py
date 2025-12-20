@@ -26,8 +26,8 @@ from typing import Any
 from backend.logger import get_logger
 from backend.providers.llm import llm_generate
 from backend.schemas.preset_loader import get_preset_loader
-from backend.services.llm.persona_manager import PersonaManager
-from backend.services.soap_generation.complexity_analyzer import (
+from backend.src.fi_llm.services.persona_manager import PersonaManager
+from backend.src.fi_soap_generation.services.complexity_analyzer import (
     ComplexityMetrics,
     get_complexity_analyzer,
 )

@@ -12,7 +12,7 @@ Architecture:
   mode="chat"    → ChatChunkHandler (in-memory ephemeral)
 
 Usage:
-  from backend.services.chunk_handler_factory import get_chunk_handler
+  from backend.src.fi_common.services.chunk_handler_factory import get_chunk_handler
 
   handler = get_chunk_handler(mode="medical")
   await handler.initialize_session(session_id)
@@ -25,9 +25,9 @@ Card: Voice chat integration (factory)
 from __future__ import annotations
 
 from backend.logger import get_logger
-from backend.services.chat_chunk_handler import ChatChunkHandler
-from backend.services.chunk_handler import ChunkHandler
-from backend.services.medical_chunk_handler import MedicalChunkHandler
+from backend.src.fi_common.services.chat_chunk_handler import ChatChunkHandler
+from backend.src.fi_common.services.chunk_handler import ChunkHandler
+from backend.src.fi_common.services.medical_chunk_handler import MedicalChunkHandler
 
 logger = get_logger(__name__)
 

@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from backend.api.public.workflows.models import (
+from backend.src.fi_common.api.public.models import (
     DoctorFeedbackRequest,
     DoctorFeedbackResponse,
 )
@@ -171,7 +171,7 @@ async def submit_doctor_feedback(
     current_user: User | None = Depends(get_current_user),
 ) -> DoctorFeedbackResponse:
     """Submit doctor's audit feedback for a session."""
-    from backend.api.public.workflows.models import DoctorFeedbackResponse
+    from backend.src.fi_common.api.public.models import DoctorFeedbackResponse
     from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
         get_soap_data,
         save_soap_data,

@@ -18,7 +18,7 @@ from backend.models.catalog_model import (
     CatalogSource,
     ModelInstallProgress,
 )
-from backend.services.model_catalog.sources.base import CatalogSourceBase
+from backend.src.fi_model_catalog.services.sources.base import CatalogSourceBase
 
 
 def _parse_ollama_name(name: str) -> tuple[str, str]:

@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from backend.logger import get_logger
-from backend.services.transcription.whisper import (
+from backend.src.fi_transcription.services.whisper import (
     CPU_THREADS,
     NUM_WORKERS,
     WHISPER_BEAM_SIZE,

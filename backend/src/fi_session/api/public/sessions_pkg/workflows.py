@@ -8,7 +8,7 @@ from backend.logger import get_logger
 from backend.validators import validate_session_id
 
 if TYPE_CHECKING:
-    from backend.api.public.workflows.models import (
+    from backend.src.fi_common.api.public.models import (
         CheckpointRequest,
         CheckpointResponse,
         FinalizeSessionRequest,
@@ -22,7 +22,7 @@ router = APIRouter()
 @router.post("/sessions/{session_id}/diarization", status_code=status.HTTP_202_ACCEPTED)
 async def diarize_session_workflow(session_id: str) -> dict:
     validate_session_id(session_id)
-    from backend.api.public.workflows.services import get_workflow_orchestrator
+    from backend.src.fi_workflow.api.public.services import get_workflow_orchestrator
 
     try:
         orchestrator = get_workflow_orchestrator()
@@ -42,7 +42,7 @@ async def diarize_session_workflow(session_id: str) -> dict:
 @router.post("/sessions/{session_id}/soap", status_code=status.HTTP_202_ACCEPTED)
 async def generate_soap_workflow(session_id: str) -> dict:
     validate_session_id(session_id)
-    from backend.api.public.workflows.services import get_workflow_orchestrator
+    from backend.src.fi_workflow.api.public.services import get_workflow_orchestrator
 
     try:
         orchestrator = get_workflow_orchestrator()
@@ -59,7 +59,7 @@ async def generate_soap_workflow(session_id: str) -> dict:
 
 @router.post("/sessions/{session_id}/emotion", status_code=status.HTTP_202_ACCEPTED)
 async def analyze_emotion_workflow(session_id: str) -> dict:
-    from backend.api.public.workflows.services import get_workflow_orchestrator
+    from backend.src.fi_workflow.api.public.services import get_workflow_orchestrator
 
     try:
         orchestrator = get_workflow_orchestrator()
@@ -83,7 +83,7 @@ async def analyze_session_intelligent_workflow(
     import h5py
 
     from backend.models.task_type import TaskStatus, TaskType
-    from backend.services.workflow_router import get_workflow_router
+    from backend.src.fi_workflow.services.workflow_router import get_workflow_router
     from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
         CORPUS_PATH,
         ensure_task_exists,
@@ -221,7 +221,7 @@ async def analyze_session_intelligent_workflow(
 async def finalize_session_workflow(
     session_id: str, request: FinalizeSessionRequest
 ) -> FinalizeSessionResponse:
-    from backend.api.internal.sessions.finalize import (
+    from backend.src.fi_session.api.internal.sessions.finalize import (
         finalize_session as internal_finalize,
     )
 
@@ -237,7 +237,7 @@ async def finalize_session_workflow(
             result_dict: dict[str, Any] = result  # type: ignore[name-defined]
         else:
             result_dict = result.model_dump()
-        from backend.api.public.workflows.models import FinalizeSessionResponse
+        from backend.src.fi_common.api.public.models import FinalizeSessionResponse
 
         return FinalizeSessionResponse(**result_dict)
     except HTTPException:
@@ -256,7 +256,7 @@ async def finalize_session_workflow(
 async def checkpoint_session_workflow(
     session_id: str, request: CheckpointRequest
 ) -> CheckpointResponse:
-    from backend.api.internal.sessions.checkpoint import (
+    from backend.src.fi_session.api.internal.sessions.checkpoint import (
         checkpoint_session as internal_checkpoint,
     )
 
@@ -280,7 +280,7 @@ async def checkpoint_session_workflow(
             result_dict: dict[str, Any] = result  # type: ignore[name-defined]
         else:
             result_dict = result.model_dump()
-        from backend.api.public.workflows.models import CheckpointResponse
+        from backend.src.fi_common.api.public.models import CheckpointResponse
 
         return CheckpointResponse(**result_dict)
     except HTTPException:

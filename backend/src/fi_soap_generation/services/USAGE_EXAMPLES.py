@@ -15,7 +15,7 @@ from typing import List
 
 def example_basic_usage() -> None:
     """Simple extraction returning a dictionary."""
-    from backend.services.soap_generation.llm_client import OllamaClient
+    from backend.src.fi_soap_generation.services.llm_client import OllamaClient
 
     client = OllamaClient()
 
@@ -41,8 +41,8 @@ def example_basic_usage() -> None:
 
 def example_type_safe_usage() -> None:
     """Extract with full type safety using Pydantic models."""
-    from backend.services.soap_generation.llm_client import OllamaClient
-    from backend.services.soap_generation.soap_models import SOAPNote
+    from backend.src.fi_soap_generation.services.llm_client import OllamaClient
+    from backend.src.fi_soap_generation.services.soap_models import SOAPNote
 
     client = OllamaClient()
 
@@ -79,8 +79,8 @@ def example_type_safe_usage() -> None:
 def example_error_handling() -> None:
     """Handle extraction errors gracefully."""
     from backend.logger import get_logger
-    from backend.services.soap_generation.llm_client import OllamaClient
-    from backend.services.soap_generation.response_parser import OllamaExtractionError
+    from backend.src.fi_soap_generation.services.llm_client import OllamaClient
+    from backend.src.fi_soap_generation.services.response_parser import OllamaExtractionError
 
     logger = get_logger(__name__)
     client = OllamaClient()
@@ -104,7 +104,7 @@ def example_error_handling() -> None:
 
 def example_custom_configuration() -> None:
     """Use custom Ollama endpoints and models."""
-    from backend.services.soap_generation.llm_client import OllamaClient
+    from backend.src.fi_soap_generation.services.llm_client import OllamaClient
 
     # Connect to different Ollama instance
     client = OllamaClient(
@@ -125,7 +125,7 @@ def example_testing_with_mocks() -> None:
     """Mock dependencies for unit testing."""
     from unittest.mock import Mock
 
-    from backend.services.soap_generation.llm_client import OllamaClient
+    from backend.src.fi_soap_generation.services.llm_client import OllamaClient
 
     # Create mock HTTP client
     mock_response = Mock()
@@ -173,8 +173,8 @@ def example_pipeline_integration(
 ) -> dict[str, str | None]:
     """Integration in a full processing pipeline."""
     from backend.logger import get_logger
-    from backend.services.soap_generation.llm_client import OllamaClient
-    from backend.services.soap_generation.response_parser import OllamaExtractionError
+    from backend.src.fi_soap_generation.services.llm_client import OllamaClient
+    from backend.src.fi_soap_generation.services.response_parser import OllamaExtractionError
 
     logger = get_logger(__name__)
 
@@ -225,8 +225,8 @@ def example_pipeline_integration(
 
 def example_batch_processing(transcriptions: List[str]) -> list[dict]:
     """Process multiple transcriptions efficiently."""
-    from backend.services.soap_generation.llm_client import OllamaClient
-    from backend.services.soap_generation.response_parser import OllamaExtractionError
+    from backend.src.fi_soap_generation.services.llm_client import OllamaClient
+    from backend.src.fi_soap_generation.services.response_parser import OllamaExtractionError
 
     client = OllamaClient()
     results = []
@@ -260,7 +260,7 @@ def example_batch_processing(transcriptions: List[str]) -> list[dict]:
 
 def example_response_parser_direct() -> None:
     """Use the parser component independently."""
-    from backend.services.soap_generation.response_parser import OllamaResponseParser
+    from backend.src.fi_soap_generation.services.response_parser import OllamaResponseParser
 
     parser = OllamaResponseParser()
 
@@ -304,7 +304,7 @@ def example_response_parser_direct() -> None:
 
 def example_prompt_builder_usage() -> None:
     """Use prompt builder to manage prompts."""
-    from backend.services.soap_generation.prompt_builder import OllamaPromptBuilder
+    from backend.src.fi_soap_generation.services.prompt_builder import OllamaPromptBuilder
 
     builder = OllamaPromptBuilder()
 
@@ -332,7 +332,7 @@ async def example_async_usage_future() -> None:
 
     This is not yet implemented but shows the intended API.
     """
-    # from backend.services.soap_generation.llm_client_async import (
+    # from backend.src.fi_soap_generation.services.llm_client_async import (
     #     OllamaClientAsync,
     # )
     #

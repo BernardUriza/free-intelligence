@@ -1,4 +1,4 @@
-"""Compatibility wrapper - re-exports from backend.services.audit_service"""
+"""Compatibility wrapper - re-exports from backend.src.fi_audit.services.audit_service"""
 
 from __future__ import annotations
 

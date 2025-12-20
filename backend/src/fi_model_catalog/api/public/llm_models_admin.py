@@ -22,7 +22,7 @@ from backend.models.llm_model import (
     LLMModelUpdate,
     LLMProvider,
 )
-from backend.services.llm_model_service import llm_model_service
+from backend.src.fi_llm.services.llm_model_service import llm_model_service
 
 # Medical test prompts for model validation
 MEDICAL_TEST_PROMPTS = [

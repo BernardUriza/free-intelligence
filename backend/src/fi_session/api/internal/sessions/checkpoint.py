@@ -29,7 +29,7 @@ from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
-from backend.services.checkpoint import (
+from backend.src.fi_common.services.checkpoint import (
     CheckpointError,
     CheckpointRequest,
     NoChunksToProcessError,

@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
-from backend.services.llm.conversation_memory import get_memory_manager
+from backend.src.fi_llm.services.conversation_memory import get_memory_manager
 
 logger = get_logger(__name__)
 router = APIRouter()

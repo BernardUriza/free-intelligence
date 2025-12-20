@@ -10,8 +10,8 @@ from typing import Any
 
 from backend.logger import get_logger
 from backend.providers.llm import llm_generate
-from backend.services.soap_generation.prompt_builder import OllamaPromptBuilder
-from backend.services.soap_generation.response_parser import (
+from backend.src.fi_soap_generation.services.prompt_builder import OllamaPromptBuilder
+from backend.src.fi_soap_generation.services.response_parser import (
     OllamaExtractionError,
     OllamaResponseParser,
 )
