@@ -10,7 +10,7 @@ import sys
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "backend"))
 
-from backend.services.tts_unified import get_unified_tts_service
+from backend.src.fi_tts.services.tts_unified import get_unified_tts_service
 
 
 async def main():

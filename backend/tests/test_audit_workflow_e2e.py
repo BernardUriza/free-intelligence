@@ -275,7 +275,7 @@ class TestAuditWorkflowE2E:
 
     def test_analyze_session_flags_heuristics(self):
         """Test flag detection heuristics."""
-        from backend.api.public.workflows.sessions import _analyze_session_flags
+        from backend.src.fi_session.api.public.sessions import _analyze_session_flags
 
         # Test low confidence flag
         flags = _analyze_session_flags(

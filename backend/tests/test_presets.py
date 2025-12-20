@@ -163,7 +163,7 @@ class TestPresetIntegration:
 
     def test_soap_preset_in_prompt_builder(self):
         """Test that OllamaPromptBuilder loads SOAP preset"""
-        from backend.services.soap_generation.prompt_builder import OllamaPromptBuilder
+        from backend.src.fi_soap_generation.services.prompt_builder import OllamaPromptBuilder
 
         builder = OllamaPromptBuilder(use_preset=True)
         assert builder.preset is not None, "Builder should load preset"

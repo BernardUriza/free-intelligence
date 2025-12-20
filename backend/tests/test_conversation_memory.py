@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.services.llm.conversation_memory import ConversationMemoryManager
+from backend.src.fi_llm.services.conversation_memory import ConversationMemoryManager
 
 
 @pytest.fixture

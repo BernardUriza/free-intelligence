@@ -9,7 +9,7 @@ from typing import Any
 from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.policy.policy_loader import get_policy_loader
-from backend.services.workflow_tracker import get_workflow_tracker
+from backend.src.fi_workflow.services.workflow_tracker import get_workflow_tracker
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     create_order,
     get_diarization_segments,
@@ -118,7 +118,7 @@ def generate_soap_worker(
         )
 
         # Generate SOAP note using DecisionalMiddleware (intelligent orchestration)
-        from backend.services.soap_generation.decisional_middleware import (
+        from backend.src.fi_soap_generation.services.decisional_middleware import (
             get_decisional_middleware,
         )
 

@@ -263,31 +263,45 @@ Requires environment variables:
 
     # Include all API routers (lazy load to avoid circular imports)
     try:
-        from backend.api import internal, public
-        from backend.api.internal.admin import users_router  # Admin user management
-
-        # Import TTS router, Check-in router, Payments router, Clinics router, Notifications router
-        from backend.api.public import (
-            audit,
-            catalog_admin,
-            checkin,
-            clinics,
-            llm_models_admin,
-            notifications,
-            patients,
-            payments,
-            policy,
-            providers,
-            system_resources,
-            tts,
-            user_clinic,
-        )
-        from backend.api.public.workflows import aurity_personas, timeline
         from backend.src.fi_auth.adapters.fastapi_adapter import auth_router
+
+        # Import individual routers from new fi_* package structure
+        from backend.src.fi_workflow.api.public.workflows import router as public_workflows_router
+        from backend.src.fi_timeline.api.public import timeline
+        from backend.src.fi_assistant.api.public import aurity_personas
+        from backend.src.fi_patient.api.public import patients
+        from backend.src.fi_provider.api.public import providers
+        from backend.src.fi_audit.api.public import audit
+        from backend.src.fi_policy.api.public import policy
+        from backend.src.fi_assistant.api.public import personas_admin
+        from backend.src.fi_tts.api.public import tts
+        from backend.src.fi_checkin.api.public import checkin
+        from backend.src.fi_payment.api.public import payments
+        from backend.src.fi_clinic.api.public import clinics
+        from backend.src.fi_user.api.public import user_clinic
+        from backend.src.fi_common.api.public import notifications
+        from backend.src.fi_llm.api.public import llm_models_admin
+        from backend.src.fi_model_catalog.api.public import catalog_admin
+        from backend.src.fi_system.api.public import system_resources
+
+        # Internal API imports
+        from backend.src.fi_audit.api.internal.audit import router as internal_audit_router
+        from backend.src.fi_transcription.api.internal.diarization import router as diarization_router
+        from backend.src.fi_common.api.internal.exports import router as exports_router
+        from backend.src.fi_timeline.api.internal.timeline import router as timeline_internal_router
+        from backend.src.fi_kpi.api.internal.kpis import router as kpis_router
+        from backend.src.fi_session.api.internal.sessions import router as sessions_router
+        from backend.src.fi_session.api.internal.sessions.checkpoint import router as sessions_checkpoint_router
+        from backend.src.fi_session.api.internal.sessions.finalize import router as sessions_finalize_router
+        from backend.src.fi_workflow.api.internal.triage import router as triage_router
+        from backend.src.fi_transcription.api.internal.transcribe import router as transcribe_router
+        from backend.src.fi_llm.api.internal.llm import router as llm_router
+        from backend.src.fi_admin.api.internal.admin.users import users_router  # Admin user management
+        from backend.src.fi_coder.api.internal.fi_coder import router as fi_coder_router
 
         # PUBLIC API (CORS enabled, orchestrators)
         public_app.include_router(auth_router)  # Auth0 Authentication (HIPAA G-003)
-        public_app.include_router(public.workflows.router)  # AURITY orchestrator
+        public_app.include_router(public_workflows_router)  # AURITY orchestrator
         public_app.include_router(timeline.router)  # Timeline/sessions listing
         public_app.include_router(aurity_personas.router)  # Personas list (public)
         public_app.include_router(patients.router)  # Patient CRUD (FI-DATA-DB-001)
@@ -297,7 +311,7 @@ Requires environment variables:
             audit.router, prefix="/audit", tags=["Audit"]
         )  # Audit logs (FI-UI-FEAT-206)
         public_app.include_router(policy.router)  # Policy viewer (FI-UI-FEAT-204)
-        public_app.include_router(public.personas_admin.router)  # Personas Admin (FI-UI-DESIGN-003)
+        public_app.include_router(personas_admin.router)  # Personas Admin (FI-UI-DESIGN-003)
         public_app.include_router(tts.router)  # Text-to-Speech (Azure OpenAI)
         public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
         public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
@@ -316,35 +330,35 @@ Requires environment variables:
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 
         # INTERNAL API (atomic resources, AURITY-only)
-        internal_app.include_router(internal.audit.router, prefix="/audit", tags=["audit"])
+        internal_app.include_router(internal_audit_router, prefix="/audit", tags=["audit"])
         internal_app.include_router(
-            internal.diarization.router, prefix="/diarization", tags=["diarization"]
+            diarization_router, prefix="/diarization", tags=["diarization"]
         )
-        internal_app.include_router(internal.exports.router, prefix="/exports", tags=["exports"])
+        internal_app.include_router(exports_router, prefix="/exports", tags=["exports"])
         # Timeline internal compatibility router (verify-hash)
         internal_app.include_router(
-            internal.timeline.router
+            timeline_internal_router
         )  # No hasattr check - let it fail if missing
-        internal_app.include_router(internal.kpis.router, prefix="/kpis", tags=["kpis"])
-        internal_app.include_router(internal.sessions.router, prefix="/sessions", tags=["sessions"])
+        internal_app.include_router(kpis_router, prefix="/kpis", tags=["kpis"])
+        internal_app.include_router(sessions_router, prefix="/sessions", tags=["sessions"])
         internal_app.include_router(
-            internal.sessions.checkpoint.router, prefix="", tags=["sessions-checkpoint"]
+            sessions_checkpoint_router, prefix="", tags=["sessions-checkpoint"]
         )  # Session checkpoint - incremental audio concatenation
         internal_app.include_router(
-            internal.sessions.finalize.router, prefix="", tags=["sessions-finalize"]
+            sessions_finalize_router, prefix="", tags=["sessions-finalize"]
         )  # Session finalization + encryption + diarization
-        internal_app.include_router(internal.triage.router, prefix="/triage", tags=["triage"])
+        internal_app.include_router(triage_router, prefix="/triage", tags=["triage"])
         internal_app.include_router(
-            internal.transcribe.router, prefix="/transcribe", tags=["transcribe"]
+            transcribe_router, prefix="/transcribe", tags=["transcribe"]
         )
         internal_app.include_router(
-            internal.llm.router
+            llm_router
         )  # Ultra observable LLM layer (prefix already in router)
         internal_app.include_router(
             users_router, tags=["admin"]
         )  # Admin user management (Auth0 Management API)
         internal_app.include_router(
-            internal.fi_coder.router, prefix="/fi_coder", tags=["fi_coder"]
+            fi_coder_router, prefix="/fi_coder", tags=["fi_coder"]
         )  # FI Coder task orchestrator
 
         # Mount sub-apps

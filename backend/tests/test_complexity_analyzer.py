@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services.soap_generation.complexity_analyzer import (
+from backend.src.fi_soap_generation.services.complexity_analyzer import (
     ComplexityAnalyzer,
     get_complexity_analyzer,
 )

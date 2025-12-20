@@ -67,7 +67,7 @@ class TestGPT4AllCatalogSource:
         WHEN: Llamamos list_models()
         THEN: Debe retornar una lista de CatalogModel con datos correctos
         """
-        from backend.services.model_catalog.sources.gpt4all_source import (
+        from backend.src.fi_model_catalog.services.sources.gpt4all_source import (
             GPT4AllCatalogSource,
         )
 
@@ -85,7 +85,7 @@ class TestGPT4AllCatalogSource:
         WHEN: Convertimos a CatalogModel
         THEN: Cada modelo debe tener id, name, size_bytes, ram_required_gb
         """
-        from backend.services.model_catalog.sources.gpt4all_source import (
+        from backend.src.fi_model_catalog.services.sources.gpt4all_source import (
             GPT4AllCatalogSource,
         )
 
@@ -107,7 +107,7 @@ class TestGPT4AllCatalogSource:
         WHEN: Convertimos a CatalogModel
         THEN: Cada modelo debe tener source_url para descarga
         """
-        from backend.services.model_catalog.sources.gpt4all_source import (
+        from backend.src.fi_model_catalog.services.sources.gpt4all_source import (
             GPT4AllCatalogSource,
         )
 
@@ -126,7 +126,7 @@ class TestGPT4AllCatalogSource:
         WHEN: Buscamos "llama"
         THEN: Solo retorna modelos con "llama" en el nombre
         """
-        from backend.services.model_catalog.sources.gpt4all_source import (
+        from backend.src.fi_model_catalog.services.sources.gpt4all_source import (
             GPT4AllCatalogSource,
         )
 
@@ -144,7 +144,7 @@ class TestGPT4AllCatalogSource:
         WHEN: Filtramos por max_size_gb=3
         THEN: Solo retorna modelos menores a 3GB
         """
-        from backend.services.model_catalog.sources.gpt4all_source import (
+        from backend.src.fi_model_catalog.services.sources.gpt4all_source import (
             GPT4AllCatalogSource,
         )
 
@@ -163,7 +163,7 @@ class TestGPT4AllCatalogSource:
         WHEN: Filtramos por max_ram_gb=6
         THEN: Solo retorna modelos que requieren <= 6GB RAM
         """
-        from backend.services.model_catalog.sources.gpt4all_source import (
+        from backend.src.fi_model_catalog.services.sources.gpt4all_source import (
             GPT4AllCatalogSource,
         )
 
@@ -182,7 +182,7 @@ class TestGPT4AllCatalogSource:
         WHEN: Verificamos disponibilidad
         THEN: is_available() retorna True
         """
-        from backend.services.model_catalog.sources.gpt4all_source import (
+        from backend.src.fi_model_catalog.services.sources.gpt4all_source import (
             GPT4AllCatalogSource,
         )
 
@@ -197,7 +197,7 @@ class TestGPT4AllCatalogSource:
         WHEN: Verificamos disponibilidad
         THEN: is_available() retorna False
         """
-        from backend.services.model_catalog.sources.gpt4all_source import (
+        from backend.src.fi_model_catalog.services.sources.gpt4all_source import (
             GPT4AllCatalogSource,
         )
 
@@ -259,7 +259,7 @@ class TestHuggingFaceCatalogSource:
         WHEN: Llamamos list_models()
         THEN: Solo retorna modelos con archivos GGUF
         """
-        from backend.services.model_catalog.sources.huggingface_source import (
+        from backend.src.fi_model_catalog.services.sources.huggingface_source import (
             HuggingFaceCatalogSource,
         )
 
@@ -282,7 +282,7 @@ class TestHuggingFaceCatalogSource:
         WHEN: Filtramos por max_size_gb=5
         THEN: Solo retorna GGUFs menores a 5GB
         """
-        from backend.services.model_catalog.sources.huggingface_source import (
+        from backend.src.fi_model_catalog.services.sources.huggingface_source import (
             HuggingFaceCatalogSource,
         )
 
@@ -305,7 +305,7 @@ class TestHuggingFaceCatalogSource:
         WHEN: Buscamos "llama"
         THEN: Solo retorna modelos con "llama" en el repo_id
         """
-        from backend.services.model_catalog.sources.huggingface_source import (
+        from backend.src.fi_model_catalog.services.sources.huggingface_source import (
             HuggingFaceCatalogSource,
         )
 
@@ -326,7 +326,7 @@ class TestHuggingFaceCatalogSource:
         WHEN: Convertimos a CatalogModel
         THEN: El campo quantization debe extraerse correctamente
         """
-        from backend.services.model_catalog.sources.huggingface_source import (
+        from backend.src.fi_model_catalog.services.sources.huggingface_source import (
             HuggingFaceCatalogSource,
         )
 
@@ -358,7 +358,7 @@ class TestCatalogService:
         WHEN: Llamamos list_models() sin filtro de source
         THEN: Retorna modelos de todas las fuentes
         """
-        from backend.services.model_catalog.catalog_service import CatalogService
+        from backend.src.fi_model_catalog.services.catalog_service import CatalogService
 
         service = CatalogService()
 
@@ -402,7 +402,7 @@ class TestCatalogService:
         WHEN: Filtramos por source=GPT4ALL
         THEN: Solo retorna modelos de GPT4All
         """
-        from backend.services.model_catalog.catalog_service import CatalogService
+        from backend.src.fi_model_catalog.services.catalog_service import CatalogService
 
         service = CatalogService()
         params = CatalogSearchParams(source=CatalogSource.GPT4ALL)
@@ -420,7 +420,7 @@ class TestCatalogService:
         WHEN: Listamos todos los modelos
         THEN: Debe mostrar ambos (no deduplicar) pero marcar la fuente
         """
-        from backend.services.model_catalog.catalog_service import CatalogService
+        from backend.src.fi_model_catalog.services.catalog_service import CatalogService
 
         # Llama 3 existe en ambas fuentes - esto es válido
         # El usuario puede elegir de dónde descargar
@@ -450,8 +450,8 @@ class TestModelInstallation:
         WHEN: Lo instalamos exitosamente
         THEN: Debe crear una entrada en el LLM Model CRUD
         """
-        from backend.services.llm_model_service import LLMModelService
-        from backend.services.model_catalog.catalog_service import CatalogService
+        from backend.src.fi_llm.services.llm_model_service import LLMModelService
+        from backend.src.fi_model_catalog.services.catalog_service import CatalogService
 
         catalog = CatalogService()
 
@@ -486,7 +486,7 @@ class TestModelInstallation:
         WHEN: Lo instalamos
         THEN: Debe registrarse en Ollama con 'ollama create'
         """
-        from backend.services.model_catalog.catalog_service import CatalogService
+        from backend.src.fi_model_catalog.services.catalog_service import CatalogService
 
         catalog = CatalogService()
 
@@ -515,7 +515,7 @@ class TestModelInstallation:
         WHEN: Monitoreamos el progreso
         THEN: Debe reportar porcentaje y bytes descargados
         """
-        from backend.services.model_catalog.catalog_service import CatalogService
+        from backend.src.fi_model_catalog.services.catalog_service import CatalogService
 
         catalog = CatalogService()
 
@@ -574,7 +574,7 @@ class TestOllamaCatalogSource:
         WHEN: Llamamos list_models()
         THEN: Retorna los modelos instalados como CatalogModel con is_installed=True
         """
-        from backend.services.model_catalog.sources.ollama_source import (
+        from backend.src.fi_model_catalog.services.sources.ollama_source import (
             OllamaCatalogSource,
         )
 
@@ -598,7 +598,7 @@ class TestOllamaCatalogSource:
         WHEN: Verificamos disponibilidad
         THEN: is_available() retorna True
         """
-        from backend.services.model_catalog.sources.ollama_source import (
+        from backend.src.fi_model_catalog.services.sources.ollama_source import (
             OllamaCatalogSource,
         )
 
@@ -617,7 +617,7 @@ class TestOllamaCatalogSource:
         WHEN: Verificamos disponibilidad
         THEN: is_available() retorna False
         """
-        from backend.services.model_catalog.sources.ollama_source import (
+        from backend.src.fi_model_catalog.services.sources.ollama_source import (
             OllamaCatalogSource,
         )
 
