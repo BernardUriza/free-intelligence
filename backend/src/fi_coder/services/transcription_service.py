@@ -7,9 +7,10 @@ from __future__ import annotations
 
 from typing import List
 
+from backend.models.task_type import TaskType
+
 from ..models.interfaces.ilogger import ILogger
 from ..models.interfaces.itask_repository import ITaskRepository
-from backend.models.task_type import TaskType
 
 
 class ChunkProcessingResult:

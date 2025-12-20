@@ -1,0 +1,94 @@
+"""
+Pydantic schemas para Internal LLM API
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+# ============================================================================
+# CHAT ENDPOINTS
+# ============================================================================
+
+
+class ChatRequest(BaseModel):
+    """Request para chat conversacional con Free-Intelligence."""
+
+    persona: str = Field(
+        ...,
+        description="Modo del asistente: onboarding_guide, clinical_advisor, soap_editor",
+        examples=["onboarding_guide", "clinical_advisor", "soap_editor"],
+    )
+    message: str = Field(..., min_length=1, max_length=5000)
+    context: dict[str, Any] | None = Field(
+        default=None,
+        description="Contexto adicional (patient_id, session_id, soap_data, etc.)",
+    )
+    session_id: str | None = Field(default=None, description="Session ID para audit logging")
+    doctor_id: str | None = Field(
+        default=None,
+        description="Doctor ID para memoria conversacional (required for memory)",
+    )
+    use_memory: bool = Field(
+        default=False,
+        description="Enable conversation memory (requires doctor_id)",
+    )
+    provider: str | None = Field(
+        default=None, description="Nombre del proveedor LLM (por defecto usa el de policy)"
+    )
+
+
+class ChatResponse(BaseModel):
+    """Response con logging ultra detallado."""
+
+    response: str
+    thinking: str | None = Field(
+        default=None, description="Razonamiento opcional del modelo (si disponible)"
+    )
+    persona: str
+    tokens_used: int
+    latency_ms: int
+    model: str
+    voice: str = Field(
+        description="Azure TTS voice for this persona (nova, alloy, echo, fable, onyx, shimmer)"
+    )
+
+    # Observability metadata
+    prompt_hash: str = Field(description="SHA256 del prompt enviado (primeros 12 chars)")
+    response_hash: str = Field(description="SHA256 de la respuesta (primeros 12 chars)")
+    logged_at: str = Field(description="Timestamp ISO8601")
+
+
+# ============================================================================
+# STRUCTURED EXTRACTION ENDPOINTS
+# ============================================================================
+
+
+class StructuredRequest(BaseModel):
+    """Request para extracción estructurada via LLM."""
+
+    persona: str = Field(..., description="Modo del asistente")
+    command: str = Field(..., min_length=1, description="Comando en lenguaje natural")
+    context: dict[str, Any] = Field(..., description="Contexto necesario (ej: current_soap)")
+    output_schema: dict[str, str] = Field(..., description="Schema esperado del JSON de salida")
+    session_id: str | None = Field(default=None, description="Session ID para audit")
+    provider: str | None = Field(
+        default=None, description="Nombre del proveedor LLM (por defecto usa el de policy)"
+    )
+
+
+class StructuredResponse(BaseModel):
+    """Response con datos estructurados + observabilidad."""
+
+    data: dict[str, Any] = Field(description="Datos extraídos según schema")
+    explanation: str = Field(description="Explicación de lo que se hizo")
+    tokens_used: int
+    latency_ms: int
+    model: str
+
+    # Observability
+    prompt_hash: str
+    response_hash: str
+    logged_at: str

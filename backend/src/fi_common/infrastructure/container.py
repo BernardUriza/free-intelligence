@@ -72,6 +72,8 @@ else:
 
     # Import DI services
     from backend.src.fi_coder.services.audit_service import DIAuditService
+    from backend.src.fi_coder.services.evidence_service import DIEvidenceService
+    from backend.src.fi_coder.services.export_service import DIExportService
     from backend.src.fi_coder.services.session_service import SessionService as DISessionService
     from backend.src.fi_coder.services.system_health_service import DISystemHealthService
     from backend.src.fi_coder.services.transcription_service import DITranscriptionService
@@ -125,6 +127,8 @@ class DIContainer:
         self._di_audit_service: DIAuditService | None = None
         self._di_system_health_service: DISystemHealthService | None = None
         self._di_transcription_service: DITranscriptionService | None = None
+        self._di_evidence_service: DIEvidenceService | None = None
+        self._di_export_service: DIExportService | None = None
         self._system_health_service: SystemHealthService | None = None
         self._transcription_service: TranscriptionService | None = None
         self._triage_service: TriageService | None = None
@@ -555,6 +559,46 @@ class DIContainer:
 
         return self._di_transcription_service
 
+    def get_di_evidence_service(self) -> DIEvidenceService:
+        """Get or create DI EvidenceService singleton with injected dependencies.
+
+        Returns:
+            DIEvidenceService instance with ILogger injected
+
+        Raises:
+            IOError: If service initialization fails
+        """
+        if self._di_evidence_service is None:
+            try:
+                logger: ILogger = self.get_logger()
+                self._di_evidence_service = DIEvidenceService(logger)
+                _get_logger().info("DIEvidenceService initialized with DI")
+            except OSError as e:
+                _get_logger().error(f"DI_EVIDENCE_SERVICE_INIT_FAILED: {e!s}")
+                raise OSError(f"Failed to initialize DIEvidenceService: {e}") from e
+
+        return self._di_evidence_service
+
+    def get_di_export_service(self) -> DIExportService:
+        """Get or create DI ExportService singleton with injected dependencies.
+
+        Returns:
+            DIExportService instance with ILogger injected
+
+        Raises:
+            IOError: If service initialization fails
+        """
+        if self._di_export_service is None:
+            try:
+                logger: ILogger = self.get_logger()
+                self._di_export_service = DIExportService(logger)
+                _get_logger().info("DIExportService initialized with DI")
+            except OSError as e:
+                _get_logger().error(f"DI_EXPORT_SERVICE_INIT_FAILED: {e!s}")
+                raise OSError(f"Failed to initialize DIExportService: {e}") from e
+
+        return self._di_export_service
+
     def reset(self) -> None:
         """Reset all singletons (useful for testing).
 
@@ -583,6 +627,8 @@ class DIContainer:
         self._di_audit_service = None
         self._di_system_health_service = None
         self._di_transcription_service = None
+        self._di_evidence_service = None
+        self._di_export_service = None
         self._system_health_service = None
         self._transcription_service = None
         self._triage_service = None
