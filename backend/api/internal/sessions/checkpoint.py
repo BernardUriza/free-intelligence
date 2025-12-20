@@ -29,12 +29,12 @@ from pydantic import BaseModel, Field
 
 from backend.logger import get_logger
 from backend.models.task_type import TaskType
-from backend.services.checkpoint import (
+from backend.src.fi_checkpoint.services.usecases.checkpoint_use_case import (
     CheckpointError,
     CheckpointRequest,
     NoChunksToProcessError,
     TooManyChunksError,
-    create_checkpoint_service,
+    CheckpointUseCase,
 )
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import get_task_metadata
 
@@ -137,7 +137,17 @@ async def checkpoint_session(session_id: str, request: CheckpointRequestDTO) -> 
             ) from e
 
         # 3. Execute checkpoint via clean architecture service
-        service = create_checkpoint_service()
+        # Import the required adapters to create the service
+        from backend.src.fi_storage.services.adapters.hdf5_repository import HDF5AudioRepository
+        from backend.src.fi_storage.services.adapters.ffmpeg_concatenator import FFmpegConcatenator
+
+        # Create the service with the appropriate adapters
+        repository = HDF5AudioRepository()
+        concatenator = FFmpegConcatenator()
+        service = CheckpointUseCase(
+            audio_repository=repository,
+            audio_concatenator=concatenator,
+        )
         result = service.execute(service_request)
 
         logger.info(

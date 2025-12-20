@@ -25,7 +25,7 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 
-from backend.services.auth0_management import get_auth0_service
+from backend.src.fi_auth.services.auth0_management import get_auth0_service
 from backend.src.fi_auth import User, UserRole, require_roles
 
 logger = structlog.get_logger(__name__)

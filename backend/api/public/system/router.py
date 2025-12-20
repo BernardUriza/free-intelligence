@@ -9,13 +9,12 @@ Reorganized: 2025-11-08 (moved from backend/api/system.py)
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, Dict
-
 from fastapi import APIRouter
 from pydantic import BaseModel
+from typing import Any, Dict
 
-from backend.container import get_container
 from backend.logger import get_logger
+from backend.src.fi_common.infrastructure.container import get_container
 
 logger = get_logger(__name__)
 
@@ -56,7 +55,7 @@ async def get_system_health() -> SystemHealthResponse:
     """
     try:
         container = get_container()
-        health_service = container.get_system_health_service()
+        health_service = container.get_di_system_health_service()
         health_data = health_service.get_system_health()
 
         logger.info("SYSTEM_HEALTH_RETRIEVED", ok=health_data["ok"])

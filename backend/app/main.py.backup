@@ -1,0 +1,570 @@
+"""FastAPI application entry point.
+
+Creates and configures the main FastAPI app with all routers and middleware.
+
+Architecture:
+- Public API (/api/workflows, /api/system): CORS enabled, orchestrators only
+- Internal API (/internal/*): Localhost-only in production, atomic resources
+
+AURITY-ONLY: All non-AURITY routers removed (FI-STRIDE apps deprecated)
+Refactored: 2025-11-14 (Pruned unused endpoints)
+"""
+
+from __future__ import annotations
+
+import os
+from contextlib import asynccontextmanager
+from datetime import UTC
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+from backend.middleware.idempotency import IdempotencyMiddleware
+from backend.middleware.internal_only import InternalOnlyMiddleware
+from backend.middleware.tracing import TracingMiddleware
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan context manager for startup/shutdown events."""
+    # Startup
+    from backend.src.fi_coder.storage.database import init_db
+    from backend.src.fi_coder.observability.logger import get_logger
+
+    # Configure structured JSON logging for chat observability
+    try:
+        from backend.observability.logging import setup_json_logging
+
+        setup_json_logging()
+    except Exception:
+        pass
+
+    logger = get_logger(__name__)
+    try:
+        init_db()
+        logger.info("DATABASE_INITIALIZED", status="success")
+    except Exception as e:
+        logger.error("DATABASE_INIT_FAILED", error=str(e))
+        # Don't fail startup - continue with other services
+
+    yield
+
+    # Shutdown (if needed in the future)
+    # Add cleanup code here
+
+
+def create_app() -> FastAPI:
+    """Create and configure FastAPI application.
+
+    Returns:
+        FastAPI: Configured application instance
+    """
+    # Enhanced documentation
+    description = """
+## 🏥 Free Intelligence - Medical AI Platform
+
+### 🤖 **AI-Powered Medical Assistant**
+Process natural language commands to update medical records using Claude AI.
+
+### 🔑 **Key Features:**
+- **AI Assistant** - Natural language processing with Claude
+- **Audio Transcription** - Deepgram speech-to-text (Azure Whisper endpoint removed)
+- **SOAP Notes** - Structured medical documentation
+- **HDF5 Storage** - Append-only data persistence
+
+### 📚 **Main Endpoints:**
+
+#### **AI Assistant** 🤖
+```
+POST /api/workflows/aurity/sessions/{session_id}/assistant
+```
+Send natural language commands like:
+- "agrega que el paciente tiene diabetes tipo 2"
+- "incluir alergia a penicilina"
+- "nota: paciente hipertenso controlado"
+
+#### **SOAP Notes** 📝
+```
+GET  /api/workflows/aurity/sessions/{session_id}/soap
+PUT  /api/workflows/aurity/sessions/{session_id}/soap
+```
+
+#### **Audio Transcription** 🎤
+```
+POST /api/workflows/aurity/stream
+GET  /api/workflows/aurity/jobs/{session_id}
+```
+
+#### **Sessions** 📊
+```
+GET  /api/workflows/aurity/sessions
+POST /api/workflows/aurity/sessions/{session_id}/finalize
+```
+
+### 🔐 **Configuration**
+Requires environment variables:
+- `CLAUDE_API_KEY` - Anthropic Claude API
+- `DEEPGRAM_API_KEY` - Deepgram transcription (required)
+
+### 📖 **Quick Start**
+1. Check health: `GET /health`
+2. View all endpoints: `GET /`
+3. Try the AI assistant with the example above
+"""
+
+    # Tags for better organization
+    tags_metadata = [
+        {
+            "name": "authentication",
+            "description": "JWT authentication and RBAC for HIPAA compliance (G-003)",
+        },
+        {
+            "name": "AI Assistant",
+            "description": "Natural language medical assistant powered by Claude AI",
+        },
+        {
+            "name": "SOAP Notes",
+            "description": "Manage medical SOAP (Subjective, Objective, Assessment, Plan) notes",
+        },
+        {
+            "name": "Transcription",
+            "description": "Audio to text transcription using Deepgram",
+        },
+        {
+            "name": "Sessions",
+            "description": "Medical consultation session management",
+        },
+        {
+            "name": "Patients",
+            "description": "Patient demographic and identity records (PostgreSQL)",
+        },
+        {
+            "name": "Providers",
+            "description": "Healthcare provider credentials and specialty information (PostgreSQL)",
+        },
+        {
+            "name": "Audit",
+            "description": "Read-only audit logs for HIPAA compliance (FI-UI-FEAT-206)",
+        },
+        {
+            "name": "System",
+            "description": "System health and monitoring",
+        },
+    ]
+
+    # Main app (no global CORS, uses sub-apps)
+    app = FastAPI(
+        title="Free Intelligence",
+        description=description,
+        version="0.1.0",
+        openapi_tags=tags_metadata,
+        lifespan=lifespan,
+        swagger_ui_parameters={
+            "defaultModelsExpandDepth": -1,
+            "docExpansion": "list",
+            "filter": True,
+        },
+    )
+
+    # Development-friendly fallback CORS: ensure browser dev servers (e.g. Next.js on :9000)
+    # can access backend even if sub-app mounting fails during fast-refresh. This is
+    # intentionally only enabled in non-production environments to avoid loosening CORS
+    # in production.
+    _env = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
+    if _env != "production":
+        _dev_origins = [
+            "http://localhost:9000",
+            "http://127.0.0.1:9000",
+            "http://localhost:9050",
+            "http://127.0.0.1:9050",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=_dev_origins,
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_headers=["*"],
+        )
+
+    # Sub-app: Public API (orchestrators, CORS enabled)
+    public_app = FastAPI(title="Public API")
+
+    # P2: Distributed tracing (must be first middleware - outermost layer)
+    public_app.add_middleware(TracingMiddleware)
+
+    # CORS configuration: more restrictive in production
+    environment = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
+
+    if environment == "production":
+        # In production, ALLOWED_ORIGINS must be explicitly set
+        allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "")
+        if not allowed_origins_str:
+            raise ValueError(
+                "ALLOWED_ORIGINS must be set in production environment. "
+                "This is required for CORS security."
+            )
+        allowed_origins = [
+            origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()
+        ]
+        allowed_headers = ["Content-Type", "Authorization", "X-Requested-With"]
+    else:
+        # In development, allow localhost origins
+        allowed_origins = [
+            "http://localhost:9000",
+            "http://localhost:9050",
+            "http://127.0.0.1:9000",
+            "http://127.0.0.1:9050",
+            "http://localhost:3000",  # Next.js dev server
+            "http://127.0.0.1:3000",
+        ]
+        # Also allow any explicitly configured origins
+        explicit_origins = os.getenv("ALLOWED_ORIGINS", "")
+        if explicit_origins:
+            allowed_origins.extend(
+                [origin.strip() for origin in explicit_origins.split(",") if origin.strip()]
+            )
+        allowed_headers = ["*"]  # More permissive in development
+
+    public_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=allowed_headers,
+    )
+
+    # P1: Idempotency middleware for workflow orchestration (prevents duplicate POST operations)
+    public_app.add_middleware(
+        IdempotencyMiddleware,
+        paths=["/workflows/"],  # Relative to /api prefix
+        require_key=False,  # Optional for now (non-breaking change)
+        ttl=3600,  # 1 hour cache
+    )
+
+    # Sub-app: Internal API (atomic resources, CORS for dev, localhost-only)
+    internal_app = FastAPI(title="Internal API")
+
+    # P2: Distributed tracing (must be first middleware)
+    internal_app.add_middleware(TracingMiddleware)
+
+    # Add CORS for development (showcase testing)
+    # Internal API uses same CORS config as public API
+    internal_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=allowed_headers,
+    )
+    internal_app.add_middleware(InternalOnlyMiddleware)
+
+    # Include all API routers (lazy load to avoid circular imports)
+    try:
+        from backend.api import internal, public
+        from backend.api.internal.admin import users_router  # Admin user management
+
+        # Import TTS router, Check-in router, Payments router, Clinics router, Notifications router
+        from backend.api.public import (
+            audit,
+            catalog_admin,
+            checkin,
+            clinics,
+            llm_models_admin,
+            notifications,
+            patients,
+            payments,
+            policy,
+            providers,
+            system_resources,
+            tts,
+            user_clinic,
+        )
+        from backend.api.public.workflows import aurity_personas, timeline
+        from backend.src.fi_auth.adapters.fastapi_adapter import auth_router
+
+        # PUBLIC API (CORS enabled, orchestrators)
+        public_app.include_router(auth_router)  # Auth0 Authentication (HIPAA G-003)
+        public_app.include_router(public.workflows.router)  # AURITY orchestrator
+        public_app.include_router(timeline.router)  # Timeline/sessions listing
+        public_app.include_router(aurity_personas.router)  # Personas list (public)
+        public_app.include_router(patients.router)  # Patient CRUD (FI-DATA-DB-001)
+        public_app.include_router(providers.router)  # Provider CRUD (FI-DATA-DB-001)
+        # NOTE: System router moved to workflows/system.py (/api/workflows/aurity/system/*)
+        public_app.include_router(
+            audit.router, prefix="/audit", tags=["Audit"]
+        )  # Audit logs (FI-UI-FEAT-206)
+        public_app.include_router(policy.router)  # Policy viewer (FI-UI-FEAT-204)
+        public_app.include_router(public.personas_admin.router)  # Personas Admin (FI-UI-DESIGN-003)
+        public_app.include_router(tts.router)  # Text-to-Speech (Azure OpenAI)
+        public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
+        public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
+        public_app.include_router(clinics.router)  # Clinic/Doctor CRUD (FI-CHECKIN-002)
+        public_app.include_router(
+            user_clinic.router
+        )  # User-Clinic membership (link Auth0 user to clinic)
+        public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
+        public_app.include_router(llm_models_admin.router)  # LLM Models Admin (superadmin CRUD)
+        public_app.include_router(
+            catalog_admin.router
+        )  # Model Catalog (GPT4All, HuggingFace, Ollama)
+        public_app.include_router(
+            system_resources.router
+        )  # System Resources Monitor (RAM, Running Models)
+        # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
+
+        # INTERNAL API (atomic resources, AURITY-only)
+        internal_app.include_router(internal.audit.router, prefix="/audit", tags=["audit"])
+        internal_app.include_router(
+            internal.diarization.router, prefix="/diarization", tags=["diarization"]
+        )
+        internal_app.include_router(internal.exports.router, prefix="/exports", tags=["exports"])
+        # Timeline internal compatibility router (verify-hash)
+        internal_app.include_router(
+            internal.timeline.router
+        )  # No hasattr check - let it fail if missing
+        internal_app.include_router(internal.kpis.router, prefix="/kpis", tags=["kpis"])
+        internal_app.include_router(internal.sessions.router, prefix="/sessions", tags=["sessions"])
+        internal_app.include_router(
+            internal.sessions.checkpoint.router, prefix="", tags=["sessions-checkpoint"]
+        )  # Session checkpoint - incremental audio concatenation
+        internal_app.include_router(
+            internal.sessions.finalize.router, prefix="", tags=["sessions-finalize"]
+        )  # Session finalization + encryption + diarization
+        internal_app.include_router(internal.triage.router, prefix="/triage", tags=["triage"])
+        internal_app.include_router(
+            internal.transcribe.router, prefix="/transcribe", tags=["transcribe"]
+        )
+        internal_app.include_router(
+            internal.llm.router
+        )  # Ultra observable LLM layer (prefix already in router)
+        internal_app.include_router(
+            users_router, tags=["admin"]
+        )  # Admin user management (Auth0 Management API)
+        internal_app.include_router(
+            internal.fi_coder.router, prefix="/fi_coder", tags=["fi_coder"]
+        )  # FI Coder task orchestrator
+
+        # Mount sub-apps
+        app.mount("/api", public_app)
+        app.mount("/internal", internal_app)
+    except (ImportError, AttributeError) as e:
+        # If routers fail to load, log and continue with health check only
+        import sys
+
+        # Provide clearer guidance for missing dependencies or import errors
+        print("WARNING: Failed to load API routers during startup.", file=sys.stderr)
+        print(
+            "This usually means a required Python package is missing or an import failed.",
+            file=sys.stderr,
+        )
+        print(
+            "Try: `pip install -r backend/requirements.txt` and restart the server.",
+            file=sys.stderr,
+        )
+        print(f"Error: {e}", file=sys.stderr)
+        import traceback
+
+        traceback.print_exc()
+
+    # Development-only debug route: list all mounted routes and methods
+    # This helps frontend devs discover available endpoints without opening FastAPI docs.
+    if environment != "production":
+
+        @app.get("/__debug_routes")
+        async def _debug_routes() -> dict:
+            routes = []
+            for r in app.routes:
+                try:
+                    path = getattr(r, "path", None) or getattr(r, "url", None) or str(r)
+                    methods = sorted([m for m in getattr(r, "methods", []) if m not in ("HEAD",)])
+                    routes.append(
+                        {
+                            "path": path,
+                            "methods": methods,
+                            "name": getattr(r, "name", None),
+                        }
+                    )
+                except Exception:
+                    continue
+            # Sort for stable output
+            routes = sorted(routes, key=lambda x: (x.get("path") or ""))
+            return {"routes": routes, "count": len(routes)}
+
+    @app.get("/")
+    async def root() -> dict:
+        """Root endpoint - API discovery and system information.
+
+        Well-designed root endpoint that acts as a directory for the API,
+        providing essential information for developers discovering the service.
+        """
+        from datetime import datetime
+
+        environment = os.getenv("ENVIRONMENT", "development")
+
+        return {
+            "service": {
+                "name": "Free Intelligence",
+                "codename": "AURITY",
+                "description": "Advanced Universal Reliable Intelligence for Telemedicine Yield",
+                "version": "0.1.0",
+                "environment": environment,
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+            "status": {
+                "operational": True,
+                "message": "All systems operational",
+            },
+            "api": {
+                "public": {
+                    "base_url": "/api",
+                    "description": "Public orchestration endpoints (CORS enabled)",
+                    "endpoints": {
+                        "workflows": "/api/workflows/aurity/*",
+                        "sessions": "/api/workflows/aurity/sessions/*",
+                        "assistant": "/api/workflows/aurity/assistant/*",
+                        "timeline": "/api/sessions/*",
+                        "audit": "/api/audit/*",
+                        "system": "/api/system/*",
+                    },
+                },
+                "internal": {
+                    "base_url": "/internal",
+                    "description": "Internal atomic resources (localhost-only in production)",
+                    "note": "⚠️ Direct access blocked by InternalOnlyMiddleware in production",
+                    "endpoints": {
+                        "audit": "/internal/audit/*",
+                        "diarization": "/internal/diarization/*",
+                        "exports": "/internal/exports/*",
+                        "kpis": "/internal/kpis/*",
+                        "sessions": "/internal/sessions/*",
+                        "transcribe": "/internal/transcribe/*",
+                        "triage": "/internal/triage/*",
+                        "llm": "/internal/llm/*",
+                    },
+                },
+            },
+            "resources": {
+                "health": "/health",
+                "docs": "/docs",
+                "openapi": "/openapi.json",
+                "static": "/static",
+            },
+            "architecture": {
+                "pattern": "Layered API (Public Orchestrators + Internal Resources)",
+                "philosophy": "LAN-only, append-only HDF5, zero-cloud runtime",
+                "security": "RBAC + PolicyEnforcer + InternalOnlyMiddleware",
+            },
+            "contact": {
+                "repository": "https://github.com/BernardUriza/free-intelligence",
+                "owner": "Bernard Uriza Orozco",
+            },
+            "examples": {
+                "ai_assistant": {
+                    "description": "Natural language SOAP modification",
+                    "method": "POST",
+                    "endpoint": "/api/workflows/aurity/sessions/{session_id}/assistant",
+                    "body": {
+                        "command": "agrega que el paciente tiene diabetes tipo 2 y es alérgico a penicilina",
+                        "current_soap": {
+                            "subjective": "Paciente refiere mareos frecuentes",
+                            "objective": "PA: 140/90, Glucosa: 180 mg/dl",
+                            "assessment": "Hipertensión arterial",
+                            "plan": {
+                                "medications": ["Metformina 850mg c/12h"],
+                                "studies": ["Hemoglobina glucosilada"],
+                            },
+                        },
+                    },
+                    "expected_response": {
+                        "updates": {
+                            "pastMedicalHistory": "add_item:Diabetes mellitus tipo 2",
+                            "allergies": "add_item:Penicilina",
+                        },
+                        "explanation": "Agregados diabetes tipo 2 y alergia a penicilina",
+                        "success": True,
+                    },
+                },
+                "get_soap": {
+                    "description": "Retrieve SOAP note for a session",
+                    "method": "GET",
+                    "endpoint": "/api/workflows/aurity/sessions/{session_id}/soap",
+                    "expected_response": {
+                        "session_id": "test_001",
+                        "soap_note": {
+                            "subjective": "...",
+                            "objective": "...",
+                            "assessment": "...",
+                            "plan": {},
+                        },
+                    },
+                },
+                "transcribe_audio": {
+                    "description": "Upload audio chunk for transcription",
+                    "method": "POST",
+                    "endpoint": "/api/workflows/aurity/stream",
+                    "body": "FormData with session_id, chunk_number, and audio file",
+                    "expected_response": {
+                        "status": "accepted",
+                        "job_id": "session_id",
+                        "message": "Audio chunk received",
+                    },
+                },
+            },
+            "quick_test": {
+                "claude_ai": 'curl -X POST http://104.131.175.65:7001/api/workflows/aurity/sessions/test/assistant -H \'Content-Type: application/json\' -d \'{"command":"test","current_soap":{}}\'',
+                "health": "curl http://104.131.175.65:7001/health",
+                "sessions": "curl http://104.131.175.65:7001/api/workflows/aurity/sessions",
+            },
+        }
+
+    @app.get("/health")
+    async def health_check() -> dict[str, str]:
+        """Health check endpoint."""
+        return {"status": "ok"}
+
+    # P2: Prometheus metrics endpoint for observability
+    from backend.utils.metrics import setup_metrics_endpoint
+
+    setup_metrics_endpoint(app)
+
+    # Mount static files (for demo audio, etc.)
+    # Note: StaticFiles doesn't inherit CORS from parent app, so we wrap it
+    static_dir = Path(__file__).parent.parent / "static"
+    if static_dir.exists():
+        static_app = StaticFiles(directory=str(static_dir))
+
+        # Wrap with CORS for frontend access
+        class CORSStaticFiles:
+            def __init__(self, static_files):
+                self.static_files = static_files
+
+            async def __call__(self, scope, receive, send):
+                if scope["type"] == "http":
+
+                    async def send_with_cors(message):
+                        if message["type"] == "http.response.start":
+                            headers = list(message.get("headers", []))
+                            headers.append((b"access-control-allow-origin", b"*"))
+                            message["headers"] = headers
+                        await send(message)
+
+                    await self.static_files(scope, receive, send_with_cors)
+                else:
+                    await self.static_files(scope, receive, send)
+
+        app.mount("/static", CORSStaticFiles(static_app), name="static")
+
+    return app
+
+
+# Create app instance for uvicorn
+app = create_app()
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=7001)

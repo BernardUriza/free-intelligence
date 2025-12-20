@@ -26,10 +26,10 @@ from backend.policy.policy_loader import get_policy_loader
 from backend.providers.llm import llm_generate
 from backend.repositories.audit_repository import AuditRepository
 from backend.schemas.llm_audit_policy import require_audit_log
-from backend.services.audit_service import AuditService
-from backend.services.llm.conversation_memory import get_memory_manager
-from backend.services.llm.persona_manager import PersonaManager
-from backend.services.trace_store import get_trace_store
+from backend.src.fi_audit.services.audit_service import AuditService
+from backend.src.fi_llm.services.conversation_memory import get_memory_manager
+from backend.src.fi_llm.services.persona_manager import PersonaManager
+from backend.src.fi_storage.services.trace_store import get_trace_store
 
 from .schemas import ChatRequest, ChatResponse
 

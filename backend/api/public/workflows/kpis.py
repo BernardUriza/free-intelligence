@@ -11,7 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.logger import get_logger
-from backend.services.kpis_aggregator import get_kpis_aggregator
+from backend.src.fi_kpi.services.kpis_aggregator import get_kpis_aggregator
 
 logger = get_logger(__name__)
 

@@ -83,7 +83,7 @@ async def analyze_session_intelligent_workflow(
     import h5py
 
     from backend.models.task_type import TaskStatus, TaskType
-    from backend.services.workflow_router import get_workflow_router
+    from backend.src.fi_workflow.services.workflow_router import get_workflow_router
     from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
         CORPUS_PATH,
         ensure_task_exists,

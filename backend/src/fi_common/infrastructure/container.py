@@ -29,19 +29,16 @@ from backend.src.fi_coder.utils.structured_logger import StructuredLogger
 
 # Type checking imports - Pylance uses these for type information
 if TYPE_CHECKING:
-    from backend.services import (
-        AuditService,
-        CorpusService,
-        DiagnosticsService,
-        DiarizationJobService,
-        DiarizationService,
-        EvidenceService,
-        ExportService,
-        SessionService,
-        SystemHealthService,
-        TranscriptionService,
-        TriageService,
-    )
+    from backend.src.fi_audit.services.audit_service import AuditService
+    from backend.src.fi_storage.services.corpus_service import CorpusService
+    from backend.src.fi_common.services.diagnostics_service import DiagnosticsService
+    from backend.src.fi_transcription.services.diarization_service import DiarizationJobService, DiarizationService
+    from backend.src.fi_common.services.evidence_service import EvidenceService
+    from backend.src.fi_common.services.export_service import ExportService
+    from backend.src.fi_session.services.session_service import SessionService
+    from backend.src.fi_system.services.system_health_service import SystemHealthService
+    from backend.src.fi_transcription.services.transcription_service import TranscriptionService
+    from backend.src.fi_common.services.triage_service import TriageService
     from backend.src.fi_coder.services.session_service import SessionService as DISessionService
 else:
     # Runtime imports - accessed via __getattr__ on services module

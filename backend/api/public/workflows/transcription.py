@@ -24,11 +24,11 @@ from pydantic import BaseModel, Field
 
 from backend.dependencies import get_transcription_service
 from backend.logger import get_logger
-from backend.services.transcription.validators import (
+from backend.src.fi_transcription.services.validators import (
     AudioFileValidator,
     ValidationError,
 )
-from backend.services.transcription_service import TranscriptionService
+from backend.src.fi_transcription.services.transcription_service import TranscriptionService
 from backend.validators import validate_session_id
 
 logger = get_logger(__name__)
@@ -177,7 +177,7 @@ async def stream_chunk(
 
     try:
         # 1. Get handler based on mode (Strategy Pattern)
-        from backend.services.chunk_handler_factory import get_chunk_handler
+        from backend.src.fi_common.services.chunk_handler_factory import get_chunk_handler
 
         handler = get_chunk_handler(mode)
 
@@ -337,7 +337,7 @@ async def get_job_status(
         mode = "chat" if session_id.startswith("chat_") else "medical"
 
         # Get handler and delegate
-        from backend.services.chunk_handler_factory import get_chunk_handler
+        from backend.src.fi_common.services.chunk_handler_factory import get_chunk_handler
 
         handler = get_chunk_handler(mode)
         status_dict = await handler.get_session_status(session_id)

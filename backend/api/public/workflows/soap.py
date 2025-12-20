@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from backend.clients import get_llm_client
 from backend.logger import get_logger
-from backend.services.soap_generation.soap_models import SOAPNote
+from backend.src.fi_soap_generation.services.soap_models import SOAPNote
 from backend.validators import validate_session_id
 
 logger = get_logger(__name__)

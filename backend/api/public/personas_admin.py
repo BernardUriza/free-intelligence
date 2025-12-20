@@ -31,8 +31,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.database import get_db_dependency
-from backend.services.llm.persona_manager import PersonaManager
-from backend.services.persona_metrics_service import get_persona_metrics_service
+from backend.src.fi_llm.services.persona_manager import PersonaManager
+from backend.src.fi_llm.services.persona_metrics_service import get_persona_metrics_service
 from backend.src.fi_auth import User, UserRole, get_current_user
 
 router = APIRouter(prefix="/admin/personas", tags=["Personas Admin"])

@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from backend.services.tts_unified import get_unified_tts_service
+from backend.src.fi_common.services.tts_unified import get_unified_tts_service
 
 logger = structlog.get_logger(__name__)
 
