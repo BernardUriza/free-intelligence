@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from backend.services.llm.persona_manager import (
+from backend.src.fi_llm.services.persona_manager import (
     PersonaManager,
     PersonaNotFound,
     PersonaTemplateModel,
@@ -442,6 +442,7 @@ class TestCLI:
     def test_cli_import(self):
         """CLI code should be importable without errors."""
         # Just verify the module loads without syntax errors
-        from backend.services.llm import persona_manager
+        from backend.src.fi_llm import services
+        persona_manager = services.persona_manager
 
         assert hasattr(persona_manager, "PersonaManager")

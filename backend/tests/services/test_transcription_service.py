@@ -21,7 +21,7 @@ from uuid import uuid4
 
 import pytest
 
-from backend.services.transcription import TranscriptionService
+from backend.src.fi_transcription.services.transcription import TranscriptionService
 
 
 @pytest.fixture

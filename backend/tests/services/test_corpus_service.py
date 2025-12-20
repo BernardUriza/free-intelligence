@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from backend.services.corpus_service import CorpusService
+    from backend.src.fi_storage.services.corpus_service import CorpusService
 
 
 class TestCorpusService:

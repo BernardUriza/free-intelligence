@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 
 from backend.models.task_type import TaskType
-from backend.services.workflow_router import (
+from backend.src.fi_workflow.services.workflow_router import (
     WorkflowRouter,
     calculate_routing_cost,
     calculate_savings,

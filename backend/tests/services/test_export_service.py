@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from backend.services.export_service import ExportService
+    from backend.src.fi_common.services.export_service import ExportService
 
 
 class TestExportService:

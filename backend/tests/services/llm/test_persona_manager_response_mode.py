@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.services.llm.persona_manager import PersonaManager
+from backend.src.fi_llm.services.persona_manager import PersonaManager
 
 
 @pytest.fixture

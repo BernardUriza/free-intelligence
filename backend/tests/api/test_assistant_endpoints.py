@@ -23,7 +23,7 @@ class TestAssistantSchemas:
 
     def test_message_model(self):
         """Test Message model creation and validation."""
-        from backend.api.public.workflows.assistant_schemas import Message
+        from backend.src.fi_assistant.api.public.assistant_schemas import Message
 
         # Test basic message
         msg = Message(role="user", content="Hello!")
@@ -37,7 +37,7 @@ class TestAssistantSchemas:
 
     def test_chat_completion_request(self):
         """Test ChatCompletionRequest model with OpenAI compatibility."""
-        from backend.api.public.workflows.assistant_schemas import (
+        from backend.src.fi_assistant.api.public.assistant_schemas import (
             ChatCompletionRequest,
             Message,
         )
@@ -67,7 +67,7 @@ class TestAssistantSchemas:
         """Test ChatCompletionRequest validation."""
         from pydantic import ValidationError
 
-        from backend.api.public.workflows.assistant_schemas import (
+        from backend.src.fi_assistant.api.public.assistant_schemas import (
             ChatCompletionRequest,
             Message,
         )
@@ -87,7 +87,7 @@ class TestAssistantSchemas:
 
     def test_chat_completion_response(self):
         """Test ChatCompletionResponse model."""
-        from backend.api.public.workflows.assistant_schemas import (
+        from backend.src.fi_assistant.api.public.assistant_schemas import (
             ChatCompletionChoice,
             ChatCompletionResponse,
             ChatCompletionUsage,
