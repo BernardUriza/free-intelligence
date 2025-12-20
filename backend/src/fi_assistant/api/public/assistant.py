@@ -1,6 +1,6 @@
 """Assistant workflow router wrapper.
 
-This module delegates to `backend.api.public.workflows.assistant` package,
+This module has been migrated to `backend.src.fi_assistant.api.public` package,
 which contains split endpoints for introduction, chat, diagnostics, and streaming.
 """
 

@@ -122,7 +122,7 @@ class TestSessionEndpoints:
         response = client.get("/api/workflows/aurity/sessions/invalid%21%40%23session/audio")
         assert response.status_code in [400, 404]  # Either validation error or path not found
 
-    @patch("backend.api.public.workflows.services.get_workflow_orchestrator")
+    @patch("backend.src.fi_workflow.api.public.services.get_workflow_orchestrator")
     def test_diarization_workflow_valid_session_id(self, mock_get_orchestrator, client):
         """Test POST /api/workflows/aurity/sessions/{session_id}/diarization with valid session ID."""
         # Mock the orchestrator
@@ -141,7 +141,7 @@ class TestSessionEndpoints:
         # Response could be 202 or 500 depending on internal processing
         assert response.status_code in [202, 500]
 
-    @patch("backend.api.public.workflows.services.get_workflow_orchestrator")
+    @patch("backend.src.fi_workflow.api.public.services.get_workflow_orchestrator")
     def test_soap_generation_workflow_valid_session_id(self, mock_get_orchestrator, client):
         """Test POST /api/workflows/aurity/sessions/{session_id}/soap with valid session ID."""
         # Mock the orchestrator
