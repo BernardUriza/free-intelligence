@@ -266,7 +266,7 @@ Requires environment variables:
         from backend.src.fi_auth.adapters.fastapi_adapter import auth_router
 
         # Import individual routers from new fi_* package structure
-        from backend.src.fi_workflow.api.public.workflows import router as public_workflows_router
+        from backend.api.public.workflows import router as public_workflows_router
         from backend.src.fi_timeline.api.public import timeline
         from backend.src.fi_assistant.api.public import aurity_personas
         from backend.src.fi_patient.api.public import patients
