@@ -140,7 +140,7 @@ def lint_fix_batch(batch_size: int = 5) -> dict[str, Any]:
 
 def run_eslint_check(repo_root: Path) -> tuple[int, str]:
     """Run ESLint check in apps/aurity and return error count and output."""
-    eslint_cmd = "cd apps/aurity && pnpm lint -- --format=json"
+    eslint_cmd = "cd apps/aurity && npx eslint --ext .ts,.tsx . --format=json"
     proc = subprocess.run(
         eslint_cmd,
         cwd=repo_root,
@@ -155,9 +155,16 @@ def run_eslint_check(repo_root: Path) -> tuple[int, str]:
     # Count errors by parsing JSON
     try:
         import json
-        results = json.loads(output)
-        error_count = sum(len(file_result.get('messages', [])) for file_result in results)
-    except (json.JSONDecodeError, TypeError):
+        # Extract JSON from output (it might have extra text)
+        start = output.find('[')
+        end = output.rfind(']') + 1
+        if start != -1 and end > start:
+            json_str = output[start:end]
+            results = json.loads(json_str)
+            error_count = sum(len(file_result.get('messages', [])) for file_result in results)
+        else:
+            raise ValueError("No JSON array found")
+    except (json.JSONDecodeError, TypeError, ValueError):
         # Fallback to simple counting
         lines = output.split('\n')
         error_lines = [line for line in lines if ':' in line and ('error' in line.lower() or 'warning' in line.lower())]
@@ -166,41 +173,71 @@ def run_eslint_check(repo_root: Path) -> tuple[int, str]:
 
 
 def parse_eslint_error_lines(eslint_output: str, max_fixes: int) -> list[dict[str, str]]:
-    """Parse ESLint output to extract error lines."""
-    import re
-    lines = eslint_output.strip().split('\n')
+    """Parse ESLint JSON output to extract error lines."""
+    import json
     error_lines = []
-    current_file = None
-    for line in lines:
-        original_line = line
-        line = line.strip()
-        logger.info("parsing_line", line=line[:100])
-        if line and not line.startswith('>') and not line.startswith('eslint') and ':' in line:
-            # Check if it's a file path line
-            if '/' in line and not 'error' in line.lower() and not 'warning' in line.lower():
-                current_file = line
-                logger.info("set_current_file", file=current_file)
-            # Check if it's an error line: "  line:col  error  message"
-            elif current_file and re.match(r'^\d+:\d+\s+(error|warning)', line):
-                logger.info("matched_error_line", line=line)
-                match = re.match(r'^(\d+):(\d+)\s+(error|warning)\s+(.+)', line)
-                if match:
-                    line_num = match.group(1)
-                    col_num = match.group(2)
-                    severity = match.group(3)
-                    message = match.group(4)
-                    # Extract relative path
-                    if 'apps/aurity/' in current_file:
-                        rel_path = current_file.split('apps/aurity/')[1]
-                        file_path = f"apps/aurity/{rel_path}"
-                    else:
-                        file_path = current_file
-                    error_lines.append({
-                        "file_path": file_path,
-                        "line_num": line_num,
-                        "error_desc": f"{severity}: {message}"
-                    })
-                    logger.info("added_error", file=file_path, line=line_num, desc=message[:50])
+    try:
+        # Extract JSON from output (it might have extra text)
+        start = eslint_output.find('[')
+        end = eslint_output.rfind(']') + 1
+        if start != -1 and end > start:
+            json_str = eslint_output[start:end]
+            results = json.loads(json_str)
+            for file_result in results:
+                file_path = file_result.get('filePath', '')
+                messages = file_result.get('messages', [])
+                for msg in messages:
+                    if msg.get('severity', 0) >= 1:  # 1=warning, 2=error
+                        severity = 'error' if msg.get('severity') == 2 else 'warning'
+                        line_num = str(msg.get('line', 1))
+                        col_num = str(msg.get('column', 1))
+                        message = msg.get('message', '')
+                        rule = msg.get('ruleId', '')
+                        full_message = f"{message} ({rule})" if rule else message
+                        
+                        # Extract relative path
+                        if 'apps/aurity/' in file_path:
+                            rel_path = file_path.split('apps/aurity/')[1]
+                            file_path_clean = f"apps/aurity/{rel_path}"
+                        else:
+                            file_path_clean = file_path
+                        
+                        error_lines.append({
+                            "file_path": file_path_clean,
+                            "line_num": line_num,
+                            "error_desc": f"{severity}: {full_message}"
+                        })
+    except (json.JSONDecodeError, TypeError, KeyError, ValueError) as e:
+        logger.warning("Failed to parse ESLint JSON, falling back to text parsing", error=str(e))
+        # Fallback to text parsing
+        lines = eslint_output.strip().split('\n')
+        current_file = None
+        for line in lines:
+            original_line = line
+            line = line.strip()
+            if line and not line.startswith('>') and not line.startswith('eslint') and ':' in line:
+                # Check if it's a file path line
+                if '/' in line and not 'error' in line.lower() and not 'warning' in line.lower():
+                    current_file = line
+                # Check if it's an error line: "  line:col  error  message"
+                elif current_file and re.match(r'^\d+:\d+\s+(error|warning)', line):
+                    match = re.match(r'^(\d+):(\d+)\s+(error|warning)\s+(.+)', line)
+                    if match:
+                        line_num = match.group(1)
+                        col_num = match.group(2)
+                        severity = match.group(3)
+                        message = match.group(4)
+                        # Extract relative path
+                        if 'apps/aurity/' in current_file:
+                            rel_path = current_file.split('apps/aurity/')[1]
+                            file_path = f"apps/aurity/{rel_path}"
+                        else:
+                            file_path = current_file
+                        error_lines.append({
+                            "file_path": file_path,
+                            "line_num": line_num,
+                            "error_desc": f"{severity}: {message}"
+                        })
     logger.info("parsed_eslint_errors", count=len(error_lines), sample=error_lines[:3] if error_lines else [])
     return error_lines[:max_fixes]
 
