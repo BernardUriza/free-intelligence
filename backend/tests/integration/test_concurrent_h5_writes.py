@@ -10,7 +10,7 @@ Expected result: All 4 workers complete successfully without corruption.
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskType
 from backend.storage.session_h5_manager import get_session_h5_path, get_storage_stats
 from backend.storage.task_repository import (

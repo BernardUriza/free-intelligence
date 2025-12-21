@@ -35,8 +35,8 @@ from fastapi import Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from backend.logger import get_logger
-from backend.schemas.timeline_models import (
+from fi_common.logging.logger import get_logger
+from backend.schemas.domain.timeline import (
     RedactionPolicy,
     Timeline,
     TimelineEvent,
@@ -429,7 +429,7 @@ def timeline_to_session_detail(timeline: Timeline) -> SessionDetail:
 
 def init_mock_data():
     """Initialize mock timeline data for development"""
-    from backend.schemas.timeline_models import (
+    from backend.schemas.domain.timeline import (
         CausalityType,
         create_causality,
         create_timeline_event,

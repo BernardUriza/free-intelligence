@@ -28,7 +28,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

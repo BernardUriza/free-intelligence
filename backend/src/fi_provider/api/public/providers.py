@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from backend.database import get_db_dependency
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.models.db_models import Provider
 
 logger = get_logger(__name__)

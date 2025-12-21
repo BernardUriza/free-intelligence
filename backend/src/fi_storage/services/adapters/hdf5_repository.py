@@ -14,7 +14,7 @@ from datetime import UTC
 import h5py
 import numpy as np
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (
     get_session_h5_path,
 )

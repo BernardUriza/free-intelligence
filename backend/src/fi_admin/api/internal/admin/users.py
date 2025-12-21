@@ -19,14 +19,13 @@ Created: 2025-11-20
 
 from __future__ import annotations
 
-from typing import Any
-
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
+from typing import Any
 
-from backend.src.fi_auth.services.auth0_management import get_auth0_service
 from backend.src.fi_auth import User, UserRole, require_roles
+from backend.src.fi_auth.services.auth0_management import get_auth0_service
 
 logger = structlog.get_logger(__name__)
 
@@ -86,9 +85,6 @@ class UpdateRolesRequest(BaseModel):
 # Create a module-level variable for the superadmin dependency
 superadmin_dependency = Depends(require_roles([UserRole.SUPERADMIN]))
 
-# Create a module-level variable for require_superadmin dependency
-require_superadmin_dependency = Depends(require_superadmin)
-
 
 async def require_superadmin(
     current_user: User = superadmin_dependency,
@@ -101,9 +97,8 @@ async def require_superadmin(
     }
 
 
-# ============================================================================
-# USER CRUD ENDPOINTS
-# ============================================================================
+# Create a module-level variable for require_superadmin dependency
+require_superadmin_dependency = Depends(require_superadmin)
 
 
 @router.get("", response_model=UserListResponse)

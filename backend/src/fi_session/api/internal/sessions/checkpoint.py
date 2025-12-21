@@ -27,7 +27,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskType
 from backend.src.fi_common.services.checkpoint import (
     CheckpointError,

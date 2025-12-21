@@ -20,8 +20,8 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 
 from backend.exceptions import FIException
-from backend.logger import get_logger
-from backend.schemas.schemas import StatusCode, error_response
+from fi_common.logging.logger import get_logger
+from backend.schemas import StatusCode, error_response
 
 logger = get_logger(__name__)
 

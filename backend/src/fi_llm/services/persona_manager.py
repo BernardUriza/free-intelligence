@@ -2,26 +2,38 @@
 PersonaManager - Free Intelligence v2.0
 
 DEPRECATED: This file is maintained for backward compatibility.
-Import from backend.src.fi_common.services.llm.persona instead.
+Import from backend.src.fi_llm.services.persona instead.
 
 Example:
-    from backend.src.fi_common.services.llm.persona import PersonaManager, PersonaConfig, PersonaNotFound
+    from backend.src.fi_llm.services.persona import PersonaManager, PersonaConfig, PersonaNotFound
 """
 
 # Re-export everything from the new modular structure
-from backend.src.fi_common.services.llm.persona import (
+from backend.src.fi_llm.services.persona.config import (
+    CacheEntry,
+    PersonaConfig,
+)
+from backend.src.fi_llm.services.persona.constants import (
     DEFAULT_CACHE_TTL_S,
     DEFAULT_MAX_RAG_CHARS,
     MODE_MARKERS,
-    CacheEntry,
-    PersonaConfig,
+)
+from backend.src.fi_llm.services.persona.exceptions import (
     PersonaConfigInvalid,
     PersonaError,
-    PersonaManager,
     PersonaNotFound,
-    PersonaRouter,
-    PersonaTemplateModel,
+)
+from backend.src.fi_llm.services.persona.manager import (
+    PersonaManager,
+)
+from backend.src.fi_llm.services.persona.prompt_builder import (
     PromptBuilder,
+)
+from backend.src.fi_llm.services.persona.router import (
+    PersonaRouter,
+)
+from backend.src.fi_llm.services.persona.schemas import (
+    PersonaTemplateModel,
 )
 
 __all__ = [

@@ -58,7 +58,7 @@ from backend.src.fi_document.api.public import documents
 from backend.src.fi_system.api.public import system
 from backend.src.fi_evidence.api.public import evidence
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

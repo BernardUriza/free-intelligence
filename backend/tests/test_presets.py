@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.schemas.preset_loader import get_preset_loader
+from backend.schemas.llm.preset_loader import get_preset_loader
 
 
 class TestPresetLoader:
@@ -175,7 +175,7 @@ class TestPresetIntegration:
 
     def test_emotion_preset_in_worker(self):
         """Test that emotion worker can load preset"""
-        from backend.schemas.preset_loader import get_preset_loader
+        from backend.schemas.llm.preset_loader import get_preset_loader
 
         loader = get_preset_loader()
         preset = loader.load_preset("emotion_analyzer")

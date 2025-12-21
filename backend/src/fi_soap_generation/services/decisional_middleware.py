@@ -23,9 +23,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.providers.llm import llm_generate
-from backend.schemas.preset_loader import get_preset_loader
+from backend.schemas.llm.preset_loader import get_preset_loader
 from backend.src.fi_llm.services.persona_manager import PersonaManager
 from backend.src.fi_soap_generation.services.complexity_analyzer import (
     ComplexityMetrics,

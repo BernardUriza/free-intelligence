@@ -13,11 +13,10 @@ Card: Architecture refactor - task-based HDF5
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import h5py
 import pytest
+import tempfile
+from pathlib import Path
 
 from backend.models.task_type import TaskStatus, TaskType
 from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (
@@ -70,7 +69,7 @@ def temp_session_storage(tmp_path):
     session_h5_manager.SESSIONS_DIR = original_sessions_dir
 
 
-def test_ensure_task_exists_creates_new(temp_session_storage):
+def test_ensure_task_exists_creates_new(_):
     """Test creating a new task."""
     session_id = "test_session_001"
     task_type = TaskType.TRANSCRIPTION

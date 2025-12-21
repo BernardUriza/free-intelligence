@@ -21,11 +21,11 @@ import ulid
 from fastapi import APIRouter, HTTPException, Request, status
 
 from backend.src.fi_assistant.api.public.assistant_websocket import broadcast_new_message
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.llm import llm_generate
 from backend.repositories.audit_repository import AuditRepository
-from backend.schemas.llm_audit_policy import require_audit_log
+from backend.schemas.llm.audit_policy import require_audit_log
 from backend.src.fi_audit.services.audit_service import AuditService
 from backend.src.fi_llm.services.conversation_memory import get_memory_manager
 from backend.src.fi_llm.services.persona_manager import PersonaManager

@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.repositories import AuditRepository
 from backend.type_defs import AuditLogDict
 

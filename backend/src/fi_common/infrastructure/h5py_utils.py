@@ -15,7 +15,7 @@ from typing import Any
 
 import h5py
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 # Type alias for h5py.File (h5py doesn't expose Optional in its type stubs)
 File = h5py.File

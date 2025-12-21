@@ -20,7 +20,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Union
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -507,7 +507,7 @@ class AzureGPT4Provider(DiarizationProvider):
         super().__init__(config)
         import os
 
-        from backend.schemas.preset_loader import get_preset_loader
+        from backend.schemas.llm.preset_loader import get_preset_loader
 
         self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         self.api_key = os.getenv("AZURE_OPENAI_KEY")

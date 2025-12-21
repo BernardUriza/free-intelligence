@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

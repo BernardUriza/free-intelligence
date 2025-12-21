@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List
-
 """
 Free Intelligence - Token Counter Utility
 
@@ -59,7 +57,7 @@ class TokenCounter:
 
         return max(estimated_tokens, 1)  # Minimum 1 token for non-empty text
 
-    def estimate_tokens_batch(self, texts: List[str], model: str | None = None) -> list[int]:
+    def estimate_tokens_batch(self, texts: list[str], model: str | None = None) -> list[int]:
         """
         Estimate tokens for multiple texts.
 

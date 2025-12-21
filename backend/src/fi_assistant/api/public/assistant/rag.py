@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

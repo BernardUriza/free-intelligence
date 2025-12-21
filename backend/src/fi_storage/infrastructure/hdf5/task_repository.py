@@ -36,9 +36,9 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from fi_common.logging.logger import get_logger
 from typing import Any, Union
 
-from backend.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (
     CORPUS_PATH,
@@ -1948,3 +1948,31 @@ def update_session_metadata(session_id: str, updates: dict[str, Any]) -> None:
             session_id=session_id,
             updated_keys=list(updates.keys()),
         )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TASK REPOSITORY CLASS (Implements ITaskRepository interface)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class TaskRepository:
+    """HDF5-based task repository implementing ITaskRepository interface."""
+
+    def get_task_metadata(self, session_id: str, task_type: str) -> dict[str, Any] | None:
+        """Get task metadata."""
+        return get_task_metadata(session_id, task_type)
+
+    def task_exists(self, session_id: str, task_type: str) -> bool:
+        """Check if task exists."""
+        return task_exists(session_id, task_type)
+
+    def ensure_task_exists(self, session_id: str, task_type: str, metadata: dict[str, Any] | None = None) -> str:
+        """Ensure task exists, create if not."""
+        return ensure_task_exists(session_id, task_type, metadata)
+
+    def get_task_chunks(self, session_id: str, task_type: str) -> list[dict[str, Any]]:
+        """Get task chunks."""
+        return get_task_chunks(session_id, task_type)
+
+    def save_task_metadata(self, session_id: str, task_type: str, metadata: dict[str, Any]) -> None:
+        """Save task metadata."""
+        update_task_metadata(session_id, task_type, metadata)

@@ -22,18 +22,17 @@ Updated: 2025-11-20 (Multi-tenant support)
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from typing import Any
-
 import yaml
+from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from typing import Any
 
 from backend.database import get_db_dependency
-from backend.src.fi_llm.services.persona_manager import PersonaManager
-from backend.src.fi_common.services.persona_metrics_service import get_persona_metrics_service
 from backend.src.fi_auth import User, UserRole, get_current_user
+from backend.src.fi_kpi.services.persona_metrics_service import get_persona_metrics_service
+from backend.src.fi_llm.services.persona_manager import PersonaManager
 
 router = APIRouter(prefix="/admin/personas", tags=["Personas Admin"])
 

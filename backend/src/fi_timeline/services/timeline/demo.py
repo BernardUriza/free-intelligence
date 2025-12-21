@@ -14,7 +14,7 @@ Sprint: SPR-2025W44
 
 from datetime import UTC, datetime, timedelta
 
-from backend.schemas.timeline_models import (
+from backend.schemas.domain.timeline import (
     CausalityType,
     RedactionPolicy,
     Timeline,

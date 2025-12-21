@@ -11,6 +11,17 @@ Clean Code Principles:
 
 from __future__ import annotations
 
+from fi_common.interfaces.ievent_bus import IEventBus
+
+# Import interfaces and implementations for DI
+from fi_common.interfaces.ilogger import ILogger
+from fi_common.interfaces.itask_repository import ITaskRepository
+
+# NOTE: HDF5TaskRepository was removed during fi_coder refactor
+# Using adapter that wraps functional task_repository module
+from fi_common.utils.event_bus import InMemoryEventBus
+from fi_common.utils.structured_logger import StructuredLogger
+from fi_common.utils.task_repository_adapter import TaskRepositoryAdapter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -18,28 +29,23 @@ from typing import TYPE_CHECKING, Any
 # backend.logger -> backend.src.logger -> backend.src.__init__ -> backend.src.fi_common.infrastructure.container
 # Logger is accessed via get_logger() function call below
 from backend.repositories import AuditRepository, CorpusRepository, SessionRepository
-from backend.src.fi_coder.models.interfaces.ievent_bus import IEventBus
-
-# Import interfaces and implementations for DI
-from backend.src.fi_coder.models.interfaces.ilogger import ILogger
-from backend.src.fi_coder.models.interfaces.itask_repository import ITaskRepository
-from backend.src.fi_coder.storage.hdf5_task_repository import HDF5TaskRepository
-from backend.src.fi_coder.utils.in_memory_event_bus import InMemoryEventBus
-from backend.src.fi_coder.utils.structured_logger import StructuredLogger
 
 # Type checking imports - Pylance uses these for type information
 if TYPE_CHECKING:
     from backend.src.fi_audit.services.audit_service import AuditService
-    from backend.src.fi_storage.services.corpus_service import CorpusService
+    from backend.src.fi_coder.services.session_service import SessionService as DISessionService
     from backend.src.fi_common.services.diagnostics_service import DiagnosticsService
-    from backend.src.fi_transcription.services.diarization_service import DiarizationJobService, DiarizationService
     from backend.src.fi_common.services.evidence_service import EvidenceService
     from backend.src.fi_common.services.export_service import ExportService
-    from backend.src.fi_session.services.session_service import SessionService
-    from backend.src.fi_system.services.system_health_service import SystemHealthService
-    from backend.src.fi_transcription.services.transcription_service import TranscriptionService
     from backend.src.fi_common.services.triage_service import TriageService
-    from backend.src.fi_coder.services.session_service import SessionService as DISessionService
+    from backend.src.fi_session.services.session_service import SessionService
+    from backend.src.fi_storage.services.corpus_service import CorpusService
+    from backend.src.fi_system.services.system_health_service import SystemHealthService
+    from backend.src.fi_transcription.services.diarization_service import (
+        DiarizationJobService,
+        DiarizationService,
+    )
+    from backend.src.fi_transcription.services.transcription_service import TranscriptionService
 else:
     # Runtime imports - accessed via __getattr__ on services module
     def _import_service(name: str) -> Any:
@@ -68,17 +74,21 @@ else:
     TriageService = _import_service("TriageService")  # type: ignore[assignment]
 
     # Import DI services
-    from backend.src.fi_coder.services.audit_service import DIAuditService
-    from backend.src.fi_coder.services.evidence_service import DIEvidenceService
-    from backend.src.fi_coder.services.export_service import DIExportService
-    from backend.src.fi_coder.services.session_service import SessionService as DISessionService
-    from backend.src.fi_coder.services.system_health_service import DISystemHealthService
-    from backend.src.fi_coder.services.transcription_service import DITranscriptionService
+    from backend.src.fi_audit.services.di_audit_service import DIAuditService
+    from backend.src.fi_evidence.services.evidence_service import DIEvidenceService
+    from backend.src.fi_export.services.export_service import DIExportService
+    from backend.src.fi_session.services.di_session_service import (
+        SessionService as DISessionService,
+    )
+    from backend.src.fi_system.services.di_system_health_service import DISystemHealthService
+    from backend.src.fi_transcription.services.di_transcription_service import (
+        DITranscriptionService,
+    )
 
 
 def _get_logger() -> Any:
     """Lazy logger initialization to avoid circular imports."""
-    from backend.logger import get_logger
+    from fi_common.logging.logger import get_logger
 
     return get_logger(__name__)
 
@@ -454,8 +464,8 @@ class DIContainer:
         """
         if self._task_repository is None:
             try:
-                self._task_repository = HDF5TaskRepository(self.h5_file_path)
-                _get_logger().info("ITaskRepository (HDF5TaskRepository) initialized")
+                self._task_repository = TaskRepositoryAdapter(self.h5_file_path)
+                _get_logger().info("ITaskRepository (TaskRepositoryAdapter) initialized")
             except OSError as e:
                 _get_logger().error(f"TASK_REPOSITORY_INIT_FAILED: {e!s}")
                 raise OSError(f"Failed to initialize ITaskRepository: {e}") from e
@@ -666,3 +676,7 @@ def reset_container() -> None:
         _global_container.reset()
 
     _global_container = None
+
+
+# Alias for backward compatibility
+Container = DIContainer

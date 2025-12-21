@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from backend.clients import get_llm_client
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.observability.logging import CTX_REQUEST_ID
 
 from ..assistant_schemas import ChatCompletionRequest, ChatCompletionStreamResponse

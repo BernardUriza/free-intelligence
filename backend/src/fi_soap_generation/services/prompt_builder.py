@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Union
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 __all__ = ["OllamaPromptBuilder"]
 
@@ -42,7 +42,7 @@ class OllamaPromptBuilder:
         # Try to load SOAP generator preset
         if self.use_preset:
             try:
-                from backend.schemas.preset_loader import get_preset_loader
+                from backend.schemas.llm.preset_loader import get_preset_loader
 
                 preset_loader = get_preset_loader()
                 self.preset = preset_loader.load_preset("soap_generator")

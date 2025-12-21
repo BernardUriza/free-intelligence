@@ -263,8 +263,8 @@ class TestHuggingFaceCatalogSource:
             HuggingFaceCatalogSource,
         )
 
-        with patch("huggingface_hub.HfApi") as MockHfApi:
-            mock_api = MockHfApi.return_value
+        with patch("huggingface_hub.HfApi") as mock_hf_api:
+            mock_api = mock_hf_api.return_value
             mock_api.list_models.return_value = mock_hf_models
             mock_api.model_info.return_value = mock_hf_model_info
 
@@ -286,8 +286,8 @@ class TestHuggingFaceCatalogSource:
             HuggingFaceCatalogSource,
         )
 
-        with patch("huggingface_hub.HfApi") as MockHfApi:
-            mock_api = MockHfApi.return_value
+        with patch("huggingface_hub.HfApi") as mock_hf_api:
+            mock_api = mock_hf_api.return_value
             mock_api.list_models.return_value = mock_hf_models
             mock_api.model_info.return_value = mock_hf_model_info
 
@@ -309,8 +309,8 @@ class TestHuggingFaceCatalogSource:
             HuggingFaceCatalogSource,
         )
 
-        with patch("huggingface_hub.HfApi") as MockHfApi:
-            mock_api = MockHfApi.return_value
+        with patch("huggingface_hub.HfApi") as mock_hf_api:
+            mock_api = mock_hf_api.return_value
             mock_api.list_models.return_value = mock_hf_models
             mock_api.model_info.return_value = mock_hf_model_info
 
@@ -330,8 +330,8 @@ class TestHuggingFaceCatalogSource:
             HuggingFaceCatalogSource,
         )
 
-        with patch("huggingface_hub.HfApi") as MockHfApi:
-            mock_api = MockHfApi.return_value
+        with patch("huggingface_hub.HfApi") as mock_hf_api:
+            mock_api = mock_hf_api.return_value
             mock_api.list_models.return_value = mock_hf_models
             mock_api.model_info.return_value = mock_hf_model_info
 

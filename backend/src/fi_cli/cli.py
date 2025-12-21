@@ -4,7 +4,7 @@ import typer
 from pathlib import Path
 from typing import Annotated
 
-from .domains import auth, data, deploy, dev, infra, ops
+from .domains import auth, coder, data, deploy, dev, infra, ops
 
 app = typer.Typer(
     name="fi-cli",
@@ -40,6 +40,7 @@ app.add_typer(deploy.app, name="deploy")
 app.add_typer(auth.app, name="auth")
 app.add_typer(data.app, name="data")
 app.add_typer(infra.app, name="infra")
+app.add_typer(coder.app, name="coder")
 
 
 if __name__ == "__main__":

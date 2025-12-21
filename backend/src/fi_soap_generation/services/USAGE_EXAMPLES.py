@@ -78,7 +78,7 @@ def example_type_safe_usage() -> None:
 
 def example_error_handling() -> None:
     """Handle extraction errors gracefully."""
-    from backend.logger import get_logger
+    from fi_common.logging.logger import get_logger
     from backend.src.fi_soap_generation.services.llm_client import OllamaClient
     from backend.src.fi_soap_generation.services.response_parser import OllamaExtractionError
 
@@ -172,7 +172,7 @@ def example_pipeline_integration(
     audio_file_path: str,
 ) -> dict[str, str | None]:
     """Integration in a full processing pipeline."""
-    from backend.logger import get_logger
+    from fi_common.logging.logger import get_logger
     from backend.src.fi_soap_generation.services.llm_client import OllamaClient
     from backend.src.fi_soap_generation.services.response_parser import OllamaExtractionError
 

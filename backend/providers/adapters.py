@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 from typing import Any, Dict
 from uuid import uuid4
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.providers.models import ConsultationEvent, EventMetadata, EventType
 
 logger = get_logger(__name__)
@@ -275,7 +275,7 @@ class PayloadTranslator:
     @staticmethod
     def translate_consultation_committed(redux_payload: Dict[str, Any]) -> dict[str, Any]:
         """Translate soapAnalysisReal/completeAnalysis payload."""
-        from backend.schemas.fi_event_store import calculate_sha256
+        from backend.schemas.domain.event_store import calculate_sha256
 
         soap_data = redux_payload.get("finalAnalysis", {})
         commit_hash = calculate_sha256(soap_data)

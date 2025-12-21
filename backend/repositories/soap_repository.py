@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import h5py
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

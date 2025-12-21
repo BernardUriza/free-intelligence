@@ -18,9 +18,9 @@ from typing import Any, Dict
 
 import yaml  # type: ignore[import-untyped]
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.providers.llm import llm_generate
-from backend.schemas.timeline_models import (
+from backend.schemas.domain.timeline import (
     CausalityType,
     RedactionPolicy,
     Timeline,

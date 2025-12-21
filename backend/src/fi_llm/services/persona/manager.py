@@ -16,12 +16,11 @@ Aurity-Prompt-ID: AUR-PERSONA-MANAGER-2.0
 from __future__ import annotations
 
 import hashlib
+import structlog
 import time
+import yaml
 from pathlib import Path
 from typing import TYPE_CHECKING
-
-import structlog
-import yaml
 
 from .config import CacheEntry, PersonaConfig
 from .constants import DEFAULT_CACHE_TTL_S, DEFAULT_MAX_RAG_CHARS
@@ -66,7 +65,7 @@ class PersonaManager:
             max_rag_chars: Maximum characters for RAG context
         """
         self._config_dir = config_dir or (
-            Path(__file__).parent.parent.parent.parent / "config" / "personas"
+            Path(__file__).parent.parent.parent.parent.parent / "config" / "personas"
         )
         self._cache_ttl_s = cache_ttl_s
         self._cache: dict[str, CacheEntry] = {}

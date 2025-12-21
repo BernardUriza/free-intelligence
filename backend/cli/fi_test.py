@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
-"""
-Free Intelligence - Manual Inference CLI
+"""Free Intelligence - Manual Inference CLI.
 
 CLI tool for testing LLM inference without UI.
 
@@ -23,6 +20,8 @@ Features:
 - JSON output
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import sys
@@ -34,7 +33,8 @@ from typing import Any
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
+
 from backend.providers.llm import llm_generate
 from backend.src.fi_storage.infrastructure.hdf5.corpus_ops import append_interaction
 
@@ -47,8 +47,7 @@ logger = get_logger(__name__)
 
 
 def cmd_prompt(args: argparse.Namespace) -> dict[str, Any]:
-    """
-    Execute manual prompt inference.
+    """Execute manual prompt inference.
 
     Args:
         args: CLI arguments with prompt, model, flags
@@ -61,15 +60,16 @@ def cmd_prompt(args: argparse.Namespace) -> dict[str, Any]:
     2. Generate response
     3. Optionally save to corpus (if not --dry-run)
     4. Return JSON output
+
     """
     session_id = f"cli_test_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
     interaction_id = str(uuid.uuid4())
 
     if args.verbose:
-        logger.info(f"CLI Test — Session: {session_id}")
-        logger.info(f"Prompt: {args.prompt[:100]}...")
-        logger.info(f"Model: {args.model}")
-        logger.info(f"Dry-run: {args.dry_run}")
+        logger.info("CLI Test — Session: %s", session_id)
+        logger.info("Prompt: %s...", args.prompt[:100])
+        logger.info("Model: %s", args.model)
+        logger.info("Dry-run: %s", args.dry_run)
 
     # Generate response using llm_router (unified interface)
     try:
@@ -84,12 +84,12 @@ def cmd_prompt(args: argparse.Namespace) -> dict[str, Any]:
         )
 
         if args.verbose:
-            logger.info(f"Response received: {len(response.content)} chars")
-            logger.info(f"Tokens used: {response.tokens_used}")
-            logger.info(f"Latency: {response.latency_ms}ms")
+            logger.info("Response received: %s chars", len(response.content))
+            logger.info("Tokens used: %s", response.tokens_used)
+            logger.info("Latency: %sms", response.latency_ms)
 
     except Exception as e:
-        logger.error(f"LLM generation failed: {e}")
+        logger.exception("LLM generation failed")
         return {
             "error": "llm_generation_failed",
             "message": str(e),
@@ -110,13 +110,13 @@ def cmd_prompt(args: argparse.Namespace) -> dict[str, Any]:
                 timestamp=datetime.now(UTC).isoformat() + "Z",
             )
             if args.verbose:
-                logger.info(f"Saved to corpus: {saved_id}")
-        except Exception as e:
-            logger.warning(f"Failed to save to corpus: {e}")
+                logger.info("Saved to corpus: %s", saved_id)
+        except (OSError, RuntimeError) as e:
+            logger.warning("Failed to save to corpus: %s", e)
             # Non-blocking: continue even if save fails
 
-    # Build result
-    result = {
+    # Return result directly
+    return {
         "interaction_id": interaction_id,
         "session_id": session_id,
         "prompt": args.prompt,
@@ -129,16 +129,14 @@ def cmd_prompt(args: argparse.Namespace) -> dict[str, Any]:
         "dry_run": args.dry_run,
     }
 
-    return result
-
 
 # ============================================================================
 # MAIN CLI
 # ============================================================================
 
 
-def main():
-    """Main CLI entry point"""
+def main() -> None:
+    """Run the Free Intelligence CLI."""
     parser = argparse.ArgumentParser(
         description="Free Intelligence - Manual Inference CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -153,7 +151,6 @@ Examples:
 
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
 
-    # Subcommand: prompt
     prompt_parser = subparsers.add_parser(
         "prompt",
         help="Execute manual prompt",
@@ -196,7 +193,7 @@ Examples:
     # Execute command
     if args.command == "prompt":
         result = cmd_prompt(args)
-        print(json.dumps(result, indent=2))
+        sys.stdout.write(json.dumps(result, indent=2) + "\n")
     else:
         parser.print_help()
         sys.exit(1)

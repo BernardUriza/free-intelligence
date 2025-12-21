@@ -26,7 +26,7 @@ from fi_common.infrastructure.persistence.hdf5.task_repository import (
     get_task_transcript,
 )
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskType
 
 logger = get_logger(__name__)

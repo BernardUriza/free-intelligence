@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fi_common.logging.logger import get_logger
+from pydantic import BaseModel, Field
+from typing import Any
+
+from backend.fi_event_store import EventStore  # type: ignore[import]
+from backend.providers.adapters import ReduxAdapter, validate_redux_action
+from backend.providers.models import Consultation
+
 """
 Free Intelligence - AURITY API Gateway
 
@@ -20,18 +31,6 @@ Endpoints:
 File: backend/aurity_gateway.py
 Created: 2025-10-28
 """
-
-from datetime import UTC, datetime
-from typing import Any, Dict
-
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-
-from backend.fi_event_store import EventStore  # type: ignore[import]
-from backend.logger import get_logger
-from backend.providers.adapters import ReduxAdapter, validate_redux_action
-from backend.providers.models import Consultation
 
 logger = get_logger(__name__)
 
@@ -65,7 +64,7 @@ class ReduxActionRequest(BaseModel):
     """Redux action from AURITY frontend"""
 
     type: str = Field(..., description="Redux action type (e.g., 'medicalChat/addMessage')")
-    payload: Dict[str, Any] = Field(default_factory=dict, description="Action payload")
+    payload: dict[str, Any] = Field(default_factory=dict, description="Action payload")
     consultation_id: str = Field(..., description="Consultation ID")
     user_id: str = Field(default="aurity_user", description="User ID")
 
@@ -85,7 +84,7 @@ class ConsultationStateResponse(BaseModel):
     """Current consultation state reconstructed from events"""
 
     consultation_id: str
-    state: Dict[str, Any]
+    state: dict[str, Any]
     event_count: int
     last_updated: str
 
@@ -131,7 +130,7 @@ class ConnectionManager:
 
         logger.info("WEBSOCKET_DISCONNECTED", consultation_id=consultation_id)
 
-    async def broadcast(self, consultation_id: str, message: Dict[str, Any]):
+    async def broadcast(self, consultation_id: str, message: dict[str, Any]):
         """Broadcast message to all connected clients for consultation"""
         if consultation_id in self.active_connections:
             for connection in self.active_connections[consultation_id]:
@@ -246,7 +245,7 @@ async def process_redux_action(request: ReduxActionRequest):
             error=str(e),
         )
 
-        raise HTTPException(status_code=500, detail=f"Failed to process Redux action: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to process Redux action: {e!s}") from e
 
 
 @app.get("/aurity/consultation/{consultation_id}", response_model=ConsultationStateResponse)
@@ -301,7 +300,7 @@ async def get_consultation_state(consultation_id: str):
 
         raise HTTPException(
             status_code=500, detail=f"Failed to reconstruct consultation state: {e!s}"
-        )
+        ) from e
 
 
 @app.websocket("/aurity/consultation/{consultation_id}/stream")

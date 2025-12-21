@@ -1,5 +1,3 @@
-from typing import List
-
 #!/usr/bin/env python3
 """
 Free Intelligence - Trello Workflow Validator (Python)
@@ -32,9 +30,9 @@ LISTS = {
 TRELLO_CLI = str(Path.home() / "Documents/trello-cli-python/trello")
 
 
-def run_trello_command(args: List[str]) -> tuple[int, str]:
+def run_trello_command(args: list[str]) -> tuple[int, str]:
     """Run trello CLI command."""
-    cmd = [TRELLO_CLI] + args
+    cmd = [TRELLO_CLI, *args]
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result.returncode, result.stdout
 
@@ -54,7 +52,7 @@ def count_cards(list_id: str) -> int:
     return count
 
 
-def validate_workflow(card_id: str, target_list: str) -> tuple[bool, str]:
+def validate_workflow(_card_id: str, target_list: str) -> tuple[bool, str]:
     """
     Validate workflow before moving card.
 

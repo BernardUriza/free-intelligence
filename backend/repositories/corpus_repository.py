@@ -16,7 +16,7 @@ from typing import Any, Union
 
 import h5py
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.type_defs import DiarizationChunkDict
 
 from .base_repository import BaseRepository

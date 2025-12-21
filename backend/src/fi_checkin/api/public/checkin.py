@@ -24,7 +24,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from backend.database import get_db_dependency
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.models.checkin_models import (
     Appointment,
     AppointmentStatus,
@@ -37,7 +37,7 @@ from backend.models.checkin_models import (
     WaitingRoomEvent,
 )
 from backend.models.db_models import Patient
-from backend.schemas.checkin_schemas import (
+from backend.schemas.api.checkin import (
     AppointmentBrief,
     CheckinSessionResponse,
     CompleteActionRequest,

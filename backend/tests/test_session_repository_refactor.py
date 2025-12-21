@@ -16,10 +16,9 @@ Date: 2025-11-14
 # pyright: reportPrivateUsage=false
 from __future__ import annotations
 
+import pytest
 import tempfile
 from pathlib import Path
-
-import pytest
 
 from backend.repositories.session_repository import SessionRepository
 
@@ -30,9 +29,8 @@ class TestSessionRepositoryRefactor:
     @pytest.fixture
     def temp_h5_file(self) -> Path:
         """Create temporary HDF5 file for testing."""
-        temp = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
-        temp.close()
-        return Path(temp.name)
+        with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as temp:
+            return Path(temp.name)
 
     @pytest.fixture
     def repo(self, temp_h5_file: Path) -> SessionRepository:
@@ -95,7 +93,7 @@ class TestSessionRepositoryRefactor:
         # Verify primitives pass through unchanged
         assert metadata["simple_string"] == "value"
         assert metadata["simple_int"] == 42
-        assert metadata["simple_bool"] == True
+        assert metadata["simple_bool"] is True
         assert metadata["simple_list"] == [1, 2, 3]
 
     def test_update_with_dict_metadata(self, repo: SessionRepository) -> None:

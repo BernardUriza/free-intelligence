@@ -20,7 +20,7 @@ from enum import Enum
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

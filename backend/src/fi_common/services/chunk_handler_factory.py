@@ -24,7 +24,7 @@ Card: Voice chat integration (factory)
 
 from __future__ import annotations
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.src.fi_common.services.chat_chunk_handler import ChatChunkHandler
 from backend.src.fi_common.services.chunk_handler import ChunkHandler
 from backend.src.fi_common.services.medical_chunk_handler import MedicalChunkHandler

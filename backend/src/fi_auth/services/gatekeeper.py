@@ -17,7 +17,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.policy_loader import get_policy_loader  # type: ignore[import]
 
 logger = get_logger(__name__)

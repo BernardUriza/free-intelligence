@@ -10,7 +10,13 @@ Created: 2025-10-30
 Purpose: Replace global singletons with DI pattern
 """
 
-from backend.policy_enforcer import PolicyEnforcer
+from backend.policy.policy_enforcer import PolicyEnforcer
+
+
+def get_transcription_service():
+    """Get TranscriptionService from container."""
+    from .container import container
+    return container.get_transcription_service()
 
 
 def get_policy_enforcer(

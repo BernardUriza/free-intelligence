@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 """
 Audio Storage Module

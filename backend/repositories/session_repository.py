@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Union
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 from .base_repository import BaseRepository
 

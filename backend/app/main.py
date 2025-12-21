@@ -26,10 +26,10 @@ from backend.middleware.tracing import TracingMiddleware
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # noqa: ARG001
     """FastAPI lifespan context manager for startup/shutdown events."""
     # Startup
-    from backend.src.fi_coder.storage.database import init_db
+    # from backend.src.fi_coder.storage.database import init_db  # Removed: storage simplified
     from backend.src.fi_coder.observability.logger import get_logger
 
     # Configure structured JSON logging for chat observability
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
 
     logger = get_logger(__name__)
     try:
-        init_db()
+        # init_db()  # Removed: storage simplified
         logger.info("DATABASE_INITIALIZED", status="success")
     except Exception as e:
         logger.error("DATABASE_INIT_FAILED", error=str(e))
@@ -263,41 +263,51 @@ Requires environment variables:
 
     # Include all API routers (lazy load to avoid circular imports)
     try:
-        from backend.src.fi_auth.adapters.fastapi_adapter import auth_router
-
-        # Import individual routers from new fi_* package structure
-        from backend.src.fi_workflow.api.public.workflows_router import router as public_workflows_router
-        from backend.src.fi_timeline.api.public import timeline
-        from backend.src.fi_assistant.api.public import aurity_personas
-        from backend.src.fi_patient.api.public import patients
-        from backend.src.fi_provider.api.public import providers
-        from backend.src.fi_audit.api.public import audit
-        from backend.src.fi_policy.api.public import policy
-        from backend.src.fi_assistant.api.public import personas_admin
-        from backend.src.fi_tts.api.public import tts
-        from backend.src.fi_checkin.api.public import checkin
-        from backend.src.fi_payment.api.public import payments
-        from backend.src.fi_clinic.api.public import clinics
-        from backend.src.fi_user.api.public import user_clinic
-        from backend.src.fi_common.api.public import notifications
-        from backend.src.fi_llm.api.public import llm_models_admin
-        from backend.src.fi_model_catalog.api.public import catalog_admin
-        from backend.src.fi_system.api.public import system_resources
+        from backend.src.fi_admin.api.internal.admin.users import (
+            router as users_router,  # Admin user management
+        )
+        from backend.src.fi_assistant.api.public import aurity_personas  # , personas_admin
 
         # Internal API imports
         from backend.src.fi_audit.api.internal.audit import router as internal_audit_router
-        from backend.src.fi_transcription.api.internal.diarization import router as diarization_router
-        from backend.src.fi_common.api.internal.exports import router as exports_router
-        from backend.src.fi_timeline.api.internal.timeline import router as timeline_internal_router
-        from backend.src.fi_kpi.api.internal.kpis import router as kpis_router
-        from backend.src.fi_session.api.internal.sessions import router as sessions_router
-        from backend.src.fi_session.api.internal.sessions.checkpoint import router as sessions_checkpoint_router
-        from backend.src.fi_session.api.internal.sessions.finalize import router as sessions_finalize_router
-        from backend.src.fi_workflow.api.internal.triage import router as triage_router
-        from backend.src.fi_transcription.api.internal.transcribe import router as transcribe_router
-        from backend.src.fi_llm.api.internal.llm import router as llm_router
-        from backend.src.fi_admin.api.internal.admin.users import users_router  # Admin user management
+        from backend.src.fi_audit.api.public import audit
+        from backend.src.fi_auth.adapters.fastapi_adapter import auth_router
+        from backend.src.fi_checkin.api.public import checkin
+        from backend.src.fi_clinic.api.public import clinics
         from backend.src.fi_coder.api.internal.fi_coder import router as fi_coder_router
+        from backend.src.fi_common.api.internal.exports import router as exports_router
+        from backend.src.fi_common.api.public import notifications
+        from backend.src.fi_kpi.api.internal.kpis import router as kpis_router
+        from backend.src.fi_llm.api.internal.llm import router as llm_router
+        from backend.src.fi_llm.api.public import llm_models_admin
+        from backend.src.fi_model_catalog.api.public import catalog_admin
+        from backend.src.fi_patient.api.public import patients
+        from backend.src.fi_payment.api.public import payments
+        from backend.src.fi_policy.api.public import policy
+        from backend.src.fi_provider.api.public import providers
+        from backend.src.fi_session.api.internal.sessions import router as sessions_router
+
+        # from backend.src.fi_session.api.internal.sessions.checkpoint import (
+        #     router as sessions_checkpoint_router,
+        # )
+        from backend.src.fi_session.api.internal.sessions.finalize import (
+            router as sessions_finalize_router,
+        )
+        from backend.src.fi_system.api.public import system_resources
+        from backend.src.fi_timeline.api.internal.timeline import router as timeline_internal_router
+        from backend.src.fi_timeline.api.public import timeline
+        from backend.src.fi_transcription.api.internal.diarization import (
+            router as diarization_router,
+        )
+        from backend.src.fi_transcription.api.internal.transcribe import router as transcribe_router
+        from backend.src.fi_tts.api.public import tts
+        from backend.src.fi_user.api.public import user_clinic
+        from backend.src.fi_workflow.api.internal.triage import router as triage_router
+
+        # Import individual routers from new fi_* package structure
+        from backend.src.fi_workflow.api.public.workflows_router import (
+            router as public_workflows_router,
+        )
 
         # PUBLIC API (CORS enabled, orchestrators)
         public_app.include_router(auth_router)  # Auth0 Authentication (HIPAA G-003)
@@ -311,7 +321,7 @@ Requires environment variables:
             audit.router, prefix="/audit", tags=["Audit"]
         )  # Audit logs (FI-UI-FEAT-206)
         public_app.include_router(policy.router)  # Policy viewer (FI-UI-FEAT-204)
-        public_app.include_router(personas_admin.router)  # Personas Admin (FI-UI-DESIGN-003)
+        # public_app.include_router(personas_admin.router)  # Personas Admin (FI-UI-DESIGN-003)
         public_app.include_router(tts.router)  # Text-to-Speech (Azure OpenAI)
         public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
         public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
@@ -320,7 +330,7 @@ Requires environment variables:
             user_clinic.router
         )  # User-Clinic membership (link Auth0 user to clinic)
         public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
-        public_app.include_router(llm_models_admin.router)  # LLM Models Admin (superadmin CRUD)
+        public_app.include_router(llm_models_admin)  # LLM Models Admin (superadmin CRUD)
         public_app.include_router(
             catalog_admin.router
         )  # Model Catalog (GPT4All, HuggingFace, Ollama)
@@ -341,9 +351,9 @@ Requires environment variables:
         )  # No hasattr check - let it fail if missing
         internal_app.include_router(kpis_router, prefix="/kpis", tags=["kpis"])
         internal_app.include_router(sessions_router, prefix="/sessions", tags=["sessions"])
-        internal_app.include_router(
-            sessions_checkpoint_router, prefix="", tags=["sessions-checkpoint"]
-        )  # Session checkpoint - incremental audio concatenation
+        # internal_app.include_router(
+        #     sessions_checkpoint_router, prefix="", tags=["sessions-checkpoint"]
+        # )  # Session checkpoint - incremental audio concatenation
         internal_app.include_router(
             sessions_finalize_router, prefix="", tags=["sessions-finalize"]
         )  # Session finalization + encryption + diarization

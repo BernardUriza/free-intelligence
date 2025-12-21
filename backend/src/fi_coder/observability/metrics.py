@@ -9,7 +9,7 @@ import threading
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ..utils.logging import get_logger
 
@@ -22,8 +22,8 @@ class MetricPoint:
     name: str
     value: float
     timestamp: float = field(default_factory=time.time)
-    tags: Dict[str, str] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    tags: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -33,58 +33,78 @@ class HealthStatus:
     status: str  # "healthy", "degraded", "unhealthy"
     message: str = ""
     last_check: float = field(default_factory=time.time)
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    metrics: dict[str, Any] = field(default_factory=dict)
 
 
 class MetricsCollector:
     """Advanced metrics collection system."""
 
-    def __init__(self, retention_period: int = 3600):  # 1 hour default
+    def __init__(self, retention_period: int = 3600, max_points_per_metric: int = 1000):  # Reduced from 10000
         self.retention_period = retention_period
-        self._metrics: Dict[str, deque] = defaultdict(lambda: deque(maxlen=10000))
-        self._gauges: Dict[str, float] = {}
-        self._counters: Dict[str, float] = defaultdict(float)
-        self._histograms: Dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
+        self.max_points_per_metric = max_points_per_metric
+        self._metrics: dict[str, deque] = defaultdict(lambda: deque(maxlen=self.max_points_per_metric))
+        self._gauges: dict[str, float] = {}
+        self._counters: dict[str, float] = defaultdict(float)
+        self._histograms: dict[str, deque] = defaultdict(lambda: deque(maxlen=self.max_points_per_metric // 10))  # Smaller for histograms
         self._lock = threading.RLock()
 
         # Start cleanup thread
         self._cleanup_thread = threading.Thread(target=self._cleanup_loop, daemon=True)
         self._cleanup_thread.start()
 
-    def record_metric(self, name: str, value: float, tags: Optional[Dict[str, str]] = None):
+    def record_metric(self, name: str, value: float, tags: dict[str, str] | None = None):
         """Record a metric point."""
         point = MetricPoint(name=name, value=value, tags=tags or {})
         with self._lock:
             self._metrics[name].append(point)
 
-    def set_gauge(self, name: str, value: float, tags: Optional[Dict[str, str]] = None):
+    def set_gauge(self, name: str, value: float, tags: dict[str, str] | None = None):
         """Set a gauge metric."""
         with self._lock:
             self._gauges[name] = value
             self.record_metric(f"gauge_{name}", value, tags)
 
-    def increment_counter(self, name: str, value: float = 1.0, tags: Optional[Dict[str, str]] = None):
+    def increment_counter(self, name: str, value: float = 1.0, tags: dict[str, str] | None = None):
         """Increment a counter."""
         with self._lock:
             self._counters[name] += value
             self.record_metric(f"counter_{name}", self._counters[name], tags)
 
-    def record_histogram(self, name: str, value: float, tags: Optional[Dict[str, str]] = None):
+    def record_histogram(self, name: str, value: float, tags: dict[str, str] | None = None):
         """Record a histogram value."""
         with self._lock:
             self._histograms[name].append(value)
             self.record_metric(f"histogram_{name}", value, tags)
 
-    def get_metric_stats(self, name: str, time_window: Optional[int] = None) -> Dict[str, Any]:
+    def get_metric_stats(self, name: str, time_window: int | None = None) -> dict[str, Any]:
         """Get statistics for a metric."""
         cutoff = time.time() - (time_window or self.retention_period)
 
         with self._lock:
-            points = [p for p in self._metrics[name] if p.timestamp >= cutoff]
+            points = self._metrics[name]
             if not points:
                 return {"count": 0}
 
-            values = [p.value for p in points]
+            # Find first valid index using binary search for efficiency
+            left, right = 0, len(points) - 1
+            first_valid = len(points)
+            while left <= right:
+                mid = (left + right) // 2
+                if points[mid].timestamp >= cutoff:
+                    first_valid = mid
+                    right = mid - 1
+                else:
+                    left = mid + 1
+
+            if first_valid >= len(points):
+                return {"count": 0}
+
+            # Use slice for efficient access - convert deque slice to list
+            valid_points = list(points)[first_valid:]
+            if not valid_points:
+                return {"count": 0}
+
+            values = [p.value for p in valid_points]
             return {
                 "count": len(values),
                 "min": min(values),
@@ -94,7 +114,7 @@ class MetricsCollector:
                 "time_window_seconds": time_window or self.retention_period,
             }
 
-    def get_all_metrics(self) -> Dict[str, Any]:
+    def get_all_metrics(self) -> dict[str, Any]:
         """Get all current metrics."""
         with self._lock:
             return {
@@ -110,9 +130,16 @@ class MetricsCollector:
             try:
                 cutoff = time.time() - self.retention_period
                 with self._lock:
-                    for name, points in self._metrics.items():
+                    # Only cleanup metrics that have data
+                    metrics_to_cleanup = [name for name, points in self._metrics.items() if points]
+                    for name in metrics_to_cleanup:
+                        points = self._metrics[name]
+                        # Remove old points from the left (deque is efficient for this)
                         while points and points[0].timestamp < cutoff:
                             points.popleft()
+                        # If deque is empty after cleanup, remove it entirely
+                        if not points:
+                            del self._metrics[name]
             except Exception as e:
                 logger.error("metrics_cleanup_error", error=str(e))
 
@@ -124,8 +151,8 @@ class HealthMonitor:
 
     def __init__(self, metrics_collector: MetricsCollector):
         self.metrics = metrics_collector
-        self._health_checks: Dict[str, callable] = {}
-        self._health_status: Dict[str, HealthStatus] = {}
+        self._health_checks: dict[str, callable] = {}
+        self._health_status: dict[str, HealthStatus] = {}
         self._lock = threading.RLock()
 
     def register_health_check(self, name: str, check_func: callable):
@@ -133,7 +160,7 @@ class HealthMonitor:
         with self._lock:
             self._health_checks[name] = check_func
 
-    def run_health_checks(self) -> Dict[str, HealthStatus]:
+    def run_health_checks(self) -> dict[str, HealthStatus]:
         """Run all registered health checks."""
         results = {}
 
@@ -181,7 +208,7 @@ class HealthMonitor:
         else:
             return "unknown"
 
-    def get_health_report(self) -> Dict[str, Any]:
+    def get_health_report(self) -> dict[str, Any]:
         """Get comprehensive health report."""
         health_checks = self.run_health_checks()
         return {
@@ -201,10 +228,10 @@ class PerformanceMonitor:
 
     def __init__(self, metrics_collector: MetricsCollector):
         self.metrics = metrics_collector
-        self._alerts: List[Dict[str, Any]] = []
+        self._alerts: list[dict[str, Any]] = []
         self._alert_lock = threading.RLock()
 
-    def check_performance_thresholds(self) -> List[Dict[str, Any]]:
+    def check_performance_thresholds(self) -> list[dict[str, Any]]:
         """Check performance against thresholds and generate alerts."""
         alerts = []
 
@@ -257,12 +284,12 @@ class PerformanceMonitor:
 
         return alerts
 
-    def get_active_alerts(self) -> List[Dict[str, Any]]:
+    def get_active_alerts(self) -> list[dict[str, Any]]:
         """Get currently active alerts."""
         with self._alert_lock:
             return self._alerts.copy()
 
-    def clear_alerts(self, alert_ids: Optional[List[str]] = None):
+    def clear_alerts(self, alert_ids: list[str] | None = None):
         """Clear alerts."""
         with self._alert_lock:
             if alert_ids:
@@ -277,12 +304,12 @@ health_monitor = HealthMonitor(metrics_collector)
 performance_monitor = PerformanceMonitor(metrics_collector)
 
 __all__ = [
-    "MetricPoint",
-    "HealthStatus",
-    "MetricsCollector",
     "HealthMonitor",
+    "HealthStatus",
+    "MetricPoint",
+    "MetricsCollector",
     "PerformanceMonitor",
-    "metrics_collector",
     "health_monitor",
+    "metrics_collector",
     "performance_monitor",
 ]

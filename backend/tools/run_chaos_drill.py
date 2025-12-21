@@ -23,11 +23,10 @@ import platform
 import subprocess
 import sys
 import time
+import yaml
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
-
-import yaml
+from typing import Any
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -37,7 +36,7 @@ logger = logging.getLogger("chaos_drill")
 class ChaosDrill:
     """Base class for chaos drills"""
 
-    def __init__(self, config: Dict[str, Any], dry_run: bool = True):
+    def __init__(self, config: dict[str, Any], dry_run: bool = True):
         self.config = config
         self.dry_run = dry_run
         self.results: list[dict[str, Any]] = []
@@ -115,14 +114,14 @@ class NetworkPartitionDrill(ChaosDrill):
     """Network partition drill (Linux iptables, macOS pfctl/app-mock)"""
 
     def __init__(
-        self, config: Dict[str, Any], dry_run: bool = True, port: int = 7001, duration: int = 20
+        self, config: dict[str, Any], dry_run: bool = True, port: int = 7001, duration: int = 20
     ):
         super().__init__(config, dry_run)
         self.port = port
         self.duration = duration
         self.platform_name = platform.system()
         self.mode = None  # Will be set in pre_check: "linux-iptables", "darwin-pf", "app-mock"
-        self.errors: List[str] = []
+        self.errors: list[str] = []
         self.pf_enabled_by_us = False
 
     def pre_check(self) -> bool:
@@ -356,7 +355,7 @@ class NetworkPartitionDrill(ChaosDrill):
                 result = sock.connect_ex(("127.0.0.1", self.port))
                 sock.close()
                 accessible = result == 0
-            except:
+            except Exception:
                 pass
 
         success = len(self.errors) == 0
@@ -381,7 +380,7 @@ class CorpusFileLockDrill(ChaosDrill):
 
     def __init__(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         dry_run: bool = True,
         file_path: str = "storage/corpus.h5",
         concurrency: int = 10,
@@ -400,7 +399,7 @@ class CorpusFileLockDrill(ChaosDrill):
         )
         self.processes: list[mp.Process] = []
         self.pids: list[int] = []
-        self.errors: List[str] = []
+        self.errors: list[str] = []
         self.crash_count = 0
         self.join_timeout_count = 0
 
@@ -551,7 +550,7 @@ class LLMTimeoutStormDrill(ChaosDrill):
 
     def __init__(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         dry_run: bool = True,
         mode: str = "app-mock",
         duration: int = 20,
@@ -620,9 +619,8 @@ class LLMTimeoutStormDrill(ChaosDrill):
 
     def _inject_http_storm(self) -> None:
         """HTTP: Hammer LLM endpoint with concurrent requests"""
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
         import requests
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         logger.info(f"Starting HTTP storm: {self.concurrency} workers, {self.rps} RPS")
 
@@ -730,7 +728,7 @@ class DiskFullDrill(ChaosDrill):
 
     def __init__(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         dry_run: bool = True,
         path: str = "/tmp/fi-chaos-disk",
         fill_until_pct: int = 95,

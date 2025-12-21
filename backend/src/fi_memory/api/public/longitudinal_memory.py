@@ -23,7 +23,7 @@ import h5py
 from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, Field
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.src.fi_llm.services.conversation_memory import get_memory_manager
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import CORPUS_PATH
 

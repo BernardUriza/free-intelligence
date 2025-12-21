@@ -9,9 +9,9 @@ from typing import Any
 
 import h5py
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
-from backend.schemas.preset_loader import get_preset_loader
+from backend.schemas.llm.preset_loader import get_preset_loader
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     CORPUS_PATH,
     task_exists,

@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Dict
 from uuid import uuid4
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

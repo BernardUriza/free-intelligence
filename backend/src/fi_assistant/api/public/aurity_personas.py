@@ -6,7 +6,7 @@ from typing import Any
 import yaml
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.src.fi_auth import User, get_current_user
 
 logger = get_logger(__name__)

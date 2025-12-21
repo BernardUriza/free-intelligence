@@ -10,15 +10,13 @@ Created: 2025-11-09
 from __future__ import annotations
 
 import os
-import uuid
-from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any, Dict
-
 import pyarrow as pa
 import pyarrow.parquet as pq
-
-from backend.logger import get_logger
+import uuid
+from datetime import UTC, datetime
+from fi_common.logging.logger import get_logger
+from pathlib import Path
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -44,7 +42,7 @@ def write_audit_event(
     user_id: str,
     resource: str,
     result: str,
-    metadata: Dict[str, Any] | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> str:
     """Write audit event to Parquet.
 

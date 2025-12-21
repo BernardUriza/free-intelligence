@@ -12,7 +12,9 @@ Removed (FI-STRIDE deprecated):
 
 from __future__ import annotations
 
-from . import checkpoint, finalize
+# from . import checkpoint, finalize
+from . import finalize
 from .router import router
 
-__all__ = ["checkpoint", "finalize", "router"]
+# __all__ = ["checkpoint", "finalize", "router"]
+__all__ = ["finalize", "router"]

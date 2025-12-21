@@ -6,7 +6,7 @@ import h5py
 from fastapi import APIRouter, HTTPException, status
 
 from backend.src.fi_common.api.public.models import TranscriptionSourcesModel
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 from backend.validators import validate_session_id
 
 router = APIRouter()

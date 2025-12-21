@@ -16,7 +16,7 @@ import os
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from backend.logger import get_logger
+from fi_common.logging.logger import get_logger
 
 from ..domain import (
     AudioChunk,
