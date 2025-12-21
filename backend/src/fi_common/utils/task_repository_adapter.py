@@ -1,6 +1,6 @@
 """Adapter that wraps functional task_repository module to implement ITaskRepository interface."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from backend.src.fi_common.interfaces.itask_repository import ITaskRepository
 from backend.src.fi_storage.infrastructure.hdf5 import task_repository as tr
@@ -18,7 +18,7 @@ class TaskRepositoryAdapter(ITaskRepository):
         # The functional module uses CORPUS_PATH internally, so we don't need to store h5_file_path
         pass
 
-    def get_task_metadata(self, session_id: str, task_type: str) -> Optional[Dict[str, Any]]:
+    def get_task_metadata(self, session_id: str, task_type: str) -> Dict[str, Any] | None:
         """Get task metadata."""
         return tr.get_task_metadata(session_id, task_type)
 
@@ -27,7 +27,7 @@ class TaskRepositoryAdapter(ITaskRepository):
         return tr.task_exists(session_id, task_type)
 
     def ensure_task_exists(
-        self, session_id: str, task_type: str, metadata: Optional[Dict[str, Any]] = None
+        self, session_id: str, task_type: str, metadata: Dict[str, Any] | None = None
     ) -> str:
         """Ensure task exists, create if not."""
         return tr.ensure_task_exists(session_id, task_type, metadata or {})

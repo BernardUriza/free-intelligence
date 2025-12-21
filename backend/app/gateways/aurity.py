@@ -6,9 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Any
 
-# from backend.fi_event_store import EventStore  # type: ignore[import]
 from backend.providers.adapters import ReduxAdapter, validate_redux_action
 from backend.providers.models import Consultation
+from backend.schemas.domain.event_store import EventStore
 from backend.src.fi_common.logging.logger import get_logger
 
 """
@@ -52,7 +52,7 @@ app.add_middleware(
 
 # Redux adapter y event store
 redux_adapter = ReduxAdapter()
-# event_store = EventStore(corpus_path="storage/corpus.h5")
+event_store = EventStore(corpus_path="storage/corpus.h5")
 
 
 # ============================================================================

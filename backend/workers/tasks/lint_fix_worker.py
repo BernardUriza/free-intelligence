@@ -6,10 +6,10 @@ import subprocess
 import time
 from fi_coder.execution.executor import execute_qwen_code
 from fi_coder.observability.metrics import MetricsCollector
-from backend.src.fi_common.logging.logger import get_logger
 from pathlib import Path
 from typing import Any
 
+from backend.src.fi_common.logging.logger import get_logger
 from backend.workers.tasks.base_worker import WorkerResult, measure_time
 
 logger = get_logger(__name__)
@@ -190,18 +190,18 @@ def parse_eslint_error_lines(eslint_output: str, max_fixes: int) -> list[dict[st
                     if msg.get('severity', 0) >= 1:  # 1=warning, 2=error
                         severity = 'error' if msg.get('severity') == 2 else 'warning'
                         line_num = str(msg.get('line', 1))
-                        col_num = str(msg.get('column', 1))
+                        str(msg.get('column', 1))
                         message = msg.get('message', '')
                         rule = msg.get('ruleId', '')
                         full_message = f"{message} ({rule})" if rule else message
-                        
+
                         # Extract relative path
                         if 'apps/aurity/' in file_path:
                             rel_path = file_path.split('apps/aurity/')[1]
                             file_path_clean = f"apps/aurity/{rel_path}"
                         else:
                             file_path_clean = file_path
-                        
+
                         error_lines.append({
                             "file_path": file_path_clean,
                             "line_num": line_num,

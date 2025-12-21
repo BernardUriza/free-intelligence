@@ -26,16 +26,13 @@ import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import Path as PathParam
+from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
+from pydantic import BaseModel, Field
 from typing import Any, List
 
-from fastapi import FastAPI, HTTPException
-from fastapi import Path as PathParam
-from fastapi import Query, status
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-
-from backend.src.fi_common.logging.logger import get_logger
 from backend.schemas.domain.timeline import (
     RedactionPolicy,
     Timeline,
@@ -43,6 +40,7 @@ from backend.schemas.domain.timeline import (
     TimelineEventType,
     TimelineMode,
 )
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

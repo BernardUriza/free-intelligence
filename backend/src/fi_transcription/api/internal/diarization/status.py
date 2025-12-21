@@ -16,13 +16,12 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
-
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
+from typing import Any
 
-from backend.src.fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskType
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import get_task_metadata
 
 logger = get_logger(__name__)

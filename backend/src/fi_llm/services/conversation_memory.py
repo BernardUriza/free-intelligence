@@ -35,14 +35,13 @@ Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 
 from __future__ import annotations
 
+import h5py
+import numpy as np
 import threading
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-
-import h5py
-import numpy as np
 
 # Optional: sentence_transformers (heavy ML dependency, not required in production)
 try:
@@ -438,7 +437,7 @@ class ConversationMemoryManager:
             ]
 
         # 2. Get relevant context (semantic search, excluding recent)
-        recent_indices_set = set(int(i.interaction_idx) for i in recent)
+        recent_indices_set = {int(i.interaction_idx) for i in recent}
 
         # Compute cosine similarity (vectorized)
         # scores = embeddings @ query / (||embeddings|| * ||query||)

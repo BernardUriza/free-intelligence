@@ -8,11 +8,11 @@ Refactored: 2025-11-14 (Clean Architecture - Repository Pattern)
 
 from __future__ import annotations
 
-from backend.src.fi_common.logging.logger import get_logger
 from backend.repositories.soap_repository import (
     SoapRepository,
     TranscriptionNotFoundError,
 )
+from backend.src.fi_common.logging.logger import get_logger
 
 __all__ = ["TranscriptionReadError", "TranscriptionReader"]
 

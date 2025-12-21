@@ -41,16 +41,15 @@ from __future__ import annotations
 import subprocess
 import tempfile
 from datetime import UTC, datetime
+from fastapi import APIRouter, HTTPException, status
 from pathlib import Path
+from pydantic import BaseModel, Field
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
-
-from backend.src.fi_common.logging.logger import get_logger
 from backend.models import EncryptionMetadata, Session
 from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.session_repository import SessionRepository
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     add_full_audio,
     add_full_transcription,

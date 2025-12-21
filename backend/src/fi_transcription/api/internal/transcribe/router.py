@@ -20,12 +20,11 @@ Card: Architecture unification
 from __future__ import annotations
 
 from datetime import UTC, datetime
-
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
-from backend.src.fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     ensure_task_exists,
     get_task_chunks,

@@ -146,9 +146,8 @@ class PyannoteProvider(DiarizationProvider):
                 )
                 raise RuntimeError(f"Failed to load Pyannote model: {e}") from e
 
-            if self.device != "cpu":
-                if self._pipeline_instance is not None:
-                    self._pipeline_instance = self._pipeline_instance.to(self.device)
+            if self.device != "cpu" and self._pipeline_instance is not None:
+                self._pipeline_instance = self._pipeline_instance.to(self.device)
         return self._pipeline_instance
 
     def diarize(
@@ -549,9 +548,8 @@ class AzureGPT4Provider(DiarizationProvider):
     ) -> DiarizationResponse:
         """Text-based diarization using Azure GPT-4 with TRIPLE VISION timeline inference"""
         import json
-        import time
-
         import requests
+        import time
 
         if not transcript:
             raise ValueError("Azure GPT-4 provider requires transcript text")

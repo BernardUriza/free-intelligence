@@ -57,7 +57,7 @@ OBS_ALERTS_SERVICE ?= public_api
 .PHONY: init-corpus init
 .PHONY: run run-gateway run-both
 .PHONY: test test-cov test-scenario-1
-.PHONY: lint format fmt format-check
+.PHONY: lint format fmt format-check lint-fix lint-fix-ai lint-fix-ai-dry
 .PHONY: type-check type-check-mypy type-check-all type-check-export type-check-batch
 .PHONY: clean clean-all
 .PHONY: health-check corpus-stats audit-logs trello-status info
@@ -204,6 +204,18 @@ test-scenario-1: ## Run QA Scenario 1 (green path)
 lint: ## Run linter (ruff)
 	@echo "🔍 Linting code..."
 	$(PY) -m ruff check backend/ tests/
+
+lint-fix: ## Auto-fix simple linting issues (ruff --fix)
+	@echo "🔧 Auto-fixing simple linting issues..."
+	$(PY) -m ruff check --fix backend/ tests/
+
+lint-fix-ai: ## Intelligent fixes for complex linting issues (fi-coder)
+	@echo "🤖 Applying intelligent fixes for complex linting issues..."
+	$(PY) -m ruff check backend/ tests/ | $(PY) -m backend.src.fi_coder.cli.main lint-fix --ruff-output=-
+
+lint-fix-ai-dry: ## Preview intelligent fixes without applying them
+	@echo "🔍 Previewing intelligent fixes for complex linting issues..."
+	$(PY) -m ruff check backend/ tests/ | $(PY) -m backend.src.fi_coder.cli.main lint-fix --ruff-output=- --dry-run
 
 format: ## Format code (black)
 	@echo "✨ Formatting code..."

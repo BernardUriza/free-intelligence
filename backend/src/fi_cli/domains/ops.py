@@ -250,13 +250,13 @@ def check_missing_files(
 ) -> None:
 	"""
 	Check which build files are missing from the server.
-	
+
 	Verifies Next.js build artifacts (CSS/JS) on production server.
 	"""
 	host = _require_host(host)
-	
+
 	typer.echo("🔍 Checking for missing build files on server...")
-	
+
 	# Get list of CSS files on server
 	cmd = "ls -lh /opt/free-intelligence/apps/aurity/out/_next/static/chunks/*.css 2>&1"
 	proc = run_cmd(
@@ -270,10 +270,10 @@ def check_missing_files(
 		typer.echo(proc.stdout)
 	else:
 		typer.echo("❌ No CSS files found")
-	
+
 	# Check for specific missing files
 	missing_files = ["2787eb3c5de6dde5.js", "abb749a40dfb2eb5.css"]
-	
+
 	typer.echo("\n🔍 Checking specific files that may be missing:")
 	typer.echo("=" * 80)
 	for filename in missing_files:
@@ -287,7 +287,7 @@ def check_missing_files(
 			typer.echo(f"✅ {filename}: {proc.stdout.strip()}")
 		else:
 			typer.echo(f"❌ {filename}: NOT FOUND")
-	
+
 	# List all files in chunks directory
 	typer.echo("\n📂 All files in _next/static/chunks/:")
 	typer.echo("=" * 80)
@@ -299,7 +299,7 @@ def check_missing_files(
 	)
 	if proc.stdout:
 		typer.echo(proc.stdout)
-	
+
 	# Diagnostic message
 	typer.echo("\n💡 DIAGNOSIS:")
 	typer.echo("=" * 80)
@@ -327,13 +327,13 @@ def diagnose_nginx_static(
 ) -> None:
 	"""
 	Diagnose nginx static file issues on production server.
-	
+
 	Checks file structure, nginx config, and HTTP responses for static assets.
 	"""
 	host = _require_host(host)
-	
+
 	typer.echo("🔍 Diagnosing nginx static file issues...")
-	
+
 	# Check if _next directory exists
 	typer.echo("\n📂 Checking file structure:")
 	typer.echo("=" * 80)
@@ -345,7 +345,7 @@ def diagnose_nginx_static(
 	)
 	if proc.stdout:
 		typer.echo(proc.stdout)
-	
+
 	# Check _next/static/chunks
 	typer.echo("\n📂 Checking _next/static/chunks:")
 	typer.echo("=" * 80)
@@ -357,7 +357,7 @@ def diagnose_nginx_static(
 	)
 	if proc.stdout:
 		typer.echo(proc.stdout)
-	
+
 	# Check specific file that's failing
 	typer.echo("\n🔍 Looking for specific file (2787eb3c5de6dde5.js):")
 	typer.echo("=" * 80)
@@ -380,7 +380,7 @@ def diagnose_nginx_static(
 			typer.echo(f"   Type: {proc.stdout.strip()}")
 	else:
 		typer.echo("❌ File NOT found on server!")
-	
+
 	# Check Nginx config
 	typer.echo("\n📋 Nginx configuration:")
 	typer.echo("=" * 80)
@@ -392,7 +392,7 @@ def diagnose_nginx_static(
 	)
 	if proc.stdout:
 		typer.echo(proc.stdout)
-	
+
 	# Test actual HTTP response
 	typer.echo("\n🧪 HTTP test for static file:")
 	typer.echo("=" * 80)
@@ -415,18 +415,18 @@ def patch_auth0_config(
 ) -> None:
 	"""
 	Patch Auth0 config on production server.
-	
+
 	Updates AUTH0_API_IDENTIFIER in auth0_config.py and restarts backend.
 	Hotfix for Auth0 audience configuration issues.
 	"""
 	import time
 
 	host = _require_host(host)
-	
+
 	typer.echo("🔧 Patching Auth0 config on server...")
 	typer.echo(f"   Host: {host}")
 	typer.echo()
-	
+
 	# Read current file
 	typer.echo("📖 Reading current file...")
 	cmd = "cat /opt/free-intelligence/backend/auth/auth0_config.py"
@@ -441,19 +441,19 @@ def patch_auth0_config(
 	else:
 		typer.echo("❌ Failed to read file", err=True)
 		raise typer.Exit(1)
-	
+
 	# Patch the file
 	typer.echo("🔧 Applying patch...")
 	new_content = current_content.replace(
 		b'AUTH0_API_IDENTIFIER = os.getenv("AUTH0_API_IDENTIFIER", "https://api.fi-aurity.duckdns.org")',
 		b'AUTH0_API_IDENTIFIER = os.getenv("AUTH0_API_IDENTIFIER", "https://api.app.aurity.io")',
 	)
-	
+
 	if new_content == current_content:
 		typer.echo("⚠️  No line found to patch")
 	else:
 		typer.echo("✅ Patch prepared")
-	
+
 	# Write patched file
 	typer.echo("💾 Writing patched file...")
 	config_cmd = f"cat > /opt/free-intelligence/backend/auth/auth0_config.py << 'ENDOFFILE'\n{new_content.decode('utf-8')}\nENDOFFILE"
@@ -463,7 +463,7 @@ def patch_auth0_config(
 		check=False,
 	)
 	typer.echo("✅ File updated")
-	
+
 	# Restart backend
 	typer.echo("🔄 Restarting backend...")
 	cmd = "pkill -9 -f 'python.*main'"
@@ -473,7 +473,7 @@ def patch_auth0_config(
 		check=False,
 	)
 	time.sleep(2)
-	
+
 	start_cmd = """
 	cd /opt/free-intelligence && \
 	export PYTHONPATH=/opt/free-intelligence:$PYTHONPATH && \
@@ -485,11 +485,11 @@ def patch_auth0_config(
 		check=False,
 	)
 	typer.echo("✅ Backend restarted")
-	
+
 	# Wait
 	typer.echo("⏳ Waiting 8 seconds...")
 	time.sleep(8)
-	
+
 	# Verify
 	typer.echo("🧪 Verifying new audience...")
 	cmd = "curl -s http://localhost:7001/api/auth/config 2>&1 | grep audience"
@@ -501,7 +501,7 @@ def patch_auth0_config(
 	if proc.stdout:
 		result = proc.stdout.strip()
 		typer.echo(f"   {result}")
-		
+
 		if b"api.app.aurity.io" in proc.stdout:
 			typer.echo("✅ AUDIENCE UPDATED CORRECTLY!")
 		else:
@@ -515,7 +515,7 @@ def patch_auth0_config(
 			)
 			if proc.stdout:
 				typer.echo(proc.stdout)
-	
+
 	typer.echo()
 	typer.echo("=" * 80)
 	typer.echo("✅ PATCH APPLIED")
@@ -550,19 +550,19 @@ def test_assistant_api(
 ) -> None:
     """
     Test assistant API endpoint in production.
-    
+
     Sends a test message to the assistant chat endpoint and displays the response.
     Useful for verifying the assistant API is working correctly.
     """
     import json
-    
+
     typer.echo("🧪 Testing Assistant API Endpoint")
     typer.echo("=" * 50)
     typer.echo(f"   API Base: {api_base}")
     typer.echo(f"   Message: {message}")
     typer.echo(f"   Doctor: {doctor_name} ({doctor_id})")
     typer.echo()
-    
+
     # Prepare request data
     data = {
         "message": message,
@@ -570,10 +570,10 @@ def test_assistant_api(
         "doctor_name": doctor_name,
         "response_mode": "concise"
     }
-    
+
     # Make the request
     import requests
-    
+
     try:
         typer.echo("📤 Sending test message...")
         response = requests.post(
@@ -581,10 +581,10 @@ def test_assistant_api(
             json=data,
             timeout=30
         )
-        
+
         typer.echo(f"📥 Response Status: {response.status_code}")
         typer.echo()
-        
+
         if response.status_code == 200:
             try:
                 response_data = response.json()
@@ -601,11 +601,11 @@ def test_assistant_api(
             typer.echo(f"   Content-Type: {response.headers.get('content-type', 'unknown')}")
             typer.echo("📄 Response body:")
             typer.echo(response.text)
-            
+
     except requests.exceptions.RequestException as e:
         typer.echo(f"❌ Request failed: {e}")
         raise typer.Exit(1)
-    
+
     typer.echo()
     typer.echo("=" * 50)
 
@@ -619,7 +619,7 @@ def check_prod_logs_detailed(
 ) -> None:
 	"""Check production backend logs in detail (processes, ports, logs, errors)."""
 	host = _require_host(host)
-	
+
 	try:
 		# Check if backend is running
 		typer.echo("🔍 Checking backend process...")
@@ -631,12 +631,12 @@ def check_prod_logs_detailed(
 			check=False,
 		)
 		process = proc.stdout.strip()
-		
+
 		if process:
 			typer.echo(f"✅ Backend running:\n{redact_text(process)}\n")
 		else:
 			typer.echo("❌ Backend NOT running!\n")
-		
+
 		# Check port
 		typer.echo("🔍 Checking port 7001...")
 		typer.echo("=" * 80)
@@ -647,12 +647,12 @@ def check_prod_logs_detailed(
 			check=False,
 		)
 		port_info = proc.stdout.strip()
-		
+
 		if port_info:
 			typer.echo(f"✅ Port 7001 listening:\n{redact_text(port_info)}\n")
 		else:
 			typer.echo("❌ Port 7001 NOT listening!\n")
-		
+
 		# Get last 100 lines of backend logs
 		typer.echo("📋 LAST 100 BACKEND LOGS:")
 		typer.echo("=" * 80)
@@ -663,12 +663,12 @@ def check_prod_logs_detailed(
 			check=False,
 		)
 		logs = proc.stdout.strip()
-		
+
 		if logs:
 			typer.echo(redact_text(logs))
 		else:
 			typer.echo("(no recent logs)")
-		
+
 		typer.echo("\n" + "=" * 80)
 		typer.echo("🔍 LOOKING FOR RECENT ERRORS:")
 		typer.echo("=" * 80)
@@ -679,12 +679,12 @@ def check_prod_logs_detailed(
 			check=False,
 		)
 		errors = proc.stdout.strip()
-		
+
 		if errors:
 			typer.echo(redact_text(errors))
 		else:
 			typer.echo("✅ No obvious errors found")
-			
+
 	except Exception as e:
 		typer.echo(f"❌ Error: {redact_text(str(e))}")
 		raise typer.Exit(1)
@@ -699,7 +699,7 @@ def fix_auth0_audience(
 ) -> None:
 	"""Fix Auth0 API Identifier mismatch by updating environment variable."""
 	host = _require_host(host)
-	
+
 	try:
 		typer.echo("🔍 Checking current AUTH0_API_IDENTIFIER...")
 		typer.echo("=" * 80)
@@ -711,7 +711,7 @@ def fix_auth0_audience(
 		)
 		current = proc.stdout.strip()
 		typer.echo(f"   Current: {redact_text(current)}\n")
-		
+
 		# Stop backend
 		typer.echo("🛑 Stopping backend...")
 		cmd = "pkill -9 -f 'python.*main'"
@@ -721,7 +721,7 @@ def fix_auth0_audience(
 			check=False,
 		)
 		typer.echo("✅ Backend stopped\n")
-		
+
 		# Start with updated environment variable
 		typer.echo("🚀 Starting backend with new AUTH0_API_IDENTIFIER...")
 		start_cmd = (
@@ -736,12 +736,12 @@ def fix_auth0_audience(
 			check=False,
 		)
 		typer.echo("✅ Command executed\n")
-		
+
 		# Wait for startup
 		typer.echo("⏳ Waiting 8 seconds for startup...")
 		import time
 		time.sleep(8)
-		
+
 		# Verify process
 		typer.echo("🔍 Verifying backend process...")
 		cmd = "ps aux | grep '[u]vicorn'"
@@ -751,7 +751,7 @@ def fix_auth0_audience(
 			check=False,
 		)
 		process = proc.stdout.strip()
-		
+
 		if process:
 			typer.echo(f"✅ Backend running:\n   {redact_text(process)}\n")
 		else:
@@ -765,7 +765,7 @@ def fix_auth0_audience(
 			)
 			typer.echo(redact_text(proc.stdout))
 			raise typer.Exit(1)
-		
+
 		# Verify port
 		typer.echo("🔍 Verifying port 7001...")
 		for i in range(10):
@@ -781,7 +781,7 @@ def fix_auth0_audience(
 			time.sleep(1)
 		else:
 			typer.echo("❌ Port 7001 not listening after 10 seconds\n")
-		
+
 		# Test auth config endpoint
 		typer.echo("🧪 Testing /api/auth/config...")
 		cmd = "curl -s http://localhost:7001/api/auth/config 2>&1"
@@ -792,13 +792,13 @@ def fix_auth0_audience(
 		)
 		config = proc.stdout.strip()
 		typer.echo(f"   Response: {redact_text(config[:200])}...\n")
-		
+
 		# Check if audience is updated
 		if "api.app.aurity.io" in config:
 			typer.echo("✅ Audience updated successfully!\n")
 		else:
 			typer.echo("⚠️  Audience may not have been updated\n")
-		
+
 		typer.echo("=" * 80)
 		typer.echo("✅ AUTH0 API IDENTIFIER UPDATED")
 		typer.echo("=" * 80)
@@ -815,7 +815,7 @@ To make permanent:
 
 Test login from your mobile device now.
 		""")
-			
+
 	except Exception as e:
 		typer.echo(f"❌ Error: {redact_text(str(e))}")
 		raise typer.Exit(1)
@@ -838,91 +838,90 @@ def test_e2e_curl(
 ) -> None:
     """
     Run end-to-end curl tests for the complete workflow.
-    
-    Tests the full pipeline: health check → dry-run → chat → streaming → 
+
+    Tests the full pipeline: health check → dry-run → chat → streaming →
     diarization → SOAP generation → session finalization.
-    
+
     Requires jq for JSON processing and uuidgen for session IDs.
     """
     import os
     import subprocess
     import tempfile
-    import uuid
     from pathlib import Path
-    
+
     # Check if jq is available
     try:
         subprocess.run(["jq", "--version"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         typer.echo("❌ jq is required for this command. Install with: brew install jq")
         raise typer.Exit(1)
-    
+
     # Check if uuidgen is available
     try:
         subprocess.run(["uuidgen"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         typer.echo("❌ uuidgen is required for this command")
         raise typer.Exit(1)
-    
+
     # Generate session ID
     if not session_id:
         result = subprocess.run(["uuidgen"], capture_output=True, text=True, check=True)
         session_id = result.stdout.strip().lower()
-    
+
     # Setup output directory
     if not output_dir:
         output_dir = f"/tmp/fi_e2e_{session_id}"
-    
+
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     typer.echo("🧪 Running E2E curl tests")
     typer.echo("=" * 50)
     typer.echo(f"   Base URL: {base_url}")
     typer.echo(f"   Session ID: {session_id}")
     typer.echo(f"   Output Dir: {output_dir}")
     typer.echo()
-    
-    def run_curl(description: str, cmd: list, output_file: str = None) -> dict:
+
+    def run_curl(description: str, cmd: list, output_file: str | None = None) -> dict:
         """Run curl command and return parsed JSON if applicable."""
         typer.echo(description)
-        
+
         full_cmd = cmd.copy()
         if output_file:
             full_cmd.extend(["|", "tee", str(output_path / output_file)])
             if ".json" in output_file:
                 full_cmd.extend(["|", "jq", "."])
-        
+
         try:
             # Execute the command
             result = subprocess.run(" ".join(full_cmd), shell=True, capture_output=True, text=True, cwd=output_path)
-            
+
             if result.returncode != 0:
                 typer.echo(f"❌ Command failed: {result.stderr}")
                 return {}
-            
+
             # If it's a JSON file, try to parse it
             if output_file and output_file.endswith(".json"):
                 try:
                     return subprocess.run(
-                        ["jq", ".", str(output_path / output_file)], 
+                        ["jq", ".", str(output_path / output_file)],
                         capture_output=True, text=True, check=True
                     ).stdout
                 except subprocess.CalledProcessError:
                     pass
-            
+
             return result.stdout
         except Exception as e:
             typer.echo(f"❌ Error: {e}")
             return {}
-    
+
     # 1. Health check
     run_curl(
         "1) Health check",
         ["curl", "-sS", f"{base_url}/api/health"],
         "health.json"
     )
-    
+
     # 2. Dry-run (safe)
     typer.echo("\n2) Dry-run (safe)")
     dryrun_data = {
@@ -931,16 +930,16 @@ def test_e2e_curl(
         "response_mode": "concise",
         "rag_context": "RFC: ABCD900101XXX, creatinina 1.8 mg/dL, TA 180/110"
     }
-    
+
     import json
     run_curl(
         "",
-        ["curl", "-sS", "-H", "Content-Type: application/json", "-X", "POST", 
-         f"{base_url}/api/workflows/aurity/assistant/chat/_dry-run", 
+        ["curl", "-sS", "-H", "Content-Type: application/json", "-X", "POST",
+         f"{base_url}/api/workflows/aurity/assistant/chat/_dry-run",
          "-d", json.dumps(dryrun_data)],
         "dryrun.json"
     )
-    
+
     # Extract request ID from dryrun
     try:
         result = subprocess.run(
@@ -954,7 +953,7 @@ def test_e2e_curl(
             rid = ""
     except subprocess.CalledProcessError:
         rid = ""
-    
+
     # 3. Trace for dry-run
     if rid:
         typer.echo("\n3) Trace for dry-run")
@@ -963,7 +962,7 @@ def test_e2e_curl(
             ["curl", "-sS", f"{base_url}/api/workflows/aurity/assistant/chat/_trace/{rid}"],
             "dryrun_trace.json"
         )
-    
+
     # 4. Clinical conversation
     typer.echo("\n4) Clinical conversation (persona + mode)")
     chat_data = {
@@ -971,7 +970,7 @@ def test_e2e_curl(
         "message": "Paciente 45a con TA 180/110, cefalea y visión borrosa. ¿Conducta inicial?",
         "response_mode": "explanatory"
     }
-    
+
     run_curl(
         "",
         ["curl", "-sS", "-H", "Content-Type: application/json", "-X", "POST",
@@ -979,7 +978,7 @@ def test_e2e_curl(
          "-d", json.dumps(chat_data)],
         "chat1.json"
     )
-    
+
     # Extract request ID from chat
     try:
         result = subprocess.run(
@@ -998,14 +997,14 @@ def test_e2e_curl(
             typer.echo("   WARNING: no request_id in chat1 response")
     except subprocess.CalledProcessError:
         typer.echo("   WARNING: could not extract request_id")
-    
+
     # 5. Create session and upload chunk
     typer.echo("\n5) Create session and upload chunk (simulated metadata only)")
     # Create a temporary file with simulated chunk data
     with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
         f.write("SIMULATED_CHUNK")
         chunk_file = f.name
-    
+
     try:
         run_curl(
             "",
@@ -1016,7 +1015,7 @@ def test_e2e_curl(
         )
     finally:
         os.unlink(chunk_file)
-    
+
     # 6. Monitor session
     typer.echo("\n6) Monitor session")
     run_curl(
@@ -1024,7 +1023,7 @@ def test_e2e_curl(
         ["curl", "-sS", f"{base_url}/api/workflows/aurity/sessions/{session_id}/monitor"],
         "monitor.json"
     )
-    
+
     # 7. Start diarization
     typer.echo("\n7) Start diarization")
     diarization_data = {"engine": "default"}
@@ -1035,7 +1034,7 @@ def test_e2e_curl(
          "-d", json.dumps(diarization_data)],
         "diarization.json"
     )
-    
+
     # 8. Generate SOAP
     typer.echo("\n8) Generate SOAP")
     soap_data = {
@@ -1050,7 +1049,7 @@ def test_e2e_curl(
          "-d", json.dumps(soap_data)],
         "soap.json"
     )
-    
+
     # 9. Finalize session
     typer.echo("\n9) Finalize session")
     finalize_data = {"encrypt": True}
@@ -1061,10 +1060,10 @@ def test_e2e_curl(
          "-d", json.dumps(finalize_data)],
         "finalize.json"
     )
-    
+
     # 10. Negative tests
     typer.echo("\n10) Negative tests")
-    
+
     typer.echo("   10a) Invalid persona")
     invalid_persona_data = {"persona": "no_such_persona", "message": "hola"}
     run_curl(
@@ -1074,7 +1073,7 @@ def test_e2e_curl(
          "-d", json.dumps(invalid_persona_data)],
         "neg_invalid_persona.json"
     )
-    
+
     typer.echo("   10b) Simulate LLM timeout")
     timeout_data = {"persona": "clinical_advisor", "message": "#simulate_timeout"}
     run_curl(
@@ -1084,20 +1083,20 @@ def test_e2e_curl(
          "-d", json.dumps(timeout_data)],
         "neg_timeout.json"
     )
-    
+
     # 11. Acceptance quick checks
     typer.echo("\n11) Acceptance quick checks")
-    
+
     typer.echo("   Dry-run output summary:")
     try:
         subprocess.run([
-            "jq", 
+            "jq",
             '{request_id:.request_id, user_message_hash8:.user_message.hash8, user_message_len:.user_message.length, system_markers:.system_markers}',
             str(output_path / "dryrun.json")
         ], cwd=output_path)
     except subprocess.CalledProcessError:
         typer.echo("   Could not generate summary")
-    
+
     typer.echo("   Trace events (dryrun):")
     try:
         subprocess.run([
@@ -1105,7 +1104,7 @@ def test_e2e_curl(
         ], cwd=output_path)
     except subprocess.CalledProcessError:
         typer.echo("   Could not extract trace events")
-    
+
     typer.echo("   SOAP keys:")
     try:
         subprocess.run([
@@ -1113,7 +1112,7 @@ def test_e2e_curl(
         ], cwd=output_path)
     except subprocess.CalledProcessError:
         typer.echo("   Could not extract SOAP keys")
-    
+
     typer.echo(f"\n✅ E2E test complete! Outputs saved to {output_dir}")
     typer.echo()
     typer.echo("📋 Test coverage:")
@@ -1136,38 +1135,37 @@ def prod_integrity_check(
 ) -> None:
 	"""Check production server integrity (git status, file modifications, security)."""
 	host = _require_host(host)
-	
-	import os
+
 
 	from .._common import run_cmd
-	
+
 	# Remote paths
 	prod_dir = "/opt/free-intelligence"
 	log_file = "/var/log/aurity-integrity.log"
 	alert_file = "/tmp/aurity-dirty-prod-alert"
-	
+
 	def log(message: str) -> None:
 		timestamp = run_cmd("date -u +'%Y-%m-%dT%H:%M:%SZ'", capture_output=True).stdout.strip()
 		log_cmd = f"echo '{timestamp} {message}' >> {log_file}"
 		run_cmd(ssh_argv(host=host, user=user, port=port, identity_file=identity_file, remote_command=log_cmd))
-	
+
 	def alert(message: str) -> None:
 		log(f"ALERT: {message}")
-		
+
 		# Create alert file
 		alert_cmd = f"echo '{message}' > {alert_file}"
 		run_cmd(ssh_argv(host=host, user=user, port=port, identity_file=identity_file, remote_command=alert_cmd))
-		
+
 		typer.echo(f"🚨 ALERT: {message}")
-		
+
 		# Send Slack alert if webhook configured (would need to be implemented)
 		# For now, just log and display
-	
+
 	typer.echo("🔍 Checking production server integrity...")
 	typer.echo("=" * 70)
-	
+
 	alerts = []
-	
+
 	# Check 1: Git status (uncommitted changes)
 	typer.echo("📋 Checking git status...")
 	try:
@@ -1182,14 +1180,14 @@ def prod_integrity_check(
 			typer.echo("✅ Git status clean")
 	except Exception as e:
 		alerts.append(f"GIT_CHECK_FAILED: {e}")
-	
+
 	# Check 2: File permissions on critical files
 	typer.echo("🔐 Checking file permissions...")
 	try:
 		perm_cmd = f"stat -c '%a %n' {prod_dir}/backend/config.yml {prod_dir}/.env 2>/dev/null || echo 'Config files not found'"
 		perm_result = run_cmd(ssh_argv(host=host, user=user, port=port, identity_file=identity_file, remote_command=perm_cmd), capture_output=True)
 		permissions = perm_result.stdout.strip()
-		
+
 		# Check if any config files are world-readable
 		if "644" in permissions or "666" in permissions:
 			alerts.append(f"INSECURE_PERMISSIONS: Config files are world-readable\n{permissions}")
@@ -1197,14 +1195,14 @@ def prod_integrity_check(
 			typer.echo("✅ File permissions secure")
 	except Exception as e:
 		alerts.append(f"PERMISSION_CHECK_FAILED: {e}")
-	
+
 	# Check 3: Running processes
 	typer.echo("⚙️ Checking running processes...")
 	try:
-		process_cmd = f"ps aux | grep -E '(uvicorn|python.*main)' | grep -v grep | wc -l"
+		process_cmd = "ps aux | grep -E '(uvicorn|python.*main)' | grep -v grep | wc -l"
 		process_result = run_cmd(ssh_argv(host=host, user=user, port=port, identity_file=identity_file, remote_command=process_cmd), capture_output=True)
 		process_count = int(process_result.stdout.strip())
-		
+
 		if process_count == 0:
 			alerts.append("NO_BACKEND_PROCESS: Backend is not running")
 		elif process_count > 1:
@@ -1213,40 +1211,40 @@ def prod_integrity_check(
 			typer.echo("✅ Backend process running normally")
 	except Exception as e:
 		alerts.append(f"PROCESS_CHECK_FAILED: {e}")
-	
+
 	# Check 4: Disk space
 	typer.echo("💾 Checking disk space...")
 	try:
 		disk_cmd = "df -h / | tail -1 | awk '{print $5}' | sed 's/%//'"
 		disk_result = run_cmd(ssh_argv(host=host, user=user, port=port, identity_file=identity_file, remote_command=disk_cmd), capture_output=True)
 		disk_usage = int(disk_result.stdout.strip())
-		
+
 		if disk_usage > 90:
 			alerts.append(f"LOW_DISK_SPACE: {disk_usage}% disk usage")
 		else:
 			typer.echo("✅ Disk space adequate")
 	except Exception as e:
 		alerts.append(f"DISK_CHECK_FAILED: {e}")
-	
+
 	# Check 5: Recent security events
 	typer.echo("🛡️ Checking recent security events...")
 	try:
 		security_cmd = "tail -20 /var/log/auth.log 2>/dev/null | grep -i -E '(failed|invalid|unauthorized)' | wc -l"
 		security_result = run_cmd(ssh_argv(host=host, user=user, port=port, identity_file=identity_file, remote_command=security_cmd), capture_output=True, check=False)
 		security_events = int(security_result.stdout.strip() or "0")
-		
+
 		if security_events > 0:
 			alerts.append(f"SECURITY_EVENTS: {security_events} suspicious auth events in recent logs")
 		else:
 			typer.echo("✅ No recent security events")
 	except Exception as e:
 		typer.echo(f"⚠️ Security check inconclusive: {e}")
-	
+
 	# Summary
 	typer.echo("\n" + "=" * 70)
 	typer.echo("📊 INTEGRITY CHECK RESULTS")
 	typer.echo("=" * 70)
-	
+
 	if alerts:
 		typer.echo(f"🚨 {len(alerts)} ALERT(S) DETECTED:")
 		for alert_msg in alerts:

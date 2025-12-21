@@ -7,8 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.evidence_pack import EvidencePackBuilder, create_evidence_pack_from_sources
-
+from backend.evidence_pack import EvidencePackBuilder
 from backend.src.fi_common.interfaces.ilogger import ILogger
 
 

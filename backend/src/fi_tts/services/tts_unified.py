@@ -36,9 +36,8 @@ Updated: 2025-12-09 (Added steerable TTS support)
 from __future__ import annotations
 
 import re
-from typing import Literal
-
 import structlog
+from typing import Literal
 
 from backend.src.fi_tts.services.tts_openai import get_openai_tts_service
 from backend.src.fi_tts.services.tts_openai_steerable import get_steerable_tts_service

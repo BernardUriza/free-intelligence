@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
 from fastapi import APIRouter, HTTPException, status
+from typing import TYPE_CHECKING, Any
 
 from backend.src.fi_common.logging.logger import get_logger
 from backend.validators import validate_session_id
@@ -83,12 +82,12 @@ async def analyze_session_intelligent_workflow(
     import h5py
 
     from backend.models.task_type import TaskStatus, TaskType
-    from backend.src.fi_workflow.services.workflow_router import get_workflow_router
     from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
         CORPUS_PATH,
         ensure_task_exists,
         get_task_metadata,
     )
+    from backend.src.fi_workflow.services.workflow_router import get_workflow_router
     from backend.workers.executor_pool import spawn_worker
 
     try:

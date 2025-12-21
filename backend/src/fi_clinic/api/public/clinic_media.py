@@ -22,12 +22,11 @@ from __future__ import annotations
 import hashlib
 import time
 import uuid
-from pathlib import Path
-from typing import Literal
-
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
+from pathlib import Path
 from pydantic import BaseModel, Field
+from typing import Literal
 
 from backend.src.fi_common.logging.logger import get_logger
 
@@ -249,12 +248,11 @@ async def upload_clinic_media(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid image type. Allowed: {ALLOWED_IMAGE_TYPES}",
                 )
-        elif media_type == "video":
-            if file.content_type not in ALLOWED_VIDEO_TYPES:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid video type. Allowed: {ALLOWED_VIDEO_TYPES}",
-                )
+        elif media_type == "video" and file.content_type not in ALLOWED_VIDEO_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid video type. Allowed: {ALLOWED_VIDEO_TYPES}",
+            )
 
         # Generate filename with hash for deduplication
         file_hash = hashlib.sha256(contents).hexdigest()[:16]

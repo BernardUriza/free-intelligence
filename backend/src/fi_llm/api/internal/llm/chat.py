@@ -14,19 +14,18 @@ Propósito:
 import hashlib
 import json
 import time
+import ulid
 import uuid as _uuid
 from datetime import UTC, datetime
-
-import ulid
 from fastapi import APIRouter, HTTPException, Request, status
 
-from backend.src.fi_assistant.api.public.assistant_websocket import broadcast_new_message
-from backend.src.fi_common.logging.logger import get_logger
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.llm import llm_generate
 from backend.repositories.audit_repository import AuditRepository
 from backend.schemas.llm.audit_policy import require_audit_log
+from backend.src.fi_assistant.api.public.assistant_websocket import broadcast_new_message
 from backend.src.fi_audit.services.audit_service import AuditService
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_llm.services.conversation_memory import get_memory_manager
 from backend.src.fi_llm.services.persona_manager import PersonaManager
 from backend.src.fi_storage.services.trace_store import get_trace_store
@@ -40,6 +39,7 @@ policy_loader = get_policy_loader()
 trace_store = get_trace_store()
 
 # Initialize audit service for persona metrics tracking
+import contextlib
 from pathlib import Path
 
 CORPUS_PATH = Path(__file__).parent.parent.parent.parent.parent / "storage" / "corpus.h5"
@@ -254,14 +254,12 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
             enable_thinking=enable_thinking,  # Toggle thinking/reasoning mode
         )
 
-        try:
+        with contextlib.suppress(Exception):
             logger.info(
                 "INTERNAL_LLM_MODEL_EFFECTIVE",
                 effective_model=getattr(llm_response, "model", "unknown"),
                 provider=request.provider or policy_loader.get_primary_provider(),
             )
-        except Exception:
-            pass
 
         # Record LLM_CALL in trace timeline
         try:

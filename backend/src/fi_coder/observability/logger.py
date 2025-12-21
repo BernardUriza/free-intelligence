@@ -102,4 +102,4 @@ def redact_logs(text: str) -> str:
 # Default logger instance
 logger = get_logger()
 
-__all__ = ["get_logger", "redact_logs", "logger"]
+__all__ = ["get_logger", "logger", "redact_logs"]

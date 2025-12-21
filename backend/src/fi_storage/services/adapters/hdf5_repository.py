@@ -8,11 +8,10 @@ Thread-safety: Uses session locks from backend.src.fi_storage.infrastructure.hdf
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from datetime import UTC
-
 import h5py
 import numpy as np
+from collections.abc import Sequence
+from datetime import UTC
 
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (

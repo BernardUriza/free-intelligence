@@ -5,12 +5,11 @@ Card: FI-UI-FEAT-204
 Provides read-only access to effective policy configuration from fi.policy.yaml
 """
 
+from fastapi import APIRouter, HTTPException
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
-
-from backend.src.fi_common.logging.logger import get_logger
 from backend.policy.policy_loader import get_policy_loader
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

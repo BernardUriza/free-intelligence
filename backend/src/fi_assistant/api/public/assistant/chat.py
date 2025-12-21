@@ -5,9 +5,9 @@ import uuid as _uuid
 from fastapi import APIRouter, HTTPException, status
 
 from backend.clients import get_llm_client
-from backend.src.fi_common.logging.logger import get_logger
 from backend.observability import chat_events
 from backend.observability.logging import CTX_REQUEST_ID
+from backend.src.fi_common.logging.logger import get_logger
 
 from ..assistant_schemas import (
     ChatCompletionChoice,
@@ -183,10 +183,7 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
 
         # Extract thinking if available (Qwen3 thinking mode)
         thinking = result.get("thinking")
-        if thinking and isinstance(thinking, str):
-            thinking = thinking.strip() or None
-        else:
-            thinking = None
+        thinking = thinking.strip() or None if thinking and isinstance(thinking, str) else None
 
         return ChatCompletionResponse(
             id=completion_id,

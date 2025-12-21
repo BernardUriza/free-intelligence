@@ -23,54 +23,54 @@ def setup_firewall(
 ) -> None:
     """
     Setup UFW firewall for production server.
-    
+
     Configures deny-all policy with SSH and NFS access from VPC only.
     Requires root privileges.
     """
     import os
     import subprocess
-    
+
     typer.echo("🔥 Setting up UFW firewall...")
     typer.echo(f"   VPC CIDR: {vpc_cidr}")
     typer.echo(f"   SMB enabled: {enable_smb}")
     typer.echo(f"   Dry run: {dry_run}")
     typer.echo()
-    
+
     # Check if running as root
     if os.geteuid() != 0:
         typer.echo("❌ Must run as root (sudo)", err=True)
         raise typer.Exit(1)
-    
+
     try:
         commands = []
-        
+
         # Reset UFW to defaults
         commands.append(("ufw --force reset", "Resetting UFW to defaults"))
-        
+
         # Set default policies
         commands.append(("ufw default deny incoming", "Setting default deny incoming"))
         commands.append(("ufw default allow outgoing", "Setting default allow outgoing"))
-        
+
         # Allow SSH
         commands.append(("ufw allow ssh", "Allowing SSH access"))
-        
+
         # Allow NFS from VPC
         commands.append((f"ufw allow from {vpc_cidr} to any port 2049 proto tcp", "Allowing NFS TCP from VPC"))
         commands.append((f"ufw allow from {vpc_cidr} to any port 2049 proto udp", "Allowing NFS UDP from VPC"))
-        
+
         # Allow additional NFS ports
         for port in [111, 32765, 32766, 32767]:
             commands.append((f"ufw allow from {vpc_cidr} to any port {port} proto tcp", f"Allowing NFS port {port} TCP from VPC"))
             commands.append((f"ufw allow from {vpc_cidr} to any port {port} proto udp", f"Allowing NFS port {port} UDP from VPC"))
-        
+
         # Allow SMB if requested
         if enable_smb:
             commands.append((f"ufw allow from {vpc_cidr} to any port 445 proto tcp", "Allowing SMB from VPC"))
             commands.append((f"ufw allow from {vpc_cidr} to any port 139 proto tcp", "Allowing NetBIOS from VPC"))
-        
+
         # Enable UFW
         commands.append(("ufw --force enable", "Enabling UFW"))
-        
+
         # Execute commands
         for cmd, desc in commands:
             typer.echo(f"📦 {desc}...")
@@ -81,7 +81,7 @@ def setup_firewall(
                     raise typer.Exit(1)
             else:
                 typer.echo(f"   [DRY RUN] Would run: {cmd}")
-        
+
         # Show status
         typer.echo("\n📊 Firewall status:")
         if not dry_run:
@@ -89,7 +89,7 @@ def setup_firewall(
             typer.echo(result.stdout)
         else:
             typer.echo("   [DRY RUN] Would show UFW status")
-            
+
     except subprocess.CalledProcessError as e:
         typer.echo(f"❌ Firewall setup failed: {e}", err=True)
         raise typer.Exit(1)
@@ -104,66 +104,66 @@ def fix_firewall(
 ) -> None:
     """
     Diagnose and fix firewall configuration issues.
-    
+
     Migrates from manual iptables rules to UFW for persistence.
     Requires root privileges.
     """
     import os
     import subprocess
-    
+
     typer.echo("🔧 Diagnosing firewall configuration...")
-    
+
     # Check if running as root
     if os.geteuid() != 0:
         typer.echo("❌ Must run as root (sudo)", err=True)
         raise typer.Exit(1)
-    
+
     try:
         # Check current iptables policy
         typer.echo("\n📋 Current iptables INPUT policy:")
-        result = subprocess.run(["iptables", "-L", "INPUT", "-n", "-v"], 
+        result = subprocess.run(["iptables", "-L", "INPUT", "-n", "-v"],
                               capture_output=True, text=True)
         typer.echo(result.stdout[:500] + "..." if len(result.stdout) > 500 else result.stdout)
-        
+
         # Check UFW status
         typer.echo("\n📋 UFW status:")
-        result = subprocess.run(["ufw", "status", "verbose"], 
+        result = subprocess.run(["ufw", "status", "verbose"],
                               capture_output=True, text=True)
         typer.echo(result.stdout)
-        
+
         if dry_run:
             typer.echo("\n🔍 [DRY RUN] Would migrate iptables rules to UFW...")
             return
-        
+
         # Reset and reconfigure UFW
         typer.echo("\n🔄 Migrating to UFW...")
-        
+
         # Disable UFW temporarily
         subprocess.run(["ufw", "--force", "disable"], check=True)
-        
+
         # Reset UFW
         subprocess.run(["ufw", "--force", "reset"], check=True)
-        
+
         # Set policies
         subprocess.run(["ufw", "default", "deny", "incoming"], check=True)
         subprocess.run(["ufw", "default", "allow", "outgoing"], check=True)
-        
+
         # Allow essential services
         subprocess.run(["ufw", "allow", "ssh"], check=True)
         subprocess.run(["ufw", "allow", "80"], check=True)  # HTTP
         subprocess.run(["ufw", "allow", "443"], check=True)  # HTTPS
         subprocess.run(["ufw", "allow", "7001"], check=True)  # Backend
-        
+
         # Enable UFW
         subprocess.run(["ufw", "--force", "enable"], check=True)
-        
+
         typer.echo("\n✅ Firewall migration complete!")
-        
+
         # Show final status
-        result = subprocess.run(["ufw", "status", "verbose"], 
+        result = subprocess.run(["ufw", "status", "verbose"],
                               capture_output=True, text=True)
         typer.echo(result.stdout)
-        
+
     except subprocess.CalledProcessError as e:
         typer.echo(f"❌ Firewall fix failed: {e}", err=True)
         raise typer.Exit(1)
@@ -186,19 +186,19 @@ def tls_cert(
 ) -> None:
     """
     Generate TLS certificates for HTTPS.
-    
+
     Can generate self-signed certificates or obtain Let's Encrypt certificates.
     """
     import subprocess
     from pathlib import Path
-    
+
     cert_path = Path(cert_dir)
     cert_path.mkdir(parents=True, exist_ok=True)
-    
+
     typer.echo(f"🔐 Generating TLS certificate for {domain}...")
     typer.echo(f"   Certificate directory: {cert_path}")
     typer.echo(f"   Self-signed: {self_signed}")
-    
+
     if self_signed:
         # Generate self-signed certificate
         try:
@@ -207,10 +207,10 @@ def tls_cert(
             subprocess.run([
                 "openssl", "genrsa", "-out", str(cert_path / "server.key"), "4096"
             ], check=True)
-            
+
             # Set secure permissions
             (cert_path / "server.key").chmod(0o600)
-            
+
             # Generate certificate
             typer.echo("📜 Generating self-signed certificate...")
             subprocess.run([
@@ -218,15 +218,15 @@ def tls_cert(
                 "-out", str(cert_path / "server.crt"), "-days", "365",
                 "-subj", f"/C=MX/ST=Mexico/L=Mexico City/O=Free Intelligence/OU=AURITY/CN={domain}"
             ], check=True)
-            
+
             typer.echo("✅ Self-signed certificate generated!")
             typer.echo(f"   Key: {cert_path / 'server.key'}")
             typer.echo(f"   Cert: {cert_path / 'server.crt'}")
-            
+
         except subprocess.CalledProcessError as e:
             typer.echo(f"❌ Certificate generation failed: {e}", err=True)
             raise typer.Exit(1)
-            
+
     else:
         # Let's Encrypt certificate
         typer.echo("\n🌐 Obtaining Let's Encrypt certificate...")
@@ -235,9 +235,9 @@ def tls_cert(
                 "certbot", "certonly", "--standalone", "-d", domain,
                 "--email", "admin@aurity.app", "--agree-tos", "--non-interactive"
             ], check=True)
-            
+
             typer.echo("✅ Let's Encrypt certificate obtained!")
-            
+
         except subprocess.CalledProcessError as e:
             typer.echo(f"❌ Let's Encrypt certificate failed: {e}", err=True)
             raise typer.Exit(1)
@@ -256,7 +256,7 @@ def nas_setup(
 ) -> None:
     """
     Setup Free Intelligence on NAS (Synology/QNAP/TrueNAS).
-    
+
     Installs dependencies, creates directories, sets permissions, and initializes corpus.
     Optimized for NAS environments without venv.
     """
@@ -264,23 +264,23 @@ def nas_setup(
     import subprocess
     import sys
     from pathlib import Path
-    
+
     typer.echo("==========================================")
     typer.echo("Free Intelligence - NAS Setup")
     typer.echo("==========================================")
     typer.echo("")
-    
+
     if dry_run:
         typer.echo("🔍 DRY RUN MODE - No changes will be made")
         typer.echo("")
-    
+
     # 1. Check prerequisites
     typer.echo("🔍 Checking prerequisites...")
-    
+
     # Check Node.js
     try:
         node_version = subprocess.run(
-            ["node", "-v"], 
+            ["node", "-v"],
             capture_output=True, text=True, check=True
         ).stdout.strip()
         node_major = int(node_version.lstrip('v').split('.')[0])
@@ -291,22 +291,22 @@ def nas_setup(
     except (subprocess.CalledProcessError, FileNotFoundError):
         typer.echo("❌ Node.js not found. Please install Node.js 18+ first.", err=True)
         raise typer.Exit(1)
-    
+
     # Check Python
     try:
         python_version = subprocess.run(
-            ["python3", "--version"], 
+            ["python3", "--version"],
             capture_output=True, text=True, check=True
         ).stdout.strip()
         typer.echo(f"✅ Python {python_version} detected")
     except (subprocess.CalledProcessError, FileNotFoundError):
         typer.echo("❌ Python3 not found. Please install Python 3.11+ first.", err=True)
         raise typer.Exit(1)
-    
+
     # Check pnpm
     try:
         pnpm_version = subprocess.run(
-            ["pnpm", "-v"], 
+            ["pnpm", "-v"],
             capture_output=True, text=True, check=True
         ).stdout.strip()
         typer.echo(f"✅ pnpm {pnpm_version} detected")
@@ -315,7 +315,7 @@ def nas_setup(
             typer.echo("📦 Installing pnpm globally...")
             try:
                 subprocess.run(
-                    [sys.executable, "-m", "npm", "install", "-g", "pnpm@8.15.0"], 
+                    [sys.executable, "-m", "npm", "install", "-g", "pnpm@8.15.0"],
                     check=True
                 )
                 typer.echo("✅ pnpm installed")
@@ -324,16 +324,16 @@ def nas_setup(
                 raise typer.Exit(1)
         else:
             typer.echo("⚠️  pnpm not found (would install in real run)")
-    
+
     # 2. Create directories
     typer.echo("📁 Creating directory structure...")
     dirs = ["storage", "backups", "logs", "config"]
-    
+
     for dir_name in dirs:
         if not dry_run:
             Path(dir_name).mkdir(exist_ok=True)
         typer.echo(f"✅ Created {dir_name}/")
-    
+
     # 3. Install Node.js dependencies
     typer.echo("📦 Installing Node.js dependencies...")
     if not dry_run:
@@ -345,17 +345,17 @@ def nas_setup(
             raise typer.Exit(1)
     else:
         typer.echo("⚠️  Would install Node.js dependencies")
-    
+
     # 4. Install Python dependencies (system-wide)
     typer.echo("🐍 Installing Python dependencies (system-wide)...")
     if not dry_run:
         try:
             subprocess.run([
-                "python3", "-m", "pip", "install", "--upgrade", "pip", 
+                "python3", "-m", "pip", "install", "--upgrade", "pip",
                 "--break-system-packages"
             ], check=True)
             subprocess.run([
-                "python3", "-m", "pip", "install", "-r", "requirements.txt", 
+                "python3", "-m", "pip", "install", "-r", "requirements.txt",
                 "--break-system-packages"
             ], check=True)
             typer.echo("✅ Python dependencies installed (no venv)")
@@ -364,7 +364,7 @@ def nas_setup(
             raise typer.Exit(1)
     else:
         typer.echo("⚠️  Would install Python dependencies")
-    
+
     # 5. Setup environment file
     env_file = Path(".env.local")
     if not env_file.exists():
@@ -394,7 +394,7 @@ NEXT_TELEMETRY_DISABLED=1
         typer.echo("✅ .env.local created (PLEASE EDIT WITH YOUR NAS IP)")
     else:
         typer.echo("✅ .env.local already exists")
-    
+
     # 6. Build production assets
     typer.echo("🏗️  Building production assets with Turborepo...")
     if not dry_run:
@@ -406,7 +406,7 @@ NEXT_TELEMETRY_DISABLED=1
             raise typer.Exit(1)
     else:
         typer.echo("⚠️  Would build production assets")
-    
+
     # 7. Initialize corpus (if needed)
     corpus_file = Path("storage/corpus.h5")
     if not corpus_file.exists():
@@ -418,7 +418,7 @@ NEXT_TELEMETRY_DISABLED=1
                 backend_path = Path("backend")
                 if str(backend_path) not in sys.path:
                     sys.path.insert(0, str(backend_path))
-                
+
                 # Import and initialize
                 from backend.storage.session_h5_manager import init_corpus
                 init_corpus()
@@ -429,7 +429,7 @@ NEXT_TELEMETRY_DISABLED=1
                 typer.echo(f"⚠️  Corpus initialization failed: {e}")
         else:
             typer.echo("⚠️  Would initialize corpus")
-    
+
     # 8. Set permissions
     typer.echo("🔧 Setting file permissions...")
     if not dry_run:
@@ -442,7 +442,7 @@ NEXT_TELEMETRY_DISABLED=1
             typer.echo(f"⚠️  Permission setting failed: {e}")
     else:
         typer.echo("⚠️  Would set permissions")
-    
+
     # 9. Summary
     typer.echo("")
     typer.echo("==========================================")
@@ -469,7 +469,7 @@ NEXT_TELEMETRY_DISABLED=1
     typer.echo("   pm2 start ecosystem.config.js")
     typer.echo("   pm2 save")
     typer.echo("")
-    typer.echo(f"Access the application:")
+    typer.echo("Access the application:")
     typer.echo(f"   Frontend: http://{nas_ip}:9000")
     typer.echo(f"   Backend:  http://{nas_ip}:9001/docs")
     typer.echo(f"   Timeline: http://{nas_ip}:9002/docs")
@@ -507,35 +507,35 @@ def setup_nfs(
 ) -> None:
     """
     Setup NFS server with pseudo-root and root_squash hardening.
-    
+
     Configures NFSv4 with proper security, performance tuning, and UID/GID mapping.
     Requires root privileges.
     """
     import os
     import subprocess
-    
+
     typer.echo("==========================================")
     typer.echo("Free Intelligence - NFS Setup (Hardened)")
     typer.echo("==========================================")
     typer.echo("")
-    
+
     if dry_run:
         typer.echo("🔍 DRY RUN MODE - No changes will be made")
         typer.echo("")
-    
+
     # Check root
     if os.geteuid() != 0:
         typer.echo("❌ Must run as root (sudo)", err=True)
         raise typer.Exit(1)
-    
+
     export_path = f"{export_root}/fi"
-    
+
     typer.echo(f"VPC CIDR: {vpc_cidr}")
     typer.echo(f"Data path: {data_path}")
     typer.echo(f"Export path: {export_path} (pseudo-root: {export_root})")
     typer.echo(f"UID/GID: {fi_uid}/{fi_gid}")
     typer.echo("")
-    
+
     try:
         # 1. Install NFS packages
         typer.echo("📦 Installing NFS server packages...")
@@ -543,7 +543,7 @@ def setup_nfs(
             subprocess.run(["apt-get", "update", "-qq"], check=True)
             subprocess.run(["apt-get", "install", "-y", "nfs-kernel-server", "nfs-common"], check=True)
         typer.echo("✅ NFS packages installed")
-        
+
         # 2. Create data directory
         if not dry_run:
             Path(data_path).mkdir(parents=True, exist_ok=True)
@@ -552,13 +552,13 @@ def setup_nfs(
             subprocess.run(["chown", "-R", f"{fi_uid}:{fi_gid}", data_path], check=True)
             subprocess.run(["chmod", "755", data_path], check=True)
         typer.echo("✅ Data directory created")
-        
+
         # 3. Create NFS pseudo-root with bind mount
         typer.echo("🔗 Creating NFS pseudo-root structure...")
         if not dry_run:
             Path(export_root).mkdir(parents=True, exist_ok=True)
             Path(export_path).mkdir(parents=True, exist_ok=True)
-            
+
             # Create systemd mount unit
             mount_unit = f"""[Unit]
 Description=Bind mount {data_path} to {export_path} for NFS
@@ -576,11 +576,11 @@ WantedBy=multi-user.target
 """
             with open("/etc/systemd/system/export-fi.mount", "w") as f:
                 f.write(mount_unit)
-            
+
             subprocess.run(["systemctl", "daemon-reload"], check=True)
             subprocess.run(["systemctl", "enable", "--now", "export-fi.mount"], check=True)
         typer.echo("✅ Pseudo-root bind mount configured")
-        
+
         # 4. Configure /etc/exports
         typer.echo("📝 Configuring NFS exports (with root_squash)...")
         exports_config = f"""# Free Intelligence NFS Exports (NFSv4 pseudo-root)
@@ -600,7 +600,7 @@ WantedBy=multi-user.target
             with open("/etc/exports", "w") as f:
                 f.write(exports_config)
         typer.echo("✅ Exports configured with root_squash")
-        
+
         # 5. Configure idmapd
         typer.echo("🆔 Configuring NFSv4 ID mapping...")
         idmapd_config = """[General]
@@ -618,7 +618,7 @@ Method = nsswitch
             with open("/etc/idmapd.conf", "w") as f:
                 f.write(idmapd_config)
         typer.echo("✅ idmapd configured (Domain: vpc.local)")
-        
+
         # 6. Tune NFS server
         typer.echo("⚡ Applying NFS performance tuning...")
         nfs_config = """# NFS server configuration (tuned for HDF5 workloads)
@@ -642,7 +642,7 @@ net.core.netdev_max_backlog = 30000
                 f.write(sysctl_config)
             subprocess.run(["sysctl", "--system"], check=True, capture_output=True)
         typer.echo("✅ Performance tuning applied")
-        
+
         # 7. Restart NFS services
         typer.echo("🔄 Restarting NFS services...")
         if not dry_run:
@@ -651,14 +651,14 @@ net.core.netdev_max_backlog = 30000
             subprocess.run(["systemctl", "restart", "nfs-kernel-server"], check=True)
             subprocess.run(["exportfs", "-ra"], check=True)
         typer.echo("✅ NFS services restarted")
-        
+
         # 8. Enable TRIM
         typer.echo("💾 Enabling SSD TRIM timer...")
         if not dry_run:
-            subprocess.run(["systemctl", "enable", "--now", "fstrim.timer"], 
+            subprocess.run(["systemctl", "enable", "--now", "fstrim.timer"],
                          check=False, capture_output=True)
         typer.echo("✅ TRIM timer enabled")
-        
+
         # 9. Show connection info
         typer.echo("")
         typer.echo("==========================================")
@@ -673,15 +673,15 @@ net.core.netdev_max_backlog = 30000
         typer.echo("")
         typer.echo("Client Mount Command (optimized):")
         typer.echo("  # On Linux client (in VPC):")
-        typer.echo(f"  sudo mkdir -p /mnt/fi")
-        typer.echo(f"  sudo mount -t nfs4 -o rsize=1048576,wsize=1048576,hard,noatime,nconnect=4 $PRIVATE_IP:/fi /mnt/fi")
+        typer.echo("  sudo mkdir -p /mnt/fi")
+        typer.echo("  sudo mount -t nfs4 -o rsize=1048576,wsize=1048576,hard,noatime,nconnect=4 $PRIVATE_IP:/fi /mnt/fi")
         typer.echo("")
         typer.echo("IMPORTANT:")
         typer.echo("  1. Set Domain=vpc.local in /etc/idmapd.conf on ALL clients")
         typer.echo("  2. Create matching DO Cloud Firewall for defense-in-depth")
         typer.echo("  3. Run services as UID {fi_uid} to match anonuid")
         typer.echo("==========================================")
-        
+
     except subprocess.CalledProcessError as e:
         typer.echo(f"❌ NFS setup failed: {e}", err=True)
         raise typer.Exit(1)
@@ -720,28 +720,28 @@ def setup_smb(
 ) -> None:
     """
     Setup Samba (SMB) server with SMB3 encryption and hardening.
-    
+
     Configures SMB3-only access with required encryption and no legacy protocols.
     Requires root privileges.
     """
     import getpass
     import os
     import subprocess
-    
+
     typer.echo("==========================================")
     typer.echo("Free Intelligence - SMB Setup (Hardened)")
     typer.echo("==========================================")
     typer.echo("")
-    
+
     if dry_run:
         typer.echo("🔍 DRY RUN MODE - No changes will be made")
         typer.echo("")
-    
+
     # Check root
     if os.geteuid() != 0:
         typer.echo("❌ Must run as root (sudo)", err=True)
         raise typer.Exit(1)
-    
+
     # Prompt for password if not provided
     if not smb_password:
         if not dry_run:
@@ -753,7 +753,7 @@ def setup_smb(
                 typer.echo("⚠️  Password should be at least 12 characters for production")
         else:
             smb_password = "[PASSWORD]"
-    
+
     try:
         # 1. Install Samba
         typer.echo("📦 Installing Samba packages...")
@@ -761,14 +761,14 @@ def setup_smb(
             subprocess.run(["apt-get", "update", "-qq"], check=True)
             subprocess.run(["apt-get", "install", "-y", "samba", "samba-common-bin"], check=True)
         typer.echo("✅ Samba installed")
-        
+
         # 2. Backup config
         if not dry_run and Path("/etc/samba/smb.conf").exists():
             backup_path = Path("/etc/samba/smb.conf.bak")
             if not backup_path.exists():
                 subprocess.run(["cp", "/etc/samba/smb.conf", str(backup_path)], check=True)
         typer.echo("✅ Original config backed up")
-        
+
         # 3. Create hardened Samba configuration
         typer.echo("📝 Configuring Samba (SMB3, encryption required)...")
         smb_config = f"""# Free Intelligence - Samba Configuration (Hardened)
@@ -838,7 +838,7 @@ def setup_smb(
             with open("/etc/samba/smb.conf", "w") as f:
                 f.write(smb_config)
         typer.echo("✅ Samba configured with SMB3 encryption")
-        
+
         # 4. Create SMB user
         typer.echo(f"👤 Creating SMB user: {smb_user}")
         if not dry_run:
@@ -846,7 +846,7 @@ def setup_smb(
             result = subprocess.run(["id", smb_user], capture_output=True)
             if result.returncode != 0:
                 subprocess.run(["useradd", "-M", "-s", "/usr/sbin/nologin", smb_user], check=True)
-            
+
             # Set password
             process = subprocess.Popen(
                 ["smbpasswd", "-a", smb_user],
@@ -854,26 +854,26 @@ def setup_smb(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
-            stdout, stderr = process.communicate(input=f"{smb_password}\n{smb_password}\n".encode())
+            _stdout, stderr = process.communicate(input=f"{smb_password}\n{smb_password}\n".encode())
             if process.returncode != 0:
                 typer.echo(f"❌ Failed to set SMB password: {stderr.decode()}", err=True)
                 raise typer.Exit(1)
         typer.echo(f"✅ SMB user {smb_user} created")
-        
+
         # 5. Set permissions
         typer.echo("🔧 Setting share permissions...")
         if not dry_run:
             subprocess.run(["chown", "-R", f"{fi_uid}:{fi_gid}", share_path], check=True)
             subprocess.run(["chmod", "755", share_path], check=True)
         typer.echo("✅ Permissions set")
-        
+
         # 6. Restart Samba
         typer.echo("🔄 Restarting Samba services...")
         if not dry_run:
             subprocess.run(["systemctl", "enable", "smbd"], check=True)
             subprocess.run(["systemctl", "restart", "smbd"], check=True)
         typer.echo("✅ Samba services restarted")
-        
+
         # 7. Show connection info
         typer.echo("")
         typer.echo("==========================================")
@@ -899,7 +899,7 @@ def setup_smb(
         typer.echo("  ✅ No legacy authentication")
         typer.echo("  ✅ No anonymous access")
         typer.echo("==========================================")
-        
+
     except subprocess.CalledProcessError as e:
         typer.echo(f"❌ SMB setup failed: {e}", err=True)
         raise typer.Exit(1)
@@ -909,20 +909,20 @@ def setup_smb(
 def validate_nas_deployment() -> None:
     """
     Validate NAS deployment readiness.
-    
+
     Checks that all deployment artifacts are present and properly configured
     for Synology DS923+ deployment.
     """
     import os
     from pathlib import Path
-    
+
     typer.echo("🔍 Free Intelligence - NAS Deployment Readiness Check")
     typer.echo("=" * 60)
     typer.echo()
-    
+
     checks_passed = 0
     checks_total = 0
-    
+
     def check(condition: bool, message: str) -> None:
         nonlocal checks_passed, checks_total
         checks_total += 1
@@ -931,24 +931,24 @@ def validate_nas_deployment() -> None:
             checks_passed += 1
         else:
             typer.echo(f"❌ {message}")
-    
+
     # Check 1: Docker Compose configs exist
     ollama_compose = Path("docker-compose.ollama.yml")
     asr_compose = Path("docker-compose.asr.yml")
     check(ollama_compose.exists() and asr_compose.exists(), "Docker Compose configs present")
-    
+
     # Check 2: Deployment script executable
     deploy_script = Path("scripts/deploy-ds923.sh")
     check(deploy_script.exists() and os.access(deploy_script, os.X_OK), "Deployment script executable")
-    
+
     # Check 3: ASR worker script executable
     asr_worker = Path("scripts/asr_worker.py")
     check(asr_worker.exists() and os.access(asr_worker, os.X_OK), "ASR worker script executable")
-    
+
     # Check 4: Environment example exists
     env_example = Path(".env.diarization.example")
     check(env_example.exists(), "Environment config example present")
-    
+
     # Check 5: Validate Ollama compose syntax
     if ollama_compose.exists():
         content = ollama_compose.read_text()
@@ -956,7 +956,7 @@ def validate_nas_deployment() -> None:
     else:
         valid_ollama = False
     check(valid_ollama, "Ollama config valid (port 11434, container name)")
-    
+
     # Check 6: Validate ASR compose syntax
     if asr_compose.exists():
         content = asr_compose.read_text()
@@ -964,7 +964,7 @@ def validate_nas_deployment() -> None:
     else:
         valid_asr = False
     check(valid_asr, "ASR config valid (faster-whisper, container name)")
-    
+
     # Check 7: Deployment script has smoke tests
     if deploy_script.exists():
         content = deploy_script.read_text()
@@ -972,13 +972,13 @@ def validate_nas_deployment() -> None:
     else:
         has_smoke_tests = False
     check(has_smoke_tests, "Deployment script has smoke tests")
-    
+
     typer.echo()
     typer.echo("=" * 60)
     typer.echo(f"Results: {checks_passed}/{checks_total} checks passed")
     typer.echo("=" * 60)
     typer.echo()
-    
+
     if checks_passed == checks_total:
         typer.echo("✅ NAS deployment artifacts ready")
         typer.echo()
@@ -1005,14 +1005,13 @@ def fix_nginx_cache_headers(
 ) -> None:
     """
     Fix Nginx cache headers to prevent stale HTML.
-    
+
     Updates nginx config with proper cache headers for static assets and HTML files.
     Requires root SSH access to production server.
     """
     import paramiko
     import time
 
-    from .._common import run_cmd, ssh_argv
 
     if not host:
         typer.echo("❌ --host is required (or set FI_OPS_HOST)", err=True)
@@ -1123,11 +1122,10 @@ server {
         typer.echo("🔗 Connecting to server...")
 
         # Use subprocess to handle SSH connection
-        import shlex
         import subprocess
 
         def run_ssh_command(cmd: str) -> tuple[str, str]:
-            full_cmd = ssh_cmd_parts + [cmd]
+            full_cmd = [*ssh_cmd_parts, cmd]
             result = subprocess.run(full_cmd, capture_output=True, text=True, check=False)
             return result.stdout, result.stderr
 
@@ -1207,24 +1205,24 @@ def test_tls(
 ) -> None:
     """
     Test TLS 1.3 configuration for HIPAA compliance.
-    
+
     Tests HTTP redirects, TLS protocol versions, security headers,
     and backend API proxying. Evidence collection for HIPAA card G-002.
     """
     import socket
     import subprocess
-    
+
     typer.echo("🧪 Testing TLS 1.3 Configuration")
     typer.echo("=" * 60)
     typer.echo(f"   Host: {host}")
     typer.echo(f"   Port: {port}")
     typer.echo(f"   Protocol: {protocol}")
     typer.echo()
-    
+
     # Test results
     passed = 0
     failed = 0
-    
+
     def run_test(name: str, test_func) -> None:
         nonlocal passed, failed
         typer.echo("=" * 60)
@@ -1242,12 +1240,12 @@ def test_tls(
             typer.echo(f"❌ ERROR: {e}")
             failed += 1
         typer.echo()
-    
+
     def test_http_redirect() -> bool:
         """Test HTTP → HTTPS redirect (HIPAA requirement)"""
         if protocol != "https":
             return True  # Skip if not testing HTTPS
-            
+
         try:
             response = subprocess.run(
                 ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", f"http://{host}/health"],
@@ -1265,7 +1263,7 @@ def test_tls(
         except subprocess.TimeoutExpired:
             typer.echo("   Connection timeout")
             return False
-    
+
     def test_https_health() -> bool:
         """Test HTTPS health check"""
         try:
@@ -1285,7 +1283,7 @@ def test_tls(
         except subprocess.TimeoutExpired:
             typer.echo("   Connection timeout")
             return False
-    
+
     def test_tls_version() -> bool:
         """Test TLS protocol version (TLS 1.3 required)"""
         try:
@@ -1312,7 +1310,7 @@ def test_tls(
         except subprocess.TimeoutExpired:
             typer.echo("   Connection timeout")
             return False
-    
+
     def test_hsts_header() -> bool:
         """Test HSTS header (HIPAA requirement)"""
         try:
@@ -1328,7 +1326,7 @@ def test_tls(
                 if line.lower().startswith('strict-transport-security'):
                     hsts_header = line
                     break
-            
+
             if hsts_header:
                 typer.echo("   HSTS header present")
                 typer.echo(f"   Header: {hsts_header.strip()}")
@@ -1339,7 +1337,7 @@ def test_tls(
         except subprocess.TimeoutExpired:
             typer.echo("   Connection timeout")
             return False
-    
+
     def test_security_headers() -> bool:
         """Test security headers"""
         try:
@@ -1350,25 +1348,25 @@ def test_tls(
                 timeout=10
             )
             headers = result.stdout
-            
+
             x_frame = any('x-frame-options' in line.lower() for line in headers.split('\n'))
             x_content_type = any('x-content-type-options' in line.lower() for line in headers.split('\n'))
-            
+
             if x_frame:
                 typer.echo("   X-Frame-Options header present")
             else:
                 typer.echo("   X-Frame-Options header missing")
-            
+
             if x_content_type:
                 typer.echo("   X-Content-Type-Options header present")
             else:
                 typer.echo("   X-Content-Type-Options header missing")
-            
+
             return x_frame and x_content_type
         except subprocess.TimeoutExpired:
             typer.echo("   Connection timeout")
             return False
-    
+
     def test_backend_api() -> bool:
         """Test backend API proxy"""
         # Check if backend is running locally
@@ -1377,7 +1375,7 @@ def test_tls(
             sock.settimeout(1)
             result = sock.connect_ex(('localhost', 7001))
             sock.close()
-            
+
             if result == 0:
                 # Backend is running, test API proxy
                 try:
@@ -1403,7 +1401,7 @@ def test_tls(
         except Exception:
             typer.echo("   Could not check backend status")
             return True  # Not a failure
-    
+
     # Run all tests
     run_test("HTTP → HTTPS Redirect (301)", test_http_redirect)
     run_test("HTTPS Health Check", test_https_health)
@@ -1411,7 +1409,7 @@ def test_tls(
     run_test("HSTS Header (Strict-Transport-Security)", test_hsts_header)
     run_test("Security Headers", test_security_headers)
     run_test("Backend API Proxy", test_backend_api)
-    
+
     # Summary
     typer.echo("=" * 60)
     typer.echo("📊 Test Summary")
@@ -1421,7 +1419,7 @@ def test_tls(
     typer.echo(f"   Failed: {failed}")
     typer.echo(f"   Total:  {total}")
     typer.echo()
-    
+
     if failed == 0:
         typer.echo("✅ ALL TESTS PASSED")
         typer.echo()

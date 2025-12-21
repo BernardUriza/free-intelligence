@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import json
-
 import h5py
+import json
 from fastapi import APIRouter, HTTPException, status
 
 from backend.src.fi_common.api.public.models import TranscriptionSourcesModel

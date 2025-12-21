@@ -37,28 +37,26 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from backend.src.fi_assistant.api.public import assistant, assistant_history, assistant_websocket
+from backend.src.fi_clinic.api.public import clinic_media
+from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_content.api.public import tv_content_seeds
+from backend.src.fi_document.api.public import documents
+from backend.src.fi_evidence.api.public import evidence
+from backend.src.fi_kpi.api.public import kpis
+from backend.src.fi_memory.api.public import longitudinal_memory
+from backend.src.fi_order.api.public import orders
+from backend.src.fi_session.api.public import sessions_list
+from backend.src.fi_session.api.public import sessions_pkg as sessions
+from backend.src.fi_soap_generation.api.public import soap
+from backend.src.fi_system.api.public import system
+from backend.src.fi_timeline.api.public import timeline
+
 # Import sub-routers (modular architecture following SOLIS pattern)
 # Note: After migration, imports point to the new module locations
 from backend.src.fi_transcription.api.public import transcription
-from backend.src.fi_session.api.public import sessions_pkg as sessions
-from backend.src.fi_session.api.public import sessions_list
-from backend.src.fi_soap_generation.api.public import soap
-from backend.src.fi_order.api.public import orders
-from backend.src.fi_timeline.api.public import timeline
-from backend.src.fi_kpi.api.public import kpis
-from backend.src.fi_assistant.api.public import assistant
-from backend.src.fi_assistant.api.public import assistant_history
-from backend.src.fi_assistant.api.public import assistant_websocket
-from backend.src.fi_memory.api.public import longitudinal_memory
-from backend.src.fi_workflow.api.public import waiting_room
-from backend.src.fi_clinic.api.public import clinic_media
-from backend.src.fi_content.api.public import tv_content_seeds
 from backend.src.fi_widget.api.public import widget_configs
-from backend.src.fi_document.api.public import documents
-from backend.src.fi_system.api.public import system
-from backend.src.fi_evidence.api.public import evidence
-
-from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_workflow.api.public import waiting_room
 
 logger = get_logger(__name__)
 

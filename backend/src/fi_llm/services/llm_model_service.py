@@ -7,11 +7,10 @@ Provides caching and validation for model management.
 from __future__ import annotations
 
 import os
+import yaml
 from datetime import datetime
 from pathlib import Path
 from typing import ClassVar
-
-import yaml
 
 from backend.models.llm_model import (
     CostTier,

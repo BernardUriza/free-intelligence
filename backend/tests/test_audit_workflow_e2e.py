@@ -12,10 +12,9 @@ Uses chunks 5-7 for realistic medical case testing.
 
 from __future__ import annotations
 
+import pytest
 import time
 from pathlib import Path
-
-import pytest
 
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     get_session_metadata,
@@ -221,7 +220,7 @@ class TestAuditWorkflowE2E:
 
         # Verify SOAP was updated with correction
         soap_data = get_soap_data(session_id)
-        plan_str = str(soap_data.get("plan", {}))
+        str(soap_data.get("plan", {}))
 
         # Note: Correction might be in medications list or as metadata
         print("  ✓ SOAP data structure preserved")

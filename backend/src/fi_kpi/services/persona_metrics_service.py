@@ -20,12 +20,11 @@ Created: 2025-11-20
 
 from __future__ import annotations
 
+import h5py
 import json
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
-
-import h5py
 
 from backend.src.fi_common.logging.logger import get_logger
 
@@ -84,7 +83,7 @@ class PersonaMetricsService:
                 costs = []
                 timestamps = []
 
-                for log_id in audit_logs_group.keys():
+                for log_id in audit_logs_group:
                     log_group = audit_logs_group[log_id]
 
                     # Check if this is an LLM call
@@ -179,7 +178,7 @@ class PersonaMetricsService:
                 persona_costs: dict[str, list[float]] = defaultdict(list)
                 persona_timestamps: dict[str, list[str]] = defaultdict(list)
 
-                for log_id in audit_logs_group.keys():
+                for log_id in audit_logs_group:
                     log_group = audit_logs_group[log_id]
 
                     # Check if this is an LLM call

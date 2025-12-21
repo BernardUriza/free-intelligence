@@ -17,15 +17,14 @@ Usage:
 
 from __future__ import annotations
 
+import h5py
+import numpy as np
 import os
+import pytest
 import sys
 import tempfile
 import time
 from pathlib import Path
-
-import h5py
-import numpy as np
-import pytest
 
 # Add backend to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
@@ -109,7 +108,7 @@ class TestLargeFileEncryption:
         print("[3/6] Generating encryption keys...")
         dek_id, dek, aesgcm = generate_dek()
         kek = load_kek()
-        wrapped_dek = wrap_dek(dek, kek)
+        wrap_dek(dek, kek)
 
         # Manually chunk and encrypt (simulating encrypt_large_dataset behavior)
         print("[4/6] Encrypting with chunking...")
@@ -213,7 +212,7 @@ class TestLargeFileEncryption:
 
         # Generate test data
         test_data = os.urandom(test_size_mb * 1024 * 1024)
-        original_sha256 = sha256_hex(test_data)
+        sha256_hex(test_data)
 
         # Create HDF5
         ds_path = "/audio/test_audio"
@@ -221,7 +220,7 @@ class TestLargeFileEncryption:
             h5.create_dataset(ds_path, data=np.frombuffer(test_data, dtype=np.uint8))
 
         # Generate keys
-        dek_id, dek, aesgcm = generate_dek()
+        dek_id, _dek, aesgcm = generate_dek()
 
         # Encrypt using the function
         with h5py.File(temp_h5_file, "r+") as h5:

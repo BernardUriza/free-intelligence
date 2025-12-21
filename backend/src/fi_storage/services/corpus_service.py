@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.src.fi_common.logging.logger import get_logger
 from backend.repositories import CorpusRepository
+from backend.src.fi_common.logging.logger import get_logger
 from backend.type_defs import DiarizationChunkDict
 
 logger = get_logger(__name__)

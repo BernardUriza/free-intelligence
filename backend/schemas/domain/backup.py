@@ -15,13 +15,12 @@ import hashlib
 import json
 import os
 import shutil
-from datetime import datetime, timedelta
-from pathlib import Path
-
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from datetime import datetime, timedelta
+from pathlib import Path
 
 from backend.src.fi_common.logging.logger import get_logger
 
@@ -558,10 +557,7 @@ if __name__ == "__main__":
         output_path = sys.argv[3]
 
         is_encrypted = backup_path.endswith(".enc")
-        if is_encrypted:
-            password = getpass.getpass("Enter decryption password: ")
-        else:
-            password = None
+        password = getpass.getpass("Enter decryption password: ") if is_encrypted else None
 
         try:
             restored_hash = restore_backup(backup_path, output_path, password)

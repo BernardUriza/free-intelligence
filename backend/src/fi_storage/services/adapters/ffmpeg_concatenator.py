@@ -151,7 +151,7 @@ class FFmpegConcatenator(AudioConcatenatorPort):
         ]
 
         try:
-            result = subprocess.run(
+            subprocess.run(
                 ffmpeg_cmd,
                 check=True,
                 timeout=self._timeout,

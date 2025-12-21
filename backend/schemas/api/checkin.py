@@ -12,9 +12,8 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from enum import Enum
-from typing import List
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import List
 
 # =============================================================================
 # ENUMS (match TypeScript exactly)

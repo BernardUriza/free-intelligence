@@ -12,13 +12,11 @@ from __future__ import annotations
 
 import secrets
 from datetime import UTC, datetime, timedelta
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from backend.database import get_db_dependency
-from backend.src.fi_common.logging.logger import get_logger
 from backend.models.checkin_models import (
     Appointment,
     AppointmentStatus,
@@ -26,6 +24,7 @@ from backend.models.checkin_models import (
     Clinic,
     Doctor,
 )
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

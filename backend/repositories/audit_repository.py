@@ -222,7 +222,7 @@ class AuditRepository(BaseRepository):
                 logs_group = f[self.AUDIT_LOGS_GROUP]
                 results = []
 
-                for log_id in logs_group.keys():  # type: ignore[attr-defined]
+                for log_id in logs_group:  # type: ignore[attr-defined]
                     log_data = self.read(log_id)
                     if not log_data:
                         continue

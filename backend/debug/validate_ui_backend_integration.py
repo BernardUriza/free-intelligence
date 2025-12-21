@@ -6,10 +6,9 @@ Validates the complete integration between UI and backend components.
 Confirms that both systems are working in coordination.
 """
 
+import requests
 import sys
 from pathlib import Path
-
-import requests
 
 # Add project root to path to access backend modules
 sys.path.insert(0, str(Path(__file__).parent))

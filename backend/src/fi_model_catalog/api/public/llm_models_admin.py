@@ -9,9 +9,8 @@ Created: 2025-12-11
 
 from __future__ import annotations
 
-import random
-
 import httpx
+import random
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
@@ -253,7 +252,7 @@ async def _test_ollama_model(model_id: str, prompt: str) -> str:
                 "prompt": f"Eres un asistente médico. Responde de forma concisa y profesional.\n\n{prompt}",
                 "stream": False,
                 # For Qwen3 or when forcing, enable separate thinking to surface raw field
-                "think": True if (is_qwen3 or force_thinking) else False,
+                "think": bool(is_qwen3 or force_thinking),
                 "options": {
                     "num_predict": 512,  # Increased for thinking models that reason first
                     "temperature": 0.7,

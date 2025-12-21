@@ -13,10 +13,9 @@ Author: Bernard Uriza Orozco
 License: MIT
 """
 
-from datetime import datetime
-
 import h5py
 import numpy as np
+from datetime import datetime
 
 from backend.src.fi_coder.observability.logger import get_logger
 

@@ -132,7 +132,7 @@ def inspect_corpus(corpus_path: str = "storage/corpus.h5") -> None:
 
 def run(args: Sequence[str] | None = None) -> None:
     """Inspect corpus HDF5 file."""
-    corpus_path = list(args or [])[0] if args else "storage/corpus.h5"
+    corpus_path = next(iter(args or [])) if args else "storage/corpus.h5"
 
     if not Path(corpus_path).exists():
         print(f"❌ Error: File not found: {corpus_path}")

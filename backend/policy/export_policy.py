@@ -139,7 +139,7 @@ class ExportManifest:
         exported_by: owner_hash prefix o user_id
         data_source: HDF5 group exportado (e.g., /interactions/)
         data_hash: SHA256 de datos exportados
-        format: Formato de export (markdown, json, etc.)
+        format_: Formato de export (markdown, json, etc.)
         purpose: Propósito del export
         retention_days: Días de retención (opcional)
         includes_pii: Si incluye datos personales
@@ -151,7 +151,7 @@ class ExportManifest:
     exported_by: str
     data_source: str
     data_hash: str
-    format: str
+    format_: str
     purpose: str
     retention_days: int | None = None
     includes_pii: bool = True
@@ -165,7 +165,7 @@ class ExportManifest:
         exported_by: str,
         data_source: str,
         data_hash: str,
-        format: str,
+        format_: str,
         purpose: str,
         retention_days: int | None = None,
         includes_pii: bool = True,
@@ -176,7 +176,7 @@ class ExportManifest:
         self.exported_by = exported_by
         self.data_source = data_source
         self.data_hash = data_hash
-        self.format = format
+        self.format_ = format_
         self.purpose = purpose
         self.retention_days = retention_days
         self.includes_pii = includes_pii
@@ -232,9 +232,9 @@ def validate_manifest_schema(manifest: ExportManifest) -> bool:
         raise InvalidManifestError(f"timestamp must be ISO 8601: {manifest.timestamp}") from err
 
     # Validate format
-    if manifest.format not in ALLOWED_FORMATS:
+    if manifest.format_ not in ALLOWED_FORMATS:
         raise InvalidManifestError(
-            f"format must be one of {ALLOWED_FORMATS}, got: {manifest.format}"
+            f"format must be one of {ALLOWED_FORMATS}, got: {manifest.format_}"
         )
 
     # Validate purpose
@@ -252,7 +252,7 @@ def validate_manifest_schema(manifest: ExportManifest) -> bool:
     logger.info(
         "MANIFEST_HASH_COMPARED",
         export_id=manifest.export_id,
-        format=manifest.format,
+        format=manifest.format_,
         purpose=manifest.purpose,
     )
 
@@ -363,7 +363,7 @@ def create_export_manifest(
         exported_by=exported_by,
         data_source=data_source,
         data_hash=data_hash,
-        format=format_,
+        format_=format_,
         purpose=purpose,
         retention_days=retention_days,
         includes_pii=includes_pii,

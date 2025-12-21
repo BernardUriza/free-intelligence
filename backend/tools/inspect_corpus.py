@@ -8,10 +8,9 @@ Usage:
     python3 scripts/inspect_corpus.py
 """
 
+import h5py
 import sys
 from pathlib import Path
-
-import h5py
 
 
 def inspect_corpus(corpus_path="storage/corpus.h5"):

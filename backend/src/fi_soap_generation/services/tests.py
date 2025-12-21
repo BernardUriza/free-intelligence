@@ -13,9 +13,8 @@ Usage:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, Mock, patch
-
 import pytest
+from unittest.mock import MagicMock, Mock, patch
 
 from backend.providers.models import Analisis, Objetivo, Plan, Subjetivo
 

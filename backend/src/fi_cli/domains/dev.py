@@ -305,7 +305,6 @@ def install_hooks() -> None:
     Install Git hooks for code quality enforcement.
     Sets up pre-commit hooks for validation and testing.
     """
-    import subprocess
     import sys
 
     typer.echo("🔧 FREE INTELLIGENCE - GIT HOOKS INSTALLER")
@@ -367,10 +366,7 @@ def sprint_close(
     Close sprint with version bump, backup, and documentation.
     Handles tagging, bundle creation, retention, and claude.md updates.
     """
-    import os
-    import subprocess
     from datetime import datetime
-    from pathlib import Path
 
     mode = "EXECUTE" if execute else "DRY_RUN"
     timezone = "America/Mexico_City"
@@ -416,7 +412,7 @@ def sprint_close(
         if match:
             major, minor, patch = map(int, match.groups())
         else:
-            major, minor, patch = 0, 0, 0
+            major, minor, _patch = 0, 0, 0
 
         # Increment MINOR for sprints (every 15 days = minor release)
         minor += 1
@@ -441,7 +437,7 @@ def sprint_close(
         try:
             result = run_cmd(["git", "log", f"{last_tag}..HEAD", "--name-only", "--pretty=format:"], cwd=repo_root, capture_output=True, check=False)
             affected_files = result.stdout.strip().split('\n') if result.stdout else []
-            affected_files = list(set(f for f in affected_files if f.strip()))
+            affected_files = list({f for f in affected_files if f.strip()})
             affected_files_str = '\n'.join(f"- {f}" for f in affected_files[:20]) if affected_files else "- Initial files"
         except:
             affected_files_str = "- Files not available"
@@ -715,14 +711,13 @@ def manual_e2e_test(
 ) -> None:
     """
     Run manual end-to-end test suite using curl.
-    
+
     Tests complete workflow: health check → dry-run → chat → streaming → diarization → SOAP → finalize.
     Outputs results to temporary directory for analysis.
     """
     import json
     import os
     import subprocess
-    import tempfile
     import uuid
 
     typer.echo("🧪 MANUAL E2E TEST SUITE")
@@ -747,7 +742,7 @@ def manual_e2e_test(
             output_path = os.path.join(outdir, output_file)
             with open(output_path, 'w') as f:
                 f.write(result.stdout)
-            
+
             if result.stdout.strip():
                 try:
                     return json.loads(result.stdout)
@@ -884,7 +879,7 @@ def manual_e2e_test(
 
     # 11) Negative tests
     typer.echo("🧪 Negative tests")
-    
+
     run_curl(
         "Invalid persona test",
         [
@@ -907,7 +902,7 @@ def manual_e2e_test(
 
     # 12) Acceptance checks
     typer.echo("📊 Acceptance checks")
-    
+
     # Dry-run summary
     dryrun_path = os.path.join(outdir, "dryrun.json")
     if os.path.exists(dryrun_path):
@@ -959,7 +954,6 @@ def manual_e2e_test(
 @app.command("test-tls")
 def test_tls() -> None:
     """Test TLS 1.3 configuration for HIPAA compliance (G-002)."""
-    import subprocess
 
     from .._common import redact_text
 
@@ -1113,19 +1107,19 @@ def test_tls() -> None:
 def debug_config() -> None:
     """Debug configuration flow to OllamaProvider."""
     from ...policy.policy_loader import get_policy_loader
-    
+
     typer.echo("🔍 Checking configuration flow to OllamaProvider")
     typer.echo("=" * 60)
-    
+
     # Load policy
     policy_loader = get_policy_loader()
     typer.echo(f"Provider: {policy_loader.get_primary_provider()}")
-    
+
     # Get Ollama config
     ollama_config = policy_loader.get_provider_config("ollama")
     typer.echo(f"Ollama config: {ollama_config}")
     typer.echo()
-    
+
     # Check specific model
     model_from_policy = ollama_config.get("model")
     typer.echo(f"Model from policy: '{model_from_policy}'")
@@ -1134,7 +1128,7 @@ def debug_config() -> None:
     typer.echo(f"Is 'qwen2:1.5b-instruct'? {model_from_policy == 'qwen2:1.5b-instruct'}")
     typer.echo(f"Is 'qwen2.5:7b-instruct-q4_0'? {model_from_policy == 'qwen2.5:7b-instruct-q4_0'}")
     typer.echo()
-    
+
     # Check other values
     typer.echo("Other values in Ollama config:")
     for key, value in ollama_config.items():
@@ -1146,18 +1140,18 @@ def debug_provider() -> None:
     """Debug Ollama provider loading and configuration."""
     from ...policy.policy_loader import get_policy_loader
     from ...providers.llm import get_provider
-    
+
     typer.echo("🔍 Debugging Ollama Provider Configuration")
     typer.echo("=" * 50)
-    
+
     # Get policy loader
     policy_loader = get_policy_loader()
     typer.echo(f"📦 Primary provider: {policy_loader.get_primary_provider()}")
-    
+
     # Get Ollama config
     ollama_config = policy_loader.get_provider_config("ollama")
     typer.echo(f"⚙️  Ollama config: {ollama_config}")
-    
+
     # Create provider with config
     typer.echo("\n🔧 Creating Ollama provider with policy config...")
     try:
@@ -1169,7 +1163,7 @@ def debug_provider() -> None:
         typer.echo(f"❌ Error creating provider: {e}")
         import traceback
         typer.echo(traceback.format_exc())
-    
+
     typer.echo("\n🔍 Comparing with direct config access...")
     model_from_config = ollama_config.get("model")
     typer.echo(f"   - Model from policy config: {model_from_config}")
@@ -1180,10 +1174,10 @@ def debug_provider() -> None:
 def validate_integration() -> None:
     """Validate complete UI/backend integration for Free Intelligence."""
     import requests
-    
+
     typer.echo("🏥 Validating UI-Backend Integration - Free Intelligence")
     typer.echo("=" * 60)
-    
+
     # 1. Validate backend health
     typer.echo("🔍 Validating backend health...")
     try:
@@ -1197,7 +1191,7 @@ def validate_integration() -> None:
     except Exception as e:
         typer.echo(f"❌ Error connecting to backend: {e}")
         backend_healthy = False
-    
+
     # 2. Validate UI is accessible
     typer.echo("\n🔍 Validating UI accessibility...")
     try:
@@ -1211,7 +1205,7 @@ def validate_integration() -> None:
     except Exception as e:
         typer.echo(f"❌ Error connecting to UI: {e}")
         ui_accessible = False
-    
+
     # 3. Validate internal LLM endpoint
     typer.echo("\n🔍 Validating internal LLM endpoint...")
     try:
@@ -1225,7 +1219,7 @@ def validate_integration() -> None:
     except Exception as e:
         typer.echo(f"⚠️  Error with internal LLM endpoint: {e}")
         internal_healthy = False
-    
+
     # 4. Test SOAP assistant endpoint
     typer.echo("\n🔍 Validating SOAP assistant endpoint...")
     try:
@@ -1238,13 +1232,13 @@ def validate_integration() -> None:
                 "plan": {"studies": ["presión arterial"]},
             },
         }
-        
+
         extraction_response = requests.post(
             "http://localhost:7001/api/workflows/aurity/sessions/test_validation/assistant",
             json=extraction_payload,
             timeout=30,
         )
-        
+
         if extraction_response.status_code == 200:
             typer.echo("✅ SOAP assistant endpoint working")
             extraction_working = True
@@ -1255,7 +1249,7 @@ def validate_integration() -> None:
     except Exception as e:
         typer.echo(f"⚠️  Error with SOAP assistant endpoint: {e}")
         extraction_working = False
-    
+
     # 5. Check Ollama availability
     typer.echo("\n🔍 Validating Ollama availability...")
     try:
@@ -1274,7 +1268,7 @@ def validate_integration() -> None:
     except Exception as e:
         typer.echo(f"⚠️  Error connecting to Ollama: {e}")
         ollama_available = False
-    
+
     typer.echo("\n" + "=" * 60)
     typer.echo("📊 VALIDATION RESULTS")
     typer.echo("=" * 60)
@@ -1283,11 +1277,11 @@ def validate_integration() -> None:
     typer.echo(f"Internal LLM endpoint: {'✅' if internal_healthy else '❌'}")
     typer.echo(f"Structured extraction: {'✅' if extraction_working else '❌'}")
     typer.echo(f"Ollama available: {'✅' if ollama_available else '❌'}")
-    
+
     all_working = all([backend_healthy, ui_accessible, internal_healthy, extraction_working, ollama_available])
-    
+
     typer.echo(f"\n🎯 COMPLETE INTEGRATION: {'✅ APPROVED' if all_working else '❌ WITH ERRORS'}")
-    
+
     if all_working:
         typer.echo("\n🎉 Free Intelligence (AURITY) system fully operational!")
         typer.echo("   - Backend API: http://localhost:7001")
@@ -1297,7 +1291,7 @@ def validate_integration() -> None:
         typer.echo("   - Structured Extraction: Functional")
     else:
         typer.echo("\n⚠️  System has non-operational components. Check errors above.")
-    
+
     raise typer.Exit(0 if all_working else 1)
 
 
@@ -1310,7 +1304,7 @@ def install_hooks(
 ) -> None:
     """
     Install Git hooks for code quality enforcement.
-    
+
     Installs pre-commit hooks that enforce:
     - Event Validator (UPPER_SNAKE_CASE)
     - Mutation Validator (no update/delete)
@@ -1320,10 +1314,10 @@ def install_hooks(
     - Commit Message Validator (Conventional Commits)
     """
     import subprocess
-    
+
     typer.echo("🔧 FREE INTELLIGENCE - GIT HOOKS INSTALLER")
     typer.echo("=" * 50)
-    
+
     # Check if pre-commit is installed
     try:
         subprocess.run(["pre-commit", "--version"], capture_output=True, check=True)
@@ -1336,9 +1330,9 @@ def install_hooks(
         except subprocess.CalledProcessError as e:
             typer.echo(f"❌ Failed to install pre-commit: {e}")
             raise typer.Exit(1)
-    
+
     typer.echo()
-    
+
     # Install hooks
     typer.echo("📦 Installing pre-commit hooks...")
     try:
@@ -1347,16 +1341,16 @@ def install_hooks(
     except subprocess.CalledProcessError as e:
         typer.echo(f"❌ Failed to install pre-commit hooks: {e}")
         raise typer.Exit(1)
-    
+
     try:
         subprocess.run(["pre-commit", "install", "--hook-type", "commit-msg"], check=True)
         typer.echo("✅ Commit-msg hooks installed")
     except subprocess.CalledProcessError as e:
         typer.echo(f"❌ Failed to install commit-msg hooks: {e}")
         raise typer.Exit(1)
-    
+
     typer.echo()
-    
+
     # Show installed hooks
     typer.echo("✅ Hooks installed successfully!")
     typer.echo()
@@ -1368,7 +1362,7 @@ def install_hooks(
     typer.echo("   5. Unit Tests (must pass)")
     typer.echo("   6. Commit Message Validator (Conventional Commits)")
     typer.echo()
-    
+
     # Test hooks
     if test_hooks:
         typer.echo("🧪 Testing hooks...")
@@ -1382,7 +1376,7 @@ def install_hooks(
         except subprocess.CalledProcessError:
             typer.echo("⚠️  Hook testing failed (this is normal on first run)")
             typer.echo("   Hooks will run automatically on next commit")
-    
+
     typer.echo()
     typer.echo("=" * 50)
     typer.echo("✅ Git hooks setup complete!")
@@ -1406,14 +1400,14 @@ def validate_commit_message(
 ) -> None:
     """
     Validate commit message format (Conventional Commits).
-    
+
     Enforces format: <type>(<scope>): <message>
     Valid types: feat, fix, docs, refactor, test, chore, perf, ci, build, revert
-    
+
     Used by pre-commit hooks to ensure consistent commit messages.
     """
     import re
-    
+
     # Conventional Commits types
     VALID_TYPES = {
         "feat",  # New feature
@@ -1427,7 +1421,7 @@ def validate_commit_message(
         "build",  # Build system
         "revert",  # Revert commit
     }
-    
+
     # Pattern: type(scope): message
     COMMIT_PATTERN = re.compile(
         r"^(?P<type>\w+)"  # Type (required)
@@ -1435,20 +1429,20 @@ def validate_commit_message(
         r": "  # Separator
         r"(?P<message>.+)$"  # Message (required)
     )
-    
+
     def validate_message(msg: str) -> tuple[bool, str]:
         """Validate commit message format."""
         # Skip merge commits
         if msg.startswith("Merge"):
             return True, ""
-        
+
         # Skip revert commits (git revert)
         if msg.startswith("Revert"):
             return True, ""
-        
+
         # Match pattern
         match = COMMIT_PATTERN.match(msg)
-        
+
         if not match:
             return False, (
                 "Invalid commit message format!\n\n"
@@ -1456,20 +1450,20 @@ def validate_commit_message(
                 "Example: feat(security): add LLM audit policy\n\n"
                 f"Valid types: {', '.join(sorted(VALID_TYPES))}"
             )
-        
+
         commit_type = match.group("type")
         commit_message = match.group("message")
-        
+
         # Validate type
         if commit_type not in VALID_TYPES:
             return False, (
                 f"Invalid commit type: '{commit_type}'\n\nValid types: {', '.join(sorted(VALID_TYPES))}"
             )
-        
+
         # Validate message not empty
         if not commit_message.strip():
             return False, "Commit message cannot be empty"
-        
+
         # Validate message doesn't start with uppercase (except proper nouns)
         if commit_message[0].isupper() and not commit_message.startswith(
             ("API", "HDF5", "LLM", "UUID")
@@ -1479,9 +1473,9 @@ def validate_commit_message(
                 f"Got: '{commit_message}'\n"
                 f"Try: '{commit_message[0].lower() + commit_message[1:]}'"
             )
-        
+
         return True, ""
-    
+
     # Get message from file or argument
     if file:
         commit_msg = file.read_text().strip().split("\n")[0]
@@ -1490,17 +1484,17 @@ def validate_commit_message(
     else:
         typer.echo("❌ Must provide either --message or --file")
         raise typer.Exit(1)
-    
+
     typer.echo(f"🔍 Validating commit message: {commit_msg[:60]}...")
-    
+
     # Validate
     is_valid, error = validate_message(commit_msg)
-    
+
     if not is_valid:
         typer.echo("\n❌ COMMIT MESSAGE VALIDATION FAILED\n")
         typer.echo(error)
         raise typer.Exit(1)
-    
+
     typer.echo(f"✅ Commit message valid: {commit_msg[:60]}...")
     typer.echo()
     typer.echo("📋 Valid Conventional Commit format:")
@@ -1514,7 +1508,7 @@ def test_concurrent_h5_writes() -> None:
     """Test concurrent HDF5 writes with session-level architecture."""
     import time
     from concurrent.futures import ThreadPoolExecutor, as_completed
-    
+
     from ...logger import get_logger
     from ...models.task_type import TaskType
     from ...storage.session_h5_manager import get_session_h5_path, get_storage_stats
@@ -1525,9 +1519,9 @@ def test_concurrent_h5_writes() -> None:
         ensure_task_exists,
         save_diarization_segments,
     )
-    
+
     logger = get_logger(__name__)
-    
+
     def worker_task(worker_id: int, session_id: str) -> dict:
         """Simulate worker writing to HDF5 (transcription + diarization + audio)."""
         start_time = time.time()
@@ -1536,27 +1530,27 @@ def test_concurrent_h5_writes() -> None:
             worker_id=worker_id,
             session_id=session_id,
         )
-        
+
         try:
             # 1. Create task structures
             ensure_task_exists(session_id, TaskType.TRANSCRIPTION)
             ensure_task_exists(session_id, TaskType.DIARIZATION)
-            
+
             # 2. Add webspeech transcripts (simulates frontend upload)
             transcripts = [f"Worker {worker_id} transcript line {i}" for i in range(5)]
             add_webspeech_transcripts(session_id, transcripts)
-            
+
             # 3. Add full transcription (simulates STT result)
             full_text = f"Worker {worker_id} full transcription: Lorem ipsum dolor sit amet"
             add_full_transcription(session_id, full_text)
-            
+
             # 4. Add audio file (simulates audio upload)
             audio_bytes = b"FAKE_AUDIO_DATA_" + str(worker_id).encode() * 1000
             add_full_audio(session_id, audio_bytes)
-            
+
             # 5. Save diarization segments (simulates diarization worker)
             from ...providers.diarization import DiarizationSegment, Speaker
-            
+
             segments = [
                 DiarizationSegment(
                     speaker=Speaker(speaker_id="DOCTOR", name="Doctor"),
@@ -1568,7 +1562,7 @@ def test_concurrent_h5_writes() -> None:
                 for i in range(3)
             ]
             save_diarization_segments(session_id, segments)
-            
+
             elapsed = time.time() - start_time
             logger.info(
                 "WORKER_SUCCESS",
@@ -1576,7 +1570,7 @@ def test_concurrent_h5_writes() -> None:
                 session_id=session_id,
                 elapsed_seconds=round(elapsed, 3),
             )
-            
+
             return {
                 "worker_id": worker_id,
                 "session_id": session_id,
@@ -1584,7 +1578,7 @@ def test_concurrent_h5_writes() -> None:
                 "elapsed": round(elapsed, 3),
                 "error": None,
             }
-            
+
         except Exception as e:
             elapsed = time.time() - start_time
             logger.error(
@@ -1601,34 +1595,34 @@ def test_concurrent_h5_writes() -> None:
                 "elapsed": round(elapsed, 3),
                 "error": str(e),
             }
-    
+
     typer.echo("\n" + "=" * 70)
     typer.echo("🧪 CONCURRENT HDF5 WRITE TEST - Session-Level Architecture")
     typer.echo("=" * 70)
     typer.echo("Testing: 4 workers writing simultaneously to different session files")
     typer.echo("Expected: Zero concurrency conflicts, all workers succeed")
     typer.echo("=" * 70 + "\n")
-    
+
     # Create 4 concurrent workers, each with its own session
     workers = 4
     sessions = [f"test-session-{i}" for i in range(1, workers + 1)]
-    
+
     typer.echo("📋 Test Setup:")
     typer.echo(f"  Workers: {workers}")
     typer.echo(f"  Sessions: {', '.join(sessions)}")
     typer.echo()
-    
+
     # Run workers concurrently
     typer.echo(f"🚀 Starting {workers} concurrent workers...")
     start_time = time.time()
-    
+
     with ThreadPoolExecutor(max_workers=workers) as executor:
         # Submit all workers
         futures = {
             executor.submit(worker_task, i + 1, session): (i + 1, session)
             for i, session in enumerate(sessions)
         }
-        
+
         # Collect results
         results = []
         for future in as_completed(futures):
@@ -1637,28 +1631,28 @@ def test_concurrent_h5_writes() -> None:
             results.append(result)
             status = "✅" if result["success"] else "❌"
             typer.echo(f"{status} Worker {worker_id} completed in {result['elapsed']}s")
-    
+
     total_elapsed = time.time() - start_time
-    
+
     # Analyze results
     typer.echo("\n" + "=" * 70)
     typer.echo("📊 RESULTS")
     typer.echo("=" * 70)
-    
+
     successes = sum(1 for r in results if r["success"])
     failures = sum(1 for r in results if not r["success"])
-    
+
     typer.echo(f"Total elapsed:  {round(total_elapsed, 3)}s")
     typer.echo(f"Success rate:   {successes}/{workers} ({successes / workers * 100:.0f}%)")
     typer.echo(f"✅ Successes:   {successes}")
     typer.echo(f"❌ Failures:    {failures}")
-    
+
     if failures > 0:
         typer.echo("\n❌ FAILED WORKERS:")
         for r in results:
             if not r["success"]:
                 typer.echo(f"  Worker {r['worker_id']}: {r['error']}")
-    
+
     # Show storage stats
     typer.echo("\n" + "=" * 70)
     typer.echo("💾 STORAGE STATS")
@@ -1666,7 +1660,7 @@ def test_concurrent_h5_writes() -> None:
     stats = get_storage_stats()
     typer.echo(f"Session files created: {stats['session_files_count']}")
     typer.echo(f"Total size:            {stats['session_files_size_mb']:.2f} MB")
-    
+
     # Verify session files exist
     typer.echo("\n" + "=" * 70)
     typer.echo("🔍 VERIFICATION")
@@ -1676,7 +1670,7 @@ def test_concurrent_h5_writes() -> None:
         exists = "✅" if path.exists() else "❌"
         size = path.stat().st_size if path.exists() else 0
         typer.echo(f"{exists} {session}: {size:,} bytes")
-    
+
     # Final verdict
     typer.echo("\n" + "=" * 70)
     if failures == 0:
@@ -1687,7 +1681,7 @@ def test_concurrent_h5_writes() -> None:
         typer.echo("❌ TEST FAILED: Concurrency conflicts detected!")
         typer.echo(f"   {failures} worker(s) failed to write to HDF5.")
     typer.echo("=" * 70 + "\n")
-    
+
     raise typer.Exit(0 if failures == 0 else 1)
 
 
@@ -1696,40 +1690,40 @@ def test_steerable_voices() -> None:
     """Test OpenAI Steerable TTS with Mexican Spanish accent."""
     import asyncio
     import os
-    
+
     from ...services.tts_openai_steerable import get_steerable_tts_service
-    
+
     async def run_test():
         """Generate greetings with Mexican Spanish accent"""
         tts = get_steerable_tts_service()
-        
+
         # Test with the 3 available steerable voices
         voices = ["alloy", "echo", "shimmer"]
-        
+
         for voice in voices:
             typer.echo(f"\n🎙️ Generating {voice} with Mexican Spanish accent...")
-            
+
             text = f"Hola, soy {voice}. Hablo español mexicano de forma natural."
-            
+
             try:
                 audio = await tts.synthesize(
                     text=text, voice=voice, accent="Mexican Spanish", response_format="mp3", speed=1.0
                 )
-                
+
                 # Save to temp file
                 output_file = f"/tmp/steerable_{voice}.mp3"
                 with open(output_file, "wb") as f:
                     f.write(audio)
-                
+
                 typer.echo(f"✅ Generated {len(audio) / 1024:.1f}KB → {output_file}")
                 typer.echo("   Playing...")
-                
+
                 # Play using afplay
                 os.system(f"afplay {output_file}")
-                
+
             except Exception as e:
                 typer.echo(f"❌ Error: {e}")
-    
+
     asyncio.run(run_test())
 
 
@@ -1737,13 +1731,13 @@ def test_steerable_voices() -> None:
 def test_unified_tts() -> None:
     """Test Unified TTS with auto-detection."""
     import asyncio
-    
+
     from ...services.tts_unified import get_unified_tts_service
-    
+
     async def run_test():
         """Test auto-detection of steerable TTS for Spanish text"""
         tts = get_unified_tts_service()
-        
+
         tests = [
             {
                 "text": "Hola, buenos días. ¿Cómo se encuentra hoy?",
@@ -1764,7 +1758,7 @@ def test_unified_tts() -> None:
                 "desc": "Azure voice → should use azure",
             },
         ]
-        
+
         for i, test in enumerate(tests, 1):
             typer.echo(f"\n{'=' * 70}")
             typer.echo(f"Test {i}: {test['desc']}")
@@ -1772,7 +1766,7 @@ def test_unified_tts() -> None:
             typer.echo(f"Voice: {test['voice']}")
             typer.echo(f"Provider: {test['provider']}")
             typer.echo(f"{'=' * 70}")
-            
+
             try:
                 audio = await tts.synthesize(
                     text=test["text"],
@@ -1780,17 +1774,17 @@ def test_unified_tts() -> None:
                     provider=test["provider"],
                     response_format="mp3",
                 )
-                
+
                 typer.echo(f"✅ Generated {len(audio) / 1024:.1f}KB audio")
-                
+
                 # Save sample file
                 output_file = f"/tmp/unified_tts_test_{i}.mp3"
                 with open(output_file, "wb") as f:
                     f.write(audio)
-                
+
                 typer.echo(f"   Saved to: {output_file}")
-                
+
             except Exception as e:
                 typer.echo(f"❌ Error: {e}")
-    
+
     asyncio.run(run_test())

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import h5py
 import os
 import tempfile
-
-import h5py
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask

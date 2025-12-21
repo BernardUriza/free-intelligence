@@ -423,31 +423,31 @@ class SearchError(FIException):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 __all__ = [
+    "AppendOnlyViolation",
+    "CorpusOperationError",
+    "ExportPolicyViolation",
     # Base
     "FIException",
-    # Storage
-    "StorageError",
-    "CorpusOperationError",
-    "SessionNotFoundError",
-    "TranscriptionReadError",
     # LLM
     "LLMError",
     "LLMProviderError",
+    "LLMRouterViolation",
     "LLMTimeoutError",
     "LLMValidationError",
-    # Validation
-    "ValidationError",
-    "SessionValidationError",
-    "SOAPValidationError",
     # Policy
     "PolicyViolationError",
-    "AppendOnlyViolation",
-    "ExportPolicyViolation",
-    "LLMRouterViolation",
+    "SOAPValidationError",
+    # Search
+    "SearchError",
+    "SessionNotFoundError",
+    "SessionValidationError",
+    # Storage
+    "StorageError",
+    "TaskExecutionError",
+    "TranscriptionReadError",
+    # Validation
+    "ValidationError",
     # Workflow
     "WorkflowError",
     "WorkflowNotFoundError",
-    "TaskExecutionError",
-    # Search
-    "SearchError",
 ]

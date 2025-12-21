@@ -7,10 +7,9 @@ corpus.h5.old to a new corpus.h5 with libver='latest' for SWMR support.
 
 from __future__ import annotations
 
+import h5py
 from collections.abc import Sequence
 from pathlib import Path
-
-import h5py
 
 
 def copy_attrs(src_obj: h5py.Group | h5py.Dataset, dst_obj: h5py.Group | h5py.Dataset) -> None:

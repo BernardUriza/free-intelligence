@@ -6,10 +6,16 @@ Restricts access to internal endpoints based on environment and client IP.
 from __future__ import annotations
 
 import os
-from typing import List
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
+
+
+if TYPE_CHECKING:
+    from typing import List
+else:
+    List = list
 
 
 class InternalOnlyMiddleware(BaseHTTPMiddleware):
@@ -19,7 +25,7 @@ class InternalOnlyMiddleware(BaseHTTPMiddleware):
     In development, allows all requests for testing.
     """
 
-    def __init__(self, app, allowed_hosts: List[str] | None = None):
+    def __init__(self, app, allowed_hosts: list[str] | None = None):
         """
         Initialize the internal-only middleware.
 

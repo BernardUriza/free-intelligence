@@ -23,9 +23,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from backend.src.fi_common.logging.logger import get_logger
 from backend.providers.llm import llm_generate
 from backend.schemas.llm.preset_loader import get_preset_loader
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_llm.services.persona_manager import PersonaManager
 from backend.src.fi_soap_generation.services.complexity_analyzer import (
     ComplexityMetrics,
@@ -158,7 +158,6 @@ class DecisionalMiddleware:
         - CRITICAL (score >= 75): Full orchestration + doctor context request
         """
         level = metrics.complexity_level
-        score = metrics.complexity_score
 
         if level == "SIMPLE":
             return OrchestrationPlan(

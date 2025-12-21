@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Annotated
-
 import typer
+from typing import Annotated
 
 from .analysis import (
     analyze_tier1_errors,

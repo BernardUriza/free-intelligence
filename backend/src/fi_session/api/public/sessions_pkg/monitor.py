@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import cast
-
 from fastapi import APIRouter, HTTPException, Request, status
+from typing import cast
 
 from backend.src.fi_common.logging.logger import get_logger
 from backend.validators import validate_session_id

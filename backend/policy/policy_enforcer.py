@@ -10,10 +10,9 @@ Provides guard functions for sovereignty, privacy, cost, and feature flags
 
 import hashlib
 import re
+import yaml
 from pathlib import Path
 from typing import Any
-
-import yaml
 
 from backend.src.fi_common.logging.logger import get_logger
 
@@ -23,7 +22,7 @@ logger = get_logger(__name__)
 class PolicyViolation(Exception):
     """Raised when a policy rule is violated"""
 
-    def __init__(self, rule: str, message: str, metadata: dict[str, Any | None] = None):
+    def __init__(self, rule: str, message: str, metadata: dict[str, Any | None] | None = None):
         self.rule = rule
         self.message = message
         self.metadata = metadata or {}
@@ -297,7 +296,7 @@ class PolicyEnforcer:
 
         return value if value is not None else default
 
-    def log_violation(self, rule: str, metadata: dict[str, Any | None] = None):
+    def log_violation(self, rule: str, metadata: dict[str, Any | None] | None = None):
         """
         Log policy violation for audit trail
 

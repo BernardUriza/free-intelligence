@@ -10,10 +10,9 @@ Tests:
 - OllamaProvider retry integration
 """
 
+import pytest
 import time
 from unittest.mock import Mock
-
-import pytest
 
 from backend.providers.retry import (
     CircuitBreaker,

@@ -5,13 +5,12 @@ import json
 import time
 import uuid as _uuid
 from collections.abc import AsyncGenerator
-
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from backend.clients import get_llm_client
-from backend.src.fi_common.logging.logger import get_logger
 from backend.observability.logging import CTX_REQUEST_ID
+from backend.src.fi_common.logging.logger import get_logger
 
 from ..assistant_schemas import ChatCompletionRequest, ChatCompletionStreamResponse
 
@@ -32,7 +31,7 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
             detail="Use /assistant/chat for non-streaming requests. Set stream=true for this endpoint.",
         )
 
-    async def generate_stream() -> AsyncGenerator[str, None]:
+    async def generate_stream() -> AsyncGenerator[str]:
         try:
             if not request.messages:
                 yield f"data: {json.dumps({'error': 'At least one message is required'})}\n\n"

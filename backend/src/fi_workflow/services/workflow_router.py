@@ -18,8 +18,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from backend.src.fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskType
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -221,7 +221,7 @@ Output JSON:
         workflows = []
         tasks_skipped = 0
         reasoning_parts = []
-        
+
         # Normalize existing_tasks to lowercase for comparison
         existing_tasks_lower = [task.lower() for task in existing_tasks]
 

@@ -11,13 +11,12 @@ Clean Code Principles:
 
 from __future__ import annotations
 
+import h5py
 from abc import ABC, abstractmethod
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generic, TypeVar, Union
-
-import h5py
+from typing import Any, TypeVar, Union
 
 from backend.src.fi_common.logging.logger import get_logger
 
@@ -27,7 +26,7 @@ logger = get_logger(__name__)
 T = TypeVar("T")
 
 
-class BaseRepository(ABC, Generic[T]):
+class BaseRepository[T](ABC):
     """Abstract base repository for HDF5 data access.
 
     Provides:
@@ -54,7 +53,7 @@ class BaseRepository(ABC, Generic[T]):
         self.h5_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     @contextmanager
-    def _open_file(self, mode: str = "r+") -> Generator[h5py.File, None, None]:
+    def _open_file(self, mode: str = "r+") -> Generator[h5py.File]:
         """Context manager for safe HDF5 file operations.
 
         Args:

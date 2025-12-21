@@ -22,6 +22,10 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_storage.infrastructure.hdf5.audio_storage import (
+    save_audio_file,
+    validate_session_id,
+)
 from backend.src.fi_transcription.services.whisper import (
     CPU_THREADS,
     NUM_WORKERS,
@@ -30,10 +34,6 @@ from backend.src.fi_transcription.services.whisper import (
     WHISPER_DEVICE,
     WHISPER_LANGUAGE,
     WHISPER_MODEL_SIZE,
-)
-from backend.src.fi_storage.infrastructure.hdf5.audio_storage import (
-    save_audio_file,
-    validate_session_id,
 )
 
 logger = get_logger(__name__)

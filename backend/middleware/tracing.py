@@ -28,10 +28,9 @@ from __future__ import annotations
 import contextvars
 import uuid
 from dataclasses import dataclass
-from typing import Any
-
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from typing import Any
 
 from backend.src.fi_common.logging.logger import get_logger
 
@@ -310,7 +309,7 @@ class TracingMiddleware(BaseHTTPMiddleware):
         session_id = request.headers.get("X-Session-Id")
 
         # Set context
-        context = set_trace_context(
+        set_trace_context(
             trace_id=trace_id,
             span_id=span_id,
             parent_span_id=parent_span_id,

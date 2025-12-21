@@ -19,8 +19,8 @@ Created: 2025-12-08
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from concurrent.futures import ThreadPoolExecutor
-
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
@@ -201,17 +201,13 @@ async def list_all_documents(
     # Parse filters
     origin_filter = None
     if origin:
-        try:
+        with contextlib.suppress(ValueError):
             origin_filter = DocumentOrigin(origin)
-        except ValueError:
-            pass
 
     status_filter = None
     if document_status:
-        try:
+        with contextlib.suppress(ValueError):
             status_filter = DocumentStatus(document_status)
-        except ValueError:
-            pass
 
     documents = list_documents(
         persona_filter=persona,
@@ -496,7 +492,6 @@ def _extract_pdf_text(content: bytes) -> str:
     """Extract text from PDF using pdfplumber or PyPDF2."""
     try:
         import io
-
         import pdfplumber
 
         with pdfplumber.open(io.BytesIO(content)) as pdf:
@@ -510,7 +505,6 @@ def _extract_pdf_text(content: bytes) -> str:
         # Fallback to PyPDF2
         try:
             import io
-
             from PyPDF2 import PdfReader
 
             reader = PdfReader(io.BytesIO(content))
@@ -528,7 +522,6 @@ def _extract_docx_text(content: bytes) -> str:
     """Extract text from DOCX using python-docx."""
     try:
         import io
-
         from docx import Document as DocxDocument
 
         doc = DocxDocument(io.BytesIO(content))
@@ -547,7 +540,6 @@ def _extract_image_text(content: bytes) -> str:
     """Extract text from image using OCR (Tesseract)."""
     try:
         import io
-
         import pytesseract
         from PIL import Image
 

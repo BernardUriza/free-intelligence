@@ -1,7 +1,8 @@
 """Event bus interface for decoupled inter-layer communication."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List
+from collections.abc import Callable
+from typing import Any, Dict
 
 
 class IEventBus(ABC):

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-import re
 from typing import Any, Dict
 
 from ..config.policies import SECURITY_POLICY, TASK_CATALOG
@@ -37,33 +35,33 @@ class SecurityValidator:
         for req in required:
             if req not in parameters:
                 raise ValueError(f"Missing required parameter: {req}")
-        
+
         # No shell injection
         for key, value in parameters.items():
             if isinstance(value, str):
                 if ";" in value or "|" in value or "&" in value or "`" in value:
                     raise ValueError(f"Potentially dangerous characters in parameter {key}")
-        
+
         # Scope validation
         self.validate_scope(parameters)
 
     def validate_scope(self, parameters: Dict[str, Any]) -> None:
         """Validate scope restrictions. Raises ValueError on failure."""
         from ..config.policies import REPO_ROOT_PATH, SCOPE_POLICY
-        
+
         repo_root_path = parameters.get('repo_root_path')
         if not repo_root_path:
             raise ValueError("repo_root_path is required")
-        
+
         # Allow absolute paths within repo root
         if SCOPE_POLICY["forbid_absolute_outside_repo"]:
             if repo_root_path.startswith('/') and not repo_root_path.startswith(REPO_ROOT_PATH):
                 raise ValueError("Absolute path outside repo not allowed")
-        
+
         # Check for path traversal
         if '..' in repo_root_path:
             raise ValueError("Path traversal detected")
-        
+
         # Check forbidden directories (only for absolute paths outside repo)
         if repo_root_path.startswith('/') and not repo_root_path.startswith(REPO_ROOT_PATH):
             forbidden_dirs = SCOPE_POLICY.get("forbid_directories", [])

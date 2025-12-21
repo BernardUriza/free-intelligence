@@ -11,9 +11,8 @@ Pattern: Data Transfer Objects (DTOs)
 
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, Field
+from typing import Any
 
 
 class TranscriptionSourcesModel(BaseModel):

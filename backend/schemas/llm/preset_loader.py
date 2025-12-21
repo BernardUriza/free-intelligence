@@ -13,13 +13,12 @@ Created: 2025-10-28
 
 import hashlib
 import json
+import jsonschema
+import yaml
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List
-
-import jsonschema
-import yaml
 
 from backend.constants import DEFAULT_OLLAMA_MODEL, LLMProvider
 from backend.src.fi_common.logging.logger import get_logger

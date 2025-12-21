@@ -1,6 +1,7 @@
 """In-memory event bus implementation."""
 
-from typing import Any, Callable, Dict, List
+from collections.abc import Callable
+from typing import Any, Dict, List
 
 from ..interfaces.ievent_bus import IEventBus
 
@@ -26,7 +27,7 @@ class InMemoryEventBus(IEventBus):
             for handler in self._subscribers[event_type]:
                 try:
                     handler(data)
-                except Exception as e:
+                except Exception:
                     # In a real implementation, you might want to log this
                     # For now, we'll just continue to other handlers
                     pass

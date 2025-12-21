@@ -1,7 +1,6 @@
 import json
-import re
-
 import pytest
+import re
 from fastapi.testclient import TestClient
 
 from backend.app.main import app

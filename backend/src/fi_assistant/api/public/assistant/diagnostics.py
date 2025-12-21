@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import time
-import uuid as _uuid
-
 import ulid
+import uuid as _uuid
 from fastapi import APIRouter, HTTPException
 
 from backend.src.fi_common.logging.logger import get_logger
@@ -60,7 +59,7 @@ async def assistant_chat_dry_run(
     full_prompt = pm.build_system_prompt(request.persona, context)
     max_rag_chars = 2048
     truncated_prompt = full_prompt[:max_rag_chars]
-    redacted_prompt, meta = redact_and_hash_once(truncated_prompt, redact_rules)
+    _redacted_prompt, meta = redact_and_hash_once(truncated_prompt, redact_rules)
 
     trace_id = ulid.new().str
     trace = {

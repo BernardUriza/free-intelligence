@@ -3,9 +3,8 @@ from __future__ import annotations
 import contextvars
 import json
 import os
-import time
-
 import structlog
+import time
 
 CTX_REQUEST_ID = contextvars.ContextVar("request_id", default="-")
 CTX_TRACE_ID = contextvars.ContextVar("trace_id", default="-")

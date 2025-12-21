@@ -63,7 +63,7 @@ except ImportError:
 # ============================================================================
 
 
-class LLMRouterViolation(Exception):
+class LLMRouterViolationError(Exception):
     """Raised when direct LLM API call is detected."""
 
     pass
@@ -139,9 +139,8 @@ def extract_imports(tree: ast.AST) -> set[str]:
                 imports.add(alias.name)
 
         # from anthropic import Anthropic
-        if isinstance(node, ast.ImportFrom):
-            if node.module:
-                imports.add(node.module)
+        if isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module)
 
     return imports
 

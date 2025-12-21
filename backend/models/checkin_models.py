@@ -13,7 +13,7 @@ from __future__ import annotations
 import enum
 import secrets
 from datetime import datetime, timedelta
-from typing import List  # noqa: F401 - referenced in string annotations
+from typing import TYPE_CHECKING  # noqa: F401 - referenced in string annotations
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -33,6 +33,12 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from backend.models.db_models import Base
+
+
+if TYPE_CHECKING:
+    from typing import List
+else:
+    List = list
 
 # =============================================================================
 # ENUMS

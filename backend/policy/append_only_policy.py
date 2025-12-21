@@ -10,16 +10,15 @@ Direct mutation, modification, or deletion of existing data is forbidden.
 FI-DATA-FEAT-005
 """
 
+import h5py
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-import h5py
 
 if TYPE_CHECKING:
     pass
 
 
-class AppendOnlyViolation(Exception):
+class AppendOnlyViolationError(Exception):
     """Raised when an operation violates append-only policy."""
 
     def __init__(self, message: str) -> None:
@@ -64,7 +63,7 @@ class AppendOnlyPolicy:
             for group_name in ["interactions", "embeddings"]:
                 if group_name in f:
                     group = f[group_name]
-                    for dataset_name in group.keys():  # type: ignore
+                    for dataset_name in group:  # type: ignore
                         key = f"{group_name}/{dataset_name}"
                         self.original_sizes[key] = group[dataset_name].shape[0]  # type: ignore
 
@@ -81,13 +80,13 @@ class AppendOnlyPolicy:
             for group_name in ["interactions", "embeddings"]:
                 if group_name in f:
                     group = f[group_name]
-                    for dataset_name in group.keys():  # type: ignore
+                    for dataset_name in group:  # type: ignore
                         key = f"{group_name}/{dataset_name}"
                         original_size = self.original_sizes.get(key, 0)
                         current_size = group[dataset_name].shape[0]  # type: ignore
 
                         if current_size < original_size:
-                            raise AppendOnlyViolation(
+                            raise AppendOnlyViolationError(
                                 f"Dataset {key} was truncated: {original_size} → {current_size}. "
                                 + "Append-only policy forbids data deletion."
                             )
@@ -113,7 +112,7 @@ class AppendOnlyPolicy:
         original_size = self.original_sizes.get(key, 0)
 
         if index < original_size:
-            raise AppendOnlyViolation(
+            raise AppendOnlyViolationError(
                 f"Cannot modify existing data at {key}[{index}]. "
                 + f"Original size: {original_size}. Append-only policy allows writes only to new indices (>= {original_size})."
             )
@@ -139,7 +138,7 @@ class AppendOnlyPolicy:
         original_size = self.original_sizes.get(key, 0)
 
         if new_size < original_size:
-            raise AppendOnlyViolation(
+            raise AppendOnlyViolationError(
                 f"Cannot shrink dataset {key} from {original_size} to {new_size}. "
                 + "Append-only policy forbids data deletion."
             )
@@ -267,7 +266,7 @@ if __name__ == "__main__":
             for key, size in policy.original_sizes.items():
                 print(f"    {key}: {size}")
         print("  ✅ Context manager exited cleanly\n")
-    except AppendOnlyViolation as e:
+    except AppendOnlyViolationError as e:
         print(f"  ❌ Policy violation: {e}\n")
 
     # Test 5: Get dataset size

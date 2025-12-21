@@ -16,8 +16,8 @@ from __future__ import annotations
 import json
 import re
 
-from backend.src.fi_common.logging.logger import get_logger
 from backend.observability.logging import CTX_REQUEST_ID
+from backend.src.fi_common.logging.logger import get_logger
 
 from .assistant_schemas import BehaviorMetrics, EmotionalAnalysis
 

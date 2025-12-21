@@ -13,10 +13,9 @@ Usage:
 
 from __future__ import annotations
 
+import aiohttp
 import hashlib
 from dataclasses import dataclass
-
-import aiohttp
 from pydantic import BaseModel, Field
 
 from backend.src.fi_common.logging.logger import get_logger

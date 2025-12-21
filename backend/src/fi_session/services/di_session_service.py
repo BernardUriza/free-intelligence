@@ -17,7 +17,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from backend.models.task_type import TaskStatus, TaskType
-
 from backend.src.fi_common.interfaces.ievent_bus import IEventBus
 from backend.src.fi_common.interfaces.ilogger import ILogger
 from backend.src.fi_common.interfaces.itask_repository import ITaskRepository

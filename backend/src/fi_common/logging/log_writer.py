@@ -185,7 +185,7 @@ class LogWriter:
         new_role: UserRole | None = None,
         trace_id: str | None = None,
         session_id: str | None = None,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any | None] | None = None,
     ):
         """Write access event log (AUDIT)."""
         event = log_access_event(

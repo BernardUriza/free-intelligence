@@ -12,10 +12,9 @@ Created: 2025-10-28
 
 from datetime import UTC, datetime
 from enum import Enum
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Any, Dict, List
 from uuid import uuid4
-
-from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ============================================================================
 # ENUMS

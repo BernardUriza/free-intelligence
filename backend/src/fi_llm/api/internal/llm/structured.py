@@ -9,12 +9,11 @@ import hashlib
 import json
 import time
 from datetime import UTC, datetime
-
 from fastapi import APIRouter, HTTPException, status
 
-from backend.src.fi_common.logging.logger import get_logger
 from backend.providers.llm import llm_generate
 from backend.schemas.llm.audit_policy import require_audit_log
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_llm.services.persona_manager import PersonaManager
 
 from .schemas import StructuredRequest, StructuredResponse
@@ -182,7 +181,7 @@ Respond with JSON in this exact format:
             # Create default data structure based on expected schema
             parsed_response["data"] = {}
             # If model provided information in another format, try to extract it
-            for key, description in request.output_schema.items():
+            for key, _description in request.output_schema.items():
                 if key in parsed_response:
                     parsed_response["data"][key] = parsed_response[key]
                 else:

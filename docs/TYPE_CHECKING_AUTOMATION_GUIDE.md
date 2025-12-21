@@ -1159,9 +1159,28 @@ python tools/type_check_batch.py --tool pyright
 python tools/type_check_batch.py --tool mypy --strict
 ```
 
-### 2. Makefile Integration
+### 2. fi_cli Integration (Recommended)
 
-Add to `/Makefile`:
+Use the unified CLI for all code quality operations:
+
+```bash
+# Code quality with AI assistance
+PYTHONPATH=backend/src python -m fi_cli coder lint-fix
+
+# Type checking (use pyright directly for now)
+pyright backend/
+
+# Combined quality check
+PYTHONPATH=backend/src python -m fi_cli coder lint-fix && pyright backend/
+```
+
+**Why fi_cli?**
+- Unified interface for all operations
+- AI-powered intelligent fixes
+- Built-in metrics and observability
+- Type-safe command validation
+
+### Legacy Makefile (For Reference Only)
 
 ```makefile
 # ============================================================================
@@ -1438,7 +1457,7 @@ def main():
     print(f"\nNext steps:")
     print(f"  1. Review: cat {output_file} | jq '.stats'")
     print(f"  2. Fix with Claude Code: Load tasks and process in batches")
-    print(f"  3. Verify: make type-check-{args.tool}")
+    print(f"  3. Verify: PYTHONPATH=backend/src python -m fi_cli coder lint-fix")
 
 if __name__ == "__main__":
     main()
@@ -1507,7 +1526,7 @@ For each batch:
 
 5. **Run full type check**:
    ```bash
-   make type-check-all
+   PYTHONPATH=backend/src python -m fi_cli coder lint-fix && pyright backend/
    ```
 
 ### 4. Repeat Until Complete
@@ -1581,11 +1600,14 @@ def handle(data: Union[dict, list]) -> Any:
 
 After all fixes:
 ```bash
+# Code quality with AI assistance
+PYTHONPATH=backend/src python -m fi_cli coder lint-fix
+
 # Type checking
-make type-check-all
+pyright backend/
 
 # Tests
-make test
+python3.14 -m pytest backend/tests/ -v --tb=short
 
 # Pre-commit
 pre-commit run --all-files
@@ -1631,7 +1653,7 @@ python tools/export_for_claude.py --tool pyright --priority critical
 git log --oneline | grep "fix(types)"
 
 # 5. Final verification
-make type-check-all
+PYTHONPATH=backend/src python -m fi_cli coder lint-fix && pyright backend/
 ```
 
 ---
@@ -1697,13 +1719,13 @@ python tools/export_for_claude.py --tool pyright --priority critical --max-tasks
 **Local Development**:
 ```bash
 # Before committing
-make type-check-all  # Run all checkers
+PYTHONPATH=backend/src python -m fi_cli coder lint-fix && pyright backend/
 
 # Quick check (pyright is fastest)
-make type-check
+pyright backend/
 
 # Fix auto-fixable issues
-ruff check backend/ tests/ --fix
+PYTHONPATH=backend/src python -m fi_cli coder lint-fix
 
 # Run pre-commit
 pre-commit run --all-files
@@ -1811,8 +1833,8 @@ python tools/export_for_claude.py --tool pyright --priority critical
 # Use /fix-types command
 
 # 3. Verify
-make type-check-all
-make test
+PYTHONPATH=backend/src python -m fi_cli coder lint-fix && pyright backend/
+python3.14 -m pytest backend/tests/ -v --tb=short
 ```
 
 ### Phase 3: CI/CD Integration (Week 3)
@@ -1884,7 +1906,7 @@ alias tc='pyright backend/'
 alias tcj='pyright backend/ --outputjson'
 alias tcm='mypy backend/ --ignore-missing-imports'
 alias tcr='ruff check backend/ tests/'
-alias tca='make type-check-all'
+alias tca='PYTHONPATH=backend/src python -m fi_cli coder lint-fix && pyright backend/'
 ```
 
 ---

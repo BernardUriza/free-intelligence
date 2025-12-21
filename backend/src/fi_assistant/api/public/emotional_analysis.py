@@ -5,8 +5,9 @@ Provides emotional state detection using heuristic analysis.
 
 from __future__ import annotations
 
-from backend.src.fi_common.logging.logger import get_logger
 from typing import Any
+
+from backend.src.fi_common.logging.logger import get_logger
 
 from .assistant_schemas import EmotionalAnalysis
 

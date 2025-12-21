@@ -41,19 +41,19 @@ __all__ = [
     "DEFAULT_CACHE_TTL_S",
     "DEFAULT_MAX_RAG_CHARS",
     "MODE_MARKERS",
-    # Exceptions
-    "PersonaError",
-    "PersonaNotFound",
-    "PersonaConfigInvalid",
-    # Schemas
-    "PersonaTemplateModel",
+    "CacheEntry",
     # Config
     "PersonaConfig",
-    "CacheEntry",
+    "PersonaConfigInvalid",
+    # Exceptions
+    "PersonaError",
+    "PersonaManager",
+    "PersonaNotFound",
+    "PersonaRouter",
+    # Schemas
+    "PersonaTemplateModel",
     # Classes
     "PromptBuilder",
-    "PersonaRouter",
-    "PersonaManager",
 ]
 
 

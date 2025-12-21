@@ -29,6 +29,17 @@ The system follows a layered architecture with distinct API layers:
 - **LLM Integration**: Anthropic Claude API, Ollama for local models
 - **Build System**: Turborepo with pnpm, Makefile for development
 
+**Code Structure:**
+- **Backend Packages**: Located in `/backend/src` with packages prefixed as `fi_*`
+  - Examples: `fi_common`, `fi_auth`, `fi_assistant`, `fi_audit`, `fi_patient`, `fi_session`, `fi_workflow`, `fi_coder`, etc.
+  - Imports should follow pattern: `from backend.src.fi_*...`
+- **Legacy Compatibility**: Some files use shorter import aliases for backward compatibility
+
+**Special Tools:**
+- **FI Coder**: Located in `/backend/src/fi_coder`, provides a simplified qwen-code CLI wrapper
+  - Usage: `python -m backend.src.fi_coder.cli.main execute "your prompt"`
+  - Alternative: `cd backend/src/fi_coder && python -m cli.main execute "your prompt"`
+
 ## Building and Running
 
 ### Development Setup

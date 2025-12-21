@@ -37,9 +37,7 @@ def _is_excluded(path: Path) -> bool:
         return True
     if "tests" in parts or "test" in parts:
         return True
-    if "__pycache__" in parts:
-        return True
-    return False
+    return "__pycache__" in parts
 
 
 def _extract_origin(line: str) -> str | None:

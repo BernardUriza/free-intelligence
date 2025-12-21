@@ -15,13 +15,12 @@ Card: FI-PHIL-DOC-014
 
 from __future__ import annotations
 
+import h5py
 from datetime import datetime
 from enum import Enum
-from typing import Literal
-
-import h5py
 from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, Field
+from typing import Literal
 
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_llm.services.conversation_memory import get_memory_manager
@@ -199,7 +198,7 @@ def _get_audio_events(
             # Collect all chunks with timestamps
             all_chunks: list[tuple[int, str, dict]] = []  # (timestamp, session_id, chunk_data)
 
-            for session_id in sessions_group.keys():
+            for session_id in sessions_group:
                 try:
                     session = sessions_group[session_id]
                     if "tasks" not in session:  # type: ignore[operator]
@@ -215,7 +214,7 @@ def _get_audio_events(
 
                     chunks_group = trans_task["chunks"]
 
-                    for chunk_name in chunks_group.keys():
+                    for chunk_name in chunks_group:
                         chunk = chunks_group[chunk_name]
 
                         # Get timestamp
@@ -541,7 +540,7 @@ async def search_memory(
     try:
         with h5py.File(CORPUS_PATH, "r") as f:
             if "sessions" in f:
-                for session_key in f["sessions"].keys():
+                for session_key in f["sessions"]:
                     session_grp = f["sessions"][session_key]
 
                     if "tasks" not in session_grp:
@@ -553,7 +552,7 @@ async def search_memory(
 
                     trans_grp = tasks_grp["TRANSCRIPTION"]
 
-                    for chunk_key in trans_grp.keys():
+                    for chunk_key in trans_grp:
                         chunk_ds = trans_grp[chunk_key]
 
                         if "transcript" not in chunk_ds.attrs:
@@ -646,7 +645,7 @@ async def get_memory_stats(
         with h5py.File(CORPUS_PATH, "r") as f:
             if "sessions" in f:
                 sessions_group = f["sessions"]
-                for session_id in sessions_group.keys():
+                for session_id in sessions_group:
                     unique_sessions.add(session_id)
                     try:
                         session = sessions_group[session_id]

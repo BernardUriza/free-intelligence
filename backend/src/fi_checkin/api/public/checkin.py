@@ -12,19 +12,18 @@ Card: FI-CHECKIN-001
 from __future__ import annotations
 
 import base64
+import contextlib
 import io
 import json
+import qrcode
 import secrets
 from datetime import UTC, datetime
-from typing import List
-
-import qrcode
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
+from typing import List
 
 from backend.database import get_db_dependency
-from backend.src.fi_common.logging.logger import get_logger
 from backend.models.checkin_models import (
     Appointment,
     AppointmentStatus,
@@ -57,6 +56,7 @@ from backend.schemas.api.checkin import (
     WaitingRoomPatient,
     WaitingRoomState,
 )
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -133,7 +133,7 @@ def get_waiting_room_state(db: Session, clinic_id: str) -> WaitingRoomState:
             Appointment.clinic_id == clinic_id,
             Appointment.status == AppointmentStatus.CHECKED_IN,
             Appointment.checked_in_at >= today_start,
-            Appointment.is_deleted == False,
+            not Appointment.is_deleted,
         )
         .order_by(Appointment.checked_in_at)
         .all()
@@ -146,7 +146,7 @@ def get_waiting_room_state(db: Session, clinic_id: str) -> WaitingRoomState:
             Appointment.clinic_id == clinic_id,
             Appointment.status.in_([AppointmentStatus.COMPLETED, AppointmentStatus.IN_PROGRESS]),
             Appointment.scheduled_at >= today_start,
-            Appointment.is_deleted == False,
+            not Appointment.is_deleted,
         )
         .count()
     )
@@ -359,7 +359,7 @@ def _find_appointment_for_patient(
             Appointment.scheduled_at >= today_start,
             Appointment.scheduled_at <= today_end,
             Appointment.status.in_([AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED]),
-            Appointment.is_deleted == False,
+            not Appointment.is_deleted,
         )
         .order_by(Appointment.scheduled_at)
         .first()
@@ -429,7 +429,7 @@ def identify_by_code(request: IdentifyByCodeRequest, db: Session = Depends(get_d
             Appointment.checkin_code == request.checkin_code,
             Appointment.checkin_code_expires_at >= now,
             Appointment.status.in_([AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED]),
-            Appointment.is_deleted == False,
+            not Appointment.is_deleted,
         )
         .first()
     )
@@ -841,10 +841,8 @@ async def waiting_room_websocket(websocket: WebSocket, clinic_id: str):
     finally:
         # Clean up
         if clinic_id in waiting_room_connections:
-            try:
+            with contextlib.suppress(ValueError):
                 waiting_room_connections[clinic_id].remove(websocket)
-            except ValueError:
-                pass
 
 
 # =============================================================================

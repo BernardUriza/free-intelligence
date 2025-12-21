@@ -40,25 +40,27 @@
 from __future__ import annotations
 
 import base64
+import contextlib
+import h5py
 import hashlib
 import json
+import numpy as np
 import os
 import sys
 import time
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
-import h5py
-import numpy as np
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
 # Import structlog logger for consistent logging
 try:
+    from backend.models.task_type import (
+        TaskStatus,  # type: ignore[assignment]
+        TaskType,  # type: ignore[assignment]
+    )
     from backend.src.fi_common.logging.logger import get_logger  # type: ignore[assignment]
-    from backend.models.task_type import TaskStatus  # type: ignore[assignment]
-    from backend.models.task_type import TaskType  # type: ignore[assignment]
     from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
         update_task_metadata,
     )
@@ -420,10 +422,7 @@ def read_dataset_as_bytes(ds: h5py.Dataset) -> tuple[bytes, dict[str, Any]]:
     # Check if string dtype (vlen/unicode/bytes)
     if h5py.check_string_dtype(ds.dtype) is not None or ds.dtype.kind in ("S", "O", "U"):
         vals = ds.asstr()[...]
-        if isinstance(vals, np.ndarray):
-            data_list = vals.tolist()
-        else:
-            data_list = [str(vals)]
+        data_list = vals.tolist() if isinstance(vals, np.ndarray) else [str(vals)]
         payload = json.dumps(data_list, ensure_ascii=False).encode("utf-8")
         meta.update(
             {
@@ -496,10 +495,7 @@ def write_json_dataset(h5: h5py.File, path: str, data: dict[str, Any]) -> None:
         Stores as uint8 array with type="json" attribute.
     """
     grp_path, _, name = path.rpartition("/")
-    if grp_path:
-        grp = ensure_group(h5, grp_path)
-    else:
-        grp = h5
+    grp = ensure_group(h5, grp_path) if grp_path else h5
     js = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     if name in grp:
         del grp[name]
@@ -1011,7 +1007,7 @@ def encrypt_session_worker(
 
         # Update task metadata: IN_PROGRESS
         if HAS_BACKEND_IMPORTS:
-            try:
+            with contextlib.suppress(Exception):
                 update_task_metadata(
                     session_id,
                     TaskType.ENCRYPTION,
@@ -1021,8 +1017,6 @@ def encrypt_session_worker(
                         "started_at": datetime.now(UTC).isoformat(),
                     },
                 )
-            except Exception:
-                pass  # Don't fail encryption if metadata update fails
 
         # Verify H5 file exists
         if not Path(h5_path).exists():

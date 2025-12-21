@@ -34,11 +34,10 @@ Updated: 2025-12-08 (Migrated from OpenAI to Azure Speech Services)
 
 from __future__ import annotations
 
-import os
-from typing import Literal
-
 import httpx
+import os
 import structlog
+from typing import Literal
 
 logger = structlog.get_logger(__name__)
 

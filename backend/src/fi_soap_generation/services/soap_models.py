@@ -6,9 +6,8 @@ All fields support multilingual content with English field names (medical standa
 
 from __future__ import annotations
 
-from typing import List
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import List
 
 __all__ = ["AssessmentData", "ObjectiveData", "PlanData", "SOAPNote", "SubjectiveData"]
 

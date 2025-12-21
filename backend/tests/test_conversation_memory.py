@@ -11,10 +11,9 @@ Verifies:
 Run: pytest backend/tests/test_conversation_memory.py -v
 """
 
+import pytest
 import tempfile
 from pathlib import Path
-
-import pytest
 
 from backend.src.fi_llm.services.conversation_memory import ConversationMemoryManager
 

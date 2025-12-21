@@ -14,12 +14,11 @@ Created: 2025-11-17
 Updated: 2025-12-08 (Added OpenAI TTS support)
 """
 
-from typing import Literal
-
 import structlog
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+from typing import Literal
 
 from backend.src.fi_tts.services.tts_unified import get_unified_tts_service
 

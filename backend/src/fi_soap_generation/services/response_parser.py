@@ -8,9 +8,8 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict
-
 from pydantic import ValidationError
+from typing import Any, Dict
 
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_soap_generation.services.soap_models import SOAPNote

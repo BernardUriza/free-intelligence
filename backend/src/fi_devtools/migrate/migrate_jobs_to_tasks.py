@@ -16,11 +16,10 @@ Usage:
 
 from __future__ import annotations
 
+import h5py
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
-
-import h5py
 
 
 def get_corpus_path() -> Path:
@@ -59,7 +58,7 @@ def migrate_session(corpus_path: Path, session_id: str, dry_run: bool = False) -
                     chunks_group = task_group["chunks"]
 
                 source_chunks = f[production_path]
-                for chunk_name in source_chunks.keys():
+                for chunk_name in source_chunks:
                     if chunk_name not in chunks_group:
                         f.copy(source_chunks[chunk_name], chunks_group, name=chunk_name)
 

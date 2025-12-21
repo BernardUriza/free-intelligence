@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class ITaskRepository(ABC):
     """Abstract interface for task repository operations."""
 
     @abstractmethod
-    def get_task_metadata(self, session_id: str, task_type: str) -> Optional[Dict[str, Any]]:
+    def get_task_metadata(self, session_id: str, task_type: str) -> Dict[str, Any] | None:
         """Get task metadata."""
         pass
 
@@ -16,7 +16,7 @@ class ITaskRepository(ABC):
         pass
 
     @abstractmethod
-    def ensure_task_exists(self, session_id: str, task_type: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+    def ensure_task_exists(self, session_id: str, task_type: str, metadata: Dict[str, Any] | None = None) -> str:
         """Ensure task exists, create if not."""
         pass
 

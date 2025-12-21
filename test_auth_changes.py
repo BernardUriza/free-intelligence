@@ -46,7 +46,7 @@ def main():
     print("   - This allows users to continue using the app without Auth0 redirect")
     
     print("\n2. ROUTE CONFIGURATION:")
-    print("   - Updated routes.config.ts to make '/chat' and '/chat-dense' public")
+    print("   - Updated routes.config.ts to make '/chat' public")
     print("   - Users can now access chat functionality without authentication")
     
     print("\n3. HOME PAGE LOGIC:")

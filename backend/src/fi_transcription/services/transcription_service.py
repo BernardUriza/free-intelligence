@@ -13,8 +13,8 @@ Card: Clean Architecture Refactor
 
 from __future__ import annotations
 
-from backend.src.fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskType
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     ensure_task_exists,
     get_task_chunks,

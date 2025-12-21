@@ -23,7 +23,6 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
-
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse

@@ -5,12 +5,11 @@ Tests the full stack: FastAPI endpoint → DI container → DiarizationJobServic
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import h5py
+import json
 import pytest
 from fastapi.testclient import TestClient
+from pathlib import Path
 
 
 def _write_job(h5_path: str, job_id: str, payload: dict) -> None:

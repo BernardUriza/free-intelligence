@@ -33,7 +33,7 @@ def test_dry_run_redacts_phi(client: TestClient):
 def test_public_does_not_call_internal_endpoint(client: TestClient, monkeypatch):
     calls = []
 
-    def fake_post(url, *args, **kwargs):
+    def fake_post(url, *_args, **_kwargs):
         calls.append(url)
 
         class R:
@@ -51,11 +51,11 @@ def test_public_does_not_call_internal_endpoint(client: TestClient, monkeypatch)
     import backend.clients.internal_llm_client as clientmod
 
     monkeypatch.setattr(
-        clientmod.httpx.AsyncClient, "post", lambda self, url, *a, **k: fake_post(url, *a, **k)
+        clientmod.httpx.AsyncClient, "post", lambda _self, url, *a, **k: fake_post(url, *a, **k)
     )
 
     payload = {"messages": [{"role": "user", "content": "Hello"}], "persona": "general_assistant"}
-    resp = client.post("/api/workflows/aurity/assistant/chat", json=payload)
+    client.post("/api/workflows/aurity/assistant/chat", json=payload)
 
     # Ensure none of the recorded URLs start with /internal/llm when called from public
     for c in calls:

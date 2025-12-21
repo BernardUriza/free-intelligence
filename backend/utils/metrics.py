@@ -30,9 +30,8 @@ from __future__ import annotations
 import functools
 import time
 from collections.abc import Callable
-from typing import Any
-
 from prometheus_client import Counter, Gauge, Histogram
+from typing import Any
 
 from backend.src.fi_common.logging.logger import get_logger
 
