@@ -20,9 +20,8 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from functools import lru_cache
-
 from dotenv import load_dotenv
+from functools import lru_cache
 
 # Load .env file as fallback
 load_dotenv()

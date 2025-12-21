@@ -142,20 +142,36 @@ def lint_fix_worker_cmd(
     typer.echo(f"✅ Batch completed: Fixed {data['result']['fixed_count']} errors, {data['result']['remaining_errors']} remaining, took {data['duration_seconds']:.2f}s")
 
 
-@app.command("lint-fix-cron")
-def lint_fix_cron_cmd(
+@app.command("lint-fix-aurity-worker")
+def lint_fix_aurity_worker_cmd(
+    batch_size: int = typer.Option(5, "--batch-size", help="Number of errors to fix in this batch (default: 5)"),
+) -> None:
+    """Run a single batch of ESLint fixing for AURITY using the worker."""
+    try:
+        from backend.workers.tasks.lint_fix_worker import lint_fix_aurity_worker
+    except ImportError as e:
+        typer.echo(f"❌ Failed to import lint_fix_aurity_worker: {e}", err=True)
+        sys.exit(1)
+    
+    result = lint_fix_aurity_worker(batch_size)
+    data = result
+    typer.echo(f"✅ AURITY batch completed: Fixed {data['result']['fixed_count']} errors, {data['result']['remaining_errors']} remaining, took {data['duration_seconds']:.2f}s")
+
+
+@app.command("lint-fix-aurity-cron")
+def lint_fix_aurity_cron_cmd(
     sleep_seconds: int = typer.Option(60, "--sleep-seconds", help="Seconds to wait between batches (default: 60)"),
 ) -> None:
-    """Run continuous lint fixing in batches (cron-like behavior)."""
+    """Run continuous AURITY ESLint fixing in batches (cron-like behavior)."""
     try:
-        from backend.scripts.lint_fix_cron import main as cron_main
+        from backend.scripts.lint_fix_aurity_cron import main as cron_main
     except ImportError as e:
-        typer.echo(f"❌ Failed to import lint_fix_cron: {e}", err=True)
+        typer.echo(f"❌ Failed to import lint_fix_aurity_cron: {e}", err=True)
         sys.exit(1)
     
     # Override sleep_seconds if provided
-    import backend.scripts.lint_fix_cron as cron_module
+    import backend.scripts.lint_fix_aurity_cron as cron_module
     cron_module.sleep_seconds = sleep_seconds
     
-    typer.echo(f"Starting continuous lint fixing with {sleep_seconds}s intervals...")
+    typer.echo(f"Starting continuous AURITY lint fixing with {sleep_seconds}s intervals...")
     cron_main()

@@ -5,9 +5,9 @@ Minimal implementation for development - replace with proper database setup.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
-from typing import Generator
 
 # TODO: Replace with proper database configuration
 # For now, use SQLite in-memory for development
@@ -21,7 +21,7 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def get_db_dependency() -> Generator[Session, None, None]:
+def get_db_dependency() -> Iterator[Session]:
     """FastAPI dependency for database sessions."""
     db = SessionLocal()
     try:
