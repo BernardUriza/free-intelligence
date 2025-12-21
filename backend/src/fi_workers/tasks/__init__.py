@@ -1,0 +1,11 @@
+"""Worker tasks module - Modular task implementations."""
+
+from backend.src.fi_workers.tasks.audit_worker import log_audit_event_worker
+from backend.src.fi_workers.tasks.diarization_worker import diarize_session_worker
+from backend.src.fi_workers.tasks.transcription_worker import transcribe_chunk_worker
+
+__all__ = [
+    "diarize_session_worker",
+    "log_audit_event_worker",
+    "transcribe_chunk_worker",
+]

@@ -169,7 +169,7 @@ async def upload_chunk(
         # 5. Dispatch sync worker (worker writes to HDF5)
         from concurrent.futures import ThreadPoolExecutor
 
-        from backend.workers.sync_workers import transcribe_chunk_worker
+        from backend.src.fi_workers.sync_workers import transcribe_chunk_worker
 
         # Run transcription in background thread to avoid blocking
         executor = ThreadPoolExecutor(max_workers=4)

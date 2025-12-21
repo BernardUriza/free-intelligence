@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.src.fi_common.logging.logger import get_logger
-from backend.workers.tasks.base_worker import WorkerResult, measure_time
+from backend.src.fi_workers.tasks.base_worker import WorkerResult, measure_time
 
 logger = get_logger(__name__)
 

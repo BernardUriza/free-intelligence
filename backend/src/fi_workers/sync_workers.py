@@ -12,10 +12,10 @@ Refactored: 2025-11-15 (DRY, Python 3.14 best practices)
 from __future__ import annotations
 
 # Re-export from modular implementations
-from backend.workers.tasks.audit_worker import log_audit_event_worker
-from backend.workers.tasks.diarization_worker import diarize_session_worker
-from backend.workers.tasks.soap_worker import generate_soap_worker
-from backend.workers.tasks.transcription_worker import transcribe_chunk_worker
+from backend.src.fi_workers.tasks.audit_worker import log_audit_event_worker
+from backend.src.fi_workers.tasks.diarization_worker import diarize_session_worker
+from backend.src.fi_workers.tasks.soap_worker import generate_soap_worker
+from backend.src.fi_workers.tasks.transcription_worker import transcribe_chunk_worker
 
 __all__ = [
     "diarize_session_worker",

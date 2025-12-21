@@ -28,7 +28,7 @@ BasePathOpt = Annotated[
 def lint_fix(
     base_path: BasePathOpt = None,
     auto_fix: bool = typer.Option(True, "--auto-fix/--no-auto-fix", help="Automatically attempt to fix linting errors using AI"),
-    max_fixes: int = typer.Option(10, "--max-fixes", help="Maximum number of errors to attempt to fix (default: 10)"),
+    max_fixes: int = typer.Option(20, "--max-fixes", help="Maximum number of errors to attempt to fix (default: 20)"),
 ) -> None:
     """Run Ruff linter and optionally fix errors using qwen-code AI."""
     repo_root = resolve_repo_root(base_path)
@@ -178,6 +178,7 @@ def format_fix(
 def type_check_fix(
     base_path: BasePathOpt = None,
     auto_fix: bool = typer.Option(True, "--auto-fix/--no-auto-fix", help="Automatically attempt to fix type checking errors using AI"),
+    max_errors: int = typer.Option(20, "--max-errors", help="Maximum number of type errors to attempt to fix (default: 20)"),
 ) -> None:
     """Run Pyright type checker and optionally fix type errors using qwen-code AI."""
     repo_root = resolve_repo_root(base_path)
@@ -217,7 +218,7 @@ def type_check_fix(
 
     # Create a prompt based on pyright output
     pyright_output = pyright_proc.stdout + pyright_proc.stderr
-    prompt = f"Fix the following Pyright type checking errors in the backend code:\n\n{pyright_output}\n\nUpdate type annotations and fix any type-related issues."
+    prompt = f"Fix up to {max_errors} of the following Pyright type checking errors in the backend code:\n\n{pyright_output}\n\nUpdate type annotations and fix any type-related issues."
 
     result = execute_qwen_code(
         prompt=prompt,
@@ -239,7 +240,7 @@ def lint_fix_worker_cmd(
 ) -> None:
     """Run a single batch of lint fixing using the worker."""
     try:
-        from backend.workers.tasks.lint_fix_worker import lint_fix_worker
+        from backend.src.fi_workers.tasks.lint_fix_worker import lint_fix_worker
     except ImportError as e:
         typer.echo(f"❌ Failed to import lint_fix_worker: {e}", err=True)
         sys.exit(1)
@@ -255,7 +256,7 @@ def lint_fix_aurity_worker_cmd(
 ) -> None:
     """Run a single batch of ESLint fixing for AURITY using the worker."""
     try:
-        from backend.workers.tasks.lint_fix_worker import lint_fix_aurity_worker
+        from backend.src.fi_workers.tasks.lint_fix_worker import lint_fix_aurity_worker
     except ImportError as e:
         typer.echo(f"❌ Failed to import lint_fix_aurity_worker: {e}", err=True)
         sys.exit(1)

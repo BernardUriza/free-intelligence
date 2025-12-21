@@ -31,7 +31,7 @@ The system follows a layered architecture with distinct API layers:
 
 **Code Structure:**
 - **Backend Packages**: Located in `/backend/src` with packages prefixed as `fi_*`
-  - Examples: `fi_common`, `fi_auth`, `fi_assistant`, `fi_audit`, `fi_patient`, `fi_session`, `fi_workflow`, `fi_coder`, etc.
+  - Examples: `fi_common`, `fi_auth`, `fi_assistant`, `fi_audit`, `fi_patient`, `fi_session`, `fi_workflow`, `fi_coder`, `fi_workers`, etc.
   - Imports should follow pattern: `from backend.src.fi_*...`
 - **Legacy Compatibility**: Some files use shorter import aliases for backward compatibility
 
@@ -39,6 +39,22 @@ The system follows a layered architecture with distinct API layers:
 - **FI Coder**: Located in `/backend/src/fi_coder`, provides a simplified qwen-code CLI wrapper
   - Usage: `python -m backend.src.fi_coder.cli.main execute "your prompt"`
   - Alternative: `cd backend/src/fi_coder && python -m cli.main execute "your prompt"`
+
+**Worker Architecture:**
+- **FI Workers**: Located in `/backend/src/fi_workers`, contains all worker implementations
+  - Tasks: Individual worker implementations in `/backend/src/fi_workers/tasks`
+  - Executors: Worker execution logic in `/backend/src/fi_workers/executor_pool.py`
+  - Synchronous Workers: Compatibility layer in `/backend/src/fi_workers/sync_workers.py`
+  - Migrated from: `/backend/workers` (deprecated, removed in this refactoring)
+  - Imports should follow pattern: `from backend.src.fi_workers...` or `from backend.src.fi_workers.tasks...`
+
+**Prompt Library:**
+- **FI Prompts**: Located in `/backend/src/fi_prompts`, provides centralized prompt management
+  - Components: Prompt provider in `/backend/src/fi_prompts/prompt_provider.py`
+  - Templates: Prompt templates in `/backend/src/fi_prompts/templates/*.txt`
+  - CLI: Command-line access in `/backend/src/fi_prompts/cli/main.py`
+  - Usage: Retrieve formatted prompts with `from backend.src.fi_prompts import get_prompt`
+  - Examples: Usage examples in `/backend/src/fi_prompts/example_usage.py`
 
 ## Building and Running
 

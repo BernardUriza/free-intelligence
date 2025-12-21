@@ -135,7 +135,7 @@ async def get_soap_workflow(session_id: str) -> dict:
             from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
                 ensure_task_exists,
             )
-            from backend.workers.tasks.soap_worker import generate_soap_worker
+            from backend.src.fi_workers.tasks.soap_worker import generate_soap_worker
 
             # Ensure SOAP_GENERATION task exists before calling worker
             ensure_task_exists(session_id, TaskType.SOAP_GENERATION, allow_existing=True)

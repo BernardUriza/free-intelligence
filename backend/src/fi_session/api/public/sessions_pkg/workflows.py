@@ -88,7 +88,7 @@ async def analyze_session_intelligent_workflow(
         get_task_metadata,
     )
     from backend.src.fi_workflow.services.workflow_router import get_workflow_router
-    from backend.workers.executor_pool import spawn_worker
+    from backend.src.fi_workers.executor_pool import spawn_worker
 
     try:
         logger.info(
@@ -169,17 +169,17 @@ async def analyze_session_intelligent_workflow(
                 )
                 continue
             elif task_type == TaskType.DIARIZATION:
-                from backend.workers.tasks.diarization_worker import diarization_worker
+                from backend.src.fi_workers.tasks.diarization_worker import diarization_worker
 
                 spawn_worker(diarization_worker, session_id=session_id)
                 job_ids["DIARIZATION"] = session_id
             elif task_type == TaskType.SOAP_GENERATION:
-                from backend.workers.tasks.soap_worker import generate_soap_worker
+                from backend.src.fi_workers.tasks.soap_worker import generate_soap_worker
 
                 spawn_worker(generate_soap_worker, session_id=session_id)
                 job_ids["SOAP_GENERATION"] = session_id
             elif task_type == TaskType.EMOTION_ANALYSIS:
-                from backend.workers.tasks.emotion_worker import analyze_emotion_worker
+                from backend.src.fi_workers.tasks.emotion_worker import analyze_emotion_worker
 
                 spawn_worker(analyze_emotion_worker, session_id=session_id)
                 job_ids["EMOTION_ANALYSIS"] = session_id

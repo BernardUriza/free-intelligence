@@ -12,10 +12,7 @@ from __future__ import annotations
 
 import enum
 import secrets
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING  # noqa: F401 - referenced in string annotations
-from uuid import uuid4
-
+from datetime import UTC, datetime, timedelta
 from sqlalchemy import (
     Boolean,
     Column,
@@ -31,14 +28,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
+from uuid import uuid4
 
 from backend.models.db_models import Base
-
-
-if TYPE_CHECKING:
-    from typing import List
-else:
-    List = list
 
 # =============================================================================
 # ENUMS
@@ -127,18 +119,18 @@ def generate_checkin_code() -> str:
 
 def get_checkin_code_expiry() -> datetime:
     """Get expiry time for check-in code (end of today)."""
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     return now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
 
 def get_session_expiry() -> datetime:
     """Get expiry time for check-in session (15 minutes)."""
-    return datetime.utcnow() + timedelta(minutes=15)
+    return datetime.now(UTC) + timedelta(minutes=15)
 
 
 def get_qr_expiry() -> datetime:
     """Get expiry time for QR code (5 minutes)."""
-    return datetime.utcnow() + timedelta(minutes=5)
+    return datetime.now(UTC) + timedelta(minutes=5)
 
 
 # =============================================================================
@@ -184,9 +176,11 @@ class Clinic(Base):
     appointments = relationship("Appointment", back_populates="clinic")
 
     def __repr__(self) -> str:
+        """Return string representation of Clinic."""
         return f"<Clinic {self.name} ({self.clinic_id})>"
 
     def to_dict(self) -> dict:
+        """Convert Clinic instance to dictionary representation."""
         return {
             "clinic_id": str(self.clinic_id),
             "name": self.name,
@@ -262,6 +256,7 @@ class Doctor(Base):
     appointments = relationship("Appointment", back_populates="doctor")
 
     def __repr__(self) -> str:
+        """Return string representation of Doctor."""
         return f"<Doctor {self.nombre} {self.apellido} ({self.doctor_id})>"
 
     @property
@@ -272,6 +267,7 @@ class Doctor(Base):
         return f"Dr. {self.apellido}"
 
     def to_dict(self) -> dict:
+        """Convert Doctor instance to dictionary representation."""
         return {
             "doctor_id": str(self.doctor_id),
             "clinic_id": str(self.clinic_id),
@@ -303,12 +299,12 @@ class Appointment(Base):
     scheduled_at = Column(DateTime(timezone=True), nullable=False, index=True)
     estimated_duration = Column(Integer, default=30)  # minutes
     appointment_type = Column(
-        Enum(AppointmentType), nullable=False, default=AppointmentType.FOLLOW_UP
+        Enum(AppointmentType), nullable=False, default=AppointmentType.FOLLOW_UP,
     )
 
     # Status tracking
     status = Column(
-        Enum(AppointmentStatus), nullable=False, default=AppointmentStatus.SCHEDULED, index=True
+        Enum(AppointmentStatus), nullable=False, default=AppointmentStatus.SCHEDULED, index=True,
     )
     checked_in_at = Column(DateTime(timezone=True), nullable=True)
     called_at = Column(DateTime(timezone=True), nullable=True)
@@ -318,7 +314,7 @@ class Appointment(Base):
     # Check-in code (6 digits, expires same day)
     checkin_code = Column(String(6), nullable=False, default=generate_checkin_code, index=True)
     checkin_code_expires_at = Column(
-        DateTime(timezone=True), nullable=False, default=get_checkin_code_expiry
+        DateTime(timezone=True), nullable=False, default=get_checkin_code_expiry,
     )
 
     # Context
@@ -339,7 +335,7 @@ class Appointment(Base):
     clinic = relationship("Clinic", back_populates="appointments")
     doctor = relationship("Doctor", back_populates="appointments")
     pending_actions = relationship(
-        "PendingAction", back_populates="appointment", cascade="all, delete-orphan"
+        "PendingAction", back_populates="appointment", cascade="all, delete-orphan",
     )
 
     # Indexes
@@ -347,14 +343,16 @@ class Appointment(Base):
         Index("ix_appointments_clinic_date", "clinic_id", "scheduled_at"),
         Index("ix_appointments_clinic_status", "clinic_id", "status"),
         Index(
-            "ix_appointments_checkin_lookup", "clinic_id", "checkin_code", "checkin_code_expires_at"
+            "ix_appointments_checkin_lookup", "clinic_id", "checkin_code", "checkin_code_expires_at",
         ),
     )
 
     def __repr__(self) -> str:
+        """Return string representation of Appointment."""
         return f"<Appointment {self.appointment_id} - {self.status.value}>"
 
     def to_dict(self) -> dict:
+        """Convert Appointment instance to dictionary representation."""
         return {
             "appointment_id": str(self.appointment_id),
             "clinic_id": str(self.clinic_id),
@@ -390,7 +388,7 @@ class PendingAction(Base):
 
     action_id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
     appointment_id = Column(
-        UUID(as_uuid=False), ForeignKey("appointments.appointment_id"), nullable=False
+        UUID(as_uuid=False), ForeignKey("appointments.appointment_id"), nullable=False,
     )
 
     # Type and status
@@ -433,9 +431,11 @@ class PendingAction(Base):
     appointment = relationship("Appointment", back_populates="pending_actions")
 
     def __repr__(self) -> str:
+        """Return string representation of PendingAction."""
         return f"<PendingAction {self.action_type.value} - {self.status.value}>"
 
     def to_dict(self) -> dict:
+        """Convert PendingAction instance to dictionary representation."""
         return {
             "action_id": str(self.action_id),
             "action_type": self.action_type.value,
@@ -491,14 +491,16 @@ class CheckinSession(Base):
     __table_args__ = (Index("ix_checkin_sessions_expires", "expires_at"),)
 
     def __repr__(self) -> str:
+        """Return string representation of CheckinSession."""
         return f"<CheckinSession {self.session_id} - {self.current_step.value}>"
 
     @property
     def is_expired(self) -> bool:
         """Check if session has expired."""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(UTC) > self.expires_at
 
     def to_dict(self) -> dict:
+        """Convert CheckinSession instance to dictionary representation."""
         return {
             "session_id": str(self.session_id),
             "clinic_id": str(self.clinic_id),
@@ -536,4 +538,5 @@ class WaitingRoomEvent(Base):
     __table_args__ = (Index("ix_waiting_room_events_clinic_time", "clinic_id", "created_at"),)
 
     def __repr__(self) -> str:
+        """Return string representation of WaitingRoomEvent."""
         return f"<WaitingRoomEvent {self.event_type} @ {self.created_at}>"

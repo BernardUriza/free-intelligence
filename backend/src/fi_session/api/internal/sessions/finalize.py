@@ -58,8 +58,8 @@ from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     get_task_metadata,
     update_task_metadata,
 )
-from backend.workers.executor_pool import spawn_worker
-from backend.workers.tasks.encryption_worker import encrypt_session_worker
+from backend.src.fi_workers.executor_pool import spawn_worker
+from backend.src.fi_workers.tasks.encryption_worker import encrypt_session_worker
 
 logger = get_logger(__name__)
 

@@ -6,16 +6,16 @@ Restricts access to internal endpoints based on environment and client IP.
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
-
 from fastapi import HTTPException, Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
+from typing import TYPE_CHECKING
 
+from backend.src.fi_common.logging.logger import get_logger
 
 if TYPE_CHECKING:
-    from typing import List
-else:
-    List = list
+    from collections.abc import Callable
+    from fastapi.responses import Response
+    from starlette.types import ASGIApp
 
 
 class InternalOnlyMiddleware(BaseHTTPMiddleware):
@@ -25,19 +25,19 @@ class InternalOnlyMiddleware(BaseHTTPMiddleware):
     In development, allows all requests for testing.
     """
 
-    def __init__(self, app, allowed_hosts: list[str] | None = None):
-        """
-        Initialize the internal-only middleware.
+    def __init__(self, app: ASGIApp, allowed_hosts: list[str] | None = None) -> None:
+        """Initialize the internal-only middleware.
 
         Args:
             app: The FastAPI application instance
             allowed_hosts: Optional list of allowed host addresses.
                           If None, defaults to localhost addresses.
+
         """
         super().__init__(app)
         self.allowed_hosts = allowed_hosts or ["127.0.0.1", "localhost", "::1"]
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Check if request is from allowed origin.
 
         Args:
@@ -49,6 +49,7 @@ class InternalOnlyMiddleware(BaseHTTPMiddleware):
 
         Returns:
             Response from next handler if allowed
+
         """
         # Check ENVIRONMENT first, fallback to ENV for backward compatibility
         env = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
@@ -59,8 +60,6 @@ class InternalOnlyMiddleware(BaseHTTPMiddleware):
 
             if client_host not in self.allowed_hosts:
                 # Log the unauthorized access attempt for security monitoring
-                from backend.src.fi_common.logging.logger import get_logger
-
                 logger = get_logger(__name__)
                 logger.warning(
                     "SECURITY_INTERNAL_API_ACCESS_ATTEMPT",
