@@ -9,7 +9,7 @@ import numpy as np
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

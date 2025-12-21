@@ -21,7 +21,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskType
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import get_task_metadata
 

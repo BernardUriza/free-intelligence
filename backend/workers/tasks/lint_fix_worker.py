@@ -6,7 +6,7 @@ import subprocess
 import time
 from fi_coder.execution.executor import execute_qwen_code
 from fi_coder.observability.metrics import MetricsCollector
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from pathlib import Path
 from typing import Any
 

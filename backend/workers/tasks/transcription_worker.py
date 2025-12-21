@@ -6,7 +6,7 @@ import os
 import tempfile
 from typing import Any
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.providers.stt import get_stt_provider
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (

@@ -7,7 +7,7 @@ import uuid as _uuid
 import ulid
 from fastapi import APIRouter, HTTPException
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.services.trace_store import get_trace_store
 from backend.utils.redactor import redact_and_hash_once
 

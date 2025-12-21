@@ -8,7 +8,7 @@ from __future__ import annotations
 import subprocess
 from typing import Any
 
-from fi_common.interfaces.ilogger import ILogger
+from backend.src.fi_common.interfaces.ilogger import ILogger
 
 
 class DISystemHealthService:

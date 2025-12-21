@@ -8,7 +8,7 @@ Refactored: 2025-11-14 (Clean Architecture - Repository Pattern)
 
 from __future__ import annotations
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.repositories.soap_repository import (
     SoapRepository,
     TranscriptionNotFoundError,

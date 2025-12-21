@@ -24,7 +24,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from backend.database import get_db_dependency
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.models.checkin_models import (
     Appointment,
     AppointmentStatus,

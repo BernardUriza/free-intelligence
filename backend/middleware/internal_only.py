@@ -53,7 +53,7 @@ class InternalOnlyMiddleware(BaseHTTPMiddleware):
 
             if client_host not in self.allowed_hosts:
                 # Log the unauthorized access attempt for security monitoring
-                from fi_common.logging.logger import get_logger
+                from backend.src.fi_common.logging.logger import get_logger
 
                 logger = get_logger(__name__)
                 logger.warning(

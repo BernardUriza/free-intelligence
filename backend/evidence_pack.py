@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fi_common.infrastructure.evidence_pack import (
+from backend.src.fi_common.infrastructure.evidence_pack import (
     EvidencePackBuilder,
     create_evidence_pack_from_sources,
 )

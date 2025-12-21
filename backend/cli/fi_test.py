@@ -33,7 +33,7 @@ from typing import Any
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 
 from backend.providers.llm import llm_generate
 from backend.src.fi_storage.infrastructure.hdf5.corpus_ops import append_interaction

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from backend.app.audit.sink import write_audit_event
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.workers.tasks.base_worker import WorkerResult
 
 logger = get_logger(__name__)

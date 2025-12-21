@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.providers.llm import llm_generate
 from backend.schemas.llm.audit_policy import require_audit_log
 from backend.src.fi_llm.services.persona_manager import PersonaManager

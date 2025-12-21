@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List, Optional
 
-from fi_common.interfaces.itask_repository import ITaskRepository
+from backend.src.fi_common.interfaces.itask_repository import ITaskRepository
 from backend.src.fi_storage.infrastructure.hdf5 import task_repository as tr
 
 

@@ -20,7 +20,7 @@ from typing import Any, Union
 
 from dotenv import load_dotenv
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 
 load_dotenv()
 

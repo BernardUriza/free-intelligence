@@ -5,7 +5,7 @@ from typing import cast
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.validators import validate_session_id
 
 router = APIRouter()

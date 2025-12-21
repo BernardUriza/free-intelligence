@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.providers.models import SOAPNote
 
 from .completeness import CompletenessCalculator

@@ -15,7 +15,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Annotated
 
 from backend.database import get_db
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_common.services.notifications import (
     NotificationContext,
     NotificationService,

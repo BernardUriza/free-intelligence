@@ -12,7 +12,7 @@ from typing import Any, Dict
 
 from pydantic import ValidationError
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_soap_generation.services.soap_models import SOAPNote
 
 __all__ = ["OllamaExtractionError", "OllamaResponseParser"]

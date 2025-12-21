@@ -11,17 +11,17 @@ Clean Code Principles:
 
 from __future__ import annotations
 
-from fi_common.interfaces.ievent_bus import IEventBus
+from backend.src.fi_common.interfaces.ievent_bus import IEventBus
 
 # Import interfaces and implementations for DI
-from fi_common.interfaces.ilogger import ILogger
-from fi_common.interfaces.itask_repository import ITaskRepository
+from backend.src.fi_common.interfaces.ilogger import ILogger
+from backend.src.fi_common.interfaces.itask_repository import ITaskRepository
 
 # NOTE: HDF5TaskRepository was removed during fi_coder refactor
 # Using adapter that wraps functional task_repository module
-from fi_common.utils.event_bus import InMemoryEventBus
-from fi_common.utils.structured_logger import StructuredLogger
-from fi_common.utils.task_repository_adapter import TaskRepositoryAdapter
+from backend.src.fi_common.utils.event_bus import InMemoryEventBus
+from backend.src.fi_common.utils.structured_logger import StructuredLogger
+from backend.src.fi_common.utils.task_repository_adapter import TaskRepositoryAdapter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -88,7 +88,7 @@ else:
 
 def _get_logger() -> Any:
     """Lazy logger initialization to avoid circular imports."""
-    from fi_common.logging.logger import get_logger
+    from backend.src.fi_common.logging.logger import get_logger
 
     return get_logger(__name__)
 

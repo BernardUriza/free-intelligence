@@ -29,7 +29,7 @@ from typing import Any
 
 import h5py
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskType
 from backend.src.fi_common.services.chunk_handler import ChunkHandler
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (

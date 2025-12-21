@@ -27,7 +27,7 @@ from typing import Any
 
 import h5py
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

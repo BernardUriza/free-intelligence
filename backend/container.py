@@ -5,7 +5,7 @@ Provides access to the dependency injection container.
 
 from __future__ import annotations
 
-from fi_common.infrastructure.container import Container
+from backend.src.fi_common.infrastructure.container import Container
 
 
 def get_container() -> Container:

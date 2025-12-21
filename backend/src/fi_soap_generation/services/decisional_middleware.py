@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.providers.llm import llm_generate
 from backend.schemas.llm.preset_loader import get_preset_loader
 from backend.src.fi_llm.services.persona_manager import PersonaManager

@@ -9,7 +9,7 @@ from typing import Any
 
 from backend.evidence_pack import EvidencePackBuilder, create_evidence_pack_from_sources
 
-from fi_common.interfaces.ilogger import ILogger
+from backend.src.fi_common.interfaces.ilogger import ILogger
 
 
 class DIEvidenceService:

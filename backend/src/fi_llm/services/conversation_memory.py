@@ -53,7 +53,7 @@ except ImportError:
     SentenceTransformer = None  # type: ignore
     HAS_SENTENCE_TRANSFORMERS = False
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

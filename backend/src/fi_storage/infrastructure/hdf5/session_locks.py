@@ -28,7 +28,7 @@ from collections import defaultdict
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (
     ensure_session_h5_exists,
 )

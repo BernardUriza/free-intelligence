@@ -22,8 +22,8 @@ import h5py
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
-from fi_common.infrastructure.dependencies import get_transcription_service
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.infrastructure.dependencies import get_transcription_service
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_transcription.services.validators import (
     AudioFileValidator,
     ValidationError,

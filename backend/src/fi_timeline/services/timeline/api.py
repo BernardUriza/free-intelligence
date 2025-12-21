@@ -35,7 +35,7 @@ from fastapi import Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.schemas.domain.timeline import (
     RedactionPolicy,
     Timeline,

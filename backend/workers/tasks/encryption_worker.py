@@ -56,7 +56,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 # Import structlog logger for consistent logging
 try:
-    from fi_common.logging.logger import get_logger  # type: ignore[assignment]
+    from backend.src.fi_common.logging.logger import get_logger  # type: ignore[assignment]
     from backend.models.task_type import TaskStatus  # type: ignore[assignment]
     from backend.models.task_type import TaskType  # type: ignore[assignment]
     from backend.src.fi_storage.infrastructure.hdf5.task_repository import (

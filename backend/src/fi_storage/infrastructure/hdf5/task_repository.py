@@ -36,7 +36,7 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from typing import Any, Union
 
 from backend.models.task_type import TaskStatus, TaskType

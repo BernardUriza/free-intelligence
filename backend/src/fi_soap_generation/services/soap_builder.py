@@ -11,7 +11,7 @@ from typing import Any, Dict
 
 from pydantic import ValidationError
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.providers.models import (
     Analisis,
     Antecedentes,

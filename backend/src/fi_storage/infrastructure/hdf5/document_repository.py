@@ -39,7 +39,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import CORPUS_PATH
 
 logger = get_logger(__name__)

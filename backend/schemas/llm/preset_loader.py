@@ -22,7 +22,7 @@ import jsonschema
 import yaml
 
 from backend.constants import DEFAULT_OLLAMA_MODEL, LLMProvider
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

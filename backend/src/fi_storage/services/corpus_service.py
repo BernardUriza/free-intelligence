@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.repositories import CorpusRepository
 from backend.type_defs import DiarizationChunkDict
 

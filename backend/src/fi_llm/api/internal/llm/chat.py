@@ -21,7 +21,7 @@ import ulid
 from fastapi import APIRouter, HTTPException, Request, status
 
 from backend.src.fi_assistant.api.public.assistant_websocket import broadcast_new_message
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.llm import llm_generate
 from backend.repositories.audit_repository import AuditRepository

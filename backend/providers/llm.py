@@ -30,7 +30,7 @@ import hashlib
 import re
 from functools import lru_cache
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.policy.policy_loader import get_policy_loader
 from backend.schemas.llm.audit_policy import require_audit_log
 

@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 from typing import Any, Dict
 from uuid import uuid4
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.providers.models import ConsultationEvent, EventMetadata, EventType
 
 logger = get_logger(__name__)

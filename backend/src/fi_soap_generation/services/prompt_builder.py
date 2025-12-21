@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Union
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 
 __all__ = ["OllamaPromptBuilder"]
 

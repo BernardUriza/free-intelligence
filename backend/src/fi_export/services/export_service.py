@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, List
 
-from fi_common.interfaces.ilogger import ILogger
+from backend.src.fi_common.interfaces.ilogger import ILogger
 
 
 class DIExportService:

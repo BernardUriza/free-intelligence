@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.providers.llm import llm_generate
 from backend.src.fi_soap_generation.services.prompt_builder import OllamaPromptBuilder
 from backend.src.fi_soap_generation.services.response_parser import (

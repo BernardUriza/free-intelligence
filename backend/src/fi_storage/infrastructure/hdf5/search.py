@@ -16,7 +16,7 @@ from backend.llm_router import (  # type: ignore[import] llm_embed, pad_embeddin
     llm_embed,
     pad_embedding_to_768,
 )
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

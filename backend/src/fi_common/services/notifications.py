@@ -24,7 +24,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 
 if TYPE_CHECKING:
     pass

@@ -24,7 +24,7 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     Document,
     DocumentOrigin,

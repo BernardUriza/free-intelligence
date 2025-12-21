@@ -9,8 +9,8 @@ from typing import List
 
 from backend.models.task_type import TaskType
 
-from fi_common.interfaces.ilogger import ILogger
-from fi_common.interfaces.itask_repository import ITaskRepository
+from backend.src.fi_common.interfaces.ilogger import ILogger
+from backend.src.fi_common.interfaces.itask_repository import ITaskRepository
 
 
 class ChunkProcessingResult:

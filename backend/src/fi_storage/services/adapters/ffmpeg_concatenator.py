@@ -15,7 +15,7 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 
 from ..domain import AudioChunk, AudioFormat
 from ..ports.audio_concatenator import AudioConcatenatorPort, ConcatenationError
