@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-from __future__ import annotations
-
-"""
-Free Intelligence - Append-Only Policy Enforcement
+"""Free Intelligence - Append-Only Policy Enforcement
 
 Ensures HDF5 corpus operations are restricted to append-only mode.
 Direct mutation, modification, or deletion of existing data is forbidden.
@@ -10,12 +6,11 @@ Direct mutation, modification, or deletion of existing data is forbidden.
 FI-DATA-FEAT-005
 """
 
+from __future__ import annotations
+
 import h5py
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 
 class AppendOnlyViolationError(Exception):
@@ -147,10 +142,9 @@ class AppendOnlyPolicy:
 
 
 def verify_append_only_operation(
-    corpus_path: str, operation_name: str, group_name: str, dataset_name: str | None = None
+    corpus_path: str, operation_name: str, group_name: str, dataset_name: str | None = None,
 ) -> dict[str, Any]:
-    """
-    Verify an operation is append-only compliant.
+    """Verify an operation is append-only compliant.
 
     Args:
         corpus_path: Path to corpus
@@ -166,11 +160,13 @@ def verify_append_only_operation(
         ...     "storage/corpus.h5",
         ...     "append_interaction",
         ...     "interactions",
-        ...     "session_id"
+        ...     "session_id",
         ... )
         >>> assert result["allowed"] == True
+
     """
-    from logger import get_logger
+    del corpus_path  # corpus_path is reserved for future use in more complex validations
+    from backend.src.fi_common.logger import get_logger
 
     logger = get_logger()
 

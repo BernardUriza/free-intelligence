@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import uuid
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
 """
 Export Policy - Free Intelligence
 
@@ -49,21 +57,11 @@ Sprint: SPR-2025W44 (Sprint 2)
 Task: FI-SEC-FEAT-004
 """
 
-import hashlib
-import json
-import uuid
-from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
-
-# Optional logger import
+# Import logger with fallback
 try:
     from logger import get_logger
-
     logger = get_logger(__name__)
 except ImportError:
-
     class SimpleLogger:
         def info(self, event, **kwargs):
             print(f"INFO: {event} - {kwargs}")
@@ -75,8 +73,6 @@ except ImportError:
             print(f"ERROR: {event} - {kwargs}")
 
     logger = SimpleLogger()
-
-
 # ============================================================================
 # EXCEPTIONS
 # ============================================================================
@@ -468,7 +464,7 @@ if __name__ == "__main__":
         print(f"\n✅ Manifest created: {manifest_file}")
         print(f"   Export ID: {manifest.export_id}")
         print(f"   Data hash: {manifest.data_hash[:16]}...")
-        print(f"   Format: {manifest.format}")
+        print(f"   Format: {manifest.format_}")
         print(f"   Purpose: {manifest.purpose}")
 
     elif command == "validate":

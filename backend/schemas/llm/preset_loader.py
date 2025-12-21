@@ -81,8 +81,15 @@ class PresetLoader:
             schemas_dir: Directory with JSON schemas (default: backend/schemas)
         """
         # Default to backend/prompts and backend/schemas (absolute paths)
+        # Check new location first, fallback to old for backward compatibility
         if presets_dir is None:
-            presets_dir = str(Path(__file__).parent.parent / "prompts")
+            # Check new location first
+            new_prompts_dir = Path(__file__).parent.parent.parent / "src" / "fi_prompts" / "yaml_presets"
+            if new_prompts_dir.exists():
+                presets_dir = str(new_prompts_dir)
+            else:
+                # Fallback to old location
+                presets_dir = str(Path(__file__).parent.parent / "prompts")
         if schemas_dir is None:
             schemas_dir = str(Path(__file__).parent)
 

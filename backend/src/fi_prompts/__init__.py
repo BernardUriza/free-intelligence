@@ -6,12 +6,13 @@ prompts across the Free Intelligence application.
 Features:
 - Template-based prompts with parameter injection
 - Standardized prompt types
+- YAML preset integration
 - CLI access to prompts
 - Extensible architecture for new prompt types
 
 Usage:
     from backend.src.fi_prompts import get_prompt
-    
+
     # Get a medical consultation prompt with parameters
     prompt = get_prompt(
         "medical_consultation",
@@ -30,12 +31,18 @@ from backend.src.fi_prompts.prompt_provider import (
     get_available_prompts,
     get_prompt_metadata,
 )
+from backend.src.fi_prompts.yaml_provider import (
+    YAMLPromptProvider,
+    get_enhanced_prompt,
+)
 
 __all__ = [
     "PromptProvider",
     "PromptType",
     "get_prompt",
-    "get_prompt_provider", 
+    "get_prompt_provider",
     "get_available_prompts",
     "get_prompt_metadata",
+    "YAMLPromptProvider",
+    "get_enhanced_prompt",
 ]
