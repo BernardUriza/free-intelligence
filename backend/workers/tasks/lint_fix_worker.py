@@ -140,7 +140,7 @@ def lint_fix_batch(batch_size: int = 5) -> dict[str, Any]:
 
 def run_eslint_check(repo_root: Path) -> tuple[int, str]:
     """Run ESLint check in apps/aurity and return error count and output."""
-    eslint_cmd = "cd apps/aurity && pnpm lint"
+    eslint_cmd = "cd apps/aurity && pnpm lint -- --format=json"
     proc = subprocess.run(
         eslint_cmd,
         cwd=repo_root,
@@ -152,10 +152,16 @@ def run_eslint_check(repo_root: Path) -> tuple[int, str]:
     )
     output = proc.stdout + proc.stderr
     logger.info("eslint_output_raw", output=output[:500])  # Log first 500 chars
-    # Count errors by parsing lines
-    lines = output.split('\n')
-    error_lines = [line for line in lines if ':' in line and ('error' in line.lower() or 'warning' in line.lower())]
-    error_count = len(error_lines)
+    # Count errors by parsing JSON
+    try:
+        import json
+        results = json.loads(output)
+        error_count = sum(len(file_result.get('messages', [])) for file_result in results)
+    except (json.JSONDecodeError, TypeError):
+        # Fallback to simple counting
+        lines = output.split('\n')
+        error_lines = [line for line in lines if ':' in line and ('error' in line.lower() or 'warning' in line.lower())]
+        error_count = len(error_lines)
     return error_count, output
 
 
