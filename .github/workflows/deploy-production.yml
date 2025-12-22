@@ -261,7 +261,7 @@ jobs:
 
           echo "🚀 Starting new backend..."
           cd /opt/free-intelligence
-          PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
+          PYTHONPATH=. PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
           sleep 5
 
           echo "✅ Backend deployed successfully"
@@ -374,7 +374,7 @@ jobs:
           echo "🛑 Restarting backend..."
           fuser -k 7001/tcp || true
           sleep 2
-          PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
+          PYTHONPATH=. PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
 
           echo "🔄 Reloading nginx..."
           nginx -t && nginx -s reload
