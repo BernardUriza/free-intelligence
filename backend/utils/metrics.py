@@ -30,10 +30,10 @@ from __future__ import annotations
 import functools
 import time
 from collections.abc import Callable
-from prometheus_client import Counter, Gauge, Histogram
 from typing import Any
 
 from backend.src.fi_common.logging.logger import get_logger
+from prometheus_client import Counter, Gauge, Histogram
 
 logger = get_logger(__name__)
 

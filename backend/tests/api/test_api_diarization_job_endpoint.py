@@ -5,8 +5,9 @@ Tests the full stack: FastAPI endpoint → DI container → DiarizationJobServic
 
 from __future__ import annotations
 
-import h5py
 import json
+
+import h5py
 import pytest
 from fastapi.testclient import TestClient
 from pathlib import Path

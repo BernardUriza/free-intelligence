@@ -7,8 +7,9 @@ corpus.h5.old to a new corpus.h5 with libver='latest' for SWMR support.
 
 from __future__ import annotations
 
-import h5py
 from collections.abc import Sequence
+
+import h5py
 from pathlib import Path
 
 

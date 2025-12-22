@@ -18,10 +18,11 @@ Created: 2025-12-11
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
-from dotenv import load_dotenv
 from functools import lru_cache
+
+import os
+from dotenv import load_dotenv
 
 # Load .env file as fallback
 load_dotenv()

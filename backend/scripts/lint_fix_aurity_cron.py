@@ -3,8 +3,9 @@
 
 from __future__ import annotations
 
-import sys
 import time
+
+import sys
 from pathlib import Path
 
 # Add backend to path

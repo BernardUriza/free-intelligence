@@ -13,8 +13,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
-from pydantic import BaseModel, Field
 from typing import Any, List, TypeVar
+
+from pydantic import BaseModel, Field
 
 T = TypeVar("T")
 

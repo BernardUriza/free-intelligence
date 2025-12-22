@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Request, status
 from typing import cast
 
 from backend.src.fi_common.logging.logger import get_logger
 from backend.validators import validate_session_id
+from fastapi import APIRouter, HTTPException, Request, status
 
 router = APIRouter()
 logger = get_logger(__name__)

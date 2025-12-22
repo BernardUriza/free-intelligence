@@ -13,10 +13,10 @@ Author: Bernard Uriza Orozco
 License: MIT
 """
 
-import h5py
-import numpy as np
 from datetime import datetime
 
+import h5py
+import numpy as np
 from backend.src.fi_coder.observability.logger import get_logger
 
 logger = get_logger(__name__)

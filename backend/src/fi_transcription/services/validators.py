@@ -7,11 +7,10 @@ Validation logic for:
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from backend.src.fi_storage.infrastructure.hdf5.audio_storage import (
     validate_session_id as storage_validate_session_id,
 )
+from pathlib import Path
 
 
 class ValidationError(ValueError):

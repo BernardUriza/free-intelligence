@@ -12,17 +12,17 @@ Refactored: 2025-11-14 (Pruned unused endpoints)
 
 from __future__ import annotations
 
-import os
 from contextlib import asynccontextmanager
 from datetime import UTC
+
+import os
+from backend.middleware.idempotency import IdempotencyMiddleware
+from backend.middleware.internal_only import InternalOnlyMiddleware
+from backend.middleware.tracing import TracingMiddleware
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-
-from backend.middleware.idempotency import IdempotencyMiddleware
-from backend.middleware.internal_only import InternalOnlyMiddleware
-from backend.middleware.tracing import TracingMiddleware
 
 
 @asynccontextmanager

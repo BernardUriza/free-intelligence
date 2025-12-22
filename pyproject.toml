@@ -161,4 +161,4 @@ typing-modules = ["typing"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["backend"]
-section-order = ["future", "standard", "third-party", "first-party", "local-folder"]
+sections = { "FUTURE" = ["future"], "STANDARD_LIBRARY" = ["sys", "os", "pathlib"], "THIRD_PARTY" = ["h5py", "structlog", "PyYAML", "pydantic", "fastapi", "uvicorn", "anthropic", "ollama", "sentence-transformers", "torch", "transformers", "jsonschema", "python-dateutil", "py-trello", "pyarrow", "httpx", "aiohttp", "pdfplumber", "python-docx"], "FIRST_PARTY" = ["backend"], "LOCAL_FOLDER" = ["."] }

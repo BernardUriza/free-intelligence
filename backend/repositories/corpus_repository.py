@@ -9,14 +9,14 @@ not business logic or API concerns.
 
 from __future__ import annotations
 
-import h5py
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, Union
 
+import h5py
 from backend.src.fi_common.logging.logger import get_logger
 from backend.type_defs import DiarizationChunkDict
+from pathlib import Path
 
 from .base_repository import BaseRepository
 

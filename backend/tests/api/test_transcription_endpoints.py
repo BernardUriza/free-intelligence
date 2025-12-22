@@ -6,6 +6,7 @@ Tests the transcription API endpoints with improved validation and error handlin
 from __future__ import annotations
 
 import io
+
 import pytest
 from fastapi.testclient import TestClient
 

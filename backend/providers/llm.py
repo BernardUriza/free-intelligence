@@ -1,5 +1,34 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
+import re
+import time
+from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from functools import lru_cache
+from typing import Any, ClassVar
+
+import anthropic
+import numpy as np
+import ollama
+import os
+from backend.policy.policy_loader import get_policy_loader
+from backend.providers.retry import CircuitBreakerConfig, RetryConfig, get_circuit_breaker
+from backend.schemas.llm.audit_policy import require_audit_log
+from backend.src.fi_common.logging.logger import get_logger
+from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
+
+# Optional imports (will be checked for availability in relevant providers)
+try:
+    import aiohttp
+except ImportError:
+    aiohttp = None
+
 """
 Free Intelligence - LLM Router with Multi-Provider Abstraction
 
@@ -11,27 +40,8 @@ Provides a unified interface for LLM interactions, supporting multiple providers
 Philosophy: Provider-agnostic design. No vendor lock-in.
 """
 
-import anthropic
-import asyncio
-import numpy as np
-import os
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from datetime import UTC, datetime
-from dotenv import load_dotenv
-from enum import Enum
-from typing import Any
-
 # Load environment variables from .env
 load_dotenv()
-
-import hashlib
-import re
-from functools import lru_cache
-
-from backend.policy.policy_loader import get_policy_loader
-from backend.schemas.llm.audit_policy import require_audit_log
-from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -172,7 +182,7 @@ class ClaudeProvider(LLMProvider):
     """Anthropic Claude provider implementation"""
 
     # Pricing per 1M tokens (as of 2025-10)
-    PRICING = {
+    PRICING: ClassVar[dict[str, dict[str, float]]] = {
         "claude-3-5-sonnet-20241022": {
             "input": 3.00,  # $3 per 1M input tokens
             "output": 15.00,  # $15 per 1M output tokens
@@ -304,9 +314,6 @@ class ClaudeProvider(LLMProvider):
             message="Claude doesn't support embeddings, falling back to sentence-transformers",
         )
 
-        # Import here to avoid loading model unless needed
-        from sentence_transformers import SentenceTransformer
-
         # Use lightweight model
         model = SentenceTransformer("all-MiniLM-L6-v2")
         embedding = model.encode(text, convert_to_numpy=True)
@@ -335,11 +342,6 @@ class OllamaProvider(LLMProvider):
         self.timeout: int = int(self.config.get("timeout_seconds") or 120)
 
         # Retry configuration (FI-BACKEND-REF-005)
-        from backend.providers.retry import (
-            CircuitBreakerConfig,
-            RetryConfig,
-            get_circuit_breaker,
-        )
 
         self.retry_config = RetryConfig(
             max_retries=int(self.config.get("max_retries") or 3),
@@ -359,14 +361,14 @@ class OllamaProvider(LLMProvider):
             ),
         )
 
-        # Import ollama library
+        # Initialize ollama client
         try:
-            import ollama
-
             self.ollama = ollama
             self.client = ollama.Client(host=self.base_url)
-        except ImportError:
-            raise ImportError("ollama library not installed. Install with: pip install ollama")
+        except NameError:
+            raise ImportError(
+                "ollama library not installed. Install with: pip install ollama"
+            ) from None
 
         self.logger.info(
             "OLLAMA_PROVIDER_INITIALIZED",
@@ -394,7 +396,6 @@ class OllamaProvider(LLMProvider):
             - 100% offline operation
             - FI-BACKEND-REF-005: Exponential backoff + circuit breaker
         """
-        import time
 
         from backend.providers.retry import CircuitOpenError, calculate_backoff_delay
 
@@ -555,7 +556,7 @@ class OllamaProvider(LLMProvider):
                         raise CircuitOpenError(
                             self.circuit_breaker.name,
                             "Circuit opened during retry sequence",
-                        )
+                        ) from None
                 else:
                     self.logger.error(
                         "OLLAMA_GENERATE_FAILED",
@@ -613,7 +614,7 @@ class AzureOpenAIProvider(LLMProvider):
     """Azure OpenAI (GPT-4, GPT-4o) provider for cloud-based inference"""
 
     # Pricing per 1M tokens (as of 2025-11)
-    PRICING = {
+    PRICING: ClassVar[dict[str, dict[str, float]]] = {
         "gpt-4o": {
             "input": 2.50,  # $2.50 per 1M input tokens
             "output": 10.00,  # $10 per 1M output tokens
@@ -639,13 +640,11 @@ class AzureOpenAIProvider(LLMProvider):
         self.deployment_name: str = str(self.config.get("deployment") or self.default_model)
         self.timeout: int = int(self.config.get("timeout_seconds") or 30)
 
-        # Import aiohttp for async HTTP requests
-        try:
-            import aiohttp
-
-            self.aiohttp = aiohttp
-        except ImportError:
+        # Check if aiohttp is available
+        if aiohttp is None:
             raise ImportError("aiohttp library not installed. Install with: pip install aiohttp")
+
+        self.aiohttp = aiohttp
 
         self.logger.info(
             "AZURE_OPENAI_PROVIDER_INITIALIZED",
@@ -694,9 +693,8 @@ class AzureOpenAIProvider(LLMProvider):
             try:
                 _ = asyncio.get_running_loop()
                 # We're already in an event loop, so we need to run in a thread
-                import concurrent.futures
 
-                with concurrent.futures.ThreadPoolExecutor() as executor:
+                with ThreadPoolExecutor() as executor:
                     response = executor.submit(
                         lambda: asyncio.run(
                             self._generate_async(
@@ -849,9 +847,6 @@ class AzureOpenAIProvider(LLMProvider):
             "AZURE_EMBED_NOT_SUPPORTED",
             message="Azure OpenAI doesn't support embeddings, falling back to sentence-transformers",
         )
-
-        # Import here to avoid loading model unless needed
-        from sentence_transformers import SentenceTransformer
 
         # Use lightweight model
         model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -1026,9 +1021,7 @@ def _cached_embed(text_hash: str, text: str, provider: str) -> bytes:
     return embedding.tobytes()
 
 
-def llm_embed(
-    text: str, provider: str = "claude", provider_config: dict[str, Any] | None = None
-) -> np.ndarray:
+def llm_embed(text: str, provider: str = "claude") -> np.ndarray:
     """
     Generate embedding vector for text with LRU caching.
 
@@ -1041,7 +1034,6 @@ def llm_embed(
     Args:
         text: Input text to embed
         provider: Provider name
-        provider_config: Provider-specific configuration
 
     Returns:
         numpy array with embedding vector (typically 384 or 768 dimensions)

@@ -65,12 +65,11 @@ class TestAssistantSchemas:
 
     def test_chat_completion_request_validation(self):
         """Test ChatCompletionRequest validation."""
-        from pydantic import ValidationError
-
         from backend.src.fi_assistant.api.public.assistant_schemas import (
             ChatCompletionRequest,
             Message,
         )
+        from pydantic import ValidationError
 
         # Test empty messages
         with pytest.raises(ValidationError):

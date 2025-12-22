@@ -5,9 +5,9 @@ TDD: Primero escribimos los tests, luego los hacemos pasar.
 Como Gandalf dijo: "El hechizo que falla nos enseña qué construir."
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from backend.models.catalog_model import (
     CatalogModel,
     CatalogSearchParams,

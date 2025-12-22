@@ -18,8 +18,8 @@ from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     task_exists,
     update_task_metadata,
 )
-from backend.src.fi_workflow.services.workflow_tracker import get_workflow_tracker
 from backend.src.fi_workers.tasks.base_worker import WorkerResult, measure_time
+from backend.src.fi_workflow.services.workflow_tracker import get_workflow_tracker
 
 logger = get_logger(__name__)
 

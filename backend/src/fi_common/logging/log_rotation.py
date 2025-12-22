@@ -16,10 +16,10 @@ import gzip
 import json
 import shutil
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 from backend.src.fi_common.logging.logger_structured import ServiceChannel
+from pathlib import Path
 
 
 class LogRotation:

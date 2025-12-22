@@ -10,13 +10,12 @@ FI-SEARCH-FEAT-001
 
 import h5py
 import numpy as np
-from pathlib import Path
-
 from backend.llm_router import (  # type: ignore[import] llm_embed, pad_embedding_to_768
     llm_embed,
     pad_embedding_to_768,
 )
 from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -219,7 +218,6 @@ def search_by_session(corpus_path: str, session_id: str) -> list[dict]:
 if __name__ == "__main__":
     """Demo script"""
     import sys
-
     from backend.src.fi_coder.utils.config_loader import load_config
 
     config = load_config()

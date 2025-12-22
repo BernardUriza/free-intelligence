@@ -28,11 +28,11 @@ from __future__ import annotations
 import contextvars
 import uuid
 from dataclasses import dataclass
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Any
 
 from backend.src.fi_common.logging.logger import get_logger
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = get_logger(__name__)
 

@@ -15,12 +15,9 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
-import h5py
 import json
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from pathlib import Path
-from pydantic import BaseModel, Field
 
+import h5py
 from backend.src.fi_common.infrastructure.dependencies import get_transcription_service
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_transcription.services.transcription_service import TranscriptionService
@@ -29,6 +26,9 @@ from backend.src.fi_transcription.services.validators import (
     ValidationError,
 )
 from backend.validators import validate_session_id
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from pathlib import Path
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 

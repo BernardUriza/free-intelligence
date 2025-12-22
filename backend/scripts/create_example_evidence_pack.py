@@ -8,6 +8,7 @@ Creates an example evidence pack from simulated clinical documents
 """
 
 import json
+
 import sys
 from pathlib import Path
 

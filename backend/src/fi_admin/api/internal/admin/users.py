@@ -19,13 +19,13 @@ Created: 2025-11-20
 
 from __future__ import annotations
 
-import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr, Field
 from typing import Any
 
+import structlog
 from backend.src.fi_auth import User, UserRole, require_roles
 from backend.src.fi_auth.services.auth0_management import get_auth0_service
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr, Field
 
 logger = structlog.get_logger(__name__)
 

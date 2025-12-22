@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import structlog
-
 from backend.observability.log_spec import REQUIRED_FIELDS, ChatEvent
 
 log = structlog.get_logger("chat")

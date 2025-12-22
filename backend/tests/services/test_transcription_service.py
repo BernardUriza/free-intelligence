@@ -14,13 +14,13 @@ Created: 2025-10-30
 
 from __future__ import annotations
 
-import pytest
 import tempfile
-from pathlib import Path
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
+import pytest
 from backend.src.fi_transcription.services.transcription_service import TranscriptionService
+from pathlib import Path
 
 
 @pytest.fixture

@@ -8,9 +8,10 @@ FI-DATA-FEAT-005
 
 from __future__ import annotations
 
+from typing import Any
+
 import h5py
 from pathlib import Path
-from typing import Any
 
 
 class AppendOnlyViolationError(Exception):

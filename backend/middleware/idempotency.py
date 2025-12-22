@@ -23,11 +23,11 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
+
+from backend.src.fi_common.logging.logger import get_logger
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
-
-from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

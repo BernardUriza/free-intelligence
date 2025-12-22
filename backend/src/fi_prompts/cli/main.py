@@ -7,16 +7,15 @@ allowing users to retrieve pre-defined prompts with custom parameters.
 from __future__ import annotations
 
 import json
+
 import sys
-from pathlib import Path
-
 import typer
-
 from backend.src.fi_prompts.prompt_provider import (
     get_available_prompts,
     get_prompt,
     get_prompt_metadata,
 )
+from pathlib import Path
 
 app = typer.Typer(help="FI Prompts - Prompt Library CLI")
 
@@ -46,20 +45,20 @@ def get(
     """Retrieve a prompt with specified parameters."""
     # Parse parameters from command line
     parsed_params = {}
-    
+
     # From params option (multiple -p options allowed)
     if params:
         for param in params.split(","):
             if "=" in param:
                 key, value = param.split("=", 1)
                 parsed_params[key] = value
-    
+
     # From JSON file
     if params_file:
         if not params_file.exists():
             typer.echo(f"Error: Parameter file not found: {params_file}", err=True)
             sys.exit(1)
-        
+
         try:
             with open(params_file) as f:
                 file_params = json.load(f)
@@ -67,11 +66,11 @@ def get(
         except json.JSONDecodeError as e:
             typer.echo(f"Error: Invalid JSON in parameter file: {e}", err=True)
             sys.exit(1)
-    
+
     # Retrieve the prompt
     try:
         prompt = get_prompt(prompt_type, **parsed_params)
-        
+
         if output_file:
             # Write to output file
             output_file.write_text(prompt, encoding="utf-8")
@@ -104,12 +103,12 @@ def template(
     """Get the raw template for a specific prompt."""
     provider = __import__('backend.src.fi_prompts.prompt_provider', fromlist=['PromptProvider']).get_prompt_provider()
     templates = provider._templates
-    
+
     if prompt_type not in templates:
         available = list(templates.keys())
         typer.echo(f"Error: Unknown prompt type: {prompt_type}. Available: {available}", err=True)
         sys.exit(1)
-    
+
     print(templates[prompt_type])
 
 

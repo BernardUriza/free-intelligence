@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, Dict, Union
 from uuid import uuid4
 
 from backend.src.fi_common.logging.logger import get_logger
 from backend.type_defs import AuditLogDict
+from pathlib import Path
 
 from .base_repository import BaseRepository
 

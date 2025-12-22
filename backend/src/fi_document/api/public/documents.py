@@ -21,8 +21,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from concurrent.futures import ThreadPoolExecutor
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
-from pydantic import BaseModel, Field
 
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
@@ -36,6 +34,8 @@ from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     update_document_metadata,
     update_document_status,
 )
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -492,6 +492,7 @@ def _extract_pdf_text(content: bytes) -> str:
     """Extract text from PDF using pdfplumber or PyPDF2."""
     try:
         import io
+
         import pdfplumber
 
         with pdfplumber.open(io.BytesIO(content)) as pdf:
@@ -505,6 +506,7 @@ def _extract_pdf_text(content: bytes) -> str:
         # Fallback to PyPDF2
         try:
             import io
+
             from PyPDF2 import PdfReader
 
             reader = PdfReader(io.BytesIO(content))
@@ -522,6 +524,7 @@ def _extract_docx_text(content: bytes) -> str:
     """Extract text from DOCX using python-docx."""
     try:
         import io
+
         from docx import Document as DocxDocument
 
         doc = DocxDocument(io.BytesIO(content))
@@ -540,6 +543,7 @@ def _extract_image_text(content: bytes) -> str:
     """Extract text from image using OCR (Tesseract)."""
     try:
         import io
+
         import pytesseract
         from PIL import Image
 

@@ -41,9 +41,6 @@ from __future__ import annotations
 import subprocess
 import tempfile
 from datetime import UTC, datetime
-from fastapi import APIRouter, HTTPException, status
-from pathlib import Path
-from pydantic import BaseModel, Field
 from typing import Any
 
 from backend.models import EncryptionMetadata, Session
@@ -60,6 +57,9 @@ from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
 )
 from backend.src.fi_workers.executor_pool import spawn_worker
 from backend.src.fi_workers.tasks.encryption_worker import encrypt_session_worker
+from fastapi import APIRouter, HTTPException, status
+from pathlib import Path
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 

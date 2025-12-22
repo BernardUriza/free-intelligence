@@ -25,9 +25,9 @@ Card: Voice chat integration (medical handler)
 
 from __future__ import annotations
 
-import h5py
 from typing import Any
 
+import h5py
 from backend.models.task_type import TaskType
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_common.services.chunk_handler import ChunkHandler

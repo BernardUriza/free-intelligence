@@ -17,8 +17,9 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
-from pathlib import Path
 from typing import TYPE_CHECKING
+
+from pathlib import Path
 
 if TYPE_CHECKING:
     import h5py as h5py_type

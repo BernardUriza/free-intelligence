@@ -9,11 +9,9 @@ Created: 2025-12-11
 
 from __future__ import annotations
 
-import httpx
 import random
-from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel
 
+import httpx
 from backend.models.llm_model import (
     CostTier,
     LLMModelCreate,
@@ -22,6 +20,8 @@ from backend.models.llm_model import (
     LLMProvider,
 )
 from backend.src.fi_llm.services.llm_model_service import llm_model_service
+from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel
 
 # Medical test prompts for model validation
 MEDICAL_TEST_PROMPTS = [

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-import jwt
-import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa
 from datetime import UTC, datetime, timedelta
 
+import jwt
+import pytest
 from backend.src.fi_auth.domain.entities.user import UserRole
 from backend.src.fi_auth.infrastructure.jwt.jwt_validator import JWTValidator
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 
 class StaticJWKSFetcher:

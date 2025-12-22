@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
 from typing import Any
 
 from backend.providers.adapters import ReduxAdapter, validate_redux_action
 from backend.providers.models import Consultation
 from backend.schemas.domain.event_store import EventStore
 from backend.src.fi_common.logging.logger import get_logger
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 """
 Free Intelligence - AURITY API Gateway

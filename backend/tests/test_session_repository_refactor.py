@@ -16,11 +16,11 @@ Date: 2025-11-14
 # pyright: reportPrivateUsage=false
 from __future__ import annotations
 
-import pytest
 import tempfile
-from pathlib import Path
 
+import pytest
 from backend.repositories.session_repository import SessionRepository
+from pathlib import Path
 
 
 class TestSessionRepositoryRefactor:

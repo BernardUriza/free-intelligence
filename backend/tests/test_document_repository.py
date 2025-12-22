@@ -14,12 +14,11 @@ Card: FI-API-FEAT-020 - Knowledge Base document upload with RAG
 
 from __future__ import annotations
 
+import tempfile
+
 import h5py
 import numpy as np
 import pytest
-import tempfile
-from pathlib import Path
-
 from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     DocumentChunk,
     DocumentStatus,
@@ -33,6 +32,7 @@ from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     update_document_metadata,
     update_document_status,
 )
+from pathlib import Path
 
 
 @pytest.fixture

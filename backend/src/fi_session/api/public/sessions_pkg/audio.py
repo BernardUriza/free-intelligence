@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+import tempfile
+
 import h5py
 import os
-import tempfile
+from backend.src.fi_common.logging.logger import get_logger
+from backend.validators import validate_session_id
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
-
-from backend.src.fi_common.logging.logger import get_logger
-from backend.validators import validate_session_id
 
 router = APIRouter()
 logger = get_logger(__name__)

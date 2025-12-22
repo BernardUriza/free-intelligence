@@ -15,11 +15,11 @@ File: backend/whisper_service.py
 Created: 2025-10-30
 """
 
-import os
-from pathlib import Path
 from typing import Any
 
+import os
 from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 

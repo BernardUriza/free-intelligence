@@ -6,9 +6,8 @@ del contexto (concise, explanatory, o valores inválidos).
 """
 
 import pytest
-from pathlib import Path
-
 from backend.src.fi_llm.services.persona_manager import PersonaManager
+from pathlib import Path
 
 
 @pytest.fixture

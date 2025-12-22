@@ -15,8 +15,9 @@ import hashlib
 import uuid
 from datetime import UTC, datetime
 from enum import Enum
-from pydantic import BaseModel, Field
 from typing import Any, List
+
+from pydantic import BaseModel, Field
 
 # ============================================================================
 # ENUMS

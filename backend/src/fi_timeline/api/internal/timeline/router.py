@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import h5py
 import hashlib
-import numpy as np
 from datetime import UTC, datetime
+
+import h5py
+import numpy as np
+from backend.src.fi_common.logging.logger import get_logger
 from fastapi import APIRouter, HTTPException, Request
 from pathlib import Path
 from pydantic import BaseModel, Field, ValidationError, field_validator
-
-from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -17,13 +17,13 @@ Created: 2025-11-18
 from __future__ import annotations
 
 import time
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
 from typing import Literal
 
 from backend.clients import get_llm_client
 from backend.observability.logging import CTX_REQUEST_ID
 from backend.src.fi_common.logging.logger import get_logger
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 router = APIRouter()

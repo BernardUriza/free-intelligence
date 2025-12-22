@@ -12,39 +12,38 @@ Features:
 
 from __future__ import annotations
 
-import json
-import os
 import re
 from datetime import datetime
-from pathlib import Path
 from string import Template
 from typing import Any
 
+import os
 from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 
 
 class PromptType:
     """Standardized prompt types for consistency."""
-    
+
     # Medical consultation prompts
     MEDICAL_CONSULTATION = "medical_consultation"
     PATIENT_INTAKE = "patient_intake"
     DIAGNOSIS_ASSISTANCE = "diagnosis_assistance"
     TREATMENT_RECOMMENDATION = "treatment_recommendation"
     MEDICAL_SUMMARY = "medical_summary"
-    
+
     # Documentation prompts
     SOAP_NOTE = "soap_note"
     CLINICAL_NOTE = "clinical_note"
     PROGRESS_NOTE = "progress_note"
-    
+
     # Analysis prompts
     DATA_ANALYSIS = "data_analysis"
     TRENDS_IDENTIFICATION = "trends_identification"
     PREDICTIVE_ANALYSIS = "predictive_analysis"
-    
+
     # Communication prompts
     PATIENT_COMMUNICATION = "patient_communication"
     DOCTOR_COMMUNICATION = "doctor_communication"
@@ -58,35 +57,35 @@ class PromptProvider:
     providing template-based prompts that can be customized with
     dynamic parameters based on the context.
     """
-    
+
     def __init__(self, templates_dir: str | None = None):
         """Initialize the prompt provider."""
-        self.templates_dir = Path(templates_dir or 
-                                 os.getenv("PROMPT_TEMPLATES_DIR", 
+        self.templates_dir = Path(templates_dir or
+                                 os.getenv("PROMPT_TEMPLATES_DIR",
                                           "backend/src/fi_prompts/templates"))
         self.templates_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Load all prompt templates
         self._templates = self._load_all_templates()
-        
+
         logger.info(f"PromptProvider initialized with {len(self._templates)} templates from {self.templates_dir}")
-    
+
     def _load_all_templates(self) -> dict[str, str]:
         """Load all prompt templates from the templates directory."""
         templates = {}
-        
+
         for template_file in self.templates_dir.glob("*.txt"):
             try:
                 template_name = template_file.stem
                 templates[template_name] = template_file.read_text(encoding="utf-8")
             except Exception as e:
                 logger.warning(f"Failed to load template {template_file}: {e}")
-        
+
         # Add some default templates if not already present
         self._add_default_templates(templates)
-        
+
         return templates
-    
+
     def _add_default_templates(self, templates: dict[str, str]) -> None:
         """Add default templates if not already present."""
         default_templates = {
@@ -106,7 +105,7 @@ Analysis Required:
 5. Recommend treatment options
 
 IMPORTANT: Provide only medical insights. Do not make final decisions - these are for healthcare professionals to review.""",
-            
+
             "patient_intake": """You are a patient intake assistant. Collect the following information in a structured format:
 
 1. Demographics
@@ -129,7 +128,7 @@ IMPORTANT: Provide only medical insights. Do not make final decisions - these ar
    - Severity: $severity
 
 Please format the response as a structured medical intake form.""",
-            
+
             "soap_note": """Create a SOAP note based on the following consultation:
 
 SUBJECTIVE:
@@ -154,7 +153,7 @@ PLAN:
 - Patient education: $education
 
 Format as a professional medical SOAP note.""",
-            
+
             "discharge_instructions": """Generate patient discharge instructions based on:
 
 Condition: $condition
@@ -171,14 +170,14 @@ Include:
 
 Format as patient-friendly instructions with clear, simple language."""
         }
-        
+
         for name, content in default_templates.items():
             if name not in templates:
                 templates[name] = content
                 # Save to file as well
                 template_file = self.templates_dir / f"{name}.txt"
                 template_file.write_text(content, encoding="utf-8")
-    
+
     def get_prompt(self, prompt_type: str, **kwargs: Any) -> str:
         """Retrieve a prompt of the specified type with filled parameters.
         
@@ -195,21 +194,21 @@ Format as patient-friendly instructions with clear, simple language."""
         if prompt_type not in self._templates:
             available = list(self._templates.keys())
             raise ValueError(f"Unknown prompt type: {prompt_type}. Available: {available}")
-        
+
         template = self._templates[prompt_type]
-        
+
         # Fill template with provided parameters
         try:
             # Use safe_substitute to handle missing keys gracefully
             template_obj = Template(template)
             filled_prompt = template_obj.safe_substitute(**kwargs)
-            
+
             logger.info(f"Retrieved prompt: {prompt_type}", extra={"params": list(kwargs.keys())})
             return filled_prompt
         except Exception as e:
             logger.error(f"Failed to fill prompt template {prompt_type}: {e}")
             raise
-    
+
     def get_prompt_metadata(self, prompt_type: str) -> dict[str, Any]:
         """Get metadata about a specific prompt type.
         
@@ -222,19 +221,19 @@ Format as patient-friendly instructions with clear, simple language."""
         if prompt_type not in self._templates:
             available = list(self._templates.keys())
             raise ValueError(f"Unknown prompt type: {prompt_type}. Available: {available}")
-        
+
         template = self._templates[prompt_type]
-        
+
         # Extract placeholders from the template
         placeholders = re.findall(r'\$(\w+)', template)
-        
+
         return {
             "type": prompt_type,
             "template_length": len(template),
             "required_parameters": placeholders,
             "created_at": datetime.now().isoformat()
         }
-    
+
     def register_new_template(self, prompt_type: str, template: str) -> None:
         """Register a new prompt template.
         
@@ -246,15 +245,15 @@ Format as patient-friendly instructions with clear, simple language."""
         placeholders = re.findall(r'\$(\w+)', template)
         if not placeholders:
             logger.warning(f"Template for {prompt_type} has no placeholders")
-        
+
         self._templates[prompt_type] = template
-        
+
         # Save to file
         template_file = self.templates_dir / f"{prompt_type}.txt"
         template_file.write_text(template, encoding="utf-8")
-        
+
         logger.info(f"Registered new prompt template: {prompt_type} with {len(placeholders)} placeholders")
-    
+
     def list_available_prompts(self) -> list[str]:
         """List all available prompt types.
         

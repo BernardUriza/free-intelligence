@@ -27,20 +27,20 @@ Card: FI-API-FEAT-020
 
 from __future__ import annotations
 
-import h5py
 import hashlib
 import json
-import numpy as np
 import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from pathlib import Path
 from typing import Any
 
+import h5py
+import numpy as np
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import CORPUS_PATH
+from pathlib import Path
 
 logger = get_logger(__name__)
 

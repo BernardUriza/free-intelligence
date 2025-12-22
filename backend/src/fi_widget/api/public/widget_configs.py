@@ -16,12 +16,12 @@ from __future__ import annotations
 
 import json
 import random
-from fastapi import APIRouter, HTTPException, status
-from pathlib import Path
-from pydantic import BaseModel, Field
 from typing import Any, List, Literal
 
 from backend.src.fi_common.logging.logger import get_logger
+from fastapi import APIRouter, HTTPException, status
+from pathlib import Path
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 router = APIRouter()

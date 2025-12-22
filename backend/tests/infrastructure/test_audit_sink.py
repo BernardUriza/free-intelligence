@@ -9,13 +9,13 @@ Created: 2025-11-09
 
 from __future__ import annotations
 
-import pytest
 import tempfile
 from collections.abc import Generator
 from datetime import UTC, datetime
-from pathlib import Path
 
+import pytest
 from backend.app.audit.sink import read_audit_events, write_audit_event
+from pathlib import Path
 
 
 @pytest.fixture

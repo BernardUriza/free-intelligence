@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
 from typing import TYPE_CHECKING, Any
 
 from backend.src.fi_common.logging.logger import get_logger
 from backend.validators import validate_session_id
+from fastapi import APIRouter, HTTPException, status
 
 if TYPE_CHECKING:
     from backend.src.fi_common.api.public.models import (
@@ -80,15 +80,14 @@ async def analyze_session_intelligent_workflow(
     language: str | None = None,
 ) -> dict:
     import h5py
-
     from backend.models.task_type import TaskStatus, TaskType
     from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
         CORPUS_PATH,
         ensure_task_exists,
         get_task_metadata,
     )
-    from backend.src.fi_workflow.services.workflow_router import get_workflow_router
     from backend.src.fi_workers.executor_pool import spawn_worker
+    from backend.src.fi_workflow.services.workflow_router import get_workflow_router
 
     try:
         logger.info(

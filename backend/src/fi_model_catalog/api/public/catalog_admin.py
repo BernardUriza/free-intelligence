@@ -5,10 +5,6 @@ Como la puerta de Moria: quien sepa las palabras correctas, puede entrar.
 Rutas públicas bajo /api/admin/catalog/* (requiere rol admin).
 """
 
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-
 from backend.models.catalog_model import (
     CatalogModel,
     CatalogSearchParams,
@@ -17,6 +13,9 @@ from backend.models.catalog_model import (
     ModelInstallRequest,
 )
 from backend.src.fi_model_catalog.services.catalog_service import CatalogService
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/admin/catalog", tags=["catalog"])
 

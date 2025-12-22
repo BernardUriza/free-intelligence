@@ -5,9 +5,10 @@ Tests complete request/response cycles for athletes, coaches, and sessions APIs.
 
 from __future__ import annotations
 
+from unittest.mock import Mock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
 
 
 @pytest.fixture

@@ -32,11 +32,11 @@ def main():
     
     with open('broker_output.log', 'a') as f:
         f.write(f"\n{'='*60}\n")
-        f.write(f"[{timestamp}] 🚀 Starting lint fix broker with 100 fixes...\n")
+        f.write(f"[{timestamp}] 🚀 Starting lint fix broker with 200 fixes...\n")
         f.write(f"   PID: {os.getpid()}\n")
         f.write(f"   This process will ignore cancellation signals\n")
         f.write(f"   To force stop: kill -9 {os.getpid()}\n")
-        f.write(f"   Started command: python -m fi_cli coder lint-fix --max-fixes 100\n")
+        f.write(f"   Started command: python -m fi_cli coder lint-fix --max-fixes 200\n")
         f.write(f"{'='*60}\n")
         f.flush()
     
@@ -47,7 +47,7 @@ def main():
     # Build the command to run
     cmd = [
         sys.executable, "-m", "fi_cli", "coder", "lint-fix",
-        "--max-fixes", "100"
+        "--max-fixes", "200"
     ]
     
     env = os.environ.copy()

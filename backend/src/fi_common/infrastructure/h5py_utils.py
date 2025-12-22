@@ -11,9 +11,9 @@ Card: FI-TECH-DEBT-005
 
 from __future__ import annotations
 
-import h5py
 from typing import Any
 
+import h5py
 from backend.src.fi_common.logging.logger import get_logger
 
 # Type alias for h5py.File (h5py doesn't expose Optional in its type stubs)

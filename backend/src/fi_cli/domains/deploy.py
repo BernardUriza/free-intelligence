@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import builtins
 import contextlib
-import typer
 from typing import Annotated
+
+import typer
 
 app = typer.Typer(name="deploy", help="Deployment and restart operations", no_args_is_help=True)
 def backend_start(
@@ -23,6 +24,7 @@ def backend_start(
     For staging/local: Uses direct Python execution
     """
     import subprocess
+
     import sys
     from pathlib import Path
 
@@ -673,8 +675,9 @@ def auth0_config_fix(
 
     Uses SSH key authentication. Requires root access on production server.
     """
-    import os
     import time
+
+    import os
     from pathlib import Path
 
     typer.echo("🔧 Deploying Auth0 config fix to production...")
@@ -811,8 +814,9 @@ def auth0_correct_domain(
 
     Uses SSH key authentication. Requires root access on production server.
     """
-    import os
     import time
+
+    import os
     from pathlib import Path
 
     typer.echo("🔧 Deploying Auth0 correct domain to production...")
@@ -959,6 +963,7 @@ def deploy_frontend_eruda(
     Uses SSH key authentication. Requires root access on production server.
     """
     import datetime
+
     import os
     from pathlib import Path
 
@@ -1107,6 +1112,7 @@ def deploy_ds923(
     """
     import subprocess
     import time
+
     from pathlib import Path
 
     typer.echo("🚀 Deploying to Synology DS923+ NAS...")
@@ -1306,8 +1312,9 @@ def backend_fix_hdf5(
     Clears HDF5 lock files, uploads updated finalize.py, verifies corpus.h5, restarts backend.
     Uses SSH key authentication. Requires root access on production server.
     """
-    import os
     import time
+
+    import os
     from pathlib import Path
 
     typer.echo("🔧 Deploying backend HDF5 fix to production...")
@@ -1509,6 +1516,7 @@ def setup_ssl_production(
     and sets up auto-renewal. Uses SSH key authentication.
     """
     import subprocess
+
     from pathlib import Path
 
     # Lazy import paramiko

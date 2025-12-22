@@ -15,8 +15,9 @@ Card: FI-CHECKIN-001
 from __future__ import annotations
 
 import argparse
-import sys
 from datetime import UTC, datetime
+
+import sys
 from pathlib import Path
 
 # Add project root to path

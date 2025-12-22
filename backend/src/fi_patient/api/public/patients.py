@@ -11,14 +11,14 @@ Card: FI-DATA-DB-001
 from __future__ import annotations
 
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.orm import Session
 from typing import List
 
 from backend.database import get_db_dependency
 from backend.models.db_models import Patient
 from backend.src.fi_common.logging.logger import get_logger
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.orm import Session
 
 logger = get_logger(__name__)
 

@@ -14,14 +14,14 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field, field_validator
 from typing import Any
 
 from backend.clients import get_llm_client
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_soap_generation.services.soap_models import SOAPNote
 from backend.validators import validate_session_id
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel, Field, field_validator
 
 logger = get_logger(__name__)
 

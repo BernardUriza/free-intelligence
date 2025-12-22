@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 import sys
 import typer
 from fi_coder.observability.metrics import MetricsCollector
 from pathlib import Path
-from typing import Annotated
 
 from .._common import resolve_repo_root, run_cmd
 

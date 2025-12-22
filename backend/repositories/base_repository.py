@@ -11,14 +11,14 @@ Clean Code Principles:
 
 from __future__ import annotations
 
-import h5py
 from abc import ABC, abstractmethod
 from collections.abc import Generator
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Any, TypeVar, Union
 
+import h5py
 from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 

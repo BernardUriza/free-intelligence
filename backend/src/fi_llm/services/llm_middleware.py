@@ -8,10 +8,11 @@ required by Free Intelligence (privacy, cost control, audit trails).
 from __future__ import annotations
 
 import logging
-import os
-import sys
 from datetime import UTC, datetime
 from typing import Any, Dict
+
+import os
+import sys
 
 try:
     from zoneinfo import ZoneInfo

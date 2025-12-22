@@ -11,15 +11,15 @@ Note: Azure Whisper endpoint removed - AzureWhisperProvider kept for compatibili
 
 from __future__ import annotations
 
-import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from dotenv import load_dotenv
 from enum import Enum
-from pathlib import Path
 from typing import Any, Union
 
+import os
 from backend.src.fi_common.logging.logger import get_logger
+from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
@@ -173,8 +173,9 @@ class AzureWhisperProvider(STTProvider):
         self, audio_bytes: bytes, language: str | None = None
     ) -> dict[str, Any]:
         """Async call to Azure Whisper API with exponential backoff retry"""
-        import aiohttp
         import asyncio
+
+        import aiohttp
 
         # Rate limit: Azure Whisper allows 3 requests per minute
         from backend.utils.rate_limiter import azure_whisper_rate_limiter

@@ -12,7 +12,6 @@ import pytest
 def existing_session_id():
     """Get a session ID that has SOAP data."""
     import h5py
-
     from backend.src.fi_storage.infrastructure.hdf5.task_repository import CORPUS_PATH
 
     with h5py.File(CORPUS_PATH, "r") as f:
@@ -48,9 +47,8 @@ class TestAuditEndpoints:
 
     def test_get_audit_endpoint(self, existing_session_id):
         """Test GET /api/workflows/aurity/sessions/{id}/audit endpoint."""
-        from fastapi.testclient import TestClient
-
         from backend.app.main import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
 
@@ -83,9 +81,9 @@ class TestAuditEndpoints:
     def test_submit_feedback_endpoint(self, existing_session_id):
         """Test POST /api/workflows/aurity/sessions/{id}/feedback endpoint."""
         import time
-        from fastapi.testclient import TestClient
 
         from backend.app.main import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
 
@@ -137,9 +135,8 @@ class TestAuditEndpoints:
 
     def test_audit_endpoint_404(self):
         """Test audit endpoint returns 404 for nonexistent session."""
-        from fastapi.testclient import TestClient
-
         from backend.app.main import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
 
@@ -149,9 +146,8 @@ class TestAuditEndpoints:
 
     def test_feedback_validation(self):
         """Test feedback endpoint validates required fields."""
-        from fastapi.testclient import TestClient
-
         from backend.app.main import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
 

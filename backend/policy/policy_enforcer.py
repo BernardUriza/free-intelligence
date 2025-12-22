@@ -1,28 +1,42 @@
-from __future__ import annotations
+"""Policy Enforcer — Runtime Policy Guards.
 
-"""
-Policy Enforcer — Runtime Policy Guards
-Card: FI-POLICY-STR-001
+Card: FI-POLICY-STR-001.
 
 Loads and enforces policies from config/fi.policy.yaml
-Provides guard functions for sovereignty, privacy, cost, and feature flags
+Provides guard functions for sovereignty, privacy, cost, and feature flags.
 """
+
+from __future__ import annotations
 
 import hashlib
 import re
-import yaml
-from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
+import pathlib
+import yaml
 from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-class PolicyViolation(Exception):
-    """Raised when a policy rule is violated"""
+class PolicyViolationError(Exception):
+    """Raised when a policy rule is violated."""
 
-    def __init__(self, rule: str, message: str, metadata: dict[str, Any | None] | None = None):
+    def __init__(
+        self,
+        rule: str,
+        message: str,
+        metadata: dict[str, Any | None] | None = None,
+    ) -> None:
+        """Initialize a PolicyViolationError.
+
+        Args:
+            rule: The policy rule that was violated
+            message: The error message
+            metadata: Additional metadata for logging
+
+        """
         self.rule = rule
         self.message = message
         self.metadata = metadata or {}
@@ -30,8 +44,7 @@ class PolicyViolation(Exception):
 
 
 class PolicyEnforcer:
-    """
-    Runtime policy enforcement engine
+    """Runtime policy enforcement engine.
 
     Loads policy from config/fi.policy.yaml and provides guard functions:
     - check_egress(url): Blocks external egress if sovereignty.egress.default = deny
@@ -46,9 +59,9 @@ class PolicyEnforcer:
         self,
         policy_path: str = "config/fi.policy.yaml",
         redaction_path: str = "config/redaction_style.yaml",
-    ):
-        self.policy_path = Path(policy_path)
-        self.redaction_path = Path(redaction_path)
+    ) -> None:
+        self.policy_path = pathlib.Path(policy_path)
+        self.redaction_path = pathlib.Path(redaction_path)
 
         # Load policies on init
         self.policy = self._load_yaml(self.policy_path)
@@ -73,43 +86,41 @@ class PolicyEnforcer:
                     }
 
         logger.info(
-            f"PolicyEnforcer loaded: {self.policy.get('version', 'unknown')} "
-            + f"({len(self._compiled_patterns)} redaction patterns)"
+            "PolicyEnforcer loaded: %s (%d redaction patterns)",
+            self.policy.get("version", "unknown"),
+            len(self._compiled_patterns),
         )
 
-    def _load_yaml(self, path: Path) -> dict[str, Any]:
-        """Load YAML file with validation and error handling"""
+    def _load_yaml(self, path: pathlib.Path) -> dict[str, Any]:
+        """Load YAML file with validation and error handling."""
         if not path.exists():
-            logger.warning(f"Policy file not found: {path}")
+            logger.warning("Policy file not found: %s", path)
             return {}
 
         try:
-            with open(path) as f:
+            with path.open() as f:
                 data = yaml.safe_load(f) or {}
                 # Validate YAML structure
                 if not isinstance(data, dict):
-                    raise ValueError("Invalid YAML structure: Expected a dictionary at the root")
+                    msg = "Invalid YAML structure: Expected a dictionary at the root"
+                    raise ValueError(msg)
                 return data
-        except yaml.YAMLError as e:
-            logger.error(f"YAML parsing error in {path}: {e}")
-        except Exception as e:
-            logger.error(f"Failed to load {path}: {e}")
+        except yaml.YAMLError:
+            logger.exception("YAML parsing error in %s", path)
+        except Exception:
+            logger.exception("Failed to load %s", path)
         return {}
 
     def get_policy_digest(self) -> str:
-        """
-        Compute SHA256 hash of policy file for manifest/audit trail
-        """
+        """Compute SHA256 hash of policy file for manifest/audit trail."""
         if not self.policy_path.exists():
             return "no-policy-file"
 
-        with open(self.policy_path, "rb") as f:
+        with self.policy_path.open("rb") as f:
             return hashlib.sha256(f.read()).hexdigest()
 
     def _is_url_allowed(self, url: str, allowlist: list[str]) -> bool:
-        """Check if a URL is allowed based on the allowlist"""
-        from urllib.parse import urlparse
-
+        """Check if a URL is allowed based on the allowlist."""
         parsed = urlparse(url)
         host = parsed.netloc.lower() if parsed.netloc else ""
         domain = parsed.hostname.lower() if parsed.hostname else ""
@@ -120,60 +131,57 @@ class PolicyEnforcer:
             # Wildcard match: .example.com matches *.example.com
             if entry.startswith("."):
                 if domain == entry_lower or domain.endswith("." + entry_lower):
-                    logger.debug(f"Egress allowed by wildcard: {url} (matched: {entry})")
+                    logger.debug("Egress allowed by wildcard: %s (matched: %s)", url, entry)
                     return True
-            else:
-                # Exact match: host or domain must match exactly
-                if host == entry_lower or domain == entry_lower:
-                    logger.debug(f"Egress allowed by exact match: {url} (matched: {entry})")
-                    return True
+            # Exact match: host or domain must match exactly
+            elif entry_lower in (host, domain):
+                logger.debug("Egress allowed by exact match: %s (matched: %s)", url, entry)
+                return True
 
         return False
 
     # === Sovereignty Guards ===
 
     def check_egress(self, url: str, run_id: str | None = None) -> None:
-        """
-        Check if external egress is allowed
+        """Check if external egress is allowed.
 
         Args:
             url: Target URL for egress
             run_id: Optional run ID for logging
 
         Raises:
-            PolicyViolation: If egress is denied by policy
+            PolicyViolationError: If egress is denied by policy
+
         """
         if not url or not isinstance(url, str):
-            raise ValueError("Invalid URL provided")
+            msg = "Invalid URL provided"
+            raise ValueError(msg)
 
         egress_policy = self.policy.get("sovereignty", {}).get("egress", {})
         default_action = egress_policy.get("default", "allow")
         allowlist = egress_policy.get("allowlist", [])
 
         if default_action == "deny" and not self._is_url_allowed(url, allowlist):
-            from urllib.parse import urlparse
-
             parsed = urlparse(url)
             host = parsed.netloc.lower() if parsed.netloc else ""
 
             metadata = {"url": url, "host": host, "run_id": run_id, "allowlist": allowlist}
-            logger.warning(f"Egress blocked by policy: {url} (run_id={run_id})")
-            raise PolicyViolation(
+            logger.warning("Egress blocked by policy: %s (run_id=%s)", url, run_id)
+            raise PolicyViolationError(
                 rule="sovereignty.egress",
                 message=f"External egress denied by policy: {url}",
                 metadata=metadata,
             )
-        else:
-            logger.debug(f"Egress allowed (default=allow): {url}")
+        logger.debug("Egress allowed (default=allow): %s", url)
 
     # === Privacy Guards ===
 
     def check_phi(self, text: str) -> bool:
-        """
-        Check if text contains PHI patterns
+        """Check if text contains PHI patterns.
 
         Returns:
             True if PHI detected, False otherwise
+
         """
         phi_enabled = self.policy.get("privacy", {}).get("phi", {}).get("enabled", False)
 
@@ -183,14 +191,13 @@ class PolicyEnforcer:
         # Check PHI-specific patterns
         for name, pattern in self._compiled_patterns.items():
             if name.startswith("phi_") and pattern["regex"].search(text):
-                logger.debug(f"PHI detected: {name}")
+                logger.debug("PHI detected: %s", name)
                 return True
 
         return False
 
     def redact(self, text: str) -> str:
-        """
-        Redact PII/PHI from text according to redaction_style.yaml
+        """Redact PII/PHI from text according to redaction_style.yaml.
 
         Applies patterns in order: email, phone, CURP, RFC, SSN, credit card, PHI
 
@@ -199,6 +206,7 @@ class PolicyEnforcer:
 
         Returns:
             Redacted text with [REDACTED_X] placeholders
+
         """
         if not text:
             return text
@@ -206,7 +214,7 @@ class PolicyEnforcer:
         redacted = text
 
         # Apply all enabled patterns
-        for _name, pattern in self._compiled_patterns.items():
+        for pattern in self._compiled_patterns.values():
             redacted = pattern["regex"].sub(pattern["replacement"], redacted)
 
         # Apply stop terms
@@ -225,55 +233,54 @@ class PolicyEnforcer:
     # === Cost Guards ===
 
     def check_cost(self, cents: int, run_id: str | None = None) -> None:
-        """
-        Check if cost exceeds monthly budget
+        """Check if cost exceeds monthly budget.
 
         Args:
             cents: Cost in cents (1 USD = 100 cents)
             run_id: Optional run ID for logging
 
         Raises:
-            PolicyViolation: If cost exceeds llm.budgets.monthly_usd
+            PolicyViolationError: If cost exceeds llm.budgets.monthly_usd
+
         """
         budget_usd = self.policy.get("llm", {}).get("budgets", {}).get("monthly_usd", 0)
         budget_cents = budget_usd * 100
 
         if cents > budget_cents:
             metadata = {"cents": cents, "budget_cents": budget_cents, "run_id": run_id}
-            logger.warning(f"Cost exceeds budget: {cents} > {budget_cents} (run_id={run_id})")
-            raise PolicyViolation(
+            logger.warning("Cost exceeds budget: %d > %d (run_id=%s)", cents, budget_cents, run_id)
+            raise PolicyViolationError(
                 rule="llm.budgets",
                 message=f"Cost {cents}¢ exceeds monthly budget {budget_cents}¢",
                 metadata=metadata,
             )
 
-        logger.debug(f"Cost within budget: {cents}¢ <= {budget_cents}¢")
+        logger.debug("Cost within budget: %d¢ <= %d¢", cents, budget_cents)
 
     # === Feature Flags ===
 
     def check_timeline_auto(self) -> bool:
-        """
-        Check if timeline.auto is enabled
+        """Check if timeline.auto is enabled.
 
         Returns:
             True if timeline.auto.enabled = true
+
         """
         return self.policy.get("timeline", {}).get("auto", {}).get("enabled", False)
 
     def check_agents_enabled(self) -> bool:
-        """
-        Check if agents are enabled
+        """Check if agents are enabled.
 
         Returns:
             True if agents.enabled = true
+
         """
         return self.policy.get("agents", {}).get("enabled", False)
 
     # === Utility ===
 
-    def get_policy(self, key_path: str, default: Any = None) -> Any:
-        """
-        Get policy value by dot-separated key path
+    def get_policy(self, key_path: str, default: Any | None = None) -> Any:
+        """Get policy value by dot-separated key path.
 
         Example:
             get_policy("llm.budgets.monthly_usd") → 200
@@ -284,6 +291,7 @@ class PolicyEnforcer:
 
         Returns:
             Policy value or default
+
         """
         keys = key_path.split(".")
         value = self.policy
@@ -296,16 +304,16 @@ class PolicyEnforcer:
 
         return value if value is not None else default
 
-    def log_violation(self, rule: str, metadata: dict[str, Any | None] | None = None):
-        """
-        Log policy violation for audit trail
+    def log_violation(self, rule: str, metadata: dict[str, Any | None] | None = None) -> None:
+        """Log policy violation for audit trail.
 
         Args:
             rule: Policy rule violated (e.g., "sovereignty.egress")
             metadata: Additional metadata for logging
+
         """
         log_data = {"event": "policy_violation", "rule": rule, **(metadata or {})}
-        logger.warning(f"Policy violation logged: {log_data}")
+        logger.warning("Policy violation logged: %s", log_data)
 
 
 # Global singleton instance
@@ -313,11 +321,11 @@ _policy_enforcer: PolicyEnforcer | None = None
 
 
 def get_policy_enforcer() -> PolicyEnforcer:
-    """
-    Get or create global PolicyEnforcer singleton
+    """Get or create global PolicyEnforcer singleton.
 
     Returns:
         PolicyEnforcer instance
+
     """
     global _policy_enforcer
 
@@ -330,31 +338,31 @@ def get_policy_enforcer() -> PolicyEnforcer:
 # Convenience functions for direct import
 
 
-def check_egress(url: str, run_id: str | None = None):
-    """Check if external egress is allowed (raises PolicyViolation if denied)"""
+def check_egress(url: str, run_id: str | None = None) -> None:
+    """Check if external egress is allowed (raises PolicyViolationError if denied)."""
     return get_policy_enforcer().check_egress(url, run_id)
 
 
-def check_cost(cents: int, run_id: str | None = None):
-    """Check if cost exceeds budget (raises PolicyViolation if exceeded)"""
+def check_cost(cents: int, run_id: str | None = None) -> None:
+    """Check if cost exceeds budget (raises PolicyViolationError if exceeded)."""
     return get_policy_enforcer().check_cost(cents, run_id)
 
 
 def check_phi(text: str) -> bool:
-    """Check if text contains PHI patterns"""
+    """Check if text contains PHI patterns."""
     return get_policy_enforcer().check_phi(text)
 
 
 def redact(text: str) -> str:
-    """Redact PII/PHI from text"""
+    """Redact PII/PHI from text."""
     return get_policy_enforcer().redact(text)
 
 
 def check_timeline_auto() -> bool:
-    """Check if timeline.auto is enabled"""
+    """Check if timeline.auto is enabled."""
     return get_policy_enforcer().check_timeline_auto()
 
 
 def check_agents_enabled() -> bool:
-    """Check if agents are enabled"""
+    """Check if agents are enabled."""
     return get_policy_enforcer().check_agents_enabled()

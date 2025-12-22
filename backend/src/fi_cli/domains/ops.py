@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import subprocess
+from typing import Annotated
+
 import typer
 from pathlib import Path
-from typing import Annotated
 
 from .._common import ExitCode, redact_text, run_cmd, ssh_argv
 
@@ -844,9 +845,10 @@ def test_e2e_curl(
 
     Requires jq for JSON processing and uuidgen for session IDs.
     """
-    import os
     import subprocess
     import tempfile
+
+    import os
     from pathlib import Path
 
     # Check if jq is available

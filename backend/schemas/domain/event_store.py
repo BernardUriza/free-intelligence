@@ -31,15 +31,15 @@ Usage:
   hash_valid = store.verify_event_hash(event)
 """
 
-import h5py
 import hashlib
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, Dict
 
+import h5py
 from backend.providers.models import ConsultationEvent
 from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 

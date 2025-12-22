@@ -9,12 +9,12 @@ Reorganized: 2025-11-08 (moved from backend/api/system.py)
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from fastapi import APIRouter
-from pydantic import BaseModel
 from typing import Any, Dict
 
 from backend.src.fi_common.infrastructure.container import get_container
 from backend.src.fi_common.logging.logger import get_logger
+from fastapi import APIRouter
+from pydantic import BaseModel
 
 logger = get_logger(__name__)
 

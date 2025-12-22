@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import re
 import subprocess
+from typing import Any
+
 import sys
 from pathlib import Path
-from typing import Any
 
 from ..execution.executor import execute_qwen_code
 from ..observability.logger import get_logger
@@ -50,9 +51,7 @@ def parse_ruff_output(ruff_output: str) -> list[dict[str, Any]]:
 
 def _get_severity_from_code(code: str) -> str:
     """Determine severity from Ruff error code."""
-    if code.startswith('F'):  # Pyflakes
-        return 'error'
-    elif code.startswith('E'):  # pycodestyle
+    if code.startswith('F') or code.startswith('E'):  # Pyflakes
         return 'error'
     elif code.startswith('W'):  # pycodestyle warnings
         return 'warning'
@@ -62,13 +61,9 @@ def _get_severity_from_code(code: str) -> str:
         return 'warning'
     elif code.startswith('UP'):  # pyupgrade
         return 'info'
-    elif code.startswith('B'):  # flake8-bugbear
+    elif code.startswith('B') or code.startswith('A'):  # flake8-bugbear
         return 'warning'
-    elif code.startswith('A'):  # flake8-builtins
-        return 'warning'
-    elif code.startswith('C4'):  # flake8-comprehensions
-        return 'info'
-    elif code.startswith('SIM'):  # flake8-simplify
+    elif code.startswith('C4') or code.startswith('SIM'):  # flake8-comprehensions
         return 'info'
     else:
         return 'unknown'

@@ -1,17 +1,17 @@
 """Example usage of the prompt provider in an application context."""
 
-from backend.src.fi_prompts.prompt_provider import get_prompt, get_available_prompts
+from backend.src.fi_prompts.prompt_provider import get_available_prompts, get_prompt
 
 
 def example_usage():
     """Example of how to use the prompt provider in application code."""
-    
+
     # Print available prompts
     print("Available prompts:")
     for prompt_type in get_available_prompts():
         print(f"  - {prompt_type}")
     print()
-    
+
     # Example 1: Get a medical consultation prompt with parameters
     print("Example 1: Medical Consultation Prompt")
     medical_prompt = get_prompt(
@@ -23,7 +23,7 @@ def example_usage():
     )
     print(medical_prompt)
     print("\n" + "="*50 + "\n")
-    
+
     # Example 2: Get a patient intake prompt
     print("Example 2: Patient Intake Prompt")
     intake_prompt = get_prompt(
@@ -41,7 +41,7 @@ def example_usage():
     )
     print(intake_prompt)
     print("\n" + "="*50 + "\n")
-    
+
     # Example 3: Get a SOAP note prompt
     print("Example 3: SOAP Note Prompt")
     soap_prompt = get_prompt(

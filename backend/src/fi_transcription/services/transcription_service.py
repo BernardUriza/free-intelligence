@@ -185,9 +185,9 @@ class TranscriptionService:
         )
 
         # 5. Dispatch worker to background (fire-and-forget)
-        from backend.utils.stt_load_balancer import get_stt_load_balancer
         from backend.src.fi_workers.executor_pool import spawn_worker
         from backend.src.fi_workers.sync_workers import transcribe_chunk_worker
+        from backend.utils.stt_load_balancer import get_stt_load_balancer
 
         # Use load balancer to select provider intelligently (policy-driven)
         load_balancer = get_stt_load_balancer()
@@ -259,9 +259,9 @@ class TranscriptionService:
                 - language: Detected language
         """
         import asyncio
-        import os
         import tempfile
 
+        import os
         from backend.providers.stt import get_stt_provider
         from backend.utils.stt_load_balancer import get_stt_load_balancer
 

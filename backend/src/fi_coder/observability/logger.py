@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import logging
 import re
-import sys
 from typing import Any
+
+import sys
 
 try:
     from zoneinfo import ZoneInfo

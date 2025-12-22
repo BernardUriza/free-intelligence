@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import random
 import time
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, List
 
+import os
 from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 

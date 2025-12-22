@@ -15,14 +15,11 @@ import base64
 import contextlib
 import io
 import json
-import qrcode
 import secrets
 from datetime import UTC, datetime
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-from sqlalchemy import func
-from sqlalchemy.orm import Session, joinedload
 from typing import List
 
+import qrcode
 from backend.database import get_db_dependency
 from backend.models.checkin_models import (
     Appointment,
@@ -57,6 +54,9 @@ from backend.schemas.api.checkin import (
     WaitingRoomState,
 )
 from backend.src.fi_common.logging.logger import get_logger
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
 
 logger = get_logger(__name__)
 

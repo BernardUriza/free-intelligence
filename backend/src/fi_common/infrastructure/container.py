@@ -11,7 +11,6 @@ Clean Code Principles:
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 # NOTE: Defer logger import to avoid circular dependency:
@@ -29,6 +28,7 @@ from backend.src.fi_common.interfaces.itask_repository import ITaskRepository
 from backend.src.fi_common.utils.event_bus import InMemoryEventBus
 from backend.src.fi_common.utils.structured_logger import StructuredLogger
 from backend.src.fi_common.utils.task_repository_adapter import TaskRepositoryAdapter
+from pathlib import Path
 
 # Type checking imports - Pylance uses these for type information
 if TYPE_CHECKING:
@@ -297,7 +297,6 @@ class DIContainer:
         if self._diarization_job_service is None:
             try:
                 import os
-
                 from backend.src.fi_common.services.diarization.job_service import (
                     DiarizationJobService,
                 )

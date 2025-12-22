@@ -16,11 +16,11 @@ Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
 from typing import Dict, Set
 
 from backend.src.fi_common.logging.logger import get_logger
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 
 logger = get_logger(__name__)
 router = APIRouter()

@@ -20,13 +20,13 @@ Created: 2025-11-20
 
 from __future__ import annotations
 
-import h5py
 import json
 from collections import defaultdict
-from pathlib import Path
 from typing import Any
 
+import h5py
 from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 

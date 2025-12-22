@@ -19,10 +19,11 @@ Philosophy (Axiom 1 - Materia = Glitch):
     - Graceful degradation: 429 con Retry-After header
 """
 
-import structlog
 from collections import defaultdict
 from time import time
 from typing import Any, Dict
+
+import structlog
 
 logger = structlog.get_logger()
 

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import time
-import ulid
 import uuid as _uuid
-from fastapi import APIRouter, HTTPException
 
+import ulid
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.services.trace_store import get_trace_store
 from backend.utils.redactor import redact_and_hash_once
+from fastapi import APIRouter, HTTPException
 
 from ..assistant_schemas import ChatCompletionRequest
 

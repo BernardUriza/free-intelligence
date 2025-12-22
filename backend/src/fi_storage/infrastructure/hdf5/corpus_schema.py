@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import h5py
 from datetime import datetime
-from pathlib import Path
 from typing import Any, ClassVar
+
+import h5py
+from pathlib import Path
 
 """
 Free Intelligence - HDF5 Corpus Schema

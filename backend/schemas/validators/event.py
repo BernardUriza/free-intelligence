@@ -224,6 +224,7 @@ def validate_events_in_code(file_path: str) -> list[dict]:
         True
     """
     import re
+
     from pathlib import Path
 
     if not Path(file_path).exists():

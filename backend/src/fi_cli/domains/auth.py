@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import typer
 from typing import Annotated
+
+import typer
 
 from .._common import redact_text
 
@@ -759,6 +760,7 @@ def verify_audience(
     Uses SSH key authentication. Requires root access on production server.
     """
     import json
+
     from pathlib import Path
 
     # Lazy import paramiko
@@ -841,6 +843,7 @@ def patch_auth0_config(
     Restarts backend and verifies the change. Uses SSH key authentication.
     """
     import time
+
     from pathlib import Path
 
     # Lazy import paramiko

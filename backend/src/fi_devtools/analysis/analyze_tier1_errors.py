@@ -14,8 +14,9 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Any
+
+from pathlib import Path
 
 
 def analyze_tier1_errors(results_path: Path) -> None:

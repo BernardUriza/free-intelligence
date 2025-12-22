@@ -9,9 +9,9 @@ from backend.src.fi_workers.sync_workers import (
 )
 
 __all__ = [
-    "spawn_worker",
     "diarize_session_worker",
     "generate_soap_worker",
     "log_audit_event_worker",
+    "spawn_worker",
     "transcribe_chunk_worker",
 ]

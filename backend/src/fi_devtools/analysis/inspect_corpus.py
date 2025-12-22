@@ -10,10 +10,11 @@ Usage:
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Sequence
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+import sys
+from pathlib import Path
 
 if TYPE_CHECKING:
     pass

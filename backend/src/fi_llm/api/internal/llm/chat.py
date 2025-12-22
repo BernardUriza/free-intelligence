@@ -14,11 +14,10 @@ Propósito:
 import hashlib
 import json
 import time
-import ulid
 import uuid as _uuid
 from datetime import UTC, datetime
-from fastapi import APIRouter, HTTPException, Request, status
 
+import ulid
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.llm import llm_generate
 from backend.repositories.audit_repository import AuditRepository
@@ -29,6 +28,7 @@ from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_llm.services.conversation_memory import get_memory_manager
 from backend.src.fi_llm.services.persona_manager import PersonaManager
 from backend.src.fi_storage.services.trace_store import get_trace_store
+from fastapi import APIRouter, HTTPException, Request, status
 
 from .schemas import ChatRequest, ChatResponse
 
@@ -40,6 +40,7 @@ trace_store = get_trace_store()
 
 # Initialize audit service for persona metrics tracking
 import contextlib
+
 from pathlib import Path
 
 CORPUS_PATH = Path(__file__).parent.parent.parent.parent.parent / "storage" / "corpus.h5"

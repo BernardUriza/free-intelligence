@@ -11,12 +11,11 @@ Sprint: SPR-2025W44
 
 from __future__ import annotations
 
-import yaml  # type: ignore[import-untyped]
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any, Dict
 
+import yaml  # type: ignore[import-untyped]
 from backend.providers.llm import llm_generate
 from backend.schemas.domain.timeline import (
     CausalityType,
@@ -29,6 +28,7 @@ from backend.schemas.domain.timeline import (
     create_timeline_event,
 )
 from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 

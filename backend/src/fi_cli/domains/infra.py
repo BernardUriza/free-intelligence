@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import typer
 from typing import Annotated
+
+import typer
 
 app = typer.Typer(name="infra", help="Infra and host configuration tools", no_args_is_help=True)
 
@@ -27,8 +28,9 @@ def setup_firewall(
     Configures deny-all policy with SSH and NFS access from VPC only.
     Requires root privileges.
     """
-    import os
     import subprocess
+
+    import os
 
     typer.echo("🔥 Setting up UFW firewall...")
     typer.echo(f"   VPC CIDR: {vpc_cidr}")
@@ -108,8 +110,9 @@ def fix_firewall(
     Migrates from manual iptables rules to UFW for persistence.
     Requires root privileges.
     """
-    import os
     import subprocess
+
+    import os
 
     typer.echo("🔧 Diagnosing firewall configuration...")
 
@@ -190,6 +193,7 @@ def tls_cert(
     Can generate self-signed certificates or obtain Let's Encrypt certificates.
     """
     import subprocess
+
     from pathlib import Path
 
     cert_path = Path(cert_dir)
@@ -260,8 +264,9 @@ def nas_setup(
     Installs dependencies, creates directories, sets permissions, and initializes corpus.
     Optimized for NAS environments without venv.
     """
-    import os
     import subprocess
+
+    import os
     import sys
     from pathlib import Path
 
@@ -511,8 +516,9 @@ def setup_nfs(
     Configures NFSv4 with proper security, performance tuning, and UID/GID mapping.
     Requires root privileges.
     """
-    import os
     import subprocess
+
+    import os
 
     typer.echo("==========================================")
     typer.echo("Free Intelligence - NFS Setup (Hardened)")
@@ -725,8 +731,9 @@ def setup_smb(
     Requires root privileges.
     """
     import getpass
-    import os
     import subprocess
+
+    import os
 
     typer.echo("==========================================")
     typer.echo("Free Intelligence - SMB Setup (Hardened)")
@@ -1009,8 +1016,9 @@ def fix_nginx_cache_headers(
     Updates nginx config with proper cache headers for static assets and HTML files.
     Requires root SSH access to production server.
     """
-    import paramiko
     import time
+
+    import paramiko
 
 
     if not host:

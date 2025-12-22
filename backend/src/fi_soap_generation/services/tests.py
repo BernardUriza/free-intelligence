@@ -13,9 +13,9 @@ Usage:
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from backend.providers.models import Analisis, Objetivo, Plan, Subjetivo
 
 from .completeness import CompletenessCalculator

@@ -24,11 +24,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
+
+import sys
+from pathlib import Path
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

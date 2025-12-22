@@ -7,7 +7,6 @@ handling type conversions and validation.
 from __future__ import annotations
 
 from datetime import datetime
-from pydantic import ValidationError
 from typing import Any, Dict
 
 from backend.providers.models import (
@@ -27,6 +26,7 @@ from backend.providers.models import (
     UrgenciaTriaje,
 )
 from backend.src.fi_common.logging.logger import get_logger
+from pydantic import ValidationError
 
 __all__ = ["SOAPBuildError", "SOAPBuilder"]
 

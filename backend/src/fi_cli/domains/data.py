@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import typer
 from datetime import UTC
-from pathlib import Path
 from typing import Annotated
+
+import typer
+from pathlib import Path
 
 from .._common import redact_text
 
@@ -158,6 +159,7 @@ def consolidate_sessions(
     """
     # Import session manager functions directly to avoid package init issues
     import importlib.util
+
     import sys
     from pathlib import Path
 
@@ -346,8 +348,9 @@ def process_remaining_chunks(
     Process remaining chunks for diarization jobs.
     Completes diarization processing by marking jobs as done with estimated metadata.
     """
-    import h5py
     from datetime import UTC, datetime
+
+    import h5py
 
     typer.echo("🔄 PROCESSING REMAINING CHUNKS")
     typer.echo("=" * 60)
@@ -781,8 +784,9 @@ def process_remaining_chunks(
     Marks the job as completed with estimated chunk metadata.
     In production, this would process actual audio chunks with Whisper.
     """
-    import sys
     from datetime import datetime
+
+    import sys
     from pathlib import Path
 
     # Add backend to path
@@ -988,8 +992,9 @@ def create_test_appointments(
 
     Creates sample doctors and today's appointments for development/testing.
     """
-    import requests
     from datetime import datetime
+
+    import requests
 
     typer.echo("🏥 Creating test doctors and appointments...")
 

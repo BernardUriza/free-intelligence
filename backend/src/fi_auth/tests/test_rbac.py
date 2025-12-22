@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import pytest
-from fastapi import HTTPException
-
 from backend.src.fi_auth.domain.entities.user import User, UserRole
 from backend.src.fi_auth.infrastructure.middleware.rbac_middleware import (
     require_permission,
     require_roles,
 )
+from fastapi import HTTPException
 
 
 @pytest.mark.asyncio

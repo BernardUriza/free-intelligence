@@ -22,13 +22,13 @@ from __future__ import annotations
 import hashlib
 import time
 import uuid
+from typing import Literal
+
+from backend.src.fi_common.logging.logger import get_logger
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import Literal
-
-from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter()

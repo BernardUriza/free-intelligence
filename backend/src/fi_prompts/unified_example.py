@@ -5,7 +5,7 @@ from backend.src.fi_prompts import get_enhanced_prompt
 
 def example_usage():
     """Example of how to use the unified prompt provider."""
-    
+
     print("Example 1: Using new template-based prompt")
     medical_prompt = get_enhanced_prompt(
         "medical_consultation",
@@ -16,7 +16,7 @@ def example_usage():
     )
     print(medical_prompt)
     print("\n" + "="*70 + "\n")
-    
+
     print("Example 2: Using YAML preset (intake_coach)")
     intake_prompt = get_enhanced_prompt(
         "intake_coach",
@@ -25,7 +25,7 @@ def example_usage():
     )
     print(intake_prompt[:500] + "...")  # Truncate for display
     print("\n" + "="*70 + "\n")
-    
+
     print("Example 3: Using SOAP generator YAML preset")
     soap_prompt = get_enhanced_prompt(
         "soap_generator",

@@ -19,14 +19,14 @@ Design Philosophy:
 
 from __future__ import annotations
 
-# mypy: ignore-errors
-import os
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
+# mypy: ignore-errors
+import os
 from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)

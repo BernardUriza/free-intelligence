@@ -10,8 +10,6 @@ Created: 2025-11-22
 from __future__ import annotations
 
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr, Field
 from typing import Annotated
 
 from backend.database import get_db
@@ -22,6 +20,8 @@ from backend.src.fi_common.services.notifications import (
     NotificationType,
     notification_service,
 )
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr, Field
 
 logger = get_logger(__name__)
 

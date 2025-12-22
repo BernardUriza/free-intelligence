@@ -11,11 +11,10 @@ Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, Field
-
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_llm.services.conversation_memory import get_memory_manager
+from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 router = APIRouter()

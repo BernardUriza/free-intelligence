@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import h5py
 import json
-from fastapi import APIRouter, HTTPException, status
 
+import h5py
 from backend.src.fi_common.api.public.models import TranscriptionSourcesModel
 from backend.src.fi_common.logging.logger import get_logger
 from backend.validators import validate_session_id
+from fastapi import APIRouter, HTTPException, status
 
 router = APIRouter()
 logger = get_logger(__name__)

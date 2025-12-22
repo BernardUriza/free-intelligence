@@ -35,8 +35,6 @@ Refactored: 2025-11-15 (SOLIS modular architecture)
 
 from __future__ import annotations
 
-from fastapi import APIRouter
-
 from backend.src.fi_assistant.api.public import assistant, assistant_history, assistant_websocket
 from backend.src.fi_clinic.api.public import clinic_media
 from backend.src.fi_common.logging.logger import get_logger
@@ -57,6 +55,7 @@ from backend.src.fi_timeline.api.public import timeline
 from backend.src.fi_transcription.api.public import transcription
 from backend.src.fi_widget.api.public import widget_configs
 from backend.src.fi_workflow.api.public import waiting_room
+from fastapi import APIRouter
 
 logger = get_logger(__name__)
 

@@ -7,11 +7,11 @@ Como el inventario de la armería de Gondor.
 """
 
 import contextlib
-import httpx
-import os
 from collections.abc import AsyncIterator
 from datetime import datetime
 
+import httpx
+import os
 from backend.models.catalog_model import (
     CatalogModel,
     CatalogSearchParams,

@@ -1,10 +1,10 @@
 import json
-import pytest
 import re
-from fastapi.testclient import TestClient
 
+import pytest
 from backend.app.main import app
 from backend.observability.log_spec import REQUIRED_FIELDS
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 

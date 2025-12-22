@@ -16,10 +16,11 @@ Usage:
 
 from __future__ import annotations
 
-import h5py
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Any
+
+import h5py
+from pathlib import Path
 
 
 def get_corpus_path() -> Path:

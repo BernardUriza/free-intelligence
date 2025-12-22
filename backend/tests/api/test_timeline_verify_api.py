@@ -12,12 +12,12 @@ Validates:
 """
 
 import hashlib
-import pytest
 import time
 from datetime import datetime
-from fastapi.testclient import TestClient
 
+import pytest
 from backend.app.main import app
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture

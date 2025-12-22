@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 import typer
 from pathlib import Path
-from typing import Annotated
 
 from .._common import (
     ExitCode,
@@ -716,9 +717,10 @@ def manual_e2e_test(
     Outputs results to temporary directory for analysis.
     """
     import json
-    import os
     import subprocess
     import uuid
+
+    import os
 
     typer.echo("🧪 MANUAL E2E TEST SUITE")
     typer.echo("=" * 50)
@@ -1689,6 +1691,7 @@ def test_concurrent_h5_writes() -> None:
 def test_steerable_voices() -> None:
     """Test OpenAI Steerable TTS with Mexican Spanish accent."""
     import asyncio
+
     import os
 
     from ...services.tts_openai_steerable import get_steerable_tts_service

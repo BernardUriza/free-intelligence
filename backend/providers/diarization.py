@@ -17,10 +17,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -79,7 +79,7 @@ class DiarizationProvider(ABC):
 
     @abstractmethod
     def diarize(
-        self, audio_path: Union[str, Path], num_speakers: int | None = None
+        self, audio_path: str | Path, num_speakers: int | None = None
     ) -> DiarizationResponse:
         """
         Identify speakers in audio file.
@@ -114,9 +114,8 @@ class PyannoteProvider(DiarizationProvider):
             self.pipeline_cls = Pipeline
             self._pipeline_instance = None
         except ImportError:
-            raise ImportError(
-                "pyannote.audio not installed. Install with: pip install pyannote.audio"
-            )
+            error_msg = "pyannote.audio not installed. Install with: pip install pyannote.audio"
+            raise ImportError(error_msg) from None
 
         self.logger.info(
             "PYANNOTE_PROVIDER_INITIALIZED",
@@ -144,21 +143,23 @@ class PyannoteProvider(DiarizationProvider):
                     error=str(e),
                     hint="Set HF_TOKEN environment variable or accept model terms at https://hf.co/pyannote/speaker-diarization-3.1",
                 )
-                raise RuntimeError(f"Failed to load Pyannote model: {e}") from e
+                error_msg = f"Failed to load Pyannote model: {e}"
+                raise RuntimeError(error_msg) from e
 
             if self.device != "cpu" and self._pipeline_instance is not None:
                 self._pipeline_instance = self._pipeline_instance.to(self.device)
         return self._pipeline_instance
 
     def diarize(
-        self, audio_path: Union[str, Path], num_speakers: int | None = None
+        self, audio_path: str | Path, num_speakers: int | None = None
     ) -> DiarizationResponse:
         """Diarize audio using Pyannote"""
         import time
 
         audio_path = Path(audio_path)
         if not audio_path.exists():
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+            error_msg = f"Audio file not found: {audio_path}"
+            raise FileNotFoundError(error_msg)
 
         start_time = time.time()
 
@@ -221,12 +222,15 @@ class PyannoteProvider(DiarizationProvider):
             )
 
         except Exception as e:
-            self.logger.error(
+            self.logger.exception(
                 "PYANNOTE_DIARIZATION_FAILED",
-                audio_path=str(audio_path),
-                error=str(e),
+                extra={
+                    "audio_path": str(audio_path),
+                    "error": str(e),
+                },
             )
-            raise RuntimeError(f"Pyannote diarization failed: {e}") from e
+            error_msg = f"Pyannote diarization failed: {e}"
+            raise RuntimeError(error_msg) from e
 
     def get_provider_name(self) -> str:
         return "pyannote"
@@ -249,7 +253,8 @@ class AWSTranscribeProvider(DiarizationProvider):
 
             self.boto3 = boto3
         except ImportError:
-            raise ImportError("boto3 not installed. Install with: pip install boto3")
+            error_msg = "boto3 not installed. Install with: pip install boto3"
+            raise ImportError(error_msg) from None
 
         self.logger.info(
             "AWS_TRANSCRIBE_PROVIDER_INITIALIZED",
@@ -258,12 +263,13 @@ class AWSTranscribeProvider(DiarizationProvider):
         )
 
     def diarize(
-        self, audio_path: Union[str, Path], num_speakers: int | None = None
+        self, audio_path: str | Path, num_speakers: int | None = None
     ) -> DiarizationResponse:
         """Diarize audio using AWS Transcribe"""
         audio_path = Path(audio_path)
         if not audio_path.exists():
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+            error_msg = f"Audio file not found: {audio_path}"
+            raise FileNotFoundError(error_msg)
 
         try:
             self.logger.info(
@@ -274,19 +280,21 @@ class AWSTranscribeProvider(DiarizationProvider):
 
             # Implementation would upload to S3, call AWS Transcribe, parse results
             # This is a template - full implementation requires S3 setup
-            raise NotImplementedError(
-                "AWS Transcribe provider requires S3 bucket setup and credentials"
-            )
+            error_msg = "AWS Transcribe provider requires S3 bucket setup and credentials"
+            raise NotImplementedError(error_msg)
 
         except NotImplementedError:
             raise
         except Exception as e:
-            self.logger.error(
+            self.logger.exception(
                 "AWS_TRANSCRIBE_DIARIZATION_FAILED",
-                audio_path=str(audio_path),
-                error=str(e),
+                extra={
+                    "audio_path": str(audio_path),
+                    "error": str(e),
+                },
             )
-            raise RuntimeError(f"AWS Transcribe diarization failed: {e}") from e
+            error_msg = f"AWS Transcribe diarization failed: {e}"
+            raise RuntimeError(error_msg) from e
 
     def get_provider_name(self) -> str:
         return "aws_transcribe"
@@ -308,9 +316,8 @@ class GoogleSpeechProvider(DiarizationProvider):
 
             self.speech_client = speech_v1.SpeechClient()
         except ImportError:
-            raise ImportError(
-                "google-cloud-speech not installed. Install with: pip install google-cloud-speech"
-            )
+            error_msg = "google-cloud-speech not installed. Install with: pip install google-cloud-speech"
+            raise ImportError(error_msg) from None
 
         self.logger.info(
             "GOOGLE_SPEECH_PROVIDER_INITIALIZED",
@@ -318,12 +325,11 @@ class GoogleSpeechProvider(DiarizationProvider):
         )
 
     def diarize(
-        self, audio_path: Union[str, Path], num_speakers: int | None = None
+        self, audio_path: str | Path, num_speakers: int | None = None
     ) -> DiarizationResponse:
         """Diarize audio using Google Cloud Speech"""
-        raise NotImplementedError(
-            "Google Speech provider requires credentials and full implementation"
-        )
+        error_msg = "Google Speech provider requires credentials and full implementation"
+        raise NotImplementedError(error_msg)
 
     def get_provider_name(self) -> str:
         return "google_speech"
@@ -338,7 +344,8 @@ class DeepgramProvider(DiarizationProvider):
 
         self.api_key = os.getenv("DEEPGRAM_API_KEY")
         if not self.api_key:
-            raise ValueError("DEEPGRAM_API_KEY environment variable not set")
+            error_msg = "DEEPGRAM_API_KEY environment variable not set"
+            raise ValueError(error_msg)
 
         self.model = str(self.config.get("model") or "nova-2")
         self.timeout = int(self.config.get("timeout_seconds") or 30)
@@ -348,7 +355,8 @@ class DeepgramProvider(DiarizationProvider):
 
             self.requests = requests
         except ImportError:
-            raise ImportError("requests not installed. Install with: pip install requests")
+            msg = "requests not installed. Install with: pip install requests"
+            raise ImportError(msg) from None
 
         self.logger.info(
             "DEEPGRAM_DIARIZATION_PROVIDER_INITIALIZED",
@@ -356,14 +364,15 @@ class DeepgramProvider(DiarizationProvider):
         )
 
     def diarize(
-        self, audio_path: Union[str, Path], num_speakers: int | None = None
+        self, audio_path: str | Path, num_speakers: int | None = None
     ) -> DiarizationResponse:
         """Diarize audio using Deepgram"""
         import time
 
         audio_path = Path(audio_path)
         if not audio_path.exists():
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+            error_msg = f"Audio file not found: {audio_path}"
+            raise FileNotFoundError(error_msg)
 
         start_time = time.time()
 
@@ -400,7 +409,8 @@ class DeepgramProvider(DiarizationProvider):
             )
 
             if response.status_code != 200:
-                raise Exception(f"Deepgram API error {response.status_code}: {response.text}")
+                error_msg = f"Deepgram API error {response.status_code}: {response.text}"
+                raise Exception(error_msg)
 
             api_response = response.json()
 
@@ -455,12 +465,15 @@ class DeepgramProvider(DiarizationProvider):
             )
 
         except Exception as e:
-            self.logger.error(
+            self.logger.exception(
                 "DEEPGRAM_DIARIZATION_FAILED",
-                audio_path=str(audio_path),
-                error=str(e),
+                extra={
+                    "audio_path": str(audio_path),
+                    "error": str(e),
+                },
             )
-            raise RuntimeError(f"Deepgram diarization failed: {e}") from e
+            error_msg = f"Deepgram diarization failed: {e}"
+            raise RuntimeError(error_msg) from e
 
     def get_provider_name(self) -> str:
         return "deepgram"
@@ -492,9 +505,8 @@ def get_diarization_provider(
 
     provider_class = provider_map.get(provider_name.lower())
     if not provider_class:
-        raise ValueError(
-            f"Unknown diarization provider: {provider_name}. Supported: {list(provider_map.keys())}"
-        )
+        error_msg = f"Unknown diarization provider: {provider_name}. Supported: {list(provider_map.keys())}"
+        raise ValueError(error_msg)
 
     return provider_class(config)
 
@@ -505,7 +517,6 @@ class AzureGPT4Provider(DiarizationProvider):
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         import os
-
         from backend.schemas.llm.preset_loader import get_preset_loader
 
         self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
@@ -514,9 +525,11 @@ class AzureGPT4Provider(DiarizationProvider):
         self.api_version = "2024-02-15-preview"
 
         if not self.endpoint:
-            raise ValueError("AZURE_OPENAI_ENDPOINT environment variable not set")
+            error_msg1 = "AZURE_OPENAI_ENDPOINT environment variable not set"
+            raise ValueError(error_msg1)
         if not self.api_key:
-            raise ValueError("AZURE_OPENAI_KEY environment variable not set")
+            error_msg2 = "AZURE_OPENAI_KEY environment variable not set"
+            raise ValueError(error_msg2)
 
         # Load diarization preset (prompt engineering config)
         try:
@@ -528,7 +541,7 @@ class AzureGPT4Provider(DiarizationProvider):
                 version=self.preset.version,
                 temperature=self.preset.temperature,
             )
-        except Exception as e:
+        except (ImportError, FileNotFoundError, KeyError, ValueError) as e:
             self.logger.warning(
                 "DIARIZATION_PRESET_LOAD_FAILED",
                 error=str(e),
@@ -540,19 +553,21 @@ class AzureGPT4Provider(DiarizationProvider):
 
     def diarize(  # type: ignore[override]  # Text-based provider has different signature than audio-based providers
         self,
-        audio_path: Union[str, Path] | None = None,
+        _audio_path: str | Path | None = None,
         transcript: str | None = None,
-        num_speakers: int = 2,
+        _num_speakers: int = 2,
         chunks: list[dict[str, Any]] | None = None,
         webspeech_final: list[str] | None = None,
     ) -> DiarizationResponse:
         """Text-based diarization using Azure GPT-4 with TRIPLE VISION timeline inference"""
         import json
-        import requests
         import time
 
+        import requests
+
         if not transcript:
-            raise ValueError("Azure GPT-4 provider requires transcript text")
+            error_msg = "Azure GPT-4 provider requires transcript text"
+            raise ValueError(error_msg)
 
         start_time = time.time()
 
@@ -592,7 +607,8 @@ TASK ADICIONAL:
 - Infiere la ubicación temporal comparando el texto del segmento con los chunks
 - Para cada segmento, genera DOS versiones del texto:
   * "text": Texto original exacto de la transcripción (sin cambios)
-  * "improved_text": Versión mejorada con gramática correcta, puntuación, acentos, capitalización y terminología médica apropiada
+  * "improved_text": Versión mejorada con gramática correcta, puntuación, acentos,
+    capitalización y terminología médica apropiada
 
 OUTPUT FORMAT (JSON):
 {{
@@ -629,7 +645,8 @@ Responde SOLO con el JSON, sin explicaciones adicionales."""
             max_tokens = self.preset.max_tokens
         else:
             # Legacy fallback (old hardcoded prompt)
-            prompt = f"""Eres un asistente médico experto en identificar speakers en transcripciones de consultas médicas.
+            prompt = f"""Eres un asistente médico experto en identificar speakers en
+transcripciones de consultas médicas.
 
 TRIPLE VISION - 3 FUENTES DE TRANSCRIPCIÓN:
 
@@ -661,7 +678,10 @@ Responde SOLO con el JSON, sin explicaciones adicionales."""
             temperature = 0.1
             max_tokens = 4000
 
-        url = f"{self.endpoint}openai/deployments/{self.deployment}/chat/completions?api-version={self.api_version}"
+        url = (
+            f"{self.endpoint}openai/deployments/{self.deployment}/"
+            f"chat/completions?api-version={self.api_version}"
+        )
         headers = {"api-key": self.api_key, "Content-Type": "application/json"}
         payload = {
             "messages": messages,
@@ -734,7 +754,10 @@ Responde SOLO con el JSON, sin explicaciones adicionales."""
             )
 
         except Exception as e:
-            self.logger.error("AZURE_GPT4_DIARIZATION_FAILED", error=str(e))
+            self.logger.exception(
+                "AZURE_GPT4_DIARIZATION_FAILED",
+                extra={"error": str(e)},
+            )
             raise
 
     def get_provider_name(self) -> str:

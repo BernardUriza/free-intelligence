@@ -15,16 +15,16 @@ Card: FI-PHIL-DOC-014
 
 from __future__ import annotations
 
-import h5py
 from datetime import datetime
 from enum import Enum
-from fastapi import APIRouter, Query, status
-from pydantic import BaseModel, Field
 from typing import Literal
 
+import h5py
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_llm.services.conversation_memory import get_memory_manager
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import CORPUS_PATH
+from fastapi import APIRouter, Query, status
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 

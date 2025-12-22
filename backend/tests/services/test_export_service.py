@@ -5,8 +5,9 @@ Validates export manifest generation and hash verification.
 
 from __future__ import annotations
 
-import pytest
 from typing import TYPE_CHECKING
+
+import pytest
 
 if TYPE_CHECKING:
     from backend.src.fi_common.services.export_service import ExportService

@@ -10,13 +10,10 @@ Card: FI-CHECKIN-002
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import os
 import stripe
-from datetime import UTC, datetime
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
-
 from backend.database import get_db_dependency
 from backend.models.checkin_models import (
     Appointment,
@@ -25,6 +22,9 @@ from backend.models.checkin_models import (
     PendingActionType,
 )
 from backend.src.fi_common.logging.logger import get_logger
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 logger = get_logger(__name__)
 

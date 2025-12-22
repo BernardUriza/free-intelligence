@@ -11,7 +11,6 @@ Card: Clean Architecture Refactor - Extract SoapRepository
 from __future__ import annotations
 
 import h5py
-
 from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
