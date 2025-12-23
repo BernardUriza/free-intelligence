@@ -18,6 +18,7 @@ import ollama
 import os
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.retry import CircuitBreakerConfig, RetryConfig, get_circuit_breaker
+from backend.providers.response_parsers import QwenThinkingParser, GenericParser
 from backend.schemas.llm.audit_policy import require_audit_log
 from backend.src.fi_common.logging.logger import get_logger
 from dotenv import load_dotenv
@@ -44,47 +45,6 @@ Philosophy: Provider-agnostic design. No vendor lock-in.
 load_dotenv()
 
 logger = get_logger(__name__)
-
-
-def parse_qwen_thinking_and_response(text: str) -> tuple[str | None, str]:
-    """Parse Qwen3's thinking blocks from response content.
-
-    Qwen3 outputs reasoning in <think>...</think> tags followed by the actual response.
-    This function separates them properly.
-
-    Args:
-        text: Full response text from Qwen3 (may include <think>...</think> blocks)
-
-    Returns:
-        (thinking, content) tuple where:
-        - thinking: str | None - The thinking/reasoning text (without tags), or None
-        - content: str - The actual response content (without think tags)
-
-    Example:
-        >>> full = "<think>Let me think...</think>Here is the answer"
-        >>> thinking, response = parse_qwen_thinking_and_response(full)
-        >>> assert thinking == "Let me think..."
-        >>> assert response == "Here is the answer"
-    """
-    if not text:
-        return None, ""
-
-    # Pattern to match <think>...</think> blocks (non-greedy)
-    think_pattern = r'<think>(.*?)</think>'
-
-    # Extract thinking blocks
-    think_matches = re.findall(think_pattern, text, re.DOTALL)
-    thinking_text = None
-    if think_matches:
-        # Concatenate all thinking blocks (in case there are multiple)
-        thinking_text = "\n".join(m.strip() for m in think_matches if m.strip())
-        if not thinking_text:
-            thinking_text = None
-
-    # Remove all <think>...</think> blocks to get clean response content
-    content = re.sub(think_pattern, '', text, flags=re.DOTALL).strip()
-
-    return thinking_text, content
 
 
 def pad_embedding_to_768(embedding: np.ndarray) -> np.ndarray:
@@ -411,6 +371,10 @@ class OllamaProvider(LLMProvider):
                 "ollama library not installed. Install with: pip install ollama"
             ) from None
 
+        # Initialize response parsers
+        self.qwen_parser = QwenThinkingParser()
+        self.generic_parser = GenericParser()
+
         self.logger.info(
             "OLLAMA_PROVIDER_INITIALIZED",
             base_url=self.base_url,
@@ -501,35 +465,45 @@ class OllamaProvider(LLMProvider):
 
                 latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
-                # Extract response
-                # Extract response content and optional reasoning depending on endpoint
+                # Parse response based on endpoint and model
                 thinking_text = None
                 if use_generate_with_think:
                     # Use /generate endpoint with thinking enabled
-                    raw_response = str(response.get("response", ""))
-
-                    # Parse Qwen3's <think>...</think> blocks from the response
-                    thinking_text, content = parse_qwen_thinking_and_response(raw_response)
-
-                    # Log parsing results for debugging
-                    self.logger.info(
-                        "QWEN_THINKING_PARSED",
-                        raw_response_length=len(raw_response),
-                        thinking_length=len(thinking_text) if thinking_text else 0,
-                        content_length=len(content),
-                    )
+                    try:
+                        thinking_text, content = self.qwen_parser.parse(response)
+                        self.logger.info(
+                            "QWEN_THINKING_PARSED",
+                            raw_response_length=len(str(response.get("response", ""))),
+                            thinking_length=len(thinking_text) if thinking_text else 0,
+                            content_length=len(content),
+                        )
+                    except ValueError as e:
+                        self.logger.error(
+                            "QWEN_PARSING_FAILED",
+                            error=str(e),
+                            model=model,
+                        )
+                        # Fallback: treat entire response as content
+                        content = str(response.get("response", "")).strip()
 
                     # Also check for separate thinking field (some Ollama versions may provide it)
-                    t = response.get("thinking")
-                    if isinstance(t, str) and t.strip() and not thinking_text:
-                        thinking_text = t.strip()
-                else:
-                    content = response["message"]["content"]
-                    message_obj = response.get("message", {})
-                    if isinstance(message_obj, dict):
-                        t = message_obj.get("thinking")
+                    if not thinking_text:
+                        t = response.get("thinking")
                         if isinstance(t, str) and t.strip():
                             thinking_text = t.strip()
+                else:
+                    # Use /chat endpoint - apply generic parsing
+                    try:
+                        thinking_text, content = self.generic_parser.parse(response)
+                    except Exception as e:
+                        self.logger.error(
+                            "GENERIC_PARSING_FAILED",
+                            error=str(e),
+                            model=model,
+                        )
+                        # Fallback: get from message.content
+                        content = response.get("message", {}).get("content", "").strip()
+                        thinking_text = None
 
                 # Estimate tokens (Ollama doesn't always provide exact counts)
                 # Use approximate: ~4 chars per token
