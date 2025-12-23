@@ -557,17 +557,16 @@ Requires environment variables:
     # Startup validation: ensure critical env vars are present in production
     env_now = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
     if env_now == "production":
-        # At least one TTS provider must be configured in production
+        # Azure OpenAI TTS is the required TTS provider
         has_azure_openai = bool(
             os.getenv("AZURE_OPENAI_TTS_API_KEY") or os.getenv("AZURE_TTS_API_KEY")
         )
-        has_openai = bool(os.getenv("OPENAI_API_KEY"))
 
-        if not (has_azure_openai or has_openai):
+        if not has_azure_openai:
             # Fail fast in production to avoid confusing 500 errors at runtime
             raise ValueError(
-                "At least one TTS provider must be configured in production. "
-                "Set AZURE_OPENAI_TTS_API_KEY (+ endpoint) or OPENAI_API_KEY"
+                "TTS provider must be configured in production. "
+                "Set AZURE_OPENAI_TTS_API_KEY and AZURE_OPENAI_TTS_ENDPOINT"
             )
 
     # Mount static files (for demo audio, etc.)

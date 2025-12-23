@@ -1,18 +1,16 @@
 """
 Public TTS Router - Text-to-Speech API
 
-Provides multi-provider TTS endpoint for demo mode and accessibility.
+Provides TTS endpoint for demo mode and accessibility.
 
-Supports:
-- OpenAI TTS (natural, expressive voices) - DEFAULT
-- Azure OpenAI TTS (OpenAI models deployed on Azure)
-- OpenAI Steerable TTS (with accent control for Spanish)
+Provider:
+- Azure OpenAI TTS (OpenAI models: nova, alloy, shimmer deployed on Azure)
 
 Endpoints:
 - POST /api/tts/synthesize - Generate speech from text
 
 Created: 2025-11-17
-Updated: 2025-12-23 (Removed Azure Speech Services, added Azure OpenAI TTS)
+Updated: 2025-12-24 (Removed OpenAI direct, Azure-only configuration)
 """
 
 from typing import Literal
@@ -33,15 +31,13 @@ async def list_providers():
     """Return which TTS providers are configured on this backend."""
     import os
 
-    # Check for Azure OpenAI TTS (supports backward compat with old var names)
+    # Azure OpenAI TTS (supports backward compat with old var names)
     azure_openai_key = os.getenv("AZURE_OPENAI_TTS_API_KEY") or os.getenv("AZURE_TTS_API_KEY")
     azure_openai_endpoint = os.getenv("AZURE_OPENAI_TTS_ENDPOINT") or os.getenv("AZURE_TTS_ENDPOINT")
     has_azure_openai = bool(azure_openai_key and azure_openai_endpoint)
 
     providers = {
         "azure-openai": has_azure_openai,
-        "openai": bool(os.getenv("OPENAI_API_KEY")),
-        "openai_steerable": bool(os.getenv("OPENAI_API_KEY")),
     }
 
     return {"providers": providers}
@@ -59,15 +55,15 @@ class TTSRequest(BaseModel):
     )
     voice: str = Field(
         default="nova",
-        description="Voice name (OpenAI: nova, alloy, shimmer, etc.)",
+        description="Voice name (nova, alloy, shimmer)",
     )
-    provider: Literal["openai", "openai-steerable", "azure-openai"] | None = Field(
-        default=None,
-        description="TTS provider (auto-detect if None)",
+    provider: Literal["azure-openai"] | None = Field(
+        default="azure-openai",
+        description="TTS provider (Azure OpenAI TTS only)",
     )
     accent: str | None = Field(
         default=None,
-        description="Accent for steerable TTS (e.g., 'Mexican Spanish', 'neutral Spanish')",
+        description="Accent instruction (auto-detected from text language)",
     )
     response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
         default="mp3",

@@ -7,10 +7,10 @@ Usage:
     from backend.config.secrets import get_secret, secrets
 
     # Get a single secret
-    api_key = get_secret("OPENAI_API_KEY")
+    api_key = get_secret("AZURE_OPENAI_TTS_API_KEY")
 
     # Access pre-loaded secrets
-    openai_key = secrets.OPENAI_API_KEY
+    azure_openai_key = secrets.AZURE_OPENAI_TTS_API_KEY
 
 Author: Bernard Uriza Orozco
 Created: 2025-12-11
@@ -133,12 +133,8 @@ class Secrets:
     Usage:
         from backend.config.secrets import secrets
 
-        key = secrets.OPENAI_API_KEY
+        key = secrets.AZURE_OPENAI_TTS_API_KEY
     """
-
-    # OpenAI
-    OPENAI_API_KEY: str | None = None
-    OPENAI_TTS_MODEL: str = "tts-1-hd"
 
     # Auth0
     AUTH0_DOMAIN: str | None = None
@@ -159,9 +155,6 @@ class Secrets:
     def load(cls) -> Secrets:
         """Load all secrets from KeyVault/.env."""
         return cls(
-            # OpenAI
-            OPENAI_API_KEY=get_secret("OPENAI_API_KEY"),
-            OPENAI_TTS_MODEL=get_secret("OPENAI_TTS_MODEL", "tts-1-hd"),
             # Auth0
             AUTH0_DOMAIN=get_secret("AUTH0_DOMAIN"),
             AUTH0_CLIENT_ID=get_secret("AUTH0_CLIENT_ID"),
@@ -214,7 +207,6 @@ if __name__ == "__main__":
     # Test loading
     s = get_secrets()
     print("Loaded secrets:")
-    print(f"  OPENAI_API_KEY: {'✅ Set' if s.OPENAI_API_KEY else '❌ Missing'}")
     print(f"  AUTH0_DOMAIN: {s.AUTH0_DOMAIN or '❌ Missing'}")
     print(f"  AUTH0_CLIENT_ID: {'✅ Set' if s.AUTH0_CLIENT_ID else '❌ Missing'}")
     print(f"  DEEPGRAM_API_KEY: {'✅ Set' if s.DEEPGRAM_API_KEY else '⚪ Not configured'}")

@@ -108,9 +108,11 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
             yield f"data: {initial_chunk.model_dump_json()}\n\n"
 
             try:
-                timeout_seconds = 30  # Production timeout for slow models like Qwen3
+                # Timeout increased for Qwen3 on CPU (can take 60-120s for inference)
+                # Frontend has 120s timeout, so backend must be less
+                timeout_seconds = 110  # Leave 10s buffer for response transmission
                 logger.info(
-                    "SSE_TIMEOUT_START", timeout_seconds=timeout_seconds, model=request.model
+                    "SSE_TIMEOUT_START", timeout_seconds=timeout_seconds, model=request.model, model_type="qwen3_cpu"
                 )
                 # Use asyncio.timeout() context manager for more reliable cancellation
                 async with asyncio.timeout(timeout_seconds):

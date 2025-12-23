@@ -31,7 +31,6 @@ class STTProviderType(Enum):
 
     AZURE_WHISPER = "azure_whisper"
     DEEPGRAM = "deepgram"
-    OPENAI_WHISPER = "openai_whisper"
 
 
 @dataclass
@@ -409,125 +408,6 @@ class DeepgramProvider(STTProvider):
         return "deepgram"
 
 
-class OpenAIWhisperProvider(STTProvider):
-    """OpenAI Whisper API provider (cloud-based, high quality)"""
-
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
-        super().__init__(config)
-        self.api_key = os.getenv("OPENAI_API_KEY")
-
-        if not self.api_key:
-            raise ValueError("OPENAI_API_KEY environment variable not set")
-
-        self.timeout: int = int(self.config.get("timeout_seconds") or 30)
-        self.model: str = str(self.config.get("model") or "whisper-1")
-
-        self.logger.info("OPENAI_WHISPER_PROVIDER_INITIALIZED", model=self.model)
-
-    def transcribe(self, audio_path: Union[str, Path], language: str | None = None) -> STTResponse:
-        """Transcribe using OpenAI Whisper API"""
-        import time
-
-        audio_path = Path(audio_path)
-        if not audio_path.exists():
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
-
-        start_time = time.time()
-
-        try:
-            import requests
-
-            self.logger.info(
-                "OPENAI_WHISPER_TRANSCRIPTION_START",
-                audio_path=str(audio_path),
-                language=language,
-                model=self.model,
-            )
-
-            # Call OpenAI Whisper API
-            url = "https://api.openai.com/v1/audio/transcriptions"
-
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-            }
-
-            # Read audio file
-            with open(audio_path, "rb") as f:
-                files = {
-                    "file": (audio_path.name, f, "audio/webm"),
-                }
-                data = {
-                    "model": self.model,
-                    "response_format": "verbose_json",
-                }
-                if language:
-                    data["language"] = language[:2]  # OpenAI uses 2-letter codes
-
-                response = requests.post(
-                    url,
-                    headers=headers,
-                    files=files,
-                    data=data,
-                    timeout=self.timeout,
-                )
-
-            if response.status_code != 200:
-                raise Exception(f"OpenAI Whisper API error {response.status_code}: {response.text}")
-
-            api_response = response.json()
-
-            # Parse response
-            text = api_response.get("text", "")
-            duration = api_response.get("duration", 0.0)
-            detected_language = api_response.get("language", language or "es")
-
-            # Extract segments if available
-            segments = []
-            for seg in api_response.get("segments", []):
-                segments.append(
-                    {
-                        "start": seg.get("start", 0.0),
-                        "end": seg.get("end", 0.0),
-                        "text": seg.get("text", ""),
-                    }
-                )
-
-            # If no segments, create one from full text
-            if not segments and text:
-                segments = [{"start": 0.0, "end": duration, "text": text}]
-
-            latency_ms = (time.time() - start_time) * 1000
-
-            self.logger.info(
-                "OPENAI_WHISPER_TRANSCRIPTION_COMPLETE",
-                audio_path=str(audio_path),
-                text_length=len(text),
-                duration=duration,
-                latency_ms=round(latency_ms, 2),
-            )
-
-            return STTResponse(
-                text=text,
-                segments=segments,
-                language=detected_language,
-                duration=duration,
-                confidence=0.95,  # OpenAI Whisper is very accurate
-                provider="openai_whisper",
-                latency_ms=latency_ms,
-            )
-
-        except Exception as e:
-            self.logger.error(
-                "OPENAI_WHISPER_TRANSCRIPTION_FAILED",
-                audio_path=str(audio_path),
-                error=str(e),
-            )
-            raise
-
-    def get_provider_name(self) -> str:
-        return "openai_whisper"
-
-
 def get_stt_provider(provider_name: str, config: dict[str, Any] | None = None) -> STTProvider:
     """
     Factory function to get STT provider instance.
@@ -556,7 +436,6 @@ def get_stt_provider(provider_name: str, config: dict[str, Any] | None = None) -
     provider_map = {
         "azure_whisper": AzureWhisperProvider,  # Deprecated - kept for compatibility
         "deepgram": DeepgramProvider,
-        "openai_whisper": OpenAIWhisperProvider,
     }
 
     provider_class = provider_map.get(provider_name_lower)
