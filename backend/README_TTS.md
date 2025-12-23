@@ -1,52 +1,16 @@
-TTS (Multi-Provider) - Quick Setup
+TTS (Text-to-Speech) - Azure OpenAI
 
-This project supports OpenAI TTS voices via multiple providers:
-- **Azure OpenAI TTS** - OpenAI models deployed on your Azure infrastructure
-- **OpenAI TTS** - Standard OpenAI API (api.openai.com)
-- **OpenAI Steerable TTS** - With accent control for Spanish
+This project uses **Azure OpenAI TTS** for speech synthesis.
 
-All providers support the same 3 voices: `alloy`, `nova` (default), `shimmer`
+Supported voices: `alloy`, `nova` (default), `shimmer`
 
 ---
 
-## OpenAI Standard TTS
+## Setup
 
-For general use with standard OpenAI API:
+### Local Development
 
-Local development (bash/zsh):
-
-```bash
-export OPENAI_API_KEY="sk-your-api-key-here"
-# Start backend (example):
-PYTHONPATH=backend/src uvicorn backend.app.main:app --reload --port 7001
-```
-
-Quick curl test (after starting backend):
-
-```bash
-curl -X POST 'http://localhost:7001/api/tts/synthesize' \
-  -H 'Content-Type: application/json' \
-  --data-raw '{
-    "text": "Hello world",
-    "voice": "nova",
-    "provider": "openai",
-    "response_format": "mp3"
-  }' --output test-openai.mp3
-```
-
-Available voices: `alloy` (neutral), `nova` (female, warm - default), `shimmer` (female, clear)
-
-CI / Production:
-- Add `OPENAI_API_KEY` to your deployment secrets (DigitalOcean, Docker Swarm, Kubernetes, or CI env).
-- The application will return HTTP 400 if key is missing during a TTS request.
-
----
-
-## Azure OpenAI TTS
-
-For OpenAI models deployed on your Azure infrastructure:
-
-Local development:
+Environment variables:
 
 ```bash
 export AZURE_OPENAI_TTS_ENDPOINT="https://your-resource.openai.azure.com"
@@ -75,44 +39,21 @@ Available voices (aligned with Aurity): `alloy`, `nova` (default), `shimmer`
 
 Backward compatibility: If you use old variable names (`AZURE_TTS_ENDPOINT`, `AZURE_TTS_API_KEY`), they will work automatically as fallback.
 
-CI / Production:
-- Add `AZURE_OPENAI_TTS_ENDPOINT`, `AZURE_OPENAI_TTS_API_KEY`, `AZURE_OPENAI_TTS_API_VERSION`, and `AZURE_OPENAI_TTS_DEPLOYMENT` to your deployment secrets.
-- The system will auto-detect and use Azure OpenAI TTS when configured.
+### Production
+
+Add these to your deployment secrets (DigitalOcean, Docker Swarm, Kubernetes, or CI env):
+- `AZURE_OPENAI_TTS_ENDPOINT`
+- `AZURE_OPENAI_TTS_API_KEY`
+- `AZURE_OPENAI_TTS_API_VERSION`
+- `AZURE_OPENAI_TTS_DEPLOYMENT`
+
+The system will auto-detect and use Azure OpenAI TTS when configured.
 
 ---
 
-## OpenAI Steerable TTS (Accent Control)
+## Provider Status
 
-For Spanish content with automatic Mexican Spanish accent detection:
-
-```bash
-export OPENAI_API_KEY="sk-your-api-key-here"
-PYTHONPATH=backend/src uvicorn backend.app.main:app --reload --port 7001
-```
-
-Quick curl test:
-
-```bash
-curl -X POST 'http://localhost:7001/api/tts/synthesize' \
-  -H 'Content-Type: application/json' \
-  --data-raw '{
-    "text": "Hola, este es un mensaje con acento mexicano",
-    "voice": "nova",
-    "provider": "openai-steerable",
-    "accent": "Mexican Spanish",
-    "response_format": "mp3"
-  }' --output test-steerable.mp3
-```
-
-Available voices: `alloy`, `echo`, `shimmer` (steerable-enabled voices)
-
-Accent examples: `"Mexican Spanish"`, `"neutral Spanish"`, or auto-detect based on text language
-
----
-
-## Provider Detection
-
-The `/api/tts/providers` endpoint returns which providers are configured:
+Check if TTS is configured with:
 
 ```bash
 curl http://localhost:7001/api/tts/providers | jq
@@ -122,37 +63,23 @@ Response:
 ```json
 {
   "providers": {
-    "azure-openai": true,
-    "openai": true,
-    "openai_steerable": true
+    "azure-openai": true
   }
 }
 ```
 
 ---
 
-## Auto-Detection Strategy
-
-The system automatically selects the best provider based on:
-1. **Spanish text + steerable voice (alloy/echo/shimmer)** → Use `openai-steerable` with Mexican accent
-2. **Explicit provider specified** → Use requested provider
-3. **Default** → Use `openai` (standard OpenAI API)
-
----
-
 ## Troubleshooting
 
-**"At least one TTS provider must be configured"**
-- Set one of: `OPENAI_API_KEY` or `AZURE_OPENAI_TTS_*` variables
-- For Azure: need both endpoint and API key
-
-**"OpenAI API error 401"**
-- Verify `OPENAI_API_KEY` is correct
-- Check API key permissions at https://platform.openai.com/api-keys
+**"TTS provider must be configured in production"**
+- Set `AZURE_OPENAI_TTS_ENDPOINT` and `AZURE_OPENAI_TTS_API_KEY`
+- Both endpoint and API key are required
 
 **"Azure OpenAI endpoint not configured"**
-- Ensure both `AZURE_OPENAI_TTS_ENDPOINT` and `AZURE_OPENAI_TTS_API_KEY` are set
-- Endpoint should include the full URL (e.g., `https://resource.openai.azure.com`)
+- Ensure `AZURE_OPENAI_TTS_ENDPOINT` and `AZURE_OPENAI_TTS_API_KEY` are set
+- Endpoint format: `https://your-resource.openai.azure.com`
+- Verify credentials in Azure Portal
 
 **HTTP 500 errors during synthesis**
 - Check logs: `tail -f /tmp/backend.log` (or your log location)
@@ -184,4 +111,4 @@ The system automatically selects the best provider based on:
 
 ---
 
-Updated: 2025-12-23 (Removed Azure Speech Services, simplified to OpenAI-only)
+Updated: 2025-12-24 (Azure OpenAI TTS only - removed OpenAI direct and OpenAI Steerable)
