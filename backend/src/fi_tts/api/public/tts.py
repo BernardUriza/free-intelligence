@@ -27,6 +27,27 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/tts", tags=["TTS"])
 
 
+@router.get("/providers", summary="List configured TTS providers")
+async def list_providers():
+    """Return which TTS providers are configured on this backend."""
+    import os
+    from backend.src.fi_tts.services.tts_service import AZURE_SPEECH_KEY
+
+    # Check for Azure OpenAI TTS (supports backward compat with old var names)
+    azure_openai_key = os.getenv("AZURE_OPENAI_TTS_API_KEY") or os.getenv("AZURE_TTS_API_KEY")
+    azure_openai_endpoint = os.getenv("AZURE_OPENAI_TTS_ENDPOINT") or os.getenv("AZURE_TTS_ENDPOINT")
+    has_azure_openai = bool(azure_openai_key and azure_openai_endpoint)
+
+    providers = {
+        "azure": bool(AZURE_SPEECH_KEY),
+        "azure-openai": has_azure_openai,
+        "openai": bool(os.getenv("OPENAI_API_KEY")),
+        "openai_steerable": bool(os.getenv("OPENAI_API_KEY")),
+    }
+
+    return {"providers": providers}
+
+
 class TTSRequest(BaseModel):
     """Request model for TTS synthesis"""
 
@@ -174,12 +195,24 @@ async def synthesize_speech(request: TTSRequest) -> Response:
         )
 
     except ValueError as e:
+        # Structured 400 response for validation / config errors
         logger.warning("tts.invalid_request", error=str(e))
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "TTS_INVALID_REQUEST",
+                "message": str(e),
+            },
+        ) from e
 
     except Exception as e:
+        # Structured 500 response
         logger.error("tts.synthesis_failed", error=str(e))
         raise HTTPException(
             status_code=500,
-            detail=f"TTS synthesis failed: {e!s}",
+            detail={
+                "code": "TTS_SYNTHESIS_FAILED",
+                "message": "TTS synthesis failed",
+                "details": str(e),
+            },
         ) from e

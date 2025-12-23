@@ -42,10 +42,11 @@ import structlog
 from backend.src.fi_tts.services.tts_openai import get_openai_tts_service
 from backend.src.fi_tts.services.tts_openai_steerable import get_steerable_tts_service
 from backend.src.fi_tts.services.tts_service import get_tts_service
+from backend.src.fi_tts.services.tts_azure_openai import get_azure_openai_tts_service
 
 logger = structlog.get_logger(__name__)
 
-ProviderType = Literal["openai", "openai-steerable", "azure"]
+ProviderType = Literal["openai", "openai-steerable", "azure", "azure-openai"]
 OutputFormat = Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]
 
 # Steerable voices (subset of OpenAI voices that support accent control)
@@ -59,6 +60,7 @@ class UnifiedTTSService:
         self.openai_service = get_openai_tts_service()
         self.steerable_service = get_steerable_tts_service()
         self.azure_service = get_tts_service()
+        self.azure_openai_service = get_azure_openai_tts_service()
 
     def _detect_language(self, text: str) -> str:
         """Detect if text is Spanish or English (simple heuristic)"""
@@ -150,6 +152,20 @@ class UnifiedTTSService:
                 text_length=len(text),
             )
             return await self.openai_service.synthesize(
+                text=text,
+                voice=voice,  # type: ignore - will validate in service
+                response_format=response_format if response_format != "wav" else "mp3",
+                speed=speed,
+            )
+        elif provider == "azure-openai":
+            # Azure OpenAI TTS (OpenAI deployed on Azure)
+            logger.info(
+                "tts.synthesize",
+                provider="azure-openai",
+                voice=voice,
+                text_length=len(text),
+            )
+            return await self.azure_openai_service.synthesize(
                 text=text,
                 voice=voice,  # type: ignore - will validate in service
                 response_format=response_format if response_format != "wav" else "mp3",

@@ -554,6 +554,23 @@ Requires environment variables:
 
     setup_metrics_endpoint(app)
 
+    # Startup validation: ensure critical env vars are present in production
+    env_now = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
+    if env_now == "production":
+        # At least one TTS provider must be configured in production
+        has_azure_speech = bool(os.getenv("AZURE_SPEECH_KEY"))
+        has_azure_openai = bool(
+            os.getenv("AZURE_OPENAI_TTS_API_KEY") or os.getenv("AZURE_TTS_API_KEY")
+        )
+        has_openai = bool(os.getenv("OPENAI_API_KEY"))
+
+        if not (has_azure_speech or has_azure_openai or has_openai):
+            # Fail fast in production to avoid confusing 500 errors at runtime
+            raise ValueError(
+                "At least one TTS provider must be configured in production. "
+                "Set one of: AZURE_SPEECH_KEY, AZURE_OPENAI_TTS_API_KEY (+ endpoint), or OPENAI_API_KEY"
+            )
+
     # Mount static files (for demo audio, etc.)
     # Note: StaticFiles doesn't inherit CORS from parent app, so we wrap it
     static_dir = Path(__file__).parent.parent / "static"
