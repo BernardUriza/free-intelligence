@@ -9,18 +9,10 @@ This is different from:
 - Azure Speech Services: Azure-native Spanish (es-MX) voices
 - Azure OpenAI TTS: OpenAI models deployed in your Azure subscription
 
-Azure OpenAI Voices (11 total, same as OpenAI):
+Azure OpenAI Voices (aligned with Aurity):
 - alloy (neutral, versatile)
-- ash (new 2025)
-- ballad (new 2025)
-- coral (new 2025)
-- echo (male)
-- fable (male, British)
-- nova (female, warm)
-- onyx (male, deep)
-- sage (new 2025)
+- nova (female, warm - default for medical)
 - shimmer (female, clear)
-- verse (new 2025)
 
 Model: gpt-4o-mini-tts (2025, supports tone/emotion control)
 
@@ -59,19 +51,12 @@ AZURE_OPENAI_TTS_DEPLOYMENT = os.getenv(
     "tts-hd",  # Default deployment name in Azure
 )
 
-# OpenAI voice types (11 voices as of 2025)
+# OpenAI voice types (aligned with Aurity offering)
+# Only include voices that are currently offered in Aurity
 OpenAIVoiceType = Literal[
-    "alloy",  # Neutral, versatile
-    "ash",  # New 2025
-    "ballad",  # New 2025
-    "coral",  # New 2025
-    "echo",  # Male
-    "fable",  # Male, British
-    "nova",  # Female, warm (default for medical)
-    "onyx",  # Male, deep
-    "sage",  # New 2025
-    "shimmer",  # Female, clear
-    "verse",  # New 2025
+    "alloy",   # Neutral, versatile (used in Aurity)
+    "nova",    # Female, warm (default for medical, used in Aurity)
+    "shimmer", # Female, clear (used in Aurity)
 ]
 
 OutputFormat = Literal["mp3", "opus", "aac", "flac"]
@@ -115,7 +100,7 @@ class AzureOpenAITTSService:
 
         Args:
             text: Text to synthesize (max 4096 characters)
-            voice: OpenAI voice name (nova = female, default)
+            voice: OpenAI voice name - alloy (neutral), nova (female, default), shimmer (female)
             response_format: Audio format (mp3, opus, aac, flac)
             speed: Speech speed (0.25 to 4.0, default 1.0)
 

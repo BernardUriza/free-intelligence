@@ -67,7 +67,7 @@ curl -X POST 'http://localhost:7001/api/tts/synthesize' \
   }' --output test-azure-openai.mp3
 ```
 
-Available voices (11 total): alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse
+Available voices (aligned with Aurity): alloy, nova (default), shimmer
 
 Backward compatibility: If you use old variable names (`AZURE_TTS_ENDPOINT`, `AZURE_TTS_API_KEY`), they will work automatically as fallback.
 
