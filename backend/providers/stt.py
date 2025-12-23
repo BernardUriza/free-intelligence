@@ -75,24 +75,41 @@ class STTProvider(ABC):
 
 
 class AzureWhisperProvider(STTProvider):
-    """Azure Whisper STT provider (cloud-based, faster)"""
+    """Azure OpenAI Whisper STT provider
+
+    Transcribes audio using OpenAI's Whisper model deployed on Azure OpenAI Service.
+    Supports all languages for transcription and translation to English.
+
+    Environment Variables:
+    - AZURE_OPENAI_ENDPOINT: Azure OpenAI resource endpoint
+    - AZURE_OPENAI_API_KEY: API key for Azure OpenAI
+    - AZURE_OPENAI_WHISPER_DEPLOYMENT: Deployment name (default: "whisper")
+    - AZURE_OPENAI_WHISPER_API_VERSION: API version (default: "2024-02-01")
+
+    Limitations:
+    - File size limit: 25 MB
+    - For larger files, use batch transcription API
+    """
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        self.api_key = os.getenv("AZURE_OPENAI_KEY")
-        self.api_version: str = str(self.config.get("api_version") or "2024-02-15-preview")
+        self.api_key = os.getenv("AZURE_OPENAI_API_KEY")
+        self.deployment = str(self.config.get("deployment") or os.getenv("AZURE_OPENAI_WHISPER_DEPLOYMENT", "whisper"))
+        self.api_version: str = str(self.config.get("api_version") or os.getenv("AZURE_OPENAI_WHISPER_API_VERSION", "2024-02-01"))
 
         if not self.endpoint:
             raise ValueError("AZURE_OPENAI_ENDPOINT environment variable not set")
         if not self.api_key:
-            raise ValueError("AZURE_OPENAI_KEY environment variable not set")
+            raise ValueError("AZURE_OPENAI_API_KEY environment variable not set")
 
         self.timeout: int = int(self.config.get("timeout_seconds") or 30)
 
         self.logger.info(
             "AZURE_WHISPER_PROVIDER_INITIALIZED",
             endpoint=self.endpoint,
+            deployment=self.deployment,
+            api_version=self.api_version,
         )
 
     def transcribe(self, audio_path: Union[str, Path], language: str | None = None) -> STTResponse:
@@ -180,7 +197,7 @@ class AzureWhisperProvider(STTProvider):
 
         azure_whisper_rate_limiter.wait_if_needed()
 
-        url = f"{self.endpoint}openai/deployments/whisper/audio/transcriptions?api-version={self.api_version}"
+        url = f"{self.endpoint}openai/deployments/{self.deployment}/audio/transcriptions?api-version={self.api_version}"
 
         headers = {"api-key": self.api_key}
 
