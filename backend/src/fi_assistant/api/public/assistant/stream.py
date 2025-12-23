@@ -170,6 +170,15 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
 
             response_text = result.get("response", "")
 
+            # DEBUG: Log the result structure to understand what we're getting
+            logger.info(
+                "STREAM_RESULT_STRUCTURE",
+                result_keys=list(result.keys()) if isinstance(result, dict) else "not_dict",
+                response_text_length=len(response_text),
+                response_text_preview=response_text[:100] if response_text else "EMPTY",
+                thinking_length=len(thinking) if isinstance(thinking, str) else 0,
+            )
+
             if not response_text:
                 final_chunk = ChatCompletionStreamResponse(
                     id=completion_id,
