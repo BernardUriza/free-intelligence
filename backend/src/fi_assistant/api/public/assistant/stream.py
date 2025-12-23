@@ -129,6 +129,15 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                     model=request.model,
                     response_length=len(result.get("response", "")),
                 )
+
+                # DEBUG: Log complete result structure
+                logger.info(
+                    "DEBUG_RESULT_STRUCTURE",
+                    result_keys=list(result.keys()) if isinstance(result, dict) else "not_dict",
+                    result_type=type(result).__name__,
+                    response_key_exists="response" in result if isinstance(result, dict) else False,
+                    response_value=result.get("response", "EMPTY")[:100] if isinstance(result, dict) else "N/A",
+                )
             except TimeoutError:
                 logger.warning(
                     "SSE_TIMEOUT_FIRED", model=request.model, timeout_seconds=timeout_seconds
