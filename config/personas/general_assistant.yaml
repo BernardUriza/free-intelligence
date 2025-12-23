@@ -3,6 +3,8 @@
 
 persona: general_assistant
 description: "Asistente médico general - Versátil, útil"
+model: qwen3:1.7b
+voice: nova
 temperature: 0.7  # Balance para conversación natural
 max_tokens: 1500
 

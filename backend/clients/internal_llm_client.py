@@ -35,11 +35,12 @@ class InternalLLMClient:
             base_url: Base URL del backend (default: localhost:7001)
         """
         self.base_url = base_url
-        # Timeout config: must be longer than asyncio.timeout in stream.py (30s)
-        # to allow asyncio to handle timeout gracefully
+        # Timeout config: must be longer than LLM inference time
+        # Local models like Qwen3 can take 60-120 seconds on CPU
+        # Frontend timeout is 120s, so backend must match or exceed it
         self.client = httpx.AsyncClient(
             base_url=base_url,
-            timeout=httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=10.0),
+            timeout=httpx.Timeout(connect=10.0, read=180.0, write=10.0, pool=10.0),  # 3 min read timeout
         )
 
     async def chat(

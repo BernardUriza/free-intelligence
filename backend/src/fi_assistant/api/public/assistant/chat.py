@@ -73,6 +73,7 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
             "stop": request.stop,
             "doctor_id": doctor_id,
             "enable_thinking": request.enable_thinking,  # Toggle thinking/reasoning mode
+            "response_mode": request.response_mode,  # Response style (concise/explanatory)
         }
 
         logger.info(
@@ -94,7 +95,7 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
             "request_id": request_id,
             "trace_id": None,
             "persona": request.persona,
-            "response_mode": None,
+            "response_mode": request.response_mode,  # Use actual response_mode from request
             "prompt_chars": len(last_message.content) if last_message.content else 0,
             "rag_chars": len(context.get("rag_context", "")) if context.get("rag_context") else 0,
             "model": request.model,

@@ -314,6 +314,7 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
                 content=response_text,
                 timestamp=assistant_timestamp,
                 persona=request.persona,
+                model=model_name,  # LLM model that generated this response
             )
 
         # Calculate cost estimate (rough approximation based on tokens)

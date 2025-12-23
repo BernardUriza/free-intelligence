@@ -118,6 +118,10 @@ class ChatCompletionRequest(BaseModel):
     # AURITY-specific extensions
     persona: str = Field(default="general_assistant", description="AURITY persona to use")
     session_id: str | None = Field(None, description="Session ID for audit trail")
+    response_mode: str = Field(
+        default="explanatory",
+        description="Response style: 'concise' (3-4 sentences) or 'explanatory' (detailed)",
+    )
     behavior_metrics: BehaviorMetrics | None = Field(
         None, description="User behavior metrics for emotional analysis"
     )

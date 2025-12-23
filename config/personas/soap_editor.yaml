@@ -3,6 +3,8 @@
 
 persona: soap_editor
 description: "Editor de notas SOAP - Preciso, médico, estructurado"
+model: qwen3:1.7b
+voice: nova
 temperature: 0.3  # Muy preciso para datos médicos
 max_tokens: 2048
 
