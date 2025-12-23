@@ -1,8 +1,8 @@
 # TTS Multi-Provider Setup Guide
 
-Sistema de Text-to-Speech híbrido con OpenAI TTS y Azure Speech Services.
+Sistema de Text-to-Speech con OpenAI TTS y Azure OpenAI TTS.
 
-## 🎯 ¿Por qué dos providers?
+## 🎯 Providers Disponibles
 
 ### OpenAI TTS (Recomendado por defecto)
 ✅ **Ventajas:**
@@ -13,48 +13,59 @@ Sistema de Text-to-Speech híbrido con OpenAI TTS y Azure Speech Services.
 - Modelo `tts-1-hd` con alta calidad
 
 ❌ **Desventajas:**
-- Solo inglés nativo (puede hablar español pero con acento)
 - Requiere API key de OpenAI (pagado)
+- ~$0.015 USD por 1,000 caracteres
 
-### Azure Speech Services
+### Azure OpenAI TTS
 ✅ **Ventajas:**
-- 17 voces en **español de México** (es-MX)
-- Pronunciación perfecta de términos médicos en español
-- Voces multilingües disponibles
-- Gratis con Azure subscription
+- Modelos OpenAI desplegados en tu infraestructura Azure
+- Mismas voces naturales que OpenAI standard
+- Integración con Azure subscription
+- Mismo soporte de acento control con steerable TTS
 
 ❌ **Desventajas:**
-- Suenan más robotizadas comparado con OpenAI
-- Menos expresivas y naturales
+- Requiere Azure subscription y deployment
+- Requiere configuración de endpoint y API key
+
+### OpenAI Steerable TTS (Accent Control)
+✅ **Ventajas:**
+- Control de acento mexicano automático para español
+- Usa steerable voices (alloy, echo, shimmer)
+- Auto-detección de idioma español
+
+Perfecta para contenido en español con acento mexicano natural.
 
 ---
 
 ## 🔧 Configuración
 
-### 1. Obtener API Key de OpenAI
+### 1. Obtener API Key de OpenAI (para OpenAI TTS)
 
 1. Ve a https://platform.openai.com/api-keys
 2. Inicia sesión o crea una cuenta
 3. Haz clic en "Create new secret key"
 4. Copia la key (empieza con `sk-proj-...`)
 
-**Costo:** ~$0.015 USD por 1,000 caracteres (modelo `tts-1-hd`)
-
 ### 2. Configurar .env
 
-Abre `/Users/bernardurizaorozco/Documents/free-intelligence/.env` y reemplaza:
-
-```bash
-OPENAI_API_KEY=<YOUR_OPENAI_API_KEY_HERE>
-```
-
-Por tu API key real:
+Abre `/Users/bernardurizaorozco/Documents/free-intelligence/.env` y agrega:
 
 ```bash
 OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxx
 ```
 
-### 3. Reiniciar Backend
+### 3. (Opcional) Configurar Azure OpenAI TTS
+
+Si tienes modelos OpenAI desplegados en Azure:
+
+```bash
+AZURE_OPENAI_TTS_ENDPOINT=https://your-resource.openai.azure.com
+AZURE_OPENAI_TTS_API_KEY=your-api-key-here
+AZURE_OPENAI_TTS_API_VERSION=2025-03-01-preview
+AZURE_OPENAI_TTS_DEPLOYMENT=tts-hd
+```
+
+### 4. Reiniciar Backend
 
 ```bash
 cd /Users/bernardurizaorozco/Documents/free-intelligence
@@ -63,62 +74,30 @@ make dev-all  # O el comando que uses para iniciar el backend
 
 ---
 
-## 🎙️ Voces Disponibles
+## 🎙️ Voces Disponibles (3 voces)
 
-### OpenAI TTS (11 voces)
+Todos los providers soportan las mismas 3 voces alineadas con Aurity:
 
-**Femeninas:**
-- `nova` ⭐ - Cálida, natural (default, recomendada)
-- `shimmer` - Clara, profesional
-- `ballad` - Nueva 2025
-- `coral` - Nueva 2025
+### nova ⭐ (Default, Recomendada)
+- **Género:** Femenina
+- **Características:** Cálida, natural, expresiva
+- **Casos de uso:** Demo mode, asistentes conversacionales, contexto médico
+- **Accento:** Neutra (estándar OpenAI)
+- **Acento Mexicano:** Sí (con OpenAI Steerable)
 
-**Masculinas:**
-- `alloy` - Neutral, versátil
-- `echo` - Masculina estándar
-- `fable` - Acento británico
-- `onyx` - Profunda, autoritaria
+### alloy
+- **Género:** Neutral/Versátil
+- **Características:** Neutral, profesional
+- **Casos de uso:** Contextos profesionales, narración
+- **Acento:** Neutro
+- **Acento Mexicano:** Sí (con OpenAI Steerable)
 
-**Nuevas 2025:**
-- `ash`, `sage`, `verse`
-
-### Azure Speech Services (17 voces es-MX)
-
-**Femeninas (9):**
-- `es-MX-DaliaNeural` - Default para contexto médico
-- `es-MX-RenataNeural`, `es-MX-MarinaNeural`
-- `es-MX-CarlotaNeural`, `es-MX-LarissaNeural`
-- `es-MX-DaliaMultilingualNeural` (es/en)
-- Y más...
-
-**Masculinas (8):**
-- `es-MX-JorgeNeural`
-- `es-MX-GerardoNeural`
-- `es-MX-JorgeMultilingualNeural` (es/en)
-- Y más...
-
----
-
-## 🧪 Prueba de Comparación
-
-Ejecuta el script de prueba para comparar ambas voces:
-
-```bash
-python3 /tmp/test_tts_comparison.py
-```
-
-Esto generará archivos MP3 en `/tmp/` para que los compares:
-- `/tmp/openai_nova.mp3` (OpenAI - natural)
-- `/tmp/azure_Dalia.mp3` (Azure - más robótica)
-
-**Reproducir audio:**
-```bash
-# macOS
-open /tmp/openai_nova.mp3
-
-# Linux
-mpg123 /tmp/openai_nova.mp3
-```
+### shimmer
+- **Género:** Femenina
+- **Características:** Clara, brillante
+- **Casos de uso:** Pronunciación clara, instrucciones
+- **Acento:** Neutro
+- **Acento Mexicano:** Sí (con OpenAI Steerable)
 
 ---
 
@@ -126,30 +105,22 @@ mpg123 /tmp/openai_nova.mp3
 
 ### Auto-detección de Provider
 
-El sistema detecta automáticamente el provider basándose en el nombre de la voz:
+El sistema detecta automáticamente el provider:
 
 ```bash
-# OpenAI (automático si la voz no empieza con "es-MX-")
+# Spanish text + steerable voice = OpenAI Steerable con acento mexicano
 curl -X POST http://localhost:7001/api/tts/synthesize \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "Hello, this is a natural sounding voice",
+    "text": "Hola, esto es una prueba de acento mexicano",
     "voice": "nova"
-  }'
-
-# Azure (automático si la voz empieza con "es-MX-")
-curl -X POST http://localhost:7001/api/tts/synthesize \
-  -H "Content-Type: application/json" \
-  -d '{
-    "text": "Hola, esta es una voz en español de México",
-    "voice": "es-MX-DaliaNeural"
   }'
 ```
 
 ### Selección Manual de Provider
 
 ```bash
-# Forzar OpenAI
+# Forzar OpenAI Standard
 curl -X POST http://localhost:7001/api/tts/synthesize \
   -H "Content-Type: application/json" \
   -d '{
@@ -158,13 +129,23 @@ curl -X POST http://localhost:7001/api/tts/synthesize \
     "provider": "openai"
   }'
 
-# Forzar Azure
+# Forzar Azure OpenAI TTS
 curl -X POST http://localhost:7001/api/tts/synthesize \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "Usando Azure explícitamente",
-    "voice": "es-MX-DaliaNeural",
-    "provider": "azure"
+    "text": "Using Azure OpenAI explicitly",
+    "voice": "nova",
+    "provider": "azure-openai"
+  }'
+
+# Forzar OpenAI Steerable (con acento mexicano)
+curl -X POST http://localhost:7001/api/tts/synthesize \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Hola, con acento mexicano garantizado",
+    "voice": "nova",
+    "provider": "openai-steerable",
+    "accent": "Mexican Spanish"
   }'
 ```
 
@@ -200,22 +181,23 @@ curl -X POST http://localhost:7001/api/tts/synthesize \
 ## 🎯 Recomendaciones de Uso
 
 ### Para Demo Mode (Voz Conversacional)
-✅ **Usar OpenAI TTS**
+✅ **Usar OpenAI TTS o Azure OpenAI TTS**
 - Voz: `nova` (femenina) o `alloy` (neutral)
-- Provider: `openai`
-- Razón: Suena mucho más natural y humana
+- Provider: `openai` o `azure-openai`
+- Razón: Suena natural y humana, perfecto para conversación
 
 ### Para Contenido Médico en Español
-✅ **Usar Azure Speech Services**
-- Voz: `es-MX-DaliaNeural` (femenina) o `es-MX-JorgeNeural` (masculina)
-- Provider: `azure`
-- Razón: Pronunciación perfecta de términos médicos en español
+✅ **Usar OpenAI Steerable TTS con acento mexicano**
+- Voz: `nova` (femenina) o `alloy` (neutral)
+- Provider: `openai-steerable`
+- Accent: `"Mexican Spanish"`
+- Razón: Acento mexicano natural + voz clara para contexto médico
 
-### Para Contenido Bilingüe (es/en)
-✅ **Usar Azure Multilingüe**
-- Voz: `es-MX-DaliaMultilingualNeural`
-- Provider: `azure`
-- Razón: Puede hablar español e inglés correctamente
+### Para Contenido Profesional
+✅ **Usar OpenAI TTS**
+- Voz: `alloy` (neutral) o `shimmer` (clara)
+- Provider: `openai`
+- Razón: Profesional y claro
 
 ---
 
@@ -226,10 +208,9 @@ curl -X POST http://localhost:7001/api/tts/synthesize \
 ```bash
 cd /Users/bernardurizaorozco/Documents/free-intelligence
 grep "OPENAI_API_KEY" .env
-grep "AZURE_SPEECH_KEY" .env
 ```
 
-Deberías ver ambas keys configuradas (no `<YOUR_..._HERE>`).
+Deberías ver la key configurada (no `<YOUR_OPENAI_API_KEY_HERE>`).
 
 ### Check 2: Backend funcionando
 
@@ -238,36 +219,58 @@ curl http://localhost:7001/health
 # Respuesta esperada: {"status":"ok"}
 ```
 
-### Check 3: Documentación de API
+### Check 3: Providers disponibles
 
-Abre http://localhost:7001/docs y busca el endpoint `POST /api/tts/synthesize`.
-Deberías ver la documentación con todas las voces listadas.
+```bash
+curl http://localhost:7001/api/tts/providers | jq
+```
+
+Respuesta esperada:
+```json
+{
+  "providers": {
+    "azure-openai": true,    # Si está configurado
+    "openai": true,          # Si está configurado
+    "openai_steerable": true # Si está configurado
+  }
+}
+```
+
+### Check 4: Prueba de síntesis
+
+```bash
+curl -X POST 'http://localhost:7001/api/tts/synthesize' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "text": "Hola mundo",
+    "voice": "nova",
+    "response_format": "mp3"
+  }' --output test.mp3
+
+file test.mp3  # Debe decir "Audio file with ID3"
+```
 
 ---
 
 ## 📚 Referencias
 
 - [OpenAI TTS API Reference](https://platform.openai.com/docs/api-reference/audio/createSpeech)
-- [OpenAI TTS Guide](https://www.videosdk.live/developer-hub/ai/openai-text-to-speech)
-- [Azure Speech Services](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/text-to-speech-quickstart)
+- [Azure OpenAI TTS](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#audio)
 
 ---
 
 ## 💰 Costos Estimados
 
 ### OpenAI TTS
-- **Modelo HD:** $0.015 / 1,000 caracteres (~$15 por 1 millón de caracteres)
-- **Modelo Standard:** $0.015 / 1,000 caracteres
+- **Precio:** $0.015 / 1,000 caracteres
+- **Ejemplo:** 1,000 mensajes de 100 caracteres = $1.50 USD/mes
 
-**Ejemplo:** 1,000 mensajes de 100 caracteres = $1.50 USD
-
-### Azure Speech Services
-- **Neural Voices:** Incluido en Azure subscription
-- **Free tier:** 5M caracteres gratis/mes
-
-**Recomendación:** Empieza con Azure (gratis), cambia a OpenAI para mejor calidad.
+### Azure OpenAI TTS
+- **Precio:** Basado en Azure subscription
+- **Incluye:** Actualizaciones y soporte de Azure
 
 ---
 
-**Created:** 2025-12-08
+**Updated:** 2025-12-23
 **Status:** ✅ Production Ready
+**Changes:** Removed Azure Speech Services, simplified to OpenAI-only

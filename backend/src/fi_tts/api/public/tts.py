@@ -5,13 +5,14 @@ Provides multi-provider TTS endpoint for demo mode and accessibility.
 
 Supports:
 - OpenAI TTS (natural, expressive voices) - DEFAULT
-- Azure Speech Services (Spanish Mexico neural voices)
+- Azure OpenAI TTS (OpenAI models deployed on Azure)
+- OpenAI Steerable TTS (with accent control for Spanish)
 
 Endpoints:
 - POST /api/tts/synthesize - Generate speech from text
 
 Created: 2025-11-17
-Updated: 2025-12-08 (Added OpenAI TTS support)
+Updated: 2025-12-23 (Removed Azure Speech Services, added Azure OpenAI TTS)
 """
 
 from typing import Literal
@@ -31,7 +32,6 @@ router = APIRouter(prefix="/tts", tags=["TTS"])
 async def list_providers():
     """Return which TTS providers are configured on this backend."""
     import os
-    from backend.src.fi_tts.services.tts_service import AZURE_SPEECH_KEY
 
     # Check for Azure OpenAI TTS (supports backward compat with old var names)
     azure_openai_key = os.getenv("AZURE_OPENAI_TTS_API_KEY") or os.getenv("AZURE_TTS_API_KEY")
@@ -39,7 +39,6 @@ async def list_providers():
     has_azure_openai = bool(azure_openai_key and azure_openai_endpoint)
 
     providers = {
-        "azure": bool(AZURE_SPEECH_KEY),
         "azure-openai": has_azure_openai,
         "openai": bool(os.getenv("OPENAI_API_KEY")),
         "openai_steerable": bool(os.getenv("OPENAI_API_KEY")),
@@ -60,11 +59,11 @@ class TTSRequest(BaseModel):
     )
     voice: str = Field(
         default="nova",
-        description="Voice name (OpenAI: nova, alloy, etc. | Azure: es-MX-DaliaNeural, etc.)",
+        description="Voice name (OpenAI: nova, alloy, shimmer, etc.)",
     )
-    provider: Literal["openai", "openai-steerable", "azure"] | None = Field(
+    provider: Literal["openai", "openai-steerable", "azure-openai"] | None = Field(
         default=None,
-        description="TTS provider (auto-detect: Spanish + steerable voice = openai-steerable)",
+        description="TTS provider (auto-detect if None)",
     )
     accent: str | None = Field(
         default=None,
@@ -87,7 +86,7 @@ class TTSRequest(BaseModel):
     response_class=Response,
     summary="Synthesize Speech (Multi-Provider with Accent Control)",
     description="""
-    Generate speech audio from text using OpenAI TTS, OpenAI Steerable TTS, or Azure Speech Services.
+    Generate speech audio from text using OpenAI TTS with multiple provider options.
 
     **Use Cases:**
     - Demo mode consultation audio
@@ -97,11 +96,10 @@ class TTSRequest(BaseModel):
 
     **Provider Selection (Auto-detect):**
     - Spanish text + steerable voice (alloy/echo/shimmer) → `openai-steerable` (Mexican accent)
-    - Azure voice (es-MX-*) → `azure`
-    - Other voices → `openai`
+    - With explicit provider → use specified provider
 
     **Manual Override:**
-    Set `provider` to "openai", "openai-steerable", or "azure"
+    Set `provider` to "openai", "openai-steerable", or "azure-openai"
 
     **🎯 OpenAI Steerable TTS (Accent Control - BEST FOR SPANISH):**
     - `alloy` ⭐ - Neutral, versatile (supports Mexican Spanish accent)
@@ -110,26 +108,16 @@ class TTSRequest(BaseModel):
 
     Use with `accent="Mexican Spanish"` for natural Mexican accent!
 
-    **🎙️ OpenAI TTS Standard (English/General):**
-    - `nova` - Female, warm
+    **🎙️ OpenAI TTS Standard (All Languages):**
+    - `nova` - Female, warm (default, used in medical context)
+    - `alloy` - Neutral, versatile
+    - `shimmer` - Female, clear
     - `ash`, `ballad`, `coral`, `sage`, `verse` - New 2025
     - `fable` - Male, British
     - `onyx` - Male, deep
 
-    **🌍 Azure Speech Services (Native Spanish Mexico):**
-
-    Female:
-    - `es-MX-DaliaNeural` - Female (medical context)
-    - `es-MX-BeatrizNeural`, `es-MX-CandelaNeural` (child)
-    - `es-MX-CarlotaNeural`, `es-MX-DaliaMultilingualNeural`
-    - `es-MX-LarissaNeural`, `es-MX-MarinaNeural`
-    - `es-MX-NuriaNeural`, `es-MX-RenataNeural`
-
-    Male:
-    - `es-MX-JorgeNeural`, `es-MX-CecilioNeural`
-    - `es-MX-GerardoNeural`, `es-MX-JorgeMultilingualNeural`
-    - `es-MX-LibertoNeural`, `es-MX-LucianoNeural`
-    - `es-MX-PelayoNeural`, `es-MX-YagoNeural`
+    **🌐 Azure OpenAI TTS (OpenAI via Azure):**
+    Same voices as OpenAI TTS (nova, alloy, shimmer) deployed on Azure infrastructure.
 
     **Formats:**
     - `mp3` - Web-compatible (default)

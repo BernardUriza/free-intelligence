@@ -1756,9 +1756,9 @@ def test_unified_tts() -> None:
             },
             {
                 "text": "Hola, soy una voz nativa mexicana",
-                "voice": "es-MX-DaliaNeural",
-                "provider": None,  # Should use azure
-                "desc": "Azure voice → should use azure",
+                "voice": "nova",
+                "provider": None,  # Should use openai-steerable (Spanish auto-detect)
+                "desc": "Spanish text + nova voice → should use openai-steerable",
             },
         ]
 

@@ -152,8 +152,6 @@ class Secrets:
 
     # Optional services
     DEEPGRAM_API_KEY: str | None = None
-    AZURE_SPEECH_KEY: str | None = None
-    AZURE_SPEECH_REGION: str = "westus"
     CLAUDE_API_KEY: str | None = None
     HF_TOKEN: str | None = None
 
@@ -174,8 +172,6 @@ class Secrets:
             DATABASE_URL=get_secret("DATABASE_URL", "sqlite:///./data/aurity.db"),
             # Optional services
             DEEPGRAM_API_KEY=get_secret("DEEPGRAM_API_KEY"),
-            AZURE_SPEECH_KEY=get_secret("AZURE_SPEECH_KEY"),
-            AZURE_SPEECH_REGION=get_secret("AZURE_SPEECH_REGION", "westus"),
             CLAUDE_API_KEY=get_secret("CLAUDE_API_KEY"),
             HF_TOKEN=get_secret("HF_TOKEN"),
         )

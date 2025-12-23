@@ -8,33 +8,25 @@ description: "Policy-driven provider selection with size-based routing"
 # STT Provider Configuration
 stt:
   # Primary provider for standard chunks
-  primary_provider: "azure_speech"  # Azure Speech Services (pay-as-you-go)
+  primary_provider: "deepgram"  # Deepgram (primary)
 
   # Fallback providers in priority order
-  fallback_providers:
-    - "deepgram"  # Deepgram as fallback
+  fallback_providers: []
 
   # Size-based routing rules
   routing_rules:
-    # Large files use Azure Speech
+    # Large files use Deepgram
     large_file_threshold_mb: 5.0  # Files > 5MB
-    large_file_provider: "azure_speech"
+    large_file_provider: "deepgram"
 
     # Duration-based routing (if duration is known)
     long_duration_threshold_seconds: 300  # Audio > 5 min
-    long_duration_provider: "azure_speech"
+    long_duration_provider: "deepgram"
 
   # Provider-specific configurations
   providers:
     # azure_whisper: REMOVED - endpoint no longer available
-
-    azure_speech:
-      enabled: true
-      timeout_seconds: 30
-      language: "es-MX"
-      max_file_size_mb: 25
-      retry_on_empty: true
-      use_simple_mime: false  # false = UI chunk breaker format, true = simple MIME for curl
+    # azure_speech: REMOVED - using Deepgram exclusively
 
     deepgram:
       enabled: true
