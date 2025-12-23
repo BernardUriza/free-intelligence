@@ -91,8 +91,8 @@ class UnifiedTTSService:
 
         Args:
             text: Text to synthesize (max 4096 characters)
-            voice: Voice name (OpenAI: nova, alloy, etc. | Azure: es-MX-DaliaNeural, etc.)
-            provider: Force specific provider ("openai", "openai-steerable", "azure"), or None for auto-detect
+            voice: Voice name (OpenAI: nova, alloy, shimmer, etc.)
+            provider: Force specific provider ("openai", "openai-steerable", "azure-openai"), or None for auto-detect
             accent: Accent instruction for steerable TTS (e.g., "Mexican Spanish", "neutral Spanish")
             response_format: Audio format (mp3, opus, aac, flac, wav, pcm)
             speed: Speech speed (0.25 to 4.0)
