@@ -46,6 +46,47 @@ load_dotenv()
 logger = get_logger(__name__)
 
 
+def parse_qwen_thinking_and_response(text: str) -> tuple[str | None, str]:
+    """Parse Qwen3's thinking blocks from response content.
+
+    Qwen3 outputs reasoning in <think>...</think> tags followed by the actual response.
+    This function separates them properly.
+
+    Args:
+        text: Full response text from Qwen3 (may include <think>...</think> blocks)
+
+    Returns:
+        (thinking, content) tuple where:
+        - thinking: str | None - The thinking/reasoning text (without tags), or None
+        - content: str - The actual response content (without think tags)
+
+    Example:
+        >>> full = "<think>Let me think...</think>Here is the answer"
+        >>> thinking, response = parse_qwen_thinking_and_response(full)
+        >>> assert thinking == "Let me think..."
+        >>> assert response == "Here is the answer"
+    """
+    if not text:
+        return None, ""
+
+    # Pattern to match <think>...</think> blocks (non-greedy)
+    think_pattern = r'<think>(.*?)</think>'
+
+    # Extract thinking blocks
+    think_matches = re.findall(think_pattern, text, re.DOTALL)
+    thinking_text = None
+    if think_matches:
+        # Concatenate all thinking blocks (in case there are multiple)
+        thinking_text = "\n".join(m.strip() for m in think_matches if m.strip())
+        if not thinking_text:
+            thinking_text = None
+
+    # Remove all <think>...</think> blocks to get clean response content
+    content = re.sub(think_pattern, '', text, flags=re.DOTALL).strip()
+
+    return thinking_text, content
+
+
 def pad_embedding_to_768(embedding: np.ndarray) -> np.ndarray:
     """
     Pad embedding vector to 768 dimensions if needed.
@@ -464,9 +505,23 @@ class OllamaProvider(LLMProvider):
                 # Extract response content and optional reasoning depending on endpoint
                 thinking_text = None
                 if use_generate_with_think:
-                    content = str(response.get("response", ""))
+                    # Use /generate endpoint with thinking enabled
+                    raw_response = str(response.get("response", ""))
+
+                    # Parse Qwen3's <think>...</think> blocks from the response
+                    thinking_text, content = parse_qwen_thinking_and_response(raw_response)
+
+                    # Log parsing results for debugging
+                    self.logger.info(
+                        "QWEN_THINKING_PARSED",
+                        raw_response_length=len(raw_response),
+                        thinking_length=len(thinking_text) if thinking_text else 0,
+                        content_length=len(content),
+                    )
+
+                    # Also check for separate thinking field (some Ollama versions may provide it)
                     t = response.get("thinking")
-                    if isinstance(t, str) and t.strip():
+                    if isinstance(t, str) and t.strip() and not thinking_text:
                         thinking_text = t.strip()
                 else:
                     content = response["message"]["content"]
