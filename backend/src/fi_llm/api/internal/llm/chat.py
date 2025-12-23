@@ -305,6 +305,7 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
                 role="assistant",
                 content=response_text,
                 persona=request.persona,
+                model=model_name,  # LLM model that generated this response
             )
 
             # Broadcast assistant response to all connected devices (WebSocket)

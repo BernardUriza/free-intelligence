@@ -42,6 +42,7 @@ class InteractionResult(BaseModel):
     role: str  # "user" or "assistant"
     content: str
     persona: str | None = None
+    model: str | None = None  # LLM model that generated response (for assistant messages)
     similarity: float = Field(description="Semantic similarity score (0-1)")
 
 
@@ -335,6 +336,7 @@ async def get_paginated_history(
                 "role": interaction.role,
                 "content": interaction.content,
                 "persona": interaction.persona,
+                "model": interaction.model,  # LLM model that generated response
             }
             for interaction in result["interactions"]
         ]

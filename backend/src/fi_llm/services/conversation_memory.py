@@ -106,6 +106,7 @@ class Interaction:
         content: Text content
         embedding: 384-dim vector (for semantic search)
         persona: Persona used (optional)
+        model: LLM model that generated response (for assistant messages)
         similarity: Similarity score (for search results)
     """
 
@@ -116,6 +117,7 @@ class Interaction:
     content: str
     embedding: np.ndarray
     persona: str | None = None
+    model: str | None = None
     similarity: float = 0.0
 
 
@@ -152,7 +154,8 @@ class ConversationMemoryManager:
         ├── /metadata/timestamps (N,) int64
         ├── /metadata/roles (N,) |S16
         ├── /metadata/content (N,) |S4096
-        └── /metadata/personas (N,) |S64
+        ├── /metadata/personas (N,) |S64
+        └── /metadata/models (N,) |S64
 
     Usage:
         >>> memory = ConversationMemoryManager(doctor_id="doc-123")
@@ -261,6 +264,14 @@ class ConversationMemoryManager:
                 chunks=(1000,),
             )
 
+            metadata_group.create_dataset(
+                "models",
+                shape=(0,),
+                maxshape=(None,),
+                dtype=h5py.string_dtype(encoding="utf-8", length=64),
+                chunks=(1000,),
+            )
+
             # Store creation timestamp
             f.attrs["created_at"] = datetime.now(UTC).isoformat()
             f.attrs["doctor_id"] = self.doctor_id
@@ -277,6 +288,7 @@ class ConversationMemoryManager:
         role: str,
         content: str,
         persona: str | None = None,
+        model: str | None = None,
     ) -> int:
         """Store interaction in memory index with embedding.
 
@@ -287,6 +299,7 @@ class ConversationMemoryManager:
             role: "user" or "assistant"
             content: Text content
             persona: Persona used (optional)
+            model: LLM model that generated response (for assistant messages)
 
         Returns:
             Index of stored interaction
@@ -299,6 +312,23 @@ class ConversationMemoryManager:
 
         # Append to H5 index
         with _memory_lock, h5py.File(self.memory_path, "a") as f:
+            # Migration: Create models dataset if it doesn't exist (backward compatibility)
+            if "/metadata/models" not in f:
+                logger.info(
+                    "MEMORY_MIGRATION_MODELS_DATASET",
+                    doctor_id=self.doctor_id,
+                    message="Creating models dataset for existing H5 file",
+                )
+                current_size = f["/embeddings/vectors"].shape[0]
+                f["/metadata"].create_dataset(
+                    "models",
+                    shape=(current_size,),
+                    maxshape=(None,),
+                    dtype=h5py.string_dtype(encoding="utf-8", length=64),
+                    chunks=(1000,),
+                    data=[""] * current_size,  # Fill existing entries with empty string
+                )
+
             # Get current size
             current_size = f["/embeddings/vectors"].shape[0]
             new_size = current_size + 1
@@ -310,6 +340,7 @@ class ConversationMemoryManager:
             f["/metadata/roles"].resize((new_size,))
             f["/metadata/content"].resize((new_size,))
             f["/metadata/personas"].resize((new_size,))
+            f["/metadata/models"].resize((new_size,))
 
             # Append data
             f["/embeddings/vectors"][current_size] = embedding
@@ -318,6 +349,7 @@ class ConversationMemoryManager:
             f["/metadata/roles"][current_size] = role
             f["/metadata/content"][current_size] = content[:4096]  # Truncate if needed
             f["/metadata/personas"][current_size] = persona or ""
+            f["/metadata/models"][current_size] = model or ""
 
             # Flush to disk
             f.flush()
@@ -395,6 +427,15 @@ class ConversationMemoryManager:
                 p.decode("utf-8") if isinstance(p, bytes) else str(p)
                 for p in f["/metadata/personas"][:]  # type: ignore[union-attr]
             ]
+            # Load models (with migration support for old H5 files)
+            if "/metadata/models" in f:
+                models = [
+                    m.decode("utf-8") if isinstance(m, bytes) else str(m)
+                    for m in f["/metadata/models"][:]  # type: ignore[union-attr]
+                ]
+            else:
+                # Old H5 file without models - use empty strings
+                models = [""] * len(session_ids)
 
         # 1. Get recent context (last N from current session)
         if session_id:
@@ -415,6 +456,7 @@ class ConversationMemoryManager:
                         content=content[idx],
                         embedding=embeddings[idx],
                         persona=personas[idx] if personas[idx] else None,
+                        model=models[idx] if models[idx] else None,
                     )
                     for idx in recent_indices
                 ]
@@ -433,6 +475,7 @@ class ConversationMemoryManager:
                     content=content[idx],
                     embedding=embeddings[idx],
                     persona=personas[idx] if personas[idx] else None,
+                    model=models[idx] if models[idx] else None,
                 )
                 for idx in recent_indices
             ]
@@ -467,6 +510,7 @@ class ConversationMemoryManager:
                 content=content[idx],
                 embedding=embeddings[idx],
                 persona=personas[idx] if personas[idx] else None,
+                model=models[idx] if models[idx] else None,
                 similarity=float(similarities[idx]),
             )
             for idx in top_k_indices
@@ -645,6 +689,15 @@ class ConversationMemoryManager:
                 p.decode("utf-8") if isinstance(p, bytes) else str(p)
                 for p in f["/metadata/personas"][:]  # type: ignore[union-attr]
             ]
+            # Load models (with migration support for old H5 files)
+            if "/metadata/models" in f:
+                models = [
+                    m.decode("utf-8") if isinstance(m, bytes) else str(m)
+                    for m in f["/metadata/models"][:]  # type: ignore[union-attr]
+                ]
+            else:
+                # Old H5 file without models - use empty strings
+                models = [""] * len(session_ids)
             embeddings = f["/embeddings/vectors"][:]
 
             # Filter by session if specified
@@ -670,6 +723,7 @@ class ConversationMemoryManager:
                     content=content[idx],
                     embedding=embeddings[idx],
                     persona=personas[idx] if personas[idx] else None,
+                    model=models[idx] if models[idx] else None,
                 )
                 for idx in paginated_indices
             ]
