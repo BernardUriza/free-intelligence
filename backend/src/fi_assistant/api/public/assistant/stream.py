@@ -9,6 +9,7 @@ from collections.abc import AsyncGenerator
 from backend.clients import get_llm_client
 from backend.observability.logging import CTX_REQUEST_ID
 from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_llm.services.persona.manager import PersonaManager
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
@@ -17,6 +18,9 @@ from ..assistant_schemas import ChatCompletionRequest, ChatCompletionStreamRespo
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+# Initialize persona manager for validation
+_persona_manager = PersonaManager()
 
 
 @router.post("/assistant/chat/stream")
@@ -29,6 +33,19 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Use /assistant/chat for non-streaming requests. Set stream=true for this endpoint.",
+        )
+
+    # Validate persona exists in the system
+    valid_personas = _persona_manager.list_personas()
+    if request.persona not in valid_personas:
+        logger.warning(
+            "INVALID_PERSONA_REJECTED_STREAM",
+            persona=request.persona,
+            valid_personas=valid_personas,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid persona '{request.persona}'. Valid personas: {', '.join(valid_personas)}",
         )
 
     async def generate_stream() -> AsyncGenerator[str]:

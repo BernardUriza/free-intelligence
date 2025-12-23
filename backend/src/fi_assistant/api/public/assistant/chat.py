@@ -7,6 +7,7 @@ from backend.clients import get_llm_client
 from backend.observability import chat_events
 from backend.observability.logging import CTX_REQUEST_ID
 from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_llm.services.persona.manager import PersonaManager
 from fastapi import APIRouter, HTTPException, status
 
 from ..assistant_schemas import (
@@ -23,6 +24,9 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
+# Initialize persona manager for validation
+_persona_manager = PersonaManager()
+
 
 @router.post("/assistant/chat", response_model=ChatCompletionResponse)
 async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionResponse:
@@ -33,6 +37,20 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
     try:
         request_id = str(_uuid.uuid4())
         CTX_REQUEST_ID.set(request_id)
+
+        # Validate persona exists in the system
+        valid_personas = _persona_manager.list_personas()
+        if request.persona not in valid_personas:
+            logger.warning(
+                "INVALID_PERSONA_REJECTED",
+                persona=request.persona,
+                valid_personas=valid_personas,
+                request_id=request_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid persona '{request.persona}'. Valid personas: {', '.join(valid_personas)}",
+            )
 
         last_message = request.messages[-1]
         if last_message.role != "user":

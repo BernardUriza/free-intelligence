@@ -116,7 +116,7 @@ class ChatCompletionRequest(BaseModel):
     user: str | None = Field(None, description="Unique identifier for the user")
 
     # AURITY-specific extensions
-    persona: str = Field(default="general_assistant", description="AURITY persona to use")
+    persona: str = Field(..., description="AURITY persona to use (REQUIRED)")
     session_id: str | None = Field(None, description="Session ID for audit trail")
     response_mode: str = Field(
         default="explanatory",

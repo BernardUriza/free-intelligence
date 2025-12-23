@@ -1,7 +1,7 @@
 """
 Unified TTS Service - Multi-provider text-to-speech
 
-Supports Azure Speech Services, OpenAI TTS, and OpenAI Steerable TTS with automatic provider selection.
+Supports Azure OpenAI TTS, OpenAI TTS, and OpenAI Steerable TTS with automatic provider selection.
 
 Provider Selection Strategy:
 1. OpenAI Steerable TTS - Natural voices with accent control
@@ -12,25 +12,25 @@ Provider Selection Strategy:
 
 2. OpenAI TTS (standard) - Natural, expressive voices
    - Best for: English content, general use
-   - Voices: alloy, nova, shimmer, etc. (11 total)
+   - Voices: alloy, nova, shimmer
    - Model: tts-1-hd (faster, no accent control)
 
-3. Azure Speech Services - High-quality neural voices
-   - Best for: Native Spanish (Mexico) voices, medical terminology
-   - Voices: es-MX-DaliaNeural, es-MX-JorgeNeural, etc. (17 total)
-   - Locale: Spanish Mexico (es-MX)
+3. Azure OpenAI TTS - OpenAI models deployed on Azure
+   - Best for: Azure infrastructure integration
+   - Voices: alloy, nova, shimmer (same as OpenAI standard)
+   - Model: gpt-4o-mini-tts
 
 Usage:
     tts = get_unified_tts_service()
     audio = await tts.synthesize(
         text="Hola mundo",
-        voice="alloy",              # OpenAI voice
+        voice="nova",               # OpenAI voice
         provider="openai-steerable", # Enable accent control
         accent="Mexican Spanish"    # Accent instruction
     )
 
 Created: 2025-12-08
-Updated: 2025-12-09 (Added steerable TTS support)
+Updated: 2025-12-23 (Removed Azure Speech Services, simplified to OpenAI-only)
 """
 
 from __future__ import annotations
