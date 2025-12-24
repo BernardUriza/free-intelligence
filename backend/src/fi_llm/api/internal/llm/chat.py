@@ -611,7 +611,12 @@ async def internal_llm_chat_stream(request: ChatRequest):
                     now = time.time()
                     time_since_last = (now - last_chunk_time) * 1000
 
-                    chunk_data = {"content": chunk_text, "chunk_num": chunk_count}
+                    # Format as OpenAI-compatible SSE
+                    chunk_data = {
+                        "choices": [
+                            {"index": 0, "delta": {"content": chunk_text}, "finish_reason": None}
+                        ]
+                    }
 
                     # Log every 5th chunk to avoid spam, or first/last chunk
                     if chunk_count % 5 == 1 or chunk_count <= 3:
