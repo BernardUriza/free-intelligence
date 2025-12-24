@@ -728,7 +728,8 @@ class OllamaProvider(LLMProvider):
                     try:
                         if use_generate_with_think:
                             # Extract text from /generate streaming response
-                            chunk_text = chunk.get("response", "")
+                            # When thinking is enabled, content comes from either "response" or "thinking" field
+                            chunk_text = chunk.get("response", "") or chunk.get("thinking", "")
                             total_tokens = chunk.get("eval_count", 0)
                         else:
                             # Extract text from /chat streaming response
