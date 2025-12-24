@@ -1,209 +1,85 @@
 from __future__ import annotations
 
-import asyncio
+import httpx
 import json
-import time
 import uuid as _uuid
 from collections.abc import AsyncGenerator
 
-from backend.clients import get_llm_client
-from backend.observability.logging import CTX_REQUEST_ID
-from backend.src.fi_common.logging.logger import get_logger
-from backend.src.fi_llm.services.persona.manager import PersonaManager
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from ..assistant_schemas import ChatCompletionRequest, ChatCompletionStreamResponse
-
-logger = get_logger(__name__)
+from ..assistant_schemas import ChatCompletionRequest
 
 router = APIRouter()
-
-# Initialize persona manager for validation
-_persona_manager = PersonaManager()
 
 
 @router.post("/assistant/chat/stream")
 async def stream_chat_with_assistant(request: ChatCompletionRequest) -> StreamingResponse:
     """OpenAI-style streaming chat completion endpoint.
 
-    Returns Server-Sent Events (SSE) stream following OpenAI streaming format.
+    Pure HTTP proxy to /internal/llm/chat/stream.
+    Workflows layer should NOT contain business logic.
     """
     if not request.stream:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Use /assistant/chat for non-streaming requests. Set stream=true for this endpoint.",
+            detail="Set stream=true for this endpoint.",
         )
 
-    # Validate persona exists in the system
-    valid_personas = _persona_manager.list_personas()
-    if request.persona not in valid_personas:
-        logger.warning(
-            "INVALID_PERSONA_REJECTED_STREAM",
-            persona=request.persona,
-            valid_personas=valid_personas,
-        )
+    if not request.messages:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid persona '{request.persona}'. Valid personas: {', '.join(valid_personas)}",
+            detail="At least one message is required.",
         )
 
-    async def generate_stream() -> AsyncGenerator[str]:
-        try:
-            if not request.messages:
-                yield f"data: {json.dumps({'error': 'At least one message is required'})}\n\n"
-                return
+    last_message = request.messages[-1]
+    if last_message.role != "user":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Last message must be from user.",
+        )
 
-            last_message = request.messages[-1]
-            if last_message.role != "user":
-                yield f"data: {json.dumps({'error': 'Last message must be from user'})}\n\n"
-                return
+    # Extract system message
+    system_message = None
+    for msg in request.messages:
+        if msg.role == "system":
+            system_message = msg.content
+            break
 
-            system_message = None
-            for msg in request.messages:
-                if msg.role == "system":
-                    system_message = msg.content
-                    break
-
-            doctor_id = request.user if request.user else None
-
-            context: dict[str, object] = {
-                "persona": request.persona,
-                "system_message": system_message,
-                "temperature": request.temperature,
-                "max_tokens": request.max_tokens,
-                "top_p": request.top_p,
-                "frequency_penalty": request.frequency_penalty,
-                "presence_penalty": request.presence_penalty,
-                "stop": request.stop,
-                "enable_thinking": request.enable_thinking,  # Toggle thinking/reasoning mode
-            }
-
-            if request.model:
-                context["model"] = request.model
-
+    # Forward to /internal/llm/chat/stream
+    async def stream_proxy() -> AsyncGenerator[str]:
+        async with httpx.AsyncClient() as client:
             try:
-                if isinstance(request.model, str) and request.model.lower().startswith("qwen3"):
-                    context["max_tokens"] = min(int(context.get("max_tokens") or 256), 256)
-            except Exception:
-                pass
-
-            if doctor_id:
-                context["doctor_id"] = doctor_id
-
-            completion_id = f"chatcmpl-{_uuid.uuid4().hex}"
-            created_timestamp = int(time.time())
-
-            llm_client = get_llm_client()
-
-            request_id = str(_uuid.uuid4())
-            CTX_REQUEST_ID.set(request_id)
-
-            initial_chunk = ChatCompletionStreamResponse(
-                id=completion_id,
-                created=created_timestamp,
-                model=request.model,
-                choices=[{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}],
-            )
-            yield f"data: {initial_chunk.model_dump_json()}\n\n"
-
-            logger.info(
-                "STREAM_STARTED",
-                model=request.model,
-                persona=request.persona,
-                session_id=request.session_id,
-            )
-
-            try:
-                # Use new streaming method that yields chunks in real-time
-                # No timeout needed - streaming naturally completes when LLM finishes
-                chunk_count = 0
-
-                async for chunk_text in llm_client.chat_stream(
-                    persona=request.persona,
-                    message=last_message.content,
-                    context=context,
-                    session_id=request.session_id,
-                    doctor_id=doctor_id,
-                    use_memory=doctor_id is not None,
-                    request_id=request_id,
-                    caller="public",
-                ):
-                    if chunk_text and not chunk_text.startswith("ERROR:"):
-                        chunk_count += 1
-                        stream_chunk = ChatCompletionStreamResponse(
-                            id=completion_id,
-                            created=created_timestamp,
-                            model=request.model,
-                            choices=[
-                                {"index": 0, "delta": {"content": chunk_text}, "finish_reason": None}
-                            ],
-                        )
-                        yield f"data: {stream_chunk.model_dump_json()}\n\n"
-                    elif chunk_text.startswith("ERROR:"):
-                        logger.error(
-                            "STREAM_ERROR_RECEIVED",
-                            error=chunk_text,
-                            model=request.model,
-                        )
-                        error_chunk = ChatCompletionStreamResponse(
-                            id=completion_id,
-                            created=created_timestamp,
-                            model=request.model,
-                            choices=[
-                                {"index": 0, "delta": {"content": chunk_text}, "finish_reason": "error"}
-                            ],
-                        )
-                        yield f"data: {error_chunk.model_dump_json()}\n\n"
-                        break
-
-                logger.info(
-                    "STREAM_CHUNKS_SENT",
-                    model=request.model,
-                    chunks_count=chunk_count,
-                )
-
-            except asyncio.TimeoutError:
-                logger.warning(
-                    "STREAM_TIMEOUT",
-                    model=request.model,
-                )
-                timeout_msg = "El modelo está tardando más de lo esperado. Intenta nuevamente o reduce la complejidad."
-                stream_chunk = ChatCompletionStreamResponse(
-                    id=completion_id,
-                    created=created_timestamp,
-                    model=request.model,
-                    choices=[
-                        {"index": 0, "delta": {"content": timeout_msg}, "finish_reason": None}
-                    ],
-                )
-                yield f"data: {stream_chunk.model_dump_json()}\n\n"
-
-            final_chunk = ChatCompletionStreamResponse(
-                id=completion_id,
-                created=created_timestamp,
-                model=request.model,
-                choices=[{"index": 0, "delta": {}, "finish_reason": "stop"}],
-            )
-            yield f"data: {final_chunk.model_dump_json()}\n\n"
-            yield "data: [DONE]\n\n"
-
-        except Exception as e:
-            logger.error(
-                "STREAM_CHAT_FAILED",
-                error=str(e),
-                error_type=type(e).__name__,
-                session_id=request.session_id,
-                exc_info=True,
-            )
-            error_chunk = json.dumps(
-                {"error": {"message": f"Stream failed: {e!s}", "type": "internal_error"}}
-            )
-            yield f"data: {error_chunk}\n\n"
-            yield "data: [DONE]\n\n"
+                async with client.stream(
+                    "POST",
+                    "http://localhost:7001/api/internal/llm/chat/stream",
+                    json={
+                        "persona": request.persona,
+                        "message": last_message.content,
+                        "context": {
+                            "system_message": system_message,
+                            "temperature": request.temperature,
+                            "max_tokens": request.max_tokens,
+                            "top_p": request.top_p,
+                            "frequency_penalty": request.frequency_penalty,
+                            "presence_penalty": request.presence_penalty,
+                            "stop": request.stop,
+                            "enable_thinking": request.enable_thinking,
+                            "model": request.model,
+                        },
+                        "session_id": request.session_id,
+                        "doctor_id": request.user,
+                        "use_memory": request.user is not None,
+                    },
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if line:
+                            yield line + "\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return StreamingResponse(
-        generate_stream(),
-        media_type="text/plain",
-        headers={"Content-Type": "text/event-stream; charset=utf-8"},
+        stream_proxy(),
+        media_type="text/event-stream; charset=utf-8",
     )
