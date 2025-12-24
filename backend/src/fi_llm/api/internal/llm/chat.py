@@ -447,6 +447,9 @@ async def internal_llm_chat_stream(request: ChatRequest):
 
     async def stream_generator():
         try:
+            # Yield immediately so FastAPI sends headers before blocking
+            yield f"data: {json.dumps({'status': 'started'})}\n\n"
+
             # Validate request
             if not request.message:
                 logger.warning(
