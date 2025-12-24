@@ -73,9 +73,9 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                     },
                 ) as response:
                     response.raise_for_status()
-                    async for line in response.aiter_lines():
-                        if line:
-                            yield line + "\n"
+                    # Preserve SSE format (data: ...\n\n) by reading raw bytes
+                    async for chunk in response.aiter_bytes():
+                        yield chunk.decode('utf-8') if isinstance(chunk, bytes) else chunk
             except Exception as e:
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
