@@ -6,17 +6,34 @@ Supported voices: `alloy`, `nova` (default), `shimmer`
 
 ---
 
-## Setup
+## 🚀 Setup
+
+### Unified Resource Architecture
+
+Both TTS and Whisper (STT) use a **single Azure OpenAI resource** deployed in North Central US:
+
+```
+Resource: aurity-openai-whisper
+├─ Endpoint: https://northcentralus.api.cognitive.microsoft.com/
+├─ Region: North Central US (supports both TTS + Whisper)
+├─ Deployment: tts-hd (this file)
+└─ Deployment: whisper (STT - see README_STT.md)
+```
+
+See **README_STT.md** for complete architecture documentation.
 
 ### Local Development
 
 Environment variables:
 
 ```bash
-export AZURE_OPENAI_TTS_ENDPOINT="https://your-resource.openai.azure.com"
-export AZURE_OPENAI_TTS_API_KEY="your-api-key-here"
+# Unified resource (shared with STT/Whisper)
+export AZURE_OPENAI_ENDPOINT="https://northcentralus.api.cognitive.microsoft.com/"
+export AZURE_OPENAI_API_KEY="your-api-key-here"
+
+# TTS Configuration
+export AZURE_OPENAI_TTS_DEPLOYMENT="tts-hd"
 export AZURE_OPENAI_TTS_API_VERSION="2025-03-01-preview"
-export AZURE_OPENAI_TTS_DEPLOYMENT="tts-hd"  # Your deployment name
 
 # Start backend
 PYTHONPATH=backend/src uvicorn backend.app.main:app --reload --port 7001

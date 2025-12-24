@@ -8,20 +8,22 @@ This project uses **Azure OpenAI Whisper** for speech-to-text transcription.
 
 ### Prerequisites
 
-**Azure OpenAI Whisper Deployment:**
+**Azure OpenAI Resource with Whisper Deployment:**
 - Azure subscription with Azure OpenAI resource
-- Whisper model deployed in a [supported region](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models?tabs=standard-audio#standard-deployment-regional-models-by-endpoint)
-  - **Supported regions:** North Central US, West Europe
-- Deployment name: `whisper` (default, configurable)
+- **Required Region:** North Central US, West Europe, or other [Whisper-supported regions](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models)
+- Whisper model deployed as `whisper` deployment (default, configurable)
+- **Recommended:** Single unified resource with both TTS and Whisper deployments (see Architecture section)
 
 ### Environment Variables
 
 ```bash
-# Shared Azure OpenAI credentials (same as TTS)
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+# Azure OpenAI - Unified Resource (shared with TTS)
+# Endpoint format: https://{region}.api.cognitive.microsoft.com/
+# Region: North Central US recommended (supports both Whisper + TTS)
+AZURE_OPENAI_ENDPOINT=https://northcentralus.api.cognitive.microsoft.com/
 AZURE_OPENAI_API_KEY=<your-api-key>
 
-# Whisper STT configuration
+# Whisper STT Configuration
 AZURE_OPENAI_WHISPER_DEPLOYMENT=whisper        # Deployment name (default)
 AZURE_OPENAI_WHISPER_API_VERSION=2024-02-01    # API version (official)
 ```
@@ -163,25 +165,32 @@ export AZURE_OPENAI_WHISPER_API_VERSION="2024-08-01-preview"  # Preview version
 
 ## 🔗 Azure OpenAI Architecture
 
-Your unified stack:
+**Unified Multi-Deployment Architecture** (Single Resource, Multiple Models):
 
 ```
-🎙️ Audio
+🎙️ Audio Input
    ↓
-[Azure OpenAI Whisper] ← STT (this file)
+[aurity-openai-whisper] (North Central US)
+├─ Deployment: "whisper" → Audio Transcription (this file)
+├─ Deployment: "tts-hd" → Audio Synthesis (see README_TTS.md)
+└─ Shared Endpoint: https://northcentralus.api.cognitive.microsoft.com/
    ↓
 📝 Transcribed Text
    ↓
-[LLM: Qwen3/Claude/Azure OpenAI]
+[LLM: Qwen3/Claude/Other]
    ↓
 💬 Response Text
    ↓
-[Azure OpenAI TTS] ← (see README_TTS.md)
+[Azure OpenAI TTS] ← Synthesis via same resource
    ↓
 🔊 Audio Response
 ```
 
-All components use the same Azure OpenAI resource (`AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_API_KEY`).
+**Benefits of Unified Architecture:**
+- ✅ Single endpoint and API key for both STT and TTS
+- ✅ Simpler credential management
+- ✅ Region is chosen to support both Whisper + TTS models
+- ✅ Easier to migrate or scale (one resource to manage)
 
 ---
 
