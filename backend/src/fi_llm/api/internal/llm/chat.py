@@ -591,13 +591,19 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 model_override=request.context.get("model") if request.context else None,
             )
 
-            for chunk_text in llm_provider.generate_stream(
-                prompt,
-                model=request.context.get("model") if request.context else None,
-                temperature=request.context.get("temperature", 0.7) if request.context else 0.7,
-                max_tokens=request.context.get("max_tokens", 512) if request.context else 512,
-                enable_thinking=request.context.get("enable_thinking", True) if request.context else True,
-            ):
+            # Use asyncio.to_thread to avoid blocking the event loop
+            import asyncio
+            gen = await asyncio.to_thread(
+                lambda: llm_provider.generate_stream(
+                    prompt,
+                    model=request.context.get("model") if request.context else None,
+                    temperature=request.context.get("temperature", 0.7) if request.context else 0.7,
+                    max_tokens=request.context.get("max_tokens", 512) if request.context else 512,
+                    enable_thinking=request.context.get("enable_thinking", True) if request.context else True,
+                )
+            )
+
+            for chunk_text in gen:
                 if chunk_text:
                     chunk_count += 1
                     chunk_size = len(chunk_text)
