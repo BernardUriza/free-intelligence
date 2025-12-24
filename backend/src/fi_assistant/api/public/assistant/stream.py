@@ -169,6 +169,11 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
             if isinstance(thinking, str) and thinking.strip():
                 meta_event = {"thinking": thinking.strip()}
                 yield f"event: meta\ndata: {json.dumps(meta_event)}\n\n"
+                logger.info(
+                    "STREAM_THINKING_SENT",
+                    thinking_length=len(thinking),
+                    thinking_preview=thinking[:80],
+                )
 
             response_text = result.get("response", "")
 
@@ -178,7 +183,9 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                 result_keys=list(result.keys()) if isinstance(result, dict) else "not_dict",
                 response_text_length=len(response_text),
                 response_text_preview=response_text[:100] if response_text else "EMPTY",
+                response_text_last_100=response_text[-100:] if response_text and len(response_text) > 100 else response_text,
                 thinking_length=len(thinking) if isinstance(thinking, str) else 0,
+                thinking_preview=thinking[:80] if isinstance(thinking, str) else None,
             )
 
             if not response_text:

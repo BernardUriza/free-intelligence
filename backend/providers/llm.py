@@ -470,12 +470,20 @@ class OllamaProvider(LLMProvider):
                 if use_generate_with_think:
                     # Use /generate endpoint with thinking enabled
                     try:
+                        raw_response = str(response.get("response", ""))
+                        self.logger.debug(
+                            "QWEN_RAW_RESPONSE_PREVIEW",
+                            first_100_chars=raw_response[:100],
+                            last_100_chars=raw_response[-100:] if len(raw_response) > 100 else raw_response,
+                            total_length=len(raw_response),
+                        )
                         thinking_text, content = self.qwen_parser.parse(response)
                         self.logger.info(
                             "QWEN_THINKING_PARSED",
-                            raw_response_length=len(str(response.get("response", ""))),
+                            raw_response_length=len(raw_response),
                             thinking_length=len(thinking_text) if thinking_text else 0,
                             content_length=len(content),
+                            content_preview=content[:50] if content else "EMPTY",
                         )
                     except ValueError as e:
                         self.logger.error(

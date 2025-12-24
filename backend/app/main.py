@@ -189,6 +189,13 @@ Requires environment variables:
             allow_headers=["*"],
         )
 
+    # Add explicit OPTIONS handler for CORS preflight requests
+    # This ensures OPTIONS requests don't return 405 Method Not Allowed
+    @app.options("/{full_path:path}", include_in_schema=False)
+    async def options_handler(full_path: str):
+        """Handle CORS preflight OPTIONS requests for all paths."""
+        return {}
+
     # Sub-app: Public API (orchestrators, CORS enabled)
     public_app = FastAPI(title="Public API")
 
