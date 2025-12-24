@@ -52,7 +52,7 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
             try:
                 async with client.stream(
                     "POST",
-                    "http://localhost:7001/api/internal/llm/chat/stream",
+                    "http://localhost:7001/internal/llm/chat/stream",
                     json={
                         "persona": request.persona,
                         "message": last_message.content,
