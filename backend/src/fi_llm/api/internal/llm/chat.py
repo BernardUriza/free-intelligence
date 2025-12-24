@@ -425,6 +425,238 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
         ) from e
 
 
+@router.post("/chat/stream")
+async def internal_llm_chat_stream(request: ChatRequest):
+    """INTERNAL: Streaming chat endpoint for real-time response delivery.
+
+    Ultra-observable streaming with:
+    - Per-chunk timing and byte tracking
+    - Memory context logging if enabled
+    - Provider selection and config logging
+    - Fallback detection and logging
+    - Complete error context
+
+    Returns Server-Sent Events (SSE) with streaming chunks from LLM.
+    """
+    from fastapi.responses import StreamingResponse
+    import json
+    from datetime import UTC, datetime
+
+    start_time = time.time()
+    stream_request_id = str(_uuid.uuid4())
+
+    async def stream_generator():
+        try:
+            # Validate request
+            if not request.message:
+                logger.warning(
+                    "STREAM_EMPTY_MESSAGE",
+                    request_id=stream_request_id,
+                )
+                yield f"data: {json.dumps({'error': 'Message required'})}\n\n"
+                return
+
+            logger.info(
+                "🌊 [STREAM] REQUEST_RECEIVED",
+                request_id=stream_request_id,
+                persona=request.persona,
+                message_length=len(request.message),
+                session_id=request.session_id,
+                doctor_id_present=bool(request.doctor_id),
+                use_memory=request.use_memory,
+            )
+
+            # Get memory context if enabled
+            memory_enabled = request.use_memory and request.doctor_id
+
+            if memory_enabled:
+                logger.info(
+                    "📚 [STREAM] MEMORY_ENABLED",
+                    request_id=stream_request_id,
+                    doctor_id=request.doctor_id,
+                    session_id=request.session_id,
+                )
+                # Build prompt with memory
+                memory = get_memory_manager(request.doctor_id)
+                system_prompt = persona_mgr.build_system_prompt(request.persona, request.context)
+                memory_context = memory.get_context(request.message, request.session_id)
+
+                logger.info(
+                    "📚 [STREAM] MEMORY_CONTEXT_LOADED",
+                    request_id=stream_request_id,
+                    recent_interactions=len(memory_context.recent) if memory_context else 0,
+                    relevant_interactions=len(memory_context.relevant) if memory_context else 0,
+                )
+
+                prompt = memory.build_prompt(
+                    context=memory_context,
+                    system_prompt=system_prompt,
+                    current_message=request.message,
+                )
+
+                logger.debug(
+                    "📚 [STREAM] PROMPT_BUILT_WITH_MEMORY",
+                    request_id=stream_request_id,
+                    prompt_length=len(prompt),
+                )
+            else:
+                # Build prompt without memory
+                logger.debug(
+                    "📄 [STREAM] BUILDING_PROMPT_WITHOUT_MEMORY",
+                    request_id=stream_request_id,
+                )
+                prompt = persona_mgr.build_system_prompt(request.persona, request.context)
+                if request.context:
+                    prompt += f"\n\nContext:\n{json.dumps(request.context, indent=2)}"
+                prompt += f"\n\nUser: {request.message}\n\nAssistant:"
+
+                logger.debug(
+                    "📄 [STREAM] PROMPT_BUILT",
+                    request_id=stream_request_id,
+                    prompt_length=len(prompt),
+                )
+
+            # Get provider
+            from backend.policy.policy_loader import get_policy_loader
+            policy_loader = get_policy_loader()
+            provider_name = request.provider or policy_loader.get_primary_provider()
+
+            logger.info(
+                "🔌 [STREAM] PROVIDER_SELECTED",
+                request_id=stream_request_id,
+                provider=provider_name,
+                is_override=bool(request.provider),
+            )
+
+            # Get provider config
+            provider_config = policy_loader.get_provider_config(provider_name)
+            if provider_config is None:
+                provider_config = {}
+
+            logger.debug(
+                "⚙️ [STREAM] PROVIDER_CONFIG_LOADED",
+                request_id=stream_request_id,
+                provider=provider_name,
+                config_keys=list(provider_config.keys()),
+            )
+
+            # Get provider instance
+            from backend.providers.llm import get_provider
+            llm_provider = get_provider(provider_name, provider_config)
+
+            logger.info(
+                "✅ [STREAM] PROVIDER_INSTANCE_CREATED",
+                request_id=stream_request_id,
+                provider=provider_name,
+                provider_type=type(llm_provider).__name__,
+            )
+
+            # Check if provider supports streaming
+            if not hasattr(llm_provider, 'generate_stream'):
+                # Fallback to non-streaming (will wait for full response)
+                logger.warning(
+                    "⚠️ [STREAM] FALLBACK_NO_STREAM_METHOD",
+                    request_id=stream_request_id,
+                    provider=provider_name,
+                    message="Provider doesn't support streaming, falling back to buffered response",
+                )
+                response = llm_provider.generate(
+                    prompt,
+                    model=request.context.get("model") if request.context else None,
+                    temperature=request.context.get("temperature", 0.7) if request.context else 0.7,
+                    max_tokens=request.context.get("max_tokens", 512) if request.context else 512,
+                )
+                logger.info(
+                    "📦 [STREAM] FALLBACK_RESPONSE_BUFFERED",
+                    request_id=stream_request_id,
+                    response_length=len(response.content),
+                    model=response.model,
+                    latency_ms=int((time.time() - start_time) * 1000),
+                )
+                yield f"data: {json.dumps({'content': response.content})}\n\n"
+                return
+
+            # Stream chunks from provider
+            chunk_count = 0
+            total_bytes = 0
+            last_chunk_time = start_time
+
+            logger.info(
+                "🚀 [STREAM] STREAMING_START",
+                request_id=stream_request_id,
+                provider=provider_name,
+                persona=request.persona,
+                message_length=len(request.message),
+                prompt_length=len(prompt),
+                model_override=request.context.get("model") if request.context else None,
+            )
+
+            for chunk_text in llm_provider.generate_stream(
+                prompt,
+                model=request.context.get("model") if request.context else None,
+                temperature=request.context.get("temperature", 0.7) if request.context else 0.7,
+                max_tokens=request.context.get("max_tokens", 512) if request.context else 512,
+                enable_thinking=request.context.get("enable_thinking", True) if request.context else True,
+            ):
+                if chunk_text:
+                    chunk_count += 1
+                    chunk_size = len(chunk_text)
+                    total_bytes += chunk_size
+                    now = time.time()
+                    time_since_last = (now - last_chunk_time) * 1000
+
+                    chunk_data = {"content": chunk_text, "chunk_num": chunk_count}
+
+                    # Log every 5th chunk to avoid spam, or first/last chunk
+                    if chunk_count % 5 == 1 or chunk_count <= 3:
+                        logger.debug(
+                            "📨 [STREAM] CHUNK_YIELDED",
+                            request_id=stream_request_id,
+                            chunk_num=chunk_count,
+                            chunk_size=chunk_size,
+                            total_bytes=total_bytes,
+                            time_since_last_chunk_ms=round(time_since_last, 1),
+                            preview=chunk_text[:30] + ("..." if len(chunk_text) > 30 else ""),
+                        )
+
+                    yield f"data: {json.dumps(chunk_data)}\n\n"
+                    last_chunk_time = now
+
+            logger.info(
+                "✨ [STREAM] STREAMING_COMPLETE",
+                request_id=stream_request_id,
+                provider=provider_name,
+                persona=request.persona,
+                total_chunks=chunk_count,
+                total_bytes=total_bytes,
+                total_latency_ms=int((time.time() - start_time) * 1000),
+                avg_chunk_size=round(total_bytes / chunk_count, 1) if chunk_count > 0 else 0,
+            )
+
+            yield f"data: {json.dumps({'done': True})}\n\n"
+
+        except Exception as e:
+            error_latency_ms = int((time.time() - start_time) * 1000)
+            sanitized_error = sanitize_error_message(str(e))
+
+            logger.error(
+                "❌ [STREAM] STREAM_FAILED",
+                request_id=stream_request_id,
+                error=sanitized_error,
+                error_type=type(e).__name__,
+                persona=request.persona,
+                message_length=len(request.message),
+                latency_ms=error_latency_ms,
+                exc_info=True,
+            )
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        stream_generator(),
+        media_type="text/event-stream",
+    )
+
+
 @router.post("/chat/debug")
 async def internal_llm_chat_debug(request: ChatRequest) -> dict:
     """INTERNAL: Debug del flujo de chat. Devuelve response vs thinking.

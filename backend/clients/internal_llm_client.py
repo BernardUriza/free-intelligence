@@ -16,6 +16,7 @@ Ventajas:
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import Any
 
 import httpx
@@ -144,6 +145,139 @@ class InternalLLMClient:
         except Exception as e:
             logger.error(
                 "INTERNAL_LLM_CLIENT_CHAT_FAILED",
+                persona=persona,
+                error=str(e),
+                error_type=type(e).__name__,
+                session_id=session_id,
+            )
+            raise
+
+    async def chat_stream(
+        self,
+        persona: str,
+        message: str,
+        context: dict[str, Any] | None = None,
+        session_id: str | None = None,
+        doctor_id: str | None = None,
+        use_memory: bool = False,
+        request_id: str | None = None,
+        trace_id: str | None = None,
+        caller: str = "public",
+    ) -> AsyncGenerator[str, None]:
+        """Streaming chat - yields content chunks as they arrive.
+
+        Streams Server-Sent Events (SSE) from /internal/llm/chat/stream.
+
+        Args:
+            persona: Modo del asistente
+            message: Mensaje del usuario
+            context: Contexto adicional
+            session_id: Session ID para audit
+            doctor_id: Doctor ID para memoria conversacional
+            use_memory: Enable conversation memory
+            request_id: Request ID para tracing
+            trace_id: Trace ID para distributed tracing
+            caller: Caller identifier (public/internal)
+
+        Yields:
+            str: Content chunks as they arrive from the LLM
+
+        Raises:
+            httpx.HTTPStatusError: Si la llamada falla
+        """
+        try:
+            logger.debug(
+                "INTERNAL_LLM_CLIENT_CHAT_STREAM_START",
+                persona=persona,
+                message_length=len(message),
+                has_context=context is not None,
+                session_id=session_id,
+            )
+
+            headers = {}
+            if request_id:
+                headers["x-fi-request-id"] = request_id
+            if trace_id:
+                headers["x-fi-trace-id"] = trace_id
+
+            # Security guard check
+            if caller != "internal":
+                logger.warning(
+                    "SECURITY_GUARD_CHECK_STREAM",
+                    reason="non_internal_caller",
+                    caller=caller,
+                )
+                if os.getenv("FI_ENFORCE_GUARD", "0") == "1":
+                    logger.error("SECURITY_GUARD_HIT_STREAM", caller=caller)
+                    raise AssertionError("Public layer must not call internal endpoints directly")
+
+            # Use stream=True for SSE streaming
+            async with self.client.stream(
+                "POST",
+                "/internal/llm/chat/stream",
+                json={
+                    "persona": persona,
+                    "message": message,
+                    "context": context,
+                    "session_id": session_id,
+                    "doctor_id": doctor_id,
+                    "use_memory": use_memory,
+                },
+                headers=headers or None,
+            ) as response:
+                response.raise_for_status()
+
+                # Parse SSE stream
+                async for line in response.aiter_lines():
+                    if not line or not line.startswith("data: "):
+                        continue
+
+                    try:
+                        import json
+                        chunk_data = json.loads(line[6:])  # Remove "data: " prefix
+
+                        # Check for error or completion markers
+                        if "error" in chunk_data:
+                            logger.error(
+                                "STREAM_ERROR",
+                                persona=persona,
+                                error=chunk_data.get("error"),
+                            )
+                            yield f"ERROR: {chunk_data.get('error')}"
+                            break
+
+                        if chunk_data.get("done"):
+                            logger.debug(
+                                "STREAM_COMPLETED",
+                                persona=persona,
+                                session_id=session_id,
+                            )
+                            break
+
+                        # Yield content chunk
+                        content = chunk_data.get("content", "")
+                        if content:
+                            yield content
+
+                    except json.JSONDecodeError:
+                        logger.warning(
+                            "STREAM_JSON_PARSE_ERROR",
+                            line=line[:100],
+                        )
+                        continue
+
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "INTERNAL_LLM_CLIENT_CHAT_STREAM_HTTP_ERROR",
+                persona=persona,
+                status_code=e.response.status_code,
+                error=str(e),
+                session_id=session_id,
+            )
+            raise
+        except Exception as e:
+            logger.error(
+                "INTERNAL_LLM_CLIENT_CHAT_STREAM_FAILED",
                 persona=persona,
                 error=str(e),
                 error_type=type(e).__name__,

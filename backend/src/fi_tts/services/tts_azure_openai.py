@@ -34,13 +34,20 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 # Azure OpenAI TTS configuration
+# Supports unified resource (AZURE_OPENAI_*) and legacy specific TTS vars
 AZURE_OPENAI_TTS_ENDPOINT = os.getenv(
-    "AZURE_OPENAI_TTS_ENDPOINT",
-    os.getenv("AZURE_TTS_ENDPOINT", ""),  # Backward compat with old var name
+    "AZURE_OPENAI_ENDPOINT",  # Unified resource endpoint (shared with STT)
+    os.getenv(
+        "AZURE_OPENAI_TTS_ENDPOINT",
+        os.getenv("AZURE_TTS_ENDPOINT", ""),  # Legacy var names
+    ),
 )
 AZURE_OPENAI_TTS_API_KEY = os.getenv(
-    "AZURE_OPENAI_TTS_API_KEY",
-    os.getenv("AZURE_TTS_API_KEY", ""),  # Backward compat with old var name
+    "AZURE_OPENAI_API_KEY",  # Unified resource API key (shared with STT)
+    os.getenv(
+        "AZURE_OPENAI_TTS_API_KEY",
+        os.getenv("AZURE_TTS_API_KEY", ""),  # Legacy var names
+    ),
 )
 AZURE_OPENAI_TTS_API_VERSION = os.getenv(
     "AZURE_OPENAI_TTS_API_VERSION",

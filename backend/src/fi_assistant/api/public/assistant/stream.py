@@ -107,42 +107,66 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
             )
             yield f"data: {initial_chunk.model_dump_json()}\n\n"
 
+            logger.info(
+                "STREAM_STARTED",
+                model=request.model,
+                persona=request.persona,
+                session_id=request.session_id,
+            )
+
             try:
-                # Timeout increased for Qwen3 on CPU (can take 60-120s for inference)
-                # Frontend has 120s timeout, so backend must be less
-                timeout_seconds = 110  # Leave 10s buffer for response transmission
+                # Use new streaming method that yields chunks in real-time
+                # No timeout needed - streaming naturally completes when LLM finishes
+                chunk_count = 0
+
+                async for chunk_text in llm_client.chat_stream(
+                    persona=request.persona,
+                    message=last_message.content,
+                    context=context,
+                    session_id=request.session_id,
+                    doctor_id=doctor_id,
+                    use_memory=doctor_id is not None,
+                    request_id=request_id,
+                    caller="public",
+                ):
+                    if chunk_text and not chunk_text.startswith("ERROR:"):
+                        chunk_count += 1
+                        stream_chunk = ChatCompletionStreamResponse(
+                            id=completion_id,
+                            created=created_timestamp,
+                            model=request.model,
+                            choices=[
+                                {"index": 0, "delta": {"content": chunk_text}, "finish_reason": None}
+                            ],
+                        )
+                        yield f"data: {stream_chunk.model_dump_json()}\n\n"
+                    elif chunk_text.startswith("ERROR:"):
+                        logger.error(
+                            "STREAM_ERROR_RECEIVED",
+                            error=chunk_text,
+                            model=request.model,
+                        )
+                        error_chunk = ChatCompletionStreamResponse(
+                            id=completion_id,
+                            created=created_timestamp,
+                            model=request.model,
+                            choices=[
+                                {"index": 0, "delta": {"content": chunk_text}, "finish_reason": "error"}
+                            ],
+                        )
+                        yield f"data: {error_chunk.model_dump_json()}\n\n"
+                        break
+
                 logger.info(
-                    "SSE_TIMEOUT_START", timeout_seconds=timeout_seconds, model=request.model, model_type="qwen3_cpu"
-                )
-                # Use asyncio.timeout() context manager for more reliable cancellation
-                async with asyncio.timeout(timeout_seconds):
-                    result = await llm_client.chat(
-                        persona=request.persona,
-                        message=last_message.content,
-                        context=context,
-                        session_id=request.session_id,
-                        doctor_id=doctor_id,
-                        use_memory=doctor_id is not None,
-                        request_id=request_id,
-                        caller="public",
-                    )
-                logger.info(
-                    "SSE_TIMEOUT_SUCCESS",
+                    "STREAM_CHUNKS_SENT",
                     model=request.model,
-                    response_length=len(result.get("response", "")),
+                    chunks_count=chunk_count,
                 )
 
-                # DEBUG: Log complete result structure
-                logger.info(
-                    "DEBUG_RESULT_STRUCTURE",
-                    result_keys=list(result.keys()) if isinstance(result, dict) else "not_dict",
-                    result_type=type(result).__name__,
-                    response_key_exists="response" in result if isinstance(result, dict) else False,
-                    response_value=result.get("response", "EMPTY")[:100] if isinstance(result, dict) else "N/A",
-                )
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 logger.warning(
-                    "SSE_TIMEOUT_FIRED", model=request.model, timeout_seconds=timeout_seconds
+                    "STREAM_TIMEOUT",
+                    model=request.model,
                 )
                 timeout_msg = "El modelo está tardando más de lo esperado. Intenta nuevamente o reduce la complejidad."
                 stream_chunk = ChatCompletionStreamResponse(
@@ -152,61 +176,6 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                     choices=[
                         {"index": 0, "delta": {"content": timeout_msg}, "finish_reason": None}
                     ],
-                )
-                yield f"data: {stream_chunk.model_dump_json()}\n\n"
-
-                final_chunk = ChatCompletionStreamResponse(
-                    id=completion_id,
-                    created=created_timestamp,
-                    model=request.model,
-                    choices=[{"index": 0, "delta": {}, "finish_reason": "stop"}],
-                )
-                yield f"data: {final_chunk.model_dump_json()}\n\n"
-                yield "data: [DONE]\n\n"
-                return
-
-            thinking = result.get("thinking")
-            if isinstance(thinking, str) and thinking.strip():
-                meta_event = {"thinking": thinking.strip()}
-                yield f"event: meta\ndata: {json.dumps(meta_event)}\n\n"
-                logger.info(
-                    "STREAM_THINKING_SENT",
-                    thinking_length=len(thinking),
-                    thinking_preview=thinking[:80],
-                )
-
-            response_text = result.get("response", "")
-
-            # DEBUG: Log the result structure to understand what we're getting
-            logger.info(
-                "STREAM_RESULT_STRUCTURE",
-                result_keys=list(result.keys()) if isinstance(result, dict) else "not_dict",
-                response_text_length=len(response_text),
-                response_text_preview=response_text[:100] if response_text else "EMPTY",
-                response_text_last_100=response_text[-100:] if response_text and len(response_text) > 100 else response_text,
-                thinking_length=len(thinking) if isinstance(thinking, str) else 0,
-                thinking_preview=thinking[:80] if isinstance(thinking, str) else None,
-            )
-
-            if not response_text:
-                final_chunk = ChatCompletionStreamResponse(
-                    id=completion_id,
-                    created=created_timestamp,
-                    model=request.model,
-                    choices=[{"index": 0, "delta": {}, "finish_reason": "stop"}],
-                )
-                yield f"data: {final_chunk.model_dump_json()}\n\n"
-                yield "data: [DONE]\n\n"
-                return
-
-            chunk_size = 60
-            for i in range(0, len(response_text), chunk_size):
-                chunk_text = response_text[i : i + chunk_size]
-                stream_chunk = ChatCompletionStreamResponse(
-                    id=completion_id,
-                    created=created_timestamp,
-                    model=request.model,
-                    choices=[{"index": 0, "delta": {"content": chunk_text}, "finish_reason": None}],
                 )
                 yield f"data: {stream_chunk.model_dump_json()}\n\n"
 

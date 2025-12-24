@@ -31,9 +31,18 @@ async def list_providers():
     """Return which TTS providers are configured on this backend."""
     import os
 
-    # Azure OpenAI TTS (supports backward compat with old var names)
-    azure_openai_key = os.getenv("AZURE_OPENAI_TTS_API_KEY") or os.getenv("AZURE_TTS_API_KEY")
-    azure_openai_endpoint = os.getenv("AZURE_OPENAI_TTS_ENDPOINT") or os.getenv("AZURE_TTS_ENDPOINT")
+    # Azure OpenAI TTS (unified resource - shared endpoint with STT/Whisper)
+    # Supports both new unified var names and legacy var names
+    azure_openai_key = (
+        os.getenv("AZURE_OPENAI_API_KEY")
+        or os.getenv("AZURE_OPENAI_TTS_API_KEY")
+        or os.getenv("AZURE_TTS_API_KEY")
+    )
+    azure_openai_endpoint = (
+        os.getenv("AZURE_OPENAI_ENDPOINT")
+        or os.getenv("AZURE_OPENAI_TTS_ENDPOINT")
+        or os.getenv("AZURE_TTS_ENDPOINT")
+    )
     has_azure_openai = bool(azure_openai_key and azure_openai_endpoint)
 
     providers = {

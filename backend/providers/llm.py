@@ -17,8 +17,8 @@ import numpy as np
 import ollama
 import os
 from backend.policy.policy_loader import get_policy_loader
+from backend.providers.response_parsers import GenericParser, QwenThinkingParser
 from backend.providers.retry import CircuitBreakerConfig, RetryConfig, get_circuit_breaker
-from backend.providers.response_parsers import QwenThinkingParser, GenericParser
 from backend.schemas.llm.audit_policy import require_audit_log
 from backend.src.fi_common.logging.logger import get_logger
 from dotenv import load_dotenv
@@ -642,6 +642,180 @@ class OllamaProvider(LLMProvider):
             sanitized_error = sanitize_error_message(str(e))
             self.logger.error("OLLAMA_EMBED_FAILED", error=sanitized_error, model=self.embed_model)
             raise
+
+    def generate_stream(self, prompt: str, **kwargs):
+        """
+        Generate completion using Ollama API with real-time streaming.
+
+        Yields chunks as they arrive from Ollama without waiting for complete response.
+
+        Args:
+            prompt: Input text prompt
+            **kwargs: Ollama-specific parameters (model, temperature, max_tokens, etc.)
+
+        Yields:
+            str: Text chunks as they are generated
+
+        Notes:
+            - Streams directly from Ollama's stream endpoint
+            - No buffering - chunks sent immediately as generated
+            - Suitable for real-time UI updates and SSE streaming
+            - FI-BACKEND-REF-005: Exponential backoff + circuit breaker apply
+        """
+        from backend.providers.retry import CircuitOpenError, calculate_backoff_delay
+
+        model: str = str(kwargs.get("model", self.default_model))
+        max_tokens: int = int(kwargs.get("max_tokens") or self.config.get("max_tokens") or 2048)
+        temperature: float = float(
+            kwargs.get("temperature") or self.config.get("temperature") or 0.7
+        )
+
+        self.logger.info(
+            "OLLAMA_GENERATE_STREAM_STARTED",
+            model=model,
+            prompt_length=len(prompt),
+            base_url=self.base_url,
+        )
+
+        # Check circuit breaker before attempting
+        if not self.circuit_breaker.can_execute():
+            raise CircuitOpenError(
+                self.circuit_breaker.name,
+                f"Ollama service unavailable, retry after {self.circuit_breaker.config.recovery_timeout}s",
+            )
+
+        start_time = datetime.now(UTC)
+        last_exception: Exception | None = None
+
+        force_thinking = os.getenv("LLM_FORCE_THINKING", "false").lower() in {"1", "true", "yes"}
+        enable_thinking = kwargs.get("enable_thinking", True)
+
+        for attempt in range(self.retry_config.max_retries + 1):
+            try:
+                is_qwen3 = str(model).lower().startswith("qwen3")
+                use_generate_with_think = enable_thinking and (is_qwen3 or force_thinking)
+
+                if use_generate_with_think:
+                    # Use generate endpoint with streaming and thinking enabled
+                    response = self.client.generate(
+                        model=model,
+                        prompt=prompt,
+                        stream=True,
+                        options={
+                            "temperature": temperature,
+                            "num_predict": max_tokens,
+                            "think": True,
+                        },
+                    )
+                else:
+                    # Use chat endpoint with streaming
+                    response = self.client.chat(
+                        model=model,
+                        messages=[{"role": "user", "content": prompt}],
+                        stream=True,
+                        options={
+                            "temperature": temperature,
+                            "num_predict": max_tokens,
+                            "think": False,
+                        },
+                    )
+
+                # Stream chunks as they arrive
+                chunk_count = 0
+                total_tokens = 0
+
+                for chunk in response:
+                    try:
+                        if use_generate_with_think:
+                            # Extract text from /generate streaming response
+                            chunk_text = chunk.get("response", "")
+                            total_tokens = chunk.get("eval_count", 0)
+                        else:
+                            # Extract text from /chat streaming response
+                            chunk_text = chunk.get("message", {}).get("content", "")
+                            total_tokens = chunk.get("eval_count", 0)
+
+                        if chunk_text:
+                            chunk_count += 1
+                            self.logger.debug(
+                                "OLLAMA_STREAM_CHUNK",
+                                model=model,
+                                chunk_num=chunk_count,
+                                chunk_length=len(chunk_text),
+                            )
+                            yield chunk_text
+                    except Exception as e:
+                        self.logger.warning(
+                            "OLLAMA_STREAM_CHUNK_PARSE_ERROR",
+                            error=str(e),
+                            chunk_data=str(chunk)[:100],
+                        )
+                        continue
+
+                latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
+
+                # Success: record in circuit breaker
+                self.circuit_breaker.record_success()
+
+                if attempt > 0:
+                    self.logger.info(
+                        "OLLAMA_STREAM_RETRY_SUCCEEDED",
+                        model=model,
+                        attempt=attempt + 1,
+                        total_chunks=chunk_count,
+                    )
+
+                self.logger.info(
+                    "OLLAMA_GENERATE_STREAM_COMPLETED",
+                    model=model,
+                    chunks_yielded=chunk_count,
+                    latency_ms=round(latency_ms, 2),
+                    retry_attempts=attempt,
+                )
+                return
+
+            except Exception as e:
+                last_exception = e
+                sanitized_error = sanitize_error_message(str(e))
+
+                # Record failure in circuit breaker
+                self.circuit_breaker.record_failure()
+
+                # Check if we have retries left
+                if attempt < self.retry_config.max_retries:
+                    delay = calculate_backoff_delay(attempt, self.retry_config)
+
+                    self.logger.warning(
+                        "OLLAMA_STREAM_RETRY_ATTEMPT",
+                        model=model,
+                        attempt=attempt + 1,
+                        max_retries=self.retry_config.max_retries,
+                        delay_seconds=round(delay, 2),
+                        error=sanitized_error[:100],
+                    )
+
+                    import time
+                    time.sleep(delay)
+
+                    # Re-check circuit breaker after delay
+                    if not self.circuit_breaker.can_execute():
+                        raise CircuitOpenError(
+                            self.circuit_breaker.name,
+                            "Circuit opened during retry sequence",
+                        ) from None
+                else:
+                    self.logger.error(
+                        "OLLAMA_GENERATE_STREAM_FAILED",
+                        error=sanitized_error,
+                        model=model,
+                        base_url=self.base_url,
+                        total_attempts=self.retry_config.max_retries + 1,
+                    )
+
+        # All retries exhausted
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("Unexpected retry loop exit")
 
     def get_provider_name(self) -> str:
         return "ollama"
