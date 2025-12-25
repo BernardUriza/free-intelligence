@@ -23,7 +23,6 @@ export PIP_DISABLE_PIP_VERSION_CHECK=1
 # ============================================================================
 PY ?= python3.14
 BACKEND_PORT ?= 7001
-GATEWAY_PORT ?= 7002
 STRIDE_PORT ?= 9050
 FRONTEND_PORT ?= 9000
 CORPUS_EMAIL ?= $(USER)@example.com
@@ -164,22 +163,6 @@ run: check-python init-corpus ## Run FI Consult Service (default: 7001)
 	@echo "   Press Ctrl+C to stop"
 	@echo ""
 	PYTHONPATH=. $(PY) -m uvicorn backend.app.main:app --host 0.0.0.0 --port $(BACKEND_PORT) --reload
-
-run-gateway: check-python init-corpus ## Run AURITY Gateway (default: 7002)
-	@echo "🚀 Starting AURITY Gateway on http://localhost:$(GATEWAY_PORT)"
-	@echo "   Health check: http://localhost:$(GATEWAY_PORT)/health"
-	@echo "   Press Ctrl+C to stop"
-	@echo ""
-	PYTHONPATH=. $(PY) -m uvicorn backend.aurity_gateway:app --host 0.0.0.0 --port $(GATEWAY_PORT) --reload
-
-run-both: init-corpus ## Run both services (requires tmux or separate terminals)
-	@echo "🚀 Starting both services..."
-	@echo "   FI Consult:    http://localhost:$(BACKEND_PORT)"
-	@echo "   AURITY Gateway: http://localhost:$(GATEWAY_PORT)"
-	@echo ""
-	@echo "Run these in separate terminals:"
-	@echo "  Terminal 1: make run"
-	@echo "  Terminal 2: make run-gateway"
 
 # ============================================================================
 # Testing

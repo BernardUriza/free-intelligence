@@ -15,6 +15,12 @@ from __future__ import annotations
 
 from backend.models.task_type import TaskType
 from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_events.application.event_bus import get_event_bus
+from backend.src.fi_events.domain.events import (
+    TranscriptionChunkEvent,
+    TranscriptionEndedEvent,
+    TranscriptionStartedEvent,
+)
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     ensure_task_exists,
     get_task_chunks,
@@ -123,6 +129,20 @@ class TranscriptionService:
             session_id=session_id,
         )
 
+        # 2b. Emit TRANSCRIPTION_STARTED event (first chunk only)
+        if chunk_number == 0:
+            try:
+                event_bus = get_event_bus()
+                await event_bus.publish(
+                    TranscriptionStartedEvent.create(
+                        session_id=session_id,
+                        mode="medical",
+                        source="stream",
+                    )
+                )
+            except Exception as e:
+                logger.warning("EVENT_PUBLISH_FAILED", event="TRANSCRIPTION_STARTED", error=str(e))
+
         # 3. Save audio to HDF5 IMMEDIATELY (fast path - no transcription yet)
         import hashlib
 
@@ -168,6 +188,19 @@ class TranscriptionService:
             chunk_number=chunk_number,
             audio_size=audio_size,
         )
+
+        # 3b. Emit TRANSCRIPTION_CHUNK event
+        try:
+            event_bus = get_event_bus()
+            await event_bus.publish(
+                TranscriptionChunkEvent.create(
+                    session_id=session_id,
+                    chunk_number=chunk_number,
+                    audio_size_bytes=audio_size,
+                )
+            )
+        except Exception as e:
+            logger.warning("EVENT_PUBLISH_FAILED", event="TRANSCRIPTION_CHUNK", error=str(e))
 
         # 4. Update task metadata (track total chunks)
         metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}

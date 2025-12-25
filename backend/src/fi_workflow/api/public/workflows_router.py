@@ -40,6 +40,7 @@ from backend.src.fi_clinic.api.public import clinic_media
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_content.api.public import tv_content_seeds
 from backend.src.fi_document.api.public import documents
+from backend.src.fi_events.api.public import events
 from backend.src.fi_evidence.api.public import evidence
 from backend.src.fi_kpi.api.public import kpis
 from backend.src.fi_memory.api.public import longitudinal_memory
@@ -120,6 +121,9 @@ router.include_router(documents.router, tags=["Knowledge Base"])
 # SYSTEM: Disk usage and memory management
 router.include_router(system.router, tags=["System"])
 
+# EVENTS: Event sourcing and audit trail (append-only event store)
+router.include_router(events.router, tags=["Events"])
+
 logger.info(
     "WORKFLOWS_ROUTER_INITIALIZED",
     modules=[
@@ -135,6 +139,7 @@ logger.info(
         "clinic_media",
         "tv_content_seeds",
         "widget_configs",
+        "events",
     ],
     pattern="SOLIS",
 )
