@@ -338,7 +338,7 @@ class OllamaProvider(LLMProvider):
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.base_url: str = str(self.config.get("base_url") or "http://localhost:11434")
-        self.default_model: str = str(self.config.get("model") or "qwen2:1.5b-instruct")
+        self.default_model: str = str(self.config.get("model") or "qwen3:1.7b")
         self.embed_model: str = str(self.config.get("embed_model") or "nomic-embed-text")
         self.timeout: int = int(self.config.get("timeout_seconds") or 120)
 
@@ -404,7 +404,9 @@ class OllamaProvider(LLMProvider):
 
         from backend.providers.retry import CircuitOpenError, calculate_backoff_delay
 
-        model: str = str(kwargs.get("model", self.default_model))
+        # Handle None model explicitly - use default if None or missing
+        model_arg = kwargs.get("model")
+        model: str = model_arg if model_arg else self.default_model
         max_tokens: int = int(kwargs.get("max_tokens") or self.config.get("max_tokens") or 2048)
         temperature: float = float(
             kwargs.get("temperature") or self.config.get("temperature") or 0.7
@@ -654,7 +656,8 @@ class OllamaProvider(LLMProvider):
             **kwargs: Ollama-specific parameters (model, temperature, max_tokens, etc.)
 
         Yields:
-            str: Text chunks as they are generated
+            tuple[str, str]: (chunk_type, chunk_text) where chunk_type is "thinking" or "content"
+                When thinking is disabled or model doesn't support it, all chunks are "content".
 
         Notes:
             - Streams directly from Ollama's stream endpoint
@@ -664,7 +667,9 @@ class OllamaProvider(LLMProvider):
         """
         from backend.providers.retry import CircuitOpenError, calculate_backoff_delay
 
-        model: str = str(kwargs.get("model", self.default_model))
+        # Handle None model explicitly - use default if None or missing
+        model_arg = kwargs.get("model")
+        model: str = model_arg if model_arg else self.default_model
         max_tokens: int = int(kwargs.get("max_tokens") or self.config.get("max_tokens") or 2048)
         temperature: float = float(
             kwargs.get("temperature") or self.config.get("temperature") or 0.7
@@ -728,23 +733,49 @@ class OllamaProvider(LLMProvider):
                     try:
                         if use_generate_with_think:
                             # Extract text from /generate streaming response
-                            # When thinking is enabled, content comes from either "response" or "thinking" field
-                            chunk_text = chunk.get("response", "") or chunk.get("thinking", "")
+                            # Ollama sends thinking in "thinking" field and content in "response" field
+                            thinking_text = chunk.get("thinking", "")
+                            response_text = chunk.get("response", "")
                             total_tokens = chunk.get("eval_count", 0)
+
+                            # Yield thinking chunks with "thinking" type
+                            if thinking_text:
+                                chunk_count += 1
+                                self.logger.debug(
+                                    "OLLAMA_STREAM_CHUNK",
+                                    model=model,
+                                    chunk_num=chunk_count,
+                                    chunk_type="thinking",
+                                    chunk_length=len(thinking_text),
+                                )
+                                yield ("thinking", thinking_text)
+
+                            # Yield response chunks with "content" type
+                            if response_text:
+                                chunk_count += 1
+                                self.logger.debug(
+                                    "OLLAMA_STREAM_CHUNK",
+                                    model=model,
+                                    chunk_num=chunk_count,
+                                    chunk_type="content",
+                                    chunk_length=len(response_text),
+                                )
+                                yield ("content", response_text)
                         else:
                             # Extract text from /chat streaming response
                             chunk_text = chunk.get("message", {}).get("content", "")
                             total_tokens = chunk.get("eval_count", 0)
 
-                        if chunk_text:
-                            chunk_count += 1
-                            self.logger.debug(
-                                "OLLAMA_STREAM_CHUNK",
-                                model=model,
-                                chunk_num=chunk_count,
-                                chunk_length=len(chunk_text),
-                            )
-                            yield chunk_text
+                            if chunk_text:
+                                chunk_count += 1
+                                self.logger.debug(
+                                    "OLLAMA_STREAM_CHUNK",
+                                    model=model,
+                                    chunk_num=chunk_count,
+                                    chunk_type="content",
+                                    chunk_length=len(chunk_text),
+                                )
+                                yield ("content", chunk_text)
                     except Exception as e:
                         self.logger.warning(
                             "OLLAMA_STREAM_CHUNK_PARSE_ERROR",

@@ -43,7 +43,7 @@ async def get_system_health() -> SystemHealthResponse:
       "services": {
         "backend": true,
         "diarization": { "whisper": true, "ffmpeg": true },
-        "llm": { "ollama": true, "models": ["qwen2:1.5b-instruct"] },
+        "llm": { "ollama": true, "models": ["qwen3:1.7b"] },
         "policy": true
       },
       "version": "v0.3.x",

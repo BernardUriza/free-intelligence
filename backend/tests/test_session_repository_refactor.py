@@ -107,7 +107,7 @@ class TestSessionRepositoryRefactor:
         update_metadata = {
             "diarization_metadata": {
                 "segment_count": 10,
-                "model": "qwen2:1.5b-instruct",
+                "model": "qwen3:1.7b",
                 "speakers": ["MEDICO", "PACIENTE"],
             }
         }
@@ -125,7 +125,7 @@ class TestSessionRepositoryRefactor:
         # CRITICAL: Must be dict, not string
         assert isinstance(diarization, dict)
         assert diarization["segment_count"] == 10
-        assert diarization["model"] == "qwen2:1.5b-instruct"
+        assert diarization["model"] == "qwen3:1.7b"
         assert diarization["speakers"] == ["MEDICO", "PACIENTE"]
 
     def test_serialize_value_helper(self) -> None:

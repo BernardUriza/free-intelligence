@@ -19,7 +19,8 @@ from datetime import UTC, datetime
 
 import ulid
 from backend.policy.policy_loader import get_policy_loader
-from backend.providers.llm import llm_generate
+from backend.src.fi_events import get_event_bus, DomainEvent, EventType
+from backend.providers.llm import llm_generate, sanitize_error_message
 from backend.repositories.audit_repository import AuditRepository
 from backend.schemas.llm.audit_policy import require_audit_log
 from backend.src.fi_assistant.api.public.assistant_websocket import broadcast_new_message
@@ -469,6 +470,22 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 use_memory=request.use_memory,
             )
 
+            # Emit event: user message received
+            try:
+                event_bus = get_event_bus()
+                aggregate_id = request.session_id or stream_request_id
+                await event_bus.publish(DomainEvent(
+                    event_type=EventType.ASSISTANT_MESSAGE_RECEIVED,
+                    aggregate_id=aggregate_id,
+                    payload={
+                        "message_type": "user",
+                        "token_count": len(request.message.split()),
+                        "persona": request.persona,
+                    }
+                ))
+            except Exception as evt_err:
+                logger.warning("EVENT_EMIT_FAILED", error=str(evt_err))
+
             # Get memory context if enabled
             memory_enabled = request.use_memory and request.doctor_id
 
@@ -481,6 +498,20 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 )
                 # Build prompt with memory
                 memory = get_memory_manager(request.doctor_id)
+
+                # Store user message BEFORE streaming (same as non-streaming endpoint)
+                user_timestamp = datetime.now(UTC).isoformat()
+                memory.store_interaction(
+                    session_id=request.session_id or "unknown",
+                    role="user",
+                    content=request.message,
+                    persona=request.persona,
+                )
+                logger.info(
+                    "📝 [STREAM] USER_MESSAGE_STORED",
+                    request_id=stream_request_id,
+                    doctor_id=request.doctor_id,
+                )
                 system_prompt = persona_mgr.build_system_prompt(request.persona, request.context)
                 memory_context = memory.get_context(request.message, request.session_id)
 
@@ -584,6 +615,9 @@ async def internal_llm_chat_stream(request: ChatRequest):
             total_bytes = 0
             last_chunk_time = start_time
 
+            # Get model name for meta event
+            model_name = (request.context.get("model") if request.context else None) or provider_name
+
             logger.info(
                 "🚀 [STREAM] STREAMING_START",
                 request_id=stream_request_id,
@@ -606,7 +640,29 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 )
             )
 
-            for chunk_text in gen:
+            # Thinking/content streaming state
+            # Provider yields (chunk_type, chunk_text) tuples
+            thinking_buffer = ""
+            content_buffer = ""  # Accumulate content for storage
+            thinking_emitted = False
+
+            def format_content_chunk(text: str) -> str:
+                """Format content as OpenAI-compatible SSE chunk."""
+                chunk_data = {
+                    "choices": [
+                        {"index": 0, "delta": {"content": text}, "finish_reason": None}
+                    ]
+                }
+                return f"data: {json.dumps(chunk_data)}\n\n"
+
+            for chunk_data in gen:
+                # Handle tuple format (chunk_type, chunk_text) from provider
+                if isinstance(chunk_data, tuple) and len(chunk_data) == 2:
+                    chunk_type, chunk_text = chunk_data
+                else:
+                    # Fallback for providers that yield plain strings
+                    chunk_type, chunk_text = "content", str(chunk_data)
+
                 if chunk_text:
                     chunk_count += 1
                     chunk_size = len(chunk_text)
@@ -614,27 +670,48 @@ async def internal_llm_chat_stream(request: ChatRequest):
                     now = time.time()
                     time_since_last = (now - last_chunk_time) * 1000
 
-                    # Format as OpenAI-compatible SSE
-                    chunk_data = {
-                        "choices": [
-                            {"index": 0, "delta": {"content": chunk_text}, "finish_reason": None}
-                        ]
-                    }
-
                     # Log every 5th chunk to avoid spam, or first/last chunk
                     if chunk_count % 5 == 1 or chunk_count <= 3:
                         logger.debug(
                             "📨 [STREAM] CHUNK_YIELDED",
                             request_id=stream_request_id,
                             chunk_num=chunk_count,
+                            chunk_type=chunk_type,
                             chunk_size=chunk_size,
                             total_bytes=total_bytes,
                             time_since_last_chunk_ms=round(time_since_last, 1),
                             preview=chunk_text[:30] + ("..." if len(chunk_text) > 30 else ""),
                         )
 
-                    yield f"data: {json.dumps(chunk_data)}\n\n"
+                    if chunk_type == "thinking":
+                        # Stream thinking chunks immediately (real-time)
+                        thinking_buffer += chunk_text
+                        meta_data = {"thinking": chunk_text, "model": model_name}
+                        yield f"event: meta\ndata: {json.dumps(meta_data)}\n\n"
+                        if not thinking_emitted:
+                            thinking_emitted = True
+                            logger.info(
+                                "💭 [STREAM] THINKING_STARTED",
+                                request_id=stream_request_id,
+                                model=model_name,
+                            )
+                    else:
+                        # Content chunk - accumulate AND stream immediately
+                        content_buffer += chunk_text
+                        yield format_content_chunk(chunk_text)
+
                     last_chunk_time = now
+
+            # Log final thinking stats (thinking was already streamed in real-time)
+            if thinking_buffer:
+                logger.info(
+                    "💭 [STREAM] THINKING_COMPLETE",
+                    request_id=stream_request_id,
+                    total_thinking_length=len(thinking_buffer),
+                    model=model_name,
+                )
+
+            total_latency_ms = int((time.time() - start_time) * 1000)
 
             logger.info(
                 "✨ [STREAM] STREAMING_COMPLETE",
@@ -643,9 +720,52 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 persona=request.persona,
                 total_chunks=chunk_count,
                 total_bytes=total_bytes,
-                total_latency_ms=int((time.time() - start_time) * 1000),
+                total_latency_ms=total_latency_ms,
                 avg_chunk_size=round(total_bytes / chunk_count, 1) if chunk_count > 0 else 0,
             )
+
+            # Emit event: assistant response generated
+            try:
+                event_bus = get_event_bus()
+                aggregate_id = request.session_id or stream_request_id
+                await event_bus.publish(DomainEvent(
+                    event_type=EventType.ASSISTANT_RESPONSE_GENERATED,
+                    aggregate_id=aggregate_id,
+                    payload={
+                        "message_type": "assistant",
+                        "token_count": total_bytes // 4,  # Approximate tokens
+                        "total_chunks": chunk_count,
+                        "latency_ms": total_latency_ms,
+                        "provider": provider_name,
+                    }
+                ))
+            except Exception as evt_err:
+                logger.warning("EVENT_EMIT_FAILED", error=str(evt_err))
+
+            # Store assistant response in memory AFTER streaming completes
+            if memory_enabled and content_buffer:
+                try:
+                    memory = get_memory_manager(request.doctor_id)
+                    memory.store_interaction(
+                        session_id=request.session_id or "unknown",
+                        role="assistant",
+                        content=content_buffer,
+                        persona=request.persona,
+                        model=model_name,
+                    )
+                    logger.info(
+                        "💾 [STREAM] ASSISTANT_MESSAGE_STORED",
+                        request_id=stream_request_id,
+                        doctor_id=request.doctor_id,
+                        content_length=len(content_buffer),
+                        model=model_name,
+                    )
+                except Exception as store_err:
+                    logger.error(
+                        "❌ [STREAM] ASSISTANT_STORE_FAILED",
+                        request_id=stream_request_id,
+                        error=str(store_err),
+                    )
 
             yield f"data: {json.dumps({'done': True})}\n\n"
 

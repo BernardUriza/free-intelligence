@@ -423,7 +423,7 @@ class CatalogService:
             "llama": "llama3",
             "mistral": "mistral",
             "phi": "phi3",
-            "qwen": "qwen2",
+            "qwen": "qwen3",
             "gemma": "gemma",
         }
 

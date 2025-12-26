@@ -1177,7 +1177,7 @@ def deploy_ds923(
 
     # Pull models
     typer.echo("📥 Pulling LLM models...")
-    models = ["qwen2:7b-instruct", "deepseek-r1:7b"]
+    models = ["qwen3:1.7b", "deepseek-r1:7b"]
 
     for model in models:
         typer.echo(f"   Pulling {model}...")
@@ -1234,7 +1234,7 @@ def deploy_ds923(
     try:
         result = run_cmd([
             "curl", "-s", "http://localhost:11434/api/generate",
-            "-d", '{"model":"qwen2:7b-instruct","prompt":"Di hola en español.","stream":false}'
+            "-d", '{"model":"qwen3:1.7b","prompt":"Di hola en español.","stream":false}'
         ], capture_output=True)
         if result and "response" in result.stdout:
             typer.echo("✅ Ollama generate working")
@@ -1278,7 +1278,7 @@ def deploy_ds923(
     typer.echo("\n🧪 Testing:")
     typer.echo("  # Test Ollama")
     typer.echo("  curl -s http://localhost:11434/api/generate \\")
-    typer.echo("    -d '{\"model\":\"qwen2:7b-instruct\",\"prompt\":\"Hola\"}' | head")
+    typer.echo("    -d '{\"model\":\"qwen3:1.7b\",\"prompt\":\"Hola\"}' | head")
     typer.echo("")
     typer.echo("  # Test ASR (place audio file)")
     typer.echo(f"  cp sample.wav {volume_base}/ready/")

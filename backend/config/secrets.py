@@ -158,7 +158,7 @@ class Secrets:
             # Auth0
             AUTH0_DOMAIN=get_secret("AUTH0_DOMAIN"),
             AUTH0_CLIENT_ID=get_secret("AUTH0_CLIENT_ID"),
-            AUTH0_AUDIENCE=get_secret("AUTH0_AUDIENCE", "https://app.aurity.io"),
+            AUTH0_AUDIENCE=get_secret("AUTH0_AUDIENCE"),  # No default - must be explicit per env
             AUTH0_MANAGEMENT_CLIENT_ID=get_secret("AUTH0_MANAGEMENT_CLIENT_ID"),
             AUTH0_MANAGEMENT_CLIENT_SECRET=get_secret("AUTH0_MANAGEMENT_CLIENT_SECRET"),
             # Database

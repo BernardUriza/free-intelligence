@@ -48,8 +48,10 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
 
     # Forward to /internal/llm/chat/stream
     async def stream_proxy() -> AsyncGenerator[str]:
-        async with httpx.AsyncClient() as client:
+        import traceback
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
             try:
+                print(f"[stream_proxy] 📤 Forwarding to internal endpoint...")
                 async with client.stream(
                     "POST",
                     "http://localhost:7001/internal/llm/chat/stream",
@@ -72,12 +74,26 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                         "use_memory": request.user is not None,
                     },
                 ) as response:
+                    print(f"[stream_proxy] ✅ Got response status: {response.status_code}")
                     response.raise_for_status()
-                    # Preserve SSE format (data: ...\n\n) by reading raw bytes
+                    # Preserve SSE format (data: ...\n\n and event: ...\n) by reading raw bytes
+                    chunk_count = 0
                     async for chunk in response.aiter_bytes():
-                        yield chunk.decode('utf-8') if isinstance(chunk, bytes) else chunk
+                        chunk_count += 1
+                        decoded = chunk.decode('utf-8') if isinstance(chunk, bytes) else chunk
+                        if chunk_count <= 3 or 'event:' in decoded:
+                            print(f"[stream_proxy] 📦 Chunk {chunk_count}: {decoded[:100]}...")
+                        yield decoded
+                    print(f"[stream_proxy] 🏁 Total chunks: {chunk_count}")
+            except httpx.HTTPStatusError as e:
+                error_msg = f"HTTP {e.response.status_code}: {e.response.text[:200]}"
+                print(f"[stream_proxy] ❌ HTTP Error: {error_msg}")
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
             except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                error_msg = f"{type(e).__name__}: {str(e)}"
+                print(f"[stream_proxy] ❌ Exception: {error_msg}")
+                traceback.print_exc()
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
 
     return StreamingResponse(
         stream_proxy(),

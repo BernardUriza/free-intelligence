@@ -95,15 +95,15 @@ models:
   ram_required_gb: 5.0
   created_at: 2025-01-01T00:00:00+00:00Z
   updated_at: 2025-12-12T22:44:40.609598+00:00Z
-- id: qwen2:1.5b-instruct
-  label: Qwen2 1.5B Instruct (Local)
+- id: qwen3:1.7b
+  label: Qwen3 1.7B (Local + Thinking)
   provider: ollama
   cost_tier: low
   max_tokens: 2048
   context_window: 32768
   is_active: true
-  description: Lightweight local Qwen2. Ultra-fast for simple tasks.
-  size_bytes: 934000000
+  description: Qwen3 with thinking/reasoning support. M1 optimized.
+  size_bytes: 1359293444
   ram_required_gb: 2.0
   created_at: 2025-01-01T00:00:00+00:00Z
   updated_at: 2025-12-12T20:20:23.209775+00:00Z

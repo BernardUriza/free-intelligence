@@ -2,7 +2,7 @@
 """Free Intelligence - Auto-Timeline Generator.
 
 Heurística v1 para generar timeline automáticamente desde event store.
-Usa Ollama (qwen2 / deepseek-r1-distill-7b) para resumir eventos en lenguaje natural.
+Usa Ollama (qwen3 / deepseek-r1-distill-7b) para resumir eventos en lenguaje natural.
 Sin spoilers de audio crudo - solo hash + summary.
 
 Card: [P0][Área: UX/UI][Tipo: feature] Memoria legible — Timeline AURITY
@@ -51,7 +51,7 @@ def load_timeline_config() -> dict[str, Any]:
             "auto": {
                 "enabled": False,
                 "provider": "ollama",
-                "model": "qwen2:1.5b-instruct",
+                "model": "qwen3:1.7b",
                 "fallback_to_manual": True,
                 "timeout_seconds": 8,
                 "selected_events": [

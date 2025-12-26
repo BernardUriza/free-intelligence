@@ -126,7 +126,7 @@ llm:
 
     # Ollama - Local inference (offline-first)
     ollama:
-      model: qwen2:1.5b-instruct  # Qwen2 1.5B - faster responses
+      model: qwen3:1.7b  # Qwen3 1.7B - thinking support + M1 optimized
       base_url: http://localhost:11434  # Ollama server
       timeout_seconds: 120  # Longer timeout for CPU inference
       max_tokens: 2048  # Max output tokens

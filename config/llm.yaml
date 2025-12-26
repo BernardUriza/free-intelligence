@@ -8,7 +8,7 @@ provider_default: ollama
 # Ollama provider configuration (local-only)
 ollama:
   base_url: "http://127.0.0.1:11434"
-  model: "qwen2:1.5b-instruct"
+  model: "qwen3:1.7b"
   timeout_ms: 300000
   retry: 1
   ttl_cache_min: 30

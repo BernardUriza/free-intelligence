@@ -30,7 +30,7 @@ def main():
     print(f"Modelo desde política: '{model_from_policy}'")
     print(f"¿Es None? {model_from_policy is None}")
     print(f"¿Es string vacío? {model_from_policy == ''}")
-    print(f"¿Es 'qwen2:1.5b-instruct'? {model_from_policy == 'qwen2:1.5b-instruct'}")
+    print(f"¿Es 'qwen3:1.7b'? {model_from_policy == 'qwen3:1.7b'}")
     print(f"¿Es 'qwen2.5:7b-instruct-q4_0'? {model_from_policy == 'qwen2.5:7b-instruct-q4_0'}")
     print()
 

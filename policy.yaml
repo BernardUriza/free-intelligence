@@ -58,7 +58,7 @@ diarization:
 
     ollama:
       enabled: true
-      model: "qwen2:1.5b-instruct"
+      model: "qwen3:1.7b"
       base_url: "http://localhost:11434"
 
 # LLM Provider Configuration
@@ -73,7 +73,7 @@ llm:
       temperature: 0.3
 
     ollama:
-      model: "qwen2:1.5b-instruct"
+      model: "qwen3:1.7b"
       base_url: "http://localhost:11434"
       timeout_seconds: 30
 

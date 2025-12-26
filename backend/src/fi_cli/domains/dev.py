@@ -1127,7 +1127,7 @@ def debug_config() -> None:
     typer.echo(f"Model from policy: '{model_from_policy}'")
     typer.echo(f"Is None? {model_from_policy is None}")
     typer.echo(f"Is empty string? {model_from_policy == ''}")
-    typer.echo(f"Is 'qwen2:1.5b-instruct'? {model_from_policy == 'qwen2:1.5b-instruct'}")
+    typer.echo(f"Is 'qwen3:1.7b'? {model_from_policy == 'qwen3:1.7b'}")
     typer.echo(f"Is 'qwen2.5:7b-instruct-q4_0'? {model_from_policy == 'qwen2.5:7b-instruct-q4_0'}")
     typer.echo()
 
@@ -1169,7 +1169,7 @@ def debug_provider() -> None:
     typer.echo("\n🔍 Comparing with direct config access...")
     model_from_config = ollama_config.get("model")
     typer.echo(f"   - Model from policy config: {model_from_config}")
-    typer.echo("   - Expected model: qwen2:1.5b-instruct")
+    typer.echo("   - Expected model: qwen3:1.7b")
 
 
 @app.command("validate-integration")

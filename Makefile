@@ -452,7 +452,7 @@ llm-test: ## Run LLM tests (pytest)
 	$(PY) -m pytest backend/tests/unit/test_ollama_client.py -v
 
 llm-call: ## Example CLI call to endpoint
-	@echo "📞 Example LLM call (Ollama qwen2:7b)..."
+	@echo "📞 Example LLM call (Ollama qwen3:1.7b)..."
 	@echo "   Prompt: 'What is 2+2?'"
 	@echo "⚠️  fi_llm.py deprecated - use direct ollama CLI or backend/api/llm endpoints"
 

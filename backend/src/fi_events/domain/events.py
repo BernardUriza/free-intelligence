@@ -12,11 +12,24 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
-from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
 from backend.src.fi_events.domain.metadata import EventMetadata
+
+# Schema version for all events (bump when breaking changes)
+SCHEMA_VERSION = "1.0"
+
+
+def _generate_ulid() -> str:
+    """Generate ULID for event_id (lazy import to avoid circular deps)."""
+    try:
+        import ulid
+        return str(ulid.new())
+    except ImportError:
+        # Fallback to UUID if ULID not installed
+        from uuid import uuid4
+        return str(uuid4())
 
 
 class EventType(str, Enum):
@@ -77,8 +90,8 @@ class DomainEvent(BaseModel):
     """
 
     event_id: str = Field(
-        default_factory=lambda: str(uuid4()),
-        description="Unique event identifier (UUID v4)"
+        default_factory=_generate_ulid,
+        description="Unique event identifier (ULID - time-sortable)"
     )
     event_type: EventType = Field(
         ...,
@@ -100,10 +113,39 @@ class DomainEvent(BaseModel):
         default_factory=EventMetadata,
         description="Audit metadata"
     )
+    # Versioning
+    schema_version: str = Field(
+        default=SCHEMA_VERSION,
+        description="Schema version for backward compatibility"
+    )
+    event_version: int = Field(
+        default=1,
+        description="Event-specific schema version"
+    )
+    # Idempotency
+    dedupe_key: str | None = Field(
+        default=None,
+        description="Deduplication key (hash of type+payload)"
+    )
 
     class Config:
         """Pydantic config."""
         frozen = True  # Immutable
+
+    def with_dedupe_key(self) -> "DomainEvent":
+        """Generate dedupe_key if not set.
+
+        Returns:
+            New event with dedupe_key set
+        """
+        if self.dedupe_key is not None:
+            return self
+
+        from backend.src.fi_events.domain.identity import generate_dedupe_key
+        key = generate_dedupe_key(self.event_type, self.aggregate_id, self.payload)
+
+        # Create new event with dedupe_key (immutable pattern)
+        return self.model_copy(update={"dedupe_key": key})
 
 
 # ============================================================================
