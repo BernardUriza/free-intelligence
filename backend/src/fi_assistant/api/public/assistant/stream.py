@@ -68,6 +68,7 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                             "stop": request.stop,
                             "enable_thinking": request.enable_thinking,
                             "model": request.model,
+                            "response_mode": request.response_mode,  # concise vs explanatory
                         },
                         "session_id": request.session_id,
                         "doctor_id": request.user,
