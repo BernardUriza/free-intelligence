@@ -54,3 +54,5 @@ jobs:
           qwen_api_key: ${{ secrets.QWEN_API_KEY }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use International endpoint (Singapore) instead of China
+          OPENAI_BASE_URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
