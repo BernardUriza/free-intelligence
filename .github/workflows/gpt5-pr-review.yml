@@ -5,6 +5,8 @@
 name: GPT-5 PR Review
 
 on:
+  push:
+    branches: [dev]  # Temporary: test workflow runs
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
@@ -17,7 +19,7 @@ jobs:
   review:
     name: GPT-5 Code Review
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
 
     permissions:
       contents: read
@@ -37,6 +39,16 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -e
+
+          # For push events, find open PR for this branch
+          if [ -z "$PR_NUMBER" ]; then
+            PR_NUMBER=$(gh pr list --head ${{ github.ref_name }} --json number -q '.[0].number' || echo "")
+            if [ -z "$PR_NUMBER" ]; then
+              echo "No open PR found for branch ${{ github.ref_name }}, skipping review"
+              exit 0
+            fi
+            echo "Found PR #$PR_NUMBER for branch ${{ github.ref_name }}"
+          fi
 
           # Get PR info
           PR_TITLE=$(gh pr view $PR_NUMBER --json title -q '.title')
