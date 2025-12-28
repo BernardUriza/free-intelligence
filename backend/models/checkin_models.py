@@ -299,12 +299,17 @@ class Appointment(Base):
     scheduled_at = Column(DateTime(timezone=True), nullable=False, index=True)
     estimated_duration = Column(Integer, default=30)  # minutes
     appointment_type = Column(
-        Enum(AppointmentType), nullable=False, default=AppointmentType.FOLLOW_UP,
+        Enum(AppointmentType),
+        nullable=False,
+        default=AppointmentType.FOLLOW_UP,
     )
 
     # Status tracking
     status = Column(
-        Enum(AppointmentStatus), nullable=False, default=AppointmentStatus.SCHEDULED, index=True,
+        Enum(AppointmentStatus),
+        nullable=False,
+        default=AppointmentStatus.SCHEDULED,
+        index=True,
     )
     checked_in_at = Column(DateTime(timezone=True), nullable=True)
     called_at = Column(DateTime(timezone=True), nullable=True)
@@ -314,7 +319,9 @@ class Appointment(Base):
     # Check-in code (6 digits, expires same day)
     checkin_code = Column(String(6), nullable=False, default=generate_checkin_code, index=True)
     checkin_code_expires_at = Column(
-        DateTime(timezone=True), nullable=False, default=get_checkin_code_expiry,
+        DateTime(timezone=True),
+        nullable=False,
+        default=get_checkin_code_expiry,
     )
 
     # Context
@@ -335,7 +342,9 @@ class Appointment(Base):
     clinic = relationship("Clinic", back_populates="appointments")
     doctor = relationship("Doctor", back_populates="appointments")
     pending_actions = relationship(
-        "PendingAction", back_populates="appointment", cascade="all, delete-orphan",
+        "PendingAction",
+        back_populates="appointment",
+        cascade="all, delete-orphan",
     )
 
     # Indexes
@@ -343,7 +352,10 @@ class Appointment(Base):
         Index("ix_appointments_clinic_date", "clinic_id", "scheduled_at"),
         Index("ix_appointments_clinic_status", "clinic_id", "status"),
         Index(
-            "ix_appointments_checkin_lookup", "clinic_id", "checkin_code", "checkin_code_expires_at",
+            "ix_appointments_checkin_lookup",
+            "clinic_id",
+            "checkin_code",
+            "checkin_code_expires_at",
         ),
     )
 
@@ -388,7 +400,9 @@ class PendingAction(Base):
 
     action_id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
     appointment_id = Column(
-        UUID(as_uuid=False), ForeignKey("appointments.appointment_id"), nullable=False,
+        UUID(as_uuid=False),
+        ForeignKey("appointments.appointment_id"),
+        nullable=False,
     )
 
     # Type and status

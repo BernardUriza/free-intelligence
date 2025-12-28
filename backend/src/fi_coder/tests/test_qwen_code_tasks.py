@@ -19,8 +19,11 @@ class TestQwenCodeTasks(unittest.TestCase):
     def test_qwen_code_tasks_in_catalog(self):
         """Test that qwen-code specialized tasks are in catalog."""
         expected_tasks = [
-            "fix_lint", "refactor", "fix_and_test",
-            "analyze_code", "pipeline_fix_lint_test"
+            "fix_lint",
+            "refactor",
+            "fix_and_test",
+            "analyze_code",
+            "pipeline_fix_lint_test",
         ]
         for task in expected_tasks:
             self.assertIn(task, TASK_CATALOG)
@@ -28,11 +31,7 @@ class TestQwenCodeTasks(unittest.TestCase):
     def test_task_parameters(self):
         """Test task parameter handling."""
         task = Task(
-            name="fix_lint",
-            parameters={
-                "repo_root_path": "/repo",
-                "modules": "admin auth"
-            }
+            name="fix_lint", parameters={"repo_root_path": "/repo", "modules": "admin auth"}
         )
         self.assertEqual(task.parameters["modules"], "admin auth")
 
@@ -62,8 +61,8 @@ class TestQwenCodeTasks(unittest.TestCase):
             name="qwen-code",
             parameters={
                 "repo_root_path": "/repo",
-                "args": "fix; rm -rf /"  # Injection attempt
-            }
+                "args": "fix; rm -rf /",  # Injection attempt
+            },
         )
         with self.assertRaises(ValueError):
             self.executor.submit_task(task)
@@ -71,11 +70,7 @@ class TestQwenCodeTasks(unittest.TestCase):
     def test_path_traversal_prevention(self):
         """Test that path traversal is blocked."""
         task = Task(
-            name="fix_lint",
-            parameters={
-                "repo_root_path": "/repo/../../../etc",
-                "modules": "admin"
-            }
+            name="fix_lint", parameters={"repo_root_path": "/repo/../../../etc", "modules": "admin"}
         )
         with self.assertRaises(ValueError):
             self.executor.submit_task(task)
@@ -86,20 +81,17 @@ class TestQwenCodeTasks(unittest.TestCase):
             name="fix_lint",
             parameters={
                 "repo_root_path": "/repo",
-                "modules": "storage"  # Forbidden
-            }
+                "modules": "storage",  # Forbidden
+            },
         )
         with self.assertRaises(ValueError):
             self.executor.submit_task(task)
 
-    @patch('fi_coder.execution.executor.TaskExecutor._calculate_fingerprint')
+    @patch("fi_coder.execution.executor.TaskExecutor._calculate_fingerprint")
     def test_execution_fingerprint_created(self, mock_fingerprint):
         """Test that execution fingerprint is created before execution."""
         mock_fingerprint.return_value = None
-        Task(
-            name="lint",
-            parameters={"repo_root_path": "/repo"}
-        )
+        Task(name="lint", parameters={"repo_root_path": "/repo"})
         # This would normally submit, but we mock to avoid actual execution
         # In real test, check that fingerprint is set
         pass  # Placeholder for integration test

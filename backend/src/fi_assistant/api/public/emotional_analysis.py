@@ -53,17 +53,11 @@ async def analyze_emotional_state(
         reason = f"Heuristic analysis: urgency={has_urgency}, frustration={has_frustration}"
 
         logger.info(
-            "EMOTIONAL_ANALYSIS_COMPLETED",
-            state=state,
-            confidence=confidence,
-            method="heuristic"
+            "EMOTIONAL_ANALYSIS_COMPLETED", state=state, confidence=confidence, method="heuristic"
         )
 
         return EmotionalAnalysis(
-            state=state,
-            confidence=confidence,
-            suggested_tone=suggested_tone,
-            reason=reason
+            state=state, confidence=confidence, suggested_tone=suggested_tone, reason=reason
         )
 
     except Exception as e:

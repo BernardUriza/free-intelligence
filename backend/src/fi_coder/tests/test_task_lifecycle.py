@@ -16,6 +16,7 @@ class TestTaskLifecycle(unittest.TestCase):
 
     def tearDown(self):
         import os
+
         os.unlink(self.temp_file.name)
 
     def test_task_creation(self):

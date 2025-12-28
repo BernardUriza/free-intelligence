@@ -41,7 +41,9 @@ class InternalLLMClient:
         # Frontend timeout is 120s, so backend must match or exceed it
         self.client = httpx.AsyncClient(
             base_url=base_url,
-            timeout=httpx.Timeout(connect=10.0, read=180.0, write=10.0, pool=10.0),  # 3 min read timeout
+            timeout=httpx.Timeout(
+                connect=10.0, read=180.0, write=10.0, pool=10.0
+            ),  # 3 min read timeout
         )
 
     async def chat(
@@ -234,6 +236,7 @@ class InternalLLMClient:
 
                     try:
                         import json
+
                         chunk_data = json.loads(line[6:])  # Remove "data: " prefix
 
                         # Check for error or completion markers

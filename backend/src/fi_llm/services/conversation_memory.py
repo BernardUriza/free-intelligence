@@ -745,16 +745,20 @@ _memory_managers: dict[str, ConversationMemoryManager] = {}
 _manager_lock = threading.Lock()
 
 
-def get_memory_manager(doctor_id: str) -> ConversationMemoryManager:
+def get_memory_manager(doctor_id: str) -> ConversationMemoryManager | None:
     """Get singleton memory manager for doctor.
 
     Args:
         doctor_id: Doctor identifier
 
     Returns:
-        ConversationMemoryManager instance for doctor
+        ConversationMemoryManager instance for doctor, or None if embeddings unavailable
     """
     global _memory_managers
+
+    # Return None if sentence_transformers not available (production mode without ML deps)
+    if not HAS_SENTENCE_TRANSFORMERS:
+        return None
 
     if doctor_id not in _memory_managers:
         with _manager_lock:

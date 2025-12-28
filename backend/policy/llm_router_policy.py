@@ -253,15 +253,17 @@ def scan_file_for_router_violations(filepath: Path) -> list[RouterViolation]:
     imports = extract_imports(tree)
     forbidden_imports = has_forbidden_import(imports)
 
-    violations.extend([
-        RouterViolation(
-            filepath=str(filepath),
-            lineno=1,  # Import line not tracked in this simple version
-            violation_type="import",
-            details=f"Direct import of LLM library: '{imp}'",
-        )
-        for imp in forbidden_imports
-    ])
+    violations.extend(
+        [
+            RouterViolation(
+                filepath=str(filepath),
+                lineno=1,  # Import line not tracked in this simple version
+                violation_type="import",
+                details=f"Direct import of LLM library: '{imp}'",
+            )
+            for imp in forbidden_imports
+        ]
+    )
 
     # Check calls
     calls = extract_attribute_calls(tree)

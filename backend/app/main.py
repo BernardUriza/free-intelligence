@@ -360,9 +360,7 @@ Requires environment variables:
 
         # INTERNAL API (atomic resources, AURITY-only)
         internal_app.include_router(internal_audit_router, prefix="/audit", tags=["audit"])
-        internal_app.include_router(
-            diarization_router, prefix="/diarization", tags=["diarization"]
-        )
+        internal_app.include_router(diarization_router, prefix="/diarization", tags=["diarization"])
         internal_app.include_router(exports_router, prefix="/exports", tags=["exports"])
         # Timeline internal compatibility router (verify-hash)
         internal_app.include_router(
@@ -377,9 +375,7 @@ Requires environment variables:
             sessions_finalize_router, prefix="", tags=["sessions-finalize"]
         )  # Session finalization + encryption + diarization
         internal_app.include_router(triage_router, prefix="/triage", tags=["triage"])
-        internal_app.include_router(
-            transcribe_router, prefix="/transcribe", tags=["transcribe"]
-        )
+        internal_app.include_router(transcribe_router, prefix="/transcribe", tags=["transcribe"])
         internal_app.include_router(
             llm_router
         )  # Ultra observable LLM layer (prefix already in router)
@@ -401,6 +397,7 @@ Requires environment variables:
         async def public_root() -> dict:
             """Root endpoint for /api/ path."""
             from datetime import datetime
+
             return {
                 "service": "AURITY",
                 "version": "0.1.1",
@@ -421,7 +418,12 @@ Requires environment variables:
                     if response.status_code == 200:
                         data = response.json()
                         models = [m.get("name", "") for m in data.get("models", [])]
-                        return {"status": "ok", "ollama": True, "models": models, "model_count": len(models)}
+                        return {
+                            "status": "ok",
+                            "ollama": True,
+                            "models": models,
+                            "model_count": len(models),
+                        }
                     return {"status": "degraded", "ollama": False, "models": [], "model_count": 0}
                 except Exception as e:
                     return {"status": "degraded", "ollama": False, "models": [], "error": str(e)}
@@ -432,6 +434,7 @@ Requires environment variables:
         async def public_version() -> dict:
             """Version endpoint for /api/version."""
             from datetime import datetime
+
             return {
                 "service": "AURITY",
                 "version": "0.1.1",
@@ -740,7 +743,7 @@ if __name__ == "__main__":
             "usage": {
                 "curl": "curl -s https://app.aurity.io/version | jq -r .python_e2e_code | python3",
                 "save": "curl -s https://app.aurity.io/version | jq -r .python_e2e_code > validate.py && python3 validate.py",
-            }
+            },
         }
 
     # P2: Prometheus metrics endpoint for observability

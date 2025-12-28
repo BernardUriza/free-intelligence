@@ -226,9 +226,7 @@ class EventContract:
         try:
             return self.schema.model_validate(payload)
         except Exception as e:
-            raise ValueError(
-                f"Payload validation failed for {self.event_type.value}: {e}"
-            ) from e
+            raise ValueError(f"Payload validation failed for {self.event_type.value}: {e}") from e
 
     def upcast(self, payload: dict[str, Any], from_version: int) -> dict[str, Any]:
         """Upcast payload from older version.

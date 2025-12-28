@@ -49,21 +49,24 @@ class SecurityValidator:
         """Validate scope restrictions. Raises ValueError on failure."""
         from ..config.policies import REPO_ROOT_PATH, SCOPE_POLICY
 
-        repo_root_path = parameters.get('repo_root_path')
+        repo_root_path = parameters.get("repo_root_path")
         if not repo_root_path:
             raise ValueError("repo_root_path is required")
 
         # Allow absolute paths within repo root
         if SCOPE_POLICY["forbid_absolute_outside_repo"]:
-            if repo_root_path.startswith('/') and not repo_root_path.startswith(REPO_ROOT_PATH):
+            if repo_root_path.startswith("/") and not repo_root_path.startswith(REPO_ROOT_PATH):
                 raise ValueError("Absolute path outside repo not allowed")
 
         # Check for path traversal
-        if '..' in repo_root_path:
+        if ".." in repo_root_path:
             raise ValueError("Path traversal detected")
 
         # Check forbidden directories (only for absolute paths outside repo)
-        if repo_root_path.startswith('/') and not repo_root_path.startswith(REPO_ROOT_PATH):
+        if repo_root_path.startswith("/") and not repo_root_path.startswith(REPO_ROOT_PATH):
             forbidden_dirs = SCOPE_POLICY.get("forbid_directories", [])
-            if any(f"/{d}/" in repo_root_path or repo_root_path.endswith(f"/{d}") for d in forbidden_dirs):
+            if any(
+                f"/{d}/" in repo_root_path or repo_root_path.endswith(f"/{d}")
+                for d in forbidden_dirs
+            ):
                 raise ValueError("Access to forbidden directory")

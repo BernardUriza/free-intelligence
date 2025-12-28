@@ -177,7 +177,9 @@ def run(args: argparse.Namespace) -> int:
         # Finalize traces
         finalized: list[dict[str, Any]] = []
         for record in traces.values():
-            endpoints = sorted(record["endpoints"]) if isinstance(record.get("endpoints"), set) else []
+            endpoints = (
+                sorted(record["endpoints"]) if isinstance(record.get("endpoints"), set) else []
+            )
             record["endpoints"] = endpoints
 
             # Stable ordering of events
@@ -187,7 +189,9 @@ def run(args: argparse.Namespace) -> int:
 
             finalized.append(record)
 
-        finalized.sort(key=lambda r: (-float(r.get("total_latency_ms") or 0.0), str(r.get("trace_id"))))
+        finalized.sort(
+            key=lambda r: (-float(r.get("total_latency_ms") or 0.0), str(r.get("trace_id")))
+        )
         top_traces = finalized[: max(0, top_n)]
 
         dot = _render_dot(top_traces)
@@ -250,7 +254,7 @@ def _render_dot(top_traces: list[dict[str, Any]]) -> str:
 
         cluster_name = f"cluster_{i}"
         parts.append(f"subgraph {cluster_name} {{")
-        parts.append(f"label=\"{_dot_escape(label)}\";")
+        parts.append(f'label="{_dot_escape(label)}";')
 
         layers = t.get("layers")
         if not isinstance(layers, list) or not layers:
@@ -260,12 +264,12 @@ def _render_dot(top_traces: list[dict[str, Any]]) -> str:
         # Create nodes
         for j, layer in enumerate(layers):
             node = f"t{i}_n{j}"
-            parts.append(f"{node} [label=\"{_dot_escape(str(layer))}\"]; ")
+            parts.append(f'{node} [label="{_dot_escape(str(layer))}"]; ')
 
         # Create edges
         for j in range(len(layers) - 1):
             a = f"t{i}_n{j}"
-            b = f"t{i}_n{j+1}"
+            b = f"t{i}_n{j + 1}"
             parts.append(f"{a} -> {b};")
 
         parts.append("}")
@@ -275,7 +279,7 @@ def _render_dot(top_traces: list[dict[str, Any]]) -> str:
 
 
 def _dot_escape(s: str) -> str:
-    return s.replace("\\", "\\\\").replace('"', "\\\"")
+    return s.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -91,6 +91,54 @@ Location: main.py:#125
 
 ⸻
 
+🤖 FI Cloud vs FI Edge Architecture
+
+```
+# ════════════════════════════════════════════════════════════════════════════
+# DEPLOYMENT ARCHITECTURE (2025-12-28)
+# ════════════════════════════════════════════════════════════════════════════
+#
+# FI Cloud (Production - app.aurity.io)
+# ─────────────────────────────────────
+# DO Droplet (1GB RAM) hosts:
+#   - Nginx (SSL termination)
+#   - Next.js static frontend
+#   - FastAPI backend (port 7001)
+#
+# LLM inference runs on FI Edge via Cloudflare Tunnel:
+#   Browser → DO Backend → Cloudflare Tunnel → FI Edge (Mac/i9+RTX4060) → Ollama
+#
+# FI Edge (Local Hardware)
+# ────────────────────────
+# Local machine running:
+#   - Ollama with Qwen3:1.7b (and other models)
+#   - Cloudflare Tunnel exposing port 11434
+#   - CORS enabled: OLLAMA_ORIGINS="*" OLLAMA_HOST="0.0.0.0:11434"
+#
+# Tunnel URL stored in: /tmp/ollama-tunnel-url.txt
+# DO backend reads: OLLAMA_HOST env var (set from tunnel URL)
+#
+# ════════════════════════════════════════════════════════════════════════════
+
+Tunnel Management Script:
+  ./scripts/ollama-tunnel.sh start    # Start tunnel + update DO
+  ./scripts/ollama-tunnel.sh stop     # Stop tunnel
+  ./scripts/ollama-tunnel.sh status   # Show status
+  ./scripts/ollama-tunnel.sh restart  # Restart with new URL
+
+Requirements:
+  - cloudflared: brew install cloudflared
+  - ollama: brew install ollama
+  - SSH access to DO: root@104.131.175.65
+
+Cost Savings:
+  - GPU Droplet (RTX 4000 Ada): $565/month
+  - FI Edge (local hardware): $0/month
+  - Cloudflare Tunnel: Free tier
+```
+
+⸻
+
 🏛️ Layering (Critical)
 
 ❌ Regla Absoluta
@@ -320,6 +368,47 @@ server {
   location / { try_files $uri $uri/ /index.html; }
 }
 
+🧪 Smoke Tests (LLM / Ollama)
+
+```bash
+# ════════════════════════════════════════════════════════════════════════════
+# OLLAMA + QWEN3 SMOKE TESTS
+# ════════════════════════════════════════════════════════════════════════════
+# Qwen3 usa "thinking mode" por defecto. DEBE usarse /api/chat (no /api/generate)
+# con el parámetro "think" para controlar el comportamiento.
+# ════════════════════════════════════════════════════════════════════════════
+
+# 1. Verificar Ollama corriendo
+curl -s http://localhost:11434/api/tags | jq '.models[].name'
+
+# 2. Test básico Qwen3 (SIN thinking - respuesta directa)
+curl -s http://localhost:11434/api/chat -d '{
+  "model": "qwen3:1.7b",
+  "messages": [{"role": "user", "content": "Di hola"}],
+  "think": false,
+  "stream": false
+}' | jq '{content: .message.content, seconds: (.total_duration / 1000000000)}'
+# Esperado: ~2-7s en M1/GPU, respuesta en .content
+
+# 3. Test CON thinking (separa razonamiento de respuesta)
+curl -s http://localhost:11434/api/chat -d '{
+  "model": "qwen3:1.7b",
+  "messages": [{"role": "user", "content": "Di hola"}],
+  "think": true,
+  "stream": false
+}' | jq '{thinking: .message.thinking, content: .message.content}'
+# Esperado: .thinking tiene el razonamiento, .content la respuesta
+
+# 4. Test del backend completo (después de iniciar)
+curl -s -X POST "http://localhost:7001/api/workflows/aurity/assistant/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"hola"}],"persona":"general_assistant"}'
+
+# ⚠️ ERRORES COMUNES:
+# - Respuesta vacía → Usar /api/chat en vez de /api/generate
+# - Timeout en CPU → Qwen3 requiere GPU o mucha RAM (4GB+ sin swap)
+# - "think" no funciona → Actualizar Ollama a v0.9+
+```
 
 ⸻
 

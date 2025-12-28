@@ -55,6 +55,7 @@ else:
         """
         try:
             import backend.services as services
+
             return getattr(services, name)
         except (ImportError, AttributeError):
             # Service has unmet dependencies or module import failed - return a stub class

@@ -1954,6 +1954,7 @@ def update_session_metadata(session_id: str, updates: dict[str, Any]) -> None:
 # TASK REPOSITORY CLASS (Implements ITaskRepository interface)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+
 class TaskRepository:
     """HDF5-based task repository implementing ITaskRepository interface."""
 
@@ -1965,7 +1966,9 @@ class TaskRepository:
         """Check if task exists."""
         return task_exists(session_id, task_type)
 
-    def ensure_task_exists(self, session_id: str, task_type: str, metadata: dict[str, Any] | None = None) -> str:
+    def ensure_task_exists(
+        self, session_id: str, task_type: str, metadata: dict[str, Any] | None = None
+    ) -> str:
         """Ensure task exists, create if not."""
         return ensure_task_exists(session_id, task_type, metadata)
 

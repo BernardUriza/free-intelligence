@@ -177,7 +177,10 @@ class TestAudioConversion:
 
     def test_convert_to_wav_success(self, transcription_service: TranscriptionService) -> None:
         """Test successful audio conversion to WAV (mocked)."""
-        with patch.object(transcription_service, "_convert_audio_to_wav", return_value=True), tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            patch.object(transcription_service, "_convert_audio_to_wav", return_value=True),
+            tempfile.TemporaryDirectory() as tmpdir,
+        ):
             input_path = Path(tmpdir) / "input.mp3"
             output_path = Path(tmpdir) / "output.wav"
 

@@ -104,17 +104,47 @@ PHI_PATTERNS: list[PHIPattern] = [
 # Field names that likely contain PHI
 PHI_FIELD_NAMES = {
     # Names
-    "name", "patient_name", "first_name", "last_name", "full_name",
-    "physician_name", "doctor_name", "provider_name",
+    "name",
+    "patient_name",
+    "first_name",
+    "last_name",
+    "full_name",
+    "physician_name",
+    "doctor_name",
+    "provider_name",
     # Contact
-    "phone", "telephone", "fax", "email", "address", "street",
-    "city", "state", "zip", "zipcode", "postal_code",
+    "phone",
+    "telephone",
+    "fax",
+    "email",
+    "address",
+    "street",
+    "city",
+    "state",
+    "zip",
+    "zipcode",
+    "postal_code",
     # Medical
-    "ssn", "social_security", "mrn", "medical_record", "health_plan_id",
-    "insurance_id", "policy_number", "dob", "date_of_birth", "birthdate",
+    "ssn",
+    "social_security",
+    "mrn",
+    "medical_record",
+    "health_plan_id",
+    "insurance_id",
+    "policy_number",
+    "dob",
+    "date_of_birth",
+    "birthdate",
     # Content
-    "transcript", "transcription", "text", "content", "message",
-    "notes", "soap_note", "chief_complaint", "diagnosis",
+    "transcript",
+    "transcription",
+    "text",
+    "content",
+    "message",
+    "notes",
+    "soap_note",
+    "chief_complaint",
+    "diagnosis",
 }
 
 
@@ -225,7 +255,9 @@ def redact_phi(
             result[key] = [
                 redact_phi(item, deep=True, redact_text_values=redact_text_values)
                 if isinstance(item, dict)
-                else (redact_text(str(item)) if isinstance(item, str) and redact_text_values else item)
+                else (
+                    redact_text(str(item)) if isinstance(item, str) and redact_text_values else item
+                )
                 for item in value
             ]
 

@@ -95,9 +95,7 @@ class DITranscriptionService:
         )
 
         # 2. Ensure TRANSCRIPTION task exists
-        task_id = self.task_repository.ensure_task_exists(
-            session_id, TaskType.TRANSCRIPTION.value
-        )
+        task_id = self.task_repository.ensure_task_exists(session_id, TaskType.TRANSCRIPTION.value)
 
         # 3. Get existing chunks to determine total/processed counts
         existing_chunks = self.task_repository.get_task_chunks(

@@ -14,7 +14,7 @@ from ._fixtures import repo_root, write_policy_json
 class _Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path in {"/health", "/deep"}:
-            payload = b"{\"ok\":true}"
+            payload = b'{"ok":true}'
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))

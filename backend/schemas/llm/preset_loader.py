@@ -19,9 +19,12 @@ from typing import Any, Dict, List
 
 import jsonschema
 import yaml
-from backend.constants import DEFAULT_OLLAMA_MODEL, LLMProvider
+from backend.models.llm_model import LLMProvider
 from backend.src.fi_common.logging.logger import get_logger
 from pathlib import Path
+
+# Default model for Ollama provider
+DEFAULT_OLLAMA_MODEL = "qwen3:1.7b"
 
 logger = get_logger(__name__)
 
@@ -84,7 +87,9 @@ class PresetLoader:
         # Check new location first, fallback to old for backward compatibility
         if presets_dir is None:
             # Check new location first
-            new_prompts_dir = Path(__file__).parent.parent.parent / "src" / "fi_prompts" / "yaml_presets"
+            new_prompts_dir = (
+                Path(__file__).parent.parent.parent / "src" / "fi_prompts" / "yaml_presets"
+            )
             if new_prompts_dir.exists():
                 presets_dir = str(new_prompts_dir)
             else:

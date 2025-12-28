@@ -95,9 +95,11 @@ class EventStore(ABC):
 
 class EventStoreError(Exception):
     """Base exception for event store errors."""
+
     pass
 
 
 class DuplicateEventError(EventStoreError):
     """Raised when trying to append duplicate event_id."""
+
     pass

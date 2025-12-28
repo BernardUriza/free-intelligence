@@ -139,7 +139,9 @@ def load_policy(path: str) -> dict[str, Any]:
 
 
 def policy_sha256(policy: Mapping[str, Any]) -> str:
-    b = json.dumps(policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    b = json.dumps(policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
+        "utf-8"
+    )
     return hashlib.sha256(b).hexdigest()
 
 
@@ -308,7 +310,9 @@ def write_json_artifact(out_dir: str, filename: str, payload: Mapping[str, Any])
     out_path.mkdir(parents=True, exist_ok=True)
 
     target = out_path / filename
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
+        "utf-8"
+    )
     target.write_bytes(encoded)
 
     sha = hashlib.sha256(encoded).hexdigest()

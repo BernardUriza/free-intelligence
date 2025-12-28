@@ -3,6 +3,7 @@
 After aggressive refactor, fi_coder is just a qwen-code CLI wrapper.
 Removed 38 unused task schemas and unnecessary policy definitions.
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict

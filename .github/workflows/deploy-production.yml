@@ -232,42 +232,11 @@ jobs:
           echo "✅ Dependencies installed"
           ENDSSH
 
-      - name: Setup Ollama and Qwen3
-        run: |
-          ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
-            $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
-
-          echo "🦙 Checking Ollama installation..."
-          if ! command -v ollama &> /dev/null; then
-            echo "📦 Installing Ollama..."
-            curl -fsSL https://ollama.com/install.sh | sh
-            echo "✅ Ollama installed"
-          else
-            echo "✅ Ollama already installed"
-          fi
-
-          echo "🚀 Starting Ollama service..."
-          # Start ollama serve in background if not running
-          if ! pgrep -x "ollama" > /dev/null; then
-            nohup ollama serve > /tmp/ollama.log 2>&1 &
-            sleep 5
-            echo "✅ Ollama service started"
-          else
-            echo "✅ Ollama service already running"
-          fi
-
-          echo "🤖 Checking Qwen3 model..."
-          if ! ollama list 2>/dev/null | grep -q "qwen3"; then
-            echo "📥 Downloading Qwen3 model (this may take a few minutes)..."
-            ollama pull qwen3:1.7b
-            echo "✅ Qwen3 model downloaded"
-          else
-            echo "✅ Qwen3 model already available"
-          fi
-
-          echo "📊 Available models:"
-          ollama list 2>/dev/null || echo "Could not list models"
-          ENDSSH
+      # ═══════════════════════════════════════════════════════════════════════
+      # FI Cloud Architecture: LLM runs remotely via Cloudflare Tunnel
+      # OLLAMA_HOST is set from GitHub secret (e.g., https://xxx.trycloudflare.com)
+      # This eliminates need for local Ollama on DO (saves RAM + CPU)
+      # ═══════════════════════════════════════════════════════════════════════
 
       - name: Rebuild and restart backend
         run: |
@@ -295,7 +264,14 @@ jobs:
 
           echo "🚀 Starting new backend..."
           cd /opt/free-intelligence
-          PYTHONPATH=. PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
+
+          # FI Cloud: Use remote Ollama via Cloudflare Tunnel
+          # OLLAMA_HOST comes from /tmp/ollama-tunnel-url.txt (set by ollama-tunnel.sh)
+          # or falls back to localhost if file doesn't exist
+          OLLAMA_URL=$(cat /tmp/ollama-tunnel-url.txt 2>/dev/null || echo "http://localhost:11434")
+          echo "🦙 Using OLLAMA_HOST=$OLLAMA_URL"
+
+          PYTHONPATH=. PYTHONNOUSERSITE=1 OLLAMA_HOST="$OLLAMA_URL" nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
           sleep 5
 
           echo "✅ Backend deployed successfully"

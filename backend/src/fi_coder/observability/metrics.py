@@ -19,6 +19,7 @@ logger = get_logger(__name__)
 @dataclass
 class MetricPoint:
     """Individual metric measurement."""
+
     name: str
     value: float
     timestamp: float = field(default_factory=time.time)
@@ -29,6 +30,7 @@ class MetricPoint:
 @dataclass
 class HealthStatus:
     """System health status."""
+
     component: str
     status: str  # "healthy", "degraded", "unhealthy"
     message: str = ""
@@ -39,13 +41,19 @@ class HealthStatus:
 class MetricsCollector:
     """Advanced metrics collection system."""
 
-    def __init__(self, retention_period: int = 3600, max_points_per_metric: int = 1000):  # Reduced from 10000
+    def __init__(
+        self, retention_period: int = 3600, max_points_per_metric: int = 1000
+    ):  # Reduced from 10000
         self.retention_period = retention_period
         self.max_points_per_metric = max_points_per_metric
-        self._metrics: dict[str, deque] = defaultdict(lambda: deque(maxlen=self.max_points_per_metric))
+        self._metrics: dict[str, deque] = defaultdict(
+            lambda: deque(maxlen=self.max_points_per_metric)
+        )
         self._gauges: dict[str, float] = {}
         self._counters: dict[str, float] = defaultdict(float)
-        self._histograms: dict[str, deque] = defaultdict(lambda: deque(maxlen=self.max_points_per_metric // 10))  # Smaller for histograms
+        self._histograms: dict[str, deque] = defaultdict(
+            lambda: deque(maxlen=self.max_points_per_metric // 10)
+        )  # Smaller for histograms
         self._lock = threading.RLock()
 
         # Start cleanup thread
@@ -213,12 +221,15 @@ class HealthMonitor:
         health_checks = self.run_health_checks()
         return {
             "overall_status": self.get_overall_health(),
-            "components": {name: {
-                "status": status.status,
-                "message": status.message,
-                "last_check": status.last_check,
-                "metrics": status.metrics,
-            } for name, status in health_checks.items()},
+            "components": {
+                name: {
+                    "status": status.status,
+                    "message": status.message,
+                    "last_check": status.last_check,
+                    "metrics": status.metrics,
+                }
+                for name, status in health_checks.items()
+            },
             "timestamp": time.time(),
         }
 
@@ -240,26 +251,30 @@ class PerformanceMonitor:
         if exec_stats.get("count", 0) > 0:
             avg_time = exec_stats["avg"]
             if avg_time > 300:  # 5 minutes
-                alerts.append({
-                    "level": "warning",
-                    "message": f"Average task execution time is high: {avg_time:.2f}s",
-                    "metric": "task_execution_time",
-                    "threshold": 300,
-                    "current": avg_time,
-                })
+                alerts.append(
+                    {
+                        "level": "warning",
+                        "message": f"Average task execution time is high: {avg_time:.2f}s",
+                        "metric": "task_execution_time",
+                        "threshold": 300,
+                        "current": avg_time,
+                    }
+                )
 
         # Check queue depth
         queue_stats = self.metrics.get_metric_stats("queue_depth")
         if queue_stats.get("count", 0) > 0:
             max_depth = queue_stats["max"]
             if max_depth > 50:  # Queue too deep
-                alerts.append({
-                    "level": "warning",
-                    "message": f"Task queue is too deep: {max_depth} tasks",
-                    "metric": "queue_depth",
-                    "threshold": 50,
-                    "current": max_depth,
-                })
+                alerts.append(
+                    {
+                        "level": "warning",
+                        "message": f"Task queue is too deep: {max_depth} tasks",
+                        "metric": "queue_depth",
+                        "threshold": 50,
+                        "current": max_depth,
+                    }
+                )
 
         # Check error rates
         error_stats = self.metrics.get_metric_stats("task_errors")
@@ -271,13 +286,15 @@ class PerformanceMonitor:
         if total_tasks > 10:  # Need minimum sample size
             error_rate = total_errors / total_tasks
             if error_rate > 0.1:  # 10% error rate
-                alerts.append({
-                    "level": "error",
-                    "message": f"Task error rate is high: {error_rate:.2%}",
-                    "metric": "error_rate",
-                    "threshold": 0.1,
-                    "current": error_rate,
-                })
+                alerts.append(
+                    {
+                        "level": "error",
+                        "message": f"Task error rate is high: {error_rate:.2%}",
+                        "metric": "error_rate",
+                        "threshold": 0.1,
+                        "current": error_rate,
+                    }
+                )
 
         with self._alert_lock:
             self._alerts.extend(alerts)

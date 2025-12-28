@@ -36,7 +36,7 @@ def main():
                 fixed_count=data["result"]["fixed_count"],
                 remaining_errors=data["result"]["remaining_errors"],
                 total_errors=data["result"]["total_errors"],
-                duration_seconds=data["duration_seconds"]
+                duration_seconds=data["duration_seconds"],
             )
 
             if data["result"]["remaining_errors"] == 0:

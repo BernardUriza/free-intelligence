@@ -49,6 +49,7 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
     # Forward to /internal/llm/chat/stream
     async def stream_proxy() -> AsyncGenerator[str]:
         import traceback
+
         async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
             try:
                 print("[stream_proxy] 📤 Forwarding to internal endpoint...")
@@ -81,8 +82,8 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                     chunk_count = 0
                     async for chunk in response.aiter_bytes():
                         chunk_count += 1
-                        decoded = chunk.decode('utf-8') if isinstance(chunk, bytes) else chunk
-                        if chunk_count <= 3 or 'event:' in decoded:
+                        decoded = chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk
+                        if chunk_count <= 3 or "event:" in decoded:
                             print(f"[stream_proxy] 📦 Chunk {chunk_count}: {decoded[:100]}...")
                         yield decoded
                     print(f"[stream_proxy] 🏁 Total chunks: {chunk_count}")

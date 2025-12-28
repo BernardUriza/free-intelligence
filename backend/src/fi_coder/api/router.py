@@ -2,6 +2,7 @@
 
 Provides minimal HTTP endpoints for qwen-code execution.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter

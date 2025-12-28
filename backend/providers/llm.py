@@ -22,7 +22,12 @@ from backend.providers.retry import CircuitBreakerConfig, RetryConfig, get_circu
 from backend.schemas.llm.audit_policy import require_audit_log
 from backend.src.fi_common.logging.logger import get_logger
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
+
+# Optional: sentence_transformers (requires torch, not installed in production)
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None  # type: ignore
 
 # Optional imports (will be checked for availability in relevant providers)
 try:
@@ -315,6 +320,12 @@ class ClaudeProvider(LLMProvider):
             message="Claude doesn't support embeddings, falling back to sentence-transformers",
         )
 
+        if SentenceTransformer is None:
+            raise RuntimeError(
+                "sentence_transformers not available (requires torch). "
+                "Embeddings are disabled in production mode."
+            )
+
         # Use lightweight model
         model = SentenceTransformer("all-MiniLM-L6-v2")
         embedding = model.encode(text, convert_to_numpy=True)
@@ -337,7 +348,12 @@ class OllamaProvider(LLMProvider):
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
-        self.base_url: str = str(self.config.get("base_url") or "http://localhost:11434")
+        # Priority: OLLAMA_HOST env var > config > default
+        self.base_url: str = str(
+            os.getenv("OLLAMA_HOST")
+            or self.config.get("base_url")
+            or "http://localhost:11434"
+        )
         self.default_model: str = str(self.config.get("model") or "qwen3:1.7b")
         self.embed_model: str = str(self.config.get("embed_model") or "nomic-embed-text")
         self.timeout: int = int(self.config.get("timeout_seconds") or 120)
@@ -476,7 +492,9 @@ class OllamaProvider(LLMProvider):
                         self.logger.debug(
                             "QWEN_RAW_RESPONSE_PREVIEW",
                             first_100_chars=raw_response[:100],
-                            last_100_chars=raw_response[-100:] if len(raw_response) > 100 else raw_response,
+                            last_100_chars=raw_response[-100:]
+                            if len(raw_response) > 100
+                            else raw_response,
                             total_length=len(raw_response),
                         )
                         thinking_text, content = self.qwen_parser.parse(response)
@@ -827,6 +845,7 @@ class OllamaProvider(LLMProvider):
                     )
 
                     import time
+
                     time.sleep(delay)
 
                     # Re-check circuit breaker after delay
@@ -1337,6 +1356,40 @@ def llm_embed(text: str, provider: str = "claude") -> np.ndarray:
         sanitized_error = sanitize_error_message(str(e))
         logger.error("LLM_EMBED_FAILED", provider=provider, error=sanitized_error)
         raise
+
+
+def parse_qwen_thinking_and_response(text: str) -> tuple[str | None, str]:
+    """Parse Qwen3 response text to separate thinking from content.
+
+    Qwen3 models output their reasoning in XML-like tags:
+        <think>reasoning here</think>actual response here
+
+    This function extracts the thinking blocks and content separately.
+
+    Args:
+        text: Full response text from Qwen3 model
+
+    Returns:
+        (thinking, content) tuple where:
+        - thinking: str | None - Concatenated reasoning (None if no thinking blocks)
+        - content: str - Response content with thinking blocks removed
+
+    Examples:
+        >>> thinking, content = parse_qwen_thinking_and_response(
+        ...     "<think>Let me analyze this</think>The answer is 42"
+        ... )
+        >>> thinking
+        'Let me analyze this'
+        >>> content
+        'The answer is 42'
+
+        >>> thinking, content = parse_qwen_thinking_and_response("Just a plain response")
+        >>> thinking is None
+        True
+        >>> content
+        'Just a plain response'
+    """
+    return QwenThinkingParser._parse_thinking_blocks(text)
 
 
 if __name__ == "__main__":
