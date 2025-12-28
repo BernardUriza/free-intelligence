@@ -1091,6 +1091,12 @@ class AzureOpenAIProvider(LLMProvider):
             message="Azure OpenAI doesn't support embeddings, falling back to sentence-transformers",
         )
 
+        if SentenceTransformer is None:
+            raise RuntimeError(
+                "sentence_transformers not available (requires torch). "
+                "Embeddings are disabled in production mode."
+            )
+
         # Use lightweight model
         model = SentenceTransformer("all-MiniLM-L6-v2")
         embedding = model.encode(text, convert_to_numpy=True)
