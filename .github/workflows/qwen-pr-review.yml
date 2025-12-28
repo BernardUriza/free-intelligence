@@ -1,0 +1,56 @@
+# =============================================================================
+# Qwen3-Coder PR Review
+# =============================================================================
+# AI-powered code review using Qwen3-Coder-480B (comparable to Claude Sonnet 4)
+#
+# Features:
+# - Automatic review on PR open/update
+# - Manual trigger with @qwencoder /review
+# - Uses project context from QWEN.md if exists
+#
+# Setup:
+# 1. Get free API key from https://dashscope.console.aliyun.com/
+# 2. Add QWEN_API_KEY to GitHub Secrets
+# =============================================================================
+
+name: Qwen3 PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+# Prevent concurrent reviews on the same PR
+concurrency:
+  group: qwen-review-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+    # Run on PR events, or on issue comments that mention @qwencoder
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '@qwencoder'))
+
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better context
+
+      - name: Run Qwen3 Code Review
+        uses: QwenLM/qwen-code-action@main
+        with:
+          qwen_api_key: ${{ secrets.QWEN_API_KEY }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
