@@ -8,12 +8,19 @@
  * File: apps/aurity/lib/api/client.ts
  * Created: 2025-11-08
  * Refactored: 2025-01-XX (P1 - Remove hardcoded URLs, add auth support)
+ * Updated: 2025-12-28 (Multi-target support via deployment config)
  */
 
-// Single source of truth for backend URL - prefer same-origin when not configured
-// When `NEXT_PUBLIC_BACKEND_URL` is not set, use same-origin relative paths to
-// avoid mixed-content fetch failures when the frontend is served over HTTPS.
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+import {
+  getBackendUrl as getDeploymentBackendUrl,
+  getTarget,
+  isCloud,
+} from '@/lib/config/deployment';
+
+// Single source of truth for backend URL - now uses deployment target config
+// Cloud: same-origin (empty string) or explicit NEXT_PUBLIC_BACKEND_URL
+// Desktop: http://localhost:7001 (default) or explicit override
+const BACKEND_URL = getDeploymentBackendUrl();
 
 /**
  * Get the backend URL for direct fetch operations (e.g., SSE streaming)
@@ -22,10 +29,14 @@ export function getBackendUrl(): string {
   return BACKEND_URL;
 }
 
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_BACKEND_URL) {
-  console.warn(
-    '[API Client] WARNING: NEXT_PUBLIC_BACKEND_URL is not set. Using same-origin relative API paths.'
-  );
+// Log deployment configuration in development
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  console.log(`[API Client] Target: ${getTarget()}, Backend: ${BACKEND_URL || '(same-origin)'}`);
+}
+
+// Warn in production if cloud mode is using same-origin (expected behavior)
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production' && isCloud() && !BACKEND_URL) {
+  console.info('[API Client] Cloud mode: Using same-origin relative API paths.');
 }
 
 export class APIError extends Error {
