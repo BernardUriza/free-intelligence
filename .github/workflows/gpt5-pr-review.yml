@@ -44,13 +44,31 @@ jobs:
         run: |
           set -e
 
+          # Wait for other CI checks to start/complete
+          echo "⏳ Waiting 30s for other CI checks to run..."
+          sleep 30
+
           # Get PR info
           PR_TITLE=$(gh pr view $PR_NUMBER --json title -q '.title')
           PR_BODY=$(gh pr view $PR_NUMBER --json body -q '.body // "No description"' | head -c 2000)
           DIFF=$(gh pr diff $PR_NUMBER 2>/dev/null | head -c 25000 || echo "No diff available")
           FILES_CHANGED=$(gh pr view $PR_NUMBER --json files -q '.files | length')
 
+          # Get CI check status (exclude AI reviewer itself)
+          echo "📊 Getting CI check status..."
+          CI_STATUS=$(gh pr checks $PR_NUMBER 2>/dev/null | grep -vE "AI Gatekeeper|AI Code Review" || echo "No checks")
+          FAILED_CHECKS=$(echo "$CI_STATUS" | grep -E "^[^ ]+.*fail" | awk '{print $1}' | tr '\n' ', ' | sed 's/,$//')
+          PASSED_CHECKS=$(echo "$CI_STATUS" | grep -E "^[^ ]+.*pass" | awk '{print $1}' | tr '\n' ', ' | sed 's/,$//')
+          PENDING_CHECKS=$(echo "$CI_STATUS" | grep -E "^[^ ]+.*pending" | awk '{print $1}' | tr '\n' ', ' | sed 's/,$//')
+
+          [ -z "$FAILED_CHECKS" ] && FAILED_CHECKS="None"
+          [ -z "$PASSED_CHECKS" ] && PASSED_CHECKS="None"
+          [ -z "$PENDING_CHECKS" ] && PENDING_CHECKS="None"
+
           echo "::group::Analyzing PR #$PR_NUMBER - $PR_TITLE ($FILES_CHANGED files)"
+          echo "❌ Failed: $FAILED_CHECKS"
+          echo "✅ Passed: $PASSED_CHECKS"
+          echo "⏳ Pending: $PENDING_CHECKS"
 
           # Build prompt as single escaped string
           SYSTEM_MSG="You are a pragmatic AI code reviewer. Focus on REAL bugs that will cause runtime failures. Avoid false positives. Trust the developer's intent for intentional changes."
@@ -60,6 +78,11 @@ jobs:
           TITLE: $PR_TITLE
           DESCRIPTION: $PR_BODY
           FILES CHANGED: $FILES_CHANGED
+
+          CI STATUS:
+          ❌ Failed checks: $FAILED_CHECKS
+          ✅ Passed checks: $PASSED_CHECKS
+          ⏳ Pending checks: $PENDING_CHECKS
 
           DIFF:
           $DIFF
@@ -81,10 +104,11 @@ jobs:
           VERDICT: APPROVE or BLOCK
           CONFIDENCE: HIGH, MEDIUM, or LOW
           SUMMARY: One sentence summary
+          CI FAILURES: If any CI checks failed, explain likely causes based on the diff. If none failed, say 'All CI checks passed.'
           ISSUES: List critical issues or None
           RECOMMENDATION: Brief advice
 
-          Rules: Default to APPROVE. BLOCK only for critical security/crash bugs. When in doubt, APPROVE with concerns noted."
+          Rules: Default to APPROVE. BLOCK only for critical security/crash bugs. When in doubt, APPROVE with concerns noted. Always comment on CI failures."
 
           # Escape for JSON using jq
           SYSTEM_ESCAPED=$(echo "$SYSTEM_MSG" | jq -Rs .)
