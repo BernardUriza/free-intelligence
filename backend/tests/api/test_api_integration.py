@@ -17,7 +17,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Skip entire module - FI-STRIDE endpoints deprecated
-pytestmark = pytest.mark.skip(reason="FI-STRIDE endpoints deprecated - tests need rewrite for AURITY")
+pytestmark = pytest.mark.skip(
+    reason="FI-STRIDE endpoints deprecated - tests need rewrite for AURITY"
+)
 
 
 @pytest.fixture
