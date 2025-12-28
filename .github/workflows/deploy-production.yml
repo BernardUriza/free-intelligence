@@ -239,9 +239,18 @@ jobs:
           cd /opt/free-intelligence
 
           echo "🛑 Stopping old backend process..."
-          # Kill any process listening on port 7001 (more reliable than pkill pattern)
+          # Kill any process listening on port 7001 (multiple methods for reliability)
           fuser -k 7001/tcp || true
-          sleep 2
+          lsof -ti:7001 | xargs kill -9 2>/dev/null || true
+          pkill -9 -f "uvicorn backend.app.main:app" || true
+          sleep 3
+
+          # Verify port is free
+          if lsof -ti:7001 > /dev/null 2>&1; then
+            echo "⚠️ Port 7001 still in use, forcing kill..."
+            lsof -ti:7001 | xargs kill -9 || true
+            sleep 2
+          fi
 
           echo "🧹 Clearing Python bytecode cache..."
           find backend -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
@@ -306,6 +315,24 @@ jobs:
             echo "❌ E2E validation failed"
             exit 1
           fi
+
+      - name: Run LLM Health Check (Fast)
+        continue-on-error: true
+        env:
+          BACKEND_URL: https://app.aurity.io
+          CI: true
+        run: |
+          echo "🔍 Checking LLM health (fast)..."
+          npx playwright test tests/e2e/llm-health.spec.ts --project=chromium --timeout=30000
+
+      - name: Run Qwen3 LLM Response Test (Slow)
+        continue-on-error: true  # Don't fail deploy if LLM is slow/unavailable
+        env:
+          BACKEND_URL: https://app.aurity.io
+          CI: true
+        run: |
+          echo "🤖 Testing Qwen3 LLM responses..."
+          npx playwright test tests/e2e/qwen3-response.spec.ts --project=chromium --timeout=180000 || echo "⚠️ Qwen3 test failed (non-blocking)"
 
       - name: Create Release Tag
         run: |
