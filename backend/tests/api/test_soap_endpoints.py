@@ -1,6 +1,9 @@
 """Integration tests for SOAP endpoints.
 
 Tests the SOAP API endpoints with improved validation and error handling.
+
+NOTE: These tests require the full container infrastructure which may not be
+available in CI. They are skipped if backend.services import fails.
 """
 
 from __future__ import annotations
@@ -9,6 +12,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+
+# Skip if backend.services is not available (CI environment without full deps)
+try:
+    import backend.services
+except ImportError:
+    pytest.skip("backend.services not available", allow_module_level=True)
 
 
 @pytest.fixture
