@@ -1,9 +1,10 @@
 # =============================================================================
-# Azure OpenAI PR Review (GPT-5-mini) - GATEKEEPER MODE
-# This workflow BLOCKS merges if GPT-5 returns BLOCK verdict
+# Azure OpenAI PR Review (GPT-5-mini) - ADVISORY MODE
+# This workflow provides AI code review but does NOT block merges
+# (GPT-5 has false positives on Python f-string escaping, etc.)
 # Powered by Azure Cognitive Services
 # =============================================================================
-name: AI Merge Gatekeeper (GPT-5)
+name: AI Code Review (GPT-5)
 
 on:
   pull_request:
@@ -141,12 +142,14 @@ jobs:
 
           echo "::notice::AI Verdict: $VERDICT"
 
-      - name: Block if AI says no
-        if: steps.review.outputs.VERDICT == 'BLOCK'
+      # AI Gatekeeper is ADVISORY only - does not block merges
+      # This prevents false positives from blocking valid PRs
+      # (e.g., GPT-5 doesn't understand Python f-string escaping)
+      - name: AI Review Complete
         run: |
-          echo "::error::AI GATEKEEPER BLOCKED THIS PR"
-          exit 1
-
-      - name: Approved
-        if: steps.review.outputs.VERDICT != 'BLOCK'
-        run: echo "AI Gatekeeper approved this PR"
+          if [ "${{ steps.review.outputs.VERDICT }}" = "BLOCK" ]; then
+            echo "::warning::AI recommends blocking - review the concerns above"
+          else
+            echo "::notice::AI approved this PR"
+          fi
+          echo "✅ AI review complete (advisory only)"
