@@ -15,13 +15,13 @@ Created: 2025-10-30
 Card: FI-API-FEAT-011
 """
 
-import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from fi_common.logging.logger import get_logger
+import os
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

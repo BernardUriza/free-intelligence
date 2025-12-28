@@ -11,8 +11,7 @@ from typing import Any
 
 from backend.repositories import AuditRepository
 from backend.src.fi_coder.utils.type_defs import AuditLogDict
-
-from fi_common.interfaces.ilogger import ILogger
+from backend.src.fi_common.interfaces.ilogger import ILogger
 
 
 class DIAuditService:

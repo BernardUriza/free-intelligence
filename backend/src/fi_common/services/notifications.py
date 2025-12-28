@@ -17,14 +17,14 @@ HIPAA Compliance Notes:
 
 from __future__ import annotations
 
-import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from fi_common.logging.logger import get_logger
+import os
+from backend.src.fi_common.logging.logger import get_logger
 
 if TYPE_CHECKING:
     pass

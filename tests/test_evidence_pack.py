@@ -6,7 +6,6 @@ Tests evidence pack creation, citation extraction, and export functionality.
 """
 
 import json
-
 import pytest
 
 # Import the modules under test

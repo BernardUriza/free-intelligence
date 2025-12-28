@@ -9,13 +9,13 @@ endpoints become thin controllers for HTTP response formatting.
 
 from __future__ import annotations
 
-import os
 import subprocess
-import sys
-from pathlib import Path
 from typing import Any
 
-from fi_common.logging.logger import get_logger
+import os
+import sys
+from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 

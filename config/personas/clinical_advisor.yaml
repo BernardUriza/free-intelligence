@@ -3,6 +3,8 @@
 
 persona: clinical_advisor
 description: "Asesor clínico - Basado en evidencia, conservador"
+model: qwen3:1.7b
+voice: nova
 temperature: 0.5  # Balance entre creatividad y precisión
 max_tokens: 1024
 

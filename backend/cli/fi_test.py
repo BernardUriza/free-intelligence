@@ -24,18 +24,18 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
+
+import sys
+from pathlib import Path
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from fi_common.logging.logger import get_logger
-
 from backend.providers.llm import llm_generate
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.corpus_ops import append_interaction
 
 logger = get_logger(__name__)

@@ -15,6 +15,7 @@ Usage (called by pre-commit):
 """
 
 import re
+
 import sys
 from pathlib import Path
 

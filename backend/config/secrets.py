@@ -7,10 +7,10 @@ Usage:
     from backend.config.secrets import get_secret, secrets
 
     # Get a single secret
-    api_key = get_secret("OPENAI_API_KEY")
+    api_key = get_secret("AZURE_OPENAI_TTS_API_KEY")
 
     # Access pre-loaded secrets
-    openai_key = secrets.OPENAI_API_KEY
+    azure_openai_key = secrets.AZURE_OPENAI_TTS_API_KEY
 
 Author: Bernard Uriza Orozco
 Created: 2025-12-11
@@ -18,10 +18,11 @@ Created: 2025-12-11
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
-from dotenv import load_dotenv
 from functools import lru_cache
+
+import os
+from dotenv import load_dotenv
 
 # Load .env file as fallback
 load_dotenv()
@@ -132,12 +133,8 @@ class Secrets:
     Usage:
         from backend.config.secrets import secrets
 
-        key = secrets.OPENAI_API_KEY
+        key = secrets.AZURE_OPENAI_TTS_API_KEY
     """
-
-    # OpenAI
-    OPENAI_API_KEY: str | None = None
-    OPENAI_TTS_MODEL: str = "tts-1-hd"
 
     # Auth0
     AUTH0_DOMAIN: str | None = None
@@ -151,8 +148,6 @@ class Secrets:
 
     # Optional services
     DEEPGRAM_API_KEY: str | None = None
-    AZURE_SPEECH_KEY: str | None = None
-    AZURE_SPEECH_REGION: str = "westus"
     CLAUDE_API_KEY: str | None = None
     HF_TOKEN: str | None = None
 
@@ -160,21 +155,16 @@ class Secrets:
     def load(cls) -> Secrets:
         """Load all secrets from KeyVault/.env."""
         return cls(
-            # OpenAI
-            OPENAI_API_KEY=get_secret("OPENAI_API_KEY"),
-            OPENAI_TTS_MODEL=get_secret("OPENAI_TTS_MODEL", "tts-1-hd"),
             # Auth0
             AUTH0_DOMAIN=get_secret("AUTH0_DOMAIN"),
             AUTH0_CLIENT_ID=get_secret("AUTH0_CLIENT_ID"),
-            AUTH0_AUDIENCE=get_secret("AUTH0_AUDIENCE", "https://app.aurity.io"),
+            AUTH0_AUDIENCE=get_secret("AUTH0_AUDIENCE"),  # No default - must be explicit per env
             AUTH0_MANAGEMENT_CLIENT_ID=get_secret("AUTH0_MANAGEMENT_CLIENT_ID"),
             AUTH0_MANAGEMENT_CLIENT_SECRET=get_secret("AUTH0_MANAGEMENT_CLIENT_SECRET"),
             # Database
             DATABASE_URL=get_secret("DATABASE_URL", "sqlite:///./data/aurity.db"),
             # Optional services
             DEEPGRAM_API_KEY=get_secret("DEEPGRAM_API_KEY"),
-            AZURE_SPEECH_KEY=get_secret("AZURE_SPEECH_KEY"),
-            AZURE_SPEECH_REGION=get_secret("AZURE_SPEECH_REGION", "westus"),
             CLAUDE_API_KEY=get_secret("CLAUDE_API_KEY"),
             HF_TOKEN=get_secret("HF_TOKEN"),
         )
@@ -217,7 +207,6 @@ if __name__ == "__main__":
     # Test loading
     s = get_secrets()
     print("Loaded secrets:")
-    print(f"  OPENAI_API_KEY: {'✅ Set' if s.OPENAI_API_KEY else '❌ Missing'}")
     print(f"  AUTH0_DOMAIN: {s.AUTH0_DOMAIN or '❌ Missing'}")
     print(f"  AUTH0_CLIENT_ID: {'✅ Set' if s.AUTH0_CLIENT_ID else '❌ Missing'}")
     print(f"  DEEPGRAM_API_KEY: {'✅ Set' if s.DEEPGRAM_API_KEY else '⚪ Not configured'}")

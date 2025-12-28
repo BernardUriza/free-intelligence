@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
-
+from backend.src.fi_auth import User, get_current_user
 from backend.src.fi_common.api.public.models import (
     DoctorFeedbackRequest,
     DoctorFeedbackResponse,
 )
-from fi_common.logging.logger import get_logger
-from backend.src.fi_auth import User, get_current_user
+from backend.src.fi_common.logging.logger import get_logger
 from backend.validators import validate_session_id
+from fastapi import APIRouter, Depends, HTTPException, status
 
 router = APIRouter()
 logger = get_logger(__name__)

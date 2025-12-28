@@ -36,6 +36,7 @@ import ast
 import functools
 from collections.abc import Callable
 from dataclasses import dataclass
+
 from pathlib import Path
 
 # Optional logger import (for runtime logging)
@@ -248,14 +249,12 @@ def has_require_audit_decorator(node: ast.FunctionDef) -> bool:
 
     for decorator in node.decorator_list:
         # Decorator simple: @require_audit_log
-        if isinstance(decorator, ast.Name):
-            if decorator.id == "require_audit_log":
-                return True
+        if isinstance(decorator, ast.Name) and decorator.id == "require_audit_log":
+            return True
 
         # Decorator con módulo: @llm_audit_policy.require_audit_log
-        if isinstance(decorator, ast.Attribute):
-            if decorator.attr == "require_audit_log":
-                return True
+        if isinstance(decorator, ast.Attribute) and decorator.attr == "require_audit_log":
+            return True
 
     return False
 
@@ -267,9 +266,8 @@ def calls_append_audit_log(node: ast.FunctionDef) -> bool:
     for child in ast.walk(node):
         if isinstance(child, ast.Call):
             # append_audit_log(...)
-            if isinstance(child.func, ast.Name):
-                if child.func.id == "append_audit_log":
-                    return True
+            if isinstance(child.func, ast.Name) and child.func.id == "append_audit_log":
+                return True
 
             # audit_logs.append_audit_log(...)
             if isinstance(child.func, ast.Attribute):

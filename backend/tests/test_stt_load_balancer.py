@@ -17,7 +17,6 @@ Updated: 2025-01-XX (Azure Whisper removed - using Deepgram only)
 from __future__ import annotations
 
 import pytest
-
 from backend.utils.stt_load_balancer import STTLoadBalancer
 
 

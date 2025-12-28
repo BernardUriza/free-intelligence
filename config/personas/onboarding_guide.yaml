@@ -3,6 +3,8 @@
 
 persona: onboarding_guide
 description: "Free-Intelligence presentándose en onboarding - Obsesiva, empática, filosa"
+model: qwen3:1.7b
+voice: nova
 temperature: 0.8  # Más creativa para presentación
 max_tokens: 500
 

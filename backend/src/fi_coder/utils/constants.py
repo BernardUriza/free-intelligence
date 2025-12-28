@@ -15,7 +15,7 @@ Created as part of FI-BACKEND-CHORE-001 to eliminate scattered constants.
 DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-5-20250929"  # Latest official Claude Sonnet 4.5
 
 # Ollama Models (Local Inference)
-DEFAULT_OLLAMA_MODEL = "qwen2:1.5b-instruct"  # Default for local inference
+DEFAULT_OLLAMA_MODEL = "qwen3:1.7b"  # Default for local inference (thinking support)
 OLLAMA_EMBEDDING_MODEL = "nomic-embed-text:latest"  # For embeddings
 
 # ============================================================================

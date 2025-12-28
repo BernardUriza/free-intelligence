@@ -41,7 +41,7 @@ def main():
     print("\n🔍 Comparing with direct config access...")
     model_from_config = ollama_config.get("model")
     print(f"   - Model from policy config: {model_from_config}")
-    print("   - Expected model: qwen2:1.5b-instruct")
+    print("   - Expected model: qwen3:1.7b")
 
 
 if __name__ == "__main__":

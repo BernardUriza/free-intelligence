@@ -5,8 +5,9 @@ Removed 38 unused task schemas and unnecessary policy definitions.
 """
 from __future__ import annotations
 
-from pydantic import BaseModel
 from typing import Any, Dict
+
+from pydantic import BaseModel
 
 # Required parameters
 REPO_ROOT_PATH = "/Users/bernardurizaorozco/Documents/free-intelligence"

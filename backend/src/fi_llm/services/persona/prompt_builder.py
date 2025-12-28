@@ -11,6 +11,7 @@ from .config import PersonaConfig
 from .constants import (
     DEFAULT_MAX_RAG_CHARS,
     DEFAULT_MODE,
+    LANGUAGE_INSTRUCTION,
     MODE_MARKER_PREFIX,
     MODE_MARKERS,
     RAG_BEGIN_MARKER,
@@ -58,6 +59,9 @@ class PromptBuilder:
         base_prompt = config.system_prompt
         context = context or {}
 
+        # Add language instruction (idempotent) - ensures AI responds in user's language
+        base_prompt = self._inject_language_instruction(base_prompt)
+
         # Add mode marker (idempotent)
         base_prompt = self._inject_mode_marker(base_prompt, context)
 
@@ -65,6 +69,24 @@ class PromptBuilder:
         base_prompt = self._inject_rag_context(base_prompt, context)
 
         return base_prompt
+
+    def _inject_language_instruction(self, prompt: str) -> str:
+        """Inject language detection instruction (idempotent).
+
+        Ensures the AI always thinks and responds in the same language
+        as the user's last message.
+
+        Args:
+            prompt: Current prompt
+
+        Returns:
+            Prompt with language instruction
+        """
+        # Skip if marker already exists
+        if "<!--LANG:" in prompt:
+            return prompt
+
+        return f"{prompt}\n\n{LANGUAGE_INSTRUCTION}"
 
     def _inject_mode_marker(self, prompt: str, context: dict) -> str:
         """Inject response mode marker (idempotent).

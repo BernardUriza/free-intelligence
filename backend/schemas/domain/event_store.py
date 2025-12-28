@@ -34,13 +34,12 @@ Usage:
 import hashlib
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, Dict
 
 import h5py
-
-from fi_common.logging.logger import get_logger
 from backend.providers.models import ConsultationEvent
+from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -330,7 +329,7 @@ class EventStore:
 
             consultations_group = h5file["/consultations"]
 
-            for consultation_id in consultations_group.keys():  # type: ignore[attr-defined]
+            for consultation_id in consultations_group:  # type: ignore[attr-defined]
                 try:
                     metadata = self.get_consultation_metadata(consultation_id)
                     consultations.append(metadata)
@@ -425,7 +424,7 @@ class EventStore:
             consultation_count = len(consultations_group.keys())  # type: ignore[attr-defined]
 
             total_events = 0
-            for consultation_id in consultations_group.keys():  # type: ignore[attr-defined]
+            for consultation_id in consultations_group:  # type: ignore[attr-defined]
                 try:
                     metadata = self.get_consultation_metadata(consultation_id)
                     total_events += metadata["event_count"]

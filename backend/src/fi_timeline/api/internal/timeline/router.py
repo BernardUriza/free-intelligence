@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime
-from pathlib import Path
 
 import h5py
 import numpy as np
+from backend.src.fi_common.logging.logger import get_logger
 from fastapi import APIRouter, HTTPException, Request
+from pathlib import Path
 from pydantic import BaseModel, Field, ValidationError, field_validator
-
-from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -63,7 +62,7 @@ def find_target_in_h5(h5: h5py.File, target_id: str) -> tuple[str | None, h5py.D
             return target_id, obj
         elif isinstance(obj, h5py.Group):
             # For groups, find first dataset
-            for key in obj.keys():
+            for key in obj:
                 if isinstance(obj[key], h5py.Dataset):
                     path = f"{target_id}/{key}"
                     return path, obj[key]
@@ -76,7 +75,7 @@ def find_target_in_h5(h5: h5py.File, target_id: str) -> tuple[str | None, h5py.D
             grp = h5[session_path]
             if isinstance(grp, h5py.Group):
                 # Find first dataset in session
-                for key in grp.keys():
+                for key in grp:
                     if isinstance(grp[key], h5py.Dataset):
                         path = f"{session_path}/{key}"
                         return path, grp[key]
@@ -84,12 +83,12 @@ def find_target_in_h5(h5: h5py.File, target_id: str) -> tuple[str | None, h5py.D
     # Search in sessions
     if "sessions" in h5:
         sessions = h5["sessions"]
-        for sess_key in sessions.keys():
+        for sess_key in sessions:
             sess = sessions[sess_key]
             if isinstance(sess, h5py.Group):
                 # Check if target_id matches session or interaction
                 if target_id == sess_key:
-                    for key in sess.keys():
+                    for key in sess:
                         if isinstance(sess[key], h5py.Dataset):
                             path = f"/sessions/{sess_key}/{key}"
                             return path, sess[key]

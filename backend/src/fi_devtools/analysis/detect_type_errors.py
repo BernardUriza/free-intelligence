@@ -13,12 +13,13 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
+
+import sys
+from pathlib import Path
 
 
 @dataclass

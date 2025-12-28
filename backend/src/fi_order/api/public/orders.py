@@ -15,10 +15,9 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
+from backend.src.fi_common.logging.logger import get_logger
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
-
-from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

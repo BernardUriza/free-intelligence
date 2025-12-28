@@ -13,11 +13,10 @@ Card: Architecture refactor - task-based HDF5
 
 from __future__ import annotations
 
+import tempfile
+
 import h5py
 import pytest
-import tempfile
-from pathlib import Path
-
 from backend.models.task_type import TaskStatus, TaskType
 from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (
     get_session_h5_path,
@@ -32,6 +31,7 @@ from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     task_exists,
     update_task_metadata,
 )
+from pathlib import Path
 
 
 @pytest.fixture

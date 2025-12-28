@@ -11,16 +11,15 @@ Note: Azure Whisper endpoint removed - AzureWhisperProvider kept for compatibili
 
 from __future__ import annotations
 
-import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 from typing import Any, Union
 
+import os
+from backend.src.fi_common.logging.logger import get_logger
 from dotenv import load_dotenv
-
-from fi_common.logging.logger import get_logger
+from pathlib import Path
 
 load_dotenv()
 
@@ -31,9 +30,7 @@ class STTProviderType(Enum):
     """Supported STT providers"""
 
     AZURE_WHISPER = "azure_whisper"
-    AZURE_SPEECH = "azure_speech"
     DEEPGRAM = "deepgram"
-    OPENAI_WHISPER = "openai_whisper"
 
 
 @dataclass
@@ -78,24 +75,41 @@ class STTProvider(ABC):
 
 
 class AzureWhisperProvider(STTProvider):
-    """Azure Whisper STT provider (cloud-based, faster)"""
+    """Azure OpenAI Whisper STT provider
+
+    Transcribes audio using OpenAI's Whisper model deployed on Azure OpenAI Service.
+    Supports all languages for transcription and translation to English.
+
+    Environment Variables:
+    - AZURE_OPENAI_ENDPOINT: Azure OpenAI resource endpoint
+    - AZURE_OPENAI_API_KEY: API key for Azure OpenAI
+    - AZURE_OPENAI_WHISPER_DEPLOYMENT: Deployment name (default: "whisper")
+    - AZURE_OPENAI_WHISPER_API_VERSION: API version (default: "2024-02-01")
+
+    Limitations:
+    - File size limit: 25 MB
+    - For larger files, use batch transcription API
+    """
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        self.api_key = os.getenv("AZURE_OPENAI_KEY")
-        self.api_version: str = str(self.config.get("api_version") or "2024-02-15-preview")
+        self.api_key = os.getenv("AZURE_OPENAI_API_KEY")
+        self.deployment = str(self.config.get("deployment") or os.getenv("AZURE_OPENAI_WHISPER_DEPLOYMENT", "whisper"))
+        self.api_version: str = str(self.config.get("api_version") or os.getenv("AZURE_OPENAI_WHISPER_API_VERSION", "2024-02-01"))
 
         if not self.endpoint:
             raise ValueError("AZURE_OPENAI_ENDPOINT environment variable not set")
         if not self.api_key:
-            raise ValueError("AZURE_OPENAI_KEY environment variable not set")
+            raise ValueError("AZURE_OPENAI_API_KEY environment variable not set")
 
         self.timeout: int = int(self.config.get("timeout_seconds") or 30)
 
         self.logger.info(
             "AZURE_WHISPER_PROVIDER_INITIALIZED",
             endpoint=self.endpoint,
+            deployment=self.deployment,
+            api_version=self.api_version,
         )
 
     def transcribe(self, audio_path: Union[str, Path], language: str | None = None) -> STTResponse:
@@ -183,7 +197,7 @@ class AzureWhisperProvider(STTProvider):
 
         azure_whisper_rate_limiter.wait_if_needed()
 
-        url = f"{self.endpoint}openai/deployments/whisper/audio/transcriptions?api-version={self.api_version}"
+        url = f"{self.endpoint}openai/deployments/{self.deployment}/audio/transcriptions?api-version={self.api_version}"
 
         headers = {"api-key": self.api_key}
 
@@ -411,292 +425,6 @@ class DeepgramProvider(STTProvider):
         return "deepgram"
 
 
-class AzureSpeechProvider(STTProvider):
-    """Azure Speech Services STT provider (cloud-based, pay-as-you-go)"""
-
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
-        super().__init__(config)
-        self.api_key = os.getenv("AZURE_SPEECH_KEY")
-        self.region = os.getenv("AZURE_SPEECH_REGION", "westus")
-
-        if not self.api_key:
-            raise ValueError("AZURE_SPEECH_KEY environment variable not set")
-        if not self.region:
-            raise ValueError("AZURE_SPEECH_REGION environment variable not set")
-
-        self.timeout: int = int(self.config.get("timeout_seconds") or 30)
-
-        self.logger.info(
-            "AZURE_SPEECH_PROVIDER_INITIALIZED",
-            region=self.region,
-        )
-
-    def transcribe(self, audio_path: Union[str, Path], language: str | None = None) -> STTResponse:
-        """Transcribe using Azure Speech Services API"""
-        import time
-
-        audio_path = Path(audio_path)
-        if not audio_path.exists():
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
-
-        start_time = time.time()
-
-        try:
-            import requests
-
-            self.logger.info(
-                "AZURE_SPEECH_TRANSCRIPTION_START",
-                audio_path=str(audio_path),
-                language=language,
-            )
-
-            # Read audio
-            with open(audio_path, "rb") as f:
-                audio_bytes = f.read()
-
-            # Detect format from extension
-            extension = audio_path.suffix.lower()
-
-            # Strategy Pattern: Different content-type based on source
-            # - UI chunks: Need specific format with codec info for chunk breaker
-            # - Direct files (curl/test): Simple MIME type works
-            use_simple_mime = self.config.get("use_simple_mime", False)
-
-            if use_simple_mime:
-                # Strategy 1: Simple MIME (for direct curl/file upload)
-                mime_map = {
-                    ".wav": "audio/wav",
-                    ".webm": "audio/webm",
-                    ".mp3": "audio/mpeg",
-                    ".ogg": "audio/ogg",
-                    ".flac": "audio/flac",
-                }
-                content_type = mime_map.get(extension, "audio/wav")
-            else:
-                # Strategy 2: Detailed format (for UI chunk breaker)
-                format_map = {
-                    ".wav": "audio/wav; codecs=audio/pcm; samplerate=16000",
-                    ".webm": "audio/webm; codecs=opus",
-                    ".mp3": "audio/mpeg",
-                    ".ogg": "audio/ogg; codecs=opus",
-                    ".flac": "audio/flac",
-                }
-                content_type = format_map.get(extension, "audio/webm; codecs=opus")
-
-            # Build URL
-            # Azure Speech requires full locale (es-MX, not just es)
-            # Convert short codes to full locales
-            lang_code = language or "es"
-            locale_map = {
-                "es": "es-MX",  # Spanish -> Mexico (default for AURITY)
-                "en": "en-US",  # English -> US
-                "fr": "fr-FR",  # French -> France
-                "de": "de-DE",  # German -> Germany
-                "it": "it-IT",  # Italian -> Italy
-                "pt": "pt-BR",  # Portuguese -> Brazil
-            }
-            # Use mapped locale if short code, otherwise use as-is (es-MX, en-GB, etc.)
-            lang_code = locale_map.get(lang_code, lang_code)
-
-            url = f"https://{self.region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1"
-
-            headers = {
-                "Ocp-Apim-Subscription-Key": self.api_key,
-                "Content-Type": content_type,
-            }
-
-            params = {
-                "language": lang_code,
-                "format": "detailed",
-            }
-
-            response = requests.post(
-                url,
-                headers=headers,
-                params=params,
-                data=audio_bytes,
-                timeout=self.timeout,
-            )
-
-            if response.status_code != 200:
-                raise Exception(f"Azure Speech API error {response.status_code}: {response.text}")
-
-            api_response = response.json()
-
-            # Log raw response for debugging
-            self.logger.debug(
-                "AZURE_SPEECH_RAW_RESPONSE",
-                response=api_response,
-            )
-
-            # Parse response
-            recognized_phrase = api_response.get("NBest", [{}])[0]
-            text = recognized_phrase.get("Display", "")
-            confidence = recognized_phrase.get("Confidence", 0.9)
-            duration = api_response.get("Duration", 0) / 10000000  # Convert to seconds
-
-            # Create segments from words
-            segments = []
-            for word in recognized_phrase.get("Words", []):
-                segments.append(
-                    {
-                        "start": word.get("Offset", 0) / 10000000,
-                        "end": (word.get("Offset", 0) + word.get("Duration", 0)) / 10000000,
-                        "text": word.get("Word", ""),
-                    }
-                )
-
-            latency_ms = (time.time() - start_time) * 1000
-
-            self.logger.info(
-                "AZURE_SPEECH_TRANSCRIPTION_COMPLETE",
-                audio_path=str(audio_path),
-                text_length=len(text),
-                duration=duration,
-                latency_ms=round(latency_ms, 2),
-            )
-
-            return STTResponse(
-                text=text,
-                segments=segments,
-                language=lang_code,
-                duration=duration,
-                confidence=confidence,
-                provider="azure_speech",
-                latency_ms=latency_ms,
-            )
-
-        except Exception as e:
-            self.logger.error(
-                "AZURE_SPEECH_TRANSCRIPTION_FAILED",
-                audio_path=str(audio_path),
-                error=str(e),
-            )
-            raise
-
-    def get_provider_name(self) -> str:
-        return "azure_speech"
-
-
-class OpenAIWhisperProvider(STTProvider):
-    """OpenAI Whisper API provider (cloud-based, high quality)"""
-
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
-        super().__init__(config)
-        self.api_key = os.getenv("OPENAI_API_KEY")
-
-        if not self.api_key:
-            raise ValueError("OPENAI_API_KEY environment variable not set")
-
-        self.timeout: int = int(self.config.get("timeout_seconds") or 30)
-        self.model: str = str(self.config.get("model") or "whisper-1")
-
-        self.logger.info("OPENAI_WHISPER_PROVIDER_INITIALIZED", model=self.model)
-
-    def transcribe(self, audio_path: Union[str, Path], language: str | None = None) -> STTResponse:
-        """Transcribe using OpenAI Whisper API"""
-        import time
-
-        audio_path = Path(audio_path)
-        if not audio_path.exists():
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
-
-        start_time = time.time()
-
-        try:
-            import requests
-
-            self.logger.info(
-                "OPENAI_WHISPER_TRANSCRIPTION_START",
-                audio_path=str(audio_path),
-                language=language,
-                model=self.model,
-            )
-
-            # Call OpenAI Whisper API
-            url = "https://api.openai.com/v1/audio/transcriptions"
-
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-            }
-
-            # Read audio file
-            with open(audio_path, "rb") as f:
-                files = {
-                    "file": (audio_path.name, f, "audio/webm"),
-                }
-                data = {
-                    "model": self.model,
-                    "response_format": "verbose_json",
-                }
-                if language:
-                    data["language"] = language[:2]  # OpenAI uses 2-letter codes
-
-                response = requests.post(
-                    url,
-                    headers=headers,
-                    files=files,
-                    data=data,
-                    timeout=self.timeout,
-                )
-
-            if response.status_code != 200:
-                raise Exception(f"OpenAI Whisper API error {response.status_code}: {response.text}")
-
-            api_response = response.json()
-
-            # Parse response
-            text = api_response.get("text", "")
-            duration = api_response.get("duration", 0.0)
-            detected_language = api_response.get("language", language or "es")
-
-            # Extract segments if available
-            segments = []
-            for seg in api_response.get("segments", []):
-                segments.append(
-                    {
-                        "start": seg.get("start", 0.0),
-                        "end": seg.get("end", 0.0),
-                        "text": seg.get("text", ""),
-                    }
-                )
-
-            # If no segments, create one from full text
-            if not segments and text:
-                segments = [{"start": 0.0, "end": duration, "text": text}]
-
-            latency_ms = (time.time() - start_time) * 1000
-
-            self.logger.info(
-                "OPENAI_WHISPER_TRANSCRIPTION_COMPLETE",
-                audio_path=str(audio_path),
-                text_length=len(text),
-                duration=duration,
-                latency_ms=round(latency_ms, 2),
-            )
-
-            return STTResponse(
-                text=text,
-                segments=segments,
-                language=detected_language,
-                duration=duration,
-                confidence=0.95,  # OpenAI Whisper is very accurate
-                provider="openai_whisper",
-                latency_ms=latency_ms,
-            )
-
-        except Exception as e:
-            self.logger.error(
-                "OPENAI_WHISPER_TRANSCRIPTION_FAILED",
-                audio_path=str(audio_path),
-                error=str(e),
-            )
-            raise
-
-    def get_provider_name(self) -> str:
-        return "openai_whisper"
-
-
 def get_stt_provider(provider_name: str, config: dict[str, Any] | None = None) -> STTProvider:
     """
     Factory function to get STT provider instance.
@@ -724,9 +452,7 @@ def get_stt_provider(provider_name: str, config: dict[str, Any] | None = None) -
 
     provider_map = {
         "azure_whisper": AzureWhisperProvider,  # Deprecated - kept for compatibility
-        "azure_speech": AzureSpeechProvider,
         "deepgram": DeepgramProvider,
-        "openai_whisper": OpenAIWhisperProvider,
     }
 
     provider_class = provider_map.get(provider_name_lower)

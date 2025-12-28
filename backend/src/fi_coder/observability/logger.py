@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import logging
 import re
-import sys
 from typing import Any
+
+import sys
 
 try:
     from zoneinfo import ZoneInfo
@@ -102,4 +103,4 @@ def redact_logs(text: str) -> str:
 # Default logger instance
 logger = get_logger()
 
-__all__ = ["get_logger", "redact_logs", "logger"]
+__all__ = ["get_logger", "logger", "redact_logs"]

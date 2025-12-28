@@ -23,7 +23,6 @@ export PIP_DISABLE_PIP_VERSION_CHECK=1
 # ============================================================================
 PY ?= python3.14
 BACKEND_PORT ?= 7001
-GATEWAY_PORT ?= 7002
 STRIDE_PORT ?= 9050
 FRONTEND_PORT ?= 9000
 CORPUS_EMAIL ?= $(USER)@example.com
@@ -57,7 +56,7 @@ OBS_ALERTS_SERVICE ?= public_api
 .PHONY: init-corpus init
 .PHONY: run run-gateway run-both
 .PHONY: test test-cov test-scenario-1
-.PHONY: lint format fmt format-check
+.PHONY: lint format fmt format-check lint-fix lint-fix-ai lint-fix-ai-dry
 .PHONY: type-check type-check-mypy type-check-all type-check-export type-check-batch
 .PHONY: clean clean-all
 .PHONY: health-check corpus-stats audit-logs trello-status info
@@ -165,22 +164,6 @@ run: check-python init-corpus ## Run FI Consult Service (default: 7001)
 	@echo ""
 	PYTHONPATH=. $(PY) -m uvicorn backend.app.main:app --host 0.0.0.0 --port $(BACKEND_PORT) --reload
 
-run-gateway: check-python init-corpus ## Run AURITY Gateway (default: 7002)
-	@echo "🚀 Starting AURITY Gateway on http://localhost:$(GATEWAY_PORT)"
-	@echo "   Health check: http://localhost:$(GATEWAY_PORT)/health"
-	@echo "   Press Ctrl+C to stop"
-	@echo ""
-	PYTHONPATH=. $(PY) -m uvicorn backend.aurity_gateway:app --host 0.0.0.0 --port $(GATEWAY_PORT) --reload
-
-run-both: init-corpus ## Run both services (requires tmux or separate terminals)
-	@echo "🚀 Starting both services..."
-	@echo "   FI Consult:    http://localhost:$(BACKEND_PORT)"
-	@echo "   AURITY Gateway: http://localhost:$(GATEWAY_PORT)"
-	@echo ""
-	@echo "Run these in separate terminals:"
-	@echo "  Terminal 1: make run"
-	@echo "  Terminal 2: make run-gateway"
-
 # ============================================================================
 # Testing
 # ============================================================================
@@ -204,6 +187,18 @@ test-scenario-1: ## Run QA Scenario 1 (green path)
 lint: ## Run linter (ruff)
 	@echo "🔍 Linting code..."
 	$(PY) -m ruff check backend/ tests/
+
+lint-fix: ## Auto-fix simple linting issues (ruff --fix)
+	@echo "🔧 Auto-fixing simple linting issues..."
+	$(PY) -m ruff check --fix backend/ tests/
+
+lint-fix-ai: ## Intelligent fixes for complex linting issues (fi-coder)
+	@echo "🤖 Applying intelligent fixes for complex linting issues..."
+	$(PY) -m ruff check backend/ tests/ | $(PY) -m backend.src.fi_coder.cli.main lint-fix --ruff-output=-
+
+lint-fix-ai-dry: ## Preview intelligent fixes without applying them
+	@echo "🔍 Previewing intelligent fixes for complex linting issues..."
+	$(PY) -m ruff check backend/ tests/ | $(PY) -m backend.src.fi_coder.cli.main lint-fix --ruff-output=- --dry-run
 
 format: ## Format code (black)
 	@echo "✨ Formatting code..."
@@ -457,7 +452,7 @@ llm-test: ## Run LLM tests (pytest)
 	$(PY) -m pytest backend/tests/unit/test_ollama_client.py -v
 
 llm-call: ## Example CLI call to endpoint
-	@echo "📞 Example LLM call (Ollama qwen2:7b)..."
+	@echo "📞 Example LLM call (Ollama qwen3:1.7b)..."
 	@echo "   Prompt: 'What is 2+2?'"
 	@echo "⚠️  fi_llm.py deprecated - use direct ollama CLI or backend/api/llm endpoints"
 

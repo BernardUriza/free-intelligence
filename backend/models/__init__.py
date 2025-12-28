@@ -45,33 +45,33 @@ from backend.models.session import EncryptionMetadata, Session, SessionStatus
 from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
 
 __all__ = [
-    # Core models
-    "ChunkMetadata",
-    "EncryptionMetadata",
-    "Job",
-    "JobStatus",
-    "JobType",
-    "Session",
-    "SessionStatus",
-    "TranscriptionJob",
     # Check-in models (FI-CHECKIN-001)
     "Appointment",
     "AppointmentStatus",
     "AppointmentType",
     "CheckinSession",
     "CheckinStep",
+    # Core models
+    "ChunkMetadata",
     "Clinic",
-    "DeviceType",
-    "Doctor",
-    "PendingAction",
-    "PendingActionStatus",
-    "PendingActionType",
-    "WaitingRoomEvent",
     # LLM models
     "CostTier",
+    "DeviceType",
+    "Doctor",
+    "EncryptionMetadata",
+    "Job",
+    "JobStatus",
+    "JobType",
     "LLMModel",
     "LLMModelCreate",
     "LLMModelResponse",
     "LLMModelUpdate",
     "LLMProvider",
+    "PendingAction",
+    "PendingActionStatus",
+    "PendingActionType",
+    "Session",
+    "SessionStatus",
+    "TranscriptionJob",
+    "WaitingRoomEvent",
 ]

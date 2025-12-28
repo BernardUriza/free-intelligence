@@ -8,7 +8,6 @@ Como Gandalf dijo: "El hechizo que falla nos enseña qué construir."
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from backend.models.catalog_model import (
     CatalogModel,
     CatalogSearchParams,
@@ -469,7 +468,7 @@ class TestModelInstallation:
                 context_length=8192,
             )
 
-            result = await catalog.install_model(model)
+            await catalog.install_model(model)
 
             # Verificar que se llamó al CRUD
             mock_create.assert_called_once()

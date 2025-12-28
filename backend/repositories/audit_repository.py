@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, Dict, Union
 from uuid import uuid4
 
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.type_defs import AuditLogDict
+from pathlib import Path
 
 from .base_repository import BaseRepository
 
@@ -222,7 +222,7 @@ class AuditRepository(BaseRepository):
                 logs_group = f[self.AUDIT_LOGS_GROUP]
                 results = []
 
-                for log_id in logs_group.keys():  # type: ignore[attr-defined]
+                for log_id in logs_group:  # type: ignore[attr-defined]
                     log_data = self.read(log_id)
                     if not log_data:
                         continue

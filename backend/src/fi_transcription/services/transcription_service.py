@@ -13,8 +13,14 @@ Card: Clean Architecture Refactor
 
 from __future__ import annotations
 
-from fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskType
+from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_events.application.event_bus import get_event_bus
+from backend.src.fi_events.domain.events import (
+    TranscriptionChunkEvent,
+    TranscriptionEndedEvent,
+    TranscriptionStartedEvent,
+)
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     ensure_task_exists,
     get_task_chunks,
@@ -123,6 +129,20 @@ class TranscriptionService:
             session_id=session_id,
         )
 
+        # 2b. Emit TRANSCRIPTION_STARTED event (first chunk only)
+        if chunk_number == 0:
+            try:
+                event_bus = get_event_bus()
+                await event_bus.publish(
+                    TranscriptionStartedEvent.create(
+                        session_id=session_id,
+                        mode="medical",
+                        source="stream",
+                    )
+                )
+            except Exception as e:
+                logger.warning("EVENT_PUBLISH_FAILED", event="TRANSCRIPTION_STARTED", error=str(e))
+
         # 3. Save audio to HDF5 IMMEDIATELY (fast path - no transcription yet)
         import hashlib
 
@@ -169,6 +189,19 @@ class TranscriptionService:
             audio_size=audio_size,
         )
 
+        # 3b. Emit TRANSCRIPTION_CHUNK event
+        try:
+            event_bus = get_event_bus()
+            await event_bus.publish(
+                TranscriptionChunkEvent.create(
+                    session_id=session_id,
+                    chunk_number=chunk_number,
+                    audio_size_bytes=audio_size,
+                )
+            )
+        except Exception as e:
+            logger.warning("EVENT_PUBLISH_FAILED", event="TRANSCRIPTION_CHUNK", error=str(e))
+
         # 4. Update task metadata (track total chunks)
         metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
         total_chunks = max(metadata.get("total_chunks", 0), chunk_number + 1)
@@ -185,9 +218,9 @@ class TranscriptionService:
         )
 
         # 5. Dispatch worker to background (fire-and-forget)
+        from backend.src.fi_workers.executor_pool import spawn_worker
+        from backend.src.fi_workers.sync_workers import transcribe_chunk_worker
         from backend.utils.stt_load_balancer import get_stt_load_balancer
-        from backend.workers.executor_pool import spawn_worker
-        from backend.workers.sync_workers import transcribe_chunk_worker
 
         # Use load balancer to select provider intelligently (policy-driven)
         load_balancer = get_stt_load_balancer()
@@ -259,9 +292,9 @@ class TranscriptionService:
                 - language: Detected language
         """
         import asyncio
-        import os
         import tempfile
 
+        import os
         from backend.providers.stt import get_stt_provider
         from backend.utils.stt_load_balancer import get_stt_load_balancer
 

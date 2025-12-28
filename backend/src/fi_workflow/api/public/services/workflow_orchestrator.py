@@ -15,12 +15,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskType
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     ensure_task_exists,
 )
-from backend.workers.executor_pool import spawn_worker
+from backend.src.fi_workers.executor_pool import spawn_worker
 
 logger = get_logger(__name__)
 
@@ -54,7 +54,7 @@ class WorkflowOrchestrator:
         Returns:
             Job dispatch response with job_id and status
         """
-        from backend.workers.tasks.diarization_worker import diarization_worker
+        from backend.src.fi_workers.tasks.diarization_worker import diarization_worker
 
         self.logger.info(
             "ORCHESTRATOR_DISPATCH_DIARIZATION",
@@ -95,7 +95,7 @@ class WorkflowOrchestrator:
         Returns:
             Job dispatch response with job_id and status
         """
-        from backend.workers.tasks.soap_worker import generate_soap_worker
+        from backend.src.fi_workers.tasks.soap_worker import generate_soap_worker
 
         self.logger.info(
             "ORCHESTRATOR_DISPATCH_SOAP",
@@ -136,7 +136,7 @@ class WorkflowOrchestrator:
         Returns:
             Job dispatch response with job_id and status
         """
-        from backend.workers.tasks.emotion_worker import analyze_emotion_worker
+        from backend.src.fi_workers.tasks.emotion_worker import analyze_emotion_worker
 
         self.logger.info(
             "ORCHESTRATOR_DISPATCH_EMOTION",
@@ -177,7 +177,7 @@ class WorkflowOrchestrator:
         Returns:
             Encryption dispatch response
         """
-        from backend.workers.tasks.encryption_worker import encrypt_session_worker
+        from backend.src.fi_workers.tasks.encryption_worker import encrypt_session_worker
 
         self.logger.info(
             "ORCHESTRATOR_DISPATCH_ENCRYPTION",

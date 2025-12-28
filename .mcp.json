@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "azure-cli": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-azure-cli"
+      ],
+      "env": {}
+    }
+  }
+}

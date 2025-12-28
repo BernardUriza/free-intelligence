@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, HTTPException, status
-
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.validators import validate_session_id
+from fastapi import APIRouter, HTTPException, status
 
 if TYPE_CHECKING:
     from backend.src.fi_common.api.public.models import (
@@ -81,15 +80,14 @@ async def analyze_session_intelligent_workflow(
     language: str | None = None,
 ) -> dict:
     import h5py
-
     from backend.models.task_type import TaskStatus, TaskType
-    from backend.src.fi_workflow.services.workflow_router import get_workflow_router
     from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
         CORPUS_PATH,
         ensure_task_exists,
         get_task_metadata,
     )
-    from backend.workers.executor_pool import spawn_worker
+    from backend.src.fi_workers.executor_pool import spawn_worker
+    from backend.src.fi_workflow.services.workflow_router import get_workflow_router
 
     try:
         logger.info(
@@ -170,17 +168,17 @@ async def analyze_session_intelligent_workflow(
                 )
                 continue
             elif task_type == TaskType.DIARIZATION:
-                from backend.workers.tasks.diarization_worker import diarization_worker
+                from backend.src.fi_workers.tasks.diarization_worker import diarization_worker
 
                 spawn_worker(diarization_worker, session_id=session_id)
                 job_ids["DIARIZATION"] = session_id
             elif task_type == TaskType.SOAP_GENERATION:
-                from backend.workers.tasks.soap_worker import generate_soap_worker
+                from backend.src.fi_workers.tasks.soap_worker import generate_soap_worker
 
                 spawn_worker(generate_soap_worker, session_id=session_id)
                 job_ids["SOAP_GENERATION"] = session_id
             elif task_type == TaskType.EMOTION_ANALYSIS:
-                from backend.workers.tasks.emotion_worker import analyze_emotion_worker
+                from backend.src.fi_workers.tasks.emotion_worker import analyze_emotion_worker
 
                 spawn_worker(analyze_emotion_worker, session_id=session_id)
                 job_ids["EMOTION_ANALYSIS"] = session_id

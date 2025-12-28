@@ -1,31 +1,55 @@
 """
 Public TTS Router - Text-to-Speech API
 
-Provides multi-provider TTS endpoint for demo mode and accessibility.
+Provides TTS endpoint for demo mode and accessibility.
 
-Supports:
-- OpenAI TTS (natural, expressive voices) - DEFAULT
-- Azure Speech Services (Spanish Mexico neural voices)
+Provider:
+- Azure OpenAI TTS (OpenAI models: nova, alloy, shimmer deployed on Azure)
 
 Endpoints:
 - POST /api/tts/synthesize - Generate speech from text
 
 Created: 2025-11-17
-Updated: 2025-12-08 (Added OpenAI TTS support)
+Updated: 2025-12-24 (Removed OpenAI direct, Azure-only configuration)
 """
 
 from typing import Literal
 
 import structlog
+from backend.src.fi_tts.services.tts_unified import get_unified_tts_service
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from backend.src.fi_tts.services.tts_unified import get_unified_tts_service
-
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/tts", tags=["TTS"])
+
+
+@router.get("/providers", summary="List configured TTS providers")
+async def list_providers():
+    """Return which TTS providers are configured on this backend."""
+    import os
+
+    # Azure OpenAI TTS (unified resource - shared endpoint with STT/Whisper)
+    # Supports both new unified var names and legacy var names
+    azure_openai_key = (
+        os.getenv("AZURE_OPENAI_API_KEY")
+        or os.getenv("AZURE_OPENAI_TTS_API_KEY")
+        or os.getenv("AZURE_TTS_API_KEY")
+    )
+    azure_openai_endpoint = (
+        os.getenv("AZURE_OPENAI_ENDPOINT")
+        or os.getenv("AZURE_OPENAI_TTS_ENDPOINT")
+        or os.getenv("AZURE_TTS_ENDPOINT")
+    )
+    has_azure_openai = bool(azure_openai_key and azure_openai_endpoint)
+
+    providers = {
+        "azure-openai": has_azure_openai,
+    }
+
+    return {"providers": providers}
 
 
 class TTSRequest(BaseModel):
@@ -40,15 +64,15 @@ class TTSRequest(BaseModel):
     )
     voice: str = Field(
         default="nova",
-        description="Voice name (OpenAI: nova, alloy, etc. | Azure: es-MX-DaliaNeural, etc.)",
+        description="Voice name (nova, alloy, shimmer)",
     )
-    provider: Literal["openai", "openai-steerable", "azure"] | None = Field(
-        default=None,
-        description="TTS provider (auto-detect: Spanish + steerable voice = openai-steerable)",
+    provider: Literal["azure-openai"] | None = Field(
+        default="azure-openai",
+        description="TTS provider (Azure OpenAI TTS only)",
     )
     accent: str | None = Field(
         default=None,
-        description="Accent for steerable TTS (e.g., 'Mexican Spanish', 'neutral Spanish')",
+        description="Accent instruction (auto-detected from text language)",
     )
     response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
         default="mp3",
@@ -67,7 +91,7 @@ class TTSRequest(BaseModel):
     response_class=Response,
     summary="Synthesize Speech (Multi-Provider with Accent Control)",
     description="""
-    Generate speech audio from text using OpenAI TTS, OpenAI Steerable TTS, or Azure Speech Services.
+    Generate speech audio from text using OpenAI TTS with multiple provider options.
 
     **Use Cases:**
     - Demo mode consultation audio
@@ -77,11 +101,10 @@ class TTSRequest(BaseModel):
 
     **Provider Selection (Auto-detect):**
     - Spanish text + steerable voice (alloy/echo/shimmer) → `openai-steerable` (Mexican accent)
-    - Azure voice (es-MX-*) → `azure`
-    - Other voices → `openai`
+    - With explicit provider → use specified provider
 
     **Manual Override:**
-    Set `provider` to "openai", "openai-steerable", or "azure"
+    Set `provider` to "openai", "openai-steerable", or "azure-openai"
 
     **🎯 OpenAI Steerable TTS (Accent Control - BEST FOR SPANISH):**
     - `alloy` ⭐ - Neutral, versatile (supports Mexican Spanish accent)
@@ -90,26 +113,16 @@ class TTSRequest(BaseModel):
 
     Use with `accent="Mexican Spanish"` for natural Mexican accent!
 
-    **🎙️ OpenAI TTS Standard (English/General):**
-    - `nova` - Female, warm
+    **🎙️ OpenAI TTS Standard (All Languages):**
+    - `nova` - Female, warm (default, used in medical context)
+    - `alloy` - Neutral, versatile
+    - `shimmer` - Female, clear
     - `ash`, `ballad`, `coral`, `sage`, `verse` - New 2025
     - `fable` - Male, British
     - `onyx` - Male, deep
 
-    **🌍 Azure Speech Services (Native Spanish Mexico):**
-
-    Female:
-    - `es-MX-DaliaNeural` - Female (medical context)
-    - `es-MX-BeatrizNeural`, `es-MX-CandelaNeural` (child)
-    - `es-MX-CarlotaNeural`, `es-MX-DaliaMultilingualNeural`
-    - `es-MX-LarissaNeural`, `es-MX-MarinaNeural`
-    - `es-MX-NuriaNeural`, `es-MX-RenataNeural`
-
-    Male:
-    - `es-MX-JorgeNeural`, `es-MX-CecilioNeural`
-    - `es-MX-GerardoNeural`, `es-MX-JorgeMultilingualNeural`
-    - `es-MX-LibertoNeural`, `es-MX-LucianoNeural`
-    - `es-MX-PelayoNeural`, `es-MX-YagoNeural`
+    **🌐 Azure OpenAI TTS (OpenAI via Azure):**
+    Same voices as OpenAI TTS (nova, alloy, shimmer) deployed on Azure infrastructure.
 
     **Formats:**
     - `mp3` - Web-compatible (default)
@@ -175,12 +188,24 @@ async def synthesize_speech(request: TTSRequest) -> Response:
         )
 
     except ValueError as e:
+        # Structured 400 response for validation / config errors
         logger.warning("tts.invalid_request", error=str(e))
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "TTS_INVALID_REQUEST",
+                "message": str(e),
+            },
+        ) from e
 
     except Exception as e:
+        # Structured 500 response
         logger.error("tts.synthesis_failed", error=str(e))
         raise HTTPException(
             status_code=500,
-            detail=f"TTS synthesis failed: {e!s}",
+            detail={
+                "code": "TTS_SYNTHESIS_FAILED",
+                "message": "TTS synthesis failed",
+                "details": str(e),
+            },
         ) from e

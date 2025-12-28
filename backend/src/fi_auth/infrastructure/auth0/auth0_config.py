@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
+
+import os
 
 
 @dataclass
@@ -21,8 +22,14 @@ class Auth0Config:
 
 
 def load_auth0_config() -> Auth0Config:
-    domain = os.getenv("AUTH0_DOMAIN", "dev-1r4daup7ofj7q6gn.us.auth0.com")
-    audience = os.getenv("AUTH0_API_IDENTIFIER", "https://app.aurity.io")
+    """
+    Load Auth0 configuration from environment variables.
+
+    IMPORTANT: No hardcoded production defaults. Each environment
+    must explicitly set these values to prevent dev/prod confusion.
+    """
+    domain = os.getenv("AUTH0_DOMAIN")
+    audience = os.getenv("AUTH0_API_IDENTIFIER")
     roles_claim_key = os.getenv("AUTH0_ROLES_CLAIM", "https://aurity.app/roles")
 
     if not domain:

@@ -10,10 +10,11 @@ Usage:
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Sequence
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+import sys
+from pathlib import Path
 
 if TYPE_CHECKING:
     pass
@@ -132,7 +133,7 @@ def inspect_corpus(corpus_path: str = "storage/corpus.h5") -> None:
 
 def run(args: Sequence[str] | None = None) -> None:
     """Inspect corpus HDF5 file."""
-    corpus_path = list(args or [])[0] if args else "storage/corpus.h5"
+    corpus_path = next(iter(args or [])) if args else "storage/corpus.h5"
 
     if not Path(corpus_path).exists():
         print(f"❌ Error: File not found: {corpus_path}")

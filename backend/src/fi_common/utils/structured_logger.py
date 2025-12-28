@@ -1,7 +1,7 @@
 """Concrete logger implementation."""
 
-from fi_common.interfaces.ilogger import ILogger
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.interfaces.ilogger import ILogger
+from backend.src.fi_common.logging.logger import get_logger
 
 
 class StructuredLogger(ILogger):

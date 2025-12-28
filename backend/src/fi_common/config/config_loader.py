@@ -11,10 +11,10 @@ FI-CONFIG-FEAT-001
 """
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import yaml
+from pathlib import Path
 
 
 @dataclass

@@ -16,20 +16,19 @@ Created: 2025-11-15 (Refactored from monolithic router)
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import h5py
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from pydantic import BaseModel, Field
-
-from fi_common.infrastructure.dependencies import get_transcription_service
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.infrastructure.dependencies import get_transcription_service
+from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_transcription.services.transcription_service import TranscriptionService
 from backend.src.fi_transcription.services.validators import (
     AudioFileValidator,
     ValidationError,
 )
-from backend.src.fi_transcription.services.transcription_service import TranscriptionService
 from backend.validators import validate_session_id
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from pathlib import Path
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 

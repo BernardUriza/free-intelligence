@@ -9,10 +9,9 @@ Card: FI-API-FEAT-011
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
-
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_kpi.services.kpis_aggregator import get_kpis_aggregator
+from fastapi import APIRouter, HTTPException, Query
 
 logger = get_logger(__name__)
 

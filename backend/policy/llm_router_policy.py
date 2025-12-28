@@ -1,7 +1,4 @@
-from __future__ import annotations
-
-"""
-LLM Router Policy - Free Intelligence
+"""LLM Router Policy - Free Intelligence.
 
 Enforcement de política: TODA llamada a LLM debe usar router centralizado.
 
@@ -34,8 +31,11 @@ Sprint: SPR-2025W44 (Sprint 2)
 Task: FI-CORE-FIX-001
 """
 
+from __future__ import annotations
+
 import ast
 from dataclasses import dataclass
+
 from pathlib import Path
 
 # Optional logger import (for runtime logging)
@@ -46,13 +46,36 @@ try:
 except ImportError:
     # Fallback to print for CLI usage
     class SimpleLogger:
-        def info(self, event, **kwargs):
+        """Simple logger class that prints to console for CLI usage."""
+
+        def info(self, event: str, **kwargs: object) -> None:
+            """Log an info event.
+
+            Args:
+                event: The event to log
+                **kwargs: Additional information to log
+
+            """
             print(f"INFO: {event} - {kwargs}")
 
-        def warning(self, event, **kwargs):
+        def warning(self, event: str, **kwargs: object) -> None:
+            """Log a warning event.
+
+            Args:
+                event: The event to log
+                **kwargs: Additional information to log
+
+            """
             print(f"WARNING: {event} - {kwargs}")
 
-        def error(self, event, **kwargs):
+        def error(self, event: str, **kwargs: object) -> None:
+            """Log an error event.
+
+            Args:
+                event: The event to log
+                **kwargs: Additional information to log
+
+            """
             print(f"ERROR: {event} - {kwargs}")
 
     logger = SimpleLogger()
@@ -63,10 +86,8 @@ except ImportError:
 # ============================================================================
 
 
-class LLMRouterViolation(Exception):
+class LLMRouterViolationError(Exception):
     """Raised when direct LLM API call is detected."""
-
-    pass
 
 
 # ============================================================================
@@ -115,6 +136,7 @@ class RouterViolation:
     details: str
 
     def __str__(self) -> str:
+        """Return string representation of the violation."""
         return f"{self.filepath}:{self.lineno} - {self.violation_type}: {self.details}"
 
 
@@ -124,34 +146,31 @@ class RouterViolation:
 
 
 def extract_imports(tree: ast.AST) -> set[str]:
-    """
-    Extrae todos los imports de un AST.
+    """Extrae todos los imports de un AST.
 
     Returns:
         Set de módulos importados (e.g., {'anthropic', 'openai'})
+
     """
     imports = set()
 
     for node in ast.walk(tree):
-        # import anthropic
         if isinstance(node, ast.Import):
             for alias in node.names:
                 imports.add(alias.name)
 
-        # from anthropic import Anthropic
-        if isinstance(node, ast.ImportFrom):
-            if node.module:
-                imports.add(node.module)
+        if isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module)
 
     return imports
 
 
 def has_forbidden_import(imports: set[str]) -> list[str]:
-    """
-    Verifica si hay imports prohibidos.
+    """Verifica si hay imports prohibidos.
 
     Returns:
         Lista de imports prohibidos encontrados
+
     """
     forbidden = []
 
@@ -171,11 +190,11 @@ def has_forbidden_import(imports: set[str]) -> list[str]:
 
 
 def extract_attribute_calls(tree: ast.AST) -> list[tuple]:
-    """
-    Extrae llamadas a métodos con atributos (e.g., client.messages.create()).
+    """Extrae llamadas a métodos con atributos (e.g., client.messages.create()).
 
     Returns:
         Lista de (lineno, call_chain) donde call_chain es "messages.create"
+
     """
     calls = []
 
@@ -197,11 +216,11 @@ def extract_attribute_calls(tree: ast.AST) -> list[tuple]:
 
 
 def has_forbidden_call(calls: list[tuple]) -> list[tuple]:
-    """
-    Verifica si hay llamadas prohibidas a APIs de LLM.
+    """Verifica si hay llamadas prohibidas a APIs de LLM.
 
     Returns:
         Lista de (lineno, call_pattern) con llamadas prohibidas
+
     """
     forbidden = []
 
@@ -215,11 +234,11 @@ def has_forbidden_call(calls: list[tuple]) -> list[tuple]:
 
 
 def scan_file_for_router_violations(filepath: Path) -> list[RouterViolation]:
-    """
-    Escanea un archivo Python en busca de violaciones de router policy.
+    """Escanea un archivo Python en busca de violaciones de router policy.
 
     Returns:
         Lista de RouterViolation con información de violaciones
+
     """
     try:
         content = filepath.read_text(encoding="utf-8")
@@ -234,15 +253,15 @@ def scan_file_for_router_violations(filepath: Path) -> list[RouterViolation]:
     imports = extract_imports(tree)
     forbidden_imports = has_forbidden_import(imports)
 
-    for imp in forbidden_imports:
-        violations.append(
-            RouterViolation(
-                filepath=str(filepath),
-                lineno=1,  # Import line not tracked in this simple version
-                violation_type="import",
-                details=f"Direct import of LLM library: '{imp}'",
-            )
+    violations.extend([
+        RouterViolation(
+            filepath=str(filepath),
+            lineno=1,  # Import line not tracked in this simple version
+            violation_type="import",
+            details=f"Direct import of LLM library: '{imp}'",
         )
+        for imp in forbidden_imports
+    ])
 
     # Check calls
     calls = extract_attribute_calls(tree)
@@ -255,18 +274,18 @@ def scan_file_for_router_violations(filepath: Path) -> list[RouterViolation]:
                 lineno=lineno,
                 violation_type="call",
                 details=f"Direct LLM API call: '{call_pattern}'",
-            )
+            ),
         )
 
     return violations
 
 
 def scan_directory(directory: Path) -> dict[str, list[RouterViolation]]:
-    """
-    Escanea un directorio recursivamente en busca de violaciones.
+    """Escanea un directorio recursivamente en busca de violaciones.
 
     Returns:
         Dict[filepath: str, violations: List[RouterViolation]]
+
     """
     results = {}
 
@@ -284,11 +303,11 @@ def scan_directory(directory: Path) -> dict[str, list[RouterViolation]]:
 
 
 def validate_codebase(root_dir: Path) -> bool:
-    """
-    Valida todo el codebase contra la política de router.
+    """Valida todo el codebase contra la política de router.
 
     Returns:
         True si NO hay violaciones, False si hay violaciones
+
     """
     results = scan_directory(root_dir)
 
@@ -312,10 +331,8 @@ def validate_codebase(root_dir: Path) -> bool:
     return False
 
 
-def print_violations_report(results: dict[str, list[RouterViolation]]):
-    """
-    Imprime reporte formateado de violaciones.
-    """
+def print_violations_report(results: dict[str, list[RouterViolation]]) -> None:
+    """Imprime reporte formateado de violaciones."""
     if not results:
         print("\n✅ ROUTER POLICY VALIDATION PASSED")
         print("   No direct LLM API calls detected")
@@ -360,7 +377,9 @@ def print_violations_report(results: dict[str, list[RouterViolation]]):
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) < 2:
+    MIN_ARGV_LENGTH = 2
+
+    if len(sys.argv) < MIN_ARGV_LENGTH:
         print("Usage:")
         print("  python3 backend/llm_router_policy.py scan <directory>")
         print("  python3 backend/llm_router_policy.py validate <directory>")
@@ -372,7 +391,8 @@ if __name__ == "__main__":
     command = sys.argv[1]
 
     if command == "scan":
-        if len(sys.argv) < 3:
+        MIN_ARGV_LENGTH_WITH_DIR = 3
+        if len(sys.argv) < MIN_ARGV_LENGTH_WITH_DIR:
             print("Error: Missing directory argument")
             sys.exit(1)
 
@@ -388,7 +408,8 @@ if __name__ == "__main__":
         print_violations_report(results)
 
     elif command == "validate":
-        if len(sys.argv) < 3:
+        MIN_ARGV_LENGTH_WITH_DIR_VALIDATE = 3
+        if len(sys.argv) < MIN_ARGV_LENGTH_WITH_DIR_VALIDATE:
             print("Error: Missing directory argument")
             sys.exit(1)
 

@@ -9,14 +9,15 @@ Created: 2025-11-09
 
 from __future__ import annotations
 
+import uuid
+from datetime import UTC, datetime
+from typing import Any
+
 import os
 import pyarrow as pa
 import pyarrow.parquet as pq
-import uuid
-from datetime import UTC, datetime
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from pathlib import Path
-from typing import Any
 
 logger = get_logger(__name__)
 

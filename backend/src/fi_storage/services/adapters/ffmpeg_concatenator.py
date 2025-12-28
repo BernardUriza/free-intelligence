@@ -8,14 +8,14 @@ Thread-safety: Uses tempfile for isolation, stateless.
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import tempfile
 from collections.abc import Sequence
-from pathlib import Path
 
-from fi_common.logging.logger import get_logger
+import os
+from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 from ..domain import AudioChunk, AudioFormat
 from ..ports.audio_concatenator import AudioConcatenatorPort, ConcatenationError
@@ -151,7 +151,7 @@ class FFmpegConcatenator(AudioConcatenatorPort):
         ]
 
         try:
-            result = subprocess.run(
+            subprocess.run(
                 ffmpeg_cmd,
                 check=True,
                 timeout=self._timeout,

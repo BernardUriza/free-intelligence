@@ -19,7 +19,7 @@ class TestQwenCodeTasks(unittest.TestCase):
     def test_qwen_code_tasks_in_catalog(self):
         """Test that qwen-code specialized tasks are in catalog."""
         expected_tasks = [
-            "fix_lint", "refactor", "fix_and_test", 
+            "fix_lint", "refactor", "fix_and_test",
             "analyze_code", "pipeline_fix_lint_test"
         ]
         for task in expected_tasks:
@@ -28,7 +28,7 @@ class TestQwenCodeTasks(unittest.TestCase):
     def test_task_parameters(self):
         """Test task parameter handling."""
         task = Task(
-            name="fix_lint", 
+            name="fix_lint",
             parameters={
                 "repo_root_path": "/repo",
                 "modules": "admin auth"
@@ -96,7 +96,7 @@ class TestQwenCodeTasks(unittest.TestCase):
     def test_execution_fingerprint_created(self, mock_fingerprint):
         """Test that execution fingerprint is created before execution."""
         mock_fingerprint.return_value = None
-        task = Task(
+        Task(
             name="lint",
             parameters={"repo_root_path": "/repo"}
         )

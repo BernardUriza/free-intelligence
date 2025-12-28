@@ -16,9 +16,8 @@ import time
 from datetime import datetime
 
 import pytest
-from fastapi.testclient import TestClient
-
 from backend.app.main import app
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture

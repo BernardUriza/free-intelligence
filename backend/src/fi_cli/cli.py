@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 import typer
 from pathlib import Path
-from typing import Annotated
 
 from .domains import auth, coder, data, deploy, dev, infra, ops
 

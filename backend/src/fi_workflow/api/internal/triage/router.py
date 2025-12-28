@@ -9,13 +9,12 @@ Created: 2025-11-08
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Literal, Union
-
-from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel, constr, field_validator
+from typing import Any, Literal, Union
 
 from backend.container import get_container
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
+from fastapi import APIRouter, HTTPException, Request, status
+from pydantic import BaseModel, constr, field_validator
 
 logger = get_logger(__name__)
 
@@ -31,15 +30,15 @@ class IntakePayload(BaseModel):
 
     reason: constr(min_length=3)  # type: ignore
     symptoms: Union[str, list[str]] = []
-    audioTranscription: str | None = None
-    metadata: Dict[str, Any] = {}
+    audio_transcription: str | None = None
+    metadata: dict[str, Any] = {}
 
-    @field_validator("audioTranscription")
+    @field_validator("audio_transcription")
     @classmethod
     def validate_transcription_length(cls, v: str | None) -> str | None:
-        """Limit audioTranscription to 32k chars"""
+        """Limit audio_transcription to 32k chars"""
         if v and len(v) > 32_000:
-            raise ValueError("audioTranscription exceeds 32k character limit")
+            raise ValueError("audio_transcription exceeds 32k character limit")
         return v
 
     @field_validator("symptoms")
@@ -54,10 +53,10 @@ class IntakePayload(BaseModel):
 class IntakeAck(BaseModel):
     """Acknowledgment response for intake"""
 
-    bufferId: str
+    buffer_id: str
     status: Literal["received"]
-    receivedAt: datetime
-    manifestUrl: str
+    received_at: datetime
+    manifest_url: str
 
 
 # ============================================================================
@@ -118,12 +117,12 @@ async def triage_intake(payload: IntakePayload, request: Request) -> IntakeAck:
         )
 
         # Return acknowledgment
-        received_at = datetime.fromisoformat(result["received_at"].replace("Z", "+00:00"))
+        received_at_dt = datetime.fromisoformat(result["received_at"].replace("Z", "+00:00"))
         return IntakeAck(
-            bufferId=result["buffer_id"],
+            buffer_id=result["buffer_id"],
             status="received",
-            receivedAt=received_at,
-            manifestUrl=result["manifest_url"],
+            received_at=received_at_dt,
+            manifest_url=result["manifest_url"],
         )
 
     except OSError as e:

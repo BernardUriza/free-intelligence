@@ -9,9 +9,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict
 
-from pydantic import ValidationError
-
-from fi_common.logging.logger import get_logger
 from backend.providers.models import (
     Analisis,
     Antecedentes,
@@ -28,6 +25,8 @@ from backend.providers.models import (
     Subjetivo,
     UrgenciaTriaje,
 )
+from backend.src.fi_common.logging.logger import get_logger
+from pydantic import ValidationError
 
 __all__ = ["SOAPBuildError", "SOAPBuilder"]
 

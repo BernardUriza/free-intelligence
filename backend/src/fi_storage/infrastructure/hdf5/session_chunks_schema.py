@@ -5,7 +5,7 @@ All new code should use task_repository.py with the task-based architecture.
 
 Migration:
   OLD: from backend.src.fi_storage.infrastructure.hdf5.session_chunks_schema import append_chunk_to_session
-  NEW: from fi_common.infrastructure.persistence.hdf5.task_repository import append_chunk_to_task, ensure_task_exists
+  NEW: from backend.src.fi_common.infrastructure.persistence.hdf5.task_repository import append_chunk_to_task, ensure_task_exists
 
   OLD: append_chunk_to_session(session_id, chunk_idx, ...)
   NEW: ensure_task_exists(session_id, TaskType.TRANSCRIPTION)
@@ -19,15 +19,15 @@ Card: Architecture refactor - task-based HDF5
 from __future__ import annotations
 
 import warnings
-from fi_common.infrastructure.persistence.hdf5.task_repository import (
+
+from backend.models.task_type import TaskType
+from backend.src.fi_common.infrastructure.persistence.hdf5.task_repository import (
     append_chunk_to_task,
     ensure_task_exists,
     get_task_chunks,
     get_task_transcript,
 )
-
-from fi_common.logging.logger import get_logger
-from backend.models.task_type import TaskType
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

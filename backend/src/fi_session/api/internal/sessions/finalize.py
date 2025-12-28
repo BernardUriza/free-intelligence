@@ -41,16 +41,12 @@ from __future__ import annotations
 import subprocess
 import tempfile
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
-
-from fi_common.logging.logger import get_logger
 from backend.models import EncryptionMetadata, Session
 from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.session_repository import SessionRepository
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     add_full_audio,
     add_full_transcription,
@@ -59,8 +55,11 @@ from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     get_task_metadata,
     update_task_metadata,
 )
-from backend.workers.executor_pool import spawn_worker
-from backend.workers.tasks.encryption_worker import encrypt_session_worker
+from backend.src.fi_workers.executor_pool import spawn_worker
+from backend.src.fi_workers.tasks.encryption_worker import encrypt_session_worker
+from fastapi import APIRouter, HTTPException, status
+from pathlib import Path
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 

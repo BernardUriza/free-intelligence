@@ -9,13 +9,12 @@ Created: 2025-12-11
 
 from __future__ import annotations
 
+from backend.database import get_db_dependency
+from backend.models.checkin_models import Clinic, ClinicRole, Doctor
+from backend.src.fi_common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
-
-from backend.database import get_db_dependency
-from fi_common.logging.logger import get_logger
-from backend.models.checkin_models import Clinic, ClinicRole, Doctor
 
 logger = get_logger(__name__)
 
@@ -70,7 +69,7 @@ class LinkToClinicResponse(BaseModel):
 # =============================================================================
 
 
-@router.get("/clinic-membership")
+@router.get("/clinic-membership", response_model=None)
 async def get_clinic_membership(
     auth0_user_id: str,
     email: str | None = None,
@@ -86,6 +85,7 @@ async def get_clinic_membership(
     Returns:
         Clinic membership info or empty dict if not linked
     """
+
     logger.info(
         "GET_CLINIC_MEMBERSHIP",
         auth0_user_id=auth0_user_id,
@@ -143,6 +143,7 @@ async def link_to_clinic(
     Returns:
         Success status and membership info
     """
+
     logger.info(
         "LINK_TO_CLINIC_START",
         auth0_user_id=auth0_user_id,
@@ -213,7 +214,7 @@ async def link_to_clinic(
     )
 
 
-@router.delete("/unlink-from-clinic")
+@router.delete("/unlink-from-clinic", response_model=None)
 async def unlink_from_clinic(
     auth0_user_id: str,
     db: Session = Depends(get_db_dependency),
@@ -230,6 +231,7 @@ async def unlink_from_clinic(
     Returns:
         Success message
     """
+
     logger.info(
         "UNLINK_FROM_CLINIC_START",
         auth0_user_id=auth0_user_id,
@@ -317,6 +319,7 @@ async def admin_assign_user_to_clinic(
 
     Note: Authorization check should be done at API gateway/middleware level
     """
+
     logger.info(
         "ADMIN_ASSIGN_USER_START",
         target_auth0_user_id=request.auth0_user_id,
@@ -409,7 +412,7 @@ async def admin_assign_user_to_clinic(
     )
 
 
-@router.delete("/admin/unassign-user/{auth0_user_id}")
+@router.delete("/admin/unassign-user/{auth0_user_id}", response_model=None)
 async def admin_unassign_user_from_clinic(
     auth0_user_id: str,
     db: Session = Depends(get_db_dependency),
@@ -423,6 +426,7 @@ async def admin_unassign_user_from_clinic(
     Returns:
         Success message
     """
+
     logger.info(
         "ADMIN_UNASSIGN_USER_START",
         target_auth0_user_id=auth0_user_id,
@@ -470,6 +474,7 @@ async def admin_get_user_clinic_info(
     Returns:
         User's clinic assignment info
     """
+
     doctor = db.query(Doctor).filter(Doctor.auth0_user_id == auth0_user_id).first()
 
     if not doctor:

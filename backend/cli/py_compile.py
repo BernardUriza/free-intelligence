@@ -5,10 +5,11 @@ Reports JSON output to /tmp/fi-artifacts/pycompile_report.json
 """
 
 import json
-import os
 import py_compile
-import sys
 from datetime import UTC, datetime
+
+import os
+import sys
 from pathlib import Path
 
 ROOT = Path(".")

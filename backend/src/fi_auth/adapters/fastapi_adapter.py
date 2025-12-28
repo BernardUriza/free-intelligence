@@ -40,7 +40,7 @@ async def get_auth_config() -> dict:
 
 @auth_router.get("/rbac-matrix")
 async def rbac_matrix() -> dict:
-    matrix = {role.value: sorted(list(perms)) for role, perms in DEFAULT_ROLE_PERMISSIONS.items()}
+    matrix = {role.value: sorted(perms) for role, perms in DEFAULT_ROLE_PERMISSIONS.items()}
     return {"roles": matrix}
 
 

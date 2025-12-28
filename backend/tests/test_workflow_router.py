@@ -6,7 +6,6 @@ Verifies intelligent workflow orchestration and cost tracking.
 from __future__ import annotations
 
 import pytest
-
 from backend.models.task_type import TaskType
 from backend.src.fi_workflow.services.workflow_router import (
     WorkflowRouter,

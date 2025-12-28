@@ -28,9 +28,8 @@ from __future__ import annotations
 from typing import Any
 
 import h5py
-
-from fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskType
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_common.services.chunk_handler import ChunkHandler
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     CORPUS_PATH,
@@ -86,7 +85,7 @@ class MedicalChunkHandler(ChunkHandler):
         )
 
         # Save patient metadata to HDF5 session attributes
-        if metadata and any(k.startswith("patient_") for k in metadata.keys()):
+        if metadata and any(k.startswith("patient_") for k in metadata):
             CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
             with h5py.File(CORPUS_PATH, "a") as f:
                 session_path = f"/sessions/{session_id}"

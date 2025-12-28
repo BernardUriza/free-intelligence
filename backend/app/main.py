@@ -12,17 +12,17 @@ Refactored: 2025-11-14 (Pruned unused endpoints)
 
 from __future__ import annotations
 
-import os
 from contextlib import asynccontextmanager
 from datetime import UTC
+
+import os
+from backend.middleware.idempotency import IdempotencyMiddleware
+from backend.middleware.internal_only import InternalOnlyMiddleware
+from backend.middleware.tracing import TracingMiddleware
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-
-from backend.middleware.idempotency import IdempotencyMiddleware
-from backend.middleware.internal_only import InternalOnlyMiddleware
-from backend.middleware.tracing import TracingMiddleware
 
 
 @asynccontextmanager
@@ -47,6 +47,18 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
     except Exception as e:
         logger.error("DATABASE_INIT_FAILED", error=str(e))
         # Don't fail startup - continue with other services
+
+    # Configure Event Bus with HDF5 store
+    try:
+        from backend.src.fi_events.application.event_bus import configure_event_bus
+        from backend.src.fi_events.infrastructure.hdf5_store import HDF5EventStore
+
+        event_store = HDF5EventStore()
+        configure_event_bus(event_store)
+        logger.info("EVENT_BUS_INITIALIZED", store="HDF5EventStore")
+    except Exception as e:
+        logger.warning("EVENT_BUS_INIT_FAILED", error=str(e))
+        # Don't fail startup - events will be fire-and-forget without persistence
 
     yield
 
@@ -188,6 +200,13 @@ Requires environment variables:
             allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             allow_headers=["*"],
         )
+
+    # Add explicit OPTIONS handler for CORS preflight requests
+    # This ensures OPTIONS requests don't return 405 Method Not Allowed
+    @app.options("/{full_path:path}", include_in_schema=False)
+    async def options_handler(full_path: str):
+        """Handle CORS preflight OPTIONS requests for all paths."""
+        return {}
 
     # Sub-app: Public API (orchestrators, CORS enabled)
     public_app = FastAPI(title="Public API")
@@ -553,6 +572,21 @@ Requires environment variables:
     from backend.utils.metrics import setup_metrics_endpoint
 
     setup_metrics_endpoint(app)
+
+    # Startup validation: ensure critical env vars are present in production
+    env_now = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
+    if env_now == "production":
+        # Azure OpenAI TTS is the required TTS provider
+        has_azure_openai = bool(
+            os.getenv("AZURE_OPENAI_TTS_API_KEY") or os.getenv("AZURE_TTS_API_KEY")
+        )
+
+        if not has_azure_openai:
+            # Fail fast in production to avoid confusing 500 errors at runtime
+            raise ValueError(
+                "TTS provider must be configured in production. "
+                "Set AZURE_OPENAI_TTS_API_KEY and AZURE_OPENAI_TTS_ENDPOINT"
+            )
 
     # Mount static files (for demo audio, etc.)
     # Note: StaticFiles doesn't inherit CORS from parent app, so we wrap it

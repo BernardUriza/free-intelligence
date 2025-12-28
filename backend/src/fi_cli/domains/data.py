@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from datetime import UTC
+from typing import Annotated
+
 import typer
 from pathlib import Path
-from typing import Annotated
 
 from .._common import redact_text
 
@@ -157,22 +159,23 @@ def consolidate_sessions(
     """
     # Import session manager functions directly to avoid package init issues
     import importlib.util
+
     import sys
     from pathlib import Path
-    
+
     # Load the session_h5_manager module directly
     session_manager_path = Path(__file__).parent.parent.parent / "fi_storage" / "infrastructure" / "hdf5" / "session_h5_manager.py"
     spec = importlib.util.spec_from_file_location("session_h5_manager", session_manager_path)
     session_h5_manager = importlib.util.module_from_spec(spec)
     sys.modules["session_h5_manager"] = session_h5_manager
     spec.loader.exec_module(session_h5_manager)
-    
+
     # Fix the storage paths - they are relative to the wrong location
     project_root = Path(__file__).parent.parent.parent.parent.parent
     session_h5_manager.STORAGE_DIR = project_root / "storage"
     session_h5_manager.CORPUS_PATH = session_h5_manager.STORAGE_DIR / "corpus.h5"
     session_h5_manager.SESSIONS_DIR = session_h5_manager.STORAGE_DIR / "sessions"
-    
+
     SESSIONS_DIR = session_h5_manager.SESSIONS_DIR
     consolidate_all_sessions = session_h5_manager.consolidate_all_sessions
     consolidate_session_to_corpus = session_h5_manager.consolidate_session_to_corpus
@@ -312,7 +315,7 @@ def check_chunks(
                 # Show first 3 chunks
                 for i in range(min(3, ds.shape[0])):
                     row = ds[i]
-                    chunk_id = row["chunk_id"].decode("utf-8")
+                    row["chunk_id"].decode("utf-8")
                     chunk_num = row["chunk_number"]
                     transcript = row["transcription"].decode("utf-8")
                     duration = row["duration"]
@@ -345,8 +348,9 @@ def process_remaining_chunks(
     Process remaining chunks for diarization jobs.
     Completes diarization processing by marking jobs as done with estimated metadata.
     """
-    import h5py
     from datetime import UTC, datetime
+
+    import h5py
 
     typer.echo("🔄 PROCESSING REMAINING CHUNKS")
     typer.echo("=" * 60)
@@ -431,10 +435,7 @@ def process_remaining_chunks(
 
             # Calculate remaining chunks metadata
             sample_chunk = current_data[-1] if current_data else None
-            if sample_chunk:
-                last_end_time = sample_chunk["end_time"]
-            else:
-                last_end_time = 0
+            last_end_time = sample_chunk["end_time"] if sample_chunk else 0
 
             # Estimate times for remaining chunks
             estimated_chunks = []
@@ -660,18 +661,18 @@ def consolidate_sessions(
 ) -> None:
     """
     Consolidate session HDF5 files into main corpus.h5.
-    
+
     Either specify --session for a specific session, or --all for all sessions.
     Use --dry-run to preview without making changes.
     """
     import sys
     from pathlib import Path
-    
+
     # Add backend to path
     backend_path = Path(__file__).parent.parent.parent.parent / "backend"
     if str(backend_path) not in sys.path:
         sys.path.insert(0, str(backend_path))
-    
+
     try:
         from backend.src.fi_coder.observability.logger import get_logger
         from backend.storage.session_h5_manager import (
@@ -680,9 +681,9 @@ def consolidate_sessions(
             consolidate_session_to_corpus,
             get_storage_stats,
         )
-        
-        logger = get_logger(__name__)
-        
+
+        get_logger(__name__)
+
         # Show stats
         if stats_only:
             stats = get_storage_stats()
@@ -695,15 +696,15 @@ def consolidate_sessions(
             typer.echo(f"Total sessions:     {stats['total_sessions']}")
             typer.echo("=" * 70 + "\n")
             return
-        
+
         # Consolidate specific session
         if session_id:
             typer.echo(f"🔄 Consolidating session: {session_id}")
-            
+
             if dry_run:
                 typer.echo(f"[DRY RUN] Would consolidate session {session_id}")
                 return
-            
+
             try:
                 success = consolidate_session_to_corpus(
                     session_id,
@@ -717,34 +718,34 @@ def consolidate_sessions(
             except Exception as e:
                 typer.echo(f"❌ Error consolidating session {session_id}: {e}")
                 raise typer.Exit(1)
-        
+
         # Consolidate all sessions
         elif all_sessions:
             # Get list of sessions
             if not SESSIONS_DIR.exists():
                 typer.echo(f"❌ Sessions directory not found: {SESSIONS_DIR}")
                 raise typer.Exit(1)
-            
+
             session_files = list(SESSIONS_DIR.glob("*.h5"))
             if not session_files:
                 typer.echo("ℹ️  No session files to consolidate")
                 return
-            
+
             count = len(session_files)
             if max_sessions:
                 count = min(count, max_sessions)
-            
+
             typer.echo(f"🔄 Consolidating {count} session file(s)...")
-            
+
             if dry_run:
                 typer.echo(f"[DRY RUN] Would consolidate {count} sessions:")
                 for path in session_files[:count]:
                     typer.echo(f"  - {path.stem}")
                 return
-            
+
             # Consolidate
             stats = consolidate_all_sessions(max_sessions=max_sessions)
-            
+
             typer.echo("\n" + "=" * 70)
             typer.echo("📊 CONSOLIDATION RESULTS")
             typer.echo("=" * 70)
@@ -752,14 +753,14 @@ def consolidate_sessions(
             typer.echo(f"❌ Failed:   {stats['failed']}")
             typer.echo(f"⏭️  Skipped:  {stats['skipped']}")
             typer.echo("=" * 70 + "\n")
-            
+
             if stats["failed"] > 0:
                 raise typer.Exit(1)
-        
+
         else:
             typer.echo("❌ Must specify either --session or --all")
             raise typer.Exit(1)
-            
+
     except ImportError as e:
         typer.echo(f"❌ Failed to import backend modules: {e}", err=True)
         typer.echo("Make sure you're running from the project root", err=True)
@@ -779,32 +780,33 @@ def process_remaining_chunks(
 ) -> None:
     """
     Process remaining chunks for a diarization job.
-    
+
     Marks the job as completed with estimated chunk metadata.
     In production, this would process actual audio chunks with Whisper.
     """
-    import sys
     from datetime import datetime
+
+    import sys
     from pathlib import Path
-    
+
     # Add backend to path
     backend_path = Path(__file__).parent.parent.parent.parent / "backend"
     if str(backend_path) not in sys.path:
         sys.path.insert(0, str(backend_path))
-    
+
     try:
         from backend.src.fi_coder.observability.logger import get_logger
-        
-        logger = get_logger(__name__)
-        
+
+        get_logger(__name__)
+
         CHUNK_DURATION_SEC = 30
         CHUNK_OVERLAP_SEC = 0.8
         H5_STORAGE_PATH = Path("storage/diarization.h5")
-        
+
         if not H5_STORAGE_PATH.exists():
             typer.echo(f"❌ HDF5 file not found: {H5_STORAGE_PATH}", err=True)
             raise typer.Exit(1)
-        
+
         with h5py.File(H5_STORAGE_PATH, "r+") as h5:
             job_group = h5[f"diarization/{job_id}"]
             audio_path_attr = job_group.attrs.get("audio_path")
@@ -813,55 +815,52 @@ def process_remaining_chunks(
             else:
                 audio_path = Path(audio_path_attr)
             total_chunks = int(job_group.attrs.get("total_chunks", 0))
-            
+
             typer.echo(f"Job ID: {job_id}")
             typer.echo(f"Audio file: {audio_path}")
             typer.echo(f"Total chunks: {total_chunks}")
             typer.echo(f"Processing from chunk: {from_chunk}")
             typer.echo()
-            
+
             if not audio_path.exists():
                 typer.echo(f"❌ Audio file not found: {audio_path}", err=True)
                 raise typer.Exit(1)
-            
+
             # Process chunks
             chunks_ds = job_group["chunks"]
             current_data = list(chunks_ds)
-            
+
             typer.echo(f"✅ Loaded {len(current_data)} existing chunks")
             typer.echo()
-            
+
             # For demonstration, mark job as completed
             typer.echo("NOTE: Full Whisper processing requires significant time.")
             typer.echo("Simulating completion by updating remaining chunks...")
             typer.echo()
-            
+
             # Calculate remaining chunks metadata
             sample_chunk = current_data[-1] if current_data else None
-            if sample_chunk:
-                last_end_time = sample_chunk["end_time"]
-            else:
-                last_end_time = 0
-            
+            last_end_time = sample_chunk["end_time"] if sample_chunk else 0
+
             # Estimate times for remaining chunks
             for chunk_idx in range(from_chunk, total_chunks):
                 start_time = last_end_time + (chunk_idx - from_chunk) * (
                     CHUNK_DURATION_SEC - CHUNK_OVERLAP_SEC
                 )
                 end_time = start_time + CHUNK_DURATION_SEC
-                
+
                 typer.echo(f"[Chunk {chunk_idx}] {start_time:.1f}s - {end_time:.1f}s")
-            
+
             # Mark as done
             job_group.attrs["status"] = "done"
             job_group.attrs["progress_pct"] = 100
             job_group.attrs["processed_chunks"] = total_chunks
             job_group.attrs["updated_at"] = datetime.now().isoformat()
-            
+
             typer.echo()
             typer.echo("✅ Job marked as done")
             typer.echo(f"✅ Updated at: {job_group.attrs['updated_at']}")
-            
+
     except ImportError as e:
         typer.echo(f"❌ Failed to import backend modules: {e}", err=True)
         typer.echo("Make sure you're running from the project root", err=True)
@@ -880,20 +879,20 @@ def migrate_conversation_capture(
 ) -> None:
     """
     Migrate ConversationCapture.tsx to use specialized hooks.
-    
+
     Performs systematic search and replace of state references to use session/audioUpload/metrics hooks.
     """
     import re
-    
+
     typer.echo("🔧 Migrating ConversationCapture.tsx to specialized hooks...")
-    
+
     # Target file
     target_file = Path("apps/aurity/components/medical/ConversationCapture.tsx")
-    
+
     if not target_file.exists():
         typer.echo(f"❌ Target file not found: {target_file}", err=True)
         raise typer.Exit(1)
-    
+
     # Replacement mappings (order matters!)
     replacements = [
         # Session state
@@ -938,15 +937,15 @@ def migrate_conversation_capture(
         # Metrics
         (r"\baddLog\b", "metrics.addLog"),
     ]
-    
+
     # Read content
     content = target_file.read_text()
     original_lines = len(content.splitlines())
-    
+
     typer.echo(f"📄 Target file: {target_file}")
     typer.echo(f"📏 Original lines: {original_lines}")
     typer.echo()
-    
+
     # Apply replacements
     changes_count = 0
     for pattern, replacement in replacements:
@@ -956,18 +955,18 @@ def migrate_conversation_capture(
                 content = re.sub(pattern, replacement, content)
             changes_count += matches
             typer.echo(f"✅ {matches:3d} changes: {pattern:40s} → {replacement}")
-    
+
     typer.echo()
     typer.echo(f"📊 Total changes: {changes_count}")
-    
+
     if dry_run:
         typer.echo("🔍 DRY RUN - No files modified")
         return
-    
+
     # Save file
     target_file.write_text(content)
     typer.echo(f"💾 File saved: {target_file}")
-    
+
     typer.echo()
     typer.echo("✅ Migration completed!")
     typer.echo()
@@ -990,19 +989,20 @@ def create_test_appointments(
 ) -> None:
     """
     Create test doctors and appointments for calendar testing.
-    
+
     Creates sample doctors and today's appointments for development/testing.
     """
+    from datetime import datetime
+
     import requests
-    from datetime import datetime, timezone
-    
+
     typer.echo("🏥 Creating test doctors and appointments...")
-    
+
     # Create doctors
     doctors = [
         {
             "nombre": "María",
-            "apellido": "García", 
+            "apellido": "García",
             "display_name": "Dra. García",
             "especialidad": "cardiology",
             "cedula_profesional": "12345678",
@@ -1011,7 +1011,7 @@ def create_test_appointments(
         {
             "nombre": "Carlos",
             "apellido": "Rodríguez",
-            "display_name": "Dr. Rodríguez", 
+            "display_name": "Dr. Rodríguez",
             "especialidad": "pediatrics",
             "cedula_profesional": "87654321",
             "avg_consultation_minutes": 20
@@ -1020,12 +1020,12 @@ def create_test_appointments(
             "nombre": "Ana",
             "apellido": "López",
             "display_name": "Dra. López",
-            "especialidad": "orthopedics", 
+            "especialidad": "orthopedics",
             "cedula_profesional": "11223344",
             "avg_consultation_minutes": 25
         }
     ]
-    
+
     doctor_ids = []
     for doctor in doctors:
         try:
@@ -1042,21 +1042,21 @@ def create_test_appointments(
         except Exception as e:
             typer.echo(f"❌ Failed to create {doctor['display_name']}: {e}", err=True)
             raise typer.Exit(1)
-    
+
     typer.echo()
     typer.echo("📅 Creating test appointments for today...")
-    
+
     # Get today's date
-    today = datetime.now(timezone.utc).date().isoformat()
-    
+    today = datetime.now(UTC).date().isoformat()
+
     # Patient IDs
     patients = [
         "550e8400-e29b-41d4-a716-446655440001",
-        "550e8400-e29b-41d4-a716-446655440002", 
+        "550e8400-e29b-41d4-a716-446655440002",
         "550e8400-e29b-41d4-a716-446655440003",
         "550e8400-e29b-41d4-a716-446655440004"
     ]
-    
+
     # Appointments
     appointments = [
         {
@@ -1070,7 +1070,7 @@ def create_test_appointments(
         },
         {
             "patient_id": patients[1],
-            "doctor_id": doctor_ids[0], 
+            "doctor_id": doctor_ids[0],
             "scheduled_at": f"{today}T10:00:00Z",
             "appointment_type": "FOLLOW_UP",
             "estimated_duration": 30,
@@ -1080,7 +1080,7 @@ def create_test_appointments(
         {
             "patient_id": patients[2],
             "doctor_id": doctor_ids[1],
-            "scheduled_at": f"{today}T09:00:00Z", 
+            "scheduled_at": f"{today}T09:00:00Z",
             "appointment_type": "FIRST_TIME",
             "estimated_duration": 20,
             "reason": "Consulta pediátrica",
@@ -1090,13 +1090,13 @@ def create_test_appointments(
             "patient_id": patients[3],
             "doctor_id": doctor_ids[2],
             "scheduled_at": f"{today}T11:00:00Z",
-            "appointment_type": "FOLLOW_UP", 
+            "appointment_type": "FOLLOW_UP",
             "estimated_duration": 25,
             "reason": "Dolor de rodilla",
             "notes": "Evaluación para fisioterapia"
         }
     ]
-    
+
     for i, apt in enumerate(appointments, 1):
         try:
             response = requests.post(
@@ -1111,7 +1111,7 @@ def create_test_appointments(
         except Exception as e:
             typer.echo(f"❌ Failed to create appointment {i}: {e}", err=True)
             raise typer.Exit(1)
-    
+
     typer.echo()
     typer.echo("✨ Test data created successfully!")
     typer.echo()
@@ -1138,19 +1138,19 @@ def migrate_tv_content_seeds(
 ) -> None:
     """
     Migrate hardcoded TV content to editable JSON seed files.
-    
+
     Converts DEFAULT_CONTENT from FIAvatar.tsx to TVContentSeed JSON files.
     """
     import json
     import time
     import uuid
-    
+
     typer.echo("🚀 Migrating TV Content Seeds...")
     typer.echo(f"📁 Target directory: {seeds_path.absolute()}")
-    
+
     # Create directory
     seeds_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Default content data (from FIAvatar.tsx)
     default_content = [
         {
@@ -1235,12 +1235,12 @@ def migrate_tv_content_seeds(
             "duration": 15000,
         },
     ]
-    
+
     typer.echo(f"📊 Total items to migrate: {len(default_content)}")
     typer.echo()
-    
+
     migrated_count = 0
-    
+
     for index, item in enumerate(default_content):
         # Create seed
         now = int(time.time() * 1000)
@@ -1258,21 +1258,21 @@ def migrate_tv_content_seeds(
             "created_at": now,
             "updated_at": now,
         }
-        
+
         # Save to JSON file
         content_id = seed["content_id"]
         seed_file = seeds_path / f"{content_id}.json"
         with open(seed_file, "w", encoding="utf-8") as f:
             json.dump(seed, f, indent=2, ensure_ascii=False)
-        
+
         migrated_count += 1
-        
+
         # Log progress
         content_type = seed["type"]
         widget_type = seed.get("widget_type", "")
         label = f"{content_type}" + (f":{widget_type}" if widget_type else "")
         typer.echo(f"  ✅ [{index + 1:2d}/14] {label:30s} → {content_id}")
-    
+
     typer.echo()
     typer.echo(f"✨ Migration complete! {migrated_count} seeds created.")
     typer.echo()
@@ -1299,37 +1299,37 @@ def test_appointments_api(
 ) -> None:
     """
     Test Appointments API endpoints for debugging calendar issues.
-    
+
     Tests health check, clinic listing, doctor listing, appointment queries,
     and data integrity validation. Requires jq for JSON processing.
     """
-    import subprocess
     import json
+    import subprocess
     from datetime import datetime
-    
+
     typer.echo("🔍 Testing Appointments API Endpoints")
     typer.echo("=" * 50)
-    
+
     # Check if jq is available
     try:
         subprocess.run(["jq", "--version"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         typer.echo("❌ jq is required for this command. Install with: brew install jq")
         raise typer.Exit(1)
-    
-    def run_curl(url: str, method: str = "GET", data: str = None) -> dict:
+
+    def run_curl(url: str, method: str = "GET", data: str | None = None) -> dict:
         """Run curl command and return parsed JSON."""
         cmd = ["curl", "-s", url]
         if method == "PATCH" and data:
             cmd.extend(["-X", "PATCH", "-H", "Content-Type: application/json", "-d", data])
-        
+
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             return json.loads(result.stdout)
         except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
             typer.echo(f"❌ API call failed: {e}")
             return {}
-    
+
     # 1. Health Check
     typer.echo("\n1. Health Check")
     health = run_curl(f"{api_base}/health")
@@ -1339,7 +1339,7 @@ def test_appointments_api(
     else:
         typer.echo("❌ Backend not responding")
         raise typer.Exit(1)
-    
+
     # 2. List Clinics
     typer.echo("\n2. List Clinics")
     clinics_data = run_curl(f"{api_base}/api/clinics")
@@ -1356,7 +1356,7 @@ def test_appointments_api(
     else:
         typer.echo("❌ Failed to fetch clinics")
         raise typer.Exit(1)
-    
+
     # 3. List Doctors for Clinic
     typer.echo("\n3. List Doctors")
     doctors_data = run_curl(f"{api_base}/api/clinics/{clinic_id}/doctors")
@@ -1369,25 +1369,25 @@ def test_appointments_api(
                 typer.echo(f"   {doctor['doctor_id']}: {doctor.get('nombre', '')} {doctor.get('apellido', '')} ({doctor.get('especialidad', '')})")
         else:
             typer.echo("⚠️  No doctors found for this clinic")
-    
+
     # 4. List Appointments (Today)
     typer.echo("\n4. List Appointments (Today)")
     today = datetime.now().strftime("%Y-%m-%d")
     typer.echo(f"   Date: {today}")
-    
+
     appointments_data = run_curl(f"{api_base}/api/clinics/{clinic_id}/appointments?date={today}")
     appointments_today = 0
     if appointments_data and "appointments" in appointments_data:
         appointments = appointments_data["appointments"]
         appointments_today = len(appointments)
         typer.echo(f"✅ Found {appointments_today} appointments for today")
-        
+
         for apt in appointments[:3]:  # Show first 3
             typer.echo(f"   {apt['appointment_id']}: {apt.get('scheduled_at', '')} - {apt.get('status', '')}")
-        
+
         if not appointment_id and appointments:
             appointment_id = appointments[0]["appointment_id"]
-    
+
     # 5. List Appointments (All)
     typer.echo("\n5. List Appointments (All)")
     all_appointments_data = run_curl(f"{api_base}/api/clinics/{clinic_id}/appointments")
@@ -1396,22 +1396,22 @@ def test_appointments_api(
         all_appointments = all_appointments_data["appointments"]
         appointments_total = len(all_appointments)
         typer.echo(f"✅ Found {appointments_total} total appointments")
-        
+
         for apt in all_appointments[:3]:  # Show first 3
             typer.echo(f"   {apt['appointment_id']}: {apt.get('scheduled_at', '')} - {apt.get('status', '')}")
-    
+
     # 6. Test Update Appointment
     if appointment_id:
         typer.echo("\n6. Test Update Appointment")
         typer.echo(f"   Appointment ID: {appointment_id}")
-        
+
         update_data = {"estimated_duration": 30}
         update_response = run_curl(
             f"{api_base}/api/clinics/{clinic_id}/appointments/{appointment_id}",
             method="PATCH",
             data=json.dumps(update_data)
         )
-        
+
         if update_response and "appointment_id" in update_response:
             typer.echo("✅ Successfully updated appointment")
             typer.echo(f"   Duration: {update_response.get('estimated_duration', 'N/A')}")
@@ -1420,7 +1420,7 @@ def test_appointments_api(
             typer.echo(f"   Response: {update_response}")
     else:
         typer.echo("\n6. Test Update Appointment - Skipped (no appointments)")
-    
+
     # 7. Summary
     typer.echo("\n" + "=" * 50)
     typer.echo("📊 Summary")
@@ -1429,25 +1429,25 @@ def test_appointments_api(
     typer.echo(f"   Appointments (today): {appointments_today}")
     typer.echo(f"   Appointments (total): {appointments_total}")
     typer.echo("=" * 50)
-    
+
     # 8. Common Issues Check
     typer.echo("\n🔧 Common Issues Check")
-    
+
     if all_appointments_data and "appointments" in all_appointments_data:
         appointments = all_appointments_data["appointments"]
-        
+
         # Check for invalid dates
         invalid_dates = sum(1 for apt in appointments if not apt.get("scheduled_at"))
         if invalid_dates > 0:
             typer.echo(f"❌ Found {invalid_dates} appointments with invalid dates")
         else:
             typer.echo("✅ All appointments have valid dates")
-        
+
         # Check for missing doctor_id
         missing_doctors = sum(1 for apt in appointments if not apt.get("doctor_id"))
         if missing_doctors > 0:
             typer.echo(f"❌ Found {missing_doctors} appointments with missing doctor_id")
         else:
             typer.echo("✅ All appointments have doctor_id")
-    
+
     typer.echo("\n✨ Test Complete")

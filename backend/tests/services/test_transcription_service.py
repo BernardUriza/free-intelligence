@@ -15,13 +15,12 @@ Created: 2025-10-30
 from __future__ import annotations
 
 import tempfile
-from pathlib import Path
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-
-from backend.src.fi_transcription.services.transcription import TranscriptionService
+from backend.src.fi_transcription.services.transcription_service import TranscriptionService
+from pathlib import Path
 
 
 @pytest.fixture
@@ -65,7 +64,7 @@ class TestSessionValidation:
         # Note: Python type system prevents None, but runtime may receive it
         try:
             transcription_service.validate_session_id(None)  # type: ignore
-            assert False, "Should raise AttributeError"
+            raise AssertionError("Should raise AttributeError")
         except (AttributeError, TypeError):
             pass
 
@@ -133,7 +132,7 @@ class TestAudioFileStorage:
     @patch("backend.storage.audio_storage.save_audio_file")
     def test_save_audio_file_success(
         self,
-        mock_save: Mock,
+        _mock_save: Mock,
         transcription_service: TranscriptionService,
         valid_session_id: str,
         valid_audio_content: bytes,
@@ -178,14 +177,13 @@ class TestAudioConversion:
 
     def test_convert_to_wav_success(self, transcription_service: TranscriptionService) -> None:
         """Test successful audio conversion to WAV (mocked)."""
-        with patch.object(transcription_service, "_convert_audio_to_wav", return_value=True):
-            with tempfile.TemporaryDirectory() as tmpdir:
-                input_path = Path(tmpdir) / "input.mp3"
-                output_path = Path(tmpdir) / "output.wav"
+        with patch.object(transcription_service, "_convert_audio_to_wav", return_value=True), tempfile.TemporaryDirectory() as tmpdir:
+            input_path = Path(tmpdir) / "input.mp3"
+            output_path = Path(tmpdir) / "output.wav"
 
-                result = transcription_service.convert_to_wav(input_path, output_path)
+            result = transcription_service.convert_to_wav(input_path, output_path)
 
-                assert result is True
+            assert result is True
 
     def test_convert_to_wav_failure(self, transcription_service: TranscriptionService) -> None:
         """Test handling of conversion failures."""

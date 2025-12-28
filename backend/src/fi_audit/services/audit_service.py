@@ -12,8 +12,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from fi_common.logging.logger import get_logger
 from backend.repositories import AuditRepository
+from backend.src.fi_common.logging.logger import get_logger
 from backend.type_defs import AuditLogDict
 
 logger = get_logger(__name__)

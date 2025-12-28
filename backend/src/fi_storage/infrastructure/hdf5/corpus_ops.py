@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import h5py
-import numpy as np
 import uuid
 from datetime import datetime
+
+import h5py
+import numpy as np
 from pathlib import Path
 
 """

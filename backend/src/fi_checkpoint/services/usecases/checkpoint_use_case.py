@@ -12,11 +12,11 @@ This use case is framework-agnostic and depends only on ports (interfaces).
 
 from __future__ import annotations
 
-import os
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from fi_common.logging.logger import get_logger
+import os
+from backend.src.fi_common.logging.logger import get_logger
 
 from ..domain import (
     AudioChunk,

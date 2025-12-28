@@ -11,11 +11,10 @@ Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 
 from __future__ import annotations
 
+from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_llm.services.conversation_memory import get_memory_manager
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
-
-from fi_common.logging.logger import get_logger
-from backend.src.fi_llm.services.conversation_memory import get_memory_manager
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -43,6 +42,7 @@ class InteractionResult(BaseModel):
     role: str  # "user" or "assistant"
     content: str
     persona: str | None = None
+    model: str | None = None  # LLM model that generated response (for assistant messages)
     similarity: float = Field(description="Semantic similarity score (0-1)")
 
 
@@ -336,6 +336,7 @@ async def get_paginated_history(
                 "role": interaction.role,
                 "content": interaction.content,
                 "persona": interaction.persona,
+                "model": interaction.model,  # LLM model that generated response
             }
             for interaction in result["interactions"]
         ]

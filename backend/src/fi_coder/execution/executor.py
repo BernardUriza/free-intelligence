@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import shlex
 import subprocess
-from pathlib import Path
 from typing import Any
+
+from pathlib import Path
 
 
 def execute_qwen_code(
@@ -48,7 +49,7 @@ def execute_qwen_code(
         command += f' "{prompt}"'
 
     # Parse into list for security (prevents shell injection)
-    command_list = shlex.split(command)
+    shlex.split(command)
 
     # Ensure repo_path is a Path object
     if isinstance(repo_path, str):
@@ -84,6 +85,6 @@ def execute_qwen_code(
         return {
             "exit_code": -1,
             "stdout": "",
-            "stderr": f"Execution error: {str(e)}",
+            "stderr": f"Execution error: {e!s}",
             "success": False,
         }

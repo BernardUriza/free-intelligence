@@ -4,6 +4,7 @@ Test Unified TTS with auto-detection
 """
 
 import asyncio
+
 import os
 import sys
 
@@ -32,9 +33,9 @@ async def main():
         },
         {
             "text": "Hola, soy una voz nativa mexicana",
-            "voice": "es-MX-DaliaNeural",
-            "provider": None,  # Should use azure
-            "desc": "Azure voice → should use azure",
+            "voice": "nova",
+            "provider": None,  # Should use openai-steerable (Spanish auto-detect)
+            "desc": "Spanish text + nova voice → should use openai-steerable",
         },
     ]
 

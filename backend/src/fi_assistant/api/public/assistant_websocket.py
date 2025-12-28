@@ -18,10 +18,9 @@ from __future__ import annotations
 
 from typing import Dict, Set
 
+from backend.src.fi_common.logging.logger import get_logger
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
-
-from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -130,6 +129,7 @@ class NewMessageEvent(BaseModel):
     content: str
     timestamp: str
     persona: str | None = None
+    model: str | None = None  # LLM model that generated this response (e.g., "qwen3:1.7b")
 
 
 @router.websocket("/assistant/ws")
@@ -215,6 +215,7 @@ async def broadcast_new_message(
     content: str,
     timestamp: str,
     persona: str | None = None,
+    model: str | None = None,  # LLM model (e.g., "qwen3:1.7b")
 ) -> None:
     """Broadcast new message to all connected devices of a doctor.
 
@@ -227,6 +228,7 @@ async def broadcast_new_message(
         content: Message content
         timestamp: ISO timestamp
         persona: Persona used (optional)
+        model: LLM model that generated the response (optional, assistant only)
     """
     event = NewMessageEvent(
         type="new_message",
@@ -234,6 +236,7 @@ async def broadcast_new_message(
         content=content,
         timestamp=timestamp,
         persona=persona,
+        model=model,
     )
 
     await manager.broadcast(doctor_id, event.model_dump())

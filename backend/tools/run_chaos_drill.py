@@ -18,15 +18,16 @@ import fcntl
 import json
 import logging
 import multiprocessing as mp
-import os
 import platform
 import subprocess
-import sys
 import time
-import yaml
 from datetime import datetime
-from pathlib import Path
 from typing import Any
+
+import os
+import sys
+import yaml
+from pathlib import Path
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -619,8 +620,9 @@ class LLMTimeoutStormDrill(ChaosDrill):
 
     def _inject_http_storm(self) -> None:
         """HTTP: Hammer LLM endpoint with concurrent requests"""
-        import requests
         from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        import requests
 
         logger.info(f"Starting HTTP storm: {self.concurrency} workers, {self.rps} RPS")
 

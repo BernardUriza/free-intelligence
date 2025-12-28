@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from uuid import uuid4
 
-from fi_common.logging.logger import get_logger
+import os
+from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -52,7 +52,7 @@ class TriageService:
         """
         return f"tri_{uuid4().hex}"
 
-    def compute_payload_hash(self, payload: Dict[str, Any]) -> str:
+    def compute_payload_hash(self, payload: dict[str, Any]) -> str:
         """Compute SHA256 hash of payload.
 
         Args:
@@ -66,7 +66,7 @@ class TriageService:
 
     def create_buffer(
         self,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         client_ip: str,
         user_agent: str,
     ) -> dict[str, Any]:

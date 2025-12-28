@@ -37,13 +37,15 @@ Version 0.4.0 • Python 3.14 • FastAPI + Next.js
 - **Testing**: Pytest with fixtures, async tests marked `@pytest.mark.asyncio`
 
 ## Commands (dev/test/build)
-- **Start all**: `make dev-all` (uses `PYTHONPATH=backend/src python3.14 -m fi_cli dev all` - backend :7001, frontend :9000 via turbo)
-- **Backend tests**: `make test` or `python3.14 -m pytest backend/tests/ -v --tb=short`
+- **Start all**: `PYTHONPATH=backend/src python -m fi_cli dev all` (backend :7001, frontend :9000 via turbo)
+- **Backend tests**: `python3.14 -m pytest backend/tests/ -v --tb=short`
 - **Type check (Python)**: `pyright backend/` (configured via `pyrightconfig.json`)
 - **Frontend build**: `cd apps/aurity && pnpm build` or `pnpm build` (turbo monorepo)
 - **Frontend dev**: `cd apps/aurity && pnpm dev` or `pnpm dev`
-- **Lint**: `make lint` (ruff for Python, eslint for TypeScript)
-- **Deploy (CI/CD only)**: `make ci-deploy` (GitHub Actions, production-only)
+- **Code Quality**: `PYTHONPATH=backend/src python -m fi_cli coder lint-fix` (AI-powered linting)
+- **Deploy (CI/CD only)**: `PYTHONPATH=backend/src python -m fi_cli deploy setup-backend-service` (production deployments)
+
+**Note**: `fi_cli` is the unified interface for all system operations. Use `make` commands only for very specific development tasks not covered by fi_cli.
 
 ## File Map (start here)
 - **Backend entry**: [backend/app/main.py](backend/app/main.py)

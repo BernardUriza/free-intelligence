@@ -15,15 +15,14 @@ Created: 2025-11-14
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
+import os
+from backend.models.task_type import TaskType
+from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_storage.infrastructure.hdf5.task_repository import get_task_metadata
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
-
-from fi_common.logging.logger import get_logger
-from backend.models.task_type import TaskType
-from backend.src.fi_storage.infrastructure.hdf5.task_repository import get_task_metadata
 
 logger = get_logger(__name__)
 
@@ -194,7 +193,6 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
 
             # Try to get transcription sources (triple vision)
             import h5py
-
             from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
                 CORPUS_PATH,
             )

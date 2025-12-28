@@ -26,9 +26,8 @@ Pattern: Session-Isolated Storage
 from __future__ import annotations
 
 import h5py
+from backend.src.fi_common.logging.logger import get_logger
 from pathlib import Path
-
-from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

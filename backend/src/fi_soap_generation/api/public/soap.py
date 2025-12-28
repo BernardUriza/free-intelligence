@@ -16,13 +16,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field, field_validator
-
 from backend.clients import get_llm_client
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_soap_generation.services.soap_models import SOAPNote
 from backend.validators import validate_session_id
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel, Field, field_validator
 
 logger = get_logger(__name__)
 
@@ -136,7 +135,7 @@ async def get_soap_workflow(session_id: str) -> dict:
             from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
                 ensure_task_exists,
             )
-            from backend.workers.tasks.soap_worker import generate_soap_worker
+            from backend.src.fi_workers.tasks.soap_worker import generate_soap_worker
 
             # Ensure SOAP_GENERATION task exists before calling worker
             ensure_task_exists(session_id, TaskType.SOAP_GENERATION, allow_existing=True)

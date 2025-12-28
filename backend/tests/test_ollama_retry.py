@@ -14,7 +14,6 @@ import time
 from unittest.mock import Mock
 
 import pytest
-
 from backend.providers.retry import (
     CircuitBreaker,
     CircuitBreakerConfig,

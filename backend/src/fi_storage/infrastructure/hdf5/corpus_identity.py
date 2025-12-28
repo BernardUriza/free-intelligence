@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import h5py
 import hashlib
 import uuid
+
+import h5py
 from pathlib import Path
 
 """

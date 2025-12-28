@@ -21,11 +21,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
-from pydantic import BaseModel, Field
-
-from fi_common.logging.logger import get_logger
 from backend.models.task_type import TaskStatus, TaskType
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     ensure_task_exists,
     get_task_chunks,
@@ -33,6 +30,8 @@ from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     task_exists,
     update_task_metadata,
 )
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 
@@ -170,7 +169,7 @@ async def upload_chunk(
         # 5. Dispatch sync worker (worker writes to HDF5)
         from concurrent.futures import ThreadPoolExecutor
 
-        from backend.workers.sync_workers import transcribe_chunk_worker
+        from backend.src.fi_workers.sync_workers import transcribe_chunk_worker
 
         # Run transcription in background thread to avoid blocking
         executor = ThreadPoolExecutor(max_workers=4)

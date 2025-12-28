@@ -16,10 +16,10 @@ import gzip
 import json
 import shutil
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 from backend.src.fi_common.logging.logger_structured import ServiceChannel
+from pathlib import Path
 
 
 class LogRotation:
@@ -122,10 +122,7 @@ class LogRotation:
 
         # Check file size
         file_size_mb = log_path.stat().st_size / (1024 * 1024)
-        if file_size_mb >= self.max_size_mb:
-            return True
-
-        return False
+        return file_size_mb >= self.max_size_mb
 
     def rotate_log(self, channel: ServiceChannel) -> Path | None:
         """

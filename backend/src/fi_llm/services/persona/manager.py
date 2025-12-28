@@ -16,11 +16,12 @@ Aurity-Prompt-ID: AUR-PERSONA-MANAGER-2.0
 from __future__ import annotations
 
 import hashlib
-import structlog
 import time
+from typing import TYPE_CHECKING
+
+import structlog
 import yaml
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from .config import CacheEntry, PersonaConfig
 from .constants import DEFAULT_CACHE_TTL_S, DEFAULT_MAX_RAG_CHARS

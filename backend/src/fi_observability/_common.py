@@ -5,12 +5,13 @@ import hashlib
 import io
 import json
 import re
-import sys
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
+
+import sys
+from pathlib import Path
 
 _ENV_CHOICES: tuple[str, ...] = ("local", "staging", "production")
 

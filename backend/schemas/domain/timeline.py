@@ -264,10 +264,10 @@ def create_timeline_event(
     what: str,
     raw_content: str,
     summary: str | None = None,
-    causality: list[TimelineEventCausality | None] = None,
+    causality: list[TimelineEventCausality | None] | None = None,
     redaction_policy: RedactionPolicy = RedactionPolicy.SUMMARY,
     session_id: str | None = None,
-    tags: list[str | None] = None,
+    tags: list[str | None] | None = None,
     auto_generated: bool = False,
     generation_mode: TimelineMode = TimelineMode.MANUAL,
 ) -> TimelineEvent:

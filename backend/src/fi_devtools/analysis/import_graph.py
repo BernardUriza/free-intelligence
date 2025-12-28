@@ -14,6 +14,7 @@ import re
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
+
 from pathlib import Path
 
 _IMPORT_FROM_RE = re.compile(r"^\s*from\s+backend\.(?P<mod>[a-zA-Z0-9_\.]+)\s+import\s+")
@@ -37,9 +38,7 @@ def _is_excluded(path: Path) -> bool:
         return True
     if "tests" in parts or "test" in parts:
         return True
-    if "__pycache__" in parts:
-        return True
-    return False
+    return "__pycache__" in parts
 
 
 def _extract_origin(line: str) -> str | None:

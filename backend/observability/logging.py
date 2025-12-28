@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import contextvars
 import json
-import os
 import time
 
+import os
 import structlog
 
 CTX_REQUEST_ID = contextvars.ContextVar("request_id", default="-")

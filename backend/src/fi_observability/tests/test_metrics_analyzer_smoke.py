@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from backend.src.fi_observability.metrics_analyzer import main
+from pathlib import Path
 
 from ._fixtures import repo_root, write_jsonl, write_policy_json
 

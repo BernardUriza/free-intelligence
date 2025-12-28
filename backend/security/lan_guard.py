@@ -15,16 +15,15 @@ Philosophy:
 - Métricas: block_count, allow_count
 """
 
-import os
 import random
 from collections.abc import Callable
 
+import os
+from backend.security.ip_validator import IPValidator
+from backend.src.fi_common.logging.logger import get_logger
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-
-from fi_common.logging.logger import get_logger
-from backend.security.ip_validator import IPValidator
 
 logger = get_logger(__name__)
 
@@ -36,7 +35,7 @@ class LANGuardMiddleware(BaseHTTPMiddleware):
     Blocks all requests from IPs outside configured CIDR ranges.
     """
 
-    def __init__(self, app, allowed_cidrs: list[str | None] = None, sample_rate: float = 0.02):
+    def __init__(self, app, allowed_cidrs: list[str | None] | None = None, sample_rate: float = 0.02):
         """
         Initialize LAN guard middleware.
 

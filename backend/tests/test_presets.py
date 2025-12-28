@@ -6,7 +6,6 @@ Verifies that all presets load correctly and schemas are valid.
 from __future__ import annotations
 
 import pytest
-
 from backend.schemas.llm.preset_loader import get_preset_loader
 
 

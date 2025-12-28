@@ -6,12 +6,12 @@ No descarga nada nuevo, solo muestra lo que ya tienes.
 Como el inventario de la armería de Gondor.
 """
 
-import os
+import contextlib
 from collections.abc import AsyncIterator
 from datetime import datetime
 
 import httpx
-
+import os
 from backend.models.catalog_model import (
     CatalogModel,
     CatalogSearchParams,
@@ -207,10 +207,8 @@ class OllamaCatalogSource(CatalogSourceBase):
             # Parsear fecha si existe
             installed_at = None
             if modified_at:
-                try:
+                with contextlib.suppress(Exception):
                     installed_at = datetime.fromisoformat(modified_at.replace("Z", "+00:00"))
-                except Exception:
-                    pass
 
             return CatalogModel(
                 id=_generate_model_id(name),
@@ -239,7 +237,4 @@ class OllamaCatalogSource(CatalogSourceBase):
         # No necesita filtro adicional
 
         # Filtro por source
-        if params.source and params.source != CatalogSource.OLLAMA:
-            return False
-
-        return True
+        return not (params.source and params.source != CatalogSource.OLLAMA)

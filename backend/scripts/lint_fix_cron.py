@@ -3,16 +3,16 @@
 
 from __future__ import annotations
 
-import sys
 import time
+
+import sys
 from pathlib import Path
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from fi_common.logging.logger import get_logger
-
-from backend.workers.tasks.lint_fix_worker import lint_fix_worker
+from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_workers.tasks.lint_fix_worker import lint_fix_worker
 
 logger = get_logger(__name__)
 

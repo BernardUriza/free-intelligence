@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from backend.evidence_pack import EvidencePackBuilder, create_evidence_pack_from_sources
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

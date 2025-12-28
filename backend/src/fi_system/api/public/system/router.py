@@ -11,11 +11,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any, Dict
 
+from backend.src.fi_common.infrastructure.container import get_container
+from backend.src.fi_common.logging.logger import get_logger
 from fastapi import APIRouter
 from pydantic import BaseModel
-
-from backend.src.fi_common.infrastructure.container import get_container
-from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -44,7 +43,7 @@ async def get_system_health() -> SystemHealthResponse:
       "services": {
         "backend": true,
         "diarization": { "whisper": true, "ffmpeg": true },
-        "llm": { "ollama": true, "models": ["qwen2:1.5b-instruct"] },
+        "llm": { "ollama": true, "models": ["qwen3:1.7b"] },
         "policy": true
       },
       "version": "v0.3.x",

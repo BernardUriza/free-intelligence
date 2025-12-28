@@ -9,25 +9,24 @@ Usage:
     python3 scripts/generate_test_data.py
 """
 
-import sys
 from datetime import datetime, timedelta
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import numpy as np
+import sys
+from pathlib import Path
 
 # Add backend to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from corpus_ops import (  # type: ignore[import]
+from backend.src.fi_common.config.config_loader import load_config
+from backend.src.fi_common.logging.logger import init_logger_from_config
+from backend.src.fi_storage.infrastructure.hdf5.corpus_ops import (
     append_embedding,
     append_interaction,
     get_corpus_stats,
     read_interactions,
 )
-from logger import init_logger_from_config
-
-from backend.config_loader import load_config
 
 # Test data: realistic conversations about Free Intelligence
 TEST_CONVERSATIONS = [

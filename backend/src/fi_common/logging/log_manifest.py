@@ -204,16 +204,15 @@ class LogManifest:
                 )
 
             # Check 2: Previous manifest hash matches chain
-            if i > 0:
-                if manifest["previous_manifest_hash"] != prev_hash:
-                    errors.append(
-                        {
-                            "date": date,
-                            "error": "chain_broken",
-                            "expected_prev_hash": prev_hash,
-                            "found_prev_hash": manifest["previous_manifest_hash"],
-                        }
-                    )
+            if i > 0 and manifest["previous_manifest_hash"] != prev_hash:
+                errors.append(
+                    {
+                        "date": date,
+                        "error": "chain_broken",
+                        "expected_prev_hash": prev_hash,
+                        "found_prev_hash": manifest["previous_manifest_hash"],
+                    }
+                )
 
             # Check 3: Access log hash is valid (re-compute)
             recomputed_access_hash, recomputed_count = self.compute_access_log_hash(date)

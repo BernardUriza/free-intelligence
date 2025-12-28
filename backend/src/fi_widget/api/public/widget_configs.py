@@ -16,13 +16,12 @@ from __future__ import annotations
 
 import json
 import random
-from pathlib import Path
 from typing import Any, List, Literal
 
+from backend.src.fi_common.logging.logger import get_logger
 from fastapi import APIRouter, HTTPException, status
+from pathlib import Path
 from pydantic import BaseModel, Field
-
-from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -182,13 +181,13 @@ async def get_trivia_config(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Trivia config not found: {e!s}",
-        )
+        ) from e
     except Exception as e:
         logger.error("Failed to load trivia config", error=str(e), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load trivia config: {e!s}",
-        )
+        ) from e
 
 
 @router.get(
@@ -238,13 +237,13 @@ async def get_breathing_config(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Breathing config not found: {e!s}",
-        )
+        ) from e
     except Exception as e:
         logger.error("Failed to load breathing config", error=str(e), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load breathing config: {e!s}",
-        )
+        ) from e
 
 
 @router.get(
@@ -296,13 +295,13 @@ async def get_daily_tips_config(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Daily tips config not found: {e!s}",
-        )
+        ) from e
     except Exception as e:
         logger.error("Failed to load daily tips config", error=str(e), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load daily tips config: {e!s}",
-        )
+        ) from e
 
 
 @router.get(
@@ -357,4 +356,4 @@ async def get_random_tip(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get random tip: {e!s}",
-        )
+        ) from e

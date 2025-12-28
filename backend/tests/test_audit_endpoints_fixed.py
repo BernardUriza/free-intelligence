@@ -8,10 +8,9 @@ import pytest
 def test_get_audit_endpoint_direct():
     """Test GET /api/sessions/{id}/audit endpoint directly."""
     import h5py
-    from fastapi.testclient import TestClient
-
     from backend.app.main import app
     from backend.src.fi_storage.infrastructure.hdf5.task_repository import CORPUS_PATH
+    from fastapi.testclient import TestClient
 
     client = TestClient(app)
 

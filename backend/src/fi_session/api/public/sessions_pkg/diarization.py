@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
-
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.api.public.models import UpdateSegmentRequest
+from backend.src.fi_common.logging.logger import get_logger
 from backend.validators import validate_session_id
+from fastapi import APIRouter, HTTPException, status
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -116,9 +116,6 @@ async def get_diarization_segments_workflow(session_id: str) -> dict[str, Any]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get diarization segments: {e!s}",
         ) from e
-
-
-from backend.src.fi_common.api.public.models import UpdateSegmentRequest
 
 
 @router.patch(

@@ -13,7 +13,6 @@ Como el Palantír: una sola piedra que ve todos los reinos.
 import subprocess
 import tempfile
 from collections.abc import AsyncIterator
-from pathlib import Path
 
 from backend.models.catalog_model import (
     CatalogModel,
@@ -27,6 +26,7 @@ from backend.src.fi_model_catalog.services.sources.huggingface_source import (
     HuggingFaceCatalogSource,
 )
 from backend.src.fi_model_catalog.services.sources.ollama_source import OllamaCatalogSource
+from pathlib import Path
 
 
 class CatalogService:
@@ -423,7 +423,7 @@ class CatalogService:
             "llama": "llama3",
             "mistral": "mistral",
             "phi": "phi3",
-            "qwen": "qwen2",
+            "qwen": "qwen3",
             "gemma": "gemma",
         }
 

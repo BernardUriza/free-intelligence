@@ -38,7 +38,7 @@ class IPValidator:
         "192.168.0.0/16",  # Private C
     ]
 
-    def __init__(self, allowed_cidrs: list[str | None] = None):
+    def __init__(self, allowed_cidrs: list[str | None] | None = None):
         """
         Initialize IP validator with CIDR allowlist.
 
@@ -69,7 +69,7 @@ class IPValidator:
         self,
         remote_addr: str,
         x_forwarded_for: str | None = None,
-        trusted_proxies: list[str | None] = None,
+        trusted_proxies: list[str | None] | None = None,
     ) -> str:
         """
         Extract real client IP from request.

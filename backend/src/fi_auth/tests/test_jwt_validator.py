@@ -5,10 +5,9 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa
-
 from backend.src.fi_auth.domain.entities.user import UserRole
 from backend.src.fi_auth.infrastructure.jwt.jwt_validator import JWTValidator
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 
 class StaticJWKSFetcher:

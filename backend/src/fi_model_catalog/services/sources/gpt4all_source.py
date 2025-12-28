@@ -215,8 +215,4 @@ class GPT4AllCatalogSource(CatalogSourceBase):
             return False
 
         # Filtro por tags
-        if params.tags:
-            if not any(tag in model.tags for tag in params.tags):
-                return False
-
-        return True
+        return not (params.tags and not any(tag in model.tags for tag in params.tags))

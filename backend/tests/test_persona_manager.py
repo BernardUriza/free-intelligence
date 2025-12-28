@@ -14,16 +14,15 @@ Aurity-Prompt-ID: AUR-PERSONA-MANAGER-2.0
 
 import tempfile
 import time
-from pathlib import Path
 
 import pytest
 import yaml
-
 from backend.src.fi_llm.services.persona_manager import (
     PersonaManager,
     PersonaNotFound,
     PersonaTemplateModel,
 )
+from pathlib import Path
 
 # ============================================================================
 # FIXTURES

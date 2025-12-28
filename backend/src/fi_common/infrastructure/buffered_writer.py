@@ -16,13 +16,12 @@ import threading
 import uuid
 from collections import deque
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 import h5py
-
 from backend.append_only_policy import AppendOnlyPolicy
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -208,7 +207,7 @@ class BufferedHDF5Writer:
                 new_size = current_size + buffer_len
 
                 # Resize all datasets
-                for dataset_name in interactions.keys():  # type: ignore[attr-defined]
+                for dataset_name in interactions:  # type: ignore[attr-defined]
                     interactions[dataset_name].resize((new_size,))  # type: ignore[attr-defined]
 
                 # Write all buffered records
@@ -269,8 +268,8 @@ class BufferedHDF5Writer:
         self.corpus_path.rename(archived_path)
 
         # Initialize new corpus
-        from backend.src.fi_coder.utils.config_loader import load_config
         from backend.corpus_schema import init_corpus
+        from backend.src.fi_coder.utils.config_loader import load_config
 
         config = load_config()
         owner_id = config.get("owner", {}).get("identifier", "bernard.uriza@example.com")
@@ -332,7 +331,7 @@ class BufferedHDF5Writer:
                 interactions = f["interactions"]
 
                 # Check all datasets have same size
-                sizes = [interactions[key].shape[0] for key in interactions.keys()]  # type: ignore[index]
+                sizes = [interactions[key].shape[0] for key in interactions]  # type: ignore[index]
                 if len(set(sizes)) > 1:
                     logger.error(
                         "INTEGRITY_CHECK_FAILED", reason="inconsistent_dataset_sizes", sizes=sizes

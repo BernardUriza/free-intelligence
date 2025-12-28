@@ -12,15 +12,14 @@ from __future__ import annotations
 import tempfile
 from collections.abc import Generator
 from datetime import UTC, datetime
-from pathlib import Path
 
 import pytest
-
 from backend.app.audit.sink import read_audit_events, write_audit_event
+from pathlib import Path
 
 
 @pytest.fixture
-def audit_root(monkeypatch: pytest.MonkeyPatch) -> Generator[Path, None, None]:
+def audit_root(monkeypatch: pytest.MonkeyPatch) -> Generator[Path]:
     """Temporary audit root for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         audit_path = Path(tmpdir) / "audit"

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Generic, List, TypeVar
+from typing import Any, List, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -32,7 +32,7 @@ class StatusCode(str, Enum):
     INTERNAL_ERROR = "internal_error"
 
 
-class APIResponse(BaseModel, Generic[T]):
+class APIResponse[T](BaseModel):
     """Standard API response wrapper for all endpoints.
 
     All API endpoints should return this structure for consistency.
@@ -85,7 +85,7 @@ class PaginationMeta(BaseModel):
     has_more: bool = Field(description="Whether more items exist")
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse[T](BaseModel):
     """Response for paginated list endpoints."""
 
     status: StatusCode = Field(default=StatusCode.SUCCESS)

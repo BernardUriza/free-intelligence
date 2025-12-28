@@ -10,7 +10,6 @@ Integra: logger_structured + log_rotation + log_manifest
 FI-CORE-FEAT-003
 """
 
-from pathlib import Path
 from typing import Any, Literal
 
 from backend.src.fi_common.logging.log_manifest import LogManifest
@@ -24,6 +23,7 @@ from backend.src.fi_common.logging.logger_structured import (
     log_server_request,
     log_storage_segment,
 )
+from pathlib import Path
 
 
 class LogWriter:
@@ -185,7 +185,7 @@ class LogWriter:
         new_role: UserRole | None = None,
         trace_id: str | None = None,
         session_id: str | None = None,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any | None] | None = None,
     ):
         """Write access event log (AUDIT)."""
         event = log_access_event(
@@ -269,8 +269,9 @@ class LogWriter:
 # ============================================================================
 
 if __name__ == "__main__":
-    import sys
     import uuid
+
+    import sys
 
     print("📝 FREE INTELLIGENCE - LOG WRITER DEMO")
     print("=" * 60)

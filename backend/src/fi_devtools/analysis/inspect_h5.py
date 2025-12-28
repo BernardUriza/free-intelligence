@@ -17,8 +17,9 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
-from pathlib import Path
 from typing import TYPE_CHECKING
+
+from pathlib import Path
 
 if TYPE_CHECKING:
     import h5py as h5py_type
@@ -239,7 +240,7 @@ def inspect_corpus(corpus_path: Path) -> None:
                 if "jobs" in latest_session:
                     jobs_group = latest_session["jobs"]
                     print("\n  Jobs:")
-                    for job_type in jobs_group.keys():
+                    for job_type in jobs_group:
                         job_type_group = jobs_group[job_type]
                         job_count = len(list(job_type_group.keys()))
                         print(f"    - {job_type}: {job_count}")

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
-
 from backend.clients import get_llm_client
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
+from fastapi import APIRouter, HTTPException, status
 
 from ..assistant_schemas import IntroductionRequest, IntroductionResponse
 

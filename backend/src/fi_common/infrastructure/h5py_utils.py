@@ -14,8 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 import h5py
-
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 
 # Type alias for h5py.File (h5py doesn't expose Optional in its type stubs)
 File = h5py.File
@@ -79,10 +78,7 @@ def get_h5_string(group: h5py.Group | h5py.Dataset, field: str, index: int) -> s
         'Speaker A: Hello'
     """
     try:
-        if isinstance(group, h5py.Dataset):
-            value = group[index]
-        else:
-            value = group[field][index]
+        value = group[index] if isinstance(group, h5py.Dataset) else group[field][index]
 
         return safe_decode_string(value)
     except (KeyError, IndexError, TypeError) as e:

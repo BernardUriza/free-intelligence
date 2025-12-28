@@ -1,5 +1,35 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
+import re
+import time
+from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from functools import lru_cache
+from typing import Any, ClassVar
+
+import anthropic
+import numpy as np
+import ollama
+import os
+from backend.policy.policy_loader import get_policy_loader
+from backend.providers.response_parsers import GenericParser, QwenThinkingParser
+from backend.providers.retry import CircuitBreakerConfig, RetryConfig, get_circuit_breaker
+from backend.schemas.llm.audit_policy import require_audit_log
+from backend.src.fi_common.logging.logger import get_logger
+from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
+
+# Optional imports (will be checked for availability in relevant providers)
+try:
+    import aiohttp
+except ImportError:
+    aiohttp = None
+
 """
 Free Intelligence - LLM Router with Multi-Provider Abstraction
 
@@ -11,28 +41,8 @@ Provides a unified interface for LLM interactions, supporting multiple providers
 Philosophy: Provider-agnostic design. No vendor lock-in.
 """
 
-import asyncio
-import os
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from datetime import UTC, datetime
-from enum import Enum
-from typing import Any
-
-import anthropic
-import numpy as np
-from dotenv import load_dotenv
-
 # Load environment variables from .env
 load_dotenv()
-
-import hashlib
-import re
-from functools import lru_cache
-
-from fi_common.logging.logger import get_logger
-from backend.policy.policy_loader import get_policy_loader
-from backend.schemas.llm.audit_policy import require_audit_log
 
 logger = get_logger(__name__)
 
@@ -173,7 +183,7 @@ class ClaudeProvider(LLMProvider):
     """Anthropic Claude provider implementation"""
 
     # Pricing per 1M tokens (as of 2025-10)
-    PRICING = {
+    PRICING: ClassVar[dict[str, dict[str, float]]] = {
         "claude-3-5-sonnet-20241022": {
             "input": 3.00,  # $3 per 1M input tokens
             "output": 15.00,  # $15 per 1M output tokens
@@ -305,9 +315,6 @@ class ClaudeProvider(LLMProvider):
             message="Claude doesn't support embeddings, falling back to sentence-transformers",
         )
 
-        # Import here to avoid loading model unless needed
-        from sentence_transformers import SentenceTransformer
-
         # Use lightweight model
         model = SentenceTransformer("all-MiniLM-L6-v2")
         embedding = model.encode(text, convert_to_numpy=True)
@@ -331,16 +338,11 @@ class OllamaProvider(LLMProvider):
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.base_url: str = str(self.config.get("base_url") or "http://localhost:11434")
-        self.default_model: str = str(self.config.get("model") or "qwen2:1.5b-instruct")
+        self.default_model: str = str(self.config.get("model") or "qwen3:1.7b")
         self.embed_model: str = str(self.config.get("embed_model") or "nomic-embed-text")
         self.timeout: int = int(self.config.get("timeout_seconds") or 120)
 
         # Retry configuration (FI-BACKEND-REF-005)
-        from backend.providers.retry import (
-            CircuitBreakerConfig,
-            RetryConfig,
-            get_circuit_breaker,
-        )
 
         self.retry_config = RetryConfig(
             max_retries=int(self.config.get("max_retries") or 3),
@@ -360,14 +362,18 @@ class OllamaProvider(LLMProvider):
             ),
         )
 
-        # Import ollama library
+        # Initialize ollama client
         try:
-            import ollama
-
             self.ollama = ollama
             self.client = ollama.Client(host=self.base_url)
-        except ImportError:
-            raise ImportError("ollama library not installed. Install with: pip install ollama")
+        except NameError:
+            raise ImportError(
+                "ollama library not installed. Install with: pip install ollama"
+            ) from None
+
+        # Initialize response parsers
+        self.qwen_parser = QwenThinkingParser()
+        self.generic_parser = GenericParser()
 
         self.logger.info(
             "OLLAMA_PROVIDER_INITIALIZED",
@@ -395,11 +401,12 @@ class OllamaProvider(LLMProvider):
             - 100% offline operation
             - FI-BACKEND-REF-005: Exponential backoff + circuit breaker
         """
-        import time
 
         from backend.providers.retry import CircuitOpenError, calculate_backoff_delay
 
-        model: str = str(kwargs.get("model", self.default_model))
+        # Handle None model explicitly - use default if None or missing
+        model_arg = kwargs.get("model")
+        model: str = model_arg if model_arg else self.default_model
         max_tokens: int = int(kwargs.get("max_tokens") or self.config.get("max_tokens") or 2048)
         temperature: float = float(
             kwargs.get("temperature") or self.config.get("temperature") or 0.7
@@ -460,21 +467,53 @@ class OllamaProvider(LLMProvider):
 
                 latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
-                # Extract response
-                # Extract response content and optional reasoning depending on endpoint
+                # Parse response based on endpoint and model
                 thinking_text = None
                 if use_generate_with_think:
-                    content = str(response.get("response", ""))
-                    t = response.get("thinking")
-                    if isinstance(t, str) and t.strip():
-                        thinking_text = t.strip()
-                else:
-                    content = response["message"]["content"]
-                    message_obj = response.get("message", {})
-                    if isinstance(message_obj, dict):
-                        t = message_obj.get("thinking")
+                    # Use /generate endpoint with thinking enabled
+                    try:
+                        raw_response = str(response.get("response", ""))
+                        self.logger.debug(
+                            "QWEN_RAW_RESPONSE_PREVIEW",
+                            first_100_chars=raw_response[:100],
+                            last_100_chars=raw_response[-100:] if len(raw_response) > 100 else raw_response,
+                            total_length=len(raw_response),
+                        )
+                        thinking_text, content = self.qwen_parser.parse(response)
+                        self.logger.info(
+                            "QWEN_THINKING_PARSED",
+                            raw_response_length=len(raw_response),
+                            thinking_length=len(thinking_text) if thinking_text else 0,
+                            content_length=len(content),
+                            content_preview=content[:50] if content else "EMPTY",
+                        )
+                    except ValueError as e:
+                        self.logger.error(
+                            "QWEN_PARSING_FAILED",
+                            error=str(e),
+                            model=model,
+                        )
+                        # Fallback: treat entire response as content
+                        content = str(response.get("response", "")).strip()
+
+                    # Also check for separate thinking field (some Ollama versions may provide it)
+                    if not thinking_text:
+                        t = response.get("thinking")
                         if isinstance(t, str) and t.strip():
                             thinking_text = t.strip()
+                else:
+                    # Use /chat endpoint - apply generic parsing
+                    try:
+                        thinking_text, content = self.generic_parser.parse(response)
+                    except Exception as e:
+                        self.logger.error(
+                            "GENERIC_PARSING_FAILED",
+                            error=str(e),
+                            model=model,
+                        )
+                        # Fallback: get from message.content
+                        content = response.get("message", {}).get("content", "").strip()
+                        thinking_text = None
 
                 # Estimate tokens (Ollama doesn't always provide exact counts)
                 # Use approximate: ~4 chars per token
@@ -556,7 +595,7 @@ class OllamaProvider(LLMProvider):
                         raise CircuitOpenError(
                             self.circuit_breaker.name,
                             "Circuit opened during retry sequence",
-                        )
+                        ) from None
                 else:
                     self.logger.error(
                         "OLLAMA_GENERATE_FAILED",
@@ -606,6 +645,210 @@ class OllamaProvider(LLMProvider):
             self.logger.error("OLLAMA_EMBED_FAILED", error=sanitized_error, model=self.embed_model)
             raise
 
+    def generate_stream(self, prompt: str, **kwargs):
+        """
+        Generate completion using Ollama API with real-time streaming.
+
+        Yields chunks as they arrive from Ollama without waiting for complete response.
+
+        Args:
+            prompt: Input text prompt
+            **kwargs: Ollama-specific parameters (model, temperature, max_tokens, etc.)
+
+        Yields:
+            tuple[str, str]: (chunk_type, chunk_text) where chunk_type is "thinking" or "content"
+                When thinking is disabled or model doesn't support it, all chunks are "content".
+
+        Notes:
+            - Streams directly from Ollama's stream endpoint
+            - No buffering - chunks sent immediately as generated
+            - Suitable for real-time UI updates and SSE streaming
+            - FI-BACKEND-REF-005: Exponential backoff + circuit breaker apply
+        """
+        from backend.providers.retry import CircuitOpenError, calculate_backoff_delay
+
+        # Handle None model explicitly - use default if None or missing
+        model_arg = kwargs.get("model")
+        model: str = model_arg if model_arg else self.default_model
+        max_tokens: int = int(kwargs.get("max_tokens") or self.config.get("max_tokens") or 2048)
+        temperature: float = float(
+            kwargs.get("temperature") or self.config.get("temperature") or 0.7
+        )
+
+        self.logger.info(
+            "OLLAMA_GENERATE_STREAM_STARTED",
+            model=model,
+            prompt_length=len(prompt),
+            base_url=self.base_url,
+        )
+
+        # Check circuit breaker before attempting
+        if not self.circuit_breaker.can_execute():
+            raise CircuitOpenError(
+                self.circuit_breaker.name,
+                f"Ollama service unavailable, retry after {self.circuit_breaker.config.recovery_timeout}s",
+            )
+
+        start_time = datetime.now(UTC)
+        last_exception: Exception | None = None
+
+        force_thinking = os.getenv("LLM_FORCE_THINKING", "false").lower() in {"1", "true", "yes"}
+        enable_thinking = kwargs.get("enable_thinking", True)
+
+        for attempt in range(self.retry_config.max_retries + 1):
+            try:
+                is_qwen3 = str(model).lower().startswith("qwen3")
+                use_generate_with_think = enable_thinking and (is_qwen3 or force_thinking)
+
+                if use_generate_with_think:
+                    # Use generate endpoint with streaming and thinking enabled
+                    response = self.client.generate(
+                        model=model,
+                        prompt=prompt,
+                        stream=True,
+                        options={
+                            "temperature": temperature,
+                            "num_predict": max_tokens,
+                            "think": True,
+                        },
+                    )
+                else:
+                    # Use chat endpoint with streaming
+                    response = self.client.chat(
+                        model=model,
+                        messages=[{"role": "user", "content": prompt}],
+                        stream=True,
+                        options={
+                            "temperature": temperature,
+                            "num_predict": max_tokens,
+                            "think": False,
+                        },
+                    )
+
+                # Stream chunks as they arrive
+                chunk_count = 0
+                total_tokens = 0
+
+                for chunk in response:
+                    try:
+                        if use_generate_with_think:
+                            # Extract text from /generate streaming response
+                            # Ollama sends thinking in "thinking" field and content in "response" field
+                            thinking_text = chunk.get("thinking", "")
+                            response_text = chunk.get("response", "")
+                            total_tokens = chunk.get("eval_count", 0)
+
+                            # Yield thinking chunks with "thinking" type
+                            if thinking_text:
+                                chunk_count += 1
+                                self.logger.debug(
+                                    "OLLAMA_STREAM_CHUNK",
+                                    model=model,
+                                    chunk_num=chunk_count,
+                                    chunk_type="thinking",
+                                    chunk_length=len(thinking_text),
+                                )
+                                yield ("thinking", thinking_text)
+
+                            # Yield response chunks with "content" type
+                            if response_text:
+                                chunk_count += 1
+                                self.logger.debug(
+                                    "OLLAMA_STREAM_CHUNK",
+                                    model=model,
+                                    chunk_num=chunk_count,
+                                    chunk_type="content",
+                                    chunk_length=len(response_text),
+                                )
+                                yield ("content", response_text)
+                        else:
+                            # Extract text from /chat streaming response
+                            chunk_text = chunk.get("message", {}).get("content", "")
+                            total_tokens = chunk.get("eval_count", 0)
+
+                            if chunk_text:
+                                chunk_count += 1
+                                self.logger.debug(
+                                    "OLLAMA_STREAM_CHUNK",
+                                    model=model,
+                                    chunk_num=chunk_count,
+                                    chunk_type="content",
+                                    chunk_length=len(chunk_text),
+                                )
+                                yield ("content", chunk_text)
+                    except Exception as e:
+                        self.logger.warning(
+                            "OLLAMA_STREAM_CHUNK_PARSE_ERROR",
+                            error=str(e),
+                            chunk_data=str(chunk)[:100],
+                        )
+                        continue
+
+                latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
+
+                # Success: record in circuit breaker
+                self.circuit_breaker.record_success()
+
+                if attempt > 0:
+                    self.logger.info(
+                        "OLLAMA_STREAM_RETRY_SUCCEEDED",
+                        model=model,
+                        attempt=attempt + 1,
+                        total_chunks=chunk_count,
+                    )
+
+                self.logger.info(
+                    "OLLAMA_GENERATE_STREAM_COMPLETED",
+                    model=model,
+                    chunks_yielded=chunk_count,
+                    latency_ms=round(latency_ms, 2),
+                    retry_attempts=attempt,
+                )
+                return
+
+            except Exception as e:
+                last_exception = e
+                sanitized_error = sanitize_error_message(str(e))
+
+                # Record failure in circuit breaker
+                self.circuit_breaker.record_failure()
+
+                # Check if we have retries left
+                if attempt < self.retry_config.max_retries:
+                    delay = calculate_backoff_delay(attempt, self.retry_config)
+
+                    self.logger.warning(
+                        "OLLAMA_STREAM_RETRY_ATTEMPT",
+                        model=model,
+                        attempt=attempt + 1,
+                        max_retries=self.retry_config.max_retries,
+                        delay_seconds=round(delay, 2),
+                        error=sanitized_error[:100],
+                    )
+
+                    import time
+                    time.sleep(delay)
+
+                    # Re-check circuit breaker after delay
+                    if not self.circuit_breaker.can_execute():
+                        raise CircuitOpenError(
+                            self.circuit_breaker.name,
+                            "Circuit opened during retry sequence",
+                        ) from None
+                else:
+                    self.logger.error(
+                        "OLLAMA_GENERATE_STREAM_FAILED",
+                        error=sanitized_error,
+                        model=model,
+                        base_url=self.base_url,
+                        total_attempts=self.retry_config.max_retries + 1,
+                    )
+
+        # All retries exhausted
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("Unexpected retry loop exit")
+
     def get_provider_name(self) -> str:
         return "ollama"
 
@@ -614,7 +857,7 @@ class AzureOpenAIProvider(LLMProvider):
     """Azure OpenAI (GPT-4, GPT-4o) provider for cloud-based inference"""
 
     # Pricing per 1M tokens (as of 2025-11)
-    PRICING = {
+    PRICING: ClassVar[dict[str, dict[str, float]]] = {
         "gpt-4o": {
             "input": 2.50,  # $2.50 per 1M input tokens
             "output": 10.00,  # $10 per 1M output tokens
@@ -640,13 +883,11 @@ class AzureOpenAIProvider(LLMProvider):
         self.deployment_name: str = str(self.config.get("deployment") or self.default_model)
         self.timeout: int = int(self.config.get("timeout_seconds") or 30)
 
-        # Import aiohttp for async HTTP requests
-        try:
-            import aiohttp
-
-            self.aiohttp = aiohttp
-        except ImportError:
+        # Check if aiohttp is available
+        if aiohttp is None:
             raise ImportError("aiohttp library not installed. Install with: pip install aiohttp")
+
+        self.aiohttp = aiohttp
 
         self.logger.info(
             "AZURE_OPENAI_PROVIDER_INITIALIZED",
@@ -695,9 +936,8 @@ class AzureOpenAIProvider(LLMProvider):
             try:
                 _ = asyncio.get_running_loop()
                 # We're already in an event loop, so we need to run in a thread
-                import concurrent.futures
 
-                with concurrent.futures.ThreadPoolExecutor() as executor:
+                with ThreadPoolExecutor() as executor:
                     response = executor.submit(
                         lambda: asyncio.run(
                             self._generate_async(
@@ -850,9 +1090,6 @@ class AzureOpenAIProvider(LLMProvider):
             "AZURE_EMBED_NOT_SUPPORTED",
             message="Azure OpenAI doesn't support embeddings, falling back to sentence-transformers",
         )
-
-        # Import here to avoid loading model unless needed
-        from sentence_transformers import SentenceTransformer
 
         # Use lightweight model
         model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -1027,9 +1264,7 @@ def _cached_embed(text_hash: str, text: str, provider: str) -> bytes:
     return embedding.tobytes()
 
 
-def llm_embed(
-    text: str, provider: str = "claude", provider_config: dict[str, Any] | None = None
-) -> np.ndarray:
+def llm_embed(text: str, provider: str = "claude") -> np.ndarray:
     """
     Generate embedding vector for text with LRU caching.
 
@@ -1042,7 +1277,6 @@ def llm_embed(
     Args:
         text: Input text to embed
         provider: Provider name
-        provider_config: Provider-specific configuration
 
     Returns:
         numpy array with embedding vector (typically 384 or 768 dimensions)

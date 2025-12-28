@@ -13,11 +13,10 @@ Card: FI-API-FEAT-011
 import time
 from collections.abc import Callable
 
+from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_kpi.services.kpis_aggregator import get_kpis_aggregator
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-
-from fi_common.logging.logger import get_logger
-from backend.src.fi_kpi.services.kpis_aggregator import get_kpis_aggregator
 
 logger = get_logger(__name__)
 

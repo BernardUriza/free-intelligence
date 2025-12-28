@@ -1,0 +1,132 @@
+name: PR Gate (Must Pass)
+
+# This is the ONLY workflow that should block merges to main
+# Keep it FAST and PRAGMATIC - blocks only critical issues
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"  # Use stable version for CI
+
+jobs:
+  # ============================================================
+  # BACKEND: Syntax + Imports (MUST PASS)
+  # ============================================================
+  backend-compiles:
+    name: "Backend: Compiles"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install minimal deps
+        run: |
+          pip install --upgrade pip
+          pip install fastapi pydantic structlog h5py PyYAML httpx python-jose cryptography PyJWT
+
+      - name: Check Python syntax (all files compile)
+        run: |
+          echo "Checking Python syntax..."
+          find backend/src -name "*.py" -exec python -m py_compile {} \;
+          echo "✅ All Python files compile successfully"
+
+      - name: Check critical imports
+        run: |
+          cd backend
+          python -c "
+          import sys
+          sys.path.insert(0, 'src')
+
+          # Critical modules that MUST import
+          critical = [
+              'fi_common.logging.logger',
+              'fi_storage',
+              'fi_auth',
+              'fi_workflow',
+          ]
+
+          failed = []
+          for mod in critical:
+              try:
+                  __import__(mod)
+                  print(f'✅ {mod}')
+              except Exception as e:
+                  print(f'❌ {mod}: {e}')
+                  failed.append(mod)
+
+          if failed:
+              print(f'\\n❌ {len(failed)} critical imports failed')
+              sys.exit(1)
+          print('\\n✅ All critical imports OK')
+          "
+
+  # ============================================================
+  # LINT: Reports issues (does NOT block)
+  # ============================================================
+  lint-report:
+    name: "Lint: Report"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true  # Never blocks
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Ruff check (report only)
+        run: |
+          echo "## Lint Report" >> $GITHUB_STEP_SUMMARY
+          ruff check backend/src --output-format=github || true
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Note: Lint issues do not block merge" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================
+  # SUMMARY: Final gate status
+  # ============================================================
+  gate-status:
+    name: "PR Gate Status"
+    runs-on: ubuntu-latest
+    needs: [backend-compiles]
+    if: always()
+
+    steps:
+      - name: Check gate results
+        run: |
+          echo "## PR Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.backend-compiles.result }}" == "success" ]]; then
+            echo "✅ Backend compiles" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Backend compilation failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📝 **Note:** Frontend (apps/aurity) is validated locally before deploy" >> $GITHUB_STEP_SUMMARY
+          echo "Run \`cd apps/aurity && pnpm build\` before merging frontend changes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.backend-compiles.result }}" != "success" ]]; then
+            echo "❌ **PR Gate FAILED** - Fix issues before merging" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "✅ **PR Gate PASSED** - Safe to merge" >> $GITHUB_STEP_SUMMARY

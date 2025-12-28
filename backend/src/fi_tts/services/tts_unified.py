@@ -1,7 +1,7 @@
 """
 Unified TTS Service - Multi-provider text-to-speech
 
-Supports Azure Speech Services, OpenAI TTS, and OpenAI Steerable TTS with automatic provider selection.
+Supports Azure OpenAI TTS, OpenAI TTS, and OpenAI Steerable TTS with automatic provider selection.
 
 Provider Selection Strategy:
 1. OpenAI Steerable TTS - Natural voices with accent control
@@ -12,25 +12,25 @@ Provider Selection Strategy:
 
 2. OpenAI TTS (standard) - Natural, expressive voices
    - Best for: English content, general use
-   - Voices: alloy, nova, shimmer, etc. (11 total)
+   - Voices: alloy, nova, shimmer
    - Model: tts-1-hd (faster, no accent control)
 
-3. Azure Speech Services - High-quality neural voices
-   - Best for: Native Spanish (Mexico) voices, medical terminology
-   - Voices: es-MX-DaliaNeural, es-MX-JorgeNeural, etc. (17 total)
-   - Locale: Spanish Mexico (es-MX)
+3. Azure OpenAI TTS - OpenAI models deployed on Azure
+   - Best for: Azure infrastructure integration
+   - Voices: alloy, nova, shimmer (same as OpenAI standard)
+   - Model: gpt-4o-mini-tts
 
 Usage:
     tts = get_unified_tts_service()
     audio = await tts.synthesize(
         text="Hola mundo",
-        voice="alloy",              # OpenAI voice
+        voice="nova",               # OpenAI voice
         provider="openai-steerable", # Enable accent control
         accent="Mexican Spanish"    # Accent instruction
     )
 
 Created: 2025-12-08
-Updated: 2025-12-09 (Added steerable TTS support)
+Updated: 2025-12-23 (Removed Azure Speech Services, simplified to OpenAI-only)
 """
 
 from __future__ import annotations
@@ -39,14 +39,13 @@ import re
 from typing import Literal
 
 import structlog
-
 from backend.src.fi_tts.services.tts_openai import get_openai_tts_service
 from backend.src.fi_tts.services.tts_openai_steerable import get_steerable_tts_service
-from backend.src.fi_tts.services.tts_service import get_tts_service
+from backend.src.fi_tts.services.tts_azure_openai import get_azure_openai_tts_service
 
 logger = structlog.get_logger(__name__)
 
-ProviderType = Literal["openai", "openai-steerable", "azure"]
+ProviderType = Literal["openai", "openai-steerable", "azure-openai"]
 OutputFormat = Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]
 
 # Steerable voices (subset of OpenAI voices that support accent control)
@@ -59,7 +58,7 @@ class UnifiedTTSService:
     def __init__(self):
         self.openai_service = get_openai_tts_service()
         self.steerable_service = get_steerable_tts_service()
-        self.azure_service = get_tts_service()
+        self.azure_openai_service = get_azure_openai_tts_service()
 
     def _detect_language(self, text: str) -> str:
         """Detect if text is Spanish or English (simple heuristic)"""
@@ -92,8 +91,8 @@ class UnifiedTTSService:
 
         Args:
             text: Text to synthesize (max 4096 characters)
-            voice: Voice name (OpenAI: nova, alloy, etc. | Azure: es-MX-DaliaNeural, etc.)
-            provider: Force specific provider ("openai", "openai-steerable", "azure"), or None for auto-detect
+            voice: Voice name (OpenAI: nova, alloy, shimmer, etc.)
+            provider: Force specific provider ("openai", "openai-steerable", "azure-openai"), or None for auto-detect
             accent: Accent instruction for steerable TTS (e.g., "Mexican Spanish", "neutral Spanish")
             response_format: Audio format (mp3, opus, aac, flac, wav, pcm)
             speed: Speech speed (0.25 to 4.0)
@@ -103,11 +102,7 @@ class UnifiedTTSService:
         """
         # Auto-detect provider based on voice name and text if not specified
         if provider is None:
-            if voice.startswith("es-MX-"):
-                # Azure voice explicitly requested
-                provider = "azure"
-                logger.info("tts.auto_provider", provider="azure", reason="es-MX voice")
-            elif voice in STEERABLE_VOICES and self._detect_language(text) == "es":
+            if voice in STEERABLE_VOICES and self._detect_language(text) == "es":
                 # Spanish text + steerable voice = use steerable TTS for accent control
                 provider = "openai-steerable"
                 if accent is None:
@@ -156,20 +151,23 @@ class UnifiedTTSService:
                 response_format=response_format if response_format != "wav" else "mp3",
                 speed=speed,
             )
-        else:  # azure
-            # Azure Speech Services
+        elif provider == "azure-openai":
+            # Azure OpenAI TTS (OpenAI deployed on Azure)
             logger.info(
                 "tts.synthesize",
-                provider="azure",
+                provider="azure-openai",
                 voice=voice,
                 text_length=len(text),
             )
-            return await self.azure_service.synthesize(
+            return await self.azure_openai_service.synthesize(
                 text=text,
                 voice=voice,  # type: ignore - will validate in service
-                response_format=response_format if response_format != "flac" else "mp3",
+                response_format=response_format if response_format != "wav" else "mp3",
                 speed=speed,
             )
+        else:
+            # Default to OpenAI (should not reach here with valid provider)
+            raise ValueError(f"Unknown provider: {provider}")
 
 
 # Global singleton instance

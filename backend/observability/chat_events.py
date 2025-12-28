@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import structlog
-
 from backend.observability.log_spec import REQUIRED_FIELDS, ChatEvent
 
 log = structlog.get_logger("chat")
@@ -25,7 +24,7 @@ def _ensure_fields(base: dict) -> dict:
     }
     out = {**defaults, **base}
     # Orden estable (opcional, útil para debugging humano)
-    return {k: out.get(k, "") for k in REQUIRED_FIELDS if k in out or True} | out
+    return {k: out.get(k, "") for k in REQUIRED_FIELDS if True} | out
 
 
 def log_chat_request(ctx: dict):

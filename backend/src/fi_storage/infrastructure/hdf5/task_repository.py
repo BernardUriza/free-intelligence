@@ -29,17 +29,17 @@ Card: Architecture refactor - task-based HDF5
 
 from __future__ import annotations
 
-import h5py
 import json
 import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from fi_common.logging.logger import get_logger
 from typing import Any, Union
 
+import h5py
 from backend.models.task_type import TaskStatus, TaskType
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (
     CORPUS_PATH,
     get_session_h5_path,

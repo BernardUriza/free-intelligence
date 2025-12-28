@@ -186,12 +186,16 @@ jobs:
 
       - name: Sync packages (fi_common)
         run: |
-          rsync -avz --delete \
-            --exclude '__pycache__/' \
-            --exclude '*.pyc' \
-            -e "ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no" \
-            packages/ \
-            $DROPLET_USER@$DROPLET_HOST:$PROJECT_PATH/packages/
+          if [ -d "packages/" ]; then
+            rsync -avz --delete \
+              --exclude '__pycache__/' \
+              --exclude '*.pyc' \
+              -e "ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no" \
+              packages/ \
+              $DROPLET_USER@$DROPLET_HOST:$PROJECT_PATH/packages/
+          else
+            echo "⏭️ Skipping packages/ sync (directory does not exist)"
+          fi
 
       - name: Sync project files
         run: |
@@ -257,7 +261,7 @@ jobs:
 
           echo "🚀 Starting new backend..."
           cd /opt/free-intelligence
-          PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
+          PYTHONPATH=. PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
           sleep 5
 
           echo "✅ Backend deployed successfully"
@@ -370,7 +374,7 @@ jobs:
           echo "🛑 Restarting backend..."
           fuser -k 7001/tcp || true
           sleep 2
-          PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
+          PYTHONPATH=. PYTHONNOUSERSITE=1 nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
 
           echo "🔄 Reloading nginx..."
           nginx -t && nginx -s reload

@@ -5,11 +5,9 @@ Valida que el sistema prompt se ajuste correctamente según el response_mode
 del contexto (concise, explanatory, o valores inválidos).
 """
 
-from pathlib import Path
-
 import pytest
-
 from backend.src.fi_llm.services.persona_manager import PersonaManager
+from pathlib import Path
 
 
 @pytest.fixture

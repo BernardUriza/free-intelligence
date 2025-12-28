@@ -11,13 +11,12 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, Union
 
 import h5py
-
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.type_defs import DiarizationChunkDict
+from pathlib import Path
 
 from .base_repository import BaseRepository
 
@@ -264,7 +263,7 @@ class CorpusRepository(BaseRepository):
 
                 # Store chunk data
                 for key, value in chunk.items():
-                    if isinstance(value, str) or isinstance(value, (int, float)):
+                    if isinstance(value, (str, int, float)):
                         chunk_group.attrs[key] = value
 
             self._log_operation("create_chunk", chunk_id)
@@ -288,7 +287,7 @@ class CorpusRepository(BaseRepository):
                 chunks_group = f[self.CHUNKS_GROUP]
                 chunks = []
 
-                for chunk_id in chunks_group.keys():  # type: ignore[attr-defined]
+                for chunk_id in chunks_group:  # type: ignore[attr-defined]
                     if chunk_id.startswith(document_id):
                         chunk_group = chunks_group[chunk_id]  # type: ignore[index]
                         chunk_data: DiarizationChunkDict = {}

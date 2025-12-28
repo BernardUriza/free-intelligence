@@ -15,12 +15,10 @@ Card: FI-API-FEAT-020 - Knowledge Base document upload with RAG
 from __future__ import annotations
 
 import tempfile
-from pathlib import Path
 
 import h5py
 import numpy as np
 import pytest
-
 from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     DocumentChunk,
     DocumentStatus,
@@ -34,6 +32,7 @@ from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     update_document_metadata,
     update_document_status,
 )
+from pathlib import Path
 
 
 @pytest.fixture
@@ -155,7 +154,7 @@ def test_list_documents_with_status_filter(temp_corpus, monkeypatch):
         filename="doc_2.md",
         uploaded_by="test_user",
     )
-    doc3 = create_document(
+    create_document(
         content=b"Content 3",
         filename="doc_3.md",
         uploaded_by="test_user",
@@ -347,7 +346,7 @@ def test_search_documents_by_embedding(temp_corpus, monkeypatch):
 
     assert len(results) > 0
     # First result should be the chunk with matching embedding
-    doc_id, chunk_id, similarity, text = results[0]
+    doc_id, chunk_id, similarity, _text = results[0]
     assert doc_id == created_metadata.doc_id
     assert chunk_id == 0
     assert similarity > 0.99  # High similarity for identical embedding

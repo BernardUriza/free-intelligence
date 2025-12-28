@@ -14,8 +14,9 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Any
+
+from pathlib import Path
 
 
 def analyze_tier1_errors(results_path: Path) -> None:
@@ -96,7 +97,7 @@ def analyze_tier1_errors(results_path: Path) -> None:
 def run(args: Sequence[str] | None = None) -> None:
     """Analyze Tier 1 critical type errors."""
     default_path = "ops/type_check_results/results.json"
-    results_path = Path(list(args or [])[0]) if args else Path(default_path)
+    results_path = Path(next(iter(args or []))) if args else Path(default_path)
 
     analyze_tier1_errors(results_path)
 

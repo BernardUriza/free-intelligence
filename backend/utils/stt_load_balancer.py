@@ -32,11 +32,10 @@ from __future__ import annotations
 
 import threading
 from collections import defaultdict, deque
-from pathlib import Path
 
 import yaml
-
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
 

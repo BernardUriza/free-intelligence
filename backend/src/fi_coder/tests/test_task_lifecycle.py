@@ -3,7 +3,6 @@ from __future__ import annotations
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
 
 from ..models.task import Task, TaskStatus
 from ..storage.task_storage import TaskStorage

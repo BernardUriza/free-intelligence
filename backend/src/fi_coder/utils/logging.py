@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+
 import structlog
 
 from ..config.policies import LOGGING_POLICY

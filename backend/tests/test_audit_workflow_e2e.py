@@ -13,14 +13,13 @@ Uses chunks 5-7 for realistic medical case testing.
 from __future__ import annotations
 
 import time
-from pathlib import Path
 
 import pytest
-
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     get_session_metadata,
     get_soap_data,
 )
+from pathlib import Path
 
 
 @pytest.fixture
@@ -63,9 +62,8 @@ class TestAuditWorkflowE2E:
         7. POST /feedback with corrections
         8. Verify feedback is saved
         """
-        from fastapi.testclient import TestClient
-
         from backend.app.main import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
 
@@ -221,7 +219,7 @@ class TestAuditWorkflowE2E:
 
         # Verify SOAP was updated with correction
         soap_data = get_soap_data(session_id)
-        plan_str = str(soap_data.get("plan", {}))
+        str(soap_data.get("plan", {}))
 
         # Note: Correction might be in medications list or as metadata
         print("  ✓ SOAP data structure preserved")
@@ -232,9 +230,8 @@ class TestAuditWorkflowE2E:
 
     def test_audit_endpoint_with_nonexistent_session(self):
         """Test audit endpoint returns 404 for nonexistent session."""
-        from fastapi.testclient import TestClient
-
         from backend.app.main import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
 
@@ -244,9 +241,8 @@ class TestAuditWorkflowE2E:
 
     def test_feedback_endpoint_validation(self):
         """Test feedback endpoint validates required fields."""
-        from fastapi.testclient import TestClient
-
         from backend.app.main import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
 

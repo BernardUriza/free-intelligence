@@ -19,12 +19,10 @@ Created: 2025-12-08
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
-from pydantic import BaseModel, Field
-
-from fi_common.logging.logger import get_logger
+from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     Document,
     DocumentOrigin,
@@ -36,6 +34,8 @@ from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     update_document_metadata,
     update_document_status,
 )
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -201,17 +201,13 @@ async def list_all_documents(
     # Parse filters
     origin_filter = None
     if origin:
-        try:
+        with contextlib.suppress(ValueError):
             origin_filter = DocumentOrigin(origin)
-        except ValueError:
-            pass
 
     status_filter = None
     if document_status:
-        try:
+        with contextlib.suppress(ValueError):
             status_filter = DocumentStatus(document_status)
-        except ValueError:
-            pass
 
     documents = list_documents(
         persona_filter=persona,

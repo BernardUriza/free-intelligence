@@ -12,9 +12,8 @@ Created: 2025-11-17 (Evidence Pack Auto-Generation)
 
 from __future__ import annotations
 
+from backend.src.fi_common.logging.logger import get_logger
 from fastapi import APIRouter, HTTPException, status
-
-from fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

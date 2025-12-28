@@ -11,13 +11,13 @@ FI-CORE-FEAT-002
 """
 
 import logging
-import sys
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import structlog
+import sys
+from pathlib import Path
 
 
 def get_logger(

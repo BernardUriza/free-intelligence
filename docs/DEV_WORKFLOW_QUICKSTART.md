@@ -10,7 +10,7 @@
 ### 1️⃣ Arrancar Todo (Modo Desarrollo)
 
 ```bash
-make dev-all
+PYTHONPATH=backend/src python -m fi_cli dev all
 ```
 
 **Qué hace:**
@@ -34,9 +34,7 @@ make dev-all
 ### 2️⃣ Matar Todo (Nuclear Cleanup)
 
 ```bash
-make dev-kill
-# O directamente:
-python -m fi_cli dev kill-all
+PYTHONPATH=backend/src python -m fi_cli dev kill-all
 ```
 
 **Qué hace:**
@@ -49,7 +47,7 @@ python -m fi_cli dev kill-all
 ### 3️⃣ Reiniciar Completamente
 
 ```bash
-make dev-restart
+PYTHONPATH=backend/src python -m fi_cli dev all
 ```
 
 **Qué hace:** `dev-kill` + `dev-all` (cleanup + restart)
@@ -77,7 +75,7 @@ ps aux | grep -E "(uvicorn|next-dev)"
 
 **Solución:**
 ```bash
-make dev-restart
+PYTHONPATH=backend/src python -m fi_cli dev all
 ```
 
 ---
@@ -89,12 +87,12 @@ make dev-restart
 **Solución:**
 1. Abre Docker Desktop manualmente
 2. Espera a que inicie
-3. Ejecuta: `make dev-restart`
+3. Ejecuta: `PYTHONPATH=backend/src python -m fi_cli dev all`
 
 **O corre en modo NATIVO:**
 ```bash
 # Docker NO requerido - arranca backend nativo
-make dev-all
+PYTHONPATH=backend/src python -m fi_cli dev all
 ```
 
 ---
@@ -105,27 +103,27 @@ make dev-all
 
 **Solución:**
 ```bash
-make dev-kill
+PYTHONPATH=backend/src python -m fi_cli dev kill-all
 # Verifica que TODO esté muerto:
 lsof -ti:7001,9000,9050
 # Si imprime PIDs → todavía hay zombies
 # Si no imprime nada → limpio ✅
 
 # Ahora arranca:
-make dev-all
+PYTHONPATH=backend/src python -m fi_cli dev all
 ```
 
 ---
 
-## 📋 Scripts Disponibles
+## 📋 Comandos Disponibles
 
-| Script | Comando | Descripción |
-|--------|---------|-------------|
-| **Arrancar todo** | `make dev-all` | Cleanup + Start (Docker o Native) |
-| **Matar todo** | `make dev-kill` | Nuclear cleanup de procesos |
-| **Reiniciar** | `make dev-restart` | Kill + Start |
-| **Backend solo** | `make run` | Backend nativo (port 7001) |
-| **Frontend solo** | `cd apps/aurity && pnpm dev` | Next.js (port 9000) |
+| Comando | Descripción |
+|---------|-------------|
+| **Arrancar todo** | `PYTHONPATH=backend/src python -m fi_cli dev all` |
+| **Matar todo** | `PYTHONPATH=backend/src python -m fi_cli dev kill-all` |
+| **Reiniciar** | `PYTHONPATH=backend/src python -m fi_cli dev all` (kill incluido) |
+| **Backend solo** | `PYTHONPATH=backend/src python -m fi_cli dev start` |
+| **Frontend solo** | `cd apps/aurity && pnpm dev` |
 
 ---
 
@@ -134,22 +132,22 @@ make dev-all
 ### Inicio del día:
 ```bash
 # 1. Limpia todo
-make dev-kill
+PYTHONPATH=backend/src python -m fi_cli dev kill-all
 
 # 2. Arranca fresh
-make dev-all
+PYTHONPATH=backend/src python -m fi_cli dev all
 ```
 
 ### Durante desarrollo:
 - **Si hot reload funciona:** Trabaja normal
 - **Si algo se congela:**
   ```bash
-  make dev-restart
+  PYTHONPATH=backend/src python -m fi_cli dev all
   ```
 
 ### Fin del día:
 ```bash
-make dev-kill
+PYTHONPATH=backend/src python -m fi_cli dev kill-all
 ```
 
 ---

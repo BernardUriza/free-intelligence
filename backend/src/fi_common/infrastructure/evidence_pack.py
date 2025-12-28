@@ -22,10 +22,10 @@ import json
 import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Dict, List
 
 import yaml
+from pathlib import Path
 
 
 @dataclass
@@ -284,7 +284,7 @@ class EvidencePackBuilder:
             policy_snapshot_id=policy_version,
             metadata={
                 "source_count": len(self.sources),
-                "document_types": list(set(src.tipo_doc for src in self.sources)),
+                "document_types": list({src.tipo_doc for src in self.sources}),
                 "hash_algorithm": "sha256",
                 "total_citations": len(self.citations),
                 "extraction_confidence": sum(c.confidence for c in self.citations)

@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 # Export AuditService class for backward compatibility
 # pyright: reportUnusedImport=false
-try:
+with contextlib.suppress(ImportError):
     from ..services.audit_service import AuditService
-except ImportError:
-    pass
 
 __all__ = ["AuditService", "append_audit_log"]
 

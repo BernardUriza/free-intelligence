@@ -8,10 +8,10 @@ from __future__ import annotations
 import tempfile
 from collections.abc import Generator
 from datetime import UTC
-from pathlib import Path
 from typing import TYPE_CHECKING, Union
 
 import pytest
+from pathlib import Path
 
 if TYPE_CHECKING:
     from backend.src.fi_common.infrastructure.container import DIContainer
@@ -46,7 +46,6 @@ def di_container(temp_h5_file: Path) -> Generator[DIContainer]:
     """
     # Initialize HDF5 with minimal schema
     import h5py
-
     from backend.src.fi_common.infrastructure.container import DIContainer
 
     with h5py.File(temp_h5_file, "w") as f:
