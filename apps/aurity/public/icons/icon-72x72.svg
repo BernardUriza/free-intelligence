@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.3)"/>
+      <stop offset="50%" style="stop-color:rgba(255,255,255,0)"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="72" height="72" fill="url(#bg)" rx="10.799999999999999"/>
+
+  <!-- Shine effect -->
+  <rect width="72" height="72" fill="url(#shine)" rx="10.799999999999999"/>
+
+  <!-- Logo text -->
+  <text x="36" y="32.4"
+        font-family="system-ui, -apple-system, sans-serif"
+        font-size="18"
+        font-weight="700"
+        fill="white"
+        text-anchor="middle">FI</text>
+
+  <!-- Subtitle -->
+  <text x="36" y="46.800000000000004"
+        font-family="system-ui, -apple-system, sans-serif"
+        font-size="5"
+        font-weight="500"
+        fill="rgba(255,255,255,0.8)"
+        text-anchor="middle">AURITY</text>
+
+  <!-- Medical cross accent -->
+  <g transform="translate(50.4, 14.4)">
+    <rect x="0" y="2.16" width="5.76" height="1.44" fill="rgba(255,255,255,0.6)" rx="1"/>
+    <rect x="2.16" y="0" width="1.44" height="5.76" fill="rgba(255,255,255,0.6)" rx="1"/>
+  </g>
+</svg>

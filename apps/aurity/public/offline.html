@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sin conexion - AURITY</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e2e8f0;
+      padding: 20px;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 400px;
+    }
+
+    .icon {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 24px;
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);
+    }
+
+    .icon svg {
+      width: 60px;
+      height: 60px;
+      fill: white;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #f1f5f9;
+    }
+
+    p {
+      font-size: 16px;
+      color: #94a3b8;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .retry-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .retry-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+    }
+
+    .retry-btn:active {
+      transform: translateY(0);
+    }
+
+    .retry-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .status {
+      margin-top: 32px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background: #f59e0b;
+      border-radius: 50%;
+      margin-right: 8px;
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.online {
+      background: #22c55e;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .tips {
+      margin-top: 24px;
+      text-align: left;
+      padding: 16px;
+      background: rgba(59, 130, 246, 0.1);
+      border-radius: 12px;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .tips h3 {
+      font-size: 14px;
+      color: #60a5fa;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tips ul {
+      list-style: none;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    .tips li {
+      padding: 6px 0;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .tips li::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: #60a5fa;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1 1L23 23M16.72 11.06C17.95 12.12 18.68 13.67 18.68 15.35C18.68 18.19 16.36 20.51 13.52 20.51H5.85C3.26 20.51 1.16 18.41 1.16 15.82C1.16 13.63 2.67 11.78 4.73 11.25M7.73 7.79C7.98 7.55 8.26 7.34 8.55 7.16M11.89 4.09C15.34 3.27 18.82 5.43 19.74 8.87C19.89 9.42 19.97 9.99 19.97 10.56"/>
+      </svg>
+    </div>
+
+    <h1>Sin conexion a internet</h1>
+    <p>No pudimos conectar con AURITY. Verifica tu conexion y vuelve a intentarlo.</p>
+
+    <button class="retry-btn" onclick="window.location.reload()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <polyline points="1 20 1 14 7 14"></polyline>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+      </svg>
+      Reintentar
+    </button>
+
+    <div class="status">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Esperando conexion...</span>
+    </div>
+
+    <div class="tips">
+      <h3>Mientras tanto puedes:</h3>
+      <ul>
+        <li>Verificar tu conexion WiFi o datos moviles</li>
+        <li>Activar y desactivar el modo avion</li>
+        <li>Reiniciar tu router o dispositivo</li>
+        <li>Acercarte a tu punto de acceso WiFi</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // Check connection status
+    function checkConnection() {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+
+      if (navigator.onLine) {
+        dot.classList.add('online');
+        text.textContent = 'Conexion restaurada! Recargando...';
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        dot.classList.remove('online');
+        text.textContent = 'Esperando conexion...';
+      }
+    }
+
+    // Listen for online/offline events
+    window.addEventListener('online', checkConnection);
+    window.addEventListener('offline', checkConnection);
+
+    // Check periodically
+    setInterval(checkConnection, 3000);
+
+    // Initial check
+    checkConnection();
+  </script>
+</body>
+</html>
