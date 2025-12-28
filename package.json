@@ -32,6 +32,9 @@
     "typescript": "5.9.3"
   },
   "packageManager": "pnpm@10.20.0",
+  "pnpm": {
+    "onlyBuiltDependencies": ["msw"]
+  },
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"

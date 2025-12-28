@@ -1,0 +1,12 @@
+{
+  "name": "@aurity-standalone/auth",
+  "version": "0.0.0-mock",
+  "main": "index.js",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./index.mjs",
+      "require": "./index.js"
+    }
+  }
+}

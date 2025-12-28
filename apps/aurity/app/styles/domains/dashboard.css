@@ -1,0 +1,249 @@
+/**
+ * Dashboard Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: dash-{component}[-variant]
+ * Examples: dash-widget, dash-kpi, dash-chart
+ *
+ * @utility defines base classes that can be composed with @apply
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility dash-kpi-icon {
+  @apply w-10 h-10 rounded-lg flex items-center justify-center mb-3;
+}
+
+@utility dash-kpi-trend {
+  @apply flex items-center gap-1 text-sm mt-2;
+}
+
+@utility dash-queue-item {
+  @apply flex items-center gap-4 p-4 rounded-xl
+         bg-slate-800/50 border border-slate-700
+         transition-all duration-300;
+}
+
+@utility dash-queue-number {
+  @apply w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center
+         text-xl font-bold text-white;
+}
+
+@utility dash-carousel-dot {
+  @apply w-2 h-2 rounded-full bg-white/30 transition-colors;
+}
+
+@utility dash-infobar-status-dot {
+  @apply w-2 h-2 rounded-full animate-pulse;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * WIDGETS
+   * ======================================== */
+  .dash-widget {
+    @apply bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden;
+  }
+
+  .dash-widget-header {
+    @apply flex items-center justify-between p-4 border-b border-slate-700/50;
+  }
+
+  .dash-widget-title {
+    @apply text-sm font-semibold text-white;
+  }
+
+  .dash-widget-subtitle {
+    @apply text-xs text-slate-500;
+  }
+
+  .dash-widget-body {
+    @apply p-4;
+  }
+
+  .dash-widget-footer {
+    @apply px-4 py-3 bg-slate-800/30 border-t border-slate-700/50;
+  }
+
+  /* ========================================
+   * KPI CARDS
+   * ======================================== */
+  .dash-kpi {
+    @apply p-4 rounded-xl bg-slate-800/50 border border-slate-700;
+  }
+
+  .dash-kpi-icon-primary {
+    @apply dash-kpi-icon bg-emerald-900/30 text-emerald-400;
+  }
+
+  .dash-kpi-icon-secondary {
+    @apply dash-kpi-icon bg-blue-900/30 text-blue-400;
+  }
+
+  .dash-kpi-icon-warning {
+    @apply dash-kpi-icon bg-amber-900/30 text-amber-400;
+  }
+
+  .dash-kpi-value {
+    @apply text-3xl font-bold text-white;
+  }
+
+  .dash-kpi-label {
+    @apply text-sm text-slate-400 mt-1;
+  }
+
+  .dash-kpi-trend-up {
+    @apply dash-kpi-trend text-emerald-400;
+  }
+
+  .dash-kpi-trend-down {
+    @apply dash-kpi-trend text-red-400;
+  }
+
+  /* ========================================
+   * TV MODE
+   * ======================================== */
+  .dash-tv {
+    @apply fixed inset-0 bg-slate-950 flex flex-col;
+  }
+
+  .dash-tv-header {
+    @apply flex items-center justify-between px-8 py-4 bg-slate-900/80
+           backdrop-blur-sm border-b border-slate-800;
+  }
+
+  .dash-tv-content {
+    @apply flex-1 p-8 overflow-hidden;
+  }
+
+  .dash-tv-footer {
+    @apply px-8 py-4 bg-slate-900/80 backdrop-blur-sm
+           border-t border-slate-800;
+  }
+
+  .dash-tv-clock {
+    @apply text-5xl font-bold text-white font-mono tabular-nums;
+  }
+
+  .dash-tv-date {
+    @apply text-lg text-slate-400;
+  }
+
+  /* ========================================
+   * QUEUE DISPLAY
+   * ======================================== */
+  .dash-queue {
+    @apply space-y-3;
+  }
+
+  .dash-queue-item-current {
+    @apply dash-queue-item bg-emerald-900/30 border-emerald-700/50
+           ring-2 ring-emerald-500/30;
+  }
+
+  .dash-queue-item-next {
+    @apply dash-queue-item bg-blue-900/20 border-blue-700/30;
+  }
+
+  .dash-queue-number-current {
+    @apply dash-queue-number bg-emerald-600;
+  }
+
+  .dash-queue-name {
+    @apply text-lg font-semibold text-white;
+  }
+
+  .dash-queue-info {
+    @apply text-sm text-slate-400;
+  }
+
+  .dash-queue-status {
+    @apply ml-auto px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  /* ========================================
+   * CHARTS (placeholders for chart wrappers)
+   * ======================================== */
+  .dash-chart {
+    @apply relative;
+  }
+
+  .dash-chart-legend {
+    @apply flex items-center gap-4 mt-4;
+  }
+
+  .dash-chart-legend-item {
+    @apply flex items-center gap-2 text-sm text-slate-400;
+  }
+
+  .dash-chart-legend-dot {
+    @apply w-3 h-3 rounded-full;
+  }
+
+  /* ========================================
+   * CAROUSEL / MEDIA
+   * ======================================== */
+  .dash-carousel {
+    @apply relative overflow-hidden rounded-xl;
+  }
+
+  .dash-carousel-slide {
+    @apply absolute inset-0 transition-opacity duration-500;
+  }
+
+  .dash-carousel-controls {
+    @apply absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2;
+  }
+
+  .dash-carousel-dot-active {
+    @apply dash-carousel-dot bg-white;
+  }
+
+  /* ========================================
+   * INFO BAR (bottom bar for TV)
+   * ======================================== */
+  .dash-infobar {
+    @apply flex items-center justify-between px-6 py-3
+           bg-slate-900/90 backdrop-blur-sm border-t border-slate-700/50;
+  }
+
+  .dash-infobar-section {
+    @apply flex items-center gap-4;
+  }
+
+  .dash-infobar-status {
+    @apply flex items-center gap-2;
+  }
+
+  .dash-infobar-status-online {
+    @apply dash-infobar-status-dot bg-emerald-500;
+  }
+
+  .dash-infobar-status-offline {
+    @apply dash-infobar-status-dot bg-red-500;
+  }
+
+  /* ========================================
+   * QUICK ACTIONS
+   * ======================================== */
+  .dash-action {
+    @apply flex flex-col items-center gap-2 p-4 rounded-xl
+           bg-slate-800/50 border border-slate-700
+           hover:bg-slate-800 hover:border-slate-600
+           transition-colors cursor-pointer;
+  }
+
+  .dash-action-icon {
+    @apply w-8 h-8 text-slate-400;
+  }
+
+  .dash-action-label {
+    @apply text-sm text-slate-300;
+  }
+}

@@ -96,20 +96,8 @@ jobs:
     needs: integrity-check
     if: always() && (needs.integrity-check.result == 'success' || needs.integrity-check.result == 'skipped')
     steps:
-      - name: Checkout code (main repo)
+      - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup SSH for private submodules
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.AURITY_DEPLOY_KEY }}
-
-      - name: Checkout submodules
-        run: |
-          # Convert HTTPS URLs to SSH for private submodules
-          git config --global url."git@github.com:".insteadOf "https://github.com/"
-          git submodule sync --recursive
-          git submodule update --init --recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -300,7 +288,7 @@ jobs:
       - name: Install Playwright
         run: |
           npm install -g pnpm
-          pnpm install @playwright/test --save-dev
+          pnpm install -w @playwright/test
           npx playwright install chromium
 
       - name: Run E2E Validation (Playwright)
@@ -350,22 +338,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.rollback_to != ''
     steps:
-      - name: Checkout at Tag (main repo)
+      - name: Checkout at Tag
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.rollback_to }}
-
-      - name: Setup SSH for private submodules
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.AURITY_DEPLOY_KEY }}
-
-      - name: Checkout submodules
-        run: |
-          # Convert HTTPS URLs to SSH for private submodules
-          git config --global url."git@github.com:".insteadOf "https://github.com/"
-          git submodule sync --recursive
-          git submodule update --init --recursive
 
       - name: Setup SSH key
         run: |

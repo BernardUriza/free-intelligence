@@ -1,0 +1,98 @@
+{
+  "name": "aurity",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.10.0",
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "next dev -p 9000",
+    "build": "next build",
+    "start": "next start -p 9000",
+    "lint": "eslint --ext .ts,.tsx .",
+    "type-check": "tsc --noEmit",
+    "demo": "ts-node aurity/scripts/demo.ts",
+    "demo:evidence": "ts-node aurity/scripts/export-demo-evidence.ts",
+    "docker:build": "docker build -t aurity:latest -t aurity:0.1.0 .",
+    "docker:run": "docker run -p 3000:3000 --env-file .env.local aurity:latest",
+    "docker:compose:up": "docker-compose up -d",
+    "docker:compose:down": "docker-compose down",
+    "docker:compose:logs": "docker-compose logs -f"
+  },
+  "dependencies": {
+    "@aurity-standalone/api-client": "workspace:*",
+    "@aurity-standalone/auth": "workspace:*",
+    "@aurity-standalone/hooks": "workspace:*",
+    "@aurity-standalone/medical": "workspace:*",
+    "@aurity-standalone/observability": "workspace:*",
+    "@aurity-standalone/types": "workspace:*",
+    "@auth0/auth0-react": "^2.8.0",
+    "@auth0/nextjs-auth0": "^4.13.0",
+    "@heroicons/react": "^2.2.0",
+    "@js-temporal/polyfill": "^0.5.1",
+    "@tanstack/react-virtual": "3.13.12",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "@types/uuid": "11.0.0",
+    "canvas-confetti": "^1.9.4",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^12.23.24",
+    "highlight.js": "^11.11.1",
+    "lucide-react": "^0.548.0",
+    "qrcode": "^1.5.4",
+    "react-dropzone": "^14.3.5",
+    "react-markdown": "^10.1.0",
+    "react-syntax-highlighter": "16.1.0",
+    "recordrtc": "^5.6.2",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1",
+    "sweetalert2": "^11.10.0",
+    "tailwind-merge": "^2.5.5",
+    "uuid": "13.0.0",
+    "yaml": "^2.3.4",
+    "zod": "^4.1.13",
+    "zustand": "5.0.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "msw"
+    ]
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.16",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^20.9.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/parser": "^8.50.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "@vitest/coverage-v8": "^4.0.16",
+    "eslint": "^8.54.0",
+    "eslint-config-next": "16.0.10",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "jsdom": "^27.0.1",
+    "msw": "^2.4.1",
+    "next": "16.0.10",
+    "node-fetch": "^3.3.2",
+    "postcss": "^8.5.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.2.2",
+    "vitest": "^4.0.5"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "name": "@aurity-standalone/api-client",
+  "version": "0.1.0",
+  "description": "API client for Aurity backend - Type-safe HTTP calls with error handling",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./assistant": "./src/assistant.ts",
+    "./checkin": "./src/checkin.ts",
+    "./knowledge": "./src/knowledge.ts",
+    "./llm-models": "./src/llm-models.ts",
+    "./personas": "./src/personas.ts",
+    "./chat-history": "./src/chat-history.ts",
+    "./timeline": "./src/timeline.ts",
+    "./kpis": "./src/kpis.ts",
+    "./medical-workflow": "./src/medical-workflow.ts",
+    "./exports": "./src/exports.ts",
+    "./backend-health": "./src/backend-health.ts"
+  },
+  "keywords": [
+    "api",
+    "client",
+    "http",
+    "healthcare",
+    "aurity",
+    "type-safe"
+  ],
+  "author": "Bernard Uriza Orozco",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BernardUriza/aurity.git",
+    "directory": "packages/api-client"
+  },
+  "peerDependencies": {
+    "@aurity-standalone/types": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

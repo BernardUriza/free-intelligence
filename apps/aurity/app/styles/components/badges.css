@@ -1,0 +1,166 @@
+/**
+ * Badges - Badges, chips, status indicators, dots
+ */
+
+@layer components {
+  /* ========================================
+   * BADGE VARIANTS
+   * ======================================== */
+  .fi-badge-primary { @apply fi-badge bg-emerald-900/30 text-emerald-300 border border-emerald-700/50; }
+  .fi-badge-secondary { @apply fi-badge bg-slate-700 text-slate-300; }
+  .fi-badge-warning { @apply fi-badge bg-amber-900/30 text-amber-300 border border-amber-700/50; }
+  .fi-badge-danger { @apply fi-badge bg-red-900/30 text-red-300 border border-red-700/50; }
+  .fi-badge-info { @apply fi-badge bg-blue-900/30 text-blue-300 border border-blue-700/50; }
+
+  /* ========================================
+   * STATUS STATES
+   * ======================================== */
+  .fi-state-pending { @apply fi-state-base bg-slate-700/50 border-slate-600; }
+  .fi-state-active { @apply fi-state-base bg-cyan-500/10 border-cyan-500/30 animate-pulse; }
+  .fi-state-complete { @apply fi-state-base bg-green-500/10 border-green-500/30; }
+  .fi-state-failed { @apply fi-state-base bg-red-500/10 border-red-500/30; }
+
+  /* ========================================
+   * STATUS PILLS
+   * ======================================== */
+  .fi-status-pill-success { @apply fi-status-pill bg-emerald-500/10 border-emerald-500/30 text-emerald-300; }
+  .fi-status-pill-error { @apply fi-status-pill bg-red-500/10 border-red-500/30 text-red-300; }
+  .fi-status-pill-warning { @apply fi-status-pill bg-amber-500/10 border-amber-500/30 text-amber-300; }
+  .fi-status-pill-info { @apply fi-status-pill bg-cyan-500/10 border-cyan-500/30 text-cyan-300; }
+
+  /* ========================================
+   * STATUS BADGES (ON/OFF)
+   * ======================================== */
+  .fi-status-badge-active { @apply fi-status-badge bg-green-500/20 text-green-400 border-green-500/30; }
+  .fi-status-badge-inactive { @apply fi-status-badge bg-slate-700/50 text-slate-400 border-slate-600/30; }
+
+  /* ========================================
+   * STATUS DOTS
+   * ======================================== */
+  .fi-status-dot-active { @apply fi-status-dot bg-green-400 animate-pulse; }
+  .fi-status-dot-inactive { @apply fi-status-dot bg-slate-500; }
+  .fi-dot-online { @apply fi-dot bg-green-500; }
+  .fi-dot-pulse-emerald { @apply fi-dot-pulse bg-emerald-500 absolute -top-1 -right-1; }
+  .fi-dot-pulse-red { @apply fi-dot-pulse bg-red-500 absolute -top-1 -right-1; }
+  .fi-dot-streaming-active { @apply w-2 h-2 rounded-full bg-cyan-400 animate-pulse; }
+  .fi-dot-streaming-paused { @apply w-2 h-2 rounded-full bg-yellow-400; }
+
+  /* ========================================
+   * CHIP VARIANTS
+   * ======================================== */
+  .fi-chip-cyan { @apply fi-chip bg-cyan-500/10 border border-cyan-500/20 text-cyan-300; }
+  .fi-chip-emerald { @apply fi-chip bg-emerald-500/20 border border-emerald-500/30 text-emerald-300; }
+  .fi-chip-purple { @apply fi-chip bg-purple-500/10 border border-purple-500/20 text-purple-300; }
+  .fi-chip-amber { @apply fi-chip bg-amber-500/10 border border-amber-500/20 text-amber-300; }
+
+  /* ========================================
+   * INFO BLOCK VARIANTS
+   * ======================================== */
+  .fi-info-block-cyan { @apply fi-info-block bg-cyan-500/10 border-cyan-500/20; }
+  .fi-info-block-purple { @apply fi-info-block bg-purple-500/10 border-purple-500/20; }
+  .fi-info-block-amber { @apply fi-info-block bg-amber-500/10 border-amber-500/20; }
+  .fi-info-block-emerald { @apply fi-info-block bg-emerald-500/10 border-emerald-500/20; }
+
+  /* ========================================
+   * DIFFICULTY BADGES
+   * ======================================== */
+  .fi-difficulty-easy { @apply fi-difficulty-badge bg-green-900/30 text-green-300 border-green-700/40; }
+  .fi-difficulty-medium { @apply fi-difficulty-badge bg-yellow-900/30 text-yellow-300 border-yellow-700/40; }
+  .fi-difficulty-hard { @apply fi-difficulty-badge bg-red-900/30 text-red-300 border-red-700/40; }
+
+  /* ========================================
+   * COUNT BADGE
+   * ======================================== */
+  .fi-count-badge { @apply px-2 py-0.5 rounded-full text-xs font-bold; }
+
+  /* ========================================
+   * PERSONA CHIP
+   * ======================================== */
+  .fi-persona-chip {
+    @apply inline-flex items-center gap-1
+           px-1.5 sm:px-2 py-0.5 rounded-full
+           text-[10px] sm:text-xs border;
+  }
+
+  /* ========================================
+   * ROLE BADGES
+   * ======================================== */
+  .fi-role-badge { @apply px-2 py-1 text-white text-xs font-medium rounded; }
+  .fi-role-badge-lg { @apply px-3 py-1 text-white text-xs font-medium rounded; }
+
+  /* ========================================
+   * QUEUE BADGES
+   * ======================================== */
+  .fi-queue-badge {
+    @apply px-3 py-2 rounded-lg text-sm font-mono font-medium transition-all
+           bg-slate-700 text-slate-400 border border-slate-600;
+  }
+
+  .fi-queue-badge-next {
+    @apply px-3 py-2 rounded-lg text-sm font-mono font-medium transition-all
+           bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 cursor-pointer;
+  }
+
+  .fi-queue-badge-active {
+    @apply px-3 py-2 rounded-lg text-sm font-mono font-medium
+           bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-2;
+  }
+
+  /* ========================================
+   * INTERIM BADGE
+   * ======================================== */
+  .fi-interim-badge {
+    @apply px-3 py-1 bg-blue-500/10 text-blue-300 rounded-lg text-xs italic border border-blue-500/20;
+  }
+
+  /* ========================================
+   * STREAMING COUNTERS
+   * ======================================== */
+  .fi-counter-streaming-active { @apply text-xs ml-auto text-cyan-400; }
+  .fi-counter-streaming-paused { @apply text-xs ml-auto text-yellow-400; }
+
+  /* ========================================
+   * CURSOR BLINK
+   * ======================================== */
+  .fi-cursor-blink {
+    @apply inline-block w-0.5 h-4 ml-1 bg-cyan-400;
+    animation: blink 1s step-end infinite;
+  }
+
+  /* ========================================
+   * ICON SIZING AND COLORS
+   * ======================================== */
+  .fi-icon { @apply flex-shrink-0; }
+  .fi-icon-xs { @apply w-3 h-3; }
+  .fi-icon-sm { @apply w-4 h-4; }
+  .fi-icon-md { @apply w-5 h-5; }
+  .fi-icon-lg { @apply w-6 h-6; }
+  .fi-icon-xl { @apply w-8 h-8; }
+  .fi-icon-emerald { @apply text-emerald-400; }
+  .fi-icon-cyan { @apply text-cyan-400; }
+  .fi-icon-purple { @apply text-purple-400; }
+  .fi-icon-amber { @apply text-amber-400; }
+  .fi-icon-red { @apply text-red-400; }
+  .fi-icon-slate { @apply text-slate-400; }
+
+  /* ========================================
+   * ICON CONTAINERS
+   * ======================================== */
+  .fi-icon-container { @apply w-12 h-12 rounded-xl flex items-center justify-center; }
+  .fi-icon-container-sm { @apply w-10 h-10 rounded-lg flex items-center justify-center; }
+  .fi-icon-gradient-emerald { @apply w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-emerald-500/20 to-cyan-500/20; }
+  .fi-icon-gradient-cyan { @apply w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-cyan-500/20 to-purple-500/20; }
+  .fi-icon-circle { @apply rounded-full flex items-center justify-center; }
+  .fi-icon-circle-lg { @apply w-16 h-16 rounded-full flex items-center justify-center; }
+  .fi-icon-circle-xl { @apply w-24 h-24 rounded-full flex items-center justify-center; }
+  .fi-icon-circle-indigo { @apply rounded-full flex items-center justify-center bg-gradient-to-br from-indigo-600/20 to-purple-600/20; }
+  .fi-icon-circle-emerald { @apply rounded-full flex items-center justify-center bg-gradient-to-br from-emerald-600/20 to-green-600/20; }
+  .fi-icon-circle-emerald-pulse { @apply rounded-full flex items-center justify-center bg-gradient-to-br from-emerald-600/30 to-green-600/30 animate-pulse; }
+
+  /* ========================================
+   * AVATAR SIZES
+   * ======================================== */
+  .fi-avatar-sm { @apply fi-avatar w-8 h-8 text-xs; }
+  .fi-avatar-md { @apply fi-avatar w-12 h-12 text-sm; }
+  .fi-avatar-lg { @apply fi-avatar w-20 h-20 text-xl; }
+}

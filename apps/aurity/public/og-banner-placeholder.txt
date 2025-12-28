@@ -1,0 +1,19 @@
+TODO: Create Open Graph banner image
+
+Recommended specs:
+- Dimensions: 1200x630 pixels
+- Format: PNG or JPG
+- File size: < 1MB
+- Content ideas:
+  * Free Intelligence logo
+  * Tagline: "Asistente Médico con IA · Soberanía de Datos"
+  * Visual: Medical + Technology aesthetic
+  * Colors: Purple/Blue gradient (matching app theme)
+  * Icons: Stethoscope + Shield (medical + sovereignty)
+
+Design tools:
+- Canva: https://www.canva.com/create/og-image/
+- Figma: Create 1200x630 frame
+- Photoshop/GIMP
+
+Once created, save as: /public/og-banner.png

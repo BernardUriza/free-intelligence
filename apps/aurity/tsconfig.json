@@ -1,0 +1,64 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "es6"
+    ],
+    "downlevelIteration": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@aurity-standalone/api-client": ["./packages/api-client/src"],
+      "@aurity-standalone/api-client/*": ["./packages/api-client/src/*"],
+      "@aurity-standalone/auth": ["./packages/auth/src"],
+      "@aurity-standalone/hooks": ["./packages/hooks/src"],
+      "@aurity-standalone/hooks/*": ["./packages/hooks/src/*"],
+      "@aurity-standalone/medical": ["./packages/medical/src"],
+      "@aurity-standalone/medical/*": ["./packages/medical/src/*"],
+      "@aurity-standalone/observability": ["./packages/observability/src"],
+      "@aurity-standalone/types": ["./packages/types/src"],
+      "@aurity-standalone/types/*": ["./packages/types/src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    ".next/dev/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "__tests__/**",
+    "**/tests/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "examples/**",
+    "mocks/**",
+    "docs/examples/**"
+  ]
+}

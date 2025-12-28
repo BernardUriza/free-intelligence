@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate OG Banner - Free Intelligence</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        #banner {
+            width: 1200px;
+            height: 630px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .gradient-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 40%, rgba(139, 92, 246, 0.3) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 60%, rgba(59, 130, 246, 0.3) 0%, transparent 50%);
+        }
+        .content {
+            position: relative;
+            z-index: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 80px;
+            color: white;
+        }
+        h1 {
+            font-size: 72px;
+            font-weight: 900;
+            margin: 0 0 20px 0;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+        }
+        .tagline {
+            font-size: 36px;
+            font-weight: 300;
+            margin: 0 0 40px 0;
+            opacity: 0.95;
+        }
+        .features {
+            display: flex;
+            gap: 40px;
+            font-size: 20px;
+            font-weight: 500;
+        }
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .logo {
+            position: absolute;
+            top: 60px;
+            right: 80px;
+            font-size: 24px;
+            font-weight: 700;
+            opacity: 0.8;
+            letter-spacing: 0.05em;
+        }
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #667eea;
+            color: white;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        .instructions {
+            margin-top: 30px;
+            color: #cbd5e1;
+            max-width: 1200px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div id="banner">
+        <div class="gradient-overlay"></div>
+        <div class="content">
+            <div class="logo">AURITY</div>
+            <h1>Free Intelligence</h1>
+            <div class="tagline">Asistente Médico con IA · Soberanía de Datos</div>
+            <div class="features">
+                <div class="feature">
+                    <div class="icon">🩺</div>
+                    <span>Notas SOAP</span>
+                </div>
+                <div class="feature">
+                    <div class="icon">🔒</div>
+                    <span>Tu Infraestructura</span>
+                </div>
+                <div class="feature">
+                    <div class="icon">🧠</div>
+                    <span>IA Médica</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="downloadBanner()">📥 Descargar Banner (PNG)</button>
+        <button onclick="copyToClipboard()">📋 Copiar Instrucciones</button>
+    </div>
+
+    <div class="instructions">
+        <h3>📌 Instrucciones:</h3>
+        <ol>
+            <li><strong>Opción 1 (Rápida):</strong> Click en "Descargar Banner" para guardar este diseño básico como PNG</li>
+            <li><strong>Opción 2 (Profesional):</strong> Usa Canva/Figma con estas dimensiones: 1200x630px</li>
+            <li>Guarda el archivo como: <code>/public/og-banner.png</code></li>
+            <li>El metadata en <code>layout.tsx</code> ya está configurado para usar <code>/og-banner.png</code></li>
+            <li>Prueba compartiendo la URL en WhatsApp: <code>https://app.aurity.io</code></li>
+        </ol>
+    </div>
+
+    <script>
+        async function downloadBanner() {
+            const banner = document.getElementById('banner');
+
+            // Use html2canvas library
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            script.onload = async () => {
+                const canvas = await html2canvas(banner, {
+                    scale: 1,
+                    backgroundColor: null,
+                    logging: false,
+                });
+
+                const link = document.createElement('a');
+                link.download = 'og-banner.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+
+                alert('✅ Banner descargado! Guárdalo como: /public/og-banner.png');
+            };
+            document.head.appendChild(script);
+        }
+
+        function copyToClipboard() {
+            const instructions = `
+Metadata Open Graph configurado en layout.tsx:
+
+✅ Título: Free Intelligence · AURITY
+✅ Descripción: Asistente médico con IA que vive en tu NAS
+✅ URL: https://app.aurity.io
+✅ Imagen: /og-banner.png (1200x630)
+✅ Locale: es_MX
+
+Próximos pasos:
+1. Descarga el banner usando el botón "Descargar Banner"
+2. Guárdalo como: /public/og-banner.png
+3. Haz deploy del frontend
+4. Prueba compartiendo en WhatsApp
+
+Herramientas profesionales:
+- Canva: https://www.canva.com/create/og-image/
+- Figma: Crear frame de 1200x630px
+            `;
+            navigator.clipboard.writeText(instructions).then(() => {
+                alert('📋 Instrucciones copiadas al portapapeles!');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,247 @@
+/**
+ * Layout Domain Styles
+ * AURITY Design System
+ *
+ * Naming convention: layout-{component}[-variant]
+ * Examples: layout-header, layout-split-panel
+ *
+ * @utility defines base classes that can be composed with @apply
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility layout-geometric-blob {
+  @apply absolute w-[600px] h-[600px] rounded-full blur-3xl;
+}
+
+@layer components {
+  /* ========================================
+   * PAGE HEADER
+   * ======================================== */
+  .layout-header {
+    @apply h-14 sticky top-0 z-50 bg-slate-950/80 backdrop-blur-2xl
+           backdrop-saturate-150 border-b border-white/[0.06];
+  }
+
+  .layout-header-inner {
+    @apply h-full max-w-7xl mx-auto px-3 flex items-center justify-between gap-2;
+  }
+
+  .layout-header-left {
+    @apply flex items-center gap-2 min-w-0;
+  }
+
+  .layout-header-divider {
+    @apply h-5 w-px bg-white/[0.06];
+  }
+
+  .layout-header-back-btn {
+    @apply flex items-center gap-1.5 text-slate-400/90 hover:text-white/95
+           transition-all duration-300 flex-shrink-0;
+  }
+
+  .layout-header-back-icon {
+    @apply h-4 w-4 transition-transform duration-300;
+  }
+
+  .group:hover .layout-header-back-icon {
+    @apply -translate-x-0.5;
+  }
+
+  .layout-header-title-wrapper {
+    @apply flex items-center gap-1.5 min-w-0;
+  }
+
+  .layout-header-icon {
+    @apply h-4 w-4 flex-shrink-0;
+  }
+
+  .layout-header-title {
+    @apply text-xs font-[550] text-slate-50/95 truncate tracking-[-0.01em];
+  }
+
+  .layout-header-subtitle {
+    @apply ml-1 text-[10px] font-[400] text-slate-400/80;
+  }
+
+  .layout-header-subtitle-standalone {
+    @apply text-[10px] font-[400] text-slate-400/80;
+  }
+
+  .layout-header-metrics {
+    @apply hidden md:flex items-center gap-2 flex-shrink-0;
+  }
+
+  .layout-header-metric {
+    @apply flex items-center gap-1 px-2 py-1 rounded-lg text-[11px]
+           backdrop-blur-xl transition-all duration-300
+           bg-white/[0.03] border border-white/[0.06] text-slate-400/90
+           hover:bg-white/[0.06] hover:border-white/[0.10];
+  }
+
+  .layout-header-metric-primary {
+    @apply flex items-center gap-1 px-2 py-1 rounded-lg text-[11px]
+           backdrop-blur-xl transition-all duration-300
+           bg-blue-500/[0.08] border border-blue-400/[0.15] text-blue-300/95
+           hover:bg-blue-500/[0.12] hover:border-blue-400/[0.25];
+  }
+
+  .layout-header-metric-icon {
+    @apply w-3 h-3 text-slate-500/90;
+  }
+
+  .layout-header-metric-icon-primary {
+    @apply w-3 h-3 text-blue-400/90;
+  }
+
+  .layout-header-metric-value {
+    @apply font-[500] whitespace-nowrap tracking-[-0.01em];
+  }
+
+  .layout-header-right {
+    @apply flex items-center gap-2 flex-shrink-0;
+  }
+
+  /* ========================================
+   * ACRONYM
+   * ======================================== */
+  .layout-acronym {
+    @apply hidden lg:flex items-center gap-2 text-[11px] text-slate-400 ml-2;
+  }
+
+  .layout-acronym-word {
+    @apply whitespace-nowrap;
+  }
+
+  .layout-acronym-letter {
+    @apply font-semibold text-emerald-400;
+  }
+
+  .layout-acronym-dot {
+    @apply text-slate-600;
+  }
+
+  /* ========================================
+   * SPLIT VIEW
+   * ======================================== */
+  .layout-split-grid {
+    @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+  }
+
+  .layout-split-panel {
+    @apply bg-slate-800 rounded-lg overflow-hidden flex flex-col;
+  }
+
+  .layout-split-header {
+    @apply bg-slate-700 px-4 py-3 flex justify-between items-center;
+  }
+
+  .layout-split-title {
+    @apply text-lg font-semibold text-slate-100;
+  }
+
+  .layout-split-meta {
+    @apply text-sm text-slate-400;
+  }
+
+  .layout-split-content {
+    @apply p-4 overflow-auto flex-1 max-h-[600px];
+  }
+
+  .layout-split-empty {
+    @apply text-slate-500 italic p-4 bg-slate-800/50 rounded;
+  }
+
+  /* ========================================
+   * APP TEMPLATE
+   * ======================================== */
+  .layout-page-container {
+    @apply min-h-screen relative overflow-hidden;
+  }
+
+  .layout-page-container-fullheight {
+    @apply h-screen h-[100dvh] flex flex-col relative overflow-hidden;
+  }
+
+  .layout-page-bg-slate {
+    @apply bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950;
+  }
+
+  .layout-page-bg-emerald {
+    @apply bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950;
+  }
+
+  .layout-page-bg-purple {
+    @apply bg-gradient-to-br from-purple-950 via-slate-900 to-slate-950;
+  }
+
+  .layout-page-bg-none {
+    @apply bg-slate-950;
+  }
+
+  .layout-main {
+    @apply relative z-10;
+  }
+
+  .layout-main-fullheight {
+    @apply relative z-10 overflow-hidden flex flex-col;
+  }
+
+  /* Geometric background */
+  .layout-geometric-bg {
+    @apply fixed inset-0 opacity-[0.02] pointer-events-none;
+  }
+
+  .layout-geometric-blob-1 {
+    @apply layout-geometric-blob bg-emerald-400 top-1/4 left-1/3;
+  }
+
+  .layout-geometric-blob-2 {
+    @apply layout-geometric-blob bg-cyan-400 bottom-1/4 right-1/3;
+  }
+
+  /* Watermark */
+  .layout-watermark {
+    @apply fixed inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none;
+  }
+
+  .layout-watermark-logo {
+    @apply w-auto h-auto max-w-[60%];
+  }
+
+  /* Max width classes */
+  .layout-max-7xl {
+    @apply max-w-7xl mx-auto;
+  }
+
+  .layout-max-5xl {
+    @apply max-w-5xl mx-auto;
+  }
+
+  .layout-max-3xl {
+    @apply max-w-3xl mx-auto;
+  }
+
+  .layout-max-full {
+    @apply w-full;
+  }
+
+  /* Padding classes */
+  .layout-p-0 {
+    @apply p-0;
+  }
+
+  .layout-p-4 {
+    @apply p-4;
+  }
+
+  .layout-p-6 {
+    @apply p-6;
+  }
+
+  .layout-p-8 {
+    @apply p-8;
+  }
+}

@@ -1,0 +1,216 @@
+/**
+ * Cards - Cards, panels, modals, sections
+ */
+
+@utility fi-panel {
+  @apply bg-slate-800 border border-slate-700 rounded-lg;
+}
+
+@layer components {
+  /* ========================================
+   * CARD VARIANTS
+   * ======================================== */
+  .fi-card-solid { @apply bg-slate-800 rounded-lg p-4 border border-slate-700; }
+  .fi-card-xl { @apply bg-slate-800 rounded-xl p-6 border border-slate-700; }
+  .fi-card-section { @apply bg-slate-800/50 rounded-xl p-6 border border-slate-700; }
+  .fi-card-compact { @apply bg-slate-800/50 rounded-lg p-3 border border-slate-700; }
+  .fi-note { @apply bg-slate-800/50 rounded-lg p-3 border border-slate-700/50; }
+  /* fi-panel defined as @utility above */
+  .fi-card-mini { @apply p-2 bg-slate-800/50 rounded border border-slate-700; }
+  .fi-card-interactive { @apply fi-card hover:bg-slate-800/70 hover:border-slate-600 transition-colors cursor-pointer; }
+  .fi-card-header { @apply flex items-center justify-between mb-4 pb-3 border-b border-slate-700; }
+  .fi-card-body { @apply space-y-4; }
+  .fi-card-footer { @apply flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-700; }
+
+  /* Extended Card Variants */
+  .fi-card-xl-lg { @apply bg-slate-800 rounded-xl p-8 border border-slate-700; }
+  .fi-card-xl-md { @apply bg-slate-800 rounded-xl p-6 border border-slate-700; }
+  .fi-card-xl-sm { @apply bg-slate-800 rounded-xl p-4 border border-slate-700; }
+  .fi-card-xl-center { @apply bg-slate-800 rounded-xl p-12 border border-slate-700 text-center; }
+  .fi-card-dark { @apply bg-slate-900/50 rounded-lg p-4 border border-slate-700; }
+  .fi-card-dark-sm { @apply bg-slate-900/50 rounded-lg p-3 border border-slate-700; }
+  .fi-card-danger { @apply bg-slate-800 rounded-xl p-4 border border-red-500/30; }
+  .fi-card-alert-danger { @apply bg-red-900/20 rounded-xl p-6 border border-red-700/30 flex items-center gap-3; }
+  .fi-card-alert-cyan { @apply bg-cyan-900/20 rounded-xl p-6 border border-cyan-700/30 flex items-center gap-3; }
+  .fi-card-warning { @apply bg-slate-800 rounded-xl p-6 border border-yellow-500/30; }
+  .fi-card-success { @apply bg-slate-900/70 rounded-lg p-4 border border-emerald-500/30; }
+  .fi-card-cyan { @apply bg-slate-900/50 rounded-lg p-4 border border-cyan-500/20; }
+  .fi-card-yellow { @apply bg-slate-900/50 rounded-lg p-4 border border-yellow-500/20; }
+  .fi-card-red { @apply bg-slate-900/50 rounded-lg p-4 border border-red-500/20; }
+
+  /* Interactive Cards (with hover effects) - add 'group' class in JSX for group-hover effects */
+  .fi-card-interactive-emerald {
+    @apply relative p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl
+           hover:border-emerald-500/50 hover:bg-emerald-500/5
+           transition-all text-left overflow-hidden cursor-pointer;
+  }
+
+  .fi-card-interactive-cyan {
+    @apply p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl
+           hover:border-cyan-500/50 hover:bg-cyan-500/5
+           transition-all cursor-pointer;
+  }
+
+  /* Streaming Cards */
+  .fi-card-streaming-active { @apply fi-card-streaming border-cyan-500/30; }
+  .fi-card-streaming-paused { @apply fi-card-streaming border-yellow-500/30; }
+
+  /* ========================================
+   * MODALS
+   * ======================================== */
+  .fi-modal-backdrop { @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4; }
+  .fi-modal-sm { @apply fi-modal-card max-w-md; }
+  .fi-modal-md { @apply fi-modal-card max-w-2xl; }
+  .fi-modal-lg { @apply fi-modal-card max-w-4xl; }
+  .fi-modal-xl { @apply fi-modal-card max-w-6xl; }
+  .fi-modal-header { @apply flex items-center justify-between p-4 border-b border-slate-700; }
+  .fi-modal-body { @apply p-4 overflow-y-auto; }
+  .fi-modal-footer { @apply flex items-center justify-end gap-2 p-4 border-t border-slate-700; }
+
+  /* ========================================
+   * SLIDE-OVER PANELS
+   * ======================================== */
+  .fi-panel-slide {
+    @apply absolute inset-y-0 right-0
+           w-full sm:w-[90%] md:w-[80%] lg:w-[70%] xl:w-[60%]
+           bg-slate-900 shadow-2xl overflow-y-auto;
+  }
+
+  .fi-panel-slide-header {
+    @apply sticky top-0 z-10 bg-slate-900 fi-border-bottom p-4 sm:p-6;
+  }
+
+  .fi-panel-slide-narrow {
+    @apply absolute inset-y-0 right-0
+           w-full sm:w-[80%] md:w-[60%] lg:w-[50%] xl:w-[40%]
+           bg-slate-900 shadow-2xl overflow-y-auto;
+  }
+
+  .fi-panel-slide-full {
+    @apply absolute inset-0 bg-slate-900 shadow-2xl overflow-y-auto;
+  }
+
+  /* ========================================
+   * SECTION CONTAINERS
+   * ======================================== */
+  .fi-section-card {
+    @apply bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden;
+  }
+
+  .fi-section-card-xl {
+    @apply p-4 bg-slate-800/50 border border-slate-700 rounded-xl;
+  }
+
+  .fi-section-card-p6 {
+    @apply bg-slate-800/50 border border-slate-700 rounded-lg p-6;
+  }
+
+  .fi-section-interactive {
+    @apply p-4 bg-slate-800/50 border border-slate-700 rounded-xl hover:border-slate-600 transition-colors;
+  }
+
+  /* Mini Card */
+  .fi-mini-card {
+    @apply flex-1 xl:flex-none min-w-[220px] bg-slate-800/50 border border-slate-700 rounded-xl px-3 py-2;
+  }
+
+  /* ========================================
+   * STAT CARDS
+   * ======================================== */
+  .fi-stat-card { @apply p-4 rounded-xl bg-slate-800/50 border border-slate-700; }
+  .fi-stat-card-sky { @apply p-4 rounded-xl bg-sky-950/30 border border-sky-700/30; }
+  .fi-stat-card-emerald { @apply p-4 rounded-xl bg-emerald-950/30 border border-emerald-700/30; }
+  .fi-stat-value { @apply text-2xl font-bold text-white; }
+  .fi-stat-label { @apply text-xs text-slate-400; }
+
+  /* ========================================
+   * OPTION/SURVEY CARDS
+   * ======================================== */
+  .fi-option-card {
+    @apply w-full p-4 rounded-lg border transition-all
+           text-left flex items-center gap-4
+           bg-slate-900/50 border-slate-700 hover:border-slate-600;
+  }
+
+  .fi-option-card-selected {
+    @apply w-full p-4 rounded-lg border transition-all
+           text-left flex items-center gap-4
+           bg-emerald-500/20 border-emerald-500 hover:border-emerald-500;
+  }
+
+  .fi-survey-card {
+    @apply p-4 rounded-xl border-2 transition-all
+           border-slate-700/50 bg-slate-900/40 hover:border-slate-600;
+  }
+
+  .fi-survey-card-selected {
+    @apply p-4 rounded-xl border-2 transition-all
+           border-emerald-500 bg-emerald-950/30;
+  }
+
+  /* ========================================
+   * ACTION CARDS
+   * ======================================== */
+  .fi-action-card {
+    @apply p-4 rounded-xl border transition-all
+           bg-slate-800/50 border-slate-700;
+  }
+
+  .fi-action-card-complete {
+    @apply p-4 rounded-xl border transition-all
+           bg-emerald-950/20 border-emerald-600/30;
+  }
+
+  .fi-action-card-skipped {
+    @apply p-4 rounded-xl border transition-all
+           bg-slate-800/30 border-slate-700/50 opacity-60;
+  }
+
+  .fi-action-icon-box {
+    @apply w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
+           bg-slate-700/50;
+  }
+
+  .fi-action-icon-box-complete {
+    @apply w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
+           bg-emerald-600/20;
+  }
+
+  /* ========================================
+   * DOC CARDS
+   * ======================================== */
+  .fi-doc-card {
+    @apply p-4 sm:p-5 rounded-lg sm:rounded-xl
+           border border-slate-700/50 bg-slate-800/50
+           hover:border-slate-600 hover:bg-slate-800/70
+           transition-all duration-200;
+  }
+
+  .fi-doc-card-list {
+    @apply p-4 sm:p-5 rounded-lg sm:rounded-xl
+           border border-slate-700/50 bg-slate-800/50
+           hover:border-slate-600 hover:bg-slate-800/70
+           transition-all duration-200
+           flex flex-col sm:flex-row sm:items-center gap-4;
+  }
+
+  /* ========================================
+   * GLASSMORPHISM
+   * ======================================== */
+  .glass-sm { @apply bg-slate-800/60 backdrop-blur-sm; }
+  .glass-dark { @apply bg-slate-900/95 backdrop-blur-sm; }
+  .glass-chat { @apply bg-slate-800/60 backdrop-blur-sm border border-slate-700/50; }
+
+  /* ========================================
+   * SHADOW GLOW EFFECTS
+   * ======================================== */
+  .shadow-glow-emerald { @apply shadow-lg shadow-emerald-500/20; }
+  .shadow-glow-amber { @apply shadow-lg shadow-amber-500/25; }
+  .shadow-glow-purple { @apply shadow-xl shadow-purple-500/10; }
+
+  /* ========================================
+   * SELECTED STATES
+   * ======================================== */
+  .fi-selected { @apply border-emerald-500 bg-emerald-950/30 shadow-lg shadow-emerald-500/20; }
+  .fi-unselected { @apply border-slate-700/50 bg-slate-900/40 hover:border-slate-600; }
+}
