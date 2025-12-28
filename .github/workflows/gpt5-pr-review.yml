@@ -78,12 +78,12 @@ jobs:
           SYSTEM_ESCAPED=$(echo "$SYSTEM_MSG" | jq -Rs .)
           USER_ESCAPED=$(echo "$USER_MSG" | jq -Rs .)
 
-          # Call Azure OpenAI
+          # Call Azure OpenAI (GPT-5-mini only supports temperature=1, so we omit it)
           HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/response.json \
             "${AZURE_ENDPOINT}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
             -H "Content-Type: application/json" \
             -H "api-key: $AZURE_KEY" \
-            -d "{\"messages\":[{\"role\":\"system\",\"content\":$SYSTEM_ESCAPED},{\"role\":\"user\",\"content\":$USER_ESCAPED}],\"max_completion_tokens\":4000,\"temperature\":0.3}")
+            -d "{\"messages\":[{\"role\":\"system\",\"content\":$SYSTEM_ESCAPED},{\"role\":\"user\",\"content\":$USER_ESCAPED}],\"max_completion_tokens\":4000}")
 
           if [ "$HTTP_CODE" != "200" ]; then
             echo "::warning::Azure API returned $HTTP_CODE - defaulting to APPROVE (fail-open)"
