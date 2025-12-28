@@ -1,11 +1,15 @@
 name: Deploy to DigitalOcean
 
+# ⚠️ DEPRECATED: This workflow is obsolete
+# Use deploy-production.yml instead (rsync-based, no Docker)
+# Disabled to prevent confusion with the active deploy pipeline
+
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-    types: [ closed ]
+  workflow_dispatch:  # Manual trigger only, not auto-triggered
+    inputs:
+      confirm:
+        description: 'Type CONFIRM to run this deprecated workflow'
+        required: true
 
 jobs:
   test:
