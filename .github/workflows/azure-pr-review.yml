@@ -1,0 +1,155 @@
+# =============================================================================
+# Azure OpenAI PR Review (GPT-5-mini)
+# =============================================================================
+# AI-powered code review using Azure OpenAI GPT-5-mini
+#
+# Setup:
+# 1. Deploy gpt-5-mini in Azure OpenAI (done!)
+# 2. Add AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY to GitHub Secrets (done!)
+# =============================================================================
+
+name: Azure PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+
+concurrency:
+  group: azure-review-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: GPT-5 Code Review
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '@gpt'))
+
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR diff
+        id: diff
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_NUMBER=${{ github.event.pull_request.number }}
+          else
+            PR_NUMBER=${{ github.event.issue.number }}
+          fi
+
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+          # Get the diff
+          gh pr diff $PR_NUMBER > /tmp/pr_diff.txt 2>/dev/null || echo "No diff available" > /tmp/pr_diff.txt
+
+          # Get PR info
+          gh pr view $PR_NUMBER --json title,body,files --jq '{title: .title, body: .body, files: [.files[].path]}' > /tmp/pr_info.json
+
+          echo "Got PR #$PR_NUMBER diff and info"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Review with GPT-5-mini
+        id: review
+        run: |
+          # Read PR info
+          PR_TITLE=$(jq -r '.title' /tmp/pr_info.json)
+          PR_BODY=$(jq -r '.body // "No description"' /tmp/pr_info.json)
+          PR_FILES=$(jq -r '.files | join(", ")' /tmp/pr_info.json)
+          DIFF=$(head -c 50000 /tmp/pr_diff.txt)  # Limit diff size
+
+          # Create the prompt
+          PROMPT=$(cat <<'PROMPT_EOF'
+You are reviewing a pull request. Analyze the changes and provide a concise review.
+
+## PR Title: $PR_TITLE
+
+## Files Changed: $PR_FILES
+
+## Description:
+$PR_BODY
+
+## Diff:
+```diff
+$DIFF
+```
+
+Please provide:
+1. **Summary** (1-2 sentences): What does this PR do?
+2. **Code Quality** (bullet points): Any bugs, security issues, or improvements?
+3. **Verdict**: APPROVE, REQUEST_CHANGES, or COMMENT
+
+Be concise and constructive. Focus on important issues only.
+PROMPT_EOF
+)
+
+          # Replace variables in prompt
+          PROMPT="${PROMPT//\$PR_TITLE/$PR_TITLE}"
+          PROMPT="${PROMPT//\$PR_FILES/$PR_FILES}"
+          PROMPT="${PROMPT//\$PR_BODY/$PR_BODY}"
+          PROMPT="${PROMPT//\$DIFF/$DIFF}"
+
+          # Escape for JSON
+          PROMPT_JSON=$(echo "$PROMPT" | jq -Rs .)
+
+          # Call Azure OpenAI
+          RESPONSE=$(curl -s "${{ secrets.AZURE_OPENAI_ENDPOINT }}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
+            -H "Content-Type: application/json" \
+            -H "api-key: ${{ secrets.AZURE_OPENAI_API_KEY }}" \
+            -d "{
+              \"messages\": [
+                {\"role\": \"system\", \"content\": \"You are an expert code reviewer. Be concise and helpful.\"},
+                {\"role\": \"user\", \"content\": $PROMPT_JSON}
+              ],
+              \"max_completion_tokens\": 1000
+            }")
+
+          # Extract the review content
+          REVIEW=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // "Unable to generate review"')
+
+          if [ -z "$REVIEW" ] || [ "$REVIEW" = "null" ]; then
+            echo "Error from API:"
+            echo "$RESPONSE" | jq .
+            REVIEW="Unable to generate review. API response: $(echo $RESPONSE | jq -r '.error.message // "Unknown error"')"
+          fi
+
+          # Save review to file (handles multiline)
+          echo "$REVIEW" > /tmp/review.md
+
+          echo "Review generated successfully"
+
+      - name: Post review comment
+        run: |
+          PR_NUMBER=${{ steps.diff.outputs.pr_number }}
+
+          # Create comment body
+          {
+            echo "## 🤖 GPT-5-mini Code Review"
+            echo ""
+            cat /tmp/review.md
+            echo ""
+            echo "---"
+            echo "*Powered by Azure OpenAI GPT-5-mini*"
+          } > /tmp/comment.md
+
+          # Post comment
+          gh pr comment $PR_NUMBER --body-file /tmp/comment.md
+
+          echo "✅ Review posted to PR #$PR_NUMBER"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
