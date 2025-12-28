@@ -7,7 +7,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, dev]
 
 env:
   PYTHON_VERSION: "3.11"  # Use stable version for CI
