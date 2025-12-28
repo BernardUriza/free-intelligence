@@ -1,0 +1,112 @@
+/**
+ * Feedback - Alerts, callouts, tooltips, loading states
+ */
+
+@layer components {
+  /* ========================================
+   * CALLOUTS (base)
+   * ======================================== */
+  .fi-callout-inner { @apply flex gap-3; }
+  .fi-callout-icon { @apply h-5 w-5 flex-shrink-0 mt-0.5; }
+  .fi-callout-content { @apply flex-1; }
+  .fi-callout-title { @apply font-semibold mb-1; }
+  .fi-callout-body { @apply text-sm text-slate-300; }
+
+  /* ========================================
+   * CALLOUT VARIANTS
+   * ======================================== */
+  .fi-callout-info { @apply fi-callout bg-cyan-500/10 border-cyan-500/30; }
+  .fi-callout-info .fi-callout-icon, .fi-callout-info .fi-callout-title { @apply text-cyan-300; }
+
+  .fi-callout-warning { @apply fi-callout bg-amber-500/10 border-amber-500/30; }
+  .fi-callout-warning .fi-callout-icon, .fi-callout-warning .fi-callout-title { @apply text-amber-300; }
+
+  .fi-callout-error { @apply fi-callout bg-red-500/10 border-red-500/30; }
+  .fi-callout-error .fi-callout-icon, .fi-callout-error .fi-callout-title { @apply text-red-300; }
+
+  .fi-callout-success { @apply fi-callout bg-emerald-500/10 border-emerald-500/30; }
+  .fi-callout-success .fi-callout-icon, .fi-callout-success .fi-callout-title { @apply text-emerald-300; }
+
+  /* ========================================
+   * ALERTS
+   * ======================================== */
+  .fi-alert-inline { @apply flex items-center gap-3 p-4 rounded-lg border; }
+  .fi-alert-success { @apply flex items-center gap-3 p-4 rounded-lg border bg-green-500/10 border-green-500/30; }
+  .fi-alert-warning { @apply flex items-center gap-3 p-4 rounded-lg border bg-amber-500/10 border-amber-500/30; }
+  .fi-alert-danger { @apply flex items-center gap-3 p-4 rounded-lg border bg-red-950/30 border-red-500/30; }
+  .fi-alert-info-box { @apply bg-indigo-950/30 border border-indigo-600/30 rounded-xl p-4; }
+  .fi-alert-error { @apply flex items-start gap-3 p-3 rounded-lg bg-red-950/20 border border-red-800/40 text-sm; }
+
+  /* Compact alerts */
+  .fi-alert-compact-danger { @apply fi-alert-compact bg-red-900/20 border-red-700/30 text-red-400; }
+  .fi-alert-compact-warning { @apply fi-alert-compact bg-amber-900/20 border-amber-700/30 text-amber-400; }
+
+  /* ========================================
+   * TRANSCRIPT ITEMS
+   * ======================================== */
+  .fi-transcript-item-blue { @apply fi-transcript-item bg-blue-500/10 border-blue-500/20 text-blue-200; }
+  .fi-transcript-item-green { @apply fi-transcript-item bg-green-500/10 border-green-500/20 text-green-200; }
+  .fi-transcript-item-purple { @apply fi-transcript-item bg-purple-500/10 border-purple-500/20 text-purple-200; }
+
+  /* ========================================
+   * TOOLTIPS
+   * ======================================== */
+  .fi-tooltip {
+    @apply absolute bottom-full mb-2 hidden
+           bg-slate-900 text-white text-xs rounded px-2 py-1
+           whitespace-nowrap z-10 border border-slate-700;
+  }
+  .group:hover > .fi-tooltip,
+  .group:hover .fi-tooltip { display: block; }
+
+  .fi-tooltip-fade {
+    @apply absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+           opacity-0 transition-opacity
+           pointer-events-none z-10;
+  }
+  .group:hover > .fi-tooltip-fade,
+  .group:hover .fi-tooltip-fade { opacity: 1; }
+
+  .fi-tooltip-timestamp {
+    @apply absolute z-50 px-3 py-1.5
+           bg-slate-800/95 backdrop-blur-sm
+           text-slate-200 text-xs font-medium
+           rounded-lg shadow-xl
+           border border-slate-700/50
+           whitespace-nowrap pointer-events-none
+           -top-10 left-1/2 -translate-x-1/2;
+    animation: fade-in 0.15s ease-out;
+  }
+
+  .fi-tooltip-arrow {
+    @apply absolute -bottom-1 left-1/2 -translate-x-1/2
+           w-2 h-2 rotate-45
+           bg-slate-800/95 border-r border-b border-slate-700/50;
+  }
+
+  .fi-tooltip-right {
+    @apply absolute bottom-full right-0 mb-2
+           px-3 py-1.5 bg-slate-800 text-white text-sm
+           rounded-lg opacity-0 group-hover:opacity-100
+           transition-opacity whitespace-nowrap;
+  }
+
+  /* ========================================
+   * LOADING STATES
+   * ======================================== */
+  .fi-skeleton { @apply bg-slate-700 animate-pulse rounded; }
+  .fi-spinner { @apply animate-spin rounded-full border-2 border-slate-700 border-t-emerald-500; }
+  .fi-progress-bar { @apply h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all; }
+
+  /* ========================================
+   * TYPING INDICATOR
+   * ======================================== */
+  .fi-typing-bubble {
+    @apply flex items-center gap-1.5
+           px-5 py-3 rounded-2xl rounded-tl-sm
+           border border-slate-700/50
+           bg-slate-900/40 backdrop-blur-xl shadow-lg;
+  }
+
+  .fi-typing-dot { @apply w-2 h-2 rounded-full animate-bounce; }
+}

@@ -1,0 +1,64 @@
+/**
+ * Base Layer - Reset & Typography
+ * AURITY Design System
+ */
+
+@layer base {
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Focus visible for accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-emerald-500 ring-offset-2 ring-offset-slate-900;
+  }
+
+  /* Selection color */
+  ::selection {
+    @apply bg-emerald-500/30 text-white;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-600;
+  }
+
+  /* Body defaults */
+  body {
+    @apply bg-slate-950 text-slate-200 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Headings */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold text-white;
+  }
+
+  /* Links */
+  a {
+    @apply text-emerald-400 hover:text-emerald-300 transition-colors;
+  }
+
+  /* Code */
+  code {
+    @apply font-mono text-sm bg-slate-800 px-1.5 py-0.5 rounded;
+  }
+
+  pre code {
+    @apply bg-transparent p-0;
+  }
+}

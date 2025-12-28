@@ -1,0 +1,58 @@
+/**
+ * AURITY Design System - Entry Point (Tailwind v4)
+ *
+ * CSS-first configuration: @import "tailwindcss" provides base/components/utilities.
+ * Custom @theme block defines design tokens (colors, animations, etc.)
+ */
+
+/* ========================================
+ * TAILWIND v4 FOUNDATION
+ * ======================================== */
+@import "tailwindcss";
+
+/* ========================================
+ * THEME CUSTOMIZATION (replaces tailwind.config.js)
+ * ======================================== */
+@theme {
+  /* Custom animations */
+  --animate-marquee: marquee 20s linear infinite;
+  --animate-fade-in: fade-in 0.5s ease-out;
+  --animate-shimmer: shimmer 2s infinite;
+}
+
+/* Custom keyframes (outside @theme) */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ========================================
+ * DESIGN SYSTEM LAYERS
+ * ======================================== */
+@import "./styles/base.css";
+@import "./styles/components/index.css";
+@import "./styles/utilities.css";
+
+/* ========================================
+ * DOMAIN-SPECIFIC STYLES
+ * ======================================== */
+@import "./styles/domains/chat.css";
+@import "./styles/domains/medical.css";
+@import "./styles/domains/admin.css";
+@import "./styles/domains/dashboard.css";
+@import "./styles/domains/layout.css";
+
+/* ========================================
+ * LEGACY STYLES (to be migrated)
+ * ======================================== */
+@import "./medical-styles.css";

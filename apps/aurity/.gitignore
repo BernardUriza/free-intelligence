@@ -1,0 +1,134 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+
+# Production
+/build
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env*.local
+.env
+.env.development
+.env.production
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# =============================================================================
+# AURITY FRAMEWORK - Additional ignores
+# =============================================================================
+
+# Sensitive data and keys
+/aurity/keys/*.pem
+/aurity/keys/*.key
+*.p12
+*.pfx
+secrets.yaml
+secrets.json
+
+# Storage volumes (local development)
+/volume1/
+/aurity/storage/
+/aurity/data/
+
+# Database dumps (but allow config files)
+*.sql
+!aurity/config/**/*.sql
+*.dump
+*.backup
+
+# Logs
+/aurity/logs/
+*.log
+
+# Docker volumes
+/docker/volumes/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# OS files
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Temporary files
+/tmp/
+/temp/
+.cache/
+
+# Test coverage and reports
+/aurity/tests/coverage/
+/aurity/tests/reports/
+
+# Build artifacts
+/aurity/dist/
+/aurity/build/
+
+# PHI data (Protected Health Information) - NEVER COMMIT
+**/phi/**
+**/patient-data/**
+**/consultations/**
+# Allow lib/audio/ source code (error handling), but ignore audio data files elsewhere
+!lib/audio/
+**/audio/**
+!**/audio/**/*.ts
+!**/audio/**/*.tsx
+!**/audio/**/__tests__/**
+**/video/**
+**/documents/**
+**/manifests/**
+
+# Certificates and credentials
+*.crt
+*.cer
+*.der
+credentials.json
+service-account.json
+
+# Auto-generated API clients (regenerate with: npm run generate:api)
+/src/api/public/
+/src/api/internal/
+/src/api/index.ts
+
+# =============================================================================
+# BRYNTUM SCHEDULER PRO - Licensed Assets (FI-CHECKIN-005)
+# =============================================================================
+# These files contain embedded license key and must NOT be committed
+# Download from: https://bryntum.com/products/scheduler/ (requires license)
+# Copy to: public/js/bryntum/ and public/css/bryntum/
+public/js/bryntum/
+public/css/bryntum/
+
+# =============================================================================

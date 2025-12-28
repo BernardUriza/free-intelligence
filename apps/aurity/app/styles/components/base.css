@@ -1,0 +1,688 @@
+/**
+ * Base Utilities - Composable atoms with @apply
+ * These are the foundation for all component variants.
+ */
+
+/* ========================================
+ * CORE UTILITIES
+ * ======================================== */
+
+@utility fi-btn {
+  @apply inline-flex items-center justify-center gap-2
+         px-4 py-2 rounded-lg font-medium
+         transition-all duration-200
+         disabled:opacity-50 disabled:cursor-not-allowed
+         active:scale-95;
+}
+
+@utility fi-input {
+  @apply w-full px-3 py-2 bg-slate-900 border border-slate-700
+         rounded-lg text-white placeholder-slate-500
+         focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent
+         transition-colors;
+}
+
+@utility fi-input-ghost {
+  @apply w-full px-4 py-2 bg-slate-800/50 border border-slate-700
+         rounded-lg text-white placeholder-slate-500
+         focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500
+         transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+@utility fi-input-cyan {
+  @apply w-full px-4 py-2 bg-slate-800 border border-slate-700
+         rounded-lg text-white placeholder-slate-500
+         focus:outline-none focus:border-cyan-500
+         transition-colors;
+}
+
+@utility fi-input-blue {
+  @apply w-full px-3 py-2 bg-slate-900 border border-slate-700
+         rounded-lg text-white placeholder-slate-500
+         focus:outline-none focus:border-blue-500
+         transition-colors;
+}
+
+@utility fi-select {
+  @apply w-full px-4 py-2 bg-slate-800 border border-slate-700
+         rounded-lg text-white
+         focus:outline-none focus:border-cyan-500
+         transition-colors appearance-none cursor-pointer;
+}
+
+@utility fi-input-purple {
+  @apply w-full p-3 bg-slate-800 border border-slate-700
+         rounded-lg text-white placeholder-slate-500
+         focus:outline-none focus:border-purple-500
+         transition-colors;
+}
+
+@utility fi-select-purple {
+  @apply w-full p-3 bg-slate-800 border border-slate-700
+         rounded-lg text-white
+         focus:outline-none focus:border-purple-500
+         transition-colors;
+}
+
+@utility fi-card {
+  @apply bg-slate-800/50 rounded-lg p-4 border border-slate-700;
+}
+
+@utility fi-badge {
+  @apply inline-flex items-center gap-1 px-2 py-0.5
+         rounded-full text-xs font-medium;
+}
+
+@utility fi-modal-card {
+  @apply bg-slate-900 rounded-xl w-full max-h-[90vh] overflow-hidden
+         border border-slate-700 shadow-2xl;
+}
+
+@utility fi-callout {
+  @apply rounded-lg p-4 border;
+}
+
+@utility fi-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+@utility fi-dot-pulse {
+  @apply w-3 h-3 rounded-full animate-pulse;
+}
+
+@utility fi-avatar {
+  @apply rounded-full bg-gradient-to-br from-emerald-600 to-cyan-600
+         flex items-center justify-center text-white font-bold;
+}
+
+@utility fi-btn-cta {
+  @apply fi-btn bg-gradient-to-r from-emerald-600 to-cyan-600
+         hover:from-emerald-500 hover:to-cyan-500
+         text-white font-semibold shadow-lg;
+}
+
+@utility fi-chip {
+  @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium;
+}
+
+@utility fi-nav-badge {
+  @apply px-1.5 py-0.5 text-[10px] font-medium rounded;
+}
+
+@utility fi-difficulty-badge {
+  @apply px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap border;
+}
+
+@utility fi-action-btn {
+  @apply p-1.5 sm:p-2 rounded transition-colors
+         disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+@utility fi-message-container {
+  @apply flex items-start gap-2;
+}
+
+@utility fi-border-top {
+  @apply border-t border-slate-700;
+}
+
+@utility fi-border-bottom {
+  @apply border-b border-slate-700;
+}
+
+@utility fi-tab {
+  @apply px-4 py-3 text-sm font-medium transition-colors;
+}
+
+@utility fi-label-mono {
+  @apply font-mono text-xs font-bold;
+}
+
+@utility fi-tab-pill-active {
+  @apply px-3 py-2 rounded-lg text-sm font-medium transition-all bg-indigo-600 text-white hover:bg-indigo-600;
+}
+
+@utility fi-alert-compact {
+  @apply p-2 rounded text-xs border;
+}
+
+@utility fi-transcript-item {
+  @apply rounded p-2 text-sm border;
+}
+
+@utility fi-info-block {
+  @apply p-3 rounded-lg border;
+}
+
+@utility fi-state-base {
+  @apply p-3 rounded-lg border transition-all duration-300;
+}
+
+@utility fi-status-pill {
+  @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border;
+}
+
+@utility fi-status-badge {
+  @apply px-3 py-1 rounded-full text-xs font-medium transition-colors border;
+}
+
+@utility fi-notification-badge {
+  @apply absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center;
+}
+
+@utility fi-card-streaming {
+  @apply bg-slate-800 rounded-xl p-6 border transition-all duration-300;
+}
+
+@utility fi-status-dot {
+  @apply w-1.5 h-1.5 rounded-full;
+}
+
+@utility fi-footer-disclaimer {
+  @apply px-3 py-1.5 bg-slate-900/50;
+}
+
+@utility fi-text-disclaimer {
+  @apply text-[9px] text-slate-500 text-center leading-tight;
+}
+
+/* ========================================
+ * FLEX UTILITIES
+ * ======================================== */
+
+@utility fi-flex-between {
+  @apply flex items-center justify-between;
+}
+
+@utility fi-flex-center {
+  @apply flex items-center justify-center;
+}
+
+@utility fi-flex-gap {
+  @apply flex items-center gap-2;
+}
+
+@utility fi-flex-gap-sm {
+  @apply flex items-center gap-1;
+}
+
+@utility fi-flex-gap-md {
+  @apply flex items-center gap-3;
+}
+
+@utility fi-flex-gap-lg {
+  @apply flex items-center gap-4;
+}
+
+/* ========================================
+ * BUTTON SIZE XL
+ * ======================================== */
+
+@utility fi-btn-xl {
+  @apply px-8 py-4 text-base rounded-xl shadow-md
+         hover:shadow-lg hover:scale-105 transition-all;
+}
+
+/* ========================================
+ * ICON SIZES
+ * ======================================== */
+
+@utility fi-icon-xs {
+  @apply w-3 h-3;
+}
+
+@utility fi-icon-sm {
+  @apply w-4 h-4;
+}
+
+@utility fi-icon-md {
+  @apply w-5 h-5;
+}
+
+@utility fi-icon-lg {
+  @apply w-6 h-6;
+}
+
+@utility fi-icon-xl {
+  @apply w-8 h-8;
+}
+
+/* ========================================
+ * ADDITIONAL FLEX UTILITIES
+ * ======================================== */
+
+@utility fi-flex-start {
+  @apply flex items-start gap-2;
+}
+
+@utility fi-flex-start-sm {
+  @apply flex items-start gap-1;
+}
+
+@utility fi-flex-start-md {
+  @apply flex items-start gap-3;
+}
+
+@utility fi-flex-col {
+  @apply flex flex-col;
+}
+
+@utility fi-flex-col-gap {
+  @apply flex flex-col gap-2;
+}
+
+@utility fi-flex-col-gap-sm {
+  @apply flex flex-col gap-1;
+}
+
+@utility fi-flex-col-gap-md {
+  @apply flex flex-col gap-3;
+}
+
+@utility fi-flex-col-gap-lg {
+  @apply flex flex-col gap-4;
+}
+
+@utility fi-flex-fill {
+  @apply flex-1 min-w-0;
+}
+
+@utility fi-flex-shrink-0 {
+  @apply flex-shrink-0;
+}
+
+/* ========================================
+ * TEXT UTILITIES
+ * ======================================== */
+
+@utility fi-text-muted {
+  @apply text-slate-400;
+}
+
+@utility fi-text-muted-sm {
+  @apply text-sm text-slate-400;
+}
+
+@utility fi-text-muted-xs {
+  @apply text-xs text-slate-400;
+}
+
+@utility fi-text-label {
+  @apply text-sm font-medium text-slate-400;
+}
+
+@utility fi-text-title {
+  @apply text-lg font-semibold text-white;
+}
+
+@utility fi-text-subtitle {
+  @apply text-sm text-slate-500;
+}
+
+@utility fi-text-heading {
+  @apply text-xl font-bold text-white;
+}
+
+@utility fi-text-mono {
+  @apply font-mono text-sm;
+}
+
+@utility fi-text-mono-xs {
+  @apply font-mono text-xs;
+}
+
+/* ========================================
+ * TAB UTILITIES
+ * ======================================== */
+
+@utility fi-tab-underline {
+  @apply fi-tab border-b-2 border-transparent;
+}
+
+@utility fi-tab-full {
+  @apply flex-1;
+}
+
+@utility fi-tab-centered {
+  @apply flex items-center justify-center gap-2;
+}
+
+@utility fi-tab-with-icon {
+  @apply flex items-center gap-2 whitespace-nowrap;
+}
+
+/* Tab active states by color */
+@utility fi-tab-active-blue {
+  @apply border-blue-500 text-blue-400;
+}
+
+@utility fi-tab-active-cyan {
+  @apply border-cyan-500 text-cyan-300 bg-slate-900/50;
+}
+
+@utility fi-tab-active-emerald {
+  @apply border-emerald-400 text-emerald-400;
+}
+
+/* Tab inactive states */
+@utility fi-tab-inactive {
+  @apply text-slate-400 hover:text-slate-300;
+}
+
+@utility fi-tab-inactive-hover-bg {
+  @apply text-slate-400 hover:text-white hover:bg-slate-900/30;
+}
+
+/* ========================================
+ * GRADIENT UTILITIES
+ * ======================================== */
+
+/* Page backgrounds */
+@utility fi-bg-page {
+  @apply bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950;
+}
+
+@utility fi-bg-page-emerald {
+  @apply bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950;
+}
+
+@utility fi-bg-page-purple {
+  @apply bg-gradient-to-br from-purple-950 via-slate-900 to-slate-950;
+}
+
+/* Card gradients */
+@utility fi-bg-card-subtle {
+  @apply bg-gradient-to-br from-slate-800/40 to-slate-900/40;
+}
+
+@utility fi-bg-card-purple {
+  @apply bg-gradient-to-br from-purple-900/30 to-blue-900/30;
+}
+
+@utility fi-bg-card-emerald {
+  @apply bg-gradient-to-br from-emerald-900/30 to-cyan-900/30;
+}
+
+/* Brand gradients */
+@utility fi-gradient-brand {
+  @apply bg-gradient-to-r from-emerald-500 to-cyan-500;
+}
+
+@utility fi-gradient-brand-hover {
+  @apply bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500;
+}
+
+@utility fi-gradient-text-brand {
+  @apply bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent;
+}
+
+@utility fi-gradient-text-purple {
+  @apply bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent;
+}
+
+/* Avatar gradients */
+@utility fi-bg-avatar-brand {
+  @apply bg-gradient-to-br from-emerald-500/20 to-blue-500/20;
+}
+
+@utility fi-bg-avatar-purple {
+  @apply bg-gradient-to-br from-indigo-600 to-purple-600;
+}
+
+/* ========================================
+ * HOVER UTILITIES
+ * ======================================== */
+
+@utility fi-hover-bg {
+  @apply hover:bg-slate-700 transition-colors;
+}
+
+@utility fi-hover-bg-subtle {
+  @apply hover:bg-slate-800 transition-colors;
+}
+
+@utility fi-hover-bg-dark {
+  @apply hover:bg-slate-900 transition-colors;
+}
+
+@utility fi-hover-ghost {
+  @apply hover:bg-slate-700/50 transition-colors;
+}
+
+@utility fi-hover-text {
+  @apply text-slate-400 hover:text-white transition-colors;
+}
+
+@utility fi-hover-text-subtle {
+  @apply text-slate-400 hover:text-slate-200 transition-colors;
+}
+
+@utility fi-hover-interactive {
+  @apply text-slate-400 hover:text-white hover:bg-slate-700 transition-colors;
+}
+
+@utility fi-hover-border {
+  @apply border-slate-700 hover:border-slate-600 transition-colors;
+}
+
+@utility fi-hover-scale {
+  @apply hover:scale-105 transition-transform;
+}
+
+@utility fi-hover-lift {
+  @apply hover:-translate-y-0.5 hover:shadow-lg transition-all;
+}
+
+/* ========================================
+ * CONTAINER UTILITIES
+ * ======================================== */
+
+@utility fi-container-dark {
+  @apply p-4 rounded-lg bg-slate-900 border border-slate-700;
+}
+
+@utility fi-container-dark-sm {
+  @apply p-3 rounded-lg bg-slate-900 border border-slate-700;
+}
+
+@utility fi-container-subtle {
+  @apply p-4 rounded-lg bg-slate-800/50 border border-slate-700;
+}
+
+@utility fi-container-code {
+  @apply p-3 rounded bg-slate-900 font-mono text-sm overflow-x-auto;
+}
+
+@utility fi-container-success {
+  @apply p-4 rounded-lg bg-slate-900 border border-emerald-700/50;
+}
+
+@utility fi-container-warning {
+  @apply p-4 rounded-lg bg-slate-900 border border-amber-700/50;
+}
+
+@utility fi-container-error {
+  @apply p-4 rounded-lg bg-slate-900 border border-red-700/50;
+}
+
+@utility fi-container-info {
+  @apply p-4 rounded-lg bg-slate-900 border border-blue-700/50;
+}
+
+/* ========================================
+ * ANIMATION UTILITIES
+ * ======================================== */
+
+@utility fi-animate-dot {
+  @apply w-2 h-2 rounded-full animate-pulse;
+}
+
+@utility fi-animate-dot-sm {
+  @apply w-1.5 h-1.5 rounded-full animate-pulse;
+}
+
+@utility fi-animate-dot-success {
+  @apply w-2 h-2 bg-emerald-400 rounded-full animate-pulse;
+}
+
+@utility fi-animate-dot-live {
+  @apply w-2 h-2 bg-red-500 rounded-full animate-pulse;
+}
+
+@utility fi-animate-cursor {
+  @apply inline-block w-2 h-4 bg-violet-500 animate-pulse rounded-sm align-middle;
+}
+
+@utility fi-animate-skeleton {
+  @apply animate-pulse bg-slate-700 rounded;
+}
+
+@utility fi-animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+@utility fi-animate-slide-up {
+  animation: slide-up 0.2s ease-out;
+}
+
+@keyframes slide-up {
+  0% { opacity: 0; transform: translateY(0.5rem); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================
+ * SPACING UTILITIES (Semantic)
+ * ======================================== */
+
+@utility fi-stack-xs {
+  @apply space-y-1;
+}
+
+@utility fi-stack-sm {
+  @apply space-y-2;
+}
+
+@utility fi-stack-md {
+  @apply space-y-3;
+}
+
+@utility fi-stack-lg {
+  @apply space-y-4;
+}
+
+@utility fi-stack-xl {
+  @apply space-y-6;
+}
+
+@utility fi-inline-xs {
+  @apply space-x-1;
+}
+
+@utility fi-inline-sm {
+  @apply space-x-2;
+}
+
+@utility fi-inline-md {
+  @apply space-x-3;
+}
+
+@utility fi-inline-lg {
+  @apply space-x-4;
+}
+
+/* ========================================
+ * LAYOUT HELPERS
+ * ======================================== */
+
+@utility fi-page-container {
+  @apply min-h-screen fi-bg-page;
+}
+
+@utility fi-page-centered {
+  @apply min-h-screen fi-bg-page flex items-center justify-center;
+}
+
+@utility fi-page-padded {
+  @apply min-h-screen fi-bg-page p-4;
+}
+
+@utility fi-section {
+  @apply p-4 sm:p-6;
+}
+
+@utility fi-section-tight {
+  @apply p-3 sm:p-4;
+}
+
+@utility fi-divider {
+  @apply border-t border-slate-700 my-4;
+}
+
+@utility fi-divider-sm {
+  @apply border-t border-slate-700 my-2;
+}
+
+/* ========================================
+ * INTERACTIVE ELEMENTS
+ * ======================================== */
+
+@utility fi-clickable {
+  @apply cursor-pointer transition-all active:scale-95;
+}
+
+@utility fi-clickable-subtle {
+  @apply cursor-pointer transition-colors;
+}
+
+@utility fi-selectable {
+  @apply cursor-pointer border-2 border-transparent transition-all;
+}
+
+@utility fi-selectable-active {
+  @apply border-emerald-500 bg-emerald-500/10;
+}
+
+@utility fi-disabled {
+  @apply opacity-50 cursor-not-allowed pointer-events-none;
+}
+
+/* ========================================
+ * SCROLLBAR UTILITIES
+ * ======================================== */
+
+@utility fi-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #475569 transparent;
+}
+
+@utility fi-scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility fi-overflow-fade {
+  @apply overflow-hidden relative;
+}
+
+/* ========================================
+ * FOCUS UTILITIES
+ * ======================================== */
+
+@utility fi-focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-900;
+}
+
+@utility fi-focus-ring-cyan {
+  @apply focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-900;
+}
+
+@utility fi-focus-border {
+  @apply focus:outline-none focus:border-emerald-500;
+}
+
+@utility fi-focus-border-cyan {
+  @apply focus:outline-none focus:border-cyan-500;
+}

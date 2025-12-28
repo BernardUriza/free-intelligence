@@ -1,0 +1,51 @@
+{
+  "name": "@aurity-standalone/hooks",
+  "version": "0.1.0",
+  "description": "React hooks for Aurity - Custom hooks for authentication, chat, AI, medical workflows",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./useAuth": "./src/useAuth.ts",
+    "./useChat": "./src/useChat/index.ts",
+    "./usePersonas": "./src/usePersonas.ts",
+    "./useRBAC": "./src/useRBAC.ts",
+    "./useRecorder": "./src/useRecorder.ts",
+    "./useTranscription": "./src/useTranscription.ts",
+    "./useSessionPolling": "./src/useSessionPolling.ts",
+    "./useSOAPNote": "./src/useSOAPNote.ts",
+    "./useFIConversation": "./src/useFIConversation.ts",
+    "./useCheckinConversation": "./src/useCheckinConversation.ts",
+    "./useChatUpload": "./src/useChatUpload.ts",
+    "./useMessageGroups": "./src/useMessageGroups.ts",
+    "./useOptimisticMessages": "./src/useOptimisticMessages.ts",
+    "./useEmotionalContext": "./src/useEmotionalContext.ts"
+  },
+  "keywords": [
+    "react",
+    "hooks",
+    "healthcare",
+    "aurity",
+    "medical",
+    "ai",
+    "chat"
+  ],
+  "author": "Bernard Uriza Orozco",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BernardUriza/aurity.git",
+    "directory": "packages/hooks"
+  },
+  "peerDependencies": {
+    "@aurity-standalone/api-client": "workspace:*",
+    "@aurity-standalone/auth": "workspace:*",
+    "@aurity-standalone/observability": "workspace:*",
+    "@aurity-standalone/types": "workspace:*",
+    "react": "^19.0.0",
+    "zustand": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

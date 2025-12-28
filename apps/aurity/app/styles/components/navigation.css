@@ -1,0 +1,256 @@
+/**
+ * Navigation - Nav links, tabs, toggles, filters
+ */
+
+@layer components {
+  /* ========================================
+   * NAV LINKS
+   * ======================================== */
+  .fi-nav-trigger { @apply flex items-center gap-2 px-3 py-2 rounded-lg transition-colors; }
+  .fi-nav-trigger-open { @apply flex items-center gap-2 px-3 py-2 rounded-lg transition-colors bg-slate-700 text-white; }
+  .fi-nav-trigger-closed { @apply flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-slate-400 hover:text-white hover:bg-slate-800; }
+
+  .fi-nav-link {
+    @apply flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg
+           transition-colors
+           text-slate-300 hover:bg-slate-800 hover:text-white;
+  }
+
+  .fi-nav-link-active {
+    @apply flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg
+           transition-colors
+           bg-blue-500/10 text-blue-400;
+  }
+
+  .fi-nav-link-home {
+    @apply flex items-center gap-3 px-4 py-3 mx-2 rounded-lg
+           transition-colors
+           text-slate-300 hover:bg-slate-800 hover:text-white;
+  }
+
+  .fi-nav-link-home-active {
+    @apply flex items-center gap-3 px-4 py-3 mx-2 rounded-lg
+           transition-colors
+           bg-blue-500/10 text-blue-400;
+  }
+
+  /* ========================================
+   * NAV BADGES
+   * ======================================== */
+  .fi-nav-badge-superadmin { @apply fi-nav-badge bg-red-500/20 text-red-400; }
+  .fi-nav-badge-admin { @apply fi-nav-badge bg-purple-500/20 text-purple-400; }
+  .fi-nav-badge-ai { @apply fi-nav-badge bg-emerald-500/20 text-emerald-400; }
+  .fi-nav-badge-default { @apply fi-nav-badge bg-slate-700 text-slate-400; }
+
+  /* ========================================
+   * TABS (base)
+   * ======================================== */
+  .fi-tab-underline { @apply fi-tab border-b-2 border-transparent; }
+  .fi-tab-full { @apply flex-1; }
+  .fi-tab-centered { @apply flex items-center justify-center gap-2; }
+  .fi-tab-with-icon { @apply flex items-center gap-2 whitespace-nowrap; }
+  .fi-tab-active-blue { @apply border-blue-500 text-blue-400; }
+  .fi-tab-active-cyan { @apply border-cyan-500 text-cyan-300 bg-slate-900/50; }
+  .fi-tab-active-emerald { @apply border-emerald-400 text-emerald-400; }
+  .fi-tab-inactive { @apply text-slate-400 hover:text-slate-300; }
+  .fi-tab-inactive-hover-bg { @apply text-slate-400 hover:text-white hover:bg-slate-900/30; }
+
+  /* ========================================
+   * TAB UNDERLINE VARIANTS
+   * ======================================== */
+  .fi-tab-underline {
+    @apply flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+           border-transparent text-slate-400 hover:text-slate-300;
+  }
+
+  .fi-tab-underline-active {
+    @apply flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+           border-blue-500 text-blue-400;
+  }
+
+  .fi-tab-underline-emerald {
+    @apply flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+           border-emerald-500 text-emerald-400;
+  }
+
+  .fi-tab-underline-purple {
+    @apply flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+           border-purple-500 text-purple-400;
+  }
+
+  /* ========================================
+   * TAB PILLS
+   * ======================================== */
+  .fi-tab-pill { @apply px-3 py-2 rounded-lg text-sm font-medium transition-all bg-slate-800 text-slate-400 hover:bg-slate-700; }
+  .fi-tab-pill-blue { @apply fi-tab-pill-active bg-blue-500 hover:bg-blue-500; }
+  .fi-tab-pill-green { @apply fi-tab-pill-active bg-green-500 hover:bg-green-500; }
+  .fi-tab-pill-purple { @apply fi-tab-pill-active bg-purple-500 hover:bg-purple-500; }
+  .fi-tab-pill-cyan { @apply fi-tab-pill-active bg-cyan-500 hover:bg-cyan-500; }
+
+  /* ========================================
+   * TAB GRADIENT
+   * ======================================== */
+  .fi-tab-gradient {
+    @apply flex items-center gap-2 px-6 py-3 rounded-xl font-medium
+           transition-all whitespace-nowrap
+           bg-slate-800/50 text-slate-300 hover:bg-slate-700/50;
+  }
+
+  .fi-tab-gradient-active {
+    @apply flex items-center gap-2 px-6 py-3 rounded-xl font-medium
+           transition-all whitespace-nowrap
+           bg-gradient-to-br from-purple-600 to-indigo-600 text-white
+           shadow-lg shadow-purple-500/30;
+  }
+
+  /* ========================================
+   * SOURCE TABS
+   * ======================================== */
+  .fi-source-tab {
+    @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors
+           bg-slate-800 text-slate-400 hover:bg-slate-700;
+  }
+
+  .fi-source-tab-active {
+    @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors
+           bg-emerald-600 text-white;
+  }
+
+  .fi-source-tab-purple {
+    @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors
+           bg-purple-600 text-white;
+  }
+
+  .fi-source-tab-blue {
+    @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors
+           bg-blue-600 text-white;
+  }
+
+  /* ========================================
+   * TOGGLE BUTTONS
+   * ======================================== */
+  .fi-toggle-cyan {
+    @apply flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded transition-colors
+           text-slate-400 hover:text-white;
+  }
+
+  .fi-toggle-cyan-active {
+    @apply flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded transition-colors
+           bg-cyan-600 text-white;
+  }
+
+  .fi-toggle-emerald {
+    @apply px-2 py-1 text-xs font-medium rounded transition-colors
+           text-slate-400 hover:text-white;
+  }
+
+  .fi-toggle-emerald-active {
+    @apply px-2 py-1 text-xs font-medium rounded transition-colors
+           bg-emerald-600 text-white;
+  }
+
+  /* ========================================
+   * NAV ARROWS
+   * ======================================== */
+  .fi-nav-arrow { @apply px-2 py-1 text-slate-400 hover:text-white transition-colors; }
+  .fi-nav-arrow-text { @apply px-3 py-1 text-xs text-slate-300 hover:text-white transition-colors; }
+
+  /* ========================================
+   * ACCORDION TOGGLE
+   * ======================================== */
+  .fi-accordion-toggle {
+    @apply w-full flex items-center justify-between px-4 py-3
+           bg-slate-800/50 border-b border-slate-700
+           hover:bg-slate-800 transition-colors;
+  }
+
+  /* ========================================
+   * ROLE TOGGLES
+   * ======================================== */
+  .fi-role-toggle {
+    @apply px-3 py-1 text-xs font-medium rounded transition-all
+           bg-slate-800 text-slate-400 hover:bg-slate-700;
+  }
+
+  .fi-role-toggle-active {
+    @apply px-3 py-1 text-xs font-medium rounded transition-all text-white;
+  }
+
+  /* ========================================
+   * FILTER BUTTONS
+   * ======================================== */
+  .fi-filter-btn {
+    @apply px-3 py-1.5 rounded-lg text-xs font-medium transition-all
+           bg-slate-800/50 text-slate-400 border border-slate-700/50 hover:bg-slate-800;
+  }
+
+  .fi-filter-btn-cyan {
+    @apply px-3 py-1.5 rounded-lg text-xs font-medium transition-all
+           bg-cyan-500/20 text-cyan-300 border border-cyan-500/30;
+  }
+
+  .fi-filter-btn-blue {
+    @apply px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+           bg-blue-600 text-white;
+  }
+
+  .fi-filter-btn-purple {
+    @apply px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+           bg-purple-600 text-white;
+  }
+
+  .fi-filter-btn-emerald {
+    @apply px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+           bg-emerald-600 text-white;
+  }
+
+  /* ========================================
+   * VIEW TOGGLE
+   * ======================================== */
+  .fi-view-toggle {
+    @apply flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors
+           text-slate-400 hover:text-white hover:bg-slate-700;
+  }
+
+  .fi-view-toggle-active {
+    @apply flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors
+           bg-emerald-600 text-white;
+  }
+
+  /* ========================================
+   * PROGRESS STEPS
+   * ======================================== */
+  .fi-step-circle {
+    @apply w-8 h-8 rounded-full flex items-center justify-center
+           text-sm font-medium transition-all
+           bg-slate-800 text-slate-500;
+  }
+
+  .fi-step-circle-active {
+    @apply w-8 h-8 rounded-full flex items-center justify-center
+           text-sm font-medium transition-all
+           bg-indigo-600 text-white;
+  }
+
+  .fi-step-circle-complete {
+    @apply w-8 h-8 rounded-full flex items-center justify-center
+           text-sm font-medium transition-all
+           bg-emerald-600 text-white;
+  }
+
+  .fi-step-connector { @apply w-12 h-1 mx-1 rounded bg-slate-800; }
+  .fi-step-connector-complete { @apply w-12 h-1 mx-1 rounded bg-emerald-600; }
+
+  /* ========================================
+   * ANSWER OPTIONS
+   * ======================================== */
+  .fi-answer-option {
+    @apply text-xs px-2 py-1 rounded border truncate
+           bg-slate-800/50 border-slate-600/30 text-slate-400;
+  }
+
+  .fi-answer-option-correct {
+    @apply text-xs px-2 py-1 rounded border truncate
+           bg-emerald-900/20 border-emerald-600/40 text-emerald-300;
+  }
+}

@@ -1,0 +1,227 @@
+/**
+ * Buttons - All button variants and styles
+ */
+
+@utility fi-btn-cta-lg {
+  @apply px-6 py-3 text-white rounded-xl transition-all font-semibold
+         shadow-md hover:shadow-lg hover:scale-[1.02] backdrop-blur;
+}
+
+@layer components {
+  /* ========================================
+   * BUTTON VARIANTS (hereda de @utility fi-btn)
+   * ======================================== */
+  .fi-btn-primary { @apply fi-btn bg-emerald-600 text-white hover:bg-emerald-500 focus:ring-2 focus:ring-emerald-500/50; }
+  .fi-btn-secondary { @apply fi-btn bg-slate-800 text-white border border-slate-700 hover:bg-slate-700; }
+  .fi-btn-ghost { @apply fi-btn text-slate-400 hover:text-white hover:bg-slate-800; }
+  .fi-btn-outline { @apply fi-btn bg-transparent text-white border border-slate-600 hover:bg-slate-800 hover:border-slate-500; }
+  .fi-btn-danger { @apply fi-btn bg-red-600 text-white hover:bg-red-500; }
+  .fi-btn-success { @apply fi-btn bg-emerald-600 text-white hover:bg-emerald-500; }
+  .fi-btn-blue { @apply fi-btn bg-blue-600 text-white hover:bg-blue-700; }
+  .fi-btn-purple { @apply fi-btn bg-purple-600 text-white hover:bg-purple-700; }
+  .fi-btn-indigo { @apply fi-btn bg-indigo-600 text-white hover:bg-indigo-700; }
+  .fi-btn-cyan { @apply fi-btn bg-cyan-600 text-white hover:bg-cyan-500 focus:ring-2 focus:ring-cyan-500/50; }
+
+  /* Sizes */
+  .fi-btn-xs { @apply px-2 py-0.5 text-xs; }
+  .fi-btn-sm { @apply px-3 py-1.5 text-xs; }
+  .fi-btn-lg { @apply px-6 py-3 text-lg; }
+
+  /* ========================================
+   * ICON BUTTONS
+   * ======================================== */
+  .fi-btn-icon { @apply p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors active:scale-95; }
+  .fi-btn-icon-sm { @apply p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition-colors active:scale-95; }
+  .fi-btn-icon-xs { @apply p-1 rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-colors; }
+  .fi-btn-close { @apply p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors; }
+  .fi-icon-btn { @apply p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors; }
+  .fi-icon-btn-active { @apply p-2 bg-purple-600 text-white rounded-lg transition-colors; }
+  .fi-icon-btn-ghost { @apply p-2 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50; }
+  .fi-icon-btn-compact {
+    @apply p-1.5 rounded-lg
+           text-slate-500 hover:text-slate-300 hover:bg-slate-700/50
+           transition-all duration-200
+           disabled:opacity-40 disabled:cursor-not-allowed
+           active:scale-95
+           focus:outline-none focus:ring-2 focus:ring-purple-500/50;
+  }
+
+  /* ========================================
+   * GRADIENT BUTTONS
+   * ======================================== */
+  .fi-btn-gradient-emerald { @apply fi-btn bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-semibold shadow-lg shadow-emerald-500/20; }
+  .fi-btn-gradient-cyan { @apply fi-btn bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white font-medium; }
+  .fi-btn-cta-icon { @apply fi-btn-cta flex items-center gap-2; }
+  .fi-btn-cta-xl { @apply fi-btn-cta px-6 py-3 text-lg; }
+  .fi-btn-primary-action { @apply fi-btn bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/20; }
+
+  /* ========================================
+   * FAB (Floating Action Button)
+   * ======================================== */
+  .fi-fab-emerald {
+    @apply bg-gradient-to-br from-emerald-600 to-cyan-600 hover:from-emerald-700 hover:to-cyan-700 rounded-full shadow-2xl hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-110 flex items-center justify-center;
+  }
+
+  .fi-fab-scroll {
+    @apply absolute bottom-4 left-1/2 -translate-x-1/2
+           w-10 h-10 rounded-full z-40
+           bg-slate-800/90 backdrop-blur-sm
+           hover:bg-slate-700/90
+           border border-slate-600/50
+           text-slate-300 hover:text-white
+           shadow-lg hover:shadow-xl
+           transition-all duration-200
+           flex items-center justify-center;
+  }
+
+  /* ========================================
+   * DANGER BUTTONS
+   * ======================================== */
+  .fi-btn-danger-solid {
+    @apply px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-slate-700 disabled:opacity-50
+           rounded-lg text-white text-sm font-semibold transition-colors flex items-center gap-2;
+  }
+
+  .fi-btn-danger-sm {
+    @apply px-3 py-1.5 text-xs font-medium text-red-300 hover:text-white
+           bg-red-900/30 hover:bg-red-800/50 rounded-lg transition-colors;
+  }
+
+  .fi-btn-ghost-danger {
+    @apply px-2 py-1.5 rounded
+           text-red-400 hover:text-red-300
+           text-xs transition-colors;
+  }
+
+  /* ========================================
+   * SUCCESS BUTTONS
+   * ======================================== */
+  .fi-btn-success-solid {
+    @apply px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium
+           rounded-lg transition-colors;
+  }
+
+  .fi-btn-success-sm {
+    @apply px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium
+           rounded-lg transition-colors;
+  }
+
+  /* ========================================
+   * CTA BUTTONS
+   * ======================================== */
+  .fi-btn-cta-xl {
+    @apply px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl
+           transition-all font-semibold shadow-md hover:shadow-lg hover:scale-105;
+  }
+
+  .fi-btn-cta-xl-disabled {
+    @apply px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl
+           transition-all font-semibold shadow-md hover:shadow-lg hover:scale-105 disabled:opacity-50;
+  }
+
+  .fi-btn-cta-xl-icon {
+    @apply px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl
+           transition-all font-semibold shadow-md hover:shadow-lg hover:scale-105 flex items-center gap-2;
+  }
+
+  .fi-btn-cta-xl-cyan {
+    @apply px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl
+           transition-all font-semibold shadow-md hover:shadow-lg hover:scale-105
+           disabled:bg-slate-700 disabled:scale-100;
+  }
+
+  /* fi-btn-cta-lg defined as @utility above */
+  .fi-btn-cta-lg-blue {
+    @apply fi-btn-cta-lg bg-blue-600/90 hover:bg-blue-500;
+  }
+
+  .fi-btn-cta-lg-emerald {
+    @apply fi-btn-cta-lg bg-emerald-600/90 hover:bg-emerald-500;
+  }
+
+  .fi-btn-filter {
+    @apply flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium
+           bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700
+           border border-transparent transition-colors;
+  }
+
+  /* ========================================
+   * EXPORT & NAV BUTTONS
+   * ======================================== */
+  .fi-btn-export {
+    @apply w-full py-4 rounded-lg font-medium flex items-center justify-center gap-2
+           transition-all bg-emerald-500 hover:bg-emerald-600 text-white;
+  }
+
+  .fi-btn-export-disabled {
+    @apply w-full py-4 rounded-lg font-medium flex items-center justify-center gap-2
+           transition-all bg-slate-700 text-slate-400 cursor-not-allowed;
+  }
+
+  .fi-nav-btn {
+    @apply flex-1 px-4 py-3 rounded-lg transition-colors
+           flex items-center justify-center gap-2;
+  }
+
+  .fi-nav-btn-secondary {
+    @apply flex-1 px-4 py-3 rounded-lg transition-colors
+           flex items-center justify-center gap-2
+           bg-slate-800 hover:bg-slate-700 text-slate-300;
+  }
+
+  .fi-nav-btn-primary {
+    @apply flex-1 px-4 py-3 rounded-lg transition-colors
+           flex items-center justify-center gap-2
+           bg-emerald-600 hover:bg-emerald-700 text-white;
+  }
+
+  .fi-nav-btn-indigo {
+    @apply flex-1 px-4 py-3 rounded-lg transition-colors
+           flex items-center justify-center gap-2
+           bg-indigo-600 hover:bg-indigo-700 text-white;
+  }
+
+  .fi-btn-call-next {
+    @apply w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl
+           transition-colors flex items-center justify-center gap-3;
+  }
+
+  .fi-btn-refresh {
+    @apply flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white
+           bg-slate-800/50 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors
+           disabled:opacity-50;
+  }
+
+  /* ========================================
+   * ACTION BUTTONS
+   * ======================================== */
+  .fi-action-btn-default { @apply fi-action-btn text-slate-400 hover:text-white hover:bg-slate-700; }
+  .fi-action-btn-danger { @apply fi-action-btn text-slate-400 hover:text-red-400 hover:bg-red-900/30; }
+
+  /* ========================================
+   * AUDIO PLAYER CONTROLS
+   * ======================================== */
+  .fi-audio-skip-btn {
+    @apply flex items-center gap-1 px-2 py-1 rounded
+           text-white/70 hover:text-white hover:bg-white/10
+           text-xs font-semibold transition-colors
+           disabled:opacity-30 disabled:cursor-not-allowed;
+  }
+
+  .fi-audio-play-btn {
+    @apply bg-white/20 hover:bg-white/30 rounded-full
+           w-10 h-10 flex items-center justify-center
+           text-white transition-colors
+           hover:scale-105 active:scale-95;
+  }
+
+  /* ========================================
+   * RECORDING BUTTONS
+   * ======================================== */
+  .fi-recording-btn-base {
+    @apply rounded-full flex items-center justify-center
+           transition-all duration-200
+           shadow-lg hover:shadow-xl
+           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500;
+  }
+}

@@ -1,0 +1,243 @@
+/**
+ * Utilities Layer - Custom Helpers
+ * AURITY Design System - Tailwind v4
+ *
+ * @utility defines custom utilities that work with @apply and variants
+ */
+
+/* ========================================
+ * ANIMATION UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+@utility animate-fade-in-up {
+  animation: fade-in-up 0.3s ease-out;
+}
+
+@utility animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}
+
+@utility animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+@utility animate-slide-in-up {
+  animation: slide-in-up 0.3s ease-out;
+}
+
+/* ========================================
+ * SCROLLBAR UTILITIES
+ * ======================================== */
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  &::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility scrollbar-thumb-slate-600 {
+  scrollbar-color: #475569 transparent;
+  &::-webkit-scrollbar-thumb {
+    background-color: #475569;
+    border-radius: 9999px;
+  }
+}
+
+@utility scrollbar-track-transparent {
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+}
+
+/* ========================================
+ * HOVER EFFECTS (@utility - use @apply)
+ * ======================================== */
+
+@utility hover-scale {
+  @apply transition-transform duration-200;
+  &:hover {
+    transform: scale(1.02);
+  }
+}
+
+@utility hover-lift {
+  @apply transition-all duration-200;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px -4px rgb(0 0 0 / 0.2);
+  }
+}
+
+@utility hover-glow {
+  @apply transition-shadow duration-200;
+  &:hover {
+    box-shadow: 0 0 20px rgb(16 185 129 / 0.2);
+  }
+}
+
+/* ========================================
+ * TEXT UTILITIES (@utility - use @apply)
+ * ======================================== */
+
+@utility text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400;
+}
+
+/* ========================================
+ * OTHER UTILITIES (@layer - plain CSS)
+ * ======================================== */
+
+@layer utilities {
+  /* Animation delays */
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  /* ========================================
+   * GLASSMORPHISM
+   * ======================================== */
+  .glass {
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+  }
+
+  .glass-light {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+  }
+
+  /* ========================================
+   * TEXT UTILITIES
+   * ======================================== */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* ========================================
+   * SAFE AREA (for mobile)
+   * ======================================== */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ========================================
+ * KEYFRAMES (outside @layer for global access)
+ * ======================================== */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgb(16 185 129 / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgb(16 185 129 / 0.5);
+  }
+}

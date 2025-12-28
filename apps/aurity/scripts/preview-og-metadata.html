@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OG Metadata Preview - Free Intelligence</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            font-size: 32px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .subtitle {
+            color: #94a3b8;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 16px;
+        }
+
+        /* WhatsApp Preview */
+        .preview-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .preview-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .platform-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* WhatsApp Card */
+        .whatsapp-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f9fafb;
+        }
+        .whatsapp-card img {
+            width: 100%;
+            display: block;
+            background: #f3f4f6;
+        }
+        .whatsapp-content {
+            padding: 16px;
+        }
+        .whatsapp-url {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+        .whatsapp-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+        .whatsapp-desc {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.4;
+        }
+
+        /* Twitter Card */
+        .twitter-card {
+            border: 1px solid #e1e8ed;
+            border-radius: 16px;
+            overflow: hidden;
+            background: white;
+        }
+        .twitter-card img {
+            width: 100%;
+            display: block;
+        }
+        .twitter-content {
+            padding: 12px 16px;
+        }
+        .twitter-title {
+            font-size: 15px;
+            font-weight: 400;
+            color: #0f1419;
+            margin-bottom: 2px;
+        }
+        .twitter-desc {
+            font-size: 15px;
+            color: #536471;
+            margin-bottom: 4px;
+        }
+        .twitter-url {
+            font-size: 15px;
+            color: #536471;
+        }
+
+        /* LinkedIn Card */
+        .linkedin-card {
+            border: 1px solid #d4d4d8;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+        }
+        .linkedin-card img {
+            width: 100%;
+            display: block;
+        }
+        .linkedin-content {
+            padding: 16px;
+        }
+        .linkedin-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #000000;
+            margin-bottom: 4px;
+        }
+        .linkedin-url {
+            font-size: 12px;
+            color: #666666;
+            margin-bottom: 8px;
+        }
+
+        /* Metadata Info */
+        .metadata-info {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 24px;
+            color: white;
+        }
+        .metadata-info h3 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: #94a3b8;
+        }
+        .metadata-item {
+            margin-bottom: 12px;
+            padding: 12px;
+            background: #334155;
+            border-radius: 6px;
+        }
+        .metadata-label {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .metadata-value {
+            font-size: 14px;
+            color: #e2e8f0;
+            word-break: break-all;
+        }
+
+        .deploy-notice {
+            background: #fef3c7;
+            border: 2px solid #fbbf24;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .deploy-notice h3 {
+            color: #92400e;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        .deploy-notice p {
+            color: #92400e;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+        .deploy-notice code {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .deploy-cmd {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Open Graph Metadata Preview</h1>
+        <p class="subtitle">Así se verá tu link cuando lo compartas</p>
+
+        <div class="deploy-notice">
+            <h3>⚠️ Preview LOCAL - Necesitas hacer deploy</h3>
+            <p>Este preview muestra cómo se verá el metadata, pero para probarlo en WhatsApp/Twitter necesitas deployar.</p>
+            <p><strong>Comando de deploy:</strong></p>
+            <div class="deploy-cmd">pnpm build && python3 scripts/deploy-scp.py</div>
+        </div>
+
+        <!-- WhatsApp Preview -->
+        <div class="preview-section">
+            <div class="preview-title">
+                <span class="platform-icon">💬</span>
+                WhatsApp / Facebook / Telegram
+            </div>
+            <div class="whatsapp-card">
+                <img src="../public/og-banner.png" alt="OG Banner">
+                <div class="whatsapp-content">
+                    <div class="whatsapp-url">app.aurity.io/chat</div>
+                    <div class="whatsapp-title">Free Intelligence · AURITY</div>
+                    <div class="whatsapp-desc">Asistente médico con IA que vive en tu NAS. Soberanía total de datos médicos.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Twitter Preview -->
+        <div class="preview-section">
+            <div class="preview-title">
+                <span class="platform-icon">🐦</span>
+                Twitter / X
+            </div>
+            <div class="twitter-card">
+                <img src="../public/og-banner.png" alt="Twitter Card">
+                <div class="twitter-content">
+                    <div class="twitter-desc">Asistente médico con IA que vive en tu NAS. Soberanía total de datos médicos.</div>
+                    <div class="twitter-url">🔗 app.aurity.io/chat</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LinkedIn Preview -->
+        <div class="preview-section">
+            <div class="preview-title">
+                <span class="platform-icon">💼</span>
+                LinkedIn
+            </div>
+            <div class="linkedin-card">
+                <img src="../public/og-banner.png" alt="LinkedIn Card">
+                <div class="linkedin-content">
+                    <div class="linkedin-title">Free Intelligence · AURITY</div>
+                    <div class="linkedin-url">app.aurity.io/chat</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metadata Details -->
+        <div class="metadata-info">
+            <h3>📋 Metadata configurado (layout.tsx)</h3>
+
+            <div class="metadata-item">
+                <div class="metadata-label">TITLE</div>
+                <div class="metadata-value">Free Intelligence · AURITY</div>
+            </div>
+
+            <div class="metadata-item">
+                <div class="metadata-label">DESCRIPTION</div>
+                <div class="metadata-value">Asistente médico con IA que reside en tu infraestructura. Soberanía de datos, notas SOAP automáticas, asesoría clínica basada en evidencia.</div>
+            </div>
+
+            <div class="metadata-item">
+                <div class="metadata-label">OG:IMAGE</div>
+                <div class="metadata-value">/og-banner.png (1200x630, 74KB)</div>
+            </div>
+
+            <div class="metadata-item">
+                <div class="metadata-label">OG:URL</div>
+                <div class="metadata-value">https://app.aurity.io/chat</div>
+            </div>
+
+            <div class="metadata-item">
+                <div class="metadata-label">OG:LOCALE</div>
+                <div class="metadata-value">es_MX</div>
+            </div>
+
+            <div class="metadata-item">
+                <div class="metadata-label">TWITTER:CARD</div>
+                <div class="metadata-value">summary_large_image</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

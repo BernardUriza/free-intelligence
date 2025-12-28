@@ -1,0 +1,284 @@
+/**
+ * Medical Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: med-{component}[-variant]
+ * Examples: med-note, med-vital, med-badge
+ *
+ * @utility defines base classes that can be composed with @apply
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility med-vital-icon {
+  @apply w-10 h-10 rounded-full bg-slate-700/50
+         flex items-center justify-center;
+}
+
+@utility med-badge {
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5
+         rounded-full text-sm font-medium;
+}
+
+@utility med-record-btn {
+  @apply relative w-14 h-14 rounded-full flex items-center justify-center
+         transition-all duration-200;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * SOAP NOTES
+   * ======================================== */
+  .med-note-section {
+    @apply bg-slate-800/50 rounded-lg p-4 border border-slate-700;
+  }
+
+  .med-note-header {
+    @apply flex items-center justify-between mb-3 pb-2 border-b border-slate-700;
+  }
+
+  .med-note-title {
+    @apply text-sm font-semibold text-emerald-400 uppercase tracking-wide;
+  }
+
+  .med-note-content {
+    @apply text-sm text-slate-300 leading-relaxed;
+  }
+
+  .med-note-empty {
+    @apply text-sm text-slate-500 italic;
+  }
+
+  /* SOAP Section Labels */
+  .med-soap-s {
+    @apply text-blue-400;
+  }
+
+  .med-soap-o {
+    @apply text-purple-400;
+  }
+
+  .med-soap-a {
+    @apply text-amber-400;
+  }
+
+  .med-soap-p {
+    @apply text-emerald-400;
+  }
+
+  /* ========================================
+   * VITALS
+   * ======================================== */
+  .med-vital-card {
+    @apply bg-slate-800/50 rounded-lg p-4 border border-slate-700
+           flex items-center gap-3;
+  }
+
+  .med-vital-icon-heart {
+    @apply med-vital-icon text-red-400;
+  }
+
+  .med-vital-icon-temp {
+    @apply med-vital-icon text-amber-400;
+  }
+
+  .med-vital-icon-bp {
+    @apply med-vital-icon text-blue-400;
+  }
+
+  .med-vital-icon-o2 {
+    @apply med-vital-icon text-cyan-400;
+  }
+
+  .med-vital-value {
+    @apply text-2xl font-bold text-white;
+  }
+
+  .med-vital-unit {
+    @apply text-sm text-slate-400;
+  }
+
+  .med-vital-label {
+    @apply text-xs text-slate-500;
+  }
+
+  .med-vital-trend-up {
+    @apply text-red-400;
+  }
+
+  .med-vital-trend-down {
+    @apply text-emerald-400;
+  }
+
+  .med-vital-trend-stable {
+    @apply text-slate-400;
+  }
+
+  /* ========================================
+   * CLINICAL BADGES
+   * ======================================== */
+  .med-badge-primary {
+    @apply med-badge bg-emerald-900/30 text-emerald-300 border border-emerald-700/50;
+  }
+
+  .med-badge-warning {
+    @apply med-badge bg-amber-900/30 text-amber-300 border border-amber-700/50;
+  }
+
+  .med-badge-danger {
+    @apply med-badge bg-red-900/30 text-red-300 border border-red-700/50;
+  }
+
+  .med-badge-info {
+    @apply med-badge bg-blue-900/30 text-blue-300 border border-blue-700/50;
+  }
+
+  .med-badge-neutral {
+    @apply med-badge bg-slate-700 text-slate-300;
+  }
+
+  /* Status badges */
+  .med-status-active {
+    @apply med-badge bg-emerald-900/30 text-emerald-400;
+  }
+
+  .med-status-pending {
+    @apply med-badge bg-amber-900/30 text-amber-400;
+  }
+
+  .med-status-completed {
+    @apply med-badge bg-blue-900/30 text-blue-400;
+  }
+
+  .med-status-cancelled {
+    @apply med-badge bg-red-900/30 text-red-400;
+  }
+
+  /* ========================================
+   * DIAGNOSIS
+   * ======================================== */
+  .med-diagnosis-card {
+    @apply p-3 rounded-lg bg-slate-800/30 border border-slate-700/50
+           hover:bg-slate-800/50 transition-colors;
+  }
+
+  .med-diagnosis-code {
+    @apply text-xs font-mono text-purple-400;
+  }
+
+  .med-diagnosis-name {
+    @apply text-sm text-white font-medium;
+  }
+
+  .med-diagnosis-type {
+    @apply text-xs text-slate-500;
+  }
+
+  /* ========================================
+   * MEDICATIONS
+   * ======================================== */
+  .med-rx-card {
+    @apply p-3 rounded-lg bg-slate-800/30 border border-slate-700/50;
+  }
+
+  .med-rx-name {
+    @apply text-sm font-medium text-white;
+  }
+
+  .med-rx-dosage {
+    @apply text-sm text-emerald-400 font-mono;
+  }
+
+  .med-rx-frequency {
+    @apply text-xs text-slate-400;
+  }
+
+  .med-rx-status-active {
+    @apply text-emerald-400;
+  }
+
+  .med-rx-status-discontinued {
+    @apply text-red-400 line-through;
+  }
+
+  /* ========================================
+   * TRANSCRIPTION
+   * ======================================== */
+  .med-transcript {
+    @apply space-y-3 text-sm;
+  }
+
+  .med-transcript-speaker {
+    @apply font-medium text-emerald-400;
+  }
+
+  .med-transcript-text {
+    @apply text-slate-300 leading-relaxed;
+  }
+
+  .med-transcript-timestamp {
+    @apply text-xs text-slate-500;
+  }
+
+  .med-transcript-highlight {
+    @apply bg-amber-500/20 text-amber-300 px-1 rounded;
+  }
+
+  /* ========================================
+   * RECORDING CONTROLS
+   * ======================================== */
+  .med-record-btn-idle {
+    @apply med-record-btn bg-red-600 text-white hover:bg-red-500
+           hover:scale-105;
+  }
+
+  .med-record-btn-recording {
+    @apply med-record-btn bg-red-600 text-white;
+    animation: pulse-glow 1.5s ease-in-out infinite;
+  }
+
+  .med-record-btn-paused {
+    @apply med-record-btn bg-amber-600 text-white;
+  }
+
+  .med-record-timer {
+    @apply text-2xl font-mono text-white tabular-nums;
+  }
+
+  /* ========================================
+   * CONTAINERS
+   * ======================================== */
+  .med-container {
+    @apply min-h-screen bg-slate-950;
+  }
+
+  .med-header {
+    @apply bg-slate-900 border-b border-slate-800 px-6 py-4;
+  }
+
+  .med-sidebar {
+    @apply w-80 bg-slate-900 border-r border-slate-800 overflow-y-auto;
+  }
+
+  .med-content {
+    @apply flex-1 p-6 overflow-y-auto;
+  }
+
+  .med-panel {
+    @apply bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden;
+  }
+
+  .med-panel-header {
+    @apply p-4 border-b border-slate-700 bg-slate-800/30;
+  }
+
+  .med-panel-body {
+    @apply p-4;
+  }
+}

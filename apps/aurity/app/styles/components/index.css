@@ -1,0 +1,27 @@
+/**
+ * Components Layer - AURITY Design System
+ * Modular CSS Architecture for Tailwind v4
+ *
+ * This file imports all component modules in the correct order.
+ * Order matters for @utility and @layer directives.
+ */
+
+/* 1. Base Utilities (@utility) - Must come first */
+@import './base.css';
+
+/* 2. Core Components */
+@import './forms.css';
+@import './buttons.css';
+@import './cards.css';
+@import './typography.css';
+@import './layout.css';
+
+/* 3. UI Elements */
+@import './badges.css';
+@import './navigation.css';
+@import './feedback.css';
+@import './dropdowns.css';
+
+/* 4. Visual Effects */
+@import './gradients.css';
+@import './animations.css';
