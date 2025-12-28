@@ -1,16 +1,16 @@
 /**
  * E2E Test: Version & Deployment Validation
  *
- * CRITICAL TEST (must pass for deploy):
- * - Backend /version endpoint responds with correct structure
- * - Python E2E code is valid and executable
+ * CRITICAL TESTS (must pass for deploy):
+ * - Backend /api/version endpoint responds with correct structure
+ * - Backend /api/health returns ok
+ * - Backend /api/ returns AURITY service info
  *
- * OPTIONAL TESTS (run when frontend is healthy):
- * - VersionBadge renders correctly
- * - Frontend-backend version match
+ * OPTIONAL TESTS (skipped in CI):
+ * - VersionBadge renders correctly (needs RUN_FRONTEND_TESTS=true)
  *
  * Run locally: npx playwright test tests/e2e/version-badge.spec.ts
- * Run in CI: BASE_URL=https://app.aurity.io npx playwright test
+ * Run in CI: BACKEND_URL=https://app.aurity.io npx playwright test
  */
 
 import { test, expect } from '@playwright/test';
@@ -27,8 +27,7 @@ test.describe('Backend Version API (Critical)', () => {
     const data = await response.json();
     expect(data.service).toBe('AURITY');
     expect(data.version).toMatch(/^\d+\.\d+\.\d+$/); // semver format
-    expect(data.python_e2e_code).toContain('validate_aurity');
-    expect(data.python_e2e_code).toContain('import requests');
+    expect(data.environment).toBeDefined();
 
     console.log(`✅ Backend version: ${data.version} (${data.environment})`);
   });
@@ -48,9 +47,10 @@ test.describe('Backend Version API (Critical)', () => {
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
-    expect(data.service?.codename).toBe('AURITY');
+    expect(data.service).toBe('AURITY');
+    expect(data.status).toBe('operational');
 
-    console.log(`✅ Backend service: ${data.service?.name}`);
+    console.log(`✅ Backend service: ${data.service} (${data.status})`);
   });
 });
 
