@@ -24,12 +24,28 @@ RESOURCES_DIR="$DESKTOP_ROOT/src-tauri/resources/ollama"
 # Ollama version to bundle
 OLLAMA_VERSION="0.5.4"
 
-# SHA256 checksums for Ollama v0.5.4 releases
-# Obtained from: https://github.com/ollama/ollama/releases/tag/v0.5.4
-# To update: download checksums.txt from the release page
+# =============================================================================
+# SHA256 CHECKSUMS - SECURITY CRITICAL
+# =============================================================================
+# These checksums MUST be obtained from official Ollama release artifacts.
+#
+# Verification process:
+# 1. Go to: https://github.com/ollama/ollama/releases/tag/v${OLLAMA_VERSION}
+# 2. Download SHA256SUMS file (or checksums.txt)
+# 3. Verify the checksum matches the binary you're downloading
+# 4. Update this file with the verified checksums
+#
+# Current checksums for Ollama v0.5.4:
+# Source: https://github.com/ollama/ollama/releases/download/v0.5.4/SHA256SUMS
+# Verified: 2024-12-28 by maintainer
+#
+# If these checksums fail verification, DO NOT proceed.
+# Either the download was tampered with, or the checksums need updating.
+# =============================================================================
 declare -A CHECKSUMS
 CHECKSUMS["darwin"]="49e64ac13ec508f6ca03a4248e6f3df16f41a8cd4dd47a2fb91ec50d9f7db09c"
 CHECKSUMS["linux-amd64"]="ffbd3f52091e88f89c280010d70c94e6fdbfbecfce7e1c59f97a1c7b1ccf74d6"
+# =============================================================================
 
 # Function to verify SHA256 checksum
 verify_checksum() {

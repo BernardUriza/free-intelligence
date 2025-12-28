@@ -18,18 +18,42 @@ echo "Project root: $PROJECT_ROOT"
 echo "Desktop root: $DESKTOP_ROOT"
 echo "Backend root: $BACKEND_ROOT"
 
+# SECURITY: Mock auth is BLOCKED in CI environments
+# This prevents accidental production of auth-bypass builds
+if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${GITLAB_CI:-}" ]; then
+    if [ "${ENABLE_DESKTOP_MOCK_AUTH:-0}" = "1" ]; then
+        echo ""
+        echo "============================================================"
+        echo "ERROR: ENABLE_DESKTOP_MOCK_AUTH=1 is FORBIDDEN in CI"
+        echo "============================================================"
+        echo "Mock authentication is only allowed for local development."
+        echo "CI builds MUST use secure authentication."
+        echo ""
+        echo "If you need mock auth for testing, run locally:"
+        echo "  ENABLE_DESKTOP_MOCK_AUTH=1 ./build.sh"
+        echo "============================================================"
+        exit 1
+    fi
+fi
+
 # Security: Mock auth requires explicit opt-in via environment variable
 # This prevents accidental builds with authentication bypass
 if [ ! -f "$DESKTOP_ROOT/.env.desktop" ]; then
     if [ -f "$DESKTOP_ROOT/.env.desktop.example" ]; then
         if [ "${ENABLE_DESKTOP_MOCK_AUTH:-0}" = "1" ]; then
-            echo "Creating .env.desktop with mock auth ENABLED (ENABLE_DESKTOP_MOCK_AUTH=1)"
-            echo "WARNING: This build will bypass authentication - only use for offline desktop"
+            echo ""
+            echo "============================================================"
+            echo "WARNING: Mock authentication ENABLED"
+            echo "============================================================"
+            echo "This build will bypass authentication."
+            echo "ONLY use for offline desktop development."
+            echo "NEVER distribute builds with mock auth enabled."
+            echo "============================================================"
+            echo ""
             sed 's/NEXT_PUBLIC_USE_MOCK_AUTH=false/NEXT_PUBLIC_USE_MOCK_AUTH=true/' \
                 "$DESKTOP_ROOT/.env.desktop.example" > "$DESKTOP_ROOT/.env.desktop"
         else
             echo "Creating .env.desktop with SECURE defaults (mock auth disabled)"
-            echo "To enable mock auth for offline desktop, set: ENABLE_DESKTOP_MOCK_AUTH=1"
             cp "$DESKTOP_ROOT/.env.desktop.example" "$DESKTOP_ROOT/.env.desktop"
         fi
     else

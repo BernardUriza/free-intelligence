@@ -94,6 +94,8 @@ hidden_imports = [
 ]
 
 # Data files to include
+# SECURITY: Only include code modules, NOT config files that may contain secrets
+# Config is loaded at runtime from user's data directory
 datas = [
     # Include all fi_* modules from backend/src
     (str(BACKEND_SRC / "fi_common"), "fi_common"),
@@ -106,14 +108,21 @@ datas = [
     (str(BACKEND_SRC / "fi_transcription"), "fi_transcription"),
     (str(BACKEND_SRC / "fi_tts"), "fi_tts"),
     (str(BACKEND_SRC / "fi_model_catalog"), "fi_model_catalog"),
-    # Config files
-    (str(BACKEND_ROOT / "config"), "config"),
-    # Policy files
-    (str(BACKEND_ROOT / "policy"), "policy"),
+    # NOTE: config/ and policy/ directories are NOT bundled
+    # - Config may contain secrets or environment-specific settings
+    # - Policy is bundled inline in fi_workflow module
+    # - Desktop app creates config at ~/.aurity/config/ on first run
 ]
 
 # Filter out non-existent paths
 datas = [(src, dst) for src, dst in datas if Path(src).exists()]
+
+# Warn about excluded directories
+excluded_dirs = ['config', 'policy']
+for dirname in excluded_dirs:
+    dirpath = BACKEND_ROOT / dirname
+    if dirpath.exists():
+        print(f"NOTE: {dirname}/ directory NOT bundled (security: may contain secrets)")
 
 # Exclude packages not needed for desktop (reduce size)
 excludes = [
