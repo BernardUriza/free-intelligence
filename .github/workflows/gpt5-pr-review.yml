@@ -63,11 +63,14 @@ jobs:
           # Escape for JSON
           PROMPT_ESCAPED=$(echo "$PROMPT" | jq -Rs .)
 
-          # Call Azure OpenAI
+          # Call Azure OpenAI (GPT-5 uses reasoning tokens, need higher limit)
           RESPONSE=$(curl -s "${AZURE_ENDPOINT}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
             -H "Content-Type: application/json" \
             -H "api-key: $AZURE_KEY" \
-            -d "{\"messages\":[{\"role\":\"user\",\"content\":$PROMPT_ESCAPED}],\"max_completion_tokens\":500}")
+            -d "{\"messages\":[{\"role\":\"user\",\"content\":$PROMPT_ESCAPED}],\"max_completion_tokens\":4000}")
+
+          # Debug: show usage stats
+          echo "API Response usage: $(echo "$RESPONSE" | jq -c '.usage // "no usage"')"
 
           # Extract review
           REVIEW=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
