@@ -170,9 +170,7 @@ class DIExportService:
 
         return content
 
-    def _create_manifest(
-        self, export_id: str, session_id: str, files: List[str]
-    ) -> dict[str, Any]:
+    def _create_manifest(self, export_id: str, session_id: str, files: List[str]) -> dict[str, Any]:
         """Create export manifest."""
         file_hashes = {}
         for file_path in files:

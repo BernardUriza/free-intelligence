@@ -3,6 +3,7 @@
 This module provides a minimal wrapper around the qwen-code CLI tool.
 No orchestration, no workers, no complex state management - just direct execution.
 """
+
 from __future__ import annotations
 
 import shlex

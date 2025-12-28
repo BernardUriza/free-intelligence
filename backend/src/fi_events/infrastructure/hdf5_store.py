@@ -128,9 +128,7 @@ class HDF5EventStore(EventStore):
                 for existing in stream:
                     existing_event = json.loads(existing)
                     if existing_event.get("event_id") == event.event_id:
-                        raise DuplicateEventError(
-                            f"Event {event.event_id} already exists in store"
-                        )
+                        raise DuplicateEventError(f"Event {event.event_id} already exists in store")
 
                 # Serialize event to JSON
                 event_json = event.model_dump_json()
@@ -172,9 +170,7 @@ class HDF5EventStore(EventStore):
         from_version: int = 0,
     ) -> list[DomainEvent]:
         """Load event stream for aggregate (async wrapper)."""
-        return await asyncio.to_thread(
-            self._load_stream_sync, aggregate_id, from_version
-        )
+        return await asyncio.to_thread(self._load_stream_sync, aggregate_id, from_version)
 
     def _load_stream_sync(
         self,
@@ -259,13 +255,9 @@ class HDF5EventStore(EventStore):
                                 event_id=event_data["event_id"],
                                 event_type=EventType(event_data["event_type"]),
                                 aggregate_id=event_data["aggregate_id"],
-                                timestamp=datetime.fromisoformat(
-                                    event_data["timestamp"]
-                                ),
+                                timestamp=datetime.fromisoformat(event_data["timestamp"]),
                                 payload=event_data.get("payload", {}),
-                                metadata=EventMetadata(
-                                    **event_data.get("metadata", {})
-                                ),
+                                metadata=EventMetadata(**event_data.get("metadata", {})),
                             )
                             events.append(event)
 

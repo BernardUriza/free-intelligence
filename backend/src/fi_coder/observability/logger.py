@@ -28,6 +28,7 @@ def _add_timestamp(
     """Add timezone-aware timestamp to log entries."""
     tz = ZoneInfo("America/Mexico_City")
     import datetime
+
     event_dict["timestamp"] = datetime.datetime.now(tz).isoformat()
     return event_dict
 

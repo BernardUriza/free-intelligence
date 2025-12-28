@@ -16,7 +16,9 @@ class ITaskRepository(ABC):
         pass
 
     @abstractmethod
-    def ensure_task_exists(self, session_id: str, task_type: str, metadata: Dict[str, Any] | None = None) -> str:
+    def ensure_task_exists(
+        self, session_id: str, task_type: str, metadata: Dict[str, Any] | None = None
+    ) -> str:
         """Ensure task exists, create if not."""
         pass
 

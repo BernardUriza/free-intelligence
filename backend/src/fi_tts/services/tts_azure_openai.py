@@ -61,9 +61,9 @@ AZURE_OPENAI_TTS_DEPLOYMENT = os.getenv(
 # OpenAI voice types (aligned with Aurity offering)
 # Only include voices that are currently offered in Aurity
 OpenAIVoiceType = Literal[
-    "alloy",   # Neutral, versatile (used in Aurity)
-    "nova",    # Female, warm (default for medical, used in Aurity)
-    "shimmer", # Female, clear (used in Aurity)
+    "alloy",  # Neutral, versatile (used in Aurity)
+    "nova",  # Female, warm (default for medical, used in Aurity)
+    "shimmer",  # Female, clear (used in Aurity)
 ]
 
 OutputFormat = Literal["mp3", "opus", "aac", "flac"]
@@ -86,14 +86,10 @@ class AzureOpenAITTSService:
         self.deployment = deployment
 
         if not self.api_key:
-            logger.warning(
-                "AZURE_OPENAI_TTS_API_KEY not configured - Azure OpenAI TTS will fail"
-            )
+            logger.warning("AZURE_OPENAI_TTS_API_KEY not configured - Azure OpenAI TTS will fail")
 
         if not self.endpoint:
-            logger.warning(
-                "AZURE_OPENAI_TTS_ENDPOINT not configured - Azure OpenAI TTS will fail"
-            )
+            logger.warning("AZURE_OPENAI_TTS_ENDPOINT not configured - Azure OpenAI TTS will fail")
 
     async def synthesize(
         self,

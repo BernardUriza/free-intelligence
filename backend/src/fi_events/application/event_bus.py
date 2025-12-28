@@ -87,10 +87,7 @@ class EventBus:
                 await self._store.append(event)
 
             # 2. Notify handlers (fire-and-forget, don't block)
-            handlers = (
-                self._handlers.get(event.event_type.value, [])
-                + self._global_handlers
-            )
+            handlers = self._handlers.get(event.event_type.value, []) + self._global_handlers
 
             if handlers:
                 # Run handlers concurrently
@@ -178,9 +175,7 @@ class EventBus:
             Dict with events_published, avg_latency_ms, handlers_count
         """
         avg_latency = (
-            self._total_latency_ms / self._events_published
-            if self._events_published > 0
-            else 0.0
+            self._total_latency_ms / self._events_published if self._events_published > 0 else 0.0
         )
         return {
             "events_published": self._events_published,

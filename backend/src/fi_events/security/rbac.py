@@ -170,6 +170,7 @@ def require_event_permission(permission: EventPermission) -> Callable:
     Returns:
         Dependency function
     """
+
     async def dependency(
         # user: User = Depends(get_current_user),
     ) -> None:
@@ -234,6 +235,7 @@ def requires_permission(permission: EventPermission) -> Callable:
     Returns:
         Decorator function
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:

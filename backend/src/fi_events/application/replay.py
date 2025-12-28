@@ -65,11 +65,13 @@ def default_reducer(state: dict[str, Any], event: "DomainEvent") -> dict[str, An
 
     # Track timeline
     timeline = state.get("timeline", [])
-    timeline.append({
-        "event_id": event.event_id,
-        "event_type": event_type,
-        "timestamp": event.timestamp.isoformat(),
-    })
+    timeline.append(
+        {
+            "event_id": event.event_id,
+            "event_type": event_type,
+            "timestamp": event.timestamp.isoformat(),
+        }
+    )
     state["timeline"] = timeline
 
     # Track latest payload per event type
@@ -196,9 +198,7 @@ async def validate_stream(
 
             # Check chronological order
             if prev_timestamp and event.timestamp < prev_timestamp:
-                result["warnings"].append(
-                    f"Event {event.event_id} is out of order at position {i}"
-                )
+                result["warnings"].append(f"Event {event.event_id} is out of order at position {i}")
             prev_timestamp = event.timestamp
 
             # Check required fields
@@ -245,12 +245,14 @@ def transcription_reducer(state: dict[str, Any], event: "DomainEvent") -> dict[s
 
     elif event_type == EventType.TRANSCRIPTION_CHUNK_RECEIVED:
         chunks = state.get("chunks", [])
-        chunks.append({
-            "chunk_number": event.payload.get("chunk_number"),
-            "duration_ms": event.payload.get("duration_ms", 0),
-            "audio_size_bytes": event.payload.get("audio_size_bytes", 0),
-            "timestamp": event.timestamp.isoformat(),
-        })
+        chunks.append(
+            {
+                "chunk_number": event.payload.get("chunk_number"),
+                "duration_ms": event.payload.get("duration_ms", 0),
+                "audio_size_bytes": event.payload.get("audio_size_bytes", 0),
+                "timestamp": event.timestamp.isoformat(),
+            }
+        )
         state["chunks"] = chunks
         state["total_chunks"] = len(chunks)
 

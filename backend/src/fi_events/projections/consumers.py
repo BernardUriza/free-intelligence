@@ -217,10 +217,13 @@ class SessionIndexProjection(Projection, HDF5ProjectionMixin):
 
     def _persist(self) -> None:
         """Persist state to disk."""
-        self._save_state(self.name, {
-            "sessions": self._sessions,
-            "stats": self._stats,
-        })
+        self._save_state(
+            self.name,
+            {
+                "sessions": self._sessions,
+                "stats": self._stats,
+            },
+        )
 
     async def get_state(self) -> dict[str, Any]:
         """Get current session index state."""
@@ -510,12 +513,8 @@ class MetricsByTypeProjection(Projection):
         return {
             "by_type": self._by_type,
             "total_events": self._total_events,
-            "first_event_at": (
-                self._first_event_at.isoformat() if self._first_event_at else None
-            ),
-            "last_event_at": (
-                self._last_event_at.isoformat() if self._last_event_at else None
-            ),
+            "first_event_at": (self._first_event_at.isoformat() if self._first_event_at else None),
+            "last_event_at": (self._last_event_at.isoformat() if self._last_event_at else None),
             "event_types_seen": len(self._by_type),
         }
 

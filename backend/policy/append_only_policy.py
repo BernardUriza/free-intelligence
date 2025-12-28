@@ -143,7 +143,10 @@ class AppendOnlyPolicy:
 
 
 def verify_append_only_operation(
-    corpus_path: str, operation_name: str, group_name: str, dataset_name: str | None = None,
+    corpus_path: str,
+    operation_name: str,
+    group_name: str,
+    dataset_name: str | None = None,
 ) -> dict[str, Any]:
     """Verify an operation is append-only compliant.
 

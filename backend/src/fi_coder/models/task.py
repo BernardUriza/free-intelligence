@@ -46,5 +46,6 @@ class Task(BaseModel):
     timeout_seconds: int | None = None
     execution_fingerprint: ExecutionFingerprint | None = None
 
+
 # Rebuild model for forward references
 Task.model_rebuild()

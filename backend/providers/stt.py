@@ -95,8 +95,13 @@ class AzureWhisperProvider(STTProvider):
         super().__init__(config)
         self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         self.api_key = os.getenv("AZURE_OPENAI_API_KEY")
-        self.deployment = str(self.config.get("deployment") or os.getenv("AZURE_OPENAI_WHISPER_DEPLOYMENT", "whisper"))
-        self.api_version: str = str(self.config.get("api_version") or os.getenv("AZURE_OPENAI_WHISPER_API_VERSION", "2024-02-01"))
+        self.deployment = str(
+            self.config.get("deployment") or os.getenv("AZURE_OPENAI_WHISPER_DEPLOYMENT", "whisper")
+        )
+        self.api_version: str = str(
+            self.config.get("api_version")
+            or os.getenv("AZURE_OPENAI_WHISPER_API_VERSION", "2024-02-01")
+        )
 
         if not self.endpoint:
             raise ValueError("AZURE_OPENAI_ENDPOINT environment variable not set")

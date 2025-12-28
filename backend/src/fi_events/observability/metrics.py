@@ -172,9 +172,7 @@ class EventMetrics:
             self._publish_latency_buckets[event_type] = [
                 HistogramBucket(le=b) for b in self.DEFAULT_LATENCY_BUCKETS
             ]
-            self._publish_latency_buckets[event_type].append(
-                HistogramBucket(le=float("inf"))
-            )
+            self._publish_latency_buckets[event_type].append(HistogramBucket(le=float("inf")))
             self._publish_latency_sum[event_type] = 0.0
             self._publish_latency_count[event_type] = 0
 

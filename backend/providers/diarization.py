@@ -316,7 +316,9 @@ class GoogleSpeechProvider(DiarizationProvider):
 
             self.speech_client = speech_v1.SpeechClient()
         except ImportError:
-            error_msg = "google-cloud-speech not installed. Install with: pip install google-cloud-speech"
+            error_msg = (
+                "google-cloud-speech not installed. Install with: pip install google-cloud-speech"
+            )
             raise ImportError(error_msg) from None
 
         self.logger.info(
@@ -505,7 +507,9 @@ def get_diarization_provider(
 
     provider_class = provider_map.get(provider_name.lower())
     if not provider_class:
-        error_msg = f"Unknown diarization provider: {provider_name}. Supported: {list(provider_map.keys())}"
+        error_msg = (
+            f"Unknown diarization provider: {provider_name}. Supported: {list(provider_map.keys())}"
+        )
         raise ValueError(error_msg)
 
     return provider_class(config)

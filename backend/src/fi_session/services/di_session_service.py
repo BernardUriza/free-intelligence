@@ -104,15 +104,20 @@ class SessionService:
         created_at = earliest_created.isoformat() if earliest_created else now.isoformat()
         updated_at = latest_updated.isoformat() if latest_updated else now.isoformat()
 
-        self.logger.info("SESSION_INFO_RETRIEVED", session_id=session_id, task_count=len(tasks_metadata))
+        self.logger.info(
+            "SESSION_INFO_RETRIEVED", session_id=session_id, task_count=len(tasks_metadata)
+        )
 
         # Publish event for decoupled communication
-        self.event_bus.publish("session.info_retrieved", {
-            "session_id": session_id,
-            "overall_status": overall_status,
-            "task_count": len(tasks_metadata),
-            "timestamp": updated_at,
-        })
+        self.event_bus.publish(
+            "session.info_retrieved",
+            {
+                "session_id": session_id,
+                "overall_status": overall_status,
+                "task_count": len(tasks_metadata),
+                "timestamp": updated_at,
+            },
+        )
 
         return {
             "session_id": session_id,

@@ -16,11 +16,36 @@ def test_metrics_analyzer_generates_artifacts(tmp_path: Path) -> None:
         tmp_path,
         "logs.jsonl",
         events=[
-            {"timestamp": "2025-12-18T00:00:00Z", "endpoint": "/health", "latency_ms": 10, "status_code": 200},
-            {"timestamp": "2025-12-18T00:00:01Z", "endpoint": "/api/foo", "latency_ms": 900, "status_code": 200},
-            {"timestamp": "2025-12-18T00:00:02Z", "endpoint": "/api/foo", "latency_ms": 950, "status_code": 200},
-            {"timestamp": "2025-12-18T00:00:03Z", "endpoint": "/api/foo", "latency_ms": 1000, "status_code": 503},
-            {"timestamp": "2025-12-18T00:00:04Z", "endpoint": "/api/bar", "latency_ms": 100, "status_code": 200},
+            {
+                "timestamp": "2025-12-18T00:00:00Z",
+                "endpoint": "/health",
+                "latency_ms": 10,
+                "status_code": 200,
+            },
+            {
+                "timestamp": "2025-12-18T00:00:01Z",
+                "endpoint": "/api/foo",
+                "latency_ms": 900,
+                "status_code": 200,
+            },
+            {
+                "timestamp": "2025-12-18T00:00:02Z",
+                "endpoint": "/api/foo",
+                "latency_ms": 950,
+                "status_code": 200,
+            },
+            {
+                "timestamp": "2025-12-18T00:00:03Z",
+                "endpoint": "/api/foo",
+                "latency_ms": 1000,
+                "status_code": 503,
+            },
+            {
+                "timestamp": "2025-12-18T00:00:04Z",
+                "endpoint": "/api/bar",
+                "latency_ms": 100,
+                "status_code": 200,
+            },
         ],
     )
 

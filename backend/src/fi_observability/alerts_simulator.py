@@ -79,7 +79,9 @@ def run(args: argparse.Namespace) -> int:
             "simulations": evaluated,
         }
 
-        out_json = write_json_artifact(common.out_dir, "alerts_simulation.json", redact_mapping(report))
+        out_json = write_json_artifact(
+            common.out_dir, "alerts_simulation.json", redact_mapping(report)
+        )
 
         from ._common import safe_print
 
@@ -131,7 +133,9 @@ def _build_scenarios(limits: dict[str, float]) -> list[dict[str, Any]]:
     return scenarios
 
 
-def _evaluate_scenario(service: str, limits: dict[str, float], scenario: dict[str, Any]) -> dict[str, Any]:
+def _evaluate_scenario(
+    service: str, limits: dict[str, float], scenario: dict[str, Any]
+) -> dict[str, Any]:
     p95 = float(scenario.get("p95_ms") or 0.0)
     er = float(scenario.get("error_rate") or 0.0)
 

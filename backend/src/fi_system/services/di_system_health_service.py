@@ -57,6 +57,7 @@ class DISystemHealthService:
         whisper_ok = False
         try:
             from backend.src.fi_coder.services.whisper_service import is_whisper_available
+
             whisper_ok = is_whisper_available()
             self.logger.info(f"WHISPER_HEALTH_CHECKED: available={whisper_ok}")
         except Exception as e:
@@ -94,6 +95,7 @@ class DISystemHealthService:
 
         try:
             import requests
+
             OLLAMA_BASE_URL = "http://localhost:11434"
 
             response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=0.8)
@@ -121,6 +123,7 @@ class DISystemHealthService:
         """
         try:
             from backend.policy.policy_enforcer import PolicyEnforcer
+
             _enforcer = PolicyEnforcer()
             self.logger.info("POLICY_HEALTH_CHECKED: healthy")
             return True

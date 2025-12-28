@@ -127,12 +127,14 @@ class DIEvidenceService:
         packs = []
         for pack_data in self._evidence_store.values():
             if session_id is None or pack_data.get("session_id") == session_id:
-                packs.append({
-                    "pack_id": pack_data["pack_id"],
-                    "session_id": pack_data.get("session_id"),
-                    "created_at": pack_data.get("created_at"),
-                    "metadata": pack_data.get("metadata", {}),
-                })
+                packs.append(
+                    {
+                        "pack_id": pack_data["pack_id"],
+                        "session_id": pack_data.get("session_id"),
+                        "created_at": pack_data.get("created_at"),
+                        "metadata": pack_data.get("metadata", {}),
+                    }
+                )
 
         self.logger.info(
             "EVIDENCE_PACKS_LISTED",

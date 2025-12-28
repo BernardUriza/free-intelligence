@@ -1,4 +1,5 @@
 """Intelligent lint fixing tool using qwen-code for complex Ruff issues."""
+
 from __future__ import annotations
 
 import re
@@ -24,10 +25,10 @@ def parse_ruff_output(ruff_output: str) -> list[dict[str, Any]]:
         List of issue dictionaries with file, line, code, message
     """
     issues = []
-    lines = ruff_output.strip().split('\n')
+    lines = ruff_output.strip().split("\n")
 
     # Pattern for Ruff output: file.py:line:col: code message
-    pattern = r'^([^:]+):(\d+):(\d+): ([A-Z]\d+) (.+)$'
+    pattern = r"^([^:]+):(\d+):(\d+): ([A-Z]\d+) (.+)$"
 
     for line in lines:
         line = line.strip()
@@ -37,36 +38,38 @@ def parse_ruff_output(ruff_output: str) -> list[dict[str, Any]]:
         match = re.match(pattern, line)
         if match:
             file_path, line_num, col_num, code, message = match.groups()
-            issues.append({
-                'file': file_path,
-                'line': int(line_num),
-                'column': int(col_num),
-                'code': code,
-                'message': message,
-                'severity': _get_severity_from_code(code),
-            })
+            issues.append(
+                {
+                    "file": file_path,
+                    "line": int(line_num),
+                    "column": int(col_num),
+                    "code": code,
+                    "message": message,
+                    "severity": _get_severity_from_code(code),
+                }
+            )
 
     return issues
 
 
 def _get_severity_from_code(code: str) -> str:
     """Determine severity from Ruff error code."""
-    if code.startswith('F') or code.startswith('E'):  # Pyflakes
-        return 'error'
-    elif code.startswith('W'):  # pycodestyle warnings
-        return 'warning'
-    elif code.startswith('I'):  # isort
-        return 'info'
-    elif code.startswith('N'):  # pep8-naming
-        return 'warning'
-    elif code.startswith('UP'):  # pyupgrade
-        return 'info'
-    elif code.startswith('B') or code.startswith('A'):  # flake8-bugbear
-        return 'warning'
-    elif code.startswith('C4') or code.startswith('SIM'):  # flake8-comprehensions
-        return 'info'
+    if code.startswith("F") or code.startswith("E"):  # Pyflakes
+        return "error"
+    elif code.startswith("W"):  # pycodestyle warnings
+        return "warning"
+    elif code.startswith("I"):  # isort
+        return "info"
+    elif code.startswith("N"):  # pep8-naming
+        return "warning"
+    elif code.startswith("UP"):  # pyupgrade
+        return "info"
+    elif code.startswith("B") or code.startswith("A"):  # flake8-bugbear
+        return "warning"
+    elif code.startswith("C4") or code.startswith("SIM"):  # flake8-comprehensions
+        return "info"
     else:
-        return 'unknown'
+        return "unknown"
 
 
 def generate_fix_prompt(issues: list[dict[str, Any]], file_path: str | None = None) -> str:
@@ -81,7 +84,7 @@ def generate_fix_prompt(issues: list[dict[str, Any]], file_path: str | None = No
     """
     if file_path:
         # Focus on specific file
-        file_issues = [issue for issue in issues if issue['file'] == file_path]
+        file_issues = [issue for issue in issues if issue["file"] == file_path]
         if not file_issues:
             return f"Fix any linting issues in {file_path}"
 
@@ -96,9 +99,9 @@ def generate_fix_prompt(issues: list[dict[str, Any]], file_path: str | None = No
         # Process all issues, group by file
         files = {}
         for issue in issues:
-            if issue['file'] not in files:
-                files[issue['file']] = []
-            files[issue['file']].append(issue)
+            if issue["file"] not in files:
+                files[issue["file"]] = []
+            files[issue["file"]].append(issue)
 
         prompt = "Fix linting issues across multiple files:\n\n"
 
@@ -233,34 +236,40 @@ def _is_complex_issue(issue: dict[str, Any]) -> bool:
     """
     # Simple fixes that Ruff can handle automatically
     simple_codes = {
-        'E501',  # Line too long (can be auto-fixed)
-        'I001',  # Import block is un-sorted
-        'W291', 'W292', 'W293',  # Whitespace issues
-        'E203',  # Whitespace before ':'
-        'E302', 'E303', 'E304', 'E305', 'E306',  # Blank line issues
+        "E501",  # Line too long (can be auto-fixed)
+        "I001",  # Import block is un-sorted
+        "W291",
+        "W292",
+        "W293",  # Whitespace issues
+        "E203",  # Whitespace before ':'
+        "E302",
+        "E303",
+        "E304",
+        "E305",
+        "E306",  # Blank line issues
     }
 
     # Complex issues that need understanding of code intent
     complex_codes = {
-        'F401',  # Unused import (needs to understand if really unused)
-        'F841',  # Unused variable (needs context)
-        'B008',  # Do not perform function calls in argument defaults
-        'C416',  # Unnecessary list comprehension
-        'SIM',   # Simplify code (various complex simplifications)
-        'UP',    # Pyupgrade (syntax changes that may affect behavior)
-        'N',     # Naming conventions (subjective)
-        'A',     # Built-in shadowing (needs understanding)
-        'B',     # Bugbear (various complex issues)
+        "F401",  # Unused import (needs to understand if really unused)
+        "F841",  # Unused variable (needs context)
+        "B008",  # Do not perform function calls in argument defaults
+        "C416",  # Unnecessary list comprehension
+        "SIM",  # Simplify code (various complex simplifications)
+        "UP",  # Pyupgrade (syntax changes that may affect behavior)
+        "N",  # Naming conventions (subjective)
+        "A",  # Built-in shadowing (needs understanding)
+        "B",  # Bugbear (various complex issues)
     }
 
-    code = issue['code']
+    code = issue["code"]
 
     # If it's a simple code, don't use AI
     if code in simple_codes:
         return False
 
     # If it's a complex code, use AI
-    if any(code.startswith(prefix) for prefix in ['F', 'B', 'C4', 'SIM', 'UP', 'N', 'A']):
+    if any(code.startswith(prefix) for prefix in ["F", "B", "C4", "SIM", "UP", "N", "A"]):
         return True
 
     # Default to simple for unknown codes

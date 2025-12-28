@@ -205,8 +205,7 @@ class ProjectionRegistry:
         for event_type in projection.subscribed_events:
             if event_type in self._event_subscriptions:
                 self._event_subscriptions[event_type] = [
-                    p for p in self._event_subscriptions[event_type]
-                    if p.name != name
+                    p for p in self._event_subscriptions[event_type] if p.name != name
                 ]
 
         logger.info("PROJECTION_UNREGISTERED", name=name)
@@ -230,7 +229,8 @@ class ProjectionRegistry:
                 "events_processed": p.get_runtime_state().events_processed,
                 "last_processed_at": (
                     p.get_runtime_state().last_processed_at.isoformat()
-                    if p.get_runtime_state().last_processed_at else None
+                    if p.get_runtime_state().last_processed_at
+                    else None
                 ),
                 "error_count": len(p.get_runtime_state().errors),
             }

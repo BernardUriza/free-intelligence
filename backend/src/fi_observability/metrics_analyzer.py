@@ -189,7 +189,9 @@ def run(args: argparse.Namespace) -> int:
             "by_endpoint": rows,
         }
 
-        out_json = write_json_artifact(common.out_dir, "metrics_report.json", redact_mapping(report))
+        out_json = write_json_artifact(
+            common.out_dir, "metrics_report.json", redact_mapping(report)
+        )
         out_html = write_text_artifact(common.out_dir, "metrics_report.html", _render_html(report))
 
         from ._common import safe_print
@@ -258,9 +260,7 @@ def _render_html(report: dict[str, Any]) -> str:
         )
 
     table = (
-        "<table border='1' cellpadding='6' cellspacing='0'>"
-        f"{header}{''.join(body_parts)}"
-        "</table>"
+        f"<table border='1' cellpadding='6' cellspacing='0'>{header}{''.join(body_parts)}</table>"
     )
 
     summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}

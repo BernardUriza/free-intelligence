@@ -40,10 +40,7 @@ class TestQwenThinkingParser:
 
     def test_thinking_with_xml_like_content(self):
         """Thinking block may contain angle brackets that aren't tags."""
-        input_text = (
-            "<think>Compare A > B and C < D</think>"
-            "A is greater than B"
-        )
+        input_text = "<think>Compare A > B and C < D</think>A is greater than B"
         thinking, content = parse_qwen_thinking_and_response(input_text)
 
         assert "A > B" in thinking
@@ -113,10 +110,7 @@ class TestQwenThinkingParser:
 
     def test_whitespace_around_content(self):
         """Proper trimming of whitespace around thinking and content."""
-        input_text = (
-            "  <think>  Reasoning with padding  </think>  "
-            "  Content with padding  "
-        )
+        input_text = "  <think>  Reasoning with padding  </think>    Content with padding  "
         thinking, content = parse_qwen_thinking_and_response(input_text)
 
         # Inner whitespace preserved, outer trimmed
@@ -125,12 +119,7 @@ class TestQwenThinkingParser:
 
     def test_newlines_preserved_in_thinking(self):
         """Newlines within thinking blocks should be preserved."""
-        input_text = (
-            "<think>Line 1\n"
-            "Line 2\n"
-            "Line 3</think>"
-            "Final response"
-        )
+        input_text = "<think>Line 1\nLine 2\nLine 3</think>Final response"
         thinking, content = parse_qwen_thinking_and_response(input_text)
 
         assert "Line 1\nLine 2\nLine 3" in thinking
@@ -238,10 +227,7 @@ class TestQwenThinkingParser:
 
     def test_thinking_tag_in_content(self):
         """Edge case: content mentions 'think' as a word."""
-        input_text = (
-            "<think>Reasoning</think>"
-            "Let me think about this some more."
-        )
+        input_text = "<think>Reasoning</think>Let me think about this some more."
         thinking, content = parse_qwen_thinking_and_response(input_text)
 
         assert thinking == "Reasoning"
@@ -251,8 +237,7 @@ class TestQwenThinkingParser:
     def test_html_entities_in_thinking(self):
         """Thinking block may contain HTML entities."""
         input_text = (
-            "<think>Consider A &amp; B, also X &lt; Y</think>"
-            "Response with entities: A &amp; B"
+            "<think>Consider A &amp; B, also X &lt; Y</think>Response with entities: A &amp; B"
         )
         thinking, content = parse_qwen_thinking_and_response(input_text)
 
@@ -311,10 +296,7 @@ class TestQwenThinkingParser:
 
     def test_html_comment_like_content(self):
         """Content that looks like HTML comments but isn't."""
-        input_text = (
-            "<think>Thinking</think>"
-            "<!-- This is not a comment in the parsing logic -->"
-        )
+        input_text = "<think>Thinking</think><!-- This is not a comment in the parsing logic -->"
         thinking, content = parse_qwen_thinking_and_response(input_text)
 
         assert thinking == "Thinking"
@@ -371,10 +353,7 @@ class TestOllamaResponseIntegration:
     def test_ollama_streaming_chunk(self):
         """Simulate receiving chunks from Ollama streaming."""
         # In streaming, we get complete response at once
-        full_response = (
-            "<think>Processing user question...</think>"
-            "Here is the answer in chunks"
-        )
+        full_response = "<think>Processing user question...</think>Here is the answer in chunks"
         thinking, content = parse_qwen_thinking_and_response(full_response)
 
         assert thinking == "Processing user question..."

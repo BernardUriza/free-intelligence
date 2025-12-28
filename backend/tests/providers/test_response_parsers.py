@@ -24,9 +24,7 @@ class TestQwenThinkingParser:
 
     def test_basic_thinking_and_response(self):
         """Test basic <think>...</think> followed by content."""
-        response = {
-            "response": "<think>Let me think about this</think>Here is the answer"
-        }
+        response = {"response": "<think>Let me think about this</think>Here is the answer"}
         thinking, content = self.parser.parse(response)
         assert thinking == "Let me think about this"
         assert content == "Here is the answer"
@@ -65,18 +63,14 @@ class TestQwenThinkingParser:
 
     def test_thinking_with_newlines(self):
         """Test thinking block with multiple lines."""
-        response = {
-            "response": "<think>Line 1\nLine 2\nLine 3</think>Response content"
-        }
+        response = {"response": "<think>Line 1\nLine 2\nLine 3</think>Response content"}
         thinking, content = self.parser.parse(response)
         assert thinking == "Line 1\nLine 2\nLine 3"
         assert content == "Response content"
 
     def test_strip_excess_whitespace(self):
         """Test that excess whitespace is stripped."""
-        response = {
-            "response": "  <think>  thinking  </think>  content  "
-        }
+        response = {"response": "  <think>  thinking  </think>  content  "}
         thinking, content = self.parser.parse(response)
         assert thinking == "thinking"
         assert content == "content"
@@ -87,18 +81,14 @@ class TestQwenThinkingParser:
 
     def test_multiple_thinking_blocks(self):
         """Test response with multiple <think>...</think> blocks."""
-        response = {
-            "response": "<think>First thought</think>X<think>Second thought</think>Y"
-        }
+        response = {"response": "<think>First thought</think>X<think>Second thought</think>Y"}
         thinking, content = self.parser.parse(response)
         assert thinking == "First thought\nSecond thought"
         assert content == "XY"
 
     def test_multiple_blocks_with_whitespace(self):
         """Test multiple blocks with whitespace between them."""
-        response = {
-            "response": "<think>A</think>   text   <think>B</think>   more"
-        }
+        response = {"response": "<think>A</think>   text   <think>B</think>   more"}
         thinking, content = self.parser.parse(response)
         assert thinking == "A\nB"
         # Leading whitespace is stripped, internal whitespace preserved
@@ -162,9 +152,7 @@ class TestQwenThinkingParser:
 
     def test_multiple_nested_levels(self):
         """Test deeply nested thinking tags (state machine handles them)."""
-        response = {
-            "response": "<think>L1 <think>L2 <think>L3</think></think></think>Final"
-        }
+        response = {"response": "<think>L1 <think>L2 <think>L3</think></think></think>Final"}
         thinking, content = self.parser.parse(response)
         # State machine correctly handles multiple nesting levels
         assert "L1" in thinking and "L3" in thinking
@@ -237,12 +225,7 @@ class TestGenericParser:
 
     def test_chat_endpoint_format(self):
         """Test parsing response from /chat endpoint."""
-        response = {
-            "message": {
-                "role": "assistant",
-                "content": "This is the response"
-            }
-        }
+        response = {"message": {"role": "assistant", "content": "This is the response"}}
         thinking, content = self.parser.parse(response)
         assert thinking is None
         assert content == "This is the response"
@@ -305,17 +288,13 @@ class TestParserIntegration:
     def test_parser_choice_logic(self):
         """Test logic for choosing appropriate parser."""
         # Qwen response with thinking
-        qwen_resp = {
-            "response": "<think>reasoning</think>answer"
-        }
+        qwen_resp = {"response": "<think>reasoning</think>answer"}
         qwen_t, qwen_c = QwenThinkingParser().parse(qwen_resp)
         assert qwen_t is not None
         assert qwen_c == "answer"
 
         # Generic response
-        gen_resp = {
-            "message": {"content": "answer"}
-        }
+        gen_resp = {"message": {"content": "answer"}}
         gen_t, gen_c = GenericParser().parse(gen_resp)
         assert gen_t is None
         assert gen_c == "answer"

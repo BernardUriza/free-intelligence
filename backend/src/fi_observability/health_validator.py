@@ -220,7 +220,9 @@ def _run_load(
     results: list[ProbeResult] = []
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
-        futures = [executor.submit(_probe_get, base_url, path, timeout_s) for _ in range(total_requests)]
+        futures = [
+            executor.submit(_probe_get, base_url, path, timeout_s) for _ in range(total_requests)
+        ]
         for fut in concurrent.futures.as_completed(futures):
             results.append(fut.result())
 

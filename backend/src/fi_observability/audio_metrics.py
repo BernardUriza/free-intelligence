@@ -128,15 +128,12 @@ class AudioMetrics:
                 "cache_hits_total": self.cache_hits_total,
                 "cache_misses_total": self.cache_misses_total,
                 "errors_total": dict(self.errors_total),
-
                 # Derived metrics
                 "cache_hit_rate": self.get_cache_hit_rate(),
-
                 # Gauges
                 "cache_size": self.cache_size,
                 "cache_max": self.cache_max,
                 "queue_depth": self.queue_depth,
-
                 # Latency stats by provider
                 "latency_avg_ms": {
                     provider: self.get_avg_latency(provider)
@@ -146,7 +143,6 @@ class AudioMetrics:
                     provider: self.get_p95_latency(provider)
                     for provider in self.latency_samples.keys()
                 },
-
                 # Session info
                 "uptime_seconds": uptime_seconds,
             }
@@ -166,17 +162,19 @@ class AudioMetrics:
         lines.append("# TYPE audio_tts_requests_total counter")
         for key, count in metrics["tts_requests_total"].items():
             provider, voice = key.split(":", 1)
-            lines.append(f'audio_tts_requests_total{{provider="{provider}",voice="{voice}"}} {count}')
+            lines.append(
+                f'audio_tts_requests_total{{provider="{provider}",voice="{voice}"}} {count}'
+            )
 
         # Cache hits
         lines.append("# HELP audio_cache_hits_total Total cache hits")
         lines.append("# TYPE audio_cache_hits_total counter")
-        lines.append(f'audio_cache_hits_total {metrics["cache_hits_total"]}')
+        lines.append(f"audio_cache_hits_total {metrics['cache_hits_total']}")
 
         # Cache misses
         lines.append("# HELP audio_cache_misses_total Total cache misses")
         lines.append("# TYPE audio_cache_misses_total counter")
-        lines.append(f'audio_cache_misses_total {metrics["cache_misses_total"]}')
+        lines.append(f"audio_cache_misses_total {metrics['cache_misses_total']}")
 
         # Errors by code
         lines.append("# HELP audio_errors_total Total errors by error code")
@@ -187,17 +185,17 @@ class AudioMetrics:
         # Cache hit rate (gauge)
         lines.append("# HELP audio_cache_hit_rate Cache hit rate (0-1)")
         lines.append("# TYPE audio_cache_hit_rate gauge")
-        lines.append(f'audio_cache_hit_rate {metrics["cache_hit_rate"]:.4f}')
+        lines.append(f"audio_cache_hit_rate {metrics['cache_hit_rate']:.4f}")
 
         # Cache size
         lines.append("# HELP audio_cache_size Current cache size")
         lines.append("# TYPE audio_cache_size gauge")
-        lines.append(f'audio_cache_size {metrics["cache_size"]}')
+        lines.append(f"audio_cache_size {metrics['cache_size']}")
 
         # Queue depth
         lines.append("# HELP audio_queue_depth Current queue depth")
         lines.append("# TYPE audio_queue_depth gauge")
-        lines.append(f'audio_queue_depth {metrics["queue_depth"]}')
+        lines.append(f"audio_queue_depth {metrics['queue_depth']}")
 
         # Average latency by provider
         lines.append("# HELP audio_tts_latency_avg_ms Average TTS latency by provider")
@@ -214,7 +212,7 @@ class AudioMetrics:
         # Uptime
         lines.append("# HELP audio_subsystem_uptime_seconds Audio subsystem uptime")
         lines.append("# TYPE audio_subsystem_uptime_seconds counter")
-        lines.append(f'audio_subsystem_uptime_seconds {metrics["uptime_seconds"]:.0f}')
+        lines.append(f"audio_subsystem_uptime_seconds {metrics['uptime_seconds']:.0f}")
 
         return "\n".join(lines) + "\n"
 

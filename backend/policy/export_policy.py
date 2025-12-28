@@ -48,7 +48,6 @@ Attributes:
 
 """
 
-
 from __future__ import annotations
 
 import hashlib
@@ -64,8 +63,10 @@ from pathlib import Path
 # Import logger with fallback
 try:
     from logger import get_logger
+
     logger = get_logger(__name__)
 except ImportError:
+
     class SimpleLogger:
         """Simple fallback logger implementation."""
 

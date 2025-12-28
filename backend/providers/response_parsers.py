@@ -124,9 +124,7 @@ class QwenThinkingParser(LLMResponseParser):
 
         # Check for unclosed thinking block
         if depth > 0:
-            raise ValueError(
-                f"Malformed Qwen response: unclosed <think> tag (depth={depth})"
-            )
+            raise ValueError(f"Malformed Qwen response: unclosed <think> tag (depth={depth})")
 
         # Combine thinking parts and filter empty ones
         thinking_text = None

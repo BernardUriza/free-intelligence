@@ -1,4 +1,5 @@
 """Common security and configuration policies for FI system."""
+
 from __future__ import annotations
 
 from typing import Any, Dict
@@ -8,6 +9,7 @@ from pydantic import BaseModel
 
 class TaskSchema(BaseModel):
     """Schema for task configuration."""
+
     parameters_schema: Dict[str, Any]
 
 

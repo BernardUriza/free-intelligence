@@ -24,10 +24,12 @@ def _generate_ulid() -> str:
     """Generate ULID for event_id (lazy import to avoid circular deps)."""
     try:
         import ulid
+
         return str(ulid.new())
     except ImportError:
         # Fallback to UUID if ULID not installed
         from uuid import uuid4
+
         return str(uuid4())
 
 
@@ -89,46 +91,32 @@ class DomainEvent(BaseModel):
     """
 
     event_id: str = Field(
-        default_factory=_generate_ulid,
-        description="Unique event identifier (ULID - time-sortable)"
+        default_factory=_generate_ulid, description="Unique event identifier (ULID - time-sortable)"
     )
-    event_type: EventType = Field(
-        ...,
-        description="Type of domain event"
-    )
+    event_type: EventType = Field(..., description="Type of domain event")
     aggregate_id: str = Field(
-        ...,
-        description="ID of the aggregate this event belongs to (e.g., session_id)"
+        ..., description="ID of the aggregate this event belongs to (e.g., session_id)"
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
-        description="When the event occurred (UTC)"
+        default_factory=lambda: datetime.now(UTC), description="When the event occurred (UTC)"
     )
     payload: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Event-specific data (MUST NOT contain PHI)"
+        default_factory=dict, description="Event-specific data (MUST NOT contain PHI)"
     )
-    metadata: EventMetadata = Field(
-        default_factory=EventMetadata,
-        description="Audit metadata"
-    )
+    metadata: EventMetadata = Field(default_factory=EventMetadata, description="Audit metadata")
     # Versioning
     schema_version: str = Field(
-        default=SCHEMA_VERSION,
-        description="Schema version for backward compatibility"
+        default=SCHEMA_VERSION, description="Schema version for backward compatibility"
     )
-    event_version: int = Field(
-        default=1,
-        description="Event-specific schema version"
-    )
+    event_version: int = Field(default=1, description="Event-specific schema version")
     # Idempotency
     dedupe_key: str | None = Field(
-        default=None,
-        description="Deduplication key (hash of type+payload)"
+        default=None, description="Deduplication key (hash of type+payload)"
     )
 
     class Config:
         """Pydantic config."""
+
         frozen = True  # Immutable
 
     def with_dedupe_key(self) -> "DomainEvent":
@@ -141,6 +129,7 @@ class DomainEvent(BaseModel):
             return self
 
         from backend.src.fi_events.domain.identity import generate_dedupe_key
+
         key = generate_dedupe_key(self.event_type, self.aggregate_id, self.payload)
 
         # Create new event with dedupe_key (immutable pattern)
@@ -170,7 +159,7 @@ class TranscriptionStartedEvent(DomainEvent):
             payload={
                 "mode": mode,
                 "source": source,
-            }
+            },
         )
 
 
@@ -194,7 +183,7 @@ class TranscriptionChunkEvent(DomainEvent):
                 "chunk_number": chunk_number,
                 "duration_ms": duration_ms,
                 "audio_size_bytes": audio_size_bytes,
-            }
+            },
         )
 
 
@@ -218,7 +207,7 @@ class TranscriptionEndedEvent(DomainEvent):
                 "total_chunks": total_chunks,
                 "total_duration_ms": total_duration_ms,
                 "status": status,
-            }
+            },
         )
 
 
@@ -240,7 +229,7 @@ class TranscriptionFailedEvent(DomainEvent):
             payload={
                 "error_code": error_code,
                 "error_message": error_message[:200],  # Truncate
-            }
+            },
         )
 
 
@@ -251,9 +240,7 @@ class SOAPGenerationEvent(DomainEvent):
     def started(cls, session_id: str) -> "SOAPGenerationEvent":
         """SOAP generation started."""
         return cls(
-            event_type=EventType.SOAP_GENERATION_STARTED,
-            aggregate_id=session_id,
-            payload={}
+            event_type=EventType.SOAP_GENERATION_STARTED, aggregate_id=session_id, payload={}
         )
 
     @classmethod
@@ -270,7 +257,7 @@ class SOAPGenerationEvent(DomainEvent):
             payload={
                 "quality_score": quality_score,
                 "completeness": completeness,
-            }
+            },
         )
 
     @classmethod
@@ -279,5 +266,5 @@ class SOAPGenerationEvent(DomainEvent):
         return cls(
             event_type=EventType.SOAP_GENERATION_FAILED,
             aggregate_id=session_id,
-            payload={"error_code": error_code}
+            payload={"error_code": error_code},
         )

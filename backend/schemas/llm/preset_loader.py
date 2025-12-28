@@ -84,7 +84,9 @@ class PresetLoader:
         # Check new location first, fallback to old for backward compatibility
         if presets_dir is None:
             # Check new location first
-            new_prompts_dir = Path(__file__).parent.parent.parent / "src" / "fi_prompts" / "yaml_presets"
+            new_prompts_dir = (
+                Path(__file__).parent.parent.parent / "src" / "fi_prompts" / "yaml_presets"
+            )
             if new_prompts_dir.exists():
                 presets_dir = str(new_prompts_dir)
             else:

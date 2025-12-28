@@ -159,8 +159,15 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
         memory_enabled = request.use_memory or auto_memory_enabled
 
         if memory_enabled and effective_doctor_id:
-            # Get memory manager
+            # Get memory manager (None if embeddings unavailable in production)
             memory = get_memory_manager(effective_doctor_id)
+
+            # Skip memory features if embeddings unavailable
+            if memory is None:
+                memory_enabled = False
+
+        if memory_enabled and effective_doctor_id:
+            memory = get_memory_manager(effective_doctor_id)  # Re-get (already cached)
 
             # Store user message
             user_timestamp = datetime.now(UTC).isoformat()
@@ -475,20 +482,33 @@ async def internal_llm_chat_stream(request: ChatRequest):
             try:
                 event_bus = get_event_bus()
                 aggregate_id = request.session_id or stream_request_id
-                await event_bus.publish(DomainEvent(
-                    event_type=EventType.ASSISTANT_MESSAGE_RECEIVED,
-                    aggregate_id=aggregate_id,
-                    payload={
-                        "message_type": "user",
-                        "token_count": len(request.message.split()),
-                        "persona": request.persona,
-                    }
-                ))
+                await event_bus.publish(
+                    DomainEvent(
+                        event_type=EventType.ASSISTANT_MESSAGE_RECEIVED,
+                        aggregate_id=aggregate_id,
+                        payload={
+                            "message_type": "user",
+                            "token_count": len(request.message.split()),
+                            "persona": request.persona,
+                        },
+                    )
+                )
             except Exception as evt_err:
                 logger.warning("EVENT_EMIT_FAILED", error=str(evt_err))
 
             # Get memory context if enabled
             memory_enabled = request.use_memory and request.doctor_id
+
+            if memory_enabled:
+                # Check if embeddings available
+                memory = get_memory_manager(request.doctor_id)
+                if memory is None:
+                    memory_enabled = False
+                    logger.info(
+                        "📚 [STREAM] MEMORY_DISABLED_NO_EMBEDDINGS",
+                        request_id=stream_request_id,
+                        doctor_id=request.doctor_id,
+                    )
 
             if memory_enabled:
                 logger.info(
@@ -553,6 +573,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
 
             # Get provider
             from backend.policy.policy_loader import get_policy_loader
+
             policy_loader = get_policy_loader()
             provider_name = request.provider or policy_loader.get_primary_provider()
 
@@ -577,6 +598,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
 
             # Get provider instance
             from backend.providers.llm import get_provider
+
             llm_provider = get_provider(provider_name, provider_config)
 
             logger.info(
@@ -587,7 +609,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
             )
 
             # Check if provider supports streaming
-            if not hasattr(llm_provider, 'generate_stream'):
+            if not hasattr(llm_provider, "generate_stream"):
                 # Fallback to non-streaming (will wait for full response)
                 logger.warning(
                     "⚠️ [STREAM] FALLBACK_NO_STREAM_METHOD",
@@ -617,7 +639,9 @@ async def internal_llm_chat_stream(request: ChatRequest):
             last_chunk_time = start_time
 
             # Get model name for meta event
-            model_name = (request.context.get("model") if request.context else None) or provider_name
+            model_name = (
+                request.context.get("model") if request.context else None
+            ) or provider_name
 
             logger.info(
                 "🚀 [STREAM] STREAMING_START",
@@ -631,13 +655,16 @@ async def internal_llm_chat_stream(request: ChatRequest):
 
             # Use asyncio.to_thread to avoid blocking the event loop
             import asyncio
+
             gen = await asyncio.to_thread(
                 lambda: llm_provider.generate_stream(
                     prompt,
                     model=request.context.get("model") if request.context else None,
                     temperature=request.context.get("temperature", 0.7) if request.context else 0.7,
                     max_tokens=request.context.get("max_tokens", 512) if request.context else 512,
-                    enable_thinking=request.context.get("enable_thinking", True) if request.context else True,
+                    enable_thinking=request.context.get("enable_thinking", True)
+                    if request.context
+                    else True,
                 )
             )
 
@@ -650,9 +677,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
             def format_content_chunk(text: str) -> str:
                 """Format content as OpenAI-compatible SSE chunk."""
                 chunk_data = {
-                    "choices": [
-                        {"index": 0, "delta": {"content": text}, "finish_reason": None}
-                    ]
+                    "choices": [{"index": 0, "delta": {"content": text}, "finish_reason": None}]
                 }
                 return f"data: {json.dumps(chunk_data)}\n\n"
 
@@ -729,17 +754,19 @@ async def internal_llm_chat_stream(request: ChatRequest):
             try:
                 event_bus = get_event_bus()
                 aggregate_id = request.session_id or stream_request_id
-                await event_bus.publish(DomainEvent(
-                    event_type=EventType.ASSISTANT_RESPONSE_GENERATED,
-                    aggregate_id=aggregate_id,
-                    payload={
-                        "message_type": "assistant",
-                        "token_count": total_bytes // 4,  # Approximate tokens
-                        "total_chunks": chunk_count,
-                        "latency_ms": total_latency_ms,
-                        "provider": provider_name,
-                    }
-                ))
+                await event_bus.publish(
+                    DomainEvent(
+                        event_type=EventType.ASSISTANT_RESPONSE_GENERATED,
+                        aggregate_id=aggregate_id,
+                        payload={
+                            "message_type": "assistant",
+                            "token_count": total_bytes // 4,  # Approximate tokens
+                            "total_chunks": chunk_count,
+                            "latency_ms": total_latency_ms,
+                            "provider": provider_name,
+                        },
+                    )
+                )
             except Exception as evt_err:
                 logger.warning("EVENT_EMIT_FAILED", error=str(evt_err))
 

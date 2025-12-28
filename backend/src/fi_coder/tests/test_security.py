@@ -17,7 +17,11 @@ class TestSecurity(unittest.TestCase):
         self.assertFalse(self.validator.validate_task_name("rm -rf /"))
 
     def test_working_directory_validation(self):
-        self.assertTrue(self.validator.validate_working_directory("/Users/bernardurizaorozco/Documents/free-intelligence"))
+        self.assertTrue(
+            self.validator.validate_working_directory(
+                "/Users/bernardurizaorozco/Documents/free-intelligence"
+            )
+        )
         self.assertFalse(self.validator.validate_working_directory("/tmp"))
 
     def test_parameter_validation(self):

@@ -16,6 +16,7 @@ from backend.policy.policy_enforcer import PolicyEnforcer
 def get_transcription_service():
     """Get TranscriptionService from container."""
     from .container import container
+
     return container.get_transcription_service()
 
 

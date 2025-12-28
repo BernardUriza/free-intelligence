@@ -442,6 +442,7 @@ class TestCLI:
         """CLI code should be importable without errors."""
         # Just verify the module loads without syntax errors
         from backend.src.fi_llm import services
+
         persona_manager = services.persona_manager
 
         assert hasattr(persona_manager, "PersonaManager")

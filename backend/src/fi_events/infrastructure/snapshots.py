@@ -119,9 +119,7 @@ class SnapshotStore:
         Returns:
             The saved Snapshot
         """
-        return await asyncio.to_thread(
-            self._save_snapshot_sync, aggregate_id, state, event_version
-        )
+        return await asyncio.to_thread(self._save_snapshot_sync, aggregate_id, state, event_version)
 
     def _save_snapshot_sync(
         self,

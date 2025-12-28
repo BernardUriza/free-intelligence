@@ -72,11 +72,13 @@ class Span:
             name: Event name
             attributes: Event attributes
         """
-        self.events.append({
-            "name": name,
-            "timestamp": datetime.now(UTC).isoformat(),
-            "attributes": attributes or {},
-        })
+        self.events.append(
+            {
+                "name": name,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "attributes": attributes or {},
+            }
+        )
 
     def set_tag(self, key: str, value: str) -> None:
         """Set a tag on the span.
@@ -244,8 +246,7 @@ class EventTracer:
             List of slow spans
         """
         slow = [
-            s for s in self._spans
-            if s.duration_ms is not None and s.duration_ms > threshold_ms
+            s for s in self._spans if s.duration_ms is not None and s.duration_ms > threshold_ms
         ]
         return sorted(slow, key=lambda s: s.duration_ms or 0, reverse=True)[:limit]
 
@@ -353,6 +354,7 @@ def trace_event(
     Returns:
         Decorated function
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:

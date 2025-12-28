@@ -22,7 +22,12 @@ from backend.providers.retry import CircuitBreakerConfig, RetryConfig, get_circu
 from backend.schemas.llm.audit_policy import require_audit_log
 from backend.src.fi_common.logging.logger import get_logger
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
+
+# Optional: sentence_transformers (requires torch, not installed in production)
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None  # type: ignore
 
 # Optional imports (will be checked for availability in relevant providers)
 try:
@@ -315,6 +320,12 @@ class ClaudeProvider(LLMProvider):
             message="Claude doesn't support embeddings, falling back to sentence-transformers",
         )
 
+        if SentenceTransformer is None:
+            raise RuntimeError(
+                "sentence_transformers not available (requires torch). "
+                "Embeddings are disabled in production mode."
+            )
+
         # Use lightweight model
         model = SentenceTransformer("all-MiniLM-L6-v2")
         embedding = model.encode(text, convert_to_numpy=True)
@@ -476,7 +487,9 @@ class OllamaProvider(LLMProvider):
                         self.logger.debug(
                             "QWEN_RAW_RESPONSE_PREVIEW",
                             first_100_chars=raw_response[:100],
-                            last_100_chars=raw_response[-100:] if len(raw_response) > 100 else raw_response,
+                            last_100_chars=raw_response[-100:]
+                            if len(raw_response) > 100
+                            else raw_response,
                             total_length=len(raw_response),
                         )
                         thinking_text, content = self.qwen_parser.parse(response)
@@ -827,6 +840,7 @@ class OllamaProvider(LLMProvider):
                     )
 
                     import time
+
                     time.sleep(delay)
 
                     # Re-check circuit breaker after delay
