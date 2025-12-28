@@ -20,6 +20,7 @@ from backend.policy.policy_loader import get_policy_loader
 from backend.providers.response_parsers import GenericParser, QwenThinkingParser
 from backend.providers.retry import CircuitBreakerConfig, RetryConfig, get_circuit_breaker
 from backend.schemas.llm.audit_policy import require_audit_log
+from backend.src.fi_common.config.deployment import get_ollama_host
 from backend.src.fi_common.logging.logger import get_logger
 from dotenv import load_dotenv
 
@@ -348,11 +349,11 @@ class OllamaProvider(LLMProvider):
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
-        # Priority: OLLAMA_HOST env var > config > default
+        # Priority: OLLAMA_HOST env var > deployment target default > config > fallback
+        # get_ollama_host() handles env var and deployment target logic (cloud vs desktop)
         self.base_url: str = str(
-            os.getenv("OLLAMA_HOST")
-            or self.config.get("base_url")
-            or "http://localhost:11434"
+            self.config.get("base_url")
+            or get_ollama_host()
         )
         self.default_model: str = str(self.config.get("model") or "qwen3:1.7b")
         self.embed_model: str = str(self.config.get("embed_model") or "nomic-embed-text")
