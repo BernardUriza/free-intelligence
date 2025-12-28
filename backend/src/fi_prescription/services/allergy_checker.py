@@ -158,7 +158,10 @@ class AllergyChecker:
                     continue
 
                 for medication in medications:
-                    pair_key = (f"{patient_allergy}+{cross_reactive_name}".lower(), medication.lower())
+                    pair_key = (
+                        f"{patient_allergy}+{cross_reactive_name}".lower(),
+                        medication.lower(),
+                    )
                     if pair_key in checked_pairs:
                         continue
                     checked_pairs.add(pair_key)
@@ -384,7 +387,9 @@ class AllergyChecker:
             "total_allergens": len(self._allergens),
             "active_allergens": len(active),
             "drug_class_allergens": sum(1 for a in active if a.allergen_type.value == "drug_class"),
-            "specific_drug_allergens": sum(1 for a in active if a.allergen_type.value == "specific_drug"),
+            "specific_drug_allergens": sum(
+                1 for a in active if a.allergen_type.value == "specific_drug"
+            ),
             "excipient_allergens": sum(1 for a in active if a.allergen_type.value == "excipient"),
             "food_allergens": sum(1 for a in active if a.allergen_type.value == "food"),
             "indexed_medications": len(self._medication_index),

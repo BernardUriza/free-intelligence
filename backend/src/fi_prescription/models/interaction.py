@@ -314,16 +314,10 @@ class InteractionCheckResult(BaseModel):
     def contraindicated_count(self) -> int:
         """Number of contraindicated interactions."""
         return sum(
-            1
-            for a in self.alerts
-            if a.interaction.severity == InteractionSeverity.CONTRAINDICATED
+            1 for a in self.alerts if a.interaction.severity == InteractionSeverity.CONTRAINDICATED
         )
 
     @property
     def major_count(self) -> int:
         """Number of major interactions."""
-        return sum(
-            1
-            for a in self.alerts
-            if a.interaction.severity == InteractionSeverity.MAJOR
-        )
+        return sum(1 for a in self.alerts if a.interaction.severity == InteractionSeverity.MAJOR)

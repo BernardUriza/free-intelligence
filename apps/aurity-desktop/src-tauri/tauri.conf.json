@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "identifier": "io.aurity.desktop",
   "build": {
-    "beforeBuildCommand": "cd ../.. && pnpm --filter aurity build",
-    "beforeDevCommand": "cd ../.. && pnpm --filter aurity build",
+    "beforeBuildCommand": "cd ../.. && pnpm --filter aurity build && cp apps/aurity-desktop/src-tauri/splashscreen.html apps/aurity/out/",
+    "beforeDevCommand": "cd ../.. && pnpm --filter aurity build && cp apps/aurity-desktop/src-tauri/splashscreen.html apps/aurity/out/",
     "frontendDist": "../../aurity/out"
   },
   "app": {
