@@ -307,6 +307,15 @@ jobs:
             exit 1
           fi
 
+      - name: Run Qwen3 LLM Response Test
+        continue-on-error: true  # Don't fail deploy if LLM is slow/unavailable
+        env:
+          BACKEND_URL: https://app.aurity.io
+          CI: true
+        run: |
+          echo "🤖 Testing Qwen3 LLM responses..."
+          npx playwright test tests/e2e/qwen3-response.spec.ts --project=chromium --timeout=180000 || echo "⚠️ Qwen3 test failed (non-blocking)"
+
       - name: Create Release Tag
         run: |
           # Auto-generate version tag
