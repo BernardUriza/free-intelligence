@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+// Note: Using native textarea - no custom Textarea component exists
 import {
   Medication,
   MedicationFrequency,
@@ -307,12 +307,13 @@ export function MedicationForm({
         <Label htmlFor="med-instructions" className="text-sm font-medium">
           Instrucciones
         </Label>
-        <Textarea
+        <textarea
           id="med-instructions"
           value={formData.instructions || ""}
-          onChange={(e) => updateField("instructions", e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateField("instructions", e.target.value)}
           placeholder="Ej: Tomar con alimentos para evitar molestias gástricas"
           rows={2}
+          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
 
@@ -324,7 +325,7 @@ export function MedicationForm({
             Cancelar
           </Button>
         )}
-        <Button type="submit" variant="default">
+        <Button type="submit" variant="primary">
           {isEditing ? (
             <>
               <Save className="w-4 h-4 mr-1" />

@@ -14,7 +14,7 @@ import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+// Note: Using native textarea - no custom Textarea component exists
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MedicationForm } from "./MedicationForm";
@@ -41,7 +41,7 @@ import {
   Printer,
   AlertCircle,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toastSuccess, toastError } from "@/lib/swal";
 
 interface PrescriptionFormProps {
   sessionId?: string;
@@ -151,9 +151,7 @@ export function PrescriptionForm({
   const handleSubmit = useCallback(async () => {
     const errors = validateForm();
     if (errors.length > 0) {
-      toast.error("Corrija los siguientes errores:", {
-        description: errors.join(", "),
-      });
+      toastError("Corrija los siguientes errores: " + errors.join(", "));
       return;
     }
 
@@ -176,13 +174,11 @@ export function PrescriptionForm({
 
       if (response.success && response.prescription) {
         setCreatedPrescription(response.prescription);
-        toast.success("Receta creada exitosamente");
+        toastSuccess("Receta creada exitosamente");
         setActiveTab("preview");
       }
     } catch (error) {
-      toast.error("Error al crear la receta", {
-        description: error instanceof Error ? error.message : "Error desconocido",
-      });
+      toastError("Error al crear la receta: " + (error instanceof Error ? error.message : "Error desconocido"));
     } finally {
       setIsSubmitting(false);
     }
@@ -208,13 +204,11 @@ export function PrescriptionForm({
 
       if (response.success && response.prescription) {
         setCreatedPrescription(response.prescription);
-        toast.success("Receta firmada exitosamente");
+        toastSuccess("Receta firmada exitosamente");
         onComplete?.(response.prescription);
       }
     } catch (error) {
-      toast.error("Error al firmar la receta", {
-        description: error instanceof Error ? error.message : "Error desconocido",
-      });
+      toastError("Error al firmar la receta: " + (error instanceof Error ? error.message : "Error desconocido"));
     } finally {
       setIsSubmitting(false);
     }
@@ -525,12 +519,13 @@ export function PrescriptionForm({
                   <Label htmlFor="diagnosis">
                     Diagnóstico Principal <span className="text-red-500">*</span>
                   </Label>
-                  <Textarea
+                  <textarea
                     id="diagnosis"
                     value={diagnosis}
-                    onChange={(e) => setDiagnosis(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDiagnosis(e.target.value)}
                     placeholder="Ingrese el diagnóstico principal"
                     rows={3}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 <div className="space-y-2">
@@ -548,12 +543,13 @@ export function PrescriptionForm({
                 <Label htmlFor="general-instructions">
                   Indicaciones Generales
                 </Label>
-                <Textarea
+                <textarea
                   id="general-instructions"
                   value={generalInstructions}
-                  onChange={(e) => setGeneralInstructions(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setGeneralInstructions(e.target.value)}
                   placeholder="Indicaciones adicionales para el paciente (reposo, dieta, etc.)"
                   rows={3}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
@@ -634,7 +630,7 @@ export function PrescriptionForm({
                       <Button
                         onClick={handleSubmit}
                         disabled={isSubmitting}
-                        variant="default"
+                        variant="primary"
                       >
                         <Save className="w-4 h-4 mr-1.5" />
                         Guardar Receta
@@ -645,7 +641,7 @@ export function PrescriptionForm({
                         <Button
                           onClick={handleSign}
                           disabled={isSubmitting}
-                          variant="default"
+                          variant="primary"
                         >
                           <Signature className="w-4 h-4 mr-1.5" />
                           Firmar Receta

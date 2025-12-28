@@ -349,7 +349,7 @@ class TemplateEngine:
             # Remove common prefixes
             for prefix in ["- ", "• ", "* ", "Rx: ", "Rx ", "1. ", "2. ", "3. "]:
                 if line.startswith(prefix):
-                    line = line[len(prefix):]
+                    line = line[len(prefix) :]
                     break
 
             # Skip non-medication lines

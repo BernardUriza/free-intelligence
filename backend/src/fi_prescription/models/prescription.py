@@ -393,6 +393,7 @@ class Prescription(BaseModel):
 
         # Calculate expiration
         from datetime import timedelta
+
         self.expires_at = self.signed_at + timedelta(days=self.validity_days)
 
     def cancel(self, reason: str | None = None) -> None:

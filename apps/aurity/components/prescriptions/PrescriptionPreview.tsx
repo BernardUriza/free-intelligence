@@ -16,7 +16,10 @@ import {
   ROUTE_LABELS,
 } from "@/lib/api/prescriptions";
 import { PrescriptionStatusBadge } from "./PrescriptionStatusBadge";
-import { Separator } from "@/components/ui/separator";
+// Simple Separator component (inline)
+const Separator = ({ className = "" }: { className?: string }) => (
+  <hr className={`border-slate-200 dark:border-slate-700 ${className}`} />
+);
 
 interface PrescriptionPreviewProps {
   prescription: Prescription;
