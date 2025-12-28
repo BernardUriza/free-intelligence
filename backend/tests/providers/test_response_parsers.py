@@ -8,7 +8,7 @@ Tests cover:
 """
 
 import pytest
-from backend.providers.response_parsers import QwenThinkingParser, GenericParser
+from backend.providers.response_parsers import GenericParser, QwenThinkingParser
 
 
 class TestQwenThinkingParser:

@@ -22,7 +22,7 @@ class LLMResponseParser(ABC):
     """Abstract base class for parsing LLM provider responses."""
 
     @abstractmethod
-    def parse(self, response: dict) -> tuple[Optional[str], str]:
+    def parse(self, response: dict) -> tuple[str | None, str]:
         """Parse provider response into (thinking, content) tuple.
 
         Args:
@@ -49,7 +49,7 @@ class QwenThinkingParser(LLMResponseParser):
     that handles nested tags safely.
     """
 
-    def parse(self, response: dict) -> tuple[Optional[str], str]:
+    def parse(self, response: dict) -> tuple[str | None, str]:
         """Parse Qwen3 response with <think>...</think> blocks.
 
         Args:
@@ -70,7 +70,7 @@ class QwenThinkingParser(LLMResponseParser):
         return thinking_text, content
 
     @staticmethod
-    def _parse_thinking_blocks(text: str) -> tuple[Optional[str], str]:
+    def _parse_thinking_blocks(text: str) -> tuple[str | None, str]:
         """Parse <think>...</think> blocks using state machine.
 
         Handles nested tags safely without regex limitations.
@@ -125,7 +125,7 @@ class QwenThinkingParser(LLMResponseParser):
         # Check for unclosed thinking block
         if depth > 0:
             raise ValueError(
-                "Malformed Qwen response: unclosed <think> tag (depth={})".format(depth)
+                f"Malformed Qwen response: unclosed <think> tag (depth={depth})"
             )
 
         # Combine thinking parts and filter empty ones
@@ -150,7 +150,7 @@ class GenericParser(LLMResponseParser):
     - Azure (uses OpenAI format)
     """
 
-    def parse(self, response: dict) -> tuple[Optional[str], str]:
+    def parse(self, response: dict) -> tuple[str | None, str]:
         """Parse generic provider response.
 
         Args:

@@ -52,7 +52,7 @@ class PromptType:
 
 class PromptProvider:
     """Central provider for all prompts in the Free Intelligence system.
-    
+
     This class serves as the single source of truth for all prompts,
     providing template-based prompts that can be customized with
     dynamic parameters based on the context.
@@ -60,15 +60,17 @@ class PromptProvider:
 
     def __init__(self, templates_dir: str | None = None):
         """Initialize the prompt provider."""
-        self.templates_dir = Path(templates_dir or
-                                 os.getenv("PROMPT_TEMPLATES_DIR",
-                                          "backend/src/fi_prompts/templates"))
+        self.templates_dir = Path(
+            templates_dir or os.getenv("PROMPT_TEMPLATES_DIR", "backend/src/fi_prompts/templates")
+        )
         self.templates_dir.mkdir(parents=True, exist_ok=True)
 
         # Load all prompt templates
         self._templates = self._load_all_templates()
 
-        logger.info(f"PromptProvider initialized with {len(self._templates)} templates from {self.templates_dir}")
+        logger.info(
+            f"PromptProvider initialized with {len(self._templates)} templates from {self.templates_dir}"
+        )
 
     def _load_all_templates(self) -> dict[str, str]:
         """Load all prompt templates from the templates directory."""
@@ -105,7 +107,6 @@ Analysis Required:
 5. Recommend treatment options
 
 IMPORTANT: Provide only medical insights. Do not make final decisions - these are for healthcare professionals to review.""",
-
             "patient_intake": """You are a patient intake assistant. Collect the following information in a structured format:
 
 1. Demographics
@@ -128,7 +129,6 @@ IMPORTANT: Provide only medical insights. Do not make final decisions - these ar
    - Severity: $severity
 
 Please format the response as a structured medical intake form.""",
-
             "soap_note": """Create a SOAP note based on the following consultation:
 
 SUBJECTIVE:
@@ -153,7 +153,6 @@ PLAN:
 - Patient education: $education
 
 Format as a professional medical SOAP note.""",
-
             "discharge_instructions": """Generate patient discharge instructions based on:
 
 Condition: $condition
@@ -168,7 +167,7 @@ Include:
 4. When to seek immediate care
 5. Follow-up appointments
 
-Format as patient-friendly instructions with clear, simple language."""
+Format as patient-friendly instructions with clear, simple language.""",
         }
 
         for name, content in default_templates.items():
@@ -180,14 +179,14 @@ Format as patient-friendly instructions with clear, simple language."""
 
     def get_prompt(self, prompt_type: str, **kwargs: Any) -> str:
         """Retrieve a prompt of the specified type with filled parameters.
-        
+
         Args:
             prompt_type: The type of prompt to retrieve
             **kwargs: Parameters to fill into the prompt template
-            
+
         Returns:
             Formatted prompt string with all placeholders filled
-            
+
         Raises:
             ValueError: If the prompt type is not found
         """
@@ -211,10 +210,10 @@ Format as patient-friendly instructions with clear, simple language."""
 
     def get_prompt_metadata(self, prompt_type: str) -> dict[str, Any]:
         """Get metadata about a specific prompt type.
-        
+
         Args:
             prompt_type: The type of prompt to get metadata for
-            
+
         Returns:
             Dictionary containing prompt metadata
         """
@@ -225,24 +224,24 @@ Format as patient-friendly instructions with clear, simple language."""
         template = self._templates[prompt_type]
 
         # Extract placeholders from the template
-        placeholders = re.findall(r'\$(\w+)', template)
+        placeholders = re.findall(r"\$(\w+)", template)
 
         return {
             "type": prompt_type,
             "template_length": len(template),
             "required_parameters": placeholders,
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
         }
 
     def register_new_template(self, prompt_type: str, template: str) -> None:
         """Register a new prompt template.
-        
+
         Args:
             prompt_type: The type/name of the prompt
             template: The template string with placeholders
         """
         # Validate template has placeholders
-        placeholders = re.findall(r'\$(\w+)', template)
+        placeholders = re.findall(r"\$(\w+)", template)
         if not placeholders:
             logger.warning(f"Template for {prompt_type} has no placeholders")
 
@@ -252,11 +251,13 @@ Format as patient-friendly instructions with clear, simple language."""
         template_file = self.templates_dir / f"{prompt_type}.txt"
         template_file.write_text(template, encoding="utf-8")
 
-        logger.info(f"Registered new prompt template: {prompt_type} with {len(placeholders)} placeholders")
+        logger.info(
+            f"Registered new prompt template: {prompt_type} with {len(placeholders)} placeholders"
+        )
 
     def list_available_prompts(self) -> list[str]:
         """List all available prompt types.
-        
+
         Returns:
             List of available prompt type names
         """
@@ -277,11 +278,11 @@ def get_prompt_provider() -> PromptProvider:
 
 def get_prompt(prompt_type: str, **kwargs: Any) -> str:
     """Convenience function to get a prompt with filled parameters.
-    
+
     Args:
         prompt_type: The type of prompt to retrieve
         **kwargs: Parameters to fill into the prompt template
-        
+
     Returns:
         Formatted prompt string with all placeholders filled
     """
@@ -291,7 +292,7 @@ def get_prompt(prompt_type: str, **kwargs: Any) -> str:
 
 def get_available_prompts() -> list[str]:
     """Get a list of all available prompt types.
-    
+
     Returns:
         List of available prompt type names
     """

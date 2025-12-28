@@ -19,11 +19,9 @@ import asyncio
 import json
 import time
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import h5py
-
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_events.application.event_store import (
     DuplicateEventError,
@@ -32,6 +30,7 @@ from backend.src.fi_events.application.event_store import (
 )
 from backend.src.fi_events.domain.events import DomainEvent, EventType
 from backend.src.fi_events.domain.metadata import EventMetadata
+from pathlib import Path
 
 if TYPE_CHECKING:
     pass

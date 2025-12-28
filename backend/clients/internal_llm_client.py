@@ -163,7 +163,7 @@ class InternalLLMClient:
         request_id: str | None = None,
         trace_id: str | None = None,
         caller: str = "public",
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         """Streaming chat - yields content chunks as they arrive.
 
         Streams Server-Sent Events (SSE) from /internal/llm/chat/stream.

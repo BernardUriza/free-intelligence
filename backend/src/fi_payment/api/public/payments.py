@@ -157,7 +157,7 @@ async def get_stripe_config() -> StripeConfigResponse:
 @router.post("/create-intent", response_model=CreatePaymentIntentResponse)
 async def create_payment_intent(
     request: CreatePaymentIntentRequest,
-    db: Session = Depends(get_db_dependency),  # noqa: B008  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> CreatePaymentIntentResponse:
     """
     Create a Stripe payment intent for a pending payment action.
@@ -241,7 +241,7 @@ async def create_payment_intent(
 @router.get("/status/{payment_intent_id}", response_model=PaymentStatusResponse)
 async def get_payment_status(
     payment_intent_id: str,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> PaymentStatusResponse:
     """
     Get the status of a payment intent.
@@ -285,7 +285,7 @@ async def get_payment_status(
 async def stripe_webhook(
     request: Request,
     stripe_signature: str = Header(None, alias="Stripe-Signature"),
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ):
     """
     Handle Stripe webhook events.
@@ -399,7 +399,7 @@ async def handle_payment_failed(db: Session, payment_intent: dict) -> None:
 async def confirm_payment_action(
     action_id: str,
     payment_intent_id: str,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> dict:
     """
     Manually confirm a payment action after frontend payment completion.

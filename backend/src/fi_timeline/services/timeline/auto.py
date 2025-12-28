@@ -298,7 +298,7 @@ class AutoTimelineGenerator:
         self,
         raw_content: str,
         event_type: str,
-        sensitive: bool = False,  # noqa: ARG002
+        sensitive: bool = False,
     ) -> tuple[str, bool]:
         """
         Generate summary with LLM (≤180 chars, no PII, active verbs).

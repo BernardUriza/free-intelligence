@@ -22,7 +22,7 @@ def example_usage():
         allergies="Sulfa drugs (rash)",
     )
     print(medical_prompt)
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
     # Example 2: Get a patient intake prompt
     print("Example 2: Patient Intake Prompt")
@@ -37,10 +37,10 @@ def example_usage():
         medications="None",
         allergies="None known",
         symptoms="Sore throat, mild fever, difficulty swallowing",
-        severity="Moderate"
+        severity="Moderate",
     )
     print(intake_prompt)
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
     # Example 3: Get a SOAP note prompt
     print("Example 3: SOAP Note Prompt")
@@ -58,7 +58,7 @@ def example_usage():
         treatments="None",
         medications="None",
         follow_up="Annual exam in 1 year",
-        education="Continue healthy lifestyle"
+        education="Continue healthy lifestyle",
     )
     print(soap_prompt)
 

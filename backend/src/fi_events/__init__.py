@@ -32,33 +32,40 @@ Created: 2024-12-24
 
 # Core
 from backend.src.fi_events.application.event_bus import EventBus, get_event_bus
-from backend.src.fi_events.domain.events import (
-    DomainEvent,
-    EventType,
-    TranscriptionStartedEvent,
-    TranscriptionChunkEvent,
-    TranscriptionEndedEvent,
-    TranscriptionFailedEvent,
-    SOAPGenerationEvent,
-)
 
-# Identity
-from backend.src.fi_events.domain.identity import (
-    generate_event_id,
-    generate_dedupe_key,
+# Replay
+from backend.src.fi_events.application.replay import (
+    ReplayResult,
+    replay_aggregate,
 )
 
 # Contracts
 from backend.src.fi_events.domain.contracts import (
-    validate_payload,
     get_contract,
     list_contracts,
+    validate_payload,
+)
+from backend.src.fi_events.domain.events import (
+    DomainEvent,
+    EventType,
+    SOAPGenerationEvent,
+    TranscriptionChunkEvent,
+    TranscriptionEndedEvent,
+    TranscriptionFailedEvent,
+    TranscriptionStartedEvent,
 )
 
-# Replay
-from backend.src.fi_events.application.replay import (
-    replay_aggregate,
-    ReplayResult,
+# Identity
+from backend.src.fi_events.domain.identity import (
+    generate_dedupe_key,
+    generate_event_id,
+)
+
+# Consumer offsets
+from backend.src.fi_events.infrastructure.consumer_offsets import (
+    ConsumerLag,
+    ConsumerPosition,
+    get_offset_store,
 )
 
 # Snapshots
@@ -71,13 +78,6 @@ from backend.src.fi_events.infrastructure.snapshots import (
 from backend.src.fi_events.projections import (
     get_registry,
     register_default_projections,
-)
-
-# Consumer offsets
-from backend.src.fi_events.infrastructure.consumer_offsets import (
-    get_offset_store,
-    ConsumerPosition,
-    ConsumerLag,
 )
 
 __all__ = [

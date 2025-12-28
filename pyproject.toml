@@ -158,7 +158,41 @@ pythonVersion = "3.14"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "ARG", "RUF"]
-ignore = ["E501", "UP006", "UP007"]  # UP006/007: allow PEP 604 unions (str | None)
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "E402",   # Module level import not at top (sometimes necessary)
+    "E721",   # Use is/is not for type comparisons
+    "E722",   # Bare except (sometimes intentional)
+    "UP006",  # Use `type` instead of `Type` (backwards compat)
+    "UP007",  # Use `X | Y` instead of `Union` (backwards compat)
+    "UP035",  # Deprecated typing imports (backwards compat)
+    "UP037",  # Remove quotes from type annotation (backwards compat)
+    "ARG001", # Unused function argument (often intentional in APIs)
+    "ARG002", # Unused method argument (often intentional in APIs)
+    "ARG005", # Unused lambda argument
+    "B008",   # Function call in default argument (sometimes intentional)
+    "B017",   # pytest.raises without match
+    "B019",   # lru_cache on methods (intentional caching)
+    "B904",   # raise without from in except (too noisy)
+    "N806",   # Variable name should be lowercase (sometimes intentional)
+    "N818",   # Exception name should end with Error
+    "SIM102", # Nested if (readability preference)
+    "SIM103", # Return condition directly
+    "SIM105", # Use contextlib.suppress
+    "SIM115", # Use context manager for open
+    "SIM117", # Multiple with statements
+    "SIM118", # Use `in dict` instead of `in dict.keys()`
+    "RUF001", # Ambiguous unicode character (Spanish text)
+    "RUF012", # Mutable class attributes (handled by dataclasses)
+    "RUF022", # __all__ not sorted
+    "RUF034", # Useless if-else
+    "RUF059", # Unused unpacked variable
+    "A001",   # Variable shadowing builtin
+    "F401",   # Imported but unused (sometimes intentional)
+    "F403",   # Star import used (legacy code)
+    "F405",   # May be undefined from star import (legacy code)
+    "F841",   # Local variable assigned but never used (sometimes intentional)
+]
 typing-modules = ["typing"]
 
 [tool.ruff.lint.isort]

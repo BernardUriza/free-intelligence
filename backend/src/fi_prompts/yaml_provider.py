@@ -36,10 +36,10 @@ class YAMLPromptProvider:
 
         for yaml_file in self.yaml_dir.glob("*.yaml"):
             try:
-                with open(yaml_file, encoding='utf-8') as f:
+                with open(yaml_file, encoding="utf-8") as f:
                     preset_data = yaml.safe_load(f)
 
-                preset_id = preset_data.get('preset_id', yaml_file.stem)
+                preset_id = preset_data.get("preset_id", yaml_file.stem)
                 presets[preset_id] = preset_data
             except Exception as e:
                 logger.warning(f"Failed to load YAML preset {yaml_file}: {e}")
@@ -56,14 +56,14 @@ class YAMLPromptProvider:
         preset = self._yaml_presets.get(preset_id)
         if not preset:
             return None
-        return preset.get('system_prompt', '')
+        return preset.get("system_prompt", "")
 
     def get_yaml_llm_config(self, preset_id: str) -> dict[str, Any] | None:
         """Extract the LLM configuration from a YAML preset."""
         preset = self._yaml_presets.get(preset_id)
         if not preset:
             return None
-        return preset.get('llm', {})
+        return preset.get("llm", {})
 
     def convert_yaml_to_template(self, preset_id: str, **kwargs: Any) -> str | None:
         """Convert a YAML preset to a filled template using provided parameters."""
@@ -83,11 +83,11 @@ class YAMLPromptProvider:
 # Integration function to combine both systems
 def get_enhanced_prompt(prompt_type: str, **kwargs: Any) -> str:
     """Get a prompt from either the new template system or the legacy YAML presets.
-    
+
     Args:
         prompt_type: The type of prompt to retrieve
         **kwargs: Parameters to fill into the prompt template
-        
+
     Returns:
         Formatted prompt string with all placeholders filled
     """
@@ -106,7 +106,9 @@ def get_enhanced_prompt(prompt_type: str, **kwargs: Any) -> str:
             return yaml_result
         else:
             # If not found in either system, raise the original error
-            available_new = get_new_prompt.__globals__['get_prompt_provider']().list_available_prompts()
+            available_new = get_new_prompt.__globals__[
+                "get_prompt_provider"
+            ]().list_available_prompts()
             available_yaml = list(yaml_provider._yaml_presets.keys())
             all_available = available_new + available_yaml
 

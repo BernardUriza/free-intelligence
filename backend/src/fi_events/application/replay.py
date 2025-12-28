@@ -17,13 +17,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 from backend.src.fi_common.logging.logger import get_logger
 
 if TYPE_CHECKING:
-    from backend.src.fi_events.domain.events import DomainEvent
     from backend.src.fi_events.application.event_store import EventStore
+    from backend.src.fi_events.domain.events import DomainEvent
 
 logger = get_logger(__name__)
 

@@ -26,7 +26,7 @@ from pathlib import Path
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # noqa: ARG001
+async def lifespan(app: FastAPI):
     """FastAPI lifespan context manager for startup/shutdown events."""
     # Startup
     # from backend.src.fi_coder.storage.database import init_db  # Removed: storage simplified
@@ -412,6 +412,7 @@ Requires environment variables:
         async def public_llm_health() -> dict:
             """LLM health check for /api/llm/health."""
             import asyncio
+
             import requests as req
 
             def _check_ollama() -> dict:
@@ -627,6 +628,7 @@ Requires environment variables:
         Used by E2E tests to verify LLM infrastructure.
         """
         import asyncio
+
         import requests as req
 
         def _check_ollama() -> dict:

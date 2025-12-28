@@ -879,7 +879,7 @@ class ConversationResponse(PydanticBaseModel):
 @router.post("/conversation/start", response_model=ConversationResponse)
 async def start_conversation(
     request: ConversationStartRequest,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> ConversationResponse:
     """Start a conversational check-in session.
 
@@ -923,7 +923,7 @@ async def start_conversation(
 async def send_conversation_message(
     session_id: str,
     request: ConversationMessageRequest,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> ConversationResponse:
     """Send a message in an ongoing conversation.
 

@@ -15,22 +15,20 @@ def example_usage():
         allergies="Sulfa drugs (rash)",
     )
     print(medical_prompt)
-    print("\n" + "="*70 + "\n")
+    print("\n" + "=" * 70 + "\n")
 
     print("Example 2: Using YAML preset (intake_coach)")
     intake_prompt = get_enhanced_prompt(
-        "intake_coach",
-        patient_input="I have chest pain",
-        urgency_level="MODERATE"
+        "intake_coach", patient_input="I have chest pain", urgency_level="MODERATE"
     )
     print(intake_prompt[:500] + "...")  # Truncate for display
-    print("\n" + "="*70 + "\n")
+    print("\n" + "=" * 70 + "\n")
 
     print("Example 3: Using SOAP generator YAML preset")
     soap_prompt = get_enhanced_prompt(
         "soap_generator",
         chief_complaint="Annual wellness exam",
-        history="Patient reports feeling well, no new concerns"
+        history="Patient reports feeling well, no new concerns",
     )
     print(soap_prompt[:500] + "...")  # Truncate for display
 

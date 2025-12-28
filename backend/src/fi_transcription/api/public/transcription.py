@@ -89,7 +89,7 @@ def validate_chunk_number(chunk_number: int) -> None:
 async def stream_chunk(
     session_id: str = Form(...),
     chunk_number: int = Form(...),
-    audio: UploadFile = File(...),  # noqa: B008
+    audio: UploadFile = File(...),
     mode: str = Form("medical"),  # NEW: "medical" | "chat" (default: medical for backward compat)
     timestamp_start: float | None = Form(None),
     timestamp_end: float | None = Form(None),
@@ -357,7 +357,7 @@ async def get_job_status(
 @router.post("/end-session", status_code=status.HTTP_200_OK)
 async def end_session(
     session_id: str = Form(...),
-    full_audio: UploadFile = File(...),  # noqa: B008
+    full_audio: UploadFile = File(...),
     webspeech_final: str | None = Form(None),  # JSON string of webspeech transcripts
 ) -> dict:
     """End session and save full audio file + webspeech transcripts.

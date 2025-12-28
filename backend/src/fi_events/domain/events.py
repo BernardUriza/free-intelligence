@@ -13,9 +13,8 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
-
 from backend.src.fi_events.domain.metadata import EventMetadata
+from pydantic import BaseModel, Field
 
 # Schema version for all events (bump when breaking changes)
 SCHEMA_VERSION = "1.0"

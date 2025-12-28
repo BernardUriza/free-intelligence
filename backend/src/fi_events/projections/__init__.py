@@ -6,6 +6,13 @@ Exports:
 - Concrete projections: SessionIndex, TranscriptionTimeline, etc.
 """
 
+from backend.src.fi_events.projections.consumers import (
+    AssistantTurnsProjection,
+    MetricsByTypeProjection,
+    SessionIndexProjection,
+    TranscriptionTimelineProjection,
+    register_default_projections,
+)
 from backend.src.fi_events.projections.registry import (
     Projection,
     ProjectionRegistry,
@@ -13,13 +20,6 @@ from backend.src.fi_events.projections.registry import (
     ProjectionStatus,
     get_registry,
     reset_registry,
-)
-from backend.src.fi_events.projections.consumers import (
-    SessionIndexProjection,
-    TranscriptionTimelineProjection,
-    AssistantTurnsProjection,
-    MetricsByTypeProjection,
-    register_default_projections,
 )
 
 __all__ = [
