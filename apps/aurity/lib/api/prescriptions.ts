@@ -523,3 +523,293 @@ export async function exportPrescription(
   }
   return response.json();
 }
+
+// ============================================================================
+// Medication Catalog Types (FI-RX-004)
+// ============================================================================
+
+/**
+ * Therapeutic categories for medications
+ */
+export type DrugCategory =
+  | "analgesic"
+  | "antibiotic"
+  | "antiviral"
+  | "antifungal"
+  | "antiinflammatory"
+  | "antihypertensive"
+  | "antidiabetic"
+  | "antihistamine"
+  | "antacid"
+  | "bronchodilator"
+  | "corticosteroid"
+  | "antidepressant"
+  | "anxiolytic"
+  | "antipsychotic"
+  | "anticoagulant"
+  | "anticonvulsant"
+  | "diuretic"
+  | "vitamin"
+  | "hormone"
+  | "muscle_relaxant"
+  | "gastrointestinal"
+  | "dermatologic"
+  | "ophthalmic"
+  | "otic"
+  | "other";
+
+/**
+ * Controlled substance levels (Mexican law)
+ */
+export type ControlledSubstanceLevel =
+  | "none"
+  | "fraction_i"
+  | "fraction_ii"
+  | "fraction_iii"
+  | "fraction_iv"
+  | "fraction_v"
+  | "fraction_vi";
+
+/**
+ * Medication presentation/formulation
+ */
+export interface CatalogPresentation {
+  form: string;
+  strength: string;
+  unit: string;
+  package_size?: string;
+  route: MedicationRoute;
+}
+
+/**
+ * Standard dosing information
+ */
+export interface StandardDosing {
+  adult_dose: string;
+  pediatric_dose?: string;
+  max_daily_dose?: string;
+  duration_typical?: string;
+  notes?: string;
+}
+
+/**
+ * Medication catalog entry
+ */
+export interface MedicationCatalogEntry {
+  id: string;
+  generic_name: string;
+  active_ingredient: string;
+  commercial_names: string[];
+  category: DrugCategory;
+  presentations: CatalogPresentation[];
+  standard_dosing?: StandardDosing;
+  contraindications: string[];
+  interactions: string[];
+  warnings: string[];
+  controlled_level: ControlledSubstanceLevel;
+  requires_prescription: boolean;
+  cofepris_key?: string;
+  is_essential: boolean;
+  is_active: boolean;
+}
+
+/**
+ * Catalog search result
+ */
+export interface CatalogSearchResult {
+  medication: MedicationCatalogEntry;
+  score: number;
+  match_type: "exact" | "starts_with" | "contains" | "commercial_exact" | "commercial_starts_with";
+}
+
+/**
+ * Search response
+ */
+export interface CatalogSearchResponse {
+  query: string;
+  total_matches: number;
+  results: CatalogSearchResult[];
+}
+
+/**
+ * Autocomplete response
+ */
+export interface AutocompleteResponse {
+  prefix: string;
+  suggestions: string[];
+}
+
+/**
+ * Category option
+ */
+export interface CategoryOption {
+  value: string;
+  label: string;
+}
+
+/**
+ * Catalog statistics
+ */
+export interface CatalogStats {
+  total_medications: number;
+  active_medications: number;
+  essential_medications: number;
+  otc_medications: number;
+  controlled_medications: number;
+  categories_used: number;
+}
+
+// ============================================================================
+// Drug Category Labels
+// ============================================================================
+
+export const DRUG_CATEGORY_LABELS: Record<DrugCategory, string> = {
+  analgesic: "Analgésico",
+  antibiotic: "Antibiótico",
+  antiviral: "Antiviral",
+  antifungal: "Antimicótico",
+  antiinflammatory: "Antiinflamatorio",
+  antihypertensive: "Antihipertensivo",
+  antidiabetic: "Antidiabético",
+  antihistamine: "Antihistamínico",
+  antacid: "Antiácido/IBP",
+  bronchodilator: "Broncodilatador",
+  corticosteroid: "Corticosteroide",
+  antidepressant: "Antidepresivo",
+  anxiolytic: "Ansiolítico",
+  antipsychotic: "Antipsicótico",
+  anticoagulant: "Anticoagulante",
+  anticonvulsant: "Anticonvulsivo",
+  diuretic: "Diurético",
+  vitamin: "Vitamina/Suplemento",
+  hormone: "Hormona",
+  muscle_relaxant: "Relajante Muscular",
+  gastrointestinal: "Gastrointestinal",
+  dermatologic: "Dermatológico",
+  ophthalmic: "Oftálmico",
+  otic: "Ótico",
+  other: "Otro",
+};
+
+export const CONTROLLED_LEVEL_LABELS: Record<ControlledSubstanceLevel, string> = {
+  none: "Sin control",
+  fraction_i: "Fracción I - No uso médico",
+  fraction_ii: "Fracción II - Receta especial",
+  fraction_iii: "Fracción III - Receta retenida",
+  fraction_iv: "Fracción IV - Receta médica",
+  fraction_v: "Fracción V - OTC con restricciones",
+  fraction_vi: "Fracción VI - OTC",
+};
+
+// ============================================================================
+// Catalog API Functions
+// ============================================================================
+
+/**
+ * Search medication catalog
+ */
+export async function searchCatalog(options: {
+  query: string;
+  category?: DrugCategory;
+  essentialOnly?: boolean;
+  otcOnly?: boolean;
+  limit?: number;
+}): Promise<CatalogSearchResponse> {
+  const params = new URLSearchParams();
+  params.set("q", options.query);
+  if (options.category) params.set("category", options.category);
+  if (options.essentialOnly) params.set("essential_only", "true");
+  if (options.otcOnly) params.set("otc_only", "true");
+  if (options.limit) params.set("limit", String(options.limit));
+
+  const response = await fetch(`${API_BASE()}/catalog/search?${params}`);
+  if (!response.ok) {
+    throw new Error(`Failed to search catalog: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get autocomplete suggestions for medication names
+ */
+export async function autocompleteMedication(
+  prefix: string,
+  limit = 5,
+  category?: DrugCategory
+): Promise<AutocompleteResponse> {
+  const params = new URLSearchParams();
+  params.set("prefix", prefix);
+  params.set("limit", String(limit));
+  if (category) params.set("category", category);
+
+  const response = await fetch(`${API_BASE()}/catalog/autocomplete?${params}`);
+  if (!response.ok) {
+    throw new Error(`Failed to autocomplete: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get medication details by ID
+ */
+export async function getCatalogMedication(
+  medicationId: string
+): Promise<{ medication: MedicationCatalogEntry }> {
+  const response = await fetch(`${API_BASE()}/catalog/${medicationId}`);
+  if (!response.ok) {
+    throw new Error(`Failed to get medication: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get all available drug categories
+ */
+export async function getCatalogCategories(): Promise<{
+  categories: CategoryOption[];
+}> {
+  const response = await fetch(`${API_BASE()}/catalog/categories/list`);
+  if (!response.ok) {
+    throw new Error(`Failed to get categories: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get catalog statistics
+ */
+export async function getCatalogStats(): Promise<{ stats: CatalogStats }> {
+  const response = await fetch(`${API_BASE()}/catalog/stats`);
+  if (!response.ok) {
+    throw new Error(`Failed to get catalog stats: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get essential medications (cuadro básico)
+ */
+export async function getEssentialMedications(
+  limit = 50
+): Promise<{ count: number; medications: MedicationCatalogEntry[] }> {
+  const response = await fetch(
+    `${API_BASE()}/catalog/essential?limit=${limit}`
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to get essential medications: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get OTC medications
+ */
+export async function getOTCMedications(
+  limit = 50
+): Promise<{ count: number; medications: MedicationCatalogEntry[] }> {
+  const response = await fetch(`${API_BASE()}/catalog/otc?limit=${limit}`);
+  if (!response.ok) {
+    throw new Error(`Failed to get OTC medications: ${response.statusText}`);
+  }
+  return response.json();
+}

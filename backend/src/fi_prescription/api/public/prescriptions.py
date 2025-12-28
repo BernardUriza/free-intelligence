@@ -627,3 +627,232 @@ async def export_prescription(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported format: {export_format}. Use 'text' or 'json'.",
         )
+
+
+# ============================================================================
+# Medication Catalog Endpoints (FI-RX-004)
+# ============================================================================
+
+
+@router.get(
+    "/catalog/search",
+    status_code=status.HTTP_200_OK,
+)
+async def search_catalog(
+    q: str = Query(..., min_length=1, max_length=100, description="Search query"),
+    category: Optional[str] = Query(default=None, description="Filter by category"),
+    essential_only: bool = Query(default=False, description="Only essential medications"),
+    otc_only: bool = Query(default=False, description="Only OTC medications"),
+    limit: int = Query(default=10, ge=1, le=50, description="Max results"),
+) -> dict[str, Any]:
+    """Search medication catalog.
+
+    Args:
+        q: Search query (medication name, active ingredient, or brand name)
+        category: Optional category filter
+        essential_only: Only return cuadro básico medications
+        otc_only: Only return over-the-counter medications
+        limit: Maximum results to return
+
+    Returns:
+        Search results with relevance scores
+    """
+    from fi_prescription.models.catalog import DrugCategory
+    from fi_prescription.services.catalog_service import (
+        CatalogSearchRequest,
+        catalog_service,
+    )
+
+    # Parse category if provided
+    category_enum = None
+    if category:
+        try:
+            category_enum = DrugCategory(category)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid category: {category}",
+            )
+
+    request = CatalogSearchRequest(
+        query=q,
+        category=category_enum,
+        essential_only=essential_only,
+        otc_only=otc_only,
+        limit=limit,
+    )
+
+    response = catalog_service.search(request)
+
+    logger.info(
+        "CATALOG_SEARCH",
+        query=q,
+        results=response.total_matches,
+    )
+
+    return {
+        "query": response.query,
+        "total_matches": response.total_matches,
+        "results": [
+            {
+                "medication": r.medication.model_dump(mode="json"),
+                "score": r.score,
+                "match_type": r.match_type,
+            }
+            for r in response.results
+        ],
+    }
+
+
+@router.get(
+    "/catalog/autocomplete",
+    status_code=status.HTTP_200_OK,
+)
+async def autocomplete_medication(
+    prefix: str = Query(..., min_length=2, max_length=50, description="Text prefix"),
+    limit: int = Query(default=5, ge=1, le=20, description="Max suggestions"),
+    category: Optional[str] = Query(default=None, description="Filter by category"),
+) -> dict[str, Any]:
+    """Get autocomplete suggestions for medication names.
+
+    Args:
+        prefix: Text prefix to match
+        limit: Maximum suggestions
+        category: Optional category filter
+
+    Returns:
+        List of medication name suggestions
+    """
+    from fi_prescription.models.catalog import DrugCategory
+    from fi_prescription.services.catalog_service import catalog_service
+
+    # Parse category if provided
+    category_enum = None
+    if category:
+        try:
+            category_enum = DrugCategory(category)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid category: {category}",
+            )
+
+    suggestions = catalog_service.autocomplete(
+        prefix=prefix,
+        limit=limit,
+        category=category_enum,
+    )
+
+    return {
+        "prefix": prefix,
+        "suggestions": suggestions,
+    }
+
+
+@router.get(
+    "/catalog/{medication_id}",
+    status_code=status.HTTP_200_OK,
+)
+async def get_catalog_medication(medication_id: str) -> dict[str, Any]:
+    """Get medication details by ID.
+
+    Args:
+        medication_id: Medication identifier
+
+    Returns:
+        Medication details
+
+    Raises:
+        404: Medication not found
+    """
+    from fi_prescription.services.catalog_service import catalog_service
+
+    medication = catalog_service.get_by_id(medication_id)
+
+    if not medication:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Medication not found: {medication_id}",
+        )
+
+    return {"medication": medication.model_dump(mode="json")}
+
+
+@router.get(
+    "/catalog/categories/list",
+    status_code=status.HTTP_200_OK,
+)
+async def list_categories() -> dict[str, Any]:
+    """Get all available drug categories.
+
+    Returns:
+        List of categories with value and label
+    """
+    from fi_prescription.services.catalog_service import catalog_service
+
+    categories = catalog_service.get_categories()
+    return {"categories": categories}
+
+
+@router.get(
+    "/catalog/stats",
+    status_code=status.HTTP_200_OK,
+)
+async def get_catalog_stats() -> dict[str, Any]:
+    """Get medication catalog statistics.
+
+    Returns:
+        Catalog statistics
+    """
+    from fi_prescription.services.catalog_service import catalog_service
+
+    stats = catalog_service.get_catalog_stats()
+    return {"stats": stats}
+
+
+@router.get(
+    "/catalog/essential",
+    status_code=status.HTTP_200_OK,
+)
+async def list_essential_medications(
+    limit: int = Query(default=50, ge=1, le=100),
+) -> dict[str, Any]:
+    """Get essential medications (cuadro básico).
+
+    Args:
+        limit: Maximum results
+
+    Returns:
+        List of essential medications
+    """
+    from fi_prescription.services.catalog_service import catalog_service
+
+    medications = catalog_service.get_essential_medications(limit=limit)
+    return {
+        "count": len(medications),
+        "medications": [m.model_dump(mode="json") for m in medications],
+    }
+
+
+@router.get(
+    "/catalog/otc",
+    status_code=status.HTTP_200_OK,
+)
+async def list_otc_medications(
+    limit: int = Query(default=50, ge=1, le=100),
+) -> dict[str, Any]:
+    """Get over-the-counter medications.
+
+    Args:
+        limit: Maximum results
+
+    Returns:
+        List of OTC medications
+    """
+    from fi_prescription.services.catalog_service import catalog_service
+
+    medications = catalog_service.get_otc_medications(limit=limit)
+    return {
+        "count": len(medications),
+        "medications": [m.model_dump(mode="json") for m in medications],
+    }
