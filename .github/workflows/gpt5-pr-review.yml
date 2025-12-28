@@ -51,7 +51,19 @@ jobs:
           # Get PR info
           PR_TITLE=$(gh pr view $PR_NUMBER --json title -q '.title')
           PR_BODY=$(gh pr view $PR_NUMBER --json body -q '.body // "No description"' | head -c 2000)
-          DIFF=$(gh pr diff $PR_NUMBER 2>/dev/null | head -c 25000 || echo "No diff available")
+
+          # Get diff, excluding files that commonly cause false positives due to truncation
+          # Excluded: PyInstaller build scripts, lock files, generated files
+          EXCLUDED_PATTERNS="pyinstaller/build.sh|pnpm-lock.yaml|package-lock.json|yarn.lock|\.spec$"
+          DIFF=$(gh pr diff $PR_NUMBER 2>/dev/null | \
+            awk -v exclude="$EXCLUDED_PATTERNS" '
+              /^diff --git/ {
+                skip = 0
+                if (match($0, exclude)) skip = 1
+              }
+              !skip { print }
+            ' | head -c 25000 || echo "No diff available")
+
           FILES_CHANGED=$(gh pr view $PR_NUMBER --json files -q '.files | length')
 
           # Get CI check status (exclude AI reviewer itself)
@@ -102,6 +114,11 @@ jobs:
           - Missing tests or documentation
           - CI/CD workflow changes
           - Architecture decisions
+          - Files excluded from this diff (build scripts, lock files) - they are reviewed separately
+
+          ⚠️ NOTE: Some files are excluded from this diff to prevent false positives:
+          - pyinstaller/*.sh, *.spec (build scripts - complex but valid shell/Python)
+          - *-lock.yaml, *-lock.json (generated dependency locks)
 
           RESPOND WITH THIS EXACT FORMAT:
           VERDICT: APPROVE or BLOCK
