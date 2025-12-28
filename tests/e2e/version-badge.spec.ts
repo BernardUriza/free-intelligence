@@ -20,8 +20,8 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:9000';
 const BACKEND_URL = process.env.BACKEND_URL || process.env.BASE_URL || 'http://localhost:7001';
 
 test.describe('Backend Version API (Critical)', () => {
-  test('backend /version endpoint responds correctly', async ({ request }) => {
-    const response = await request.get(`${BACKEND_URL}/version`);
+  test('backend /api/version endpoint responds correctly', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/version`);
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
@@ -33,8 +33,8 @@ test.describe('Backend Version API (Critical)', () => {
     console.log(`✅ Backend version: ${data.version} (${data.environment})`);
   });
 
-  test('backend health check passes', async ({ request }) => {
-    const response = await request.get(`${BACKEND_URL}/health`);
+  test('backend /api/health check passes', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/health`);
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
@@ -43,8 +43,8 @@ test.describe('Backend Version API (Critical)', () => {
     console.log('✅ Backend health: ok');
   });
 
-  test('backend root returns AURITY service info', async ({ request }) => {
-    const response = await request.get(`${BACKEND_URL}/`);
+  test('backend /api/ returns AURITY service info', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/`);
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
