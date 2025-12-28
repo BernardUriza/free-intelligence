@@ -53,8 +53,8 @@ jobs:
           PR_BODY=$(gh pr view $PR_NUMBER --json body -q '.body // "No description"' | head -c 2000)
 
           # Get diff, excluding files that commonly cause false positives due to truncation
-          # Excluded: PyInstaller build scripts, lock files, generated files
-          EXCLUDED_PATTERNS="pyinstaller/build.sh|pnpm-lock.yaml|package-lock.json|yarn.lock|\.spec$"
+          # Excluded: PyInstaller, lock files, generated files, Tauri schemas, large JSON
+          EXCLUDED_PATTERNS="pyinstaller/|pnpm-lock.yaml|package-lock.json|yarn.lock|\.spec$|src-tauri/gen/|acl-manifests\.json"
           DIFF=$(gh pr diff $PR_NUMBER 2>/dev/null | \
             awk -v exclude="$EXCLUDED_PATTERNS" '
               /^diff --git/ {
@@ -117,8 +117,10 @@ jobs:
           - Files excluded from this diff (build scripts, lock files) - they are reviewed separately
 
           ⚠️ NOTE: Some files are excluded from this diff to prevent false positives:
-          - pyinstaller/*.sh, *.spec (build scripts - complex but valid shell/Python)
+          - pyinstaller/* (build scripts - complex but valid shell/Python)
           - *-lock.yaml, *-lock.json (generated dependency locks)
+          - src-tauri/gen/* (Tauri auto-generated schemas)
+          - Large JSON files (acl-manifests.json, etc.)
 
           RESPOND WITH THIS EXACT FORMAT:
           VERDICT: APPROVE or BLOCK
