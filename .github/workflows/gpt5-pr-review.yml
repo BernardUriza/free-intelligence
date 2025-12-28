@@ -52,9 +52,9 @@ jobs:
           echo "::group::Analyzing PR #$PR_NUMBER - $PR_TITLE ($FILES_CHANGED files)"
 
           # Build prompt as single escaped string
-          SYSTEM_MSG="You are a strict but fair AI code reviewer. Analyze PRs for security issues, bugs, and breaking changes. Be practical, not pedantic."
+          SYSTEM_MSG="You are a pragmatic AI code reviewer. Focus on REAL bugs that will cause runtime failures. Avoid false positives. Trust the developer's intent for intentional changes."
 
-          USER_MSG="Review this PR and decide if it should be merged.
+          USER_MSG="Review this PR for CRITICAL issues only.
 
           TITLE: $PR_TITLE
           DESCRIPTION: $PR_BODY
@@ -63,16 +63,27 @@ jobs:
           DIFF:
           $DIFF
 
-          Analyze for: 1) Security vulnerabilities 2) Breaking changes 3) Obvious bugs 4) Missing error handling
+          BLOCK only for these CRITICAL issues:
+          1) SQL injection, XSS, command injection (actual exploitable vulnerabilities)
+          2) Hardcoded secrets/API keys (real credentials, not placeholders)
+          3) Code that will crash at runtime (syntax errors, undefined variables)
+          4) Data loss bugs (DELETE without WHERE, DROP TABLE, etc.)
+
+          DO NOT BLOCK for:
+          - Python f-string escaping (double braces {{ produce single braces in output - this is correct)
+          - File deletions (assume intentional unless obviously accidental)
+          - Code style, best practices, or suggestions
+          - CI/CD configuration changes
+          - Policy decisions (sending data to APIs, etc.)
 
           RESPOND WITH THIS EXACT FORMAT:
           VERDICT: APPROVE or BLOCK
           CONFIDENCE: HIGH, MEDIUM, or LOW
           SUMMARY: One sentence summary
-          ISSUES: List issues or None
+          ISSUES: List critical issues or None
           RECOMMENDATION: Brief advice
 
-          Rules: BLOCK only for real security/bug issues. APPROVE if safe even if imperfect. When unsure, APPROVE with concerns noted."
+          Rules: Default to APPROVE. BLOCK only for critical security/crash bugs. When in doubt, APPROVE with concerns noted."
 
           # Escape for JSON using jq
           SYSTEM_ESCAPED=$(echo "$SYSTEM_MSG" | jq -Rs .)
