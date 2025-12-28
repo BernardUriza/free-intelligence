@@ -42,9 +42,11 @@ gha-creds-*.json
 storage/
 !storage/.gitkeep
 
-# Exports
+# Exports (data files)
 exports/*
 !exports/.gitkeep
+# But NOT the Python module
+!backend/src/fi_common/api/internal/exports/
 
 # Node.js (for AURITY submodule)
 node_modules/
@@ -81,7 +83,7 @@ test-results/
 # Runtime data and backups
 data/
 backups/
-exports/
+# exports/ - moved to line 46-49 with Python module exception
 backend/static/*.mp3
 .claude/
 docs/13 Startups de Salud Digital Revolucionando el Sector.pdf
