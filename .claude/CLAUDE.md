@@ -272,6 +272,59 @@ server {
 
 ⸻
 
+🌿 Git Workflow (2-Branch Model)
+
+```
+RAMAS PERMITIDAS (solo estas dos):
+  • dev  → Desarrollo activo (multi-feature, multi-agent)
+  • main → Producción (protegida, requiere PR + CI)
+
+FLUJO DE TRABAJO:
+  ┌─────────────────────────────────────┐
+  │              dev                     │
+  │  Trabajas aquí (caos controlado)    │
+  │  CI corre en cada push              │
+  └──────────────┬──────────────────────┘
+                 │ PR cuando esté listo
+                 ▼
+  ┌─────────────────────────────────────┐
+  │              main                    │
+  │  Producción (protegida)             │
+  │  Requiere: PR + CI pasando          │
+  └─────────────────────────────────────┘
+
+COMANDOS DIARIOS:
+  git checkout dev                    # Siempre trabajar en dev
+  git add . && git commit -m "..."    # Commits frecuentes
+  git push origin dev                 # CI valida automáticamente
+
+DEPLOY A PRODUCCIÓN:
+  gh pr create --base main --head dev --title "Release: descripción"
+  # Esperar CI ✅ → Merge → Deploy manual
+
+REGLAS PARA CLAUDE:
+  ❌ NUNCA crear ramas adicionales (no feature branches)
+  ❌ NUNCA pushear directo a main
+  ✅ Siempre trabajar en dev
+  ✅ Usar PR para subir a main
+  ✅ Verificar que CI pase antes de merge
+```
+
+CI/CD (pr-gate.yml)
+
+```
+Bloquea merge si:
+  ❌ Errores de sintaxis Python
+  ❌ Imports críticos rotos (fi_common, fi_storage, fi_auth, fi_workflow)
+
+Reporta pero NO bloquea:
+  📝 Lint warnings (Ruff)
+
+Frontend: Se valida localmente con `cd apps/aurity && pnpm build`
+```
+
+⸻
+
 🛠️ Development Tools
 
 Qwen Code CLI
@@ -295,6 +348,40 @@ Recursos:
 	•	GitHub: https://github.com/QwenLM/qwen-code
 	•	Documentación: https://qwenlm.github.io/blog/qwen3-coder/
 	•	Contexto: "Vibe coding" con Qwen3-Coder-480B (256K context)
+
+FI Coder (fi_coder)
+
+⚠️ IMPORTANTE: Usar fi_coder en lugar de qwen-code directamente
+	•	fi_coder = wrapper seguro sobre qwen-code con presets anti-fallo
+	•	Procesa errores uno por uno en batches controlados
+	•	Evita que qwen-code borre archivos o haga cambios destructivos
+
+Ubicación: backend/src/fi_coder/
+
+CLI:
+```bash
+# Ejecutar prompt con qwen-code (wrapper seguro)
+PYTHONPATH=backend/src python3 -m fi_coder.cli.main execute "prompt aquí" --repo="."
+
+# Fix lint errors (Ruff - Python)
+PYTHONPATH=backend/src python3 -m fi_coder.cli.main lint-fix --file=backend/src/module.py
+```
+
+Workers (programático):
+```python
+# ESLint batch fix para Aurity (TypeScript/React)
+from fi_workers.tasks.lint_fix_worker import lint_fix_aurity_batch
+result = lint_fix_aurity_batch(batch_size=10)  # Procesa 10 errores a la vez
+
+# Ruff batch fix para Backend (Python)
+from fi_workers.tasks.lint_fix_worker import lint_fix_batch
+result = lint_fix_batch(batch_size=5)
+```
+
+Funciones disponibles en lint_fix_worker.py:
+	•	lint_fix_batch(batch_size) — Fix Ruff errors (Python backend)
+	•	lint_fix_aurity_batch(batch_size) — Fix ESLint errors (TypeScript frontend)
+	•	lint_fix_aurity_worker(batch_size) — Worker wrapper con métricas
 
 ⸻
 
