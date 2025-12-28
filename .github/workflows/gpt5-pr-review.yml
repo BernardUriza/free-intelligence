@@ -1,10 +1,10 @@
 # =============================================================================
-# Azure OpenAI PR Review (GPT-5-mini) - ADVISORY MODE
-# This workflow provides AI code review but does NOT block merges
-# (GPT-5 has false positives on Python f-string escaping, etc.)
+# Azure OpenAI PR Review (GPT-5-mini) - BLOCKING MODE
+# This workflow BLOCKS merges if GPT-5 finds critical issues
+# Pragmatic: Only blocks for real security/crash bugs, not style
 # Powered by Azure Cognitive Services
 # =============================================================================
-name: AI Code Review (GPT-5)
+name: AI Gatekeeper (GPT-5)
 
 on:
   pull_request:
@@ -71,7 +71,7 @@ jobs:
           echo "⏳ Pending: $PENDING_CHECKS"
 
           # Build prompt as single escaped string
-          SYSTEM_MSG="You are a pragmatic AI code reviewer. Focus on REAL bugs that will cause runtime failures. Avoid false positives. Trust the developer's intent for intentional changes."
+          SYSTEM_MSG="You are a pragmatic but strict AI code reviewer. You have REAL power to block merges. Use it wisely - block for genuine security issues and crash bugs, but don't be pedantic about style."
 
           USER_MSG="Review this PR for CRITICAL issues only.
 
@@ -87,18 +87,21 @@ jobs:
           DIFF:
           $DIFF
 
-          BLOCK only for these CRITICAL issues:
-          1) SQL injection, XSS, command injection (actual exploitable vulnerabilities)
-          2) Hardcoded secrets/API keys (real credentials, not placeholders)
-          3) Code that will crash at runtime (syntax errors, undefined variables)
-          4) Data loss bugs (DELETE without WHERE, DROP TABLE, etc.)
+          🚫 BLOCK for these CRITICAL issues (you have real power - use it!):
+          1) SQL injection, XSS, command injection, path traversal
+          2) Hardcoded secrets/API keys (real credentials like sk-xxx, api_key=xxx)
+          3) Code that will crash at runtime (syntax errors, undefined variables, missing imports)
+          4) Data loss bugs (DELETE without WHERE, DROP TABLE, unprotected file operations)
+          5) Authentication/authorization bypasses
+          6) Infinite loops or resource exhaustion
 
-          DO NOT BLOCK for:
-          - Python f-string escaping (double braces {{ produce single braces in output - this is correct)
-          - File deletions (assume intentional unless obviously accidental)
-          - Code style, best practices, or suggestions
-          - CI/CD configuration changes
-          - Policy decisions (sending data to APIs, etc.)
+          ✅ DO NOT BLOCK for (trust the developer):
+          - Python f-string templates with {{ }} - these are VALID escape sequences
+          - File deletions or renames (intentional refactoring)
+          - Code style, naming, or formatting
+          - Missing tests or documentation
+          - CI/CD workflow changes
+          - Architecture decisions
 
           RESPOND WITH THIS EXACT FORMAT:
           VERDICT: APPROVE or BLOCK
@@ -108,7 +111,11 @@ jobs:
           ISSUES: List critical issues or None
           RECOMMENDATION: Brief advice
 
-          Rules: Default to APPROVE. BLOCK only for critical security/crash bugs. When in doubt, APPROVE with concerns noted. Always comment on CI failures."
+          Rules:
+          - BLOCK confidently for security vulnerabilities and crash bugs
+          - APPROVE if the code is safe, even if imperfect
+          - When genuinely unsure, APPROVE with concerns noted
+          - Always report CI failures and suggest fixes"
 
           # Escape for JSON using jq
           SYSTEM_ESCAPED=$(echo "$SYSTEM_MSG" | jq -Rs .)
@@ -166,14 +173,15 @@ jobs:
 
           echo "::notice::AI Verdict: $VERDICT"
 
-      # AI Gatekeeper is ADVISORY only - does not block merges
-      # This prevents false positives from blocking valid PRs
-      # (e.g., GPT-5 doesn't understand Python f-string escaping)
-      - name: AI Review Complete
+      # AI Gatekeeper BLOCKS merges for critical issues
+      - name: Enforce AI Decision
         run: |
           if [ "${{ steps.review.outputs.VERDICT }}" = "BLOCK" ]; then
-            echo "::warning::AI recommends blocking - review the concerns above"
+            echo "::error::🚫 AI GATEKEEPER BLOCKED THIS PR"
+            echo ""
+            echo "The AI found critical issues that must be fixed before merging."
+            echo "Review the comment above for details."
+            exit 1
           else
-            echo "::notice::AI approved this PR"
+            echo "::notice::✅ AI Gatekeeper approved this PR"
           fi
-          echo "✅ AI review complete (advisory only)"
