@@ -3,11 +3,14 @@
  *
  * Displays available Aurity Desktop releases for download.
  * Fetches release information from /api/releases endpoint.
+ *
+ * NOTE: This page is hidden in desktop mode (you're already running the app!)
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { AppTemplate } from '@/components/layout/AppTemplate';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +23,18 @@ import {
   RefreshCw,
   CheckCircle,
   ExternalLink,
+  CheckCircle2,
 } from 'lucide-react';
+
+// Check if running in desktop mode
+const isDesktop = () => {
+  if (typeof window === 'undefined') return false;
+  // Check Tauri
+  if ('__TAURI__' in window) return true;
+  // Check env var
+  if (process.env.NEXT_PUBLIC_DEPLOYMENT_TARGET === 'desktop') return true;
+  return false;
+};
 
 interface Release {
   version: string;
@@ -74,13 +88,43 @@ const systemRequirements = {
 };
 
 export default function DownloadsPage() {
+  const router = useRouter();
   const [releases, setReleases] = useState<Release[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDesktopMode, setIsDesktopMode] = useState(false);
 
   useEffect(() => {
-    fetchReleases();
+    // Check if running in desktop mode
+    if (isDesktop()) {
+      setIsDesktopMode(true);
+    } else {
+      fetchReleases();
+    }
   }, []);
+
+  // Show "already installed" message in desktop mode
+  if (isDesktopMode) {
+    return (
+      <AppTemplate showChatWidget={false}>
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+          <div className="text-center p-8 max-w-md">
+            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+              Ya tienes Aurity Desktop
+            </h1>
+            <p className="text-slate-600 dark:text-slate-300 mb-6">
+              Estás corriendo la aplicación de escritorio.
+              No necesitas descargar nada más.
+            </p>
+            <Button onClick={() => router.push('/chat')}>
+              Ir al Chat
+            </Button>
+          </div>
+        </div>
+      </AppTemplate>
+    );
+  }
 
   const fetchReleases = async () => {
     setLoading(true);
