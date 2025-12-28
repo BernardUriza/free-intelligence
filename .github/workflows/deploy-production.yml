@@ -217,6 +217,13 @@ jobs:
           echo "🧹 Removing conflicting system packages..."
           apt-get remove -y python3-zope.interface python3-twisted || true
 
+          echo "🗑️ Cleaning up disk space..."
+          apt-get autoremove -y || true
+          apt-get clean || true
+          python3.14 -m pip cache purge 2>/dev/null || true
+          # Remove any leftover CUDA packages from failed install
+          python3.14 -m pip uninstall -y nvidia-cuda-nvrtc-cu12 nvidia-cuda-runtime-cu12 nvidia-cuda-cupti-cu12 nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cufft-cu12 nvidia-curand-cu12 nvidia-cusolver-cu12 nvidia-cusparse-cu12 nvidia-cusparselt-cu12 nvidia-nccl-cu12 nvidia-nvshmem-cu12 nvidia-nvtx-cu12 nvidia-nvjitlink-cu12 nvidia-cufile-cu12 triton 2>/dev/null || true
+
           echo "📦 Installing Python 3.14 if needed..."
           if ! python3.14 --version > /dev/null 2>&1; then
             apt-get update && apt-get install -y python3.14 python3.14-dev
@@ -227,6 +234,11 @@ jobs:
 
           echo "📦 Installing Python dependencies..."
           python3.14 -m pip install --upgrade pip
+
+          echo "🔥 Installing PyTorch CPU-only (saves ~3GB vs CUDA version)..."
+          python3.14 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+          echo "📦 Installing remaining dependencies..."
           python3.14 -m pip install -r requirements-prod.txt
 
           echo "✅ Dependencies installed"

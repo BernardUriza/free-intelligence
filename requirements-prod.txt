@@ -75,6 +75,10 @@ filelock>=3.12.0
 # ============================================================================
 # ML / Embeddings (Memoria Longitudinal Infinita)
 # ============================================================================
+# PyTorch CPU-only first (NO CUDA - saves ~3GB disk space)
+# Install via: pip install torch --index-url https://download.pytorch.org/whl/cpu
+# Then sentence-transformers will use this torch
+#
 # sentence-transformers: Local embeddings for semantic search
 # Model: all-MiniLM-L6-v2 (384-dim, 80MB, no API keys needed)
 # RAM usage: ~1.5GB with model loaded
