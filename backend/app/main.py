@@ -578,27 +578,34 @@ Requires environment variables:
         Checks if Ollama is available and lists models.
         Used by E2E tests to verify LLM infrastructure.
         """
+        import asyncio
         import requests as req
 
-        try:
-            response = req.get("http://localhost:11434/api/tags", timeout=2)
-            if response.status_code == 200:
-                data = response.json()
-                models = [m.get("name", "") for m in data.get("models", [])]
+        def _check_ollama() -> dict:
+            """Sync helper to check Ollama - runs in threadpool."""
+            try:
+                response = req.get("http://localhost:11434/api/tags", timeout=2)
+                if response.status_code == 200:
+                    data = response.json()
+                    models = [m.get("name", "") for m in data.get("models", [])]
+                    return {
+                        "status": "ok",
+                        "ollama": True,
+                        "models": models,
+                        "model_count": len(models),
+                    }
+                return {"status": "degraded", "ollama": False, "models": [], "model_count": 0}
+            except Exception as e:
                 return {
-                    "status": "ok",
-                    "ollama": True,
-                    "models": models,
-                    "model_count": len(models),
+                    "status": "degraded",
+                    "ollama": False,
+                    "models": [],
+                    "model_count": 0,
+                    "error": str(e),
                 }
-        except Exception as e:
-            return {
-                "status": "degraded",
-                "ollama": False,
-                "models": [],
-                "model_count": 0,
-                "error": str(e),
-            }
+
+        # Run blocking request in threadpool to avoid blocking event loop
+        return await asyncio.to_thread(_check_ollama)
 
     @app.get("/version")
     @app.get("/api/version")
