@@ -18,8 +18,9 @@ Environment Variables:
     DATA_DIR: Override data directory (optional)
 """
 
-import os
 from enum import Enum
+
+import os
 from pathlib import Path
 
 
