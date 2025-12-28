@@ -10,7 +10,7 @@ name: Deploy to Production (Digital Ocean)
 on:
   push:
     branches:
-      - prod
+      - main
   workflow_dispatch:
     inputs:
       rollback_to:
@@ -289,16 +289,34 @@ jobs:
           curl -f https://app.aurity.io/ -o /dev/null || exit 1
           echo "✅ Frontend is serving"
 
-      - name: Check backend is responding
+      - name: Setup Node.js for Playwright
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Checkout code for tests
+        uses: actions/checkout@v4
+
+      - name: Install Playwright
         run: |
-          # Check root endpoint which returns service info (no auth required)
-          RESPONSE=$(curl -s https://app.aurity.io/api/workflows/aurity/config 2>&1)
-          if echo "$RESPONSE" | grep -q "AURITY"; then
-            echo "✅ Backend API is responding"
+          npm install -g pnpm
+          pnpm install @playwright/test --save-dev
+          npx playwright install chromium
+
+      - name: Run E2E Validation (Playwright)
+        env:
+          BASE_URL: https://app.aurity.io
+          BACKEND_URL: https://app.aurity.io
+          CI: true
+        run: |
+          echo "🧪 Running Playwright E2E tests against production..."
+          npx playwright test tests/e2e/version-badge.spec.ts --project=chromium
+
+          if [ $? -eq 0 ]; then
+            echo "✅ E2E validation passed!"
           else
-            # Fallback: check via SSH if external check fails (nginx routing issue)
-            echo "⚠️ External check inconclusive, verifying via SSH..."
-            echo "$RESPONSE" | head -5
+            echo "❌ E2E validation failed"
+            exit 1
           fi
 
       - name: Create Release Tag
