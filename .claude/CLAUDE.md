@@ -320,6 +320,47 @@ server {
   location / { try_files $uri $uri/ /index.html; }
 }
 
+🧪 Smoke Tests (LLM / Ollama)
+
+```bash
+# ════════════════════════════════════════════════════════════════════════════
+# OLLAMA + QWEN3 SMOKE TESTS
+# ════════════════════════════════════════════════════════════════════════════
+# Qwen3 usa "thinking mode" por defecto. DEBE usarse /api/chat (no /api/generate)
+# con el parámetro "think" para controlar el comportamiento.
+# ════════════════════════════════════════════════════════════════════════════
+
+# 1. Verificar Ollama corriendo
+curl -s http://localhost:11434/api/tags | jq '.models[].name'
+
+# 2. Test básico Qwen3 (SIN thinking - respuesta directa)
+curl -s http://localhost:11434/api/chat -d '{
+  "model": "qwen3:1.7b",
+  "messages": [{"role": "user", "content": "Di hola"}],
+  "think": false,
+  "stream": false
+}' | jq '{content: .message.content, seconds: (.total_duration / 1000000000)}'
+# Esperado: ~2-7s en M1/GPU, respuesta en .content
+
+# 3. Test CON thinking (separa razonamiento de respuesta)
+curl -s http://localhost:11434/api/chat -d '{
+  "model": "qwen3:1.7b",
+  "messages": [{"role": "user", "content": "Di hola"}],
+  "think": true,
+  "stream": false
+}' | jq '{thinking: .message.thinking, content: .message.content}'
+# Esperado: .thinking tiene el razonamiento, .content la respuesta
+
+# 4. Test del backend completo (después de iniciar)
+curl -s -X POST "http://localhost:7001/api/workflows/aurity/assistant/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"hola"}],"persona":"general_assistant"}'
+
+# ⚠️ ERRORES COMUNES:
+# - Respuesta vacía → Usar /api/chat en vez de /api/generate
+# - Timeout en CPU → Qwen3 requiere GPU o mucha RAM (4GB+ sin swap)
+# - "think" no funciona → Actualizar Ollama a v0.9+
+```
 
 ⸻
 

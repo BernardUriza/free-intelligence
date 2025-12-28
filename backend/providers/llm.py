@@ -348,7 +348,12 @@ class OllamaProvider(LLMProvider):
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
-        self.base_url: str = str(self.config.get("base_url") or "http://localhost:11434")
+        # Priority: OLLAMA_HOST env var > config > default
+        self.base_url: str = str(
+            os.getenv("OLLAMA_HOST")
+            or self.config.get("base_url")
+            or "http://localhost:11434"
+        )
         self.default_model: str = str(self.config.get("model") or "qwen3:1.7b")
         self.embed_model: str = str(self.config.get("embed_model") or "nomic-embed-text")
         self.timeout: int = int(self.config.get("timeout_seconds") or 120)
