@@ -75,8 +75,8 @@ jobs:
           # International endpoint (Singapore) for non-China accounts
           # China users: use https://dashscope.aliyuncs.com/compatible-mode/v1
           openai_base_url: ${{ vars.QWEN_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1' }}
-          # Model selection (qwen-coder-plus-latest recommended)
-          openai_model: ${{ vars.QWEN_MODEL || 'qwen-coder-plus-latest' }}
+          # Model selection - Available: qwen3-coder-plus, qwen3-coder-flash
+          openai_model: ${{ vars.QWEN_MODEL || 'qwen3-coder-plus' }}
           # Debug mode for troubleshooting
           qwen_debug: ${{ vars.DEBUG || 'true' }}
           # Upload artifacts for debugging
