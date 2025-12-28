@@ -21,9 +21,29 @@ BACKEND_ROOT = PROJECT_ROOT / "backend"
 BACKEND_SRC = BACKEND_ROOT / "src"
 BACKEND_APP = BACKEND_ROOT / "app"
 
-# Verify paths exist
-assert BACKEND_ROOT.exists(), f"Backend root not found: {BACKEND_ROOT}"
-assert BACKEND_SRC.exists(), f"Backend src not found: {BACKEND_SRC}"
+# Verify paths exist with helpful error messages
+def check_path(path, description):
+    """Check if a path exists and provide a helpful error message if not."""
+    if not path.exists():
+        print(f"\n{'='*60}")
+        print(f"ERROR: {description}")
+        print(f"{'='*60}")
+        print(f"Expected path: {path}")
+        print(f"\nTo fix this:")
+        print(f"  1. Ensure you're running from the correct directory")
+        print(f"  2. Run: cd apps/aurity-desktop/pyinstaller")
+        print(f"  3. Run: ./build.sh")
+        print(f"\nProject structure expected:")
+        print(f"  free-intelligence/")
+        print(f"  ├── backend/")
+        print(f"  │   ├── src/")
+        print(f"  │   └── app/")
+        print(f"  └── apps/aurity-desktop/pyinstaller/")
+        print(f"{'='*60}\n")
+        sys.exit(1)
+
+check_path(BACKEND_ROOT, "Backend root directory not found")
+check_path(BACKEND_SRC, "Backend src directory not found")
 
 block_cipher = None
 

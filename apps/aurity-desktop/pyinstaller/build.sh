@@ -18,14 +18,20 @@ echo "Project root: $PROJECT_ROOT"
 echo "Desktop root: $DESKTOP_ROOT"
 echo "Backend root: $BACKEND_ROOT"
 
-# Create .env.desktop from example with mock auth enabled for offline use
+# Security: Mock auth requires explicit opt-in via environment variable
+# This prevents accidental builds with authentication bypass
 if [ ! -f "$DESKTOP_ROOT/.env.desktop" ]; then
-    echo "Creating .env.desktop for offline desktop build..."
     if [ -f "$DESKTOP_ROOT/.env.desktop.example" ]; then
-        # Copy example and enable mock auth for desktop
-        sed 's/NEXT_PUBLIC_USE_MOCK_AUTH=false/NEXT_PUBLIC_USE_MOCK_AUTH=true/' \
-            "$DESKTOP_ROOT/.env.desktop.example" > "$DESKTOP_ROOT/.env.desktop"
-        echo "Created .env.desktop with mock auth enabled (offline mode)"
+        if [ "${ENABLE_DESKTOP_MOCK_AUTH:-0}" = "1" ]; then
+            echo "Creating .env.desktop with mock auth ENABLED (ENABLE_DESKTOP_MOCK_AUTH=1)"
+            echo "WARNING: This build will bypass authentication - only use for offline desktop"
+            sed 's/NEXT_PUBLIC_USE_MOCK_AUTH=false/NEXT_PUBLIC_USE_MOCK_AUTH=true/' \
+                "$DESKTOP_ROOT/.env.desktop.example" > "$DESKTOP_ROOT/.env.desktop"
+        else
+            echo "Creating .env.desktop with SECURE defaults (mock auth disabled)"
+            echo "To enable mock auth for offline desktop, set: ENABLE_DESKTOP_MOCK_AUTH=1"
+            cp "$DESKTOP_ROOT/.env.desktop.example" "$DESKTOP_ROOT/.env.desktop"
+        fi
     else
         echo "WARNING: .env.desktop.example not found, skipping env setup"
     fi
@@ -51,26 +57,38 @@ esac
 
 echo "Binary suffix: $BINARY_SUFFIX"
 
-# Check for PyInstaller
-if ! command -v pyinstaller &> /dev/null; then
-    echo "Installing PyInstaller..."
-    pip3 install pyinstaller
+# Create isolated virtual environment for build (prevents system contamination)
+VENV_DIR="$SCRIPT_DIR/.venv-build"
+echo "Setting up isolated build environment..."
+
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Creating virtual environment: $VENV_DIR"
+    python3 -m venv "$VENV_DIR"
 fi
 
-# Install backend dependencies if needed
-echo "Checking backend dependencies..."
+# Activate virtual environment
+source "$VENV_DIR/bin/activate"
+echo "Using Python: $(which python3)"
+
+# Install PyInstaller in venv
+echo "Installing PyInstaller in virtual environment..."
+pip install --upgrade pip -q
+pip install pyinstaller -q
+
+# Install backend dependencies in venv
+echo "Installing backend dependencies in virtual environment..."
 cd "$BACKEND_ROOT"
 if [ -f "requirements-prod.txt" ]; then
-    pip3 install -r requirements-prod.txt -q
+    pip install -r requirements-prod.txt -q
 else
     echo "WARNING: requirements-prod.txt not found, using requirements.txt"
-    pip3 install -r requirements.txt -q
+    pip install -r requirements.txt -q
 fi
 
-# Run PyInstaller
+# Run PyInstaller (now using venv's pyinstaller)
 echo "Running PyInstaller..."
 cd "$SCRIPT_DIR"
-pyinstaller --clean --noconfirm aurity-backend.spec
+python -m PyInstaller --clean --noconfirm aurity-backend.spec
 
 # Create Tauri binaries directory
 BINARIES_DIR="$DESKTOP_ROOT/src-tauri/binaries"
@@ -83,9 +101,14 @@ cp -r "$SCRIPT_DIR/dist/aurity-backend" "$BINARIES_DIR/aurity-backend$BINARY_SUF
 # Make executable
 chmod +x "$BINARIES_DIR/aurity-backend$BINARY_SUFFIX"
 
+# Deactivate virtual environment
+deactivate 2>/dev/null || true
+
 echo ""
 echo "=== Build Complete ==="
 echo "Binary: $BINARIES_DIR/aurity-backend$BINARY_SUFFIX"
+echo ""
+echo "Build environment: $VENV_DIR (isolated, can be deleted)"
 echo ""
 echo "Next steps:"
 echo "  1. cd $DESKTOP_ROOT"

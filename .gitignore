@@ -91,6 +91,7 @@ Cargo.lock
 # PyInstaller
 apps/aurity-desktop/pyinstaller/dist/
 apps/aurity-desktop/pyinstaller/build/
+apps/aurity-desktop/pyinstaller/.venv-build/
 *.spec.bak
 
 # Playwright
