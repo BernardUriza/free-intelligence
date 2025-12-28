@@ -165,11 +165,15 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# IMPORTANT: Tauri sidecar requires a SINGLE EXECUTABLE file
+# Using onefile mode (include all binaries in EXE, no COLLECT)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,      # Include binaries in EXE (onefile mode)
+    a.zipfiles,      # Include zipfiles in EXE (onefile mode)
+    a.datas,         # Include datas in EXE (onefile mode)
     [],
-    exclude_binaries=True,
     name="aurity-backend",
     debug=False,
     bootloader_ignore_signals=False,
@@ -183,13 +187,6 @@ exe = EXE(
     entitlements_file=None,
 )
 
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=True,
-    upx=True,
-    upx_exclude=[],
-    name="aurity-backend",
-)
+# NOTE: No COLLECT step - we produce a single executable file
+# Output: dist/aurity-backend (single file, not directory)
+# This is required for Tauri sidecar to work correctly

@@ -118,12 +118,37 @@ python -m PyInstaller --clean --noconfirm aurity-backend.spec
 BINARIES_DIR="$DESKTOP_ROOT/src-tauri/binaries"
 mkdir -p "$BINARIES_DIR"
 
-# Copy the built binary with platform suffix
-echo "Copying binary to Tauri binaries directory..."
-cp -r "$SCRIPT_DIR/dist/aurity-backend" "$BINARIES_DIR/aurity-backend$BINARY_SUFFIX"
+# PyInstaller onefile mode produces a single executable at dist/aurity-backend
+# (not a directory - this is required for Tauri sidecar)
+EXECUTABLE="$SCRIPT_DIR/dist/aurity-backend"
+
+# Verify PyInstaller produced the executable
+if [ ! -f "$EXECUTABLE" ]; then
+    echo "ERROR: Executable not found: $EXECUTABLE"
+    echo ""
+    echo "PyInstaller dist/ contents:"
+    ls -la "$SCRIPT_DIR/dist/" 2>/dev/null || echo "  (dist/ directory not found)"
+    echo ""
+    echo "Make sure aurity-backend.spec uses onefile mode (no COLLECT)."
+    exit 1
+fi
+
+# Copy the executable with platform suffix
+echo "Copying executable to Tauri binaries directory..."
+cp "$EXECUTABLE" "$BINARIES_DIR/aurity-backend$BINARY_SUFFIX"
 
 # Make executable
 chmod +x "$BINARIES_DIR/aurity-backend$BINARY_SUFFIX"
+
+# Verify the copy was successful
+if [ ! -x "$BINARIES_DIR/aurity-backend$BINARY_SUFFIX" ]; then
+    echo "ERROR: Failed to create executable sidecar"
+    echo "  Expected: $BINARIES_DIR/aurity-backend$BINARY_SUFFIX"
+    exit 1
+fi
+
+echo "Sidecar created: $BINARIES_DIR/aurity-backend$BINARY_SUFFIX"
+ls -lh "$BINARIES_DIR/aurity-backend$BINARY_SUFFIX"
 
 # Deactivate virtual environment
 deactivate 2>/dev/null || true
