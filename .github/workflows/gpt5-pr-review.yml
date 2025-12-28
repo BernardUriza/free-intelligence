@@ -2,7 +2,7 @@
 # Azure OpenAI PR Review (GPT-5-mini)
 # Powered by Azure Cognitive Services
 # =============================================================================
-name: Azure PR Review
+name: GPT-5 PR Review
 
 on:
   pull_request:
