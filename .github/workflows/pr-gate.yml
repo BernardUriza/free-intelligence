@@ -33,7 +33,7 @@ jobs:
       - name: Install minimal deps
         run: |
           pip install --upgrade pip
-          pip install fastapi pydantic structlog h5py PyYAML
+          pip install fastapi pydantic structlog h5py PyYAML httpx python-jose cryptography
 
       - name: Check Python syntax (all files compile)
         run: |
