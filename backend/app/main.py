@@ -437,6 +437,8 @@ Requires environment variables:
             return {"routes": routes, "count": len(routes)}
 
     @app.get("/")
+    @app.get("/api")
+    @app.get("/api/")
     async def root() -> dict:
         """Root endpoint - API discovery and system information.
 
@@ -564,11 +566,13 @@ Requires environment variables:
         }
 
     @app.get("/health")
+    @app.get("/api/health")
     async def health_check() -> dict[str, str]:
         """Health check endpoint."""
         return {"status": "ok"}
 
     @app.get("/version")
+    @app.get("/api/version")
     async def version_info() -> dict:
         """Version endpoint for E2E testing.
 
@@ -596,14 +600,14 @@ def validate_aurity(base_url: str = "https://app.aurity.io") -> bool:
 
     # 1. Health check
     try:
-        r = requests.get(f"{{base_url}}/health", timeout=5)
+        r = requests.get(f"{{base_url}}/api/health", timeout=5)
         checks.append(("health", r.status_code == 200))
     except Exception as e:
         checks.append(("health", False))
 
     # 2. Version endpoint (this one)
     try:
-        r = requests.get(f"{{base_url}}/version", timeout=5)
+        r = requests.get(f"{{base_url}}/api/version", timeout=5)
         data = r.json()
         checks.append(("version", data.get("version") == "{version}"))
     except Exception as e:
@@ -611,7 +615,7 @@ def validate_aurity(base_url: str = "https://app.aurity.io") -> bool:
 
     # 3. Root endpoint
     try:
-        r = requests.get(f"{{base_url}}/", timeout=5)
+        r = requests.get(f"{{base_url}}/api/", timeout=5)
         data = r.json()
         checks.append(("root", data.get("service", {{}}).get("codename") == "AURITY"))
     except Exception as e:
