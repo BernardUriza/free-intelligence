@@ -2,7 +2,8 @@
  * E2E Test: LLM Health Check (Fast)
  *
  * Quick verification that Ollama/LLM infrastructure is available.
- * This test is fast (~2s) and runs before the full Qwen3 response test.
+ * FI Cloud Architecture: LLM runs on FI Edge (local machine) via Cloudflare Tunnel.
+ * DO backend proxies requests through the tunnel (~2-5s latency).
  *
  * Run locally: npx playwright test tests/e2e/llm-health.spec.ts
  * Run in CI: BACKEND_URL=https://app.aurity.io npx playwright test tests/e2e/llm-health.spec.ts
@@ -17,7 +18,7 @@ test.describe('LLM Health Check (Fast)', () => {
     console.log(`🔍 Checking LLM health at ${BACKEND_URL}/api/llm/health`);
 
     const response = await request.get(`${BACKEND_URL}/api/llm/health`, {
-      timeout: 10_000, // 10 seconds max
+      timeout: 15_000, // 15 seconds (includes Cloudflare Tunnel latency)
     });
 
     expect(response.ok()).toBeTruthy();
@@ -47,7 +48,7 @@ test.describe('LLM Health Check (Fast)', () => {
 
   test('LLM has Qwen3 model available', async ({ request }) => {
     const response = await request.get(`${BACKEND_URL}/api/llm/health`, {
-      timeout: 10_000,
+      timeout: 15_000, // 15 seconds (includes Cloudflare Tunnel latency)
     });
 
     if (!response.ok()) {

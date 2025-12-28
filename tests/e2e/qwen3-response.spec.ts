@@ -2,7 +2,8 @@
  * E2E Test: Qwen3 LLM Response Validation
  *
  * Verifies that the AI assistant (Qwen3) responds correctly.
- * This test has a longer timeout because local LLMs can take 30-60s.
+ * FI Cloud Architecture: LLM runs on FI Edge (Mac/i9+RTX4060) via Cloudflare Tunnel.
+ * Timeout is generous (2 min) to account for tunnel latency + LLM inference.
  *
  * Run locally: npx playwright test tests/e2e/qwen3-response.spec.ts
  * Run in CI: BACKEND_URL=https://app.aurity.io npx playwright test tests/e2e/qwen3-response.spec.ts
@@ -12,7 +13,8 @@ import { test, expect } from '@playwright/test';
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.BASE_URL || 'http://localhost:7001';
 
-// Qwen3 can take 30-120 seconds on CPU
+// FI Cloud: DO → Cloudflare Tunnel → FI Edge (Mac/GPU)
+// Total latency: ~5s tunnel + 10-30s inference = 35-60s typical
 test.setTimeout(120_000);
 
 test.describe('Qwen3 LLM Response (Critical)', () => {

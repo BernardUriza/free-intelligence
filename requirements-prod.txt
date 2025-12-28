@@ -33,8 +33,10 @@ email-validator>=2.3.0
 dnspython>=2.8.0
 
 # ============================================================================
-# LLM Providers (no local models)
+# LLM Providers
 # ============================================================================
+# anthropic: Claude API client
+# ollama: HTTP client only (server runs on FI Edge via Cloudflare Tunnel)
 anthropic==0.71.0
 ollama==0.6.0
 
