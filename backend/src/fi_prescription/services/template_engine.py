@@ -14,9 +14,9 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from backend.src.fi_common.logging.logger import get_logger
-from fi_prescription.models.medication import Medication
 from fi_prescription.models.allergy import AllergyCheckResult
 from fi_prescription.models.interaction import InteractionCheckResult
+from fi_prescription.models.medication import Medication
 from fi_prescription.models.prescription import (
     PatientInfo,
     PhysicianInfo,
