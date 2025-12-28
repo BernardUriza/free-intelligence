@@ -18,8 +18,8 @@ Environment Variables:
     DATA_DIR: Override data directory (optional)
 """
 
-from enum import Enum
 import os
+from enum import Enum
 from pathlib import Path
 
 
@@ -98,7 +98,7 @@ def get_ollama_host() -> str:
     if tunnel_file.exists():
         try:
             return tunnel_file.read_text().strip()
-        except (OSError, IOError):
+        except OSError:
             pass
 
     # Fallback for cloud without tunnel
