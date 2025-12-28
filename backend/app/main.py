@@ -390,6 +390,54 @@ Requires environment variables:
             fi_coder_router, prefix="/fi_coder", tags=["fi_coder"]
         )  # FI Coder task orchestrator
 
+        # Add health/version endpoints to public_app (they must be here, not on app,
+        # because app.mount("/api", public_app) captures ALL /api/* routes)
+        @public_app.get("/health")
+        async def public_health_check() -> dict[str, str]:
+            """Health check endpoint (on /api prefix)."""
+            return {"status": "ok"}
+
+        @public_app.get("/")
+        async def public_root() -> dict:
+            """Root endpoint for /api/ path."""
+            from datetime import datetime
+            return {
+                "service": "AURITY",
+                "version": "0.1.1",
+                "status": "operational",
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+
+        @public_app.get("/llm/health")
+        async def public_llm_health() -> dict:
+            """LLM health check for /api/llm/health."""
+            import asyncio
+            import requests as req
+
+            def _check_ollama() -> dict:
+                try:
+                    response = req.get("http://localhost:11434/api/tags", timeout=2)
+                    if response.status_code == 200:
+                        data = response.json()
+                        models = [m.get("name", "") for m in data.get("models", [])]
+                        return {"status": "ok", "ollama": True, "models": models, "model_count": len(models)}
+                    return {"status": "degraded", "ollama": False, "models": [], "model_count": 0}
+                except Exception as e:
+                    return {"status": "degraded", "ollama": False, "models": [], "error": str(e)}
+
+            return await asyncio.to_thread(_check_ollama)
+
+        @public_app.get("/version")
+        async def public_version() -> dict:
+            """Version endpoint for /api/version."""
+            from datetime import datetime
+            return {
+                "service": "AURITY",
+                "version": "0.1.1",
+                "build_timestamp": datetime.now(UTC).isoformat(),
+                "environment": os.getenv("ENVIRONMENT", "development"),
+            }
+
         # Mount sub-apps
         app.mount("/api", public_app)
         app.mount("/internal", internal_app)
