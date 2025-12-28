@@ -18,6 +18,57 @@ TZ: America/Mexico_City
 
 ⸻
 
+🚨 GIT WORKFLOW - REGLA INVIOLABLE 🚨
+
+```
+# ════════════════════════════════════════════════════════════════════════════
+# FLUJO DE GIT OBLIGATORIO - SIN EXCEPCIONES
+# ════════════════════════════════════════════════════════════════════════════
+# Esta regla es ABSOLUTA. Claude NUNCA debe violarla bajo ninguna circunstancia.
+# ════════════════════════════════════════════════════════════════════════════
+
+FLUJO OBLIGATORIO:
+  1. Trabajar SIEMPRE en rama `dev`
+  2. Commit cambios a `dev`
+  3. Push a `dev`
+  4. Crear PR de `dev` → `main`
+  5. Esperar aprobación del AI Gatekeeper (GPT-5)
+  6. Merge PR (nunca push directo)
+
+❌ PROHIBIDO - NUNCA HACER:
+  - git push origin main (PROHIBIDO)
+  - git commit directamente en main (PROHIBIDO)
+  - Bypass de PR review (PROHIBIDO)
+  - --force push a main (PROHIBIDO)
+
+✅ CORRECTO - SIEMPRE HACER:
+  - git checkout dev
+  - git add . && git commit -m "mensaje"
+  - git push origin dev
+  - gh pr create --base main --head dev
+  - gh pr merge (después de aprobación)
+
+RAZÓN:
+  - main es la rama de PRODUCCIÓN
+  - dev es la rama de DESARROLLO
+  - El AI Gatekeeper (GPT-5) revisa TODOS los cambios
+  - Push directo a main deja dev desincronizada
+  - Viola el flujo de CI/CD establecido
+
+SI CLAUDE VIOLA ESTA REGLA:
+  - Es un ERROR GRAVE
+  - Debe disculparse inmediatamente
+  - Debe sincronizar dev con main: git checkout dev && git merge main
+  - Debe documentar el incidente
+
+CLAUDE DEBE VERIFICAR ANTES DE CADA PUSH:
+  1. ¿Estoy en la rama correcta? (debe ser dev)
+  2. ¿Voy a crear un PR? (debe ser sí)
+  3. ¿Voy a esperar review? (debe ser sí)
+```
+
+⸻
+
 🌐 Production
 
 Live: https://app.aurity.io/
