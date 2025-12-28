@@ -321,11 +321,61 @@ class TemplateEngine:
             general_instructions=plan.get("follow_up", ""),
         )
 
-    def _parse_medications_from_text(self, text: str) -> list[Medication]:
+    def _parse_medications_from_text(
+        self,
+        text: str,
+        use_ai: bool = True,
+    ) -> list[Medication]:
         """Parse medication text into structured Medication objects.
 
-        This is a simplified parser. In production, this would use
-        NLP/LLM to extract medication details.
+        Uses AI (LLM) to extract medications from free text and enriches
+        them with data from the Mexico medication catalog.
+
+        Args:
+            text: Treatment plan text
+            use_ai: Whether to use AI extraction (falls back to simple parser)
+
+        Returns:
+            List of parsed Medications with catalog enrichment
+        """
+        if not text or not text.strip():
+            return []
+
+        # Try AI extraction first (FI-RX-003)
+        if use_ai:
+            try:
+                from fi_prescription.services.medication_extractor import (
+                    get_medication_extractor,
+                )
+
+                extractor = get_medication_extractor(provider="ollama")
+                medications = extractor.extract_medications(
+                    treatment_text=text,
+                    enrich_from_catalog=True,
+                )
+
+                if medications:
+                    logger.info(
+                        "MEDICATIONS_EXTRACTED_AI",
+                        count=len(medications),
+                        medications=[m.name for m in medications],
+                    )
+                    return medications
+
+            except Exception as e:
+                logger.warning(
+                    "AI_EXTRACTION_FAILED_FALLBACK",
+                    error=str(e),
+                )
+                # Fall through to simple parsing
+
+        # Fallback: Simple line-by-line parsing
+        return self._simple_parse_medications(text)
+
+    def _simple_parse_medications(self, text: str) -> list[Medication]:
+        """Simple fallback parser for medications.
+
+        Used when AI extraction is disabled or fails.
 
         Args:
             text: Treatment plan text
@@ -334,11 +384,6 @@ class TemplateEngine:
             List of parsed Medications
         """
         medications: list[Medication] = []
-
-        if not text or not text.strip():
-            return medications
-
-        # Simple line-by-line parsing
         lines = text.strip().split("\n")
 
         for line in lines:
@@ -357,14 +402,12 @@ class TemplateEngine:
             if any(kw in line.lower() for kw in skip_keywords):
                 continue
 
-            # Try to extract medication name (first word or phrase before dosage)
-            # This is simplified - real implementation would use AI
+            # Extract medication name and dosage
             parts = line.split()
             if parts:
                 med_name = parts[0]
-
-                # Look for dosage pattern
                 dosage = "según indicación"
+
                 for part in parts[1:]:
                     if any(c.isdigit() for c in part):
                         dosage = part
@@ -374,7 +417,7 @@ class TemplateEngine:
                     Medication(
                         name=med_name,
                         dosage=dosage,
-                        instructions=line,  # Store full text as instructions
+                        instructions=line,
                     )
                 )
 
