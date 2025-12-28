@@ -1353,6 +1353,40 @@ def llm_embed(text: str, provider: str = "claude") -> np.ndarray:
         raise
 
 
+def parse_qwen_thinking_and_response(text: str) -> tuple[str | None, str]:
+    """Parse Qwen3 response text to separate thinking from content.
+
+    Qwen3 models output their reasoning in XML-like tags:
+        <think>reasoning here</think>actual response here
+
+    This function extracts the thinking blocks and content separately.
+
+    Args:
+        text: Full response text from Qwen3 model
+
+    Returns:
+        (thinking, content) tuple where:
+        - thinking: str | None - Concatenated reasoning (None if no thinking blocks)
+        - content: str - Response content with thinking blocks removed
+
+    Examples:
+        >>> thinking, content = parse_qwen_thinking_and_response(
+        ...     "<think>Let me analyze this</think>The answer is 42"
+        ... )
+        >>> thinking
+        'Let me analyze this'
+        >>> content
+        'The answer is 42'
+
+        >>> thinking, content = parse_qwen_thinking_and_response("Just a plain response")
+        >>> thinking is None
+        True
+        >>> content
+        'Just a plain response'
+    """
+    return QwenThinkingParser._parse_thinking_blocks(text)
+
+
 if __name__ == "__main__":
     """Demo script"""
     print("🧠 Free Intelligence - LLM Router Demo")

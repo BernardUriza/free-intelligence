@@ -19,9 +19,12 @@ from typing import Any, Dict, List
 
 import jsonschema
 import yaml
-from backend.constants import DEFAULT_OLLAMA_MODEL, LLMProvider
+from backend.models.llm_model import LLMProvider
 from backend.src.fi_common.logging.logger import get_logger
 from pathlib import Path
+
+# Default model for Ollama provider
+DEFAULT_OLLAMA_MODEL = "qwen3:1.7b"
 
 logger = get_logger(__name__)
 

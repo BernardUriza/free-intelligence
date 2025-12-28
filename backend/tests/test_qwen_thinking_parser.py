@@ -269,21 +269,20 @@ class TestQwenThinkingParser:
     # ========================================================================
 
     def test_unclosed_thinking_tag(self):
-        """Unclosed <think> tag - should still parse remaining content."""
+        """Unclosed <think> tag - should raise ValueError."""
         input_text = "<think>Unclosed thinking blockResponse text"
-        thinking, content = parse_qwen_thinking_and_response(input_text)
 
-        # Regex won't match - entire thing is content
-        assert thinking is None
-        assert content == "<think>Unclosed thinking blockResponse text"
+        # State machine implementation is strict - raises on malformed tags
+        with pytest.raises(ValueError, match="unclosed <think> tag"):
+            parse_qwen_thinking_and_response(input_text)
 
     def test_unopened_closing_tag(self):
-        """Closing tag without opening - should be treated as text."""
+        """Closing tag without opening - should raise ValueError."""
         input_text = "Response text</think>"
-        thinking, content = parse_qwen_thinking_and_response(input_text)
 
-        assert thinking is None
-        assert content == "Response text</think>"
+        # State machine implementation is strict - raises on malformed tags
+        with pytest.raises(ValueError, match="closing </think> without opening"):
+            parse_qwen_thinking_and_response(input_text)
 
     def test_mismatched_case(self):
         """Tags with different case (<Think> instead of <think>)."""
