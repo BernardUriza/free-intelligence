@@ -10,7 +10,7 @@ name: Deploy to Production (Digital Ocean)
 on:
   push:
     branches:
-      - prod
+      - main
   workflow_dispatch:
     inputs:
       rollback_to:
