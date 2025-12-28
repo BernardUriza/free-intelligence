@@ -95,18 +95,19 @@ source "$VENV_DIR/bin/activate"
 echo "Using Python: $(which python3)"
 
 # Install PyInstaller in venv
+# Note: PIP_USER=0 overrides any global pip.conf that sets user=true
 echo "Installing PyInstaller in virtual environment..."
-pip install --upgrade pip -q
-pip install pyinstaller -q
+PIP_USER=0 pip install --upgrade pip -q
+PIP_USER=0 pip install pyinstaller -q
 
 # Install backend dependencies in venv
 echo "Installing backend dependencies in virtual environment..."
 cd "$BACKEND_ROOT"
 if [ -f "requirements-prod.txt" ]; then
-    pip install -r requirements-prod.txt -q
+    PIP_USER=0 pip install -r requirements-prod.txt -q
 else
     echo "WARNING: requirements-prod.txt not found, using requirements.txt"
-    pip install -r requirements.txt -q
+    PIP_USER=0 pip install -r requirements.txt -q
 fi
 
 # Run PyInstaller (now using venv's pyinstaller)

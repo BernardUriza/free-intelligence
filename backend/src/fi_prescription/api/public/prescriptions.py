@@ -640,7 +640,7 @@ async def export_prescription(
 )
 async def search_catalog(
     q: str = Query(..., min_length=1, max_length=100, description="Search query"),
-    category: Optional[str] = Query(default=None, description="Filter by category"),
+    category: str | None = Query(default=None, description="Filter by category"),
     essential_only: bool = Query(default=False, description="Only essential medications"),
     otc_only: bool = Query(default=False, description="Only OTC medications"),
     limit: int = Query(default=10, ge=1, le=50, description="Max results"),
@@ -711,7 +711,7 @@ async def search_catalog(
 async def autocomplete_medication(
     prefix: str = Query(..., min_length=2, max_length=50, description="Text prefix"),
     limit: int = Query(default=5, ge=1, le=20, description="Max suggestions"),
-    category: Optional[str] = Query(default=None, description="Filter by category"),
+    category: str | None = Query(default=None, description="Filter by category"),
 ) -> dict[str, Any]:
     """Get autocomplete suggestions for medication names.
 

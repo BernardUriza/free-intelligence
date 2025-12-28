@@ -26,27 +26,21 @@ class CatalogSearchResult(BaseModel):
 
     medication: MedicationCatalogEntry
     score: int = Field(description="Relevance score (higher = more relevant)")
-    match_type: str = Field(
-        description="Type of match: exact, starts_with, contains, commercial"
-    )
+    match_type: str = Field(description="Type of match: exact, starts_with, contains, commercial")
 
 
 class CatalogSearchRequest(BaseModel):
     """Request parameters for catalog search."""
 
     query: str = Field(min_length=1, max_length=100, description="Search query")
-    category: Optional[DrugCategory] = Field(
+    category: DrugCategory | None = Field(
         default=None, description="Filter by therapeutic category"
     )
-    controlled_only: bool = Field(
-        default=False, description="Only return controlled substances"
-    )
+    controlled_only: bool = Field(default=False, description="Only return controlled substances")
     essential_only: bool = Field(
         default=False, description="Only return essential medications (cuadro básico)"
     )
-    otc_only: bool = Field(
-        default=False, description="Only return OTC medications"
-    )
+    otc_only: bool = Field(default=False, description="Only return OTC medications")
     limit: int = Field(default=10, ge=1, le=50, description="Maximum results")
 
 
@@ -65,7 +59,7 @@ class CatalogService:
     using the pre-loaded medication database.
     """
 
-    _instance: Optional["CatalogService"] = None
+    _instance: "CatalogService" | None = None
     _catalog: list[MedicationCatalogEntry] = []
 
     def __new__(cls) -> "CatalogService":
@@ -140,9 +134,7 @@ class CatalogService:
             query=request.query,
         )
 
-    def _determine_match_type(
-        self, med: MedicationCatalogEntry, query: str
-    ) -> str:
+    def _determine_match_type(self, med: MedicationCatalogEntry, query: str) -> str:
         """Determine the type of match for a medication.
 
         Args:
@@ -174,7 +166,7 @@ class CatalogService:
         self,
         prefix: str,
         limit: int = 5,
-        category: Optional[DrugCategory] = None,
+        category: DrugCategory | None = None,
     ) -> list[str]:
         """Get autocomplete suggestions for medication names.
 
@@ -226,7 +218,7 @@ class CatalogService:
 
         return unique
 
-    def get_by_id(self, medication_id: str) -> Optional[MedicationCatalogEntry]:
+    def get_by_id(self, medication_id: str) -> MedicationCatalogEntry | None:
         """Get a medication by its ID.
 
         Args:
@@ -252,16 +244,10 @@ class CatalogService:
         Returns:
             List of medications in the category
         """
-        results = [
-            med
-            for med in self._catalog
-            if med.is_active and med.category == category
-        ]
+        results = [med for med in self._catalog if med.is_active and med.category == category]
         return results[:limit]
 
-    def get_essential_medications(
-        self, limit: int = 100
-    ) -> list[MedicationCatalogEntry]:
+    def get_essential_medications(self, limit: int = 100) -> list[MedicationCatalogEntry]:
         """Get essential medications (cuadro básico).
 
         Args:
@@ -270,9 +256,7 @@ class CatalogService:
         Returns:
             List of essential medications
         """
-        results = [
-            med for med in self._catalog if med.is_active and med.is_essential
-        ]
+        results = [med for med in self._catalog if med.is_active and med.is_essential]
         return results[:limit]
 
     def get_otc_medications(self, limit: int = 50) -> list[MedicationCatalogEntry]:
@@ -284,16 +268,10 @@ class CatalogService:
         Returns:
             List of OTC medications
         """
-        results = [
-            med
-            for med in self._catalog
-            if med.is_active and not med.requires_prescription
-        ]
+        results = [med for med in self._catalog if med.is_active and not med.requires_prescription]
         return results[:limit]
 
-    def get_controlled_medications(
-        self, limit: int = 50
-    ) -> list[MedicationCatalogEntry]:
+    def get_controlled_medications(self, limit: int = 50) -> list[MedicationCatalogEntry]:
         """Get controlled substance medications.
 
         Args:
@@ -333,11 +311,9 @@ class CatalogService:
             "essential_medications": sum(1 for m in active if m.is_essential),
             "otc_medications": sum(1 for m in active if not m.requires_prescription),
             "controlled_medications": sum(
-                1
-                for m in active
-                if m.controlled_level != ControlledSubstanceLevel.NONE
+                1 for m in active if m.controlled_level != ControlledSubstanceLevel.NONE
             ),
-            "categories_used": len(set(m.category for m in active)),
+            "categories_used": len({m.category for m in active}),
         }
 
 

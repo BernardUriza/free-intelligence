@@ -16,7 +16,9 @@ import sys
 from pathlib import Path
 
 # Project paths
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
+# Note: SPECPATH is provided by PyInstaller and points to the spec file directory
+# Using SPECPATH instead of __file__ for Python 3.14 compatibility
+PROJECT_ROOT = Path(SPECPATH).parent.parent.parent.absolute()
 BACKEND_ROOT = PROJECT_ROOT / "backend"
 BACKEND_SRC = BACKEND_ROOT / "src"
 BACKEND_APP = BACKEND_ROOT / "app"
