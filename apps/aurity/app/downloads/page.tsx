@@ -106,7 +106,7 @@ export default function DownloadsPage() {
   // Show "already installed" message in desktop mode
   if (isDesktopMode) {
     return (
-      <AppTemplate showChatWidget={false}>
+      <AppTemplate backgroundGradient="none">
         <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
           <div className="text-center p-8 max-w-md">
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -171,7 +171,7 @@ export default function DownloadsPage() {
   const latestRelease = releases[0];
 
   return (
-    <AppTemplate showChatWidget={false}>
+    <AppTemplate backgroundGradient="none">
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
         {/* Hero Section */}
         <div className="max-w-6xl mx-auto px-4 py-12">
