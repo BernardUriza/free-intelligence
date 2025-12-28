@@ -1,6 +1,6 @@
 # =============================================================================
 # Azure OpenAI PR Review (GPT-5-mini) - GATEKEEPER MODE
-# This workflow BLOCKS merges if GPT-5 returns REQUEST_CHANGES
+# This workflow BLOCKS merges if GPT-5 returns BLOCK verdict
 # Powered by Azure Cognitive Services
 # =============================================================================
 name: AI Merge Gatekeeper (GPT-5)
@@ -23,7 +23,6 @@ jobs:
   ai-review:
     name: "🤖 AI Gatekeeper"
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
       pull-requests: write
@@ -47,97 +46,96 @@ jobs:
           # Get PR info
           PR_TITLE=$(gh pr view $PR_NUMBER --json title -q '.title')
           PR_BODY=$(gh pr view $PR_NUMBER --json body -q '.body // "No description"' | head -c 2000)
-          DIFF=$(gh pr diff $PR_NUMBER 2>/dev/null | head -c 30000 || echo "No diff")
+          DIFF=$(gh pr diff $PR_NUMBER 2>/dev/null | head -c 25000 || echo "No diff available")
           FILES_CHANGED=$(gh pr view $PR_NUMBER --json files -q '.files | length')
 
-          echo "::group::🔍 Analyzing PR #$PR_NUMBER: $PR_TITLE ($FILES_CHANGED files)"
+          echo "::group::Analyzing PR #$PR_NUMBER - $PR_TITLE ($FILES_CHANGED files)"
 
-          # Build gatekeeper prompt - strict and structured
-          PROMPT="You are the AI GATEKEEPER for code merges. Your decision BLOCKS or ALLOWS this PR.
+          # Build prompt as single escaped string
+          SYSTEM_MSG="You are a strict but fair AI code reviewer. Analyze PRs for security issues, bugs, and breaking changes. Be practical, not pedantic."
 
-PR Title: $PR_TITLE
-Description: $PR_BODY
-Files Changed: $FILES_CHANGED
+          USER_MSG="Review this PR and decide if it should be merged.
 
-DIFF:
-$DIFF
+          TITLE: $PR_TITLE
+          DESCRIPTION: $PR_BODY
+          FILES CHANGED: $FILES_CHANGED
 
-ANALYZE FOR:
-1. Security vulnerabilities (hardcoded secrets, SQL injection, XSS, etc.)
-2. Breaking changes without documentation
-3. Obvious bugs or logic errors
-4. Missing error handling in critical paths
+          DIFF:
+          $DIFF
 
-RESPOND IN THIS EXACT FORMAT:
-VERDICT: [APPROVE|BLOCK]
-CONFIDENCE: [HIGH|MEDIUM|LOW]
-SUMMARY: [1-2 sentence summary]
-ISSUES: [List issues if BLOCK, or 'None' if APPROVE]
-RECOMMENDATION: [Brief recommendation]
+          Analyze for: 1) Security vulnerabilities 2) Breaking changes 3) Obvious bugs 4) Missing error handling
 
-Rules:
-- BLOCK only for security issues, obvious bugs, or breaking changes
-- APPROVE if changes are safe, even if not perfect
-- When in doubt with LOW confidence, APPROVE and note concerns
-- Be practical, not pedantic"
+          RESPOND WITH THIS EXACT FORMAT:
+          VERDICT: APPROVE or BLOCK
+          CONFIDENCE: HIGH, MEDIUM, or LOW
+          SUMMARY: One sentence summary
+          ISSUES: List issues or None
+          RECOMMENDATION: Brief advice
 
-          # Escape for JSON
-          PROMPT_ESCAPED=$(echo "$PROMPT" | jq -Rs .)
+          Rules: BLOCK only for real security/bug issues. APPROVE if safe even if imperfect. When unsure, APPROVE with concerns noted."
+
+          # Escape for JSON using jq
+          SYSTEM_ESCAPED=$(echo "$SYSTEM_MSG" | jq -Rs .)
+          USER_ESCAPED=$(echo "$USER_MSG" | jq -Rs .)
 
           # Call Azure OpenAI
-          RESPONSE=$(curl -sf "${AZURE_ENDPOINT}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
+          HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/response.json \
+            "${AZURE_ENDPOINT}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
             -H "Content-Type: application/json" \
             -H "api-key: $AZURE_KEY" \
-            -d "{\"messages\":[{\"role\":\"system\",\"content\":\"You are a strict but fair code review AI. Output structured verdicts.\"},{\"role\":\"user\",\"content\":$PROMPT_ESCAPED}],\"max_completion_tokens\":4000,\"temperature\":0.3}") || {
-            echo "::warning::Azure API failed - defaulting to APPROVE (fail-open)"
-            echo "VERDICT=APPROVE" >> $GITHUB_OUTPUT
-            echo "REVIEW=⚠️ API unavailable - auto-approved (fail-open policy)" >> $GITHUB_OUTPUT
-            exit 0
-          }
+            -d "{\"messages\":[{\"role\":\"system\",\"content\":$SYSTEM_ESCAPED},{\"role\":\"user\",\"content\":$USER_ESCAPED}],\"max_completion_tokens\":4000,\"temperature\":0.3}")
 
-          # Extract review
-          REVIEW=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::Azure API returned $HTTP_CODE - defaulting to APPROVE (fail-open)"
+            echo "VERDICT=APPROVE" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          REVIEW=$(cat /tmp/response.json | jq -r '.choices[0].message.content // empty')
 
           if [ -z "$REVIEW" ]; then
-            echo "::warning::Empty response - defaulting to APPROVE"
+            echo "::warning::Empty AI response - defaulting to APPROVE"
             echo "VERDICT=APPROVE" >> $GITHUB_OUTPUT
-            echo "REVIEW=⚠️ Empty AI response - auto-approved" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           echo "$REVIEW"
           echo "::endgroup::"
 
-          # Parse verdict (look for VERDICT: APPROVE or VERDICT: BLOCK)
-          if echo "$REVIEW" | grep -qiE "VERDICT:\s*BLOCK"; then
+          # Parse verdict
+          if echo "$REVIEW" | grep -qiE "VERDICT.*BLOCK"; then
             VERDICT="BLOCK"
-            EMOJI="❌"
           else
             VERDICT="APPROVE"
-            EMOJI="✅"
           fi
 
           echo "VERDICT=$VERDICT" >> $GITHUB_OUTPUT
 
-          # Post review as PR comment
-          gh pr comment $PR_NUMBER --body "## 🤖 AI Gatekeeper Decision: $EMOJI $VERDICT
+          # Post comment
+          if [ "$VERDICT" = "BLOCK" ]; then
+            HEADER="## :robot: AI Gatekeeper Decision: :x: BLOCKED"
+            FOOTER="*This check **BLOCKS** merge. Fix the issues above and push again.*"
+          else
+            HEADER="## :robot: AI Gatekeeper Decision: :white_check_mark: APPROVED"
+            FOOTER="*This check allows merge.*"
+          fi
 
-$REVIEW
+          gh pr comment $PR_NUMBER --body "$HEADER
 
----
-*Powered by Azure OpenAI GPT-5-mini | This check $([ "$VERDICT" = "BLOCK" ] && echo "**BLOCKS**" || echo "allows") merge*"
+          $REVIEW
+
+          ---
+          $FOOTER
+          *Powered by Azure OpenAI GPT-5-mini*"
 
           echo "::notice::AI Verdict: $VERDICT"
 
-      - name: Enforce AI Decision
+      - name: Block if AI says no
         if: steps.review.outputs.VERDICT == 'BLOCK'
         run: |
-          echo "::error::🚫 AI GATEKEEPER BLOCKED THIS PR"
-          echo "The AI reviewer found issues that must be addressed before merge."
-          echo "Review the comment above for details."
+          echo "::error::AI GATEKEEPER BLOCKED THIS PR"
           exit 1
 
-      - name: AI Approved
+      - name: Approved
         if: steps.review.outputs.VERDICT != 'BLOCK'
-        run: |
-          echo "✅ AI Gatekeeper approved this PR for merge"
+        run: echo "AI Gatekeeper approved this PR"
