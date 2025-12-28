@@ -307,7 +307,16 @@ jobs:
             exit 1
           fi
 
-      - name: Run Qwen3 LLM Response Test
+      - name: Run LLM Health Check (Fast)
+        continue-on-error: true
+        env:
+          BACKEND_URL: https://app.aurity.io
+          CI: true
+        run: |
+          echo "🔍 Checking LLM health (fast)..."
+          npx playwright test tests/e2e/llm-health.spec.ts --project=chromium --timeout=30000
+
+      - name: Run Qwen3 LLM Response Test (Slow)
         continue-on-error: true  # Don't fail deploy if LLM is slow/unavailable
         env:
           BACKEND_URL: https://app.aurity.io
