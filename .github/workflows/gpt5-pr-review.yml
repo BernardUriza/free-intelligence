@@ -111,11 +111,7 @@ jobs:
           ISSUES: List critical issues or None
           RECOMMENDATION: Brief advice
 
-          Rules:
-          - BLOCK confidently for security vulnerabilities and crash bugs
-          - APPROVE if the code is safe, even if imperfect
-          - When genuinely unsure, APPROVE with concerns noted
-          - Always report CI failures and suggest fixes"
+          Rules: Default to APPROVE. BLOCK only for critical security/crash bugs. When in doubt, APPROVE with concerns noted. Always comment on CI failures."
 
           # Escape for JSON using jq
           SYSTEM_ESCAPED=$(echo "$SYSTEM_MSG" | jq -Rs .)
