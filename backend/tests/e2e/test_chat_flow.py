@@ -4,9 +4,7 @@ import re
 import pytest
 
 # Skip E2E tests - API contract changed (persona field validation)
-pytestmark = pytest.mark.skip(
-    reason="E2E tests - API contract validation changed, needs update"
-)
+pytestmark = pytest.mark.skip(reason="E2E tests - API contract validation changed, needs update")
 
 from backend.app.main import app
 from backend.observability.log_spec import REQUIRED_FIELDS

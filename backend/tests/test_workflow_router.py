@@ -8,9 +8,7 @@ from __future__ import annotations
 import pytest
 
 # Skip tests - TaskType enum value case mismatch (TRANSCRIPTION vs transcription)
-pytestmark = pytest.mark.skip(
-    reason="Workflow router tests - TaskType enum value case changed"
-)
+pytestmark = pytest.mark.skip(reason="Workflow router tests - TaskType enum value case changed")
 from backend.models.task_type import TaskType
 from backend.src.fi_workflow.services.workflow_router import (
     WorkflowRouter,

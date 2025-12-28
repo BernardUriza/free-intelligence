@@ -8,9 +8,7 @@ from __future__ import annotations
 import pytest
 
 # Skip all tests - Service constructor signatures changed
-pytestmark = pytest.mark.skip(
-    reason="DIContainer tests - service constructor signatures changed"
-)
+pytestmark = pytest.mark.skip(reason="DIContainer tests - service constructor signatures changed")
 
 from pathlib import Path
 

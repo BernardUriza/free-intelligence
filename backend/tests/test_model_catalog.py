@@ -10,9 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # Skip tests - requires gpt4all module which is not installed in CI
-pytestmark = pytest.mark.skip(
-    reason="Requires gpt4all module - install with 'pip install gpt4all'"
-)
+pytestmark = pytest.mark.skip(reason="Requires gpt4all module - install with 'pip install gpt4all'")
 from backend.models.catalog_model import (
     CatalogModel,
     CatalogSearchParams,
