@@ -232,6 +232,43 @@ jobs:
           echo "✅ Dependencies installed"
           ENDSSH
 
+      - name: Setup Ollama and Qwen3
+        run: |
+          ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
+            $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
+
+          echo "🦙 Checking Ollama installation..."
+          if ! command -v ollama &> /dev/null; then
+            echo "📦 Installing Ollama..."
+            curl -fsSL https://ollama.com/install.sh | sh
+            echo "✅ Ollama installed"
+          else
+            echo "✅ Ollama already installed"
+          fi
+
+          echo "🚀 Starting Ollama service..."
+          # Start ollama serve in background if not running
+          if ! pgrep -x "ollama" > /dev/null; then
+            nohup ollama serve > /tmp/ollama.log 2>&1 &
+            sleep 5
+            echo "✅ Ollama service started"
+          else
+            echo "✅ Ollama service already running"
+          fi
+
+          echo "🤖 Checking Qwen3 model..."
+          if ! ollama list 2>/dev/null | grep -q "qwen3"; then
+            echo "📥 Downloading Qwen3 model (this may take a few minutes)..."
+            ollama pull qwen3:1.7b
+            echo "✅ Qwen3 model downloaded"
+          else
+            echo "✅ Qwen3 model already available"
+          fi
+
+          echo "📊 Available models:"
+          ollama list 2>/dev/null || echo "Could not list models"
+          ENDSSH
+
       - name: Rebuild and restart backend
         run: |
           ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
