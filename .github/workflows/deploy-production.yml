@@ -239,9 +239,18 @@ jobs:
           cd /opt/free-intelligence
 
           echo "🛑 Stopping old backend process..."
-          # Kill any process listening on port 7001 (more reliable than pkill pattern)
+          # Kill any process listening on port 7001 (multiple methods for reliability)
           fuser -k 7001/tcp || true
-          sleep 2
+          lsof -ti:7001 | xargs kill -9 2>/dev/null || true
+          pkill -9 -f "uvicorn backend.app.main:app" || true
+          sleep 3
+
+          # Verify port is free
+          if lsof -ti:7001 > /dev/null 2>&1; then
+            echo "⚠️ Port 7001 still in use, forcing kill..."
+            lsof -ti:7001 | xargs kill -9 || true
+            sleep 2
+          fi
 
           echo "🧹 Clearing Python bytecode cache..."
           find backend -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
