@@ -1,0 +1,93 @@
+# =============================================================================
+# Azure OpenAI PR Review (GPT-5-mini)
+# Powered by Azure Cognitive Services
+# =============================================================================
+name: GPT-5 PR Review
+
+on:
+  push:
+    branches: [dev, main]  # Review on push to dev/main with open PR
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: azure-review-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: GPT-5 Code Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR info and review
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AZURE_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -e
+
+          # For push events, find open PR for this branch
+          if [ -z "$PR_NUMBER" ]; then
+            PR_NUMBER=$(gh pr list --head ${{ github.ref_name }} --json number -q '.[0].number' || echo "")
+            if [ -z "$PR_NUMBER" ]; then
+              echo "No open PR found for branch ${{ github.ref_name }}, skipping review"
+              exit 0
+            fi
+            echo "Found PR #$PR_NUMBER for branch ${{ github.ref_name }}"
+          fi
+
+          # Get PR info
+          PR_TITLE=$(gh pr view $PR_NUMBER --json title -q '.title')
+          PR_BODY=$(gh pr view $PR_NUMBER --json body -q '.body // "No description"' | head -c 2000)
+          DIFF=$(gh pr diff $PR_NUMBER 2>/dev/null | head -c 30000 || echo "No diff")
+
+          echo "Reviewing PR #$PR_NUMBER: $PR_TITLE"
+
+          # Build prompt
+          PROMPT="Review this PR titled '$PR_TITLE'. Description: $PR_BODY. Changes: $DIFF. Provide: 1) Summary (1-2 sentences) 2) Issues found (if any) 3) Verdict: APPROVE/REQUEST_CHANGES/COMMENT. Be concise."
+
+          # Escape for JSON
+          PROMPT_ESCAPED=$(echo "$PROMPT" | jq -Rs .)
+
+          # Call Azure OpenAI (GPT-5 uses reasoning tokens, need higher limit)
+          RESPONSE=$(curl -s "${AZURE_ENDPOINT}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
+            -H "Content-Type: application/json" \
+            -H "api-key: $AZURE_KEY" \
+            -d "{\"messages\":[{\"role\":\"user\",\"content\":$PROMPT_ESCAPED}],\"max_completion_tokens\":4000}")
+
+          # Debug: show usage stats
+          echo "API Response usage: $(echo "$RESPONSE" | jq -c '.usage // "no usage"')"
+
+          # Extract review
+          REVIEW=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+
+          if [ -z "$REVIEW" ]; then
+            ERROR=$(echo "$RESPONSE" | jq -r '.error.message // "Unknown error"')
+            echo "API Error: $ERROR"
+            REVIEW="Unable to generate review: $ERROR"
+          fi
+
+          # Post comment
+          COMMENT="## 🤖 GPT-5-mini Code Review
+
+          $REVIEW
+
+          ---
+          *Powered by Azure OpenAI*"
+
+          gh pr comment $PR_NUMBER --body "$COMMENT"
+          echo "✅ Review posted!"
