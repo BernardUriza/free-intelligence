@@ -6,10 +6,16 @@
 // 3. Splashscreen while loading
 // 4. Health checks before showing UI
 // 5. Proper lifecycle management (cleanup on exit)
+// 6. First-run config bootstrap (extracts templates to user data dir)
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod templates;
+
+use serde::Serialize;
+use std::fs;
 use std::net::TcpListener;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -103,6 +109,84 @@ async fn check_ollama_status() -> Result<bool, String> {
     }
 }
 
+/// First-run status for frontend wizard
+#[derive(Serialize)]
+struct FirstRunStatus {
+    config_initialized: bool,
+    ollama_available: bool,
+    data_dir: String,
+}
+
+/// Check first-run status (for frontend wizard)
+#[tauri::command]
+async fn check_first_run_status(app: tauri::AppHandle) -> Result<FirstRunStatus, String> {
+    let data_dir = get_data_dir(&app)?;
+    let config_exists = data_dir.join("config/fi.policy.yaml").exists();
+
+    // Check Ollama synchronously for simplicity
+    let ollama_ok = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .map_err(|e| e.to_string())?
+        .get("http://localhost:11434/api/tags")
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false);
+
+    Ok(FirstRunStatus {
+        config_initialized: config_exists,
+        ollama_available: ollama_ok,
+        data_dir: data_dir.to_string_lossy().to_string(),
+    })
+}
+
+/// Get the user data directory for Aurity
+fn get_data_dir(_app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    // Use ~/.aurity for consistency with backend expectations
+    // Note: _app parameter kept for potential future use with tauri::PathResolver
+    let home = dirs::home_dir().ok_or("Could not find home directory")?;
+    Ok(home.join(".aurity"))
+}
+
+/// Bootstrap configuration files on first run
+/// Extracts embedded templates to user data directory
+fn bootstrap_config(app: &tauri::AppHandle) -> Result<bool, String> {
+    let data_dir = get_data_dir(app)?;
+    let config_dir = data_dir.join("config");
+    let personas_dir = config_dir.join("personas");
+    let storage_dir = data_dir.join("storage");
+
+    // Check if already initialized
+    if config_dir.join("fi.policy.yaml").exists() {
+        println!("[Aurity] Config already initialized at {:?}", config_dir);
+        return Ok(false); // Not first run
+    }
+
+    println!("[Aurity] First run detected - bootstrapping config to {:?}", data_dir);
+
+    // Create directories
+    fs::create_dir_all(&config_dir).map_err(|e| format!("Failed to create config dir: {}", e))?;
+    fs::create_dir_all(&personas_dir).map_err(|e| format!("Failed to create personas dir: {}", e))?;
+    fs::create_dir_all(&storage_dir).map_err(|e| format!("Failed to create storage dir: {}", e))?;
+
+    // Write policy template
+    fs::write(config_dir.join("fi.policy.yaml"), templates::POLICY)
+        .map_err(|e| format!("Failed to write policy: {}", e))?;
+
+    // Write all persona templates
+    for (filename, content) in templates::PERSONAS {
+        fs::write(personas_dir.join(filename), content)
+            .map_err(|e| format!("Failed to write persona {}: {}", filename, e))?;
+    }
+
+    println!("[Aurity] Config bootstrapped successfully!");
+    println!("[Aurity]   - Policy: {:?}", config_dir.join("fi.policy.yaml"));
+    println!("[Aurity]   - Personas: {} files", templates::PERSONAS.len());
+
+    Ok(true) // First run completed
+}
+
 fn main() {
     let backend_state = Arc::new(BackendState {
         port: AtomicU16::new(0),
@@ -116,6 +200,22 @@ fn main() {
         .setup(move |app| {
             let app_handle = app.handle().clone();
             let state = backend_state.clone();
+
+            // Step 0: Bootstrap config on first run (BEFORE spawning backend)
+            emit_status(&app_handle, "Verificando configuración...");
+            match bootstrap_config(&app_handle) {
+                Ok(true) => {
+                    println!("[Aurity] First run - config bootstrapped");
+                    let _ = app_handle.emit("first-run-detected", ());
+                }
+                Ok(false) => {
+                    println!("[Aurity] Config already exists");
+                }
+                Err(e) => {
+                    eprintln!("[Aurity] WARNING: Failed to bootstrap config: {}", e);
+                    // Continue anyway - backend might still work
+                }
+            }
 
             // Spawn async task to start backend
             tauri::async_runtime::spawn(async move {
@@ -257,6 +357,7 @@ fn main() {
             get_backend_url,
             get_backend_status,
             check_ollama_status,
+            check_first_run_status,
         ])
         .run(tauri::generate_context!())
         .expect("Error while running Aurity Desktop");

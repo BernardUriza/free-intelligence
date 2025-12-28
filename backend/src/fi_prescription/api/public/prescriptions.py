@@ -856,3 +856,430 @@ async def list_otc_medications(
         "count": len(medications),
         "medications": [m.model_dump(mode="json") for m in medications],
     }
+
+
+# ============================================================================
+# Drug Interaction Endpoints (FI-RX-008)
+# ============================================================================
+
+
+class CheckInteractionsRequest(BaseModel):
+    """Request body for checking drug interactions."""
+
+    medications: list[str] = Field(
+        ...,
+        min_length=2,
+        description="List of medication names to check",
+    )
+
+
+class CheckPrescriptionInteractionsRequest(BaseModel):
+    """Request body for checking interactions with Medication objects."""
+
+    medications: list[Medication] = Field(
+        ...,
+        min_length=2,
+        description="List of Medication objects to check",
+    )
+
+
+@router.post(
+    "/interactions/check",
+    status_code=status.HTTP_200_OK,
+)
+async def check_interactions(
+    request: CheckInteractionsRequest,
+) -> dict[str, Any]:
+    """Check medications for drug-drug interactions.
+
+    Checks all pairs of medications against the interaction database
+    and returns alerts with severity levels and recommendations.
+
+    Args:
+        request: List of medication names to check
+
+    Returns:
+        Interaction check result with alerts and summary
+
+    Example:
+        POST /prescriptions/interactions/check
+        {"medications": ["Warfarina", "Ketorolaco", "Metformina"]}
+    """
+    from fi_prescription.services.interaction_checker import get_interaction_checker
+
+    checker = get_interaction_checker()
+    result = checker.check_medications(request.medications)
+
+    logger.info(
+        "INTERACTIONS_CHECKED_API",
+        medication_count=len(request.medications),
+        alert_count=len(result.alerts),
+        has_major=result.has_major_interactions,
+    )
+
+    return {
+        "medications_checked": result.medications_checked,
+        "alert_count": len(result.alerts),
+        "has_major_interactions": result.has_major_interactions,
+        "can_proceed": result.can_proceed,
+        "summary": result.summary,
+        "alerts": [
+            {
+                "drug_1": alert.drug_1_name,
+                "drug_2": alert.drug_2_name,
+                "severity": alert.interaction.severity.value,
+                "effect": alert.interaction.effect_es,
+                "recommendation": alert.interaction.recommendation_es,
+                "can_override": alert.can_override,
+                "alert_message": alert.alert_message,
+            }
+            for alert in result.alerts
+        ],
+    }
+
+
+@router.post(
+    "/interactions/check-prescription",
+    status_code=status.HTTP_200_OK,
+)
+async def check_prescription_interactions(
+    request: CheckPrescriptionInteractionsRequest,
+) -> dict[str, Any]:
+    """Check Medication objects for drug-drug interactions.
+
+    Similar to /interactions/check but accepts full Medication objects,
+    which allows checking by both name and active ingredient.
+
+    Args:
+        request: List of Medication objects to check
+
+    Returns:
+        Interaction check result with alerts and summary
+    """
+    from fi_prescription.services.interaction_checker import get_interaction_checker
+
+    checker = get_interaction_checker()
+    result = checker.check_medication_objects(request.medications)
+
+    return {
+        "medications_checked": result.medications_checked,
+        "alert_count": len(result.alerts),
+        "has_major_interactions": result.has_major_interactions,
+        "can_proceed": result.can_proceed,
+        "summary": result.summary,
+        "alerts": [
+            {
+                "drug_1": alert.drug_1_name,
+                "drug_2": alert.drug_2_name,
+                "severity": alert.interaction.severity.value,
+                "effect": alert.interaction.effect_es,
+                "recommendation": alert.interaction.recommendation_es,
+                "can_override": alert.can_override,
+                "alert_message": alert.alert_message,
+            }
+            for alert in result.alerts
+        ],
+    }
+
+
+@router.get(
+    "/interactions/drug/{drug_name}",
+    status_code=status.HTTP_200_OK,
+)
+async def get_drug_interactions(drug_name: str) -> dict[str, Any]:
+    """Get all known interactions for a specific drug.
+
+    Useful for displaying warnings when selecting a medication
+    in the prescription form.
+
+    Args:
+        drug_name: Drug name to look up
+
+    Returns:
+        List of interactions involving this drug, sorted by severity
+    """
+    from fi_prescription.services.interaction_checker import get_interaction_checker
+
+    checker = get_interaction_checker()
+    interactions = checker.get_interactions_for_drug(drug_name)
+
+    return {
+        "drug_name": drug_name,
+        "interaction_count": len(interactions),
+        "interactions": [
+            {
+                "id": i.id,
+                "interacting_drug": i.get_other_drug(drug_name),
+                "severity": i.severity.value,
+                "effect": i.effect_es,
+                "recommendation": i.recommendation_es,
+                "mechanism": i.mechanism.value if i.mechanism else None,
+            }
+            for i in interactions
+        ],
+    }
+
+
+@router.get(
+    "/interactions/stats",
+    status_code=status.HTTP_200_OK,
+)
+async def get_interaction_stats() -> dict[str, Any]:
+    """Get statistics about the interaction database.
+
+    Returns:
+        Interaction database statistics
+    """
+    from fi_prescription.services.interaction_checker import get_interaction_checker
+
+    checker = get_interaction_checker()
+    stats = checker.get_stats()
+
+    return {"stats": stats}
+
+
+# ============================================================================
+# Allergy Check Endpoints (FI-RX-009)
+# ============================================================================
+
+
+class CheckAllergiesRequest(BaseModel):
+    """Request body for checking allergies."""
+
+    medications: list[str] = Field(
+        ...,
+        min_length=1,
+        description="List of medication names to check",
+    )
+    patient_allergies: list[str] = Field(
+        ...,
+        min_length=1,
+        description="Patient's recorded allergies",
+    )
+
+
+class CheckAllergiesMedicationRequest(BaseModel):
+    """Request body for checking allergies with Medication objects."""
+
+    medications: list[Medication] = Field(
+        ...,
+        min_length=1,
+        description="List of Medication objects to check",
+    )
+    patient_allergies: list[str] = Field(
+        ...,
+        min_length=1,
+        description="Patient's recorded allergies",
+    )
+
+
+@router.post(
+    "/allergies/check",
+    status_code=status.HTTP_200_OK,
+)
+async def check_allergies(
+    request: CheckAllergiesRequest,
+) -> dict[str, Any]:
+    """Check medications against patient allergies.
+
+    Cross-references medications with patient's recorded allergies
+    and returns alerts for matches and cross-reactive substances.
+
+    Args:
+        request: Medications and patient allergies to check
+
+    Returns:
+        Allergy check result with alerts and summary
+
+    Example:
+        POST /prescriptions/allergies/check
+        {"medications": ["Amoxicilina"], "patient_allergies": ["Penicilina"]}
+    """
+    from fi_prescription.services.allergy_checker import get_allergy_checker
+
+    checker = get_allergy_checker()
+    result = checker.check_medications(
+        medications=request.medications,
+        patient_allergies=request.patient_allergies,
+    )
+
+    logger.info(
+        "ALLERGIES_CHECKED_API",
+        medication_count=len(request.medications),
+        allergy_count=len(request.patient_allergies),
+        alert_count=len(result.alerts),
+        has_severe=result.has_severe_allergies,
+    )
+
+    return {
+        "medications_checked": result.medications_checked,
+        "patient_allergies": result.patient_allergies,
+        "alert_count": len(result.alerts),
+        "has_severe_allergies": result.has_severe_allergies,
+        "can_proceed": result.can_proceed,
+        "summary": result.summary,
+        "alerts": [
+            {
+                "medication": alert.medication_name,
+                "patient_allergy": alert.patient_allergy,
+                "severity": alert.severity.value,
+                "allergen_type": alert.allergen.allergen_type.value,
+                "notes": alert.allergen.notes_es,
+                "can_override": alert.can_override,
+                "alert_message": alert.alert_message,
+            }
+            for alert in result.alerts
+        ],
+    }
+
+
+@router.get(
+    "/allergies/medication/{medication_name}",
+    status_code=status.HTTP_200_OK,
+)
+async def get_medication_allergens(medication_name: str) -> dict[str, Any]:
+    """Get allergens related to a specific medication.
+
+    Useful for displaying potential allergy warnings when
+    selecting a medication in the prescription form.
+
+    Args:
+        medication_name: Medication name to look up
+
+    Returns:
+        List of allergen entries this medication is related to
+    """
+    from fi_prescription.services.allergy_checker import get_allergy_checker
+
+    checker = get_allergy_checker()
+    allergens = checker.get_allergens_for_medication(medication_name)
+
+    return {
+        "medication_name": medication_name,
+        "allergen_count": len(allergens),
+        "allergens": [
+            {
+                "id": a.id,
+                "name": a.name_es,
+                "type": a.allergen_type.value,
+                "severity": a.severity.value,
+                "notes": a.notes_es,
+            }
+            for a in allergens
+        ],
+    }
+
+
+@router.get(
+    "/allergies/stats",
+    status_code=status.HTTP_200_OK,
+)
+async def get_allergy_stats() -> dict[str, Any]:
+    """Get statistics about the allergen database.
+
+    Returns:
+        Allergen database statistics
+    """
+    from fi_prescription.services.allergy_checker import get_allergy_checker
+
+    checker = get_allergy_checker()
+    stats = checker.get_stats()
+
+    return {"stats": stats}
+
+
+# ============================================================================
+# Combined Safety Check Endpoint (FI-RX-008 + FI-RX-009)
+# ============================================================================
+
+
+class FullSafetyCheckRequest(BaseModel):
+    """Request body for full safety check."""
+
+    medications: list[Medication] = Field(
+        ...,
+        min_length=1,
+        description="List of Medication objects to check",
+    )
+    patient_allergies: list[str] = Field(
+        default_factory=list,
+        description="Patient's recorded allergies (optional)",
+    )
+
+
+@router.post(
+    "/safety/check",
+    status_code=status.HTTP_200_OK,
+)
+async def full_safety_check(
+    request: FullSafetyCheckRequest,
+) -> dict[str, Any]:
+    """Run comprehensive safety checks on medications.
+
+    Combines drug interaction checking and allergy checking
+    into a single comprehensive safety report.
+
+    Args:
+        request: Medications and patient allergies to check
+
+    Returns:
+        Complete safety report with all alerts
+
+    Example:
+        POST /prescriptions/safety/check
+        {
+            "medications": [{"name": "Amoxicilina", "dosage": "500mg"}],
+            "patient_allergies": ["Penicilina"]
+        }
+    """
+    engine = get_template_engine()
+    result = engine.full_safety_check(
+        medications=request.medications,
+        patient_allergies=request.patient_allergies,
+    )
+
+    logger.info(
+        "FULL_SAFETY_CHECK_API",
+        medication_count=len(request.medications),
+        can_proceed=result["can_proceed"],
+        has_critical=result["has_critical_issues"],
+    )
+
+    return {
+        "medications_checked": [m.name for m in request.medications],
+        "patient_allergies": request.patient_allergies,
+        "can_proceed": result["can_proceed"],
+        "has_critical_issues": result["has_critical_issues"],
+        "summary": result["summary"],
+        "interactions": {
+            "alert_count": len(result["interactions"].alerts),
+            "has_major": result["interactions"].has_major_interactions,
+            "can_proceed": result["interactions"].can_proceed,
+            "summary": result["interactions"].summary,
+            "alerts": [
+                {
+                    "drug_1": a.drug_1_name,
+                    "drug_2": a.drug_2_name,
+                    "severity": a.interaction.severity.value,
+                    "effect": a.interaction.effect_es,
+                    "recommendation": a.interaction.recommendation_es,
+                }
+                for a in result["interactions"].alerts
+            ],
+        },
+        "allergies": {
+            "alert_count": len(result["allergies"].alerts),
+            "has_severe": result["allergies"].has_severe_allergies,
+            "can_proceed": result["allergies"].can_proceed,
+            "summary": result["allergies"].summary,
+            "alerts": [
+                {
+                    "medication": a.medication_name,
+                    "patient_allergy": a.patient_allergy,
+                    "severity": a.severity.value,
+                    "notes": a.allergen.notes_es,
+                }
+                for a in result["allergies"].alerts
+            ],
+        },
+    }

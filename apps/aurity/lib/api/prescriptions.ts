@@ -813,3 +813,241 @@ export async function getOTCMedications(
   }
   return response.json();
 }
+
+// ============================================================================
+// Safety Check Types (FI-RX-008 + FI-RX-009)
+// ============================================================================
+
+/**
+ * Interaction severity levels
+ */
+export type InteractionSeverity =
+  | "minor"
+  | "moderate"
+  | "major"
+  | "contraindicated";
+
+/**
+ * Allergy severity levels
+ */
+export type AllergySeverity = "mild" | "moderate" | "severe";
+
+/**
+ * Drug interaction alert
+ */
+export interface InteractionAlertData {
+  drug_1: string;
+  drug_2: string;
+  severity: InteractionSeverity;
+  effect: string;
+  recommendation: string;
+  can_override: boolean;
+  alert_message?: string;
+}
+
+/**
+ * Allergy alert
+ */
+export interface AllergyAlertData {
+  medication: string;
+  patient_allergy: string;
+  severity: AllergySeverity;
+  allergen_type: string;
+  notes: string | null;
+  can_override: boolean;
+  alert_message?: string;
+}
+
+/**
+ * Interaction check result
+ */
+export interface InteractionCheckResult {
+  alert_count: number;
+  has_major: boolean;
+  can_proceed: boolean;
+  summary: string;
+  alerts: InteractionAlertData[];
+}
+
+/**
+ * Allergy check result
+ */
+export interface AllergyCheckResult {
+  alert_count: number;
+  has_severe: boolean;
+  can_proceed: boolean;
+  summary: string;
+  alerts: AllergyAlertData[];
+}
+
+/**
+ * Full safety check response
+ */
+export interface SafetyCheckResponse {
+  medications_checked: string[];
+  patient_allergies: string[];
+  can_proceed: boolean;
+  has_critical_issues: boolean;
+  summary: string;
+  interactions: InteractionCheckResult;
+  allergies: AllergyCheckResult;
+}
+
+// ============================================================================
+// Severity Labels
+// ============================================================================
+
+export const INTERACTION_SEVERITY_LABELS: Record<InteractionSeverity, string> = {
+  minor: "Menor",
+  moderate: "Moderada",
+  major: "Mayor",
+  contraindicated: "Contraindicada",
+};
+
+export const ALLERGY_SEVERITY_LABELS: Record<AllergySeverity, string> = {
+  mild: "Leve",
+  moderate: "Moderada",
+  severe: "Grave",
+};
+
+export const INTERACTION_SEVERITY_COLORS: Record<InteractionSeverity, string> = {
+  minor: "text-blue-500 bg-blue-50 border-blue-200",
+  moderate: "text-yellow-600 bg-yellow-50 border-yellow-200",
+  major: "text-orange-600 bg-orange-50 border-orange-200",
+  contraindicated: "text-red-600 bg-red-50 border-red-200",
+};
+
+export const ALLERGY_SEVERITY_COLORS: Record<AllergySeverity, string> = {
+  mild: "text-blue-500 bg-blue-50 border-blue-200",
+  moderate: "text-yellow-600 bg-yellow-50 border-yellow-200",
+  severe: "text-red-600 bg-red-50 border-red-200",
+};
+
+// ============================================================================
+// Safety Check API Functions
+// ============================================================================
+
+/**
+ * Check medications for drug interactions
+ */
+export async function checkInteractions(
+  medications: string[]
+): Promise<{
+  medications_checked: string[];
+  alert_count: number;
+  has_major_interactions: boolean;
+  can_proceed: boolean;
+  summary: string;
+  alerts: InteractionAlertData[];
+}> {
+  const response = await fetch(`${API_BASE()}/interactions/check`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ medications }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to check interactions: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Check medications against patient allergies
+ */
+export async function checkAllergies(
+  medications: string[],
+  patientAllergies: string[]
+): Promise<{
+  medications_checked: string[];
+  patient_allergies: string[];
+  alert_count: number;
+  has_severe_allergies: boolean;
+  can_proceed: boolean;
+  summary: string;
+  alerts: AllergyAlertData[];
+}> {
+  const response = await fetch(`${API_BASE()}/allergies/check`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      medications,
+      patient_allergies: patientAllergies,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to check allergies: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Run comprehensive safety check (interactions + allergies)
+ */
+export async function runSafetyCheck(
+  medications: Medication[],
+  patientAllergies: string[] = []
+): Promise<SafetyCheckResponse> {
+  const response = await fetch(`${API_BASE()}/safety/check`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      medications,
+      patient_allergies: patientAllergies,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to run safety check: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get interactions for a specific drug
+ */
+export async function getDrugInteractions(
+  drugName: string
+): Promise<{
+  drug_name: string;
+  interaction_count: number;
+  interactions: Array<{
+    id: string;
+    interacting_drug: string;
+    severity: InteractionSeverity;
+    effect: string;
+    recommendation: string;
+    mechanism: string | null;
+  }>;
+}> {
+  const response = await fetch(
+    `${API_BASE()}/interactions/drug/${encodeURIComponent(drugName)}`
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to get drug interactions: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get allergens for a specific medication
+ */
+export async function getMedicationAllergens(
+  medicationName: string
+): Promise<{
+  medication_name: string;
+  allergen_count: number;
+  allergens: Array<{
+    id: string;
+    name: string;
+    type: string;
+    severity: AllergySeverity;
+    notes: string | null;
+  }>;
+}> {
+  const response = await fetch(
+    `${API_BASE()}/allergies/medication/${encodeURIComponent(medicationName)}`
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to get medication allergens: ${response.statusText}`);
+  }
+  return response.json();
+}

@@ -1,0 +1,51 @@
+# Cargo build optimization for Tauri
+# This configuration significantly speeds up incremental builds
+
+[build]
+# Use sccache as rustc wrapper for shared caching across projects
+# Install with: cargo install sccache
+# TODO: Enable after fixing sccache config (currently has path issues)
+# rustc-wrapper = "sccache"
+
+# Enable parallel code generation for faster linking
+pipelining = true
+
+[profile.dev]
+# Incremental compilation - only recompile changed parts
+incremental = true
+
+# Minimal debug info for faster builds (full symbols slow things down)
+debug = 0
+
+# Optimize dependencies even in dev mode (compile once, run fast)
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+# Keep incremental for release builds during development
+incremental = true
+
+# Use thin LTO instead of fat LTO (faster linking, similar perf)
+lto = "thin"
+
+# Single codegen unit for better optimization, but slower compile
+# Use higher number for faster builds: codegen-units = 16
+codegen-units = 1
+
+# Target for macOS (speeds up by avoiding multi-target checks)
+[target.aarch64-apple-darwin]
+# Use mold linker if installed (2-5x faster than default)
+# Install with: brew install mold
+# Uncomment if mold is available:
+# linker = "mold"
+
+[target.x86_64-apple-darwin]
+# Same for Intel Macs
+# linker = "mold"
+
+# Environment variables for sccache
+[env]
+# Local cache directory for sccache (use absolute path, ~ doesn't expand)
+SCCACHE_DIR = { value = "/Users/bernardurizaorozco/.cache/sccache", relative = false }
+# Cache size limit (10GB should be enough)
+SCCACHE_CACHE_SIZE = "10G"
