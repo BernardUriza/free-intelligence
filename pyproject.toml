@@ -60,8 +60,10 @@ Homepage = "https://github.com/BernardUriza/free-intelligence"
 Repository = "https://github.com/BernardUriza/free-intelligence.git"
 Documentation = "https://github.com/BernardUriza/free-intelligence/tree/main/docs"
 
-[tool.setuptools]
-packages = ["backend", "apps"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]
+exclude = ["tests*", "apps*"]
 
 [tool.black]
 line-length = 100
