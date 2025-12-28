@@ -1,6 +1,6 @@
-# Free Intelligence - Production Dependencies (Minimal)
-# Excludes heavy ML libraries (torch, transformers, sentence-transformers)
-# Updated: 2025-11-20
+# Free Intelligence - Production Dependencies
+# Updated: 2025-12-28
+# RAM requirement: 4GB (sentence-transformers + model ~1.5GB)
 
 # ============================================================================
 # Core Dependencies
@@ -71,3 +71,11 @@ alembic>=1.13.0
 psutil>=6.1.1
 pyarrow>=14.0.0
 filelock>=3.12.0
+
+# ============================================================================
+# ML / Embeddings (Memoria Longitudinal Infinita)
+# ============================================================================
+# sentence-transformers: Local embeddings for semantic search
+# Model: all-MiniLM-L6-v2 (384-dim, 80MB, no API keys needed)
+# RAM usage: ~1.5GB with model loaded
+sentence-transformers>=2.2.0
