@@ -34,6 +34,10 @@ logs/
 .env
 .env.local
 
+# Qwen Code (AI agent cache)
+.qwen/
+gha-creds-*.json
+
 # Storage (audio, HDF5, data)
 storage/
 !storage/.gitkeep
