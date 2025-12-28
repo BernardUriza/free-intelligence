@@ -94,12 +94,8 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/backend/src
         run: |
-          # Exclude integration tests that require infrastructure not available in CI
-          # TODO: Set up proper test fixtures for these tests
-          pytest backend/tests/ -v --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=50 \
-            --ignore=backend/tests/api/test_api_integration.py \
-            --ignore=backend/tests/api/test_api_diarization_job_endpoint.py \
-            --ignore=backend/tests/api/test_assistant_diagnostics.py
+          # Tests with missing dependencies will auto-skip via pytest markers
+          pytest backend/tests/ -v --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=50
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.14'
