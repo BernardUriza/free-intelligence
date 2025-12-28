@@ -1,71 +1,80 @@
 // Aurity Desktop - Main Entry Point
 //
 // This application manages:
-// 1. FastAPI backend as a sidecar process
+// 1. FastAPI backend as a sidecar process with DYNAMIC port allocation
 // 2. Tauri webview for the frontend
-// 3. System tray integration
+// 3. Splashscreen while loading
 // 4. Health checks before showing UI
+// 5. Proper lifecycle management (cleanup on exit)
 
-#![cfg_attr(
-    all(not(debug_assertions), target_os = "windows"),
-    windows_subsystem = "windows"
-)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::net::TcpListener;
+use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_shell::ShellExt;
+use tokio::time::sleep;
 
-/// Backend server state
+/// Global state for backend
 struct BackendState {
+    port: AtomicU16,
     is_ready: AtomicBool,
 }
 
-/// Check if the backend is healthy by calling /api/health
-async fn check_backend_health() -> bool {
-    let client = reqwest::Client::new();
-    match client
-        .get("http://localhost:7001/api/health")
+/// Find an available port in the range 7001-7999
+/// This prevents conflicts if port 7001 is already in use
+fn find_available_port() -> Option<u16> {
+    for port in 7001..8000 {
+        if TcpListener::bind(("127.0.0.1", port)).is_ok() {
+            return Some(port);
+        }
+    }
+    None
+}
+
+/// Check if the backend is responding to health checks
+async fn check_backend_health(port: u16) -> bool {
+    let url = format!("http://127.0.0.1:{}/api/health", port);
+    let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(2))
-        .send()
-        .await
-    {
+        .build()
+        .unwrap();
+
+    match client.get(&url).send().await {
         Ok(response) => response.status().is_success(),
         Err(_) => false,
     }
 }
 
-/// Wait for backend to become healthy with retries
-async fn wait_for_backend(max_retries: u32, delay_ms: u64) -> bool {
-    for attempt in 1..=max_retries {
-        if check_backend_health().await {
-            println!("[Aurity] Backend healthy after {} attempts", attempt);
-            return true;
-        }
-        println!(
-            "[Aurity] Waiting for backend... attempt {}/{}",
-            attempt, max_retries
-        );
-        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
-    }
-    false
+/// Emit loading status to splashscreen
+fn emit_status(app: &tauri::AppHandle, message: &str) {
+    let _ = app.emit("loading-status", message);
 }
 
+/// Get the backend URL (with dynamic port)
 #[tauri::command]
-async fn get_backend_status(state: tauri::State<'_, Arc<BackendState>>) -> Result<bool, String> {
-    Ok(state.is_ready.load(Ordering::SeqCst))
+fn get_backend_url(state: tauri::State<'_, Arc<BackendState>>) -> String {
+    let port = state.port.load(Ordering::SeqCst);
+    format!("http://127.0.0.1:{}", port)
 }
 
+/// Check if backend is ready
+#[tauri::command]
+fn get_backend_status(state: tauri::State<'_, Arc<BackendState>>) -> bool {
+    state.is_ready.load(Ordering::SeqCst)
+}
+
+/// Check if Ollama is running locally
 #[tauri::command]
 async fn check_ollama_status() -> Result<bool, String> {
-    let client = reqwest::Client::new();
-    match client
-        .get("http://localhost:11434/api/tags")
+    let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(2))
-        .send()
-        .await
-    {
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    match client.get("http://localhost:11434/api/tags").send().await {
         Ok(response) => Ok(response.status().is_success()),
         Err(_) => Ok(false),
     }
@@ -73,6 +82,7 @@ async fn check_ollama_status() -> Result<bool, String> {
 
 fn main() {
     let backend_state = Arc::new(BackendState {
+        port: AtomicU16::new(0),
         is_ready: AtomicBool::new(false),
     });
 
@@ -84,42 +94,146 @@ fn main() {
             let app_handle = app.handle().clone();
             let state = backend_state.clone();
 
-            // Spawn backend sidecar
-            println!("[Aurity] Starting backend sidecar...");
-
-            let shell = app_handle.shell();
-            let sidecar_command = shell
-                .sidecar("aurity-backend")
-                .expect("Failed to create sidecar command");
-
-            // Spawn the sidecar process
-            let (mut _rx, _child) = sidecar_command
-                .spawn()
-                .expect("Failed to spawn backend sidecar");
-
-            // Wait for backend to be ready in a separate task
-            let handle = app_handle.clone();
+            // Spawn async task to start backend
             tauri::async_runtime::spawn(async move {
-                println!("[Aurity] Waiting for backend to start...");
+                // Step 1: Find available port
+                emit_status(&app_handle, "Buscando puerto disponible...");
 
-                // Wait up to 30 seconds for backend (30 retries * 1000ms)
-                if wait_for_backend(30, 1000).await {
-                    state.is_ready.store(true, Ordering::SeqCst);
-                    println!("[Aurity] Backend is ready!");
+                let port = match find_available_port() {
+                    Some(p) => {
+                        println!("[Aurity] Selected port {} for backend", p);
+                        p
+                    }
+                    None => {
+                        eprintln!("[Aurity] ERROR: No available ports in range 7001-7999");
+                        emit_status(&app_handle, "Error: No hay puertos disponibles");
+                        return;
+                    }
+                };
 
-                    // Emit event to frontend
-                    let _ = handle.emit("backend-ready", true);
-                } else {
-                    eprintln!("[Aurity] ERROR: Backend failed to start within 30 seconds");
-                    let _ = handle.emit("backend-error", "Backend failed to start");
+                state.port.store(port, Ordering::SeqCst);
+
+                // Step 2: Start the sidecar with the selected port
+                emit_status(&app_handle, "Iniciando backend de IA...");
+
+                let shell = app_handle.shell();
+                let sidecar_result = shell
+                    .sidecar("aurity-backend")
+                    .expect("Failed to create sidecar command")
+                    .args(["--port", &port.to_string()])
+                    .spawn();
+
+                match sidecar_result {
+                    Ok((mut rx, _child)) => {
+                        println!("[Aurity] Backend sidecar started");
+
+                        // The tauri-plugin-process automatically handles cleanup on app exit
+
+                        // Log sidecar output in background
+                        let status_handle = app_handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            while let Some(event) = rx.recv().await {
+                                match event {
+                                    tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
+                                        let line_str = String::from_utf8_lossy(&line);
+                                        println!("[backend] {}", line_str);
+
+                                        // Detect when uvicorn is ready
+                                        if line_str.contains("Uvicorn running")
+                                            || line_str.contains("Application startup complete")
+                                        {
+                                            emit_status(&status_handle, "Backend iniciado!");
+                                        }
+                                    }
+                                    tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
+                                        eprintln!("[backend-err] {}", String::from_utf8_lossy(&line));
+                                    }
+                                    tauri_plugin_shell::process::CommandEvent::Terminated(status) => {
+                                        println!("[Aurity] Backend terminated: {:?}", status);
+                                        break;
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        });
+
+                        // Step 3: Wait for backend to be ready (health check)
+                        emit_status(&app_handle, "Esperando que el backend responda...");
+
+                        let mut attempts = 0;
+                        let max_attempts = 60; // 30 seconds total (500ms * 60)
+
+                        while attempts < max_attempts {
+                            if check_backend_health(port).await {
+                                state.is_ready.store(true, Ordering::SeqCst);
+                                println!("[Aurity] Backend is healthy on port {}", port);
+                                break;
+                            }
+
+                            attempts += 1;
+                            sleep(Duration::from_millis(500)).await;
+
+                            // Update status every 2 seconds
+                            if attempts % 4 == 0 {
+                                emit_status(
+                                    &app_handle,
+                                    &format!("Iniciando... {}s", attempts / 2),
+                                );
+                            }
+                        }
+
+                        // Step 4: Show main window or report error
+                        if state.is_ready.load(Ordering::SeqCst) {
+                            emit_status(&app_handle, "Listo!");
+
+                            // Inject backend URL into main window
+                            if let Some(main_window) = app_handle.get_webview_window("main") {
+                                let js = format!(
+                                    "window.__AURITY_BACKEND_URL__ = 'http://127.0.0.1:{}';",
+                                    port
+                                );
+                                let _ = main_window.eval(&js);
+
+                                // Show main window
+                                let _ = main_window.show();
+                                let _ = main_window.set_focus();
+                            }
+
+                            // Close splashscreen
+                            if let Some(splash) = app_handle.get_webview_window("splashscreen") {
+                                let _ = splash.close();
+                            }
+
+                            // Emit ready event
+                            let _ = app_handle.emit("backend-ready", port);
+                        } else {
+                            emit_status(&app_handle, "Error: Backend no responde");
+                            eprintln!(
+                                "[Aurity] ERROR: Backend failed to respond after {} attempts",
+                                max_attempts
+                            );
+
+                            // Show error in main window anyway
+                            if let Some(main_window) = app_handle.get_webview_window("main") {
+                                let _ = main_window.show();
+                            }
+
+                            let _ = app_handle.emit("backend-error", "Backend failed to start");
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("[Aurity] Failed to spawn sidecar: {}", e);
+                        emit_status(&app_handle, &format!("Error: {}", e));
+                    }
                 }
             });
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            get_backend_url,
             get_backend_status,
-            check_ollama_status
+            check_ollama_status,
         ])
         .run(tauri::generate_context!())
         .expect("Error while running Aurity Desktop");

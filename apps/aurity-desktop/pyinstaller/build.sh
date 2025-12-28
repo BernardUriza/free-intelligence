@@ -18,6 +18,19 @@ echo "Project root: $PROJECT_ROOT"
 echo "Desktop root: $DESKTOP_ROOT"
 echo "Backend root: $BACKEND_ROOT"
 
+# Create .env.desktop from example with mock auth enabled for offline use
+if [ ! -f "$DESKTOP_ROOT/.env.desktop" ]; then
+    echo "Creating .env.desktop for offline desktop build..."
+    if [ -f "$DESKTOP_ROOT/.env.desktop.example" ]; then
+        # Copy example and enable mock auth for desktop
+        sed 's/NEXT_PUBLIC_USE_MOCK_AUTH=false/NEXT_PUBLIC_USE_MOCK_AUTH=true/' \
+            "$DESKTOP_ROOT/.env.desktop.example" > "$DESKTOP_ROOT/.env.desktop"
+        echo "Created .env.desktop with mock auth enabled (offline mode)"
+    else
+        echo "WARNING: .env.desktop.example not found, skipping env setup"
+    fi
+fi
+
 # Determine platform-specific binary name
 case "$(uname -s)" in
     Darwin*)
