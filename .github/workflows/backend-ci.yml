@@ -82,9 +82,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-          pip install prometheus-client PyJWT sqlalchemy
+          pip install prometheus-client PyJWT sqlalchemy python-ulid
 
       - name: Run pytest with coverage
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend/src
         run: |
           pytest backend/tests/ -v --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=70
 
