@@ -75,6 +75,23 @@ dmypy.json
 # Ruff
 .ruff_cache/
 
+# Claude Code
+.claude/auth0_actions.env
+.claude/learnings/
+.claude/plans/
+
+# Rust / Tauri
+target/
+apps/aurity-desktop/src-tauri/target/
+apps/aurity-desktop/src-tauri/binaries/
+apps/aurity-desktop/src-tauri/resources/ollama/
+Cargo.lock
+
+# PyInstaller
+apps/aurity-desktop/pyinstaller/dist/
+apps/aurity-desktop/pyinstaller/build/
+*.spec.bak
+
 # Playwright
 playwright-report/
 .playwright/

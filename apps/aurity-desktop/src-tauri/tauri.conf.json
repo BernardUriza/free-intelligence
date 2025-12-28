@@ -1,0 +1,89 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Aurity",
+  "version": "1.0.0",
+  "identifier": "io.aurity.desktop",
+  "build": {
+    "beforeBuildCommand": "cd ../.. && pnpm --filter aurity build",
+    "beforeDevCommand": "cd ../.. && pnpm --filter aurity dev",
+    "frontendDist": "../aurity/out",
+    "devUrl": "http://localhost:9000"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Aurity - Medical AI Assistant",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "visible": false
+      },
+      {
+        "label": "splashscreen",
+        "title": "Aurity",
+        "width": 400,
+        "height": 300,
+        "resizable": false,
+        "decorations": false,
+        "center": true,
+        "transparent": true,
+        "url": "splashscreen.html"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:* http://127.0.0.1:* https://app.aurity.io; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/aurity-backend"
+    ],
+    "category": "Medical",
+    "shortDescription": "Medical AI Assistant - 100% Offline",
+    "longDescription": "Aurity Desktop is a medical AI assistant that runs entirely on your computer. No cloud required. Your data stays on your device.",
+    "macOS": {
+      "minimumSystemVersion": "12.0",
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "entitlements": null
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      },
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libsqlite3-0"]
+      }
+    }
+  },
+  "plugins": {
+    "shell": {
+      "sidecar": true,
+      "scope": [
+        {
+          "name": "aurity-backend",
+          "sidecar": true,
+          "args": [
+            "--port",
+            { "validator": "\\d+" }
+          ]
+        }
+      ]
+    }
+  }
+}
