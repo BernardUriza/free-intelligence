@@ -13,10 +13,10 @@ and compatible with Prometheus scraping.
 Module: fi_observability.audio_metrics
 """
 
+import threading
 from collections import defaultdict
 from datetime import datetime
-from typing import Dict, Any
-import threading
+from typing import Any, Dict
 
 
 class AudioMetrics:

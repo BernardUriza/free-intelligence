@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import httpx
 import json
 import uuid as _uuid
 from collections.abc import AsyncGenerator
 
+import httpx
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
@@ -51,7 +51,7 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
         import traceback
         async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
             try:
-                print(f"[stream_proxy] 📤 Forwarding to internal endpoint...")
+                print("[stream_proxy] 📤 Forwarding to internal endpoint...")
                 async with client.stream(
                     "POST",
                     "http://localhost:7001/internal/llm/chat/stream",
@@ -91,7 +91,7 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
                 print(f"[stream_proxy] ❌ HTTP Error: {error_msg}")
                 yield f"data: {json.dumps({'error': error_msg})}\n\n"
             except Exception as e:
-                error_msg = f"{type(e).__name__}: {str(e)}"
+                error_msg = f"{type(e).__name__}: {e!s}"
                 print(f"[stream_proxy] ❌ Exception: {error_msg}")
                 traceback.print_exc()
                 yield f"data: {json.dumps({'error': error_msg})}\n\n"

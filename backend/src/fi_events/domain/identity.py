@@ -23,7 +23,6 @@ import json
 from typing import Any
 
 import ulid
-
 from backend.src.fi_events.domain.events import EventType
 
 

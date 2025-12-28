@@ -14,9 +14,9 @@ Usage:
 """
 
 from backend.src.fi_events.security.phi_redaction import (
-    redact_phi,
-    detect_phi,
     PHI_PATTERNS,
+    detect_phi,
+    redact_phi,
 )
 from backend.src.fi_events.security.rbac import (
     EventPermission,

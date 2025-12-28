@@ -68,4 +68,4 @@ class TokenCounter:
         Returns:
             List of estimated token counts
         """
-        return [self.estimate_tokens(text, model) for text in texts]
+        return [self.estimate_tokens(text, _model) for text in texts]

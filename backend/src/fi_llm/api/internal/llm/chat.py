@@ -19,13 +19,13 @@ from datetime import UTC, datetime
 
 import ulid
 from backend.policy.policy_loader import get_policy_loader
-from backend.src.fi_events import get_event_bus, DomainEvent, EventType
 from backend.providers.llm import llm_generate, sanitize_error_message
 from backend.repositories.audit_repository import AuditRepository
 from backend.schemas.llm.audit_policy import require_audit_log
 from backend.src.fi_assistant.api.public.assistant_websocket import broadcast_new_message
 from backend.src.fi_audit.services.audit_service import AuditService
 from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_events import DomainEvent, EventType, get_event_bus
 from backend.src.fi_llm.services.conversation_memory import get_memory_manager
 from backend.src.fi_llm.services.persona_manager import PersonaManager
 from backend.src.fi_storage.services.trace_store import get_trace_store
@@ -439,9 +439,10 @@ async def internal_llm_chat_stream(request: ChatRequest):
 
     Returns Server-Sent Events (SSE) with streaming chunks from LLM.
     """
-    from fastapi.responses import StreamingResponse
     import json
     from datetime import UTC, datetime
+
+    from fastapi.responses import StreamingResponse
 
     start_time = time.time()
     stream_request_id = str(_uuid.uuid4())

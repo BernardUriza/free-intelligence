@@ -187,8 +187,8 @@ async def send_notification(
 async def send_appointment_reminder(
     appointment_id: str,
     reminder_type: str = "24h",
-    db=Depends(get_db),  # noqa: B008
-    service: NotificationService = Depends(get_notification_service),  # noqa: B008
+    db=Depends(get_db),
+    service: NotificationService = Depends(get_notification_service),
 ) -> dict:
     """Send appointment reminder notification.
 

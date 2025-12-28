@@ -9,12 +9,12 @@ Endpoints:
 Module: fi_observability.api.public.observability
 """
 
+from typing import Any, Dict, Optional
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel
-from typing import Dict, Any, Optional
-
 from fi_observability.audio_metrics import audio_metrics
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/observability", tags=["observability"])
 
@@ -28,8 +28,8 @@ class FrontendAudioMetrics(BaseModel):
 
     cache_size: int
     cache_max: int
-    queue_depth: Optional[int] = 0
-    cache_hit_rate: Optional[float] = None
+    queue_depth: int | None = 0
+    cache_hit_rate: float | None = None
     timestamp: int
 
 

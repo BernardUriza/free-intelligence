@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backend.schemas.schemas import *  # noqa: F403
+from backend.schemas.schemas import *
 
 __all__ = [
     "APIResponse",

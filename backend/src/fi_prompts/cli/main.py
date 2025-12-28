@@ -35,9 +35,7 @@ def get(
     params_file: Path = typer.Option(
         None, "--params", "-f", help="JSON file with parameters for the prompt"
     ),
-    output_file: Path = typer.Option(
-        None, "--output", "-o", help="Output file to save the prompt"
-    ),
+    output_file: Path = typer.Option(None, "--output", "-o", help="Output file to save the prompt"),
     params: str = typer.Option(
         "", "--param", "-p", help="Parameter in format key=value (can be used multiple times)"
     ),
@@ -101,7 +99,9 @@ def template(
     prompt_type: str = typer.Argument(..., help="Type of prompt to get template for"),
 ) -> None:
     """Get the raw template for a specific prompt."""
-    provider = __import__('backend.src.fi_prompts.prompt_provider', fromlist=['PromptProvider']).get_prompt_provider()
+    provider = __import__(
+        "backend.src.fi_prompts.prompt_provider", fromlist=["PromptProvider"]
+    ).get_prompt_provider()
     templates = provider._templates
 
     if prompt_type not in templates:

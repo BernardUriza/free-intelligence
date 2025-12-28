@@ -29,11 +29,10 @@ from __future__ import annotations
 
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, TYPE_CHECKING
-
-from fastapi import Depends, HTTPException, status
+from typing import TYPE_CHECKING, Any, Callable
 
 from backend.src.fi_common.logging.logger import get_logger
+from fastapi import Depends, HTTPException, status
 
 if TYPE_CHECKING:
     from backend.src.fi_auth.models import User

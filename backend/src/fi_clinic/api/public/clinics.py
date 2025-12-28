@@ -221,7 +221,7 @@ def list_clinics(
     skip: int = 0,
     limit: int = 50,
     active_only: bool = True,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> ClinicListResponse:
     """List all clinics with pagination."""
     query = db.query(Clinic)
@@ -240,7 +240,7 @@ def list_clinics(
 @router.get("/{clinic_id}", response_model=ClinicResponse)
 def get_clinic(
     clinic_id: str,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> ClinicResponse:
     """Get a clinic by ID."""
     clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
@@ -252,7 +252,7 @@ def get_clinic(
 @router.post("", response_model=ClinicResponse, status_code=201)
 def create_clinic(
     request: ClinicCreate,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> ClinicResponse:
     """Create a new clinic."""
     clinic = Clinic(**request.model_dump())
@@ -268,7 +268,7 @@ def create_clinic(
 def update_clinic(
     clinic_id: str,
     request: ClinicUpdate,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> ClinicResponse:
     """Update a clinic."""
     clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
@@ -290,7 +290,7 @@ def update_clinic(
 @router.delete("/{clinic_id}", status_code=204)
 def delete_clinic(
     clinic_id: str,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> None:
     """Soft delete a clinic (set is_active=False)."""
     clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
@@ -315,7 +315,7 @@ def list_doctors(
     skip: int = 0,
     limit: int = 50,
     active_only: bool = True,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> DoctorListResponse:
     """List doctors for a clinic."""
     # Verify clinic exists
@@ -340,7 +340,7 @@ def list_doctors(
 def get_doctor(
     clinic_id: str,
     doctor_id: str,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> DoctorResponse:
     """Get a doctor by ID."""
     doctor = (
@@ -357,7 +357,7 @@ def get_doctor(
 def create_doctor(
     clinic_id: str,
     request: DoctorCreate,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> DoctorResponse:
     """Create a new doctor for a clinic."""
     # Verify clinic exists
@@ -389,7 +389,7 @@ def update_doctor(
     clinic_id: str,
     doctor_id: str,
     request: DoctorUpdate,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> DoctorResponse:
     """Update a doctor."""
     doctor = (
@@ -416,7 +416,7 @@ def update_doctor(
 def delete_doctor(
     clinic_id: str,
     doctor_id: str,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> None:
     """Soft delete a doctor."""
     doctor = (
@@ -443,7 +443,7 @@ def delete_doctor(
 def create_appointment(
     clinic_id: str,
     request: AppointmentCreate,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> AppointmentResponse:
     """
     Create a new appointment with auto-generated check-in code.
@@ -545,7 +545,7 @@ def list_appointments(
     status: str | None = None,
     skip: int = 0,
     limit: int = 50,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> dict:
     """List appointments for a clinic with filters."""
     # Verify clinic exists
@@ -620,7 +620,7 @@ def update_appointment(
     clinic_id: str,
     appointment_id: str,
     request: AppointmentUpdate,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> AppointmentResponse:
     """Update an appointment (drag/drop, resize, edit)."""
     # Fetch appointment
@@ -714,7 +714,7 @@ def update_appointment(
 def delete_appointment(
     clinic_id: str,
     appointment_id: str,
-    db: Session = Depends(get_db_dependency),  # noqa: B008
+    db: Session = Depends(get_db_dependency),
 ) -> None:
     """Soft delete an appointment."""
     # Fetch appointment

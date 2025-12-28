@@ -27,10 +27,9 @@ from __future__ import annotations
 
 from typing import Any, Callable, TypeVar
 
-from pydantic import BaseModel, Field, field_validator
-
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_events.domain.events import EventType
+from pydantic import BaseModel, Field, field_validator
 
 logger = get_logger(__name__)
 

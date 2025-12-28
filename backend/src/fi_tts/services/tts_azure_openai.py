@@ -25,10 +25,10 @@ Reference: https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#
 
 from __future__ import annotations
 
-import os
 from typing import Literal
 
 import httpx
+import os
 import structlog
 
 logger = structlog.get_logger(__name__)

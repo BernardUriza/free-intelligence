@@ -109,8 +109,8 @@ def get_session_transcript(session_id: str) -> str:
 
 def update_ml_quality_flags(
     session_id: str,
-    usable_for_training: bool = True,  # noqa: ARG001
-    human_verified: bool = True,  # noqa: ARG001
+    usable_for_training: bool = True,
+    human_verified: bool = True,
 ) -> None:
     """DEPRECATED: ML quality flags are no longer used in task-based architecture.
 
@@ -125,8 +125,8 @@ def update_ml_quality_flags(
 
 
 def get_ml_sessions(
-    usable_only: bool = True,  # noqa: ARG001
-    verified_only: bool = False,  # noqa: ARG001
+    usable_only: bool = True,
+    verified_only: bool = False,
 ) -> list[str]:
     """DEPRECATED: ML sessions filtering is no longer available.
 

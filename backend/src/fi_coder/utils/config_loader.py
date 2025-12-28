@@ -12,7 +12,7 @@ if str(packages_dir) not in sys.path:
     sys.path.insert(0, str(packages_dir))
 
 try:
-    from ...fi_common.config.config_loader import *  # noqa: F403  # type: ignore[import]
+    from ...fi_common.config.config_loader import *  # type: ignore[import]
 except ImportError:
     # Fallback: provide minimal config functionality
     def load_config(config_path=None):

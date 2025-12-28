@@ -16,13 +16,13 @@ from __future__ import annotations
 import asyncio
 import time
 from collections import defaultdict
-from typing import TYPE_CHECKING, Callable, Awaitable
+from typing import TYPE_CHECKING, Awaitable, Callable
 
 from backend.src.fi_common.logging.logger import get_logger
 
 if TYPE_CHECKING:
-    from backend.src.fi_events.domain.events import DomainEvent, EventType
     from backend.src.fi_events.application.event_store import EventStore
+    from backend.src.fi_events.domain.events import DomainEvent, EventType
 
 logger = get_logger(__name__)
 

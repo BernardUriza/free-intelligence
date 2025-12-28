@@ -24,14 +24,13 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import h5py
-
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_events.domain.events import EventType
 from backend.src.fi_events.projections.registry import Projection
+from pathlib import Path
 
 if TYPE_CHECKING:
     from backend.src.fi_events.domain.events import DomainEvent

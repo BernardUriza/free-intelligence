@@ -22,16 +22,15 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
-
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_events.application.event_bus import get_event_bus
 from backend.src.fi_events.application.replay import replay_aggregate
 from backend.src.fi_events.domain.events import EventType
-from backend.src.fi_events.projections.registry import get_registry
 from backend.src.fi_events.infrastructure.consumer_offsets import get_offset_store
+from backend.src.fi_events.projections.registry import get_registry
+from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 
@@ -263,8 +262,8 @@ async def replay_aggregate_endpoint(
         # Select reducer
         from backend.src.fi_events.application.replay import (
             default_reducer,
-            transcription_reducer,
             session_reducer,
+            transcription_reducer,
         )
 
         reducer_fn = {

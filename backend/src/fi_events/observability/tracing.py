@@ -137,7 +137,7 @@ class EventTracer:
         operation_name: str,
         tags: dict[str, str] | None = None,
         parent_id: str | None = None,
-    ) -> Generator[Span, None, None]:
+    ) -> Generator[Span]:
         """Create a tracing span context.
 
         Args:
