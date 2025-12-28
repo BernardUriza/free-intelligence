@@ -310,7 +310,7 @@ REGLAS PARA CLAUDE:
   ✅ Verificar que CI pase antes de merge
 ```
 
-CI/CD (pr-gate.yml)
+CI (pr-gate.yml) - Valida antes de merge
 
 ```
 Bloquea merge si:
@@ -321,6 +321,32 @@ Reporta pero NO bloquea:
   📝 Lint warnings (Ruff)
 
 Frontend: Se valida localmente con `cd apps/aurity && pnpm build`
+```
+
+CD (deploy-production.yml) - Deploy automático a app.aurity.io
+
+```
+Trigger: Push a main (después de merge de PR)
+
+Flujo automático:
+  1. Integrity check (resetea cambios manuales en prod)
+  2. Build frontend (Next.js static export)
+  3. rsync frontend → Digital Ocean /opt/free-intelligence/apps/aurity/out/
+  4. rsync backend → Digital Ocean /opt/free-intelligence/backend/
+  5. pip install requirements-prod.txt
+  6. Restart uvicorn (port 7001)
+  7. Reload nginx
+  8. Verify deployment (curl https://app.aurity.io)
+  9. Create git tag (deploy-YYYYMMDD-HHMMSS)
+
+Rollback manual:
+  gh workflow run deploy-production.yml -f rollback_to=deploy-20251227-123456
+
+Secrets requeridos (ya configurados):
+  • DO_SSH_PRIVATE_KEY - SSH a Digital Ocean
+  • AURITY_DEPLOY_KEY - Clonar submodule privado
+  • AUTH0_DOMAIN, AUTH0_CLIENT_ID - Build frontend
+  • SUPERADMIN_EMAILS - Build frontend
 ```
 
 ⸻
