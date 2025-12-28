@@ -1,39 +1,50 @@
 # =============================================================================
-# Qwen3-Coder PR Review
+# Qwen3-Coder PR Review (Standalone)
 # =============================================================================
-# AI-powered code review using Qwen3-Coder-480B (comparable to Claude Sonnet 4)
+# AI-powered code review using Qwen3-Coder via DashScope International API
 #
-# Features:
-# - Automatic review on PR open/update
-# - Manual trigger with @qwencoder /review
-# - Uses project context from QWEN.md if exists
+# Based on: https://github.com/QwenLM/qwen-code-action/tree/main/examples/workflows/pr-review
 #
 # Setup:
-# 1. Get free API key from https://dashscope.console.aliyun.com/
+# 1. Get API key from https://dashscope-intl.console.aliyun.com/ (International)
+#    or https://dashscope.console.aliyun.com/ (China)
 # 2. Add QWEN_API_KEY to GitHub Secrets
+# 3. Optionally set repository variables: QWEN_BASE_URL, QWEN_MODEL
 # =============================================================================
 
-name: Qwen3 PR Review
+name: 🔎 Qwen Code Review
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
   issue_comment:
     types: [created]
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review (leave empty for current PR)'
+        required: false
+        type: string
 
 # Prevent concurrent reviews on the same PR
 concurrency:
-  group: qwen-review-${{ github.event.pull_request.number || github.event.issue.number }}
+  group: qwen-review-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   review:
     name: AI Code Review
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     # Run on PR events, or on issue comments that mention @qwencoder
     if: |
       github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request &&
        contains(github.event.comment.body, '@qwencoder'))
@@ -44,16 +55,65 @@ jobs:
       issues: write
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for better context
+          fetch-depth: 0
 
-      - name: Run Qwen3 Code Review
+      - name: Run Qwen Code Review
         uses: QwenLM/qwen-code-action@main
-        with:
-          qwen_api_key: ${{ secrets.QWEN_API_KEY }}
+        id: qwen_review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Use International endpoint (Singapore) instead of China
-          OPENAI_BASE_URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+          ISSUE_TITLE: ${{ github.event.pull_request.title || github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.pull_request.body || github.event.issue.body }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+        with:
+          # API Configuration - uses OpenAI-compatible format
+          openai_api_key: ${{ secrets.QWEN_API_KEY }}
+          # International endpoint (Singapore) for non-China accounts
+          # China users: use https://dashscope.aliyuncs.com/compatible-mode/v1
+          openai_base_url: ${{ vars.QWEN_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1' }}
+          # Model selection (qwen-coder-plus-latest recommended)
+          openai_model: ${{ vars.QWEN_MODEL || 'qwen-coder-plus-latest' }}
+          # Debug mode for troubleshooting
+          qwen_debug: ${{ vars.DEBUG || 'true' }}
+          # Upload artifacts for debugging
+          upload_artifacts: 'true'
+          workflow_name: 'qwen-review'
+          # Prompt for code review
+          prompt: |
+            You are reviewing a pull request. Please analyze the changes and provide:
+
+            1. **Summary**: Brief overview of what this PR does
+            2. **Code Quality**: Review for bugs, security issues, performance problems
+            3. **Suggestions**: Specific improvements with code examples if applicable
+            4. **Approval Status**: Whether this PR is ready to merge
+
+            Focus on:
+            - Security vulnerabilities
+            - Performance issues
+            - Code maintainability
+            - Best practices for the language/framework used
+
+            Be constructive and specific. Reference line numbers when possible.
+
+            PR Title: ${{ github.event.pull_request.title || github.event.issue.title }}
+            PR Body: ${{ github.event.pull_request.body || github.event.issue.body }}
+
+      - name: Post Review Summary
+        if: always()
+        run: |
+          echo "## 🔎 Qwen Code Review Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ steps.qwen_review.outputs.summary }}" ]; then
+            echo "${{ steps.qwen_review.outputs.summary }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Review completed. Check the PR comments for details." >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -n "${{ steps.qwen_review.outputs.error }}" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ⚠️ Errors" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.qwen_review.outputs.error }}" >> $GITHUB_STEP_SUMMARY
+          fi
