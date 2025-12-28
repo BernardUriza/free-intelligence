@@ -15,9 +15,8 @@ from enum import Enum
 from typing import Any, Optional
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
-
 from fi_prescription.models.medication import Medication
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 class PrescriptionStatus(str, Enum):
@@ -45,26 +44,26 @@ class PatientInfo(BaseModel):
         description="Nombre completo del paciente",
     )
 
-    age: Optional[str] = Field(
+    age: str | None = Field(
         default=None,
         max_length=20,
         description="Edad del paciente",
         examples=["35 años", "8 meses", "2 años 3 meses"],
     )
 
-    date_of_birth: Optional[str] = Field(
+    date_of_birth: str | None = Field(
         default=None,
         description="Fecha de nacimiento (YYYY-MM-DD)",
     )
 
-    gender: Optional[str] = Field(
+    gender: str | None = Field(
         default=None,
         max_length=20,
         description="Género",
         examples=["Masculino", "Femenino", "Otro"],
     )
 
-    weight_kg: Optional[float] = Field(
+    weight_kg: float | None = Field(
         default=None,
         ge=0,
         le=500,
@@ -76,7 +75,7 @@ class PatientInfo(BaseModel):
         description="Alergias conocidas",
     )
 
-    patient_id: Optional[str] = Field(
+    patient_id: str | None = Field(
         default=None,
         description="ID del paciente en el sistema",
     )
@@ -104,43 +103,43 @@ class PhysicianInfo(BaseModel):
         description="Cédula profesional",
     )
 
-    specialty: Optional[str] = Field(
+    specialty: str | None = Field(
         default=None,
         max_length=100,
         description="Especialidad médica",
     )
 
-    specialty_license: Optional[str] = Field(
+    specialty_license: str | None = Field(
         default=None,
         max_length=50,
         description="Cédula de especialidad",
     )
 
-    institution: Optional[str] = Field(
+    institution: str | None = Field(
         default=None,
         max_length=200,
         description="Institución o consultorio",
     )
 
-    address: Optional[str] = Field(
+    address: str | None = Field(
         default=None,
         max_length=300,
         description="Dirección del consultorio",
     )
 
-    phone: Optional[str] = Field(
+    phone: str | None = Field(
         default=None,
         max_length=50,
         description="Teléfono de contacto",
     )
 
-    email: Optional[str] = Field(
+    email: str | None = Field(
         default=None,
         max_length=100,
         description="Correo electrónico",
     )
 
-    physician_id: Optional[str] = Field(
+    physician_id: str | None = Field(
         default=None,
         description="ID del médico en el sistema (Auth0 sub)",
     )
@@ -182,7 +181,7 @@ class Prescription(BaseModel):
         description="ID del template utilizado",
     )
 
-    session_id: Optional[str] = Field(
+    session_id: str | None = Field(
         default=None,
         description="ID de la sesión/consulta asociada",
     )
@@ -212,7 +211,7 @@ class Prescription(BaseModel):
         description="Diagnóstico principal",
     )
 
-    diagnosis_code: Optional[str] = Field(
+    diagnosis_code: str | None = Field(
         default=None,
         max_length=20,
         description="Código CIE-10 del diagnóstico",
@@ -232,13 +231,13 @@ class Prescription(BaseModel):
     )
 
     # Additional fields
-    general_instructions: Optional[str] = Field(
+    general_instructions: str | None = Field(
         default=None,
         max_length=1000,
         description="Indicaciones generales para el paciente",
     )
 
-    next_appointment: Optional[str] = Field(
+    next_appointment: str | None = Field(
         default=None,
         max_length=200,
         description="Información de próxima cita",
@@ -258,29 +257,29 @@ class Prescription(BaseModel):
         description="Fecha de creación",
     )
 
-    signed_at: Optional[datetime] = Field(
+    signed_at: datetime | None = Field(
         default=None,
         description="Fecha de firma",
     )
 
-    dispensed_at: Optional[datetime] = Field(
+    dispensed_at: datetime | None = Field(
         default=None,
         description="Fecha de surtido",
     )
 
-    expires_at: Optional[datetime] = Field(
+    expires_at: datetime | None = Field(
         default=None,
         description="Fecha de expiración",
     )
 
     # Integrity
-    signature_hash: Optional[str] = Field(
+    signature_hash: str | None = Field(
         default=None,
         description="Hash SHA-256 de la receta firmada",
     )
 
     # Internal notes
-    notes: Optional[str] = Field(
+    notes: str | None = Field(
         default=None,
         max_length=1000,
         description="Notas internas (no se imprimen)",
@@ -396,7 +395,7 @@ class Prescription(BaseModel):
         from datetime import timedelta
         self.expires_at = self.signed_at + timedelta(days=self.validity_days)
 
-    def cancel(self, reason: Optional[str] = None) -> None:
+    def cancel(self, reason: str | None = None) -> None:
         """Cancel the prescription.
 
         Args:

@@ -10,17 +10,18 @@ Tests:
 - OllamaProvider retry integration
 """
 
-import os
 import time
 from unittest.mock import Mock
 
+import os
 import pytest
 
 # Skip tests requiring Ollama service
 pytestmark = pytest.mark.skipif(
     not os.getenv("OLLAMA_HOST"),
-    reason="Requires Ollama service running (set OLLAMA_HOST env var)"
+    reason="Requires Ollama service running (set OLLAMA_HOST env var)",
 )
+
 from backend.providers.retry import (
     CircuitBreaker,
     CircuitBreakerConfig,

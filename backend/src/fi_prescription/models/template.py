@@ -81,29 +81,29 @@ class TemplateField(BaseModel):
         description="Si el campo es obligatorio",
     )
 
-    default_value: Optional[Any] = Field(
+    default_value: Any | None = Field(
         default=None,
         description="Valor por defecto",
     )
 
-    placeholder: Optional[str] = Field(
+    placeholder: str | None = Field(
         default=None,
         max_length=200,
         description="Texto placeholder",
     )
 
-    options: Optional[list[str]] = Field(
+    options: list[str] | None = Field(
         default=None,
         description="Opciones para campos select/multiselect",
     )
 
-    min_length: Optional[int] = Field(
+    min_length: int | None = Field(
         default=None,
         ge=0,
         description="Longitud mínima (para texto)",
     )
 
-    max_length: Optional[int] = Field(
+    max_length: int | None = Field(
         default=None,
         ge=1,
         description="Longitud máxima (para texto)",
@@ -120,7 +120,7 @@ class TemplateField(BaseModel):
         description="Si el campo es visible",
     )
 
-    help_text: Optional[str] = Field(
+    help_text: str | None = Field(
         default=None,
         max_length=300,
         description="Texto de ayuda para el usuario",
@@ -136,57 +136,57 @@ class HeaderConfig(BaseModel):
     at the top of the prescription.
     """
 
-    institution_name: Optional[str] = Field(
+    institution_name: str | None = Field(
         default=None,
         max_length=200,
         description="Nombre de la institución/consultorio",
         examples=["Clínica San Rafael", "Consultorio Dr. García"],
     )
 
-    institution_address: Optional[str] = Field(
+    institution_address: str | None = Field(
         default=None,
         max_length=300,
         description="Dirección completa",
     )
 
-    institution_phone: Optional[str] = Field(
+    institution_phone: str | None = Field(
         default=None,
         max_length=50,
         description="Teléfono de contacto",
     )
 
-    institution_logo_url: Optional[str] = Field(
+    institution_logo_url: str | None = Field(
         default=None,
         max_length=500,
         description="URL del logo de la institución",
     )
 
-    physician_name: Optional[str] = Field(
+    physician_name: str | None = Field(
         default=None,
         max_length=200,
         description="Nombre completo del médico",
     )
 
-    physician_specialty: Optional[str] = Field(
+    physician_specialty: str | None = Field(
         default=None,
         max_length=100,
         description="Especialidad médica",
         examples=["Medicina General", "Pediatría", "Cardiología"],
     )
 
-    physician_license: Optional[str] = Field(
+    physician_license: str | None = Field(
         default=None,
         max_length=50,
         description="Cédula profesional",
     )
 
-    physician_university: Optional[str] = Field(
+    physician_university: str | None = Field(
         default=None,
         max_length=200,
         description="Universidad de egreso",
     )
 
-    physician_specialty_license: Optional[str] = Field(
+    physician_specialty_license: str | None = Field(
         default=None,
         max_length=50,
         description="Cédula de especialidad",
@@ -216,7 +216,7 @@ class FooterConfig(BaseModel):
         description="Incluir línea para fecha",
     )
 
-    disclaimer_text: Optional[str] = Field(
+    disclaimer_text: str | None = Field(
         default="Esta receta es válida únicamente con firma y sello del médico.",
         max_length=500,
         description="Texto legal/disclaimer",
@@ -264,13 +264,13 @@ class PrescriptionTemplate(BaseModel):
         examples=["Receta Estándar", "Receta Pediátrica", "Receta Controlada"],
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         max_length=500,
         description="Descripción del template",
     )
 
-    owner_id: Optional[str] = Field(
+    owner_id: str | None = Field(
         default=None,
         description="ID del médico o institución propietario",
     )

@@ -25,8 +25,6 @@ from typing import Any, Optional
 from backend.src.fi_common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, Field
-
 from fi_prescription.models.medication import Medication
 from fi_prescription.models.prescription import (
     PatientInfo,
@@ -36,6 +34,7 @@ from fi_prescription.models.prescription import (
 )
 from fi_prescription.models.template import PrescriptionTemplate
 from fi_prescription.services.template_engine import get_template_engine
+from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 
@@ -54,7 +53,7 @@ class CreatePrescriptionRequest(BaseModel):
         default="default",
         description="Template ID to use",
     )
-    session_id: Optional[str] = Field(
+    session_id: str | None = Field(
         default=None,
         description="Session ID to link prescription",
     )
@@ -71,7 +70,7 @@ class CreatePrescriptionRequest(BaseModel):
         min_length=1,
         description="Primary diagnosis",
     )
-    diagnosis_code: Optional[str] = Field(
+    diagnosis_code: str | None = Field(
         default=None,
         description="ICD-10 code",
     )
@@ -80,11 +79,11 @@ class CreatePrescriptionRequest(BaseModel):
         min_length=1,
         description="List of medications",
     )
-    general_instructions: Optional[str] = Field(
+    general_instructions: str | None = Field(
         default=None,
         description="General instructions for patient",
     )
-    next_appointment: Optional[str] = Field(
+    next_appointment: str | None = Field(
         default=None,
         description="Next appointment info",
     )
@@ -93,12 +92,12 @@ class CreatePrescriptionRequest(BaseModel):
 class UpdatePrescriptionRequest(BaseModel):
     """Request body for updating a prescription."""
 
-    diagnosis: Optional[str] = Field(default=None)
-    diagnosis_code: Optional[str] = Field(default=None)
-    medications: Optional[list[Medication]] = Field(default=None)
-    general_instructions: Optional[str] = Field(default=None)
-    next_appointment: Optional[str] = Field(default=None)
-    patient: Optional[PatientInfo] = Field(default=None)
+    diagnosis: str | None = Field(default=None)
+    diagnosis_code: str | None = Field(default=None)
+    medications: list[Medication] | None = Field(default=None)
+    general_instructions: str | None = Field(default=None)
+    next_appointment: str | None = Field(default=None)
+    patient: PatientInfo | None = Field(default=None)
 
 
 class CreateFromSOAPRequest(BaseModel):
@@ -125,7 +124,7 @@ class CreateFromSOAPRequest(BaseModel):
 class CancelPrescriptionRequest(BaseModel):
     """Request body for cancelling a prescription."""
 
-    reason: Optional[str] = Field(
+    reason: str | None = Field(
         default=None,
         max_length=500,
         description="Cancellation reason",
@@ -136,8 +135,8 @@ class PrescriptionResponse(BaseModel):
     """Standard response for prescription operations."""
 
     success: bool = Field(default=True)
-    prescription: Optional[Prescription] = Field(default=None)
-    message: Optional[str] = Field(default=None)
+    prescription: Prescription | None = Field(default=None)
+    message: str | None = Field(default=None)
 
 
 class TemplateListResponse(BaseModel):
@@ -165,7 +164,7 @@ class PrescriptionListResponse(BaseModel):
     status_code=status.HTTP_200_OK,
 )
 async def list_templates(
-    owner_id: Optional[str] = Query(default=None, description="Filter by owner"),
+    owner_id: str | None = Query(default=None, description="Filter by owner"),
     include_system: bool = Query(default=True, description="Include system templates"),
 ) -> TemplateListResponse:
     """List available prescription templates.
@@ -381,10 +380,10 @@ async def get_prescription(prescription_id: str) -> PrescriptionResponse:
     status_code=status.HTTP_200_OK,
 )
 async def list_prescriptions(
-    session_id: Optional[str] = Query(default=None),
-    patient_id: Optional[str] = Query(default=None),
-    physician_id: Optional[str] = Query(default=None),
-    status_filter: Optional[PrescriptionStatus] = Query(default=None, alias="status"),
+    session_id: str | None = Query(default=None),
+    patient_id: str | None = Query(default=None),
+    physician_id: str | None = Query(default=None),
+    status_filter: PrescriptionStatus | None = Query(default=None, alias="status"),
     limit: int = Query(default=100, ge=1, le=500),
 ) -> PrescriptionListResponse:
     """List prescriptions with optional filters.
@@ -587,13 +586,13 @@ async def cancel_prescription(
 )
 async def export_prescription(
     prescription_id: str,
-    format: str = Query(default="text", description="Export format: text, json"),
+    export_format: str = Query(default="text", description="Export format: text, json"),
 ) -> dict[str, Any]:
     """Export prescription to various formats.
 
     Args:
         prescription_id: Prescription to export
-        format: Export format (text, json)
+        export_format: Export format (text, json)
 
     Returns:
         Exported content
@@ -610,14 +609,14 @@ async def export_prescription(
             detail=f"Prescription not found: {prescription_id}",
         )
 
-    if format == "text":
+    if export_format == "text":
         content = engine.export_to_text(prescription_id)
         return {
             "format": "text",
             "content": content,
             "prescription_id": prescription_id,
         }
-    elif format == "json":
+    elif export_format == "json":
         return {
             "format": "json",
             "content": prescription.model_dump(mode="json"),
@@ -626,5 +625,5 @@ async def export_prescription(
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported format: {format}. Use 'text' or 'json'.",
+            detail=f"Unsupported format: {export_format}. Use 'text' or 'json'.",
         )

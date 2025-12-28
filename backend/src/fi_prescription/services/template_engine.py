@@ -60,7 +60,7 @@ class TemplateEngine:
     # Template Management
     # =========================================================================
 
-    def get_template(self, template_id: str) -> Optional[PrescriptionTemplate]:
+    def get_template(self, template_id: str) -> PrescriptionTemplate | None:
         """Get a template by ID.
 
         Args:
@@ -88,7 +88,7 @@ class TemplateEngine:
 
     def list_templates(
         self,
-        owner_id: Optional[str] = None,
+        owner_id: str | None = None,
         include_system: bool = True,
     ) -> list[PrescriptionTemplate]:
         """List available templates.
@@ -148,7 +148,7 @@ class TemplateEngine:
         self,
         template_id: str,
         updates: dict[str, Any],
-    ) -> Optional[PrescriptionTemplate]:
+    ) -> PrescriptionTemplate | None:
         """Update an existing template.
 
         Args:
@@ -213,7 +213,7 @@ class TemplateEngine:
         physician: PhysicianInfo,
         diagnosis: str,
         medications: list[Medication],
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
         **kwargs: Any,
     ) -> Prescription:
         """Create a new prescription from a template.
@@ -275,7 +275,7 @@ class TemplateEngine:
         patient: PatientInfo,
         physician: PhysicianInfo,
         template_id: str = "default",
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> Prescription:
         """Create a prescription from SOAP note data.
 
@@ -384,7 +384,7 @@ class TemplateEngine:
     # Prescription Operations
     # =========================================================================
 
-    def get_prescription(self, prescription_id: str) -> Optional[Prescription]:
+    def get_prescription(self, prescription_id: str) -> Prescription | None:
         """Get a prescription by ID.
 
         Args:
@@ -397,10 +397,10 @@ class TemplateEngine:
 
     def list_prescriptions(
         self,
-        session_id: Optional[str] = None,
-        patient_id: Optional[str] = None,
-        physician_id: Optional[str] = None,
-        status: Optional[PrescriptionStatus] = None,
+        session_id: str | None = None,
+        patient_id: str | None = None,
+        physician_id: str | None = None,
+        status: PrescriptionStatus | None = None,
         limit: int = 100,
     ) -> list[Prescription]:
         """List prescriptions with optional filters.
@@ -438,7 +438,7 @@ class TemplateEngine:
         self,
         prescription_id: str,
         updates: dict[str, Any],
-    ) -> Optional[Prescription]:
+    ) -> Prescription | None:
         """Update a prescription.
 
         Only draft prescriptions can be updated.
@@ -471,7 +471,7 @@ class TemplateEngine:
 
         return rx
 
-    def sign_prescription(self, prescription_id: str) -> Optional[Prescription]:
+    def sign_prescription(self, prescription_id: str) -> Prescription | None:
         """Sign a prescription.
 
         Args:
@@ -507,8 +507,8 @@ class TemplateEngine:
     def cancel_prescription(
         self,
         prescription_id: str,
-        reason: Optional[str] = None,
-    ) -> Optional[Prescription]:
+        reason: str | None = None,
+    ) -> Prescription | None:
         """Cancel a prescription.
 
         Args:
@@ -532,7 +532,7 @@ class TemplateEngine:
 
         return rx
 
-    def export_to_text(self, prescription_id: str) -> Optional[str]:
+    def export_to_text(self, prescription_id: str) -> str | None:
         """Export prescription to plain text.
 
         Args:
@@ -549,7 +549,7 @@ class TemplateEngine:
 
 
 # Singleton instance
-_engine: Optional[TemplateEngine] = None
+_engine: TemplateEngine | None = None
 
 
 def get_template_engine() -> TemplateEngine:

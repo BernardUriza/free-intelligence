@@ -125,7 +125,7 @@ class Medication(BaseModel):
         examples=["Paracetamol", "Amoxicilina", "Omeprazol"],
     )
 
-    active_ingredient: Optional[str] = Field(
+    active_ingredient: str | None = Field(
         default=None,
         max_length=200,
         description="Principio activo (si difiere del nombre)",
@@ -152,21 +152,21 @@ class Medication(BaseModel):
         description="Frecuencia de administración",
     )
 
-    frequency_custom: Optional[str] = Field(
+    frequency_custom: str | None = Field(
         default=None,
         max_length=100,
         description="Frecuencia personalizada (si frequency es CUSTOM)",
         examples=["Lunes, miércoles y viernes", "Días alternos"],
     )
 
-    duration_days: Optional[int] = Field(
+    duration_days: int | None = Field(
         default=None,
         ge=1,
         le=365,
         description="Duración del tratamiento en días",
     )
 
-    duration_text: Optional[str] = Field(
+    duration_text: str | None = Field(
         default=None,
         max_length=100,
         description="Duración en texto libre",
@@ -178,14 +178,14 @@ class Medication(BaseModel):
         description="Vía de administración",
     )
 
-    quantity: Optional[str] = Field(
+    quantity: str | None = Field(
         default=None,
         max_length=50,
         description="Cantidad total a surtir",
         examples=["20 tabletas", "1 frasco 120ml", "30 cápsulas"],
     )
 
-    instructions: Optional[str] = Field(
+    instructions: str | None = Field(
         default=None,
         max_length=500,
         description="Instrucciones adicionales para el paciente",
@@ -196,14 +196,14 @@ class Medication(BaseModel):
         ],
     )
 
-    indication: Optional[str] = Field(
+    indication: str | None = Field(
         default=None,
         max_length=200,
         description="Indicación (para qué se prescribe)",
         examples=["Para el dolor", "Para la infección", "Control de presión"],
     )
 
-    warnings: Optional[str] = Field(
+    warnings: str | None = Field(
         default=None,
         max_length=300,
         description="Advertencias específicas",
@@ -242,7 +242,7 @@ class Medication(BaseModel):
 
     @field_validator("frequency_custom")
     @classmethod
-    def validate_custom_frequency(cls, v: Optional[str], info) -> Optional[str]:
+    def validate_custom_frequency(cls, v: str | None, _info) -> str | None:
         """Ensure custom frequency is provided when frequency is CUSTOM."""
         # Note: Cross-field validation happens at model level
         return v.strip() if v else None

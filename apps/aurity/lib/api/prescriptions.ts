@@ -9,7 +9,7 @@
  * @card FI-RX-002
  */
 
-import { getApiBase } from "./client";
+import { getBackendUrl } from "./client";
 
 // ============================================================================
 // Enums
@@ -348,7 +348,7 @@ export interface ExportResponse {
 // API Client Functions
 // ============================================================================
 
-const API_BASE = () => `${getApiBase()}/workflows/aurity/prescriptions`;
+const API_BASE = () => `${getBackendUrl()}/api/workflows/aurity/prescriptions`;
 
 /**
  * List available prescription templates
