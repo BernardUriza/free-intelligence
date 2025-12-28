@@ -289,16 +289,24 @@ jobs:
           curl -f https://app.aurity.io/ -o /dev/null || exit 1
           echo "✅ Frontend is serving"
 
-      - name: Check backend is responding
+      - name: Run E2E Validation (self-testing)
         run: |
-          # Check root endpoint which returns service info (no auth required)
-          RESPONSE=$(curl -s https://app.aurity.io/api/workflows/aurity/config 2>&1)
-          if echo "$RESPONSE" | grep -q "AURITY"; then
-            echo "✅ Backend API is responding"
+          # Install requests for E2E script
+          pip install requests -q
+
+          # Fetch and execute the E2E validation script from the deployed backend
+          # This is a self-testing pattern: the backend provides its own validation code
+          echo "🧪 Running E2E validation from /version endpoint..."
+
+          curl -s https://app.aurity.io/version | \
+            python3 -c "import sys, json; print(json.load(sys.stdin)['python_e2e_code'])" | \
+            python3 - https://app.aurity.io
+
+          if [ $? -eq 0 ]; then
+            echo "✅ E2E validation passed!"
           else
-            # Fallback: check via SSH if external check fails (nginx routing issue)
-            echo "⚠️ External check inconclusive, verifying via SSH..."
-            echo "$RESPONSE" | head -5
+            echo "❌ E2E validation failed"
+            exit 1
           fi
 
       - name: Create Release Tag

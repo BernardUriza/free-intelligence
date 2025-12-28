@@ -34,10 +34,11 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
+  // WebServer: skip in CI (production already running) or when server exists
+  webServer: process.env.CI ? undefined : {
     command: 'cd apps/aurity && NEXT_PUBLIC_USE_MOCK_AUTH=true pnpm dev',
     url: 'http://localhost:9000',
-    reuseExistingServer: true, // Always reuse existing server
+    reuseExistingServer: true,
     timeout: 120 * 1000,
     env: {
       NEXT_PUBLIC_USE_MOCK_AUTH: 'true',

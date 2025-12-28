@@ -568,6 +568,91 @@ Requires environment variables:
         """Health check endpoint."""
         return {"status": "ok"}
 
+    @app.get("/version")
+    async def version_info() -> dict:
+        """Version endpoint for E2E testing.
+
+        Returns version info and sample Python code for validation.
+        This endpoint is used by CI/CD to verify successful deployment.
+        """
+        from datetime import datetime
+
+        version = "0.1.1"
+        build_timestamp = datetime.now(UTC).isoformat()
+
+        # Python code that validates the system is working
+        python_e2e_code = f'''#!/usr/bin/env python3
+"""
+AURITY E2E Validation Script
+Generated: {build_timestamp}
+Version: {version}
+"""
+import requests
+import sys
+
+def validate_aurity(base_url: str = "https://app.aurity.io") -> bool:
+    """Validate AURITY deployment is working."""
+    checks = []
+
+    # 1. Health check
+    try:
+        r = requests.get(f"{{base_url}}/health", timeout=5)
+        checks.append(("health", r.status_code == 200))
+    except Exception as e:
+        checks.append(("health", False))
+
+    # 2. Version endpoint (this one)
+    try:
+        r = requests.get(f"{{base_url}}/version", timeout=5)
+        data = r.json()
+        checks.append(("version", data.get("version") == "{version}"))
+    except Exception as e:
+        checks.append(("version", False))
+
+    # 3. Root endpoint
+    try:
+        r = requests.get(f"{{base_url}}/", timeout=5)
+        data = r.json()
+        checks.append(("root", data.get("service", {{}}).get("codename") == "AURITY"))
+    except Exception as e:
+        checks.append(("root", False))
+
+    # Report
+    print(f"AURITY E2E Validation - {{base_url}}")
+    print("-" * 40)
+    all_pass = True
+    for name, passed in checks:
+        status = "✅" if passed else "❌"
+        print(f"  {{status}} {{name}}")
+        if not passed:
+            all_pass = False
+
+    print("-" * 40)
+    if all_pass:
+        print("✅ All checks passed!")
+    else:
+        print("❌ Some checks failed")
+
+    return all_pass
+
+if __name__ == "__main__":
+    base = sys.argv[1] if len(sys.argv) > 1 else "https://app.aurity.io"
+    success = validate_aurity(base)
+    sys.exit(0 if success else 1)
+'''
+
+        return {
+            "service": "AURITY",
+            "version": version,
+            "build_timestamp": build_timestamp,
+            "environment": os.getenv("ENVIRONMENT", "development"),
+            "python_e2e_code": python_e2e_code,
+            "usage": {
+                "curl": "curl -s https://app.aurity.io/version | jq -r .python_e2e_code | python3",
+                "save": "curl -s https://app.aurity.io/version | jq -r .python_e2e_code > validate.py && python3 validate.py",
+            }
+        }
+
     # P2: Prometheus metrics endpoint for observability
     from backend.utils.metrics import setup_metrics_endpoint
 
