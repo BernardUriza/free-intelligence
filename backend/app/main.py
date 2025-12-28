@@ -571,6 +571,35 @@ Requires environment variables:
         """Health check endpoint."""
         return {"status": "ok"}
 
+    @app.get("/api/llm/health")
+    async def llm_health_check() -> dict:
+        """LLM health check endpoint for CI/CD validation.
+
+        Checks if Ollama is available and lists models.
+        Used by E2E tests to verify LLM infrastructure.
+        """
+        import requests as req
+
+        try:
+            response = req.get("http://localhost:11434/api/tags", timeout=2)
+            if response.status_code == 200:
+                data = response.json()
+                models = [m.get("name", "") for m in data.get("models", [])]
+                return {
+                    "status": "ok",
+                    "ollama": True,
+                    "models": models,
+                    "model_count": len(models),
+                }
+        except Exception as e:
+            return {
+                "status": "degraded",
+                "ollama": False,
+                "models": [],
+                "model_count": 0,
+                "error": str(e),
+            }
+
     @app.get("/version")
     @app.get("/api/version")
     async def version_info() -> dict:
