@@ -289,18 +289,28 @@ jobs:
           curl -f https://app.aurity.io/ -o /dev/null || exit 1
           echo "✅ Frontend is serving"
 
-      - name: Run E2E Validation (self-testing)
+      - name: Setup Node.js for Playwright
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Checkout code for tests
+        uses: actions/checkout@v4
+
+      - name: Install Playwright
         run: |
-          # Install requests for E2E script
-          pip install requests -q
+          npm install -g pnpm
+          pnpm install @playwright/test --save-dev
+          npx playwright install chromium
 
-          # Fetch and execute the E2E validation script from the deployed backend
-          # This is a self-testing pattern: the backend provides its own validation code
-          echo "🧪 Running E2E validation from /version endpoint..."
-
-          curl -s https://app.aurity.io/version | \
-            python3 -c "import sys, json; print(json.load(sys.stdin)['python_e2e_code'])" | \
-            python3 - https://app.aurity.io
+      - name: Run E2E Validation (Playwright)
+        env:
+          BASE_URL: https://app.aurity.io
+          BACKEND_URL: https://app.aurity.io
+          CI: true
+        run: |
+          echo "🧪 Running Playwright E2E tests against production..."
+          npx playwright test tests/e2e/version-badge.spec.ts --project=chromium
 
           if [ $? -eq 0 ]; then
             echo "✅ E2E validation passed!"
