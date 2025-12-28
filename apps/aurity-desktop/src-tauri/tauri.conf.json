@@ -5,9 +5,9 @@
   "identifier": "io.aurity.desktop",
   "build": {
     "beforeBuildCommand": "cd ../.. && pnpm --filter aurity build",
-    "beforeDevCommand": "cd ../.. && pnpm --filter aurity dev",
+    "beforeDevCommand": "cd ../.. && pnpm --filter aurity dev:desktop",
     "frontendDist": "../../aurity/out",
-    "devUrl": "http://localhost:9000"
+    "devUrl": "http://localhost:9050"
   },
   "app": {
     "withGlobalTauri": true,
@@ -70,19 +70,5 @@
       }
     }
   },
-  "plugins": {
-    "shell": {
-      "sidecar": true,
-      "scope": [
-        {
-          "name": "aurity-backend",
-          "sidecar": true,
-          "args": [
-            "--port",
-            { "validator": "\\d+" }
-          ]
-        }
-      ]
-    }
-  }
+  "plugins": {}
 }

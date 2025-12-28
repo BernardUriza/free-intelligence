@@ -20,6 +20,7 @@ import { MockBootstrap } from '@/components/dev/MockBootstrap';
 import { AudioPlayerProvider } from '@/components/chat/AudioPlayerContext';
 import { AudioConsentBanner } from '@/components/audio/AudioConsentBanner';
 import { VersionBadge } from '@/components/dev/VersionBadge';
+import { DesktopSetupWizard } from '@/components/onboarding/DesktopSetupWizard';
 
 export const metadata: Metadata = {
   title: 'Free Intelligence · AURITY',
@@ -92,6 +93,7 @@ export default function RootLayout({
                 </Suspense>
                 <AudioConsentBanner />
                 <VersionBadge />
+                <DesktopSetupWizard />
               </ProtectedLayout>
             </AudioPlayerProvider>
           </ThemeProvider>

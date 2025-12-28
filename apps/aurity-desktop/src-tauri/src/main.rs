@@ -23,15 +23,38 @@ struct BackendState {
     is_ready: AtomicBool,
 }
 
-/// Find an available port in the range 7001-7999
-/// This prevents conflicts if port 7001 is already in use
+/// Find an available port based on build mode
+/// Port allocation:
+///   - 7001-7050: Cloud (reserved)
+///   - 7051: Desktop dev (fixed, debug builds)
+///   - 7052+: Desktop production (dynamic, release builds)
 fn find_available_port() -> Option<u16> {
-    for port in 7001..8000 {
+    // In debug mode, use fixed port 7051 for desktop dev
+    #[cfg(debug_assertions)]
+    {
+        let port = 7051;
         if TcpListener::bind(("127.0.0.1", port)).is_ok() {
             return Some(port);
         }
+        // Fallback to dynamic if 7051 is busy
+        for p in 7052..8000 {
+            if TcpListener::bind(("127.0.0.1", p)).is_ok() {
+                return Some(p);
+            }
+        }
+        None
     }
-    None
+
+    // In release mode, use dynamic port starting at 7052
+    #[cfg(not(debug_assertions))]
+    {
+        for port in 7052..8000 {
+            if TcpListener::bind(("127.0.0.1", port)).is_ok() {
+                return Some(port);
+            }
+        }
+        None
+    }
 }
 
 /// Check if the backend is responding to health checks

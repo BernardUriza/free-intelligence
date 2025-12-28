@@ -13,6 +13,7 @@
 
 import { useState, useEffect } from 'react';
 import { getBackendUrl } from '@/lib/api/client';
+import { getTarget, isDesktop, getBackendPort } from '@/lib/config/deployment';
 import { Button } from '@/components/ui/button';
 
 interface VersionData {
@@ -20,6 +21,7 @@ interface VersionData {
   version: string;
   environment: string;
   build_timestamp: string;
+  backend_port?: number;
 }
 
 export function VersionBadge() {
@@ -35,7 +37,9 @@ export function VersionBadge() {
         });
         if (res.ok) {
           const data = await res.json();
-          setVersion(data);
+          // Get port from deployment config (handles dynamic Tauri port)
+          const backendPort = getBackendPort() ?? undefined;
+          setVersion({ ...data, backend_port: backendPort });
         }
       } catch (err) {
         // Silently fail - version badge is non-critical
@@ -71,7 +75,10 @@ export function VersionBadge() {
         <span>
           {version ? `v${version.version}` : 'Loading...'}
         </span>
-        {version?.environment === 'development' && (
+        {isDesktop() && (
+          <span className="text-purple-400">DESKTOP</span>
+        )}
+        {version?.environment === 'development' && !isDesktop() && (
           <span className="text-amber-400">DEV</span>
         )}
       </Button>
@@ -93,6 +100,18 @@ export function VersionBadge() {
                 {version.environment}
               </span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Target:</span>
+              <span className={isDesktop() ? 'text-purple-400' : 'text-cyan-400'}>
+                {getTarget().toUpperCase()}
+              </span>
+            </div>
+            {version.backend_port && (
+              <div className="flex justify-between">
+                <span className="text-slate-500">Backend Port:</span>
+                <span className="text-orange-400">{version.backend_port}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-slate-500">Build:</span>
               <span className="text-slate-400 text-[10px]">
