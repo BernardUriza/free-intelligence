@@ -16,9 +16,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
-
 from fi_prescription.models.medication import MedicationRoute
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DrugCategory(str, Enum):
@@ -284,11 +283,7 @@ class MedicationCatalogEntry(BaseModel):
             return True
 
         # Check commercial names
-        for name in self.commercial_names:
-            if query_lower in name.lower():
-                return True
-
-        return False
+        return any(query_lower in name.lower() for name in self.commercial_names)
 
     def get_search_score(self, query: str) -> int:
         """Calculate relevance score for search ranking.
