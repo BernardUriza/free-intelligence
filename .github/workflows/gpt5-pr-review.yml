@@ -6,7 +6,7 @@ name: GPT-5 PR Review
 
 on:
   push:
-    branches: [dev]  # Temporary: test workflow runs
+    branches: [dev, main]  # Review on push to dev/main with open PR
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
