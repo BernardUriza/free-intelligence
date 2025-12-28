@@ -1,6 +1,12 @@
 """Integration tests for API endpoints.
 
 Tests complete request/response cycles for athletes, coaches, and sessions APIs.
+
+NOTE: These tests are SKIPPED because the FI-STRIDE (sports/fitness) endpoints
+were deprecated and removed in favor of AURITY (medical AI) endpoints.
+See backend/app/main.py: "AURITY-ONLY: All non-AURITY routers removed"
+
+TODO: Either delete this file or rewrite tests for current AURITY endpoints.
 """
 
 from __future__ import annotations
@@ -9,6 +15,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+
+# Skip entire module - FI-STRIDE endpoints deprecated
+pytestmark = pytest.mark.skip(
+    reason="FI-STRIDE endpoints deprecated - tests need rewrite for AURITY"
+)
 
 
 @pytest.fixture

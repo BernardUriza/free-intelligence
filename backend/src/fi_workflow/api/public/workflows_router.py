@@ -45,6 +45,7 @@ from backend.src.fi_evidence.api.public import evidence
 from backend.src.fi_kpi.api.public import kpis
 from backend.src.fi_memory.api.public import longitudinal_memory
 from backend.src.fi_order.api.public import orders
+from backend.src.fi_prescription.api.public import prescriptions
 from backend.src.fi_session.api.public import sessions_list
 from backend.src.fi_session.api.public import sessions_pkg as sessions
 from backend.src.fi_soap_generation.api.public import soap
@@ -78,6 +79,9 @@ router.include_router(soap.router, tags=["SOAP Notes", "AI Assistant"])
 
 # ORDERS: Medical orders CRUD
 router.include_router(orders.router, tags=["SOAP Notes"])
+
+# PRESCRIPTIONS: Medical prescriptions template engine (FI-RX-002)
+router.include_router(prescriptions.router, tags=["Prescriptions"])
 
 # EVIDENCE: Evidence packs CRUD
 router.include_router(evidence.router, tags=["Evidence Packs"])
@@ -131,6 +135,7 @@ logger.info(
         "sessions",
         "soap",
         "orders",
+        "prescriptions",
         "timeline",
         "sessions_list",
         "kpis",

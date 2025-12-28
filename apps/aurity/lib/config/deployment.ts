@@ -23,10 +23,15 @@ export type DeploymentTarget = 'cloud' | 'desktop';
 
 /**
  * Default backend URLs for each deployment target
+ *
+ * Port allocation:
+ *   - Cloud:         7001-7050 (backend), 9000 (frontend)
+ *   - Desktop dev:   7051 (backend), 9050 (frontend)
+ *   - Desktop prod:  7052+ dynamic (backend), bundled (frontend)
  */
 const DEFAULT_BACKEND_URLS: Record<DeploymentTarget, string> = {
   cloud: 'https://app.aurity.io',
-  desktop: 'http://localhost:7001',
+  desktop: 'http://localhost:7051', // Desktop dev uses 7051 to avoid conflict with cloud (7001-7050)
 };
 
 /**
@@ -60,13 +65,22 @@ export function isDesktop(): boolean {
  * Get the backend URL based on deployment target.
  *
  * Priority:
- *   1. Explicit NEXT_PUBLIC_BACKEND_URL (always wins)
- *   2. Empty string for same-origin relative paths (cloud production)
- *   3. Default based on target (desktop: localhost:7001)
+ *   1. Tauri injected URL (window.__AURITY_BACKEND_URL__) - dynamic port
+ *   2. Explicit NEXT_PUBLIC_BACKEND_URL (always wins)
+ *   3. Empty string for same-origin relative paths (cloud production)
+ *   4. Default based on target (desktop: localhost:7001)
  *
  * @returns Backend API base URL or empty string for same-origin
  */
 export function getBackendUrl(): string {
+  // In browser, check for Tauri-injected URL first (dynamic port)
+  if (typeof window !== 'undefined') {
+    const tauriUrl = (window as Window & { __AURITY_BACKEND_URL__?: string }).__AURITY_BACKEND_URL__;
+    if (tauriUrl) {
+      return tauriUrl;
+    }
+  }
+
   // Explicit override always wins
   const explicit = process.env.NEXT_PUBLIC_BACKEND_URL;
   if (explicit) {
@@ -78,7 +92,7 @@ export function getBackendUrl(): string {
     return ''; // Same-origin relative paths work when frontend and backend share domain
   }
 
-  // Desktop uses localhost
+  // Desktop uses localhost (fallback if Tauri hasn't injected yet)
   return DEFAULT_BACKEND_URLS.desktop;
 }
 
@@ -88,6 +102,14 @@ export function getBackendUrl(): string {
  * @returns Absolute backend URL
  */
 export function getAbsoluteBackendUrl(): string {
+  // In browser, check for Tauri-injected URL first (dynamic port)
+  if (typeof window !== 'undefined') {
+    const tauriUrl = (window as Window & { __AURITY_BACKEND_URL__?: string }).__AURITY_BACKEND_URL__;
+    if (tauriUrl) {
+      return tauriUrl;
+    }
+  }
+
   const explicit = process.env.NEXT_PUBLIC_BACKEND_URL;
   if (explicit) {
     return explicit;
@@ -110,6 +132,24 @@ export function shouldShowDesktopUI(): boolean {
  */
 export function getDefaultOllamaHost(): string {
   return 'http://localhost:11434';
+}
+
+/**
+ * Get the backend port number (for display purposes).
+ * Returns the dynamic port if available, otherwise the default.
+ */
+export function getBackendPort(): number | null {
+  const url = getBackendUrl();
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    return parseInt(parsed.port) || (parsed.protocol === 'https:' ? 443 : 80);
+  } catch {
+    // Try to extract port from localhost URL
+    const match = url.match(/:(\d+)/);
+    return match ? parseInt(match[1]) : null;
+  }
 }
 
 /**

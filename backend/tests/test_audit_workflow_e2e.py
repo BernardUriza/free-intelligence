@@ -15,6 +15,11 @@ from __future__ import annotations
 import time
 
 import pytest
+
+# Skip E2E tests - requires infrastructure (audio chunks, HDF5, running backend)
+pytestmark = pytest.mark.skip(
+    reason="E2E test requiring full infrastructure - run locally with make dev-all"
+)
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     get_session_metadata,
     get_soap_data,

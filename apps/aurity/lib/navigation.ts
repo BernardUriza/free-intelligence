@@ -29,6 +29,7 @@ import {
   Zap,
   Users,
   Cpu,
+  Download,
   type LucideIcon,
 } from "lucide-react";
 
@@ -95,6 +96,8 @@ export interface NavRoute {
   order: number;
   /** Hidden routes don't appear in navigation menu (e.g., patient-only pages accessible via QR) */
   hidden?: boolean;
+  /** Only visible in web mode (hidden in desktop/Tauri app) */
+  webOnly?: boolean;
 }
 
 // =============================================================================
@@ -202,6 +205,18 @@ const AI_CONFIG_ROUTES: NavRoute[] = [
 // =============================================================================
 
 const ADMIN_ROUTES: NavRoute[] = [
+  {
+    id: "downloads",
+    title: "Descargas",
+    description: "Descarga Aurity Desktop para tu sistema operativo",
+    href: "/downloads",
+    icon: Download,
+    shortcut: "D",
+    badge: "Desktop",
+    category: "admin",
+    order: 0,
+    webOnly: true,
+  },
   {
     id: "users-admin",
     title: "Usuarios",

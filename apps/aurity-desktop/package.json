@@ -1,0 +1,20 @@
+{
+  "name": "@aurity/desktop",
+  "version": "1.0.0",
+  "description": "Aurity Desktop - Medical AI Assistant",
+  "private": true,
+  "scripts": {
+    "dev": "tauri dev",
+    "dev:quick": "tauri dev --no-watch",
+    "build": "tauri build",
+    "build:backend": "cd pyinstaller && ./build.sh",
+    "build:all": "pnpm build:backend && pnpm build",
+    "bundle:ollama": "./scripts/bundle-ollama.sh"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0"
+  }
+}

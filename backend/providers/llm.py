@@ -351,10 +351,7 @@ class OllamaProvider(LLMProvider):
         super().__init__(config)
         # Priority: OLLAMA_HOST env var > deployment target default > config > fallback
         # get_ollama_host() handles env var and deployment target logic (cloud vs desktop)
-        self.base_url: str = str(
-            self.config.get("base_url")
-            or get_ollama_host()
-        )
+        self.base_url: str = str(self.config.get("base_url") or get_ollama_host())
         self.default_model: str = str(self.config.get("model") or "qwen3:1.7b")
         self.embed_model: str = str(self.config.get("embed_model") or "nomic-embed-text")
         self.timeout: int = int(self.config.get("timeout_seconds") or 120)
