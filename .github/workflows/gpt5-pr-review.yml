@@ -181,3 +181,81 @@ jobs:
           else
             echo "::notice::✅ AI Gatekeeper approved this PR"
           fi
+
+  # =============================================================================
+  # Final Summary - Runs after ALL checks complete
+  # Provides a quick 30-word summary for easy reference
+  # =============================================================================
+  final-summary:
+    name: "📋 Final Summary"
+    runs-on: ubuntu-latest
+    needs: [ai-review]
+    if: always()
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Wait for all checks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+        run: |
+          echo "⏳ Waiting 3 minutes for all CI checks to complete..."
+          sleep 180
+
+      - name: Generate Final Summary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AZURE_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+        run: |
+          set -e
+
+          # Get final CI status
+          PR_TITLE=$(gh pr view $PR_NUMBER --json title -q '.title')
+          CI_STATUS=$(gh pr checks $PR_NUMBER 2>/dev/null | grep -vE "Final Summary" || echo "No checks")
+          FAILED=$(echo "$CI_STATUS" | grep -cE "fail" || echo "0")
+          PASSED=$(echo "$CI_STATUS" | grep -cE "pass" || echo "0")
+          PENDING=$(echo "$CI_STATUS" | grep -cE "pending" || echo "0")
+
+          # Build short prompt
+          USER_MSG="PR: $PR_TITLE
+          CI Results: $PASSED passed, $FAILED failed, $PENDING pending
+
+          Write a 25-30 word summary for developers. Format:
+          [EMOJI] [STATUS]: [Brief description of what changed and CI result]
+
+          Use: ✅ for all pass, ⚠️ for some fail, ❌ for blocked"
+
+          USER_ESCAPED=$(echo "$USER_MSG" | jq -Rs .)
+
+          HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/summary.json \
+            "${AZURE_ENDPOINT}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
+            -H "Content-Type: application/json" \
+            -H "api-key: $AZURE_KEY" \
+            -d "{\"messages\":[{\"role\":\"user\",\"content\":$USER_ESCAPED}],\"max_completion_tokens\":100}")
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            SUMMARY="📋 CI Complete: $PASSED passed, $FAILED failed, $PENDING pending"
+          else
+            SUMMARY=$(cat /tmp/summary.json | jq -r '.choices[0].message.content // empty' | head -1)
+            [ -z "$SUMMARY" ] && SUMMARY="📋 CI Complete: $PASSED passed, $FAILED failed, $PENDING pending"
+          fi
+
+          # Post final summary comment
+          gh pr comment $PR_NUMBER --body "---
+          ### 📋 Final CI Summary
+
+          $SUMMARY
+
+          | Status | Count |
+          |--------|-------|
+          | ✅ Passed | $PASSED |
+          | ❌ Failed | $FAILED |
+          | ⏳ Pending | $PENDING |
+
+          *Auto-generated after all checks completed*"
+
+          echo "::notice::Final summary posted"
