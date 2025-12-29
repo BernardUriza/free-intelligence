@@ -319,7 +319,6 @@ fn main() {
                     .sidecar("aurity-backend")
                     .expect("Failed to create sidecar command")
                     .args(["--port", &port.to_string()])
-                    .env("DESKTOP_OFFLINE", "1") // Enable offline auth bypass for desktop
                     .spawn();
 
                 match sidecar_result {

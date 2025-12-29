@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import os
 import structlog
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from ...domain import IAuthProvider, User, UserRole
+from ...domain import IAuthProvider, User
 from ...infrastructure.auth0 import Auth0Provider, load_auth0_config
 from ...infrastructure.jwt import JWKSFetcher, JWTValidator
 
@@ -42,18 +41,13 @@ def set_auth_provider(provider: IAuthProvider) -> None:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    provider: IAuthProvider = Depends(get_auth_provider),
 ) -> User:
-    # Offline desktop mode: allow bypass when DESKTOP_OFFLINE=1 or AUTH_OFFLINE_BYPASS=1
-    desktop_offline = os.getenv("DESKTOP_OFFLINE") or os.getenv("AUTH_OFFLINE_BYPASS")
-    if desktop_offline and desktop_offline.lower() in ("1", "true", "yes"):
-        logger.info("Using offline desktop auth bypass (DESKTOP_OFFLINE enabled)")
-        # Create a synthetic local user for desktop mode
-        roles = [UserRole.CLINICIAN]
-        return User(id="desktop|local", email="local@desktop.local", roles=roles, name="Local Desktop User")
+    """Validate JWT token and return the authenticated user.
 
-    # Get the auth provider (lazy initialization)
-    provider = get_auth_provider()
-
+    All authentication goes through Auth0 - no offline bypass.
+    Desktop app uses Auth0 OAuth PKCE flow via DesktopAuth0Provider.
+    """
     if not credentials or not credentials.credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
