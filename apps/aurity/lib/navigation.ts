@@ -30,6 +30,7 @@ import {
   Users,
   Cpu,
   Download,
+  Key,
   type LucideIcon,
 } from "lucide-react";
 
@@ -227,6 +228,18 @@ const ADMIN_ROUTES: NavRoute[] = [
     badge: "Superadmin",
     category: "admin",
     order: 1,
+  },
+  {
+    id: "licenses-admin",
+    title: "Licencias",
+    description: "Generador de licencias para Aurity Desktop",
+    href: "/admin/licenses",
+    icon: Key,
+    shortcut: "L",
+    badge: "Superadmin",
+    category: "admin",
+    order: 1.5,
+    webOnly: true,
   },
   {
     id: "clinics-admin",

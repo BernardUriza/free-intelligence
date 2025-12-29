@@ -120,11 +120,20 @@ function extractUserFromToken(tokens: AuthTokens): User | null {
   };
 }
 
-interface DesktopAuth0ProviderProps {
-  children: ReactNode;
+// Auth0 configuration (can come from env or license)
+interface Auth0Config {
+  domain: string;
+  client_id: string;
+  audience: string;
 }
 
-export function DesktopAuth0Provider({ children }: DesktopAuth0ProviderProps) {
+interface DesktopAuth0ProviderProps {
+  children: ReactNode;
+  /** Optional Auth0 config from license. If not provided, uses env vars. */
+  auth0Config?: Auth0Config;
+}
+
+export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0ProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -132,12 +141,13 @@ export function DesktopAuth0Provider({ children }: DesktopAuth0ProviderProps) {
   const [error, setError] = useState<Error | undefined>();
   const [isConfigured, setIsConfigured] = useState(false);
 
-  // Configure Auth0 on mount
+  // Configure Auth0 on mount (uses license config if provided, otherwise env vars)
   useEffect(() => {
     const configureAuth0 = async () => {
-      const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN;
-      const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
-      const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || '';
+      // Priority: license config > env vars
+      const domain = auth0Config?.domain || process.env.NEXT_PUBLIC_AUTH0_DOMAIN;
+      const clientId = auth0Config?.client_id || process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
+      const audience = auth0Config?.audience || process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || '';
 
       if (!domain || !clientId) {
         console.error('[DesktopAuth] Missing Auth0 configuration');
@@ -149,7 +159,7 @@ export function DesktopAuth0Provider({ children }: DesktopAuth0ProviderProps) {
       try {
         await invoke('configure_auth0', { domain, clientId, audience });
         setIsConfigured(true);
-        console.log('[DesktopAuth] Auth0 configured successfully');
+        console.log('[DesktopAuth] Auth0 configured:', { domain, audience });
       } catch (err) {
         console.error('[DesktopAuth] Failed to configure Auth0:', err);
         setError(err instanceof Error ? err : new Error(String(err)));
@@ -157,7 +167,7 @@ export function DesktopAuth0Provider({ children }: DesktopAuth0ProviderProps) {
     };
 
     configureAuth0();
-  }, []);
+  }, [auth0Config]);
 
   // Initialize - check for stored tokens
   useEffect(() => {
