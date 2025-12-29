@@ -7,14 +7,15 @@
  * Only accessible to users with FI-superadmin role.
  *
  * Features:
- * - Clinic information (ID, name)
- * - Auth0 configuration (domain, client ID, audience)
+ * - Clinic selector with autocomplete (loads from backend)
+ * - Option to create new clinic manually
+ * - Auth0 configuration with defaults from current env
  * - Feature toggles (checkboxes)
  * - Expiration date picker (preset + custom)
  * - Copy-to-clipboard for generated key
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@aurity-standalone/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,7 +26,20 @@ import {
   DEFAULT_FEATURES,
   FeatureInfo,
 } from '@/lib/api/licenses';
-import { Key, Copy, Check, RefreshCw, Building2, Shield, Calendar, Sparkles } from 'lucide-react';
+import { fetchClinics, Clinic } from '@/lib/api/clinics';
+import {
+  Key,
+  Copy,
+  Check,
+  RefreshCw,
+  Building2,
+  Shield,
+  Calendar,
+  Sparkles,
+  Search,
+  Plus,
+  ChevronDown,
+} from 'lucide-react';
 
 interface LicenseGeneratorProps {
   className?: string;
@@ -34,22 +48,40 @@ interface LicenseGeneratorProps {
 export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
   const { getAccessTokenSilently } = useAuth();
 
-  // Form state
+  // Clinic selection state
+  const [clinics, setClinics] = useState<Clinic[]>([]);
+  const [clinicsLoading, setClinicsLoading] = useState(true);
+  const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null);
+  const [isNewClinic, setIsNewClinic] = useState(false);
+  const [clinicSearchQuery, setClinicSearchQuery] = useState('');
+  const [showClinicDropdown, setShowClinicDropdown] = useState(false);
+
+  // Form state (for new clinic or manual override)
   const [clinicId, setClinicId] = useState('');
   const [clinicName, setClinicName] = useState('');
-  const [auth0Domain, setAuth0Domain] = useState('');
-  const [auth0ClientId, setAuth0ClientId] = useState('');
-  const [auth0Audience, setAuth0Audience] = useState('https://app.aurity.io');
+
+  // Auth0 fields - pre-fill with current env values
+  const [auth0Domain, setAuth0Domain] = useState(
+    process.env.NEXT_PUBLIC_AUTH0_DOMAIN || ''
+  );
+  const [auth0ClientId, setAuth0ClientId] = useState(
+    process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID || ''
+  );
+  const [auth0Audience, setAuth0Audience] = useState(
+    process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || 'https://app.aurity.io'
+  );
+
+  // Features state
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([
     'soap',
     'timeline',
     'prescriptions',
   ]);
+  const [features, setFeatures] = useState<FeatureInfo[]>(DEFAULT_FEATURES);
+
+  // Expiration state
   const [expirationPreset, setExpirationPreset] = useState<'1year' | '2years' | 'custom'>('1year');
   const [customDays, setCustomDays] = useState(365);
-
-  // Available features
-  const [features, setFeatures] = useState<FeatureInfo[]>(DEFAULT_FEATURES);
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -57,7 +89,34 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
   const [result, setResult] = useState<LicenseGenerationResponse | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Load available features on mount
+  // Filter clinics based on search query
+  const filteredClinics = useMemo(() => {
+    if (!clinicSearchQuery.trim()) return clinics;
+    const query = clinicSearchQuery.toLowerCase();
+    return clinics.filter(
+      (c) =>
+        c.name.toLowerCase().includes(query) ||
+        c.clinic_id.toLowerCase().includes(query)
+    );
+  }, [clinics, clinicSearchQuery]);
+
+  // Load clinics on mount
+  useEffect(() => {
+    const loadClinics = async () => {
+      try {
+        setClinicsLoading(true);
+        const data = await fetchClinics(false); // Include inactive clinics
+        setClinics(data);
+      } catch (err) {
+        console.warn('[LicenseGenerator] Failed to load clinics:', err);
+      } finally {
+        setClinicsLoading(false);
+      }
+    };
+    loadClinics();
+  }, []);
+
+  // Load available features on mount (optional - uses defaults if fails)
   useEffect(() => {
     const loadFeatures = async () => {
       try {
@@ -68,11 +127,33 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
           setFeatures(response.features);
         }
       } catch (err) {
-        console.warn('[LicenseGenerator] Failed to load features, using defaults');
+        // Silently fail - use default features
+        // This commonly happens with refresh token issues
+        console.debug('[LicenseGenerator] Using default features (token unavailable)');
       }
     };
     loadFeatures();
   }, [getAccessTokenSilently]);
+
+  // Handle clinic selection
+  const handleSelectClinic = (clinic: Clinic) => {
+    setSelectedClinic(clinic);
+    setClinicId(clinic.clinic_id);
+    setClinicName(clinic.name);
+    setIsNewClinic(false);
+    setShowClinicDropdown(false);
+    setClinicSearchQuery('');
+  };
+
+  // Handle new clinic mode
+  const handleNewClinic = () => {
+    setSelectedClinic(null);
+    setClinicId('');
+    setClinicName('');
+    setIsNewClinic(true);
+    setShowClinicDropdown(false);
+    setClinicSearchQuery('');
+  };
 
   // Calculate expiration days
   const getExpirationDays = (): number => {
@@ -148,7 +229,6 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
   const handleReset = () => {
     setResult(null);
     setError(null);
-    // Keep form values for convenience
   };
 
   // Format date for display
@@ -159,6 +239,9 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
       day: 'numeric',
     });
   };
+
+  // Determine if form is valid
+  const isFormValid = clinicId && auth0Domain && auth0ClientId;
 
   return (
     <div className={`max-w-4xl mx-auto ${className}`}>
@@ -231,48 +314,147 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
       {/* Generation Form */}
       {!result && (
         <form onSubmit={handleGenerate} className="space-y-6">
-          {/* Clinic Information */}
+          {/* Clinic Selection */}
           <div className="p-6 bg-slate-800/50 border border-slate-700 rounded-xl">
             <div className="flex items-center gap-2 mb-4">
               <Building2 className="w-5 h-5 text-blue-400" />
-              <h3 className="text-lg font-medium text-slate-200">Datos de Clínica</h3>
+              <h3 className="text-lg font-medium text-slate-200">Seleccionar Clínica</h3>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">
-                  ID de Clínica <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={clinicId}
-                  onChange={(e) => setClinicId(e.target.value)}
-                  placeholder="clinic_001"
-                  required
-                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
-                />
+            {/* Clinic Selector */}
+            <div className="relative mb-4">
+              <div
+                onClick={() => setShowClinicDropdown(!showClinicDropdown)}
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 cursor-pointer flex items-center justify-between hover:border-slate-500 transition-colors"
+              >
+                <span className={selectedClinic || isNewClinic ? 'text-slate-200' : 'text-slate-500'}>
+                  {selectedClinic
+                    ? `${selectedClinic.name} (${selectedClinic.clinic_id})`
+                    : isNewClinic
+                    ? 'Nueva Clínica (manual)'
+                    : 'Selecciona una clínica...'}
+                </span>
+                <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showClinicDropdown ? 'rotate-180' : ''}`} />
               </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">
-                  Nombre de Clínica <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={clinicName}
-                  onChange={(e) => setClinicName(e.target.value)}
-                  placeholder="Hospital Central"
-                  required
-                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
+
+              {/* Dropdown */}
+              {showClinicDropdown && (
+                <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-600 rounded-lg shadow-xl max-h-80 overflow-hidden">
+                  {/* Search Input */}
+                  <div className="p-3 border-b border-slate-700">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <input
+                        type="text"
+                        value={clinicSearchQuery}
+                        onChange={(e) => setClinicSearchQuery(e.target.value)}
+                        placeholder="Buscar clínica..."
+                        className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  {/* Options */}
+                  <div className="max-h-56 overflow-y-auto">
+                    {/* New Clinic Option */}
+                    <button
+                      type="button"
+                      onClick={handleNewClinic}
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 text-left border-b border-slate-700"
+                    >
+                      <Plus className="w-5 h-5 text-emerald-400" />
+                      <div>
+                        <div className="text-emerald-400 font-medium">Nueva Clínica</div>
+                        <div className="text-xs text-slate-500">Crear entrada manual</div>
+                      </div>
+                    </button>
+
+                    {/* Clinic List */}
+                    {clinicsLoading ? (
+                      <div className="px-4 py-6 text-center text-slate-500">
+                        Cargando clínicas...
+                      </div>
+                    ) : filteredClinics.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-slate-500">
+                        No se encontraron clínicas
+                      </div>
+                    ) : (
+                      filteredClinics.map((clinic) => (
+                        <button
+                          key={clinic.clinic_id}
+                          type="button"
+                          onClick={() => handleSelectClinic(clinic)}
+                          className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 text-left ${
+                            selectedClinic?.clinic_id === clinic.clinic_id ? 'bg-blue-500/10' : ''
+                          }`}
+                        >
+                          <Building2 className="w-5 h-5 text-slate-400" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-slate-200 font-medium truncate">{clinic.name}</div>
+                            <div className="text-xs text-slate-500 truncate">
+                              {clinic.clinic_id} · {clinic.specialty || 'General'}
+                              {!clinic.is_active && (
+                                <span className="ml-2 text-amber-500">(Inactiva)</span>
+                              )}
+                            </div>
+                          </div>
+                          {selectedClinic?.clinic_id === clinic.clinic_id && (
+                            <Check className="w-5 h-5 text-blue-400" />
+                          )}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Manual Clinic Fields (shown when new clinic or for override) */}
+            {(isNewClinic || selectedClinic) && (
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-700">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-2">
+                    ID de Clínica <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={clinicId}
+                    onChange={(e) => setClinicId(e.target.value)}
+                    placeholder="clinic_001"
+                    required
+                    disabled={!!selectedClinic}
+                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-2">
+                    Nombre de Clínica <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={clinicName}
+                    onChange={(e) => setClinicName(e.target.value)}
+                    placeholder="Hospital Central"
+                    required
+                    disabled={!!selectedClinic}
+                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Auth0 Configuration */}
           <div className="p-6 bg-slate-800/50 border border-slate-700 rounded-xl">
-            <div className="flex items-center gap-2 mb-4">
-              <Shield className="w-5 h-5 text-purple-400" />
-              <h3 className="text-lg font-medium text-slate-200">Configuración Auth0</h3>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-purple-400" />
+                <h3 className="text-lg font-medium text-slate-200">Configuración Auth0</h3>
+              </div>
+              <span className="text-xs text-slate-500 bg-slate-700/50 px-2 py-1 rounded">
+                Pre-llenado con config actual
+              </span>
             </div>
 
             <div className="space-y-4">
@@ -445,11 +627,19 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
             fullWidth
             loading={isLoading}
             icon={Key}
-            disabled={!clinicId || !auth0Domain || !auth0ClientId}
+            disabled={!isFormValid}
           >
             {isLoading ? 'Generando...' : 'Generar Licencia'}
           </Button>
         </form>
+      )}
+
+      {/* Click outside to close dropdown */}
+      {showClinicDropdown && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setShowClinicDropdown(false)}
+        />
       )}
     </div>
   );
