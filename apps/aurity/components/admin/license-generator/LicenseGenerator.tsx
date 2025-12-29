@@ -32,7 +32,7 @@ interface LicenseGeneratorProps {
 }
 
 export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
-  const { getAccessToken } = useAuth();
+  const { getAccessTokenSilently } = useAuth();
 
   // Form state
   const [clinicId, setClinicId] = useState('');
@@ -61,7 +61,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
   useEffect(() => {
     const loadFeatures = async () => {
       try {
-        const token = await getAccessToken();
+        const token = await getAccessTokenSilently();
         if (token) {
           setLicenseToken(token);
           const response = await licensesApi.getFeatures();
@@ -72,7 +72,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
       }
     };
     loadFeatures();
-  }, [getAccessToken]);
+  }, [getAccessTokenSilently]);
 
   // Calculate expiration days
   const getExpirationDays = (): number => {
@@ -118,7 +118,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
     setResult(null);
 
     try {
-      const token = await getAccessToken();
+      const token = await getAccessTokenSilently();
       if (!token) {
         throw new Error('No authentication token available');
       }
