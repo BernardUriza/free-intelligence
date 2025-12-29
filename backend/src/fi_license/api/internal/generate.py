@@ -22,8 +22,8 @@ from typing import Optional
 
 import structlog
 from backend.src.fi_auth import User, UserRole, require_roles
+from backend.src.fi_license.generator import LicensePayload, generate_license_key
 from fastapi import APIRouter, Depends, HTTPException, status
-from fi_license import LicensePayload, generate_license_key
 from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
