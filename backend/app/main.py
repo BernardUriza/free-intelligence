@@ -807,7 +807,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Aurity Backend Server")
     parser.add_argument("--port", type=int, default=7001, help="Port to run on (default: 7001)")
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind (default: 0.0.0.0)")
+    parser.add_argument(
+        "--host", type=str, default="0.0.0.0", help="Host to bind (default: 0.0.0.0)"
+    )
     args = parser.parse_args()
 
     uvicorn.run(app, host=args.host, port=args.port)
