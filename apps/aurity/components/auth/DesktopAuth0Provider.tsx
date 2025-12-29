@@ -26,10 +26,14 @@ import {
   useState,
   useCallback,
   useMemo,
+  useRef,
   ReactNode,
 } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
+
+// Tauri APIs are imported dynamically to avoid SSR issues
+// Type imports only (don't affect runtime)
+type InvokeFn = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
+type UnlistenFn = () => void;
 
 // Auth0 token structure from Rust backend
 interface AuthTokens {
@@ -68,6 +72,27 @@ interface DesktopAuth0ContextType {
 }
 
 const DesktopAuth0Context = createContext<DesktopAuth0ContextType | undefined>(undefined);
+
+// Check if running in Tauri (only on client side)
+const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
+
+// Dynamic import helper for Tauri invoke
+async function getInvoke(): Promise<InvokeFn> {
+  if (!isTauri) {
+    throw new Error('Not running in Tauri environment');
+  }
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke;
+}
+
+// Dynamic import helper for Tauri listen
+async function getListen() {
+  if (!isTauri) {
+    throw new Error('Not running in Tauri environment');
+  }
+  const { listen } = await import('@tauri-apps/api/event');
+  return listen;
+}
 
 /**
  * Decode JWT payload without verification (verification done server-side)
@@ -143,6 +168,11 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
 
   // Configure Auth0 on mount (uses license config if provided, otherwise env vars)
   useEffect(() => {
+    if (!isTauri) {
+      setIsLoading(false);
+      return;
+    }
+
     const configureAuth0 = async () => {
       // Priority: license config > env vars
       const domain = auth0Config?.domain || process.env.NEXT_PUBLIC_AUTH0_DOMAIN;
@@ -157,6 +187,7 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
       }
 
       try {
+        const invoke = await getInvoke();
         await invoke('configure_auth0', { domain, clientId, audience });
         setIsConfigured(true);
         console.log('[DesktopAuth] Auth0 configured:', { domain, audience });
@@ -171,20 +202,21 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
 
   // Initialize - check for stored tokens
   useEffect(() => {
-    if (!isConfigured) return;
+    if (!isConfigured || !isTauri) return;
 
     const init = async () => {
       try {
-        const storedTokens = await invoke<AuthTokens | null>('get_stored_tokens');
+        const invoke = await getInvoke();
+        const storedTokens = await invoke<AuthTokens | null>('get_stored_tokens', {});
 
         if (storedTokens) {
-          const isExpired = await invoke<boolean>('is_token_expired');
+          const isExpired = await invoke<boolean>('is_token_expired', {});
 
           if (isExpired && storedTokens.refresh_token) {
             // Try to refresh
             try {
               console.log('[DesktopAuth] Token expired, refreshing...');
-              const newTokens = await invoke<AuthTokens>('refresh_tokens');
+              const newTokens = await invoke<AuthTokens>('refresh_tokens', {});
               setTokens(newTokens);
               setUser(extractUserFromToken(newTokens));
               setIsAuthenticated(true);
@@ -192,7 +224,7 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
             } catch (refreshError) {
               // Refresh failed - user needs to re-authenticate
               console.log('[DesktopAuth] Refresh failed, clearing tokens');
-              await invoke('clear_tokens');
+              await invoke('clear_tokens', {});
               setIsAuthenticated(false);
             }
           } else if (!isExpired) {
@@ -204,7 +236,7 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
           } else {
             // Expired with no refresh token
             console.log('[DesktopAuth] Token expired, no refresh token');
-            await invoke('clear_tokens');
+            await invoke('clear_tokens', {});
             setIsAuthenticated(false);
           }
         } else {
@@ -223,9 +255,14 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
 
   // Listen for deep link callbacks (OAuth redirect)
   useEffect(() => {
+    if (!isTauri) return;
+
     let unlisten: UnlistenFn | null = null;
 
     const setupListener = async () => {
+      const listen = await getListen();
+      const invoke = await getInvoke();
+
       unlisten = await listen<string>('deep-link-received', async (event) => {
         const url = event.payload;
         console.log('[DesktopAuth] Deep link received:', url);
@@ -263,14 +300,15 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
 
   // Auto-refresh tokens before expiry
   useEffect(() => {
-    if (!tokens || !tokens.refresh_token || !isAuthenticated) return;
+    if (!tokens || !tokens.refresh_token || !isAuthenticated || !isTauri) return;
 
     const now = Math.floor(Date.now() / 1000);
     const timeUntilExpiry = tokens.expires_at - now - 60; // 60s buffer
 
     if (timeUntilExpiry <= 0) {
       // Already expired or about to expire, refresh immediately
-      invoke<AuthTokens>('refresh_tokens')
+      getInvoke()
+        .then((invoke) => invoke<AuthTokens>('refresh_tokens', {}))
         .then((newTokens) => {
           setTokens(newTokens);
           setUser(extractUserFromToken(newTokens));
@@ -288,7 +326,8 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
     // Schedule refresh before expiry
     const timer = setTimeout(async () => {
       try {
-        const newTokens = await invoke<AuthTokens>('refresh_tokens');
+        const invoke = await getInvoke();
+        const newTokens = await invoke<AuthTokens>('refresh_tokens', {});
         setTokens(newTokens);
         setUser(extractUserFromToken(newTokens));
         console.log('[DesktopAuth] Token auto-refreshed (scheduled)');
@@ -305,16 +344,17 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
 
   const loginWithRedirect = useCallback(
     async (_options?: { appState?: { returnTo?: string } }) => {
-      if (!isConfigured) {
-        throw new Error('Auth0 not configured');
+      if (!isConfigured || !isTauri) {
+        throw new Error('Auth0 not configured or not in Tauri');
       }
 
       setIsLoading(true);
       setError(undefined);
 
       try {
+        const invoke = await getInvoke();
         // This opens the browser - the callback will be handled by deep link listener
-        await invoke('start_auth_flow');
+        await invoke('start_auth_flow', {});
         console.log('[DesktopAuth] Auth flow started, browser opened');
         // Note: isLoading stays true until callback is received
       } catch (err) {
@@ -329,7 +369,10 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
   const logout = useCallback(
     async (options?: { logoutParams?: { returnTo?: string } }) => {
       try {
-        await invoke('clear_tokens');
+        if (isTauri) {
+          const invoke = await getInvoke();
+          await invoke('clear_tokens', {});
+        }
         setIsAuthenticated(false);
         setUser(null);
         setTokens(null);
@@ -356,11 +399,17 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
       throw new Error('Not authenticated');
     }
 
+    if (!isTauri) {
+      return tokens.access_token;
+    }
+
+    const invoke = await getInvoke();
+
     // Check if token needs refresh
-    const isExpired = await invoke<boolean>('is_token_expired');
+    const isExpired = await invoke<boolean>('is_token_expired', {});
 
     if (isExpired && tokens.refresh_token) {
-      const newTokens = await invoke<AuthTokens>('refresh_tokens');
+      const newTokens = await invoke<AuthTokens>('refresh_tokens', {});
       setTokens(newTokens);
       setUser(extractUserFromToken(newTokens));
       return newTokens.access_token;

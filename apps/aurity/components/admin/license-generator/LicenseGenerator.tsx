@@ -39,6 +39,7 @@ import {
   Search,
   Plus,
   ChevronDown,
+  Download,
 } from 'lucide-react';
 
 interface LicenseGeneratorProps {
@@ -191,6 +192,30 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
     }
   }, [result]);
 
+  // Download license as .key file
+  const downloadLicenseFile = useCallback(() => {
+    if (!result?.license_key) return;
+
+    // Create filename: clinic-name-YYYY-MM-DD.key
+    const date = new Date().toISOString().split('T')[0];
+    const clinicSlug = (result.clinic_name || result.clinic_id)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    const filename = `${clinicSlug}-${date}.key`;
+
+    // Create blob and download
+    const blob = new Blob([result.license_key], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [result]);
+
   // Generate license
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -259,17 +284,27 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
           <div className="mb-4">
             <label className="block text-sm text-slate-400 mb-2">Clave de Licencia</label>
             <div className="flex gap-2">
-              <code className="flex-1 p-4 bg-slate-900 border border-slate-700 rounded-lg text-sm font-mono text-slate-200 break-all">
+              <code className="flex-1 p-4 bg-slate-900 border border-slate-700 rounded-lg text-sm font-mono text-slate-200 break-all max-h-32 overflow-y-auto">
                 {result.license_key}
               </code>
-              <Button
-                onClick={copyToClipboard}
-                variant={copied ? 'success' : 'secondary'}
-                size="sm"
-                icon={copied ? Check : Copy}
-              >
-                {copied ? 'Copiado' : 'Copiar'}
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={downloadLicenseFile}
+                  variant="primary"
+                  size="sm"
+                  icon={Download}
+                >
+                  Descargar .key
+                </Button>
+                <Button
+                  onClick={copyToClipboard}
+                  variant={copied ? 'success' : 'secondary'}
+                  size="sm"
+                  icon={copied ? Check : Copy}
+                >
+                  {copied ? 'Copiado' : 'Copiar'}
+                </Button>
+              </div>
             </div>
           </div>
 

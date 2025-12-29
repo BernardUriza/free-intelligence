@@ -652,3 +652,36 @@ pub async fn request_license_renewal() -> Result<RenewalResponse, String> {
 pub async fn register_license_for_renewal(license_key: String) -> Result<(), String> {
     register_for_renewal(&license_key).await
 }
+
+// ============================================================================
+// File Import Commands
+// ============================================================================
+
+/// Import and activate license from a .key file path
+#[tauri::command]
+pub fn import_license_from_file(file_path: String) -> Result<LicensePayload, String> {
+    // Read the file content
+    let license_key = fs::read_to_string(&file_path)
+        .map_err(|e| format!("Failed to read license file: {}", e))?;
+
+    // Trim whitespace and validate
+    let license_key = license_key.trim();
+
+    if license_key.is_empty() {
+        return Err("License file is empty".to_string());
+    }
+
+    if !license_key.starts_with("AURITY-") {
+        return Err("Invalid license file: must start with AURITY-".to_string());
+    }
+
+    // Activate the license
+    activate_license(license_key)
+}
+
+/// Check if a valid license exists (for startup check)
+#[tauri::command]
+pub fn has_valid_license() -> bool {
+    let status = get_license_status();
+    status.is_valid
+}

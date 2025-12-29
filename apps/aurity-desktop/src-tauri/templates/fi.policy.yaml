@@ -13,8 +13,8 @@ llm:
   # Primary provider - Ollama local inference
   primary_provider: ollama
 
-  # No fallback - fully offline
-  fallback_provider: null
+  # Fallback to same provider (offline mode has no alternative)
+  fallback_provider: ollama
 
   # Offline-first mode enabled
   enable_offline: true
@@ -50,11 +50,17 @@ diarization:
   primary_provider: disabled
   fallback_providers: []
   expected_num_speakers: 1
+  # Provider stub for "disabled" mode (required by validator)
+  providers:
+    disabled: {}
 
 # ===== STT (Disabled - use browser Web Speech API) =====
 stt:
   primary_provider: disabled
   fallback_providers: []
+  # Provider stub for "disabled" mode (required by validator)
+  providers:
+    disabled: {}
 
 # ===== Export Policy =====
 export:

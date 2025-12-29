@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { getRouteByShortcut, getGroupedRoutes } from "@/lib/navigation";
 import { AccessTile } from "../dashboard/AccessTile";
 import { AppTemplate } from "@/components/layout/AppTemplate";
+import { useRBAC } from "@aurity-standalone/hooks/useRBAC";
 import { Hospital, Brain, Settings, EyeOff, Lock } from "lucide-react";
 
 // Icon mapping for categories
@@ -27,13 +28,17 @@ const CATEGORY_ICONS = {
 
 export function SlimIndexHub() {
   const router = useRouter();
+  const { isSuperAdmin } = useRBAC();
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
 
-  // Check onboarding status
+  // Check onboarding status (superadmins bypass onboarding requirement)
   useEffect(() => {
     const completed = localStorage.getItem('aurity_onboarding_completed') === 'true';
     setOnboardingCompleted(completed);
   }, []);
+
+  // Superadmins have full access regardless of onboarding status
+  const hasFullAccess = isSuperAdmin || onboardingCompleted;
 
   // Keyboard shortcuts (1-9)
   useEffect(() => {
@@ -68,8 +73,8 @@ export function SlimIndexHub() {
       <div className="min-h-screen flex flex-col">
         {/* Main Content */}
         <div className="relative flex-1 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-16">
-        {/* Onboarding Banner - Neo-minimalist glassmorphism */}
-        {!onboardingCompleted && (
+        {/* Onboarding Banner - Neo-minimalist glassmorphism (hidden for superadmins) */}
+        {!hasFullAccess && (
           <div className="mb-8 p-6 bg-blue-950/30 backdrop-blur-xl border border-blue-800/30 rounded-2xl shadow-lg hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between gap-6">
               <div>
@@ -88,9 +93,9 @@ export function SlimIndexHub() {
 
         {/* Medical AI Workflow - Neo-minimalist glassmorphism */}
         <div className={`mb-8 p-6 bg-emerald-950/30 backdrop-blur-xl border border-emerald-800/30 rounded-2xl shadow-lg hover:shadow-xl transition-all relative ${
-          !onboardingCompleted ? 'opacity-50 pointer-events-none' : ''
+          !hasFullAccess ? 'opacity-50 pointer-events-none' : ''
         }`}>
-          {!onboardingCompleted && (
+          {!hasFullAccess && (
             <div className="absolute top-3 right-3 px-3 py-1.5 bg-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-lg text-xs fi-text font-medium shadow-md flex items-center gap-1.5">
               <Lock className="w-3.5 h-3.5" />
               Complete onboarding first
@@ -112,7 +117,7 @@ export function SlimIndexHub() {
 
         {/* Navigation Tiles - Grouped by Category */}
         <div className={`space-y-8 ${
-          !onboardingCompleted ? 'opacity-50 pointer-events-none' : ''
+          !hasFullAccess ? 'opacity-50 pointer-events-none' : ''
         }`}>
           {getGroupedRoutes().map(({ category, routes }) => {
             const IconComponent = CATEGORY_ICONS[category.icon as keyof typeof CATEGORY_ICONS];

@@ -73,7 +73,7 @@ export const licensesApi = {
     request: LicenseGenerationRequest
   ): Promise<LicenseGenerationResponse> => {
     const baseUrl = getBackendUrl();
-    const response = await fetch(`${baseUrl}/internal/admin/licenses/generate`, {
+    const response = await fetch(`${baseUrl}/api/admin/licenses/generate`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(request),
@@ -93,7 +93,7 @@ export const licensesApi = {
    */
   getFeatures: async (): Promise<FeaturesResponse> => {
     const baseUrl = getBackendUrl();
-    const response = await fetch(`${baseUrl}/internal/admin/licenses/features`, {
+    const response = await fetch(`${baseUrl}/api/admin/licenses/features`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });

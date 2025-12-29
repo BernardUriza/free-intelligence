@@ -1,16 +1,19 @@
 /**
  * Bryntum Config Builders - Pure Functions
- * 
+ *
  * Factory functions for building Bryntum SchedulerPro configurations.
  * No I/O, no side effects, fully testable.
- * 
+ *
  * Exports:
  * - buildTimelineSchedulerConfig (for Timeline view)
  * - buildAppointmentSchedulerConfig (for Appointments calendar)
- * 
+ *
  * Card: FI-BRYNTUM-UNIFY-001
  * Created: 2025-12-11
+ * Updated: 2025-12-29 - Temporal API fix, cleanup console.logs, type safety
  */
+
+const IS_DEV = process.env.NODE_ENV === 'development';
 
 // Timeline imports
 import { VIEW_PRESETS } from '../config/timeline-presets.config';
@@ -36,6 +39,14 @@ import { TemporalAPI, getClinicTimeZone } from '@/lib/temporal';
 import type { BryntumSchedulerConfig } from '../types/scheduler.types';
 
 const Temporal = TemporalAPI;
+
+// ============================================================================
+// Shared Utilities
+// ============================================================================
+
+/** Calculate duration in minutes between two dates */
+const getDurationMinutes = (start: Date, end: Date): number =>
+  Math.round((end.getTime() - start.getTime()) / 60_000);
 
 // ============================================================================
 // Timeline Scheduler Config
@@ -98,8 +109,9 @@ export function buildTimelineSchedulerConfig({
     // Features (read-only)
     features: TIMELINE_FEATURES,
 
-      // Return DomConfig for WC bundle to avoid Symbol attribute issues
-      eventRenderer: appointmentEventRenderer,
+    // Custom renderer - returns DomConfig for WC bundle compatibility
+    eventRenderer: appointmentEventRenderer,
+
     listeners: {
       eventClick: onEventClick
         ? ({ eventRecord }: { eventRecord: { data: Record<string, unknown> } }) => {
@@ -173,13 +185,10 @@ export function buildAppointmentSchedulerConfig({
 
   // Generate resourceTimeRanges for non-working hours per doctor
   const resourceTimeRanges = generateNonWorkingTimeRanges(doctors, start, end);
-  
-  // DEBUG: Log generated ranges
-  console.log('[Bryntum Config] Generated resourceTimeRanges:', {
-    count: resourceTimeRanges.length,
-    dateRange: { start: start.toISOString(), end: end.toISOString() },
-    sample: resourceTimeRanges.slice(0, 3),
-  });
+
+  if (IS_DEV) {
+    console.debug('[Bryntum] resourceTimeRanges:', resourceTimeRanges.length, 'ranges');
+  }
 
   return {
     // Time axis
@@ -190,7 +199,7 @@ export function buildAppointmentSchedulerConfig({
     // Center the view on the current date (today), not the start date (yesterday)
     visibleDate: currentDate,
 
-    // Layout (match timeline for consistency)
+    // Layout - taller rows for appointment cards with patient info
     rowHeight: 200,
     barMargin: 5,
     
@@ -248,21 +257,16 @@ export function buildAppointmentSchedulerConfig({
       // Drag & Drop
       eventDrop: onEventDrop
         ? async ({ context, eventRecord, newResource }: { context: { async: boolean; finalize: (success: boolean) => void }; eventRecord: { id: string; startDate: Date; resourceId: string }; newResource?: { id: string } }) => {
+            context.async = true;
             try {
-              // Prevent immediate update
-              context.async = true;
-
               await onEventDrop({
                 appointment_id: eventRecord.id,
                 scheduled_at: eventRecord.startDate.toISOString(),
                 doctor_id: newResource?.id || eventRecord.resourceId,
               });
-
-              // Finalize drop
               context.finalize(true);
             } catch (error) {
-              console.error('[buildAppointmentSchedulerConfig] Drop failed:', error);
-              // Revert drop
+              console.error('[Bryntum] Drop failed:', error);
               context.finalize(false);
             }
           }
@@ -271,24 +275,15 @@ export function buildAppointmentSchedulerConfig({
       // Resize
       eventResizeEnd: onEventResize
         ? async ({ context, eventRecord }: { context: { async: boolean; finalize: (success: boolean) => void }; eventRecord: { id: string; startDate: Date; endDate: Date } }) => {
+            context.async = true;
             try {
-              // Prevent immediate update
-              context.async = true;
-
-              const durationMinutes = Math.round(
-                ((eventRecord.endDate as Date).getTime() - (eventRecord.startDate as Date).getTime()) / (1000 * 60)
-              );
-
               await onEventResize({
                 appointment_id: eventRecord.id,
-                estimated_duration: durationMinutes,
+                estimated_duration: getDurationMinutes(eventRecord.startDate, eventRecord.endDate),
               });
-
-              // Finalize resize
               context.finalize(true);
             } catch (error) {
-              console.error('[buildAppointmentSchedulerConfig] Resize failed:', error);
-              // Revert resize
+              console.error('[Bryntum] Resize failed:', error);
               context.finalize(false);
             }
           }
@@ -302,15 +297,13 @@ export function buildAppointmentSchedulerConfig({
               await onEventEdit({
                 appointment_id: record.id,
                 scheduled_at: record.startDate?.toISOString(),
-                estimated_duration: record.startDate && record.endDate ?
-                  Math.round(
-                    (record.endDate.getTime() - record.startDate.getTime()) / (1000 * 60)
-                  ) : 0,
+                estimated_duration: record.startDate && record.endDate
+                  ? getDurationMinutes(record.startDate, record.endDate)
+                  : 0,
                 doctor_id: record.resourceId,
               });
             } catch (error) {
-              console.error('[buildAppointmentSchedulerConfig] Edit failed:', error);
-              // Bryntum auto-reverts on error
+              console.error('[Bryntum] Edit failed:', error);
             }
           }
         : undefined,
@@ -377,15 +370,16 @@ function generateNonWorkingTimeRanges(
 ): NonWorkingTimeRange[] {
   const ranges: NonWorkingTimeRange[] = [];
   const timeZone = getClinicTimeZone();
-  const startInstant = Temporal.Instant.from(startDate.toISOString());
-  const endInstant = Temporal.Instant.from(endDate.toISOString());
+  // Use ZonedDateTime for calendar-aware date arithmetic (Instant doesn't support days)
+  const startZoned = Temporal.Instant.from(startDate.toISOString()).toZonedDateTimeISO(timeZone);
+  const endZoned = Temporal.Instant.from(endDate.toISOString()).toZonedDateTimeISO(timeZone);
 
   doctors.forEach((doctor) => {
-    let cursor = startInstant;
+    let cursor = startZoned;
     let spillover: ReturnType<typeof resolveWorkingDay>['spilloverNext'] = [];
 
-    while (Temporal.Instant.compare(cursor, endInstant) <= 0) {
-      const date = cursor.toZonedDateTimeISO(timeZone).toPlainDate();
+    while (Temporal.ZonedDateTime.compare(cursor, endZoned) <= 0) {
+      const date = cursor.toPlainDate();
       const resolution = resolveWorkingDay(doctor, date, timeZone, spillover);
 
       resolution.nonWorking.forEach((window, index) => {
@@ -400,23 +394,9 @@ function generateNonWorkingTimeRanges(
         });
       });
 
-      if (resolution.mergesApplied) {
-        console.debug('resource.hours.merged', {
-          doctor_id: doctor.doctor_id,
-          date: resolution.dateISO,
-          windows: resolution.windows.length,
-        });
-      }
-
       spillover = resolution.spilloverNext;
       cursor = cursor.add({ days: 1 });
     }
-  });
-
-  console.debug('schedule.nonWorking.generated', {
-    count: ranges.length,
-    start: startDate.toISOString(),
-    end: endDate.toISOString(),
   });
 
   return ranges;

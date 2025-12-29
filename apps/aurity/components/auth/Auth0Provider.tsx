@@ -19,6 +19,7 @@
 import { Auth0Provider as Auth0ProviderSDK, useAuth0 as useAuth0SDK } from '@auth0/auth0-react';
 import { ReactNode, ReactElement, useEffect, useState } from 'react';
 import { DesktopAuth0Provider, useDesktopAuth0 } from './DesktopAuth0Provider';
+import { LicenseAwareAuth0Provider } from './LicenseAwareAuth0Provider';
 
 interface Auth0ProviderProps {
   children: ReactNode;
@@ -62,10 +63,10 @@ export function Auth0Provider({ children }: Auth0ProviderProps): ReactElement {
       return <>{children}</>;
     }
 
-    // After hydration, if we're in Tauri, use desktop auth
+    // After hydration, if we're in Tauri, use license-aware desktop auth
     if (isTauri) {
-      devLog('[Auth0Provider] Using DesktopAuth0Provider (Tauri detected)');
-      return <DesktopAuth0Provider>{children}</DesktopAuth0Provider>;
+      devLog('[Auth0Provider] Using LicenseAwareAuth0Provider (Tauri detected)');
+      return <LicenseAwareAuth0Provider>{children}</LicenseAwareAuth0Provider>;
     }
 
     // SECURITY: Block desktop builds running outside Tauri
