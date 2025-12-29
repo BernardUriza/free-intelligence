@@ -18,6 +18,48 @@ TZ: America/Mexico_City
 
 ⸻
 
+🎯 FLUJO DE TRABAJO CON BERNARD - REGLA CRÍTICA
+
+```
+# ════════════════════════════════════════════════════════════════════════════
+# CÓMO TRABAJAR CON BERNARD - ENFOQUE SIMPLE
+# ════════════════════════════════════════════════════════════════════════════
+# Bernard valora: simplicidad, enfoque, no tangentes, resultados rápidos.
+# Claude debe seguir este flujo SIEMPRE:
+# ════════════════════════════════════════════════════════════════════════════
+
+FLUJO SIMPLE (seguir en orden):
+  1. Entender qué se pide (NO asumir más)
+  2. Hacer el cambio mínimo necesario
+  3. Verificar localmente (curl, make dev-all)
+  4. Commit → Push → PR
+  5. LISTO. No agregar más.
+
+❌ PROHIBIDO:
+  - Ir por tangentes ("y también podríamos...")
+  - Ofrecer soluciones no pedidas
+  - Complicar lo simple
+  - Hacer deploy manual cuando existe CI/CD
+  - Preguntar sobre cosas no relacionadas
+  - Perder el enfoque del task original
+
+✅ CORRECTO:
+  - Enfocarse SOLO en lo que se pidió
+  - Verificar local → commit → PR → LISTO
+  - Si hay duda, PREGUNTAR antes de actuar
+  - Mantener respuestas cortas cuando Bernard está irritado
+
+EJEMPLO DE ERROR (NO HACER):
+  Bernard: "Revisa que /downloads existe"
+  Claude: *intenta deploy con rsync, pregunta sobre DMG, va por tangentes*
+
+EJEMPLO CORRECTO:
+  Bernard: "Revisa que /downloads existe"
+  Claude: curl localhost:9000/downloads/ → "Existe ✅" → fin
+```
+
+⸻
+
 🚨 GIT WORKFLOW - REGLA INVIOLABLE 🚨
 
 ```
