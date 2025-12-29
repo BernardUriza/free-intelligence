@@ -322,6 +322,7 @@ Requires environment variables:
         from backend.src.fi_tts.api.public import tts
         from backend.src.fi_user.api.public import user_clinic
         from backend.src.fi_workflow.api.internal.triage import router as triage_router
+        from backend.src.fi_license.api.public import router as licenses_router
 
         # Import individual routers from new fi_* package structure
         from backend.src.fi_workflow.api.public.workflows_router import (
@@ -356,6 +357,9 @@ Requires environment variables:
         public_app.include_router(
             system_resources.router
         )  # System Resources Monitor (RAM, Running Models)
+        public_app.include_router(
+            licenses_router
+        )  # License renewal API (Desktop App renewals)
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 
         # INTERNAL API (atomic resources, AURITY-only)

@@ -33,6 +33,11 @@ chrono = { version = "0.4", features = ["serde"] }  # Token expiration handling
 keyring = "3"          # Cross-platform secure credential storage (Keychain/Credential Manager/libsecret)
 url = "2.5"            # URL parsing for callback handling
 
+# License validation dependencies
+ed25519-dalek = { version = "2", features = ["pem"] }  # Ed25519 signature verification
+data-encoding = "2"    # Base32 decoding for license keys
+hostname = "0.4"       # Machine fingerprint for license binding
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

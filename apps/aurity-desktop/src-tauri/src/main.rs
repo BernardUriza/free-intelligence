@@ -11,6 +11,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod auth;
+mod license;
 mod templates;
 
 use auth::AuthState;
@@ -442,6 +443,17 @@ fn main() {
             auth::clear_tokens,
             auth::is_token_expired,
             auth::get_token_expiry,
+            // License commands
+            license::validate_license_key,
+            license::activate_license_key,
+            license::get_current_license_status,
+            license::get_license_auth0_config,
+            license::check_feature_enabled,
+            license::clear_stored_license,
+            // License renewal commands
+            license::check_license_renewal_status,
+            license::request_license_renewal,
+            license::register_license_for_renewal,
         ])
         .run(tauri::generate_context!())
         .expect("Error while running Aurity Desktop");
