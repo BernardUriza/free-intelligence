@@ -100,8 +100,24 @@ export function Auth0Provider({ children }: Auth0ProviderProps): ReactElement {
       return <DesktopAuth0Provider>{children}</DesktopAuth0Provider>;
     }
 
-    // If built for desktop but not running in Tauri (e.g., browser preview), use web SDK
-    devLog('[Auth0Provider] Desktop build but not in Tauri, using web SDK');
+    // SECURITY: Block desktop builds running outside Tauri
+    // This prevents the desktop build from being accessed in a regular browser
+    devLog('[Auth0Provider] ERROR: Desktop build accessed outside Tauri');
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-900 text-white p-8">
+        <div className="max-w-md text-center space-y-4">
+          <div className="text-6xl">🔒</div>
+          <h1 className="text-2xl font-bold">Aurity Desktop Required</h1>
+          <p className="text-gray-400">
+            This application is designed to run inside Aurity Desktop.
+            Please open the app using the installed Aurity Desktop application.
+          </p>
+          <p className="text-sm text-gray-500">
+            If you&apos;re a developer, run: <code className="bg-gray-800 px-2 py-1 rounded">cargo tauri dev</code>
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // Validate required env vars (type-safe)
@@ -180,9 +196,25 @@ export function useAuth0() {
   }
 
   // For desktop builds, check if we're in Tauri
-  if (DESKTOP_AUTH_POSSIBLE && isTauriRuntime()) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useDesktopAuth0();
+  if (DESKTOP_AUTH_POSSIBLE) {
+    if (isTauriRuntime()) {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      return useDesktopAuth0();
+    }
+    // Desktop build outside Tauri - return blocked state
+    return {
+      isAuthenticated: false,
+      isLoading: false,
+      user: undefined,
+      error: new Error('Desktop build requires Tauri runtime'),
+      loginWithRedirect: async () => {
+        console.error('[Auth0] Cannot login: Desktop build requires Tauri');
+      },
+      logout: async () => {},
+      getAccessTokenSilently: async () => {
+        throw new Error('Desktop build requires Tauri runtime');
+      },
+    };
   }
 
   // Default to Auth0 SDK for web
