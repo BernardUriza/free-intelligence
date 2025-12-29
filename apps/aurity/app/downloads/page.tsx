@@ -88,13 +88,14 @@ const systemRequirements = {
 };
 
 // Static releases data (API routes don't work with static export)
+// Downloads served from GitHub Releases CDN
 const staticReleases: Release[] = [
   {
     version: '1.0.0',
     date: '2024-12-28',
     platforms: {
       macos: {
-        url: 'https://app.aurity.io/downloads/Aurity-1.0.0-arm64.dmg',
+        url: 'https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.0/Aurity_1.0.0_aarch64.dmg',
         size: '96 MB',
         sha256: 'pending',
       },
