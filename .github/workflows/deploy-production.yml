@@ -113,6 +113,7 @@ jobs:
       - name: Build frontend
         env:
           STATIC_EXPORT: 'true'
+          NEXT_PUBLIC_DEPLOYMENT_TARGET: cloud
           NEXT_PUBLIC_BASE_URL: https://app.aurity.io
           NEXT_PUBLIC_BACKEND_URL: https://app.aurity.io
           NEXT_PUBLIC_API_BASE: https://app.aurity.io
