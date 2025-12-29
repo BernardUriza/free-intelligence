@@ -181,9 +181,9 @@ export default function DownloadsPage() {
               sha256: 'pending',
             },
             linux: {
-              url: '#coming-soon',
-              size: '~120 MB',
-              sha256: 'pending',
+              url: 'https://aurityreleases.blob.core.windows.net/releases/Aurity_1.0.0_amd64.AppImage',
+              size: '201 MB',
+              sha256: '93207017e6c56bc7d347585887042662',
             },
           },
           changelog: [
