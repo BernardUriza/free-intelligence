@@ -99,7 +99,7 @@ jobs:
             az storage blob upload-batch \
               --account-name ${{ env.AZURE_STORAGE_ACCOUNT }} \
               --destination ${{ env.AZURE_CONTAINER }} \
-              --source apps/aurity-desktop/src-tauri/target/release/bundle/appimage/ \
+              --source apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/ \
               --pattern "*.AppImage" \
               --overwrite \
               --auth-mode key \
@@ -109,7 +109,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aurity-linux-appimage
-          path: apps/aurity-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+          path: apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
           if-no-files-found: error
 
   build-macos:
