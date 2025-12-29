@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "identifier": "io.aurity.desktop",
   "build": {
-    "beforeBuildCommand": "cd ../.. && cp apps/aurity-desktop/.env.desktop apps/aurity/.env.local && STATIC_EXPORT=true pnpm --filter aurity build && cp apps/aurity-desktop/src-tauri/splashscreen.html apps/aurity/out/",
-    "beforeDevCommand": "cd ../.. && cp apps/aurity-desktop/.env.desktop apps/aurity/.env.local && STATIC_EXPORT=true pnpm --filter aurity build && cp apps/aurity-desktop/src-tauri/splashscreen.html apps/aurity/out/",
+    "beforeBuildCommand": "cd ../.. && STATIC_EXPORT=true NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop NEXT_PUBLIC_DESKTOP_OFFLINE=true NEXT_PUBLIC_USE_MOCK_AUTH=true NEXT_PUBLIC_BACKEND_URL=http://localhost:7051 pnpm --filter aurity build && cp apps/aurity-desktop/src-tauri/splashscreen.html apps/aurity/out/",
+    "beforeDevCommand": "cd ../.. && STATIC_EXPORT=true NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop NEXT_PUBLIC_DESKTOP_OFFLINE=true NEXT_PUBLIC_USE_MOCK_AUTH=true NEXT_PUBLIC_BACKEND_URL=http://localhost:7051 pnpm --filter aurity build && cp apps/aurity-desktop/src-tauri/splashscreen.html apps/aurity/out/",
     "frontendDist": "../../aurity/out"
   },
   "app": {
