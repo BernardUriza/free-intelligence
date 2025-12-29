@@ -88,16 +88,16 @@ const systemRequirements = {
 };
 
 // Static releases data (API routes don't work with static export)
-// Downloads served from GitHub Releases CDN
+// Downloads served from Azure Blob Storage CDN
 const staticReleases: Release[] = [
   {
     version: '1.0.0',
     date: '2024-12-28',
     platforms: {
       macos: {
-        url: 'https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.0/Aurity_1.0.0_aarch64.dmg',
+        url: 'https://aurityreleases.blob.core.windows.net/releases/Aurity_1.0.0_aarch64.dmg',
         size: '96 MB',
-        sha256: 'pending',
+        sha256: '40d54b686c3f81bd70935b793ee577e7',
       },
       linux: {
         url: '#coming-soon',
