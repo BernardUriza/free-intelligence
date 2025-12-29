@@ -181,8 +181,15 @@ fn load_public_key() -> Result<VerifyingKey, String> {
         .map_err(|e| format!("Invalid Ed25519 public key: {}", e))
 }
 
-/// Decode a license key into payload and signature
-pub fn decode_license_key(license_key: &str) -> Result<(LicensePayload, Vec<u8>), String> {
+/// Decoded license data (payload, original payload bytes, signature bytes)
+pub struct DecodedLicense {
+    pub payload: LicensePayload,
+    pub payload_bytes: Vec<u8>,  // Original bytes for signature verification
+    pub signature_bytes: Vec<u8>,
+}
+
+/// Decode a license key into payload, original bytes, and signature
+pub fn decode_license_key(license_key: &str) -> Result<DecodedLicense, String> {
     // Remove dashes and prefix
     let key = license_key.to_uppercase().replace('-', "");
 
@@ -209,43 +216,44 @@ pub fn decode_license_key(license_key: &str) -> Result<(LicensePayload, Vec<u8>)
         return Err("Invalid license key: incomplete data".to_string());
     }
 
-    let payload_bytes = &combined[4..4 + payload_len];
-    let signature_bytes = &combined[4 + payload_len..4 + payload_len + 64];
+    let payload_bytes = combined[4..4 + payload_len].to_vec();
+    let signature_bytes = combined[4 + payload_len..4 + payload_len + 64].to_vec();
 
     // Parse payload JSON
-    let payload_str = String::from_utf8(payload_bytes.to_vec())
+    let payload_str = String::from_utf8(payload_bytes.clone())
         .map_err(|e| format!("Invalid payload encoding: {}", e))?;
 
     let payload: LicensePayload = serde_json::from_str(&payload_str)
         .map_err(|e| format!("Invalid license payload: {}", e))?;
 
-    Ok((payload, signature_bytes.to_vec()))
+    Ok(DecodedLicense {
+        payload,
+        payload_bytes,
+        signature_bytes,
+    })
 }
 
 /// Verify a license key's signature
 pub fn verify_license_signature(license_key: &str) -> Result<LicensePayload, String> {
-    let (payload, signature_bytes) = decode_license_key(license_key)?;
+    let decoded = decode_license_key(license_key)?;
 
     // Load public key
     let public_key = load_public_key()?;
 
-    // Recreate the payload JSON (sorted keys, compact)
-    let payload_json = serde_json::to_string(&payload)
-        .map_err(|e| format!("Failed to serialize payload: {}", e))?;
-
-    // Create signature (ed25519-dalek 2.x returns Result)
-    let sig_array: [u8; 64] = signature_bytes
+    // Create signature from bytes (ed25519-dalek 2.x: from_bytes takes &[u8; 64] and returns Signature directly)
+    let sig_array: [u8; 64] = decoded.signature_bytes
         .as_slice()
         .try_into()
         .map_err(|_| "Invalid signature length: expected 64 bytes")?;
     let signature = Signature::from_bytes(&sig_array);
 
-    // Verify
+    // Verify using the ORIGINAL payload bytes (not re-serialized)
+    // This ensures we verify exactly what was signed, avoiding JSON serialization differences
     public_key
-        .verify(payload_json.as_bytes(), &signature)
+        .verify(&decoded.payload_bytes, &signature)
         .map_err(|_| "Invalid license signature".to_string())?;
 
-    Ok(payload)
+    Ok(decoded.payload)
 }
 
 /// Validate a license key completely
