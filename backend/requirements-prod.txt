@@ -1,0 +1,71 @@
+# Production dependencies for Aurity Desktop sidecar
+# This is a lean subset of pyproject.toml dependencies optimized for desktop builds
+# Heavy ML packages (torch, transformers) are excluded to reduce binary size
+
+# Core framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.38.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-multipart>=0.0.6
+starlette>=0.37.0
+
+# Logging and config
+structlog>=25.4.0
+PyYAML>=6.0.0
+
+# Data storage
+h5py>=3.14.0
+sqlalchemy>=2.0.0
+
+# Validation and utilities
+jsonschema>=4.20.0
+python-dateutil>=2.8.2
+
+# HTTP client
+httpx>=0.27.0
+aiohttp>=3.9.0
+
+# LLM integration
+ollama>=0.6.0
+anthropic>=0.74.1
+
+# Auth (JWT validation + Auth0 SDK for import compatibility)
+PyJWT>=2.8.0
+cryptography>=42.0.0
+auth0-python>=4.0.0
+
+# Async support
+anyio>=4.0.0
+
+# Email validation (pydantic)
+email-validator>=2.0.0
+
+# Prometheus metrics (optional, but used in fi_common)
+prometheus-client>=0.19.0
+
+# Language detection
+langdetect>=1.0.9
+
+# ULID generation
+ulid-py>=1.1.0
+
+# Check-in features
+qrcode>=7.4.0
+Pillow>=10.0.0
+
+# Document extraction (for knowledge base)
+pdfplumber>=0.11.0
+python-docx>=1.0.0
+
+# Trello integration (used in some modules)
+py-trello>=0.20.0
+
+# Arrow for data processing
+pyarrow>=14.0.0
+
+# Payment processing (stub for import compatibility, not used in desktop mode)
+stripe>=5.0.0
+
+# System monitoring
+psutil>=5.9.0

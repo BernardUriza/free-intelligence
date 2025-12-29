@@ -4,19 +4,13 @@
  * Auth0Provider Component
  * HIPAA Card: G-003 - Auth0 OAuth2/OIDC Integration
  *
- * ARCHITECTURAL DECISION (2025-12-03 - REVISED):
- * Simplified approach after Qwen Code audit identified SSR/hydration risks.
+ * SECURITY (2025-12-28):
+ * Only two authentication modes are supported:
+ * 1. DESKTOP - Uses DesktopAuth0Provider with PKCE + OS Keychain
+ * 2. CLOUD - Uses Auth0 SDK with standard web flow
  *
- * STRATEGY:
- * - Build-time decision via env vars (not runtime)
- * - No conditional rendering (prevents hydration mismatch)
- * - Single provider type per deployment environment
- *
- * DESKTOP AUTH (2025-12-28):
- * For Tauri desktop builds, we use DesktopAuth0Provider which:
- * - Uses deep links (aurity://callback) for OAuth callbacks
- * - Stores tokens in OS Keychain (not localStorage)
- * - Implements PKCE flow for security
+ * NO MOCK AUTH - Mock authentication has been removed for security.
+ * All builds require real Auth0 authentication.
  *
  * Components MUST import useAuth0 from this module (or @/hooks/useAuth)
  * rather than directly from @auth0/auth0-react to ensure compatibility.
@@ -24,7 +18,6 @@
 
 import { Auth0Provider as Auth0ProviderSDK, useAuth0 as useAuth0SDK } from '@auth0/auth0-react';
 import { ReactNode, ReactElement, useEffect, useState } from 'react';
-import { MockAuth0Provider, useAuth0 as useMockAuth0 } from './MockAuth0Provider';
 import { DesktopAuth0Provider, useDesktopAuth0 } from './DesktopAuth0Provider';
 
 interface Auth0ProviderProps {
@@ -40,30 +33,12 @@ function isTauriRuntime(): boolean {
 }
 
 /**
- * Determine provider type at BUILD TIME (not runtime)
- * This prevents SSR/hydration mismatches
- *
- * Uses mock auth when:
- * 1. Explicitly enabled via NEXT_PUBLIC_USE_MOCK_AUTH=true
- * 2. Desktop offline mode enabled via NEXT_PUBLIC_DESKTOP_OFFLINE=true
- * 3. In development mode without Auth0 config
- * 4. In production build without Auth0 config (static export scenario)
+ * Check if this is a desktop build (set at build time)
  */
-const USE_MOCK_AUTH =
-  process.env.NEXT_PUBLIC_DESKTOP_OFFLINE === 'true' ||
-  process.env.NEXT_PUBLIC_USE_MOCK_AUTH === 'true' ||
-  !process.env.NEXT_PUBLIC_AUTH0_DOMAIN ||
-  !process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
-
-/**
- * Check if desktop auth should be used (Tauri + Auth0 configured + not offline mode)
- */
-const DESKTOP_AUTH_POSSIBLE =
-  !USE_MOCK_AUTH &&
-  process.env.NEXT_PUBLIC_DEPLOYMENT_TARGET === 'desktop';
+const IS_DESKTOP_BUILD = process.env.NEXT_PUBLIC_DEPLOYMENT_TARGET === 'desktop';
 
 // Development-only logging utility
-const devLog = (message: string, ...args: any[]) => {
+const devLog = (message: string, ...args: unknown[]) => {
   if (process.env.NODE_ENV === 'development') {
     console.log(message, ...args);
   }
@@ -80,18 +55,11 @@ export function Auth0Provider({ children }: Auth0ProviderProps): ReactElement {
     setIsHydrated(true);
   }, []);
 
-  // Decision made at build time, consistent across SSR and CSR
-  if (USE_MOCK_AUTH) {
-    devLog('[Auth0Provider] Using MockAuth0Provider (development/offline mode)');
-    return <MockAuth0Provider>{children}</MockAuth0Provider>;
-  }
-
-  // For desktop builds with Auth0 configured, use DesktopAuth0Provider
-  // We wait for hydration to avoid SSR mismatch
-  if (DESKTOP_AUTH_POSSIBLE) {
-    // During SSR or before hydration, show loading state
+  // DESKTOP MODE: Use DesktopAuth0Provider with PKCE + Keychain
+  if (IS_DESKTOP_BUILD) {
+    // During SSR or before hydration, render children without auth
     if (!isHydrated) {
-      return <>{children}</>; // Render children without auth during SSR
+      return <>{children}</>;
     }
 
     // After hydration, if we're in Tauri, use desktop auth
@@ -100,11 +68,26 @@ export function Auth0Provider({ children }: Auth0ProviderProps): ReactElement {
       return <DesktopAuth0Provider>{children}</DesktopAuth0Provider>;
     }
 
-    // If built for desktop but not running in Tauri (e.g., browser preview), use web SDK
-    devLog('[Auth0Provider] Desktop build but not in Tauri, using web SDK');
+    // SECURITY: Block desktop builds running outside Tauri
+    devLog('[Auth0Provider] ERROR: Desktop build accessed outside Tauri');
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-900 text-white p-8">
+        <div className="max-w-md text-center space-y-4">
+          <div className="text-6xl">🔒</div>
+          <h1 className="text-2xl font-bold">Aurity Desktop Required</h1>
+          <p className="text-gray-400">
+            This application is designed to run inside Aurity Desktop.
+            Please open the app using the installed Aurity Desktop application.
+          </p>
+          <p className="text-sm text-gray-500">
+            If you&apos;re a developer, run: <code className="bg-gray-800 px-2 py-1 rounded">cargo tauri dev</code>
+          </p>
+        </div>
+      </div>
+    );
   }
 
-  // Validate required env vars (type-safe)
+  // CLOUD MODE: Use standard Auth0 SDK
   const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN;
   const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
 
@@ -114,8 +97,6 @@ export function Auth0Provider({ children }: Auth0ProviderProps): ReactElement {
     );
   }
 
-  // IMPORTANT: audience must come from env vars - NO hardcoded fallback
-  // Dev and prod should use different Auth0 APIs or same API with different clients
   const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE;
 
   if (!audience) {
@@ -125,7 +106,7 @@ export function Auth0Provider({ children }: Auth0ProviderProps): ReactElement {
     );
   }
 
-  // Build-time redirect URI (no runtime window check)
+  // Build-time redirect URI
   const redirectUri = process.env.NEXT_PUBLIC_BASE_URL
     ? `${process.env.NEXT_PUBLIC_BASE_URL}/callback`
     : 'http://localhost:9000/callback';
@@ -140,7 +121,7 @@ export function Auth0Provider({ children }: Auth0ProviderProps): ReactElement {
     }
   };
 
-  devLog('[Auth0Provider] Using real Auth0 SDK');
+  devLog('[Auth0Provider] Using Auth0 SDK (cloud mode)');
   return (
     <Auth0ProviderSDK
       domain={domain}
@@ -162,30 +143,40 @@ export function Auth0Provider({ children }: Auth0ProviderProps): ReactElement {
 /**
  * Unified useAuth0 hook
  *
- * UPDATED (2025-12-28):
- * - Supports mock, desktop (Tauri), and web Auth0 SDK
- * - Decision made at build time for mock vs real auth
- * - Runtime detection for desktop vs web
+ * Two modes only:
+ * - Desktop (Tauri): Uses DesktopAuth0Provider with PKCE
+ * - Cloud (Web): Uses Auth0 SDK
  *
  * USAGE:
  * ✅ import { useAuth0 } from '@/components/auth/Auth0Provider';
- * ✅ import { useAuth } from '@aurity-standalone/hooks/useAuth';
+ * ✅ import { useAuth } from '@/hooks/useAuth';
  * ❌ import { useAuth0 } from '@auth0/auth0-react';  // WRONG!
  */
 export function useAuth0() {
-  // For mock auth, always use mock hook
-  if (USE_MOCK_AUTH) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useMockAuth0();
-  }
-
-  // For desktop builds, check if we're in Tauri
-  if (DESKTOP_AUTH_POSSIBLE && isTauriRuntime()) {
+  // Desktop mode with Tauri runtime
+  if (IS_DESKTOP_BUILD && isTauriRuntime()) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useDesktopAuth0();
   }
 
-  // Default to Auth0 SDK for web
+  // Desktop build outside Tauri - return blocked state
+  if (IS_DESKTOP_BUILD) {
+    return {
+      isAuthenticated: false,
+      isLoading: false,
+      user: undefined,
+      error: new Error('Desktop build requires Tauri runtime'),
+      loginWithRedirect: async () => {
+        console.error('[Auth0] Cannot login: Desktop build requires Tauri');
+      },
+      logout: async () => {},
+      getAccessTokenSilently: async () => {
+        throw new Error('Desktop build requires Tauri runtime');
+      },
+    };
+  }
+
+  // Cloud mode - use Auth0 SDK
   // eslint-disable-next-line react-hooks/rules-of-hooks
   return useAuth0SDK();
 }

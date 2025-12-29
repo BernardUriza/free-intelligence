@@ -8,6 +8,9 @@
 
 import { NextResponse } from 'next/server';
 
+// Required for static export
+export const dynamic = 'force-static';
+
 interface ReleaseInfo {
   version: string;
   date: string;
@@ -33,8 +36,8 @@ const placeholderReleases: ReleaseInfo[] = [
     date: '2024-12-28',
     platforms: {
       macos: {
-        url: '#coming-soon',
-        size: '~150 MB',
+        url: 'https://app.aurity.io/downloads/Aurity-1.0.0-arm64.dmg',
+        size: '96 MB',
         sha256: 'pending',
       },
       linux: {
@@ -45,48 +48,19 @@ const placeholderReleases: ReleaseInfo[] = [
     },
     changelog: [
       'Initial release of Aurity Desktop',
+      'Auth0 OAuth 2.0 + PKCE authentication',
       'Offline AI medical assistant powered by Ollama',
       'Local LLM integration (Qwen3, Llama, etc.)',
       'Encrypted local storage in ~/.aurity',
-      'Medical consultation transcription',
-      'SOAP note generation',
+      'Secure token storage in OS Keychain',
     ],
   },
 ];
 
 export async function GET() {
-  try {
-    // In production, try to fetch releases from backend
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-
-    // Try to fetch from backend releases endpoint
-    try {
-      const response = await fetch(`${backendUrl}/api/releases`, {
-        next: { revalidate: 60 }, // Cache for 60 seconds
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return NextResponse.json(data);
-      }
-    } catch {
-      // Backend not available or endpoint doesn't exist
-      console.log('Releases API: Using placeholder data (backend unavailable)');
-    }
-
-    // Return placeholder data
-    return NextResponse.json({
-      releases: placeholderReleases,
-      source: 'placeholder',
-    });
-  } catch (error) {
-    console.error('Releases API error:', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch releases',
-        releases: placeholderReleases,
-      },
-      { status: 500 }
-    );
-  }
+  // Static export: return hardcoded releases
+  return NextResponse.json({
+    releases: placeholderReleases,
+    source: 'static',
+  });
 }

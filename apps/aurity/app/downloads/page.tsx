@@ -87,6 +87,34 @@ const systemRequirements = {
   },
 };
 
+// Static releases data (API routes don't work with static export)
+const staticReleases: Release[] = [
+  {
+    version: '1.0.0',
+    date: '2024-12-28',
+    platforms: {
+      macos: {
+        url: 'https://app.aurity.io/downloads/Aurity-1.0.0-arm64.dmg',
+        size: '96 MB',
+        sha256: 'pending',
+      },
+      linux: {
+        url: '#coming-soon',
+        size: '~120 MB',
+        sha256: 'pending',
+      },
+    },
+    changelog: [
+      'Initial release of Aurity Desktop',
+      'Auth0 OAuth 2.0 + PKCE authentication',
+      'Offline AI medical assistant powered by Ollama',
+      'Local LLM integration (Qwen3, Llama, etc.)',
+      'Encrypted local storage in ~/.aurity',
+      'Secure token storage in OS Keychain',
+    ],
+  },
+];
+
 export default function DownloadsPage() {
   const router = useRouter();
   const [releases, setReleases] = useState<Release[]>([]);
@@ -99,7 +127,9 @@ export default function DownloadsPage() {
     if (isDesktop()) {
       setIsDesktopMode(true);
     } else {
-      fetchReleases();
+      // Use static data (API routes don't work with static export)
+      setReleases(staticReleases);
+      setLoading(false);
     }
   }, []);
 

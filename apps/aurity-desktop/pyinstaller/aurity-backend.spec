@@ -14,6 +14,7 @@ Output:
 
 import sys
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_submodules, collect_all
 
 # Project paths
 # Note: SPECPATH is provided by PyInstaller and points to the spec file directory
@@ -93,7 +94,15 @@ hidden_imports = [
     "anyio",
     "anyio._backends",
     "anyio._backends._asyncio",
-]
+    # Payment (stub for import compatibility - not used in desktop mode)
+    "stripe",
+    # System monitoring
+    "psutil",
+] + collect_submodules("stripe")
+
+# Collect all stripe data (binaries, datas, hiddenimports)
+stripe_datas, stripe_binaries, stripe_hiddenimports = collect_all("stripe")
+hidden_imports = hidden_imports + stripe_hiddenimports
 
 # Data files to include
 # SECURITY: Only include code modules, NOT config files that may contain secrets
@@ -110,6 +119,9 @@ datas = [
     (str(BACKEND_SRC / "fi_transcription"), "fi_transcription"),
     (str(BACKEND_SRC / "fi_tts"), "fi_tts"),
     (str(BACKEND_SRC / "fi_model_catalog"), "fi_model_catalog"),
+    (str(BACKEND_SRC / "fi_payment"), "fi_payment"),
+    (str(BACKEND_SRC / "fi_checkin"), "fi_checkin"),
+    (str(BACKEND_SRC / "fi_audit"), "fi_audit"),
     # NOTE: config/ and policy/ directories are NOT bundled
     # - Config may contain secrets or environment-specific settings
     # - Policy is bundled inline in fi_workflow module
@@ -139,7 +151,7 @@ excludes = [
     "notebook",
     "IPython",
     # Unused cloud services (for offline mode)
-    "stripe",
+    # Note: stripe is REQUIRED for import compatibility even if not used
     "twilio",
     "sendgrid",
     # Large ML packages (if not using local embeddings)
@@ -152,8 +164,8 @@ excludes = [
 a = Analysis(
     [str(BACKEND_APP / "main.py")],
     pathex=[str(BACKEND_SRC), str(BACKEND_ROOT)],
-    binaries=[],
-    datas=datas,
+    binaries=stripe_binaries,
+    datas=datas + stripe_datas,
     hiddenimports=hidden_imports,
     hookspath=[],
     hooksconfig={},
