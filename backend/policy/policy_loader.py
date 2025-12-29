@@ -36,9 +36,18 @@ class PolicyLoader:
             policy_path: Path to fi.policy.yaml (defaults to config/fi.policy.yaml)
         """
         if policy_path is None:
-            # Default: config/fi.policy.yaml relative to project root
+            # Desktop mode: check ~/.aurity/config/fi.policy.yaml first
+            desktop_policy_path = Path.home() / ".aurity" / "config" / "fi.policy.yaml"
+            # Cloud mode: config/fi.policy.yaml relative to project root
             project_root = Path(__file__).parent.parent
-            policy_path = str(project_root / "config" / "fi.policy.yaml")
+            bundled_policy_path = project_root / "config" / "fi.policy.yaml"
+
+            if desktop_policy_path.exists():
+                # Desktop mode: use user data directory
+                policy_path = str(desktop_policy_path)
+            else:
+                # Cloud mode: use bundled config
+                policy_path = str(bundled_policy_path)
 
         self.policy_path = Path(policy_path)
         self.policy: dict[str, Any] | None = None

@@ -241,19 +241,8 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            // Handle deep link when app is already running (Windows/Linux)
-            // On these platforms, a second instance is spawned with the deep link as CLI arg
-            for arg in args {
-                if arg.starts_with("aurity://") {
-                    let _ = app.emit("deep-link-received", arg.clone());
-                }
-            }
-            // Focus the existing window
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_focus();
-            }
-        }))
+        // Note: single-instance plugin removed due to Tauri 2.x config issues
+        // Deep links on macOS handled via on_open_url() below, Windows/Linux can add back later
         .plugin(tauri_plugin_opener::init())
         .manage(backend_state.clone())
         .manage(auth_state)

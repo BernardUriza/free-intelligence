@@ -89,6 +89,16 @@ export function MockAuth0Provider({ children }: MockAuth0ProviderProps): ReactEl
       }
       
       setIsLoading(false);
+
+      // If running in desktop offline mode, auto-login the mock user for better UX
+      if (process.env.NEXT_PUBLIC_DESKTOP_OFFLINE === 'true') {
+        devLog('[MockAuth0] Desktop offline mode detected, auto-login mock user');
+        setIsAuthenticated(true);
+        setUser(MOCK_USER);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('@@mock_auth_user@@', JSON.stringify(MOCK_USER));
+        }
+      }
     };
 
     checkAuth();

@@ -65,9 +65,20 @@ class PersonaManager:
             cache_ttl_s: Cache TTL in seconds for hot-reload
             max_rag_chars: Maximum characters for RAG context
         """
-        self._config_dir = config_dir or (
+        # Desktop mode: check ~/.aurity/config/personas first
+        desktop_data_dir = Path.home() / ".aurity" / "config" / "personas"
+        default_config_dir = (
             Path(__file__).parent.parent.parent.parent.parent / "config" / "personas"
         )
+
+        if config_dir:
+            self._config_dir = config_dir
+        elif desktop_data_dir.exists():
+            # Desktop mode: use user data directory
+            self._config_dir = desktop_data_dir
+        else:
+            # Cloud mode: use bundled config
+            self._config_dir = default_config_dir
         self._cache_ttl_s = cache_ttl_s
         self._cache: dict[str, CacheEntry] = {}
 
