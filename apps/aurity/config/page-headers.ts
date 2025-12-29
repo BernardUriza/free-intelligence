@@ -357,6 +357,19 @@ export const adminUsersHeader: PageHeaderFactory = (data) => ({
 })
 
 /**
+ * Admin Licenses header config (Superadmin License Generator)
+ */
+export const adminLicensesHeader: PageHeaderFactory = () => ({
+  showBackButton: true,
+  backPath: '/admin/users',
+  icon: 'key',
+  iconColor: 'text-purple-400',
+  title: 'Generador de Licencias',
+  subtitle: 'Crear licencias para Aurity Desktop',
+  metrics: [],
+})
+
+/**
  * Centralized header configs by route
  */
 export const PAGE_HEADERS = {
@@ -375,6 +388,7 @@ export const PAGE_HEADERS = {
   'admin-llm-models': adminLLMModelsHeader,
   'admin-knowledge': adminKnowledgeHeader,
   'admin-users': adminUsersHeader,
+  'admin-licenses': adminLicensesHeader,
   'nas-installer': nasInstallerHeader,
 } as const
 

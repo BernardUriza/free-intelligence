@@ -28,9 +28,10 @@ Usage examples:
     # Export public key for Tauri
     fi license export-pubkey --format=rust
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Annotated
 
 import typer
@@ -46,7 +47,9 @@ app = typer.Typer(
 def init_keys(
     force: Annotated[
         bool,
-        typer.Option("--force", help="Overwrite existing keypair (DANGER: invalidates all licenses!)")
+        typer.Option(
+            "--force", help="Overwrite existing keypair (DANGER: invalidates all licenses!)"
+        ),
     ] = False,
 ) -> None:
     """
@@ -89,36 +92,31 @@ def init_keys(
 @app.command("generate")
 def generate(
     clinic_id: Annotated[
-        str,
-        typer.Option("--clinic-id", help="Unique clinic/organization identifier")
+        str, typer.Option("--clinic-id", help="Unique clinic/organization identifier")
     ],
     clinic_name: Annotated[
-        str,
-        typer.Option("--clinic-name", help="Human-readable clinic name")
+        str, typer.Option("--clinic-name", help="Human-readable clinic name")
     ] = "",
     auth0_domain: Annotated[
-        str,
-        typer.Option("--auth0-domain", help="Auth0 tenant domain (e.g., dev-xxx.us.auth0.com)")
+        str, typer.Option("--auth0-domain", help="Auth0 tenant domain (e.g., dev-xxx.us.auth0.com)")
     ] = "",
     auth0_client_id: Annotated[
-        str,
-        typer.Option("--auth0-client-id", help="Auth0 application client ID")
+        str, typer.Option("--auth0-client-id", help="Auth0 application client ID")
     ] = "",
     auth0_audience: Annotated[
-        str,
-        typer.Option("--auth0-audience", help="Auth0 API audience")
+        str, typer.Option("--auth0-audience", help="Auth0 API audience")
     ] = "https://app.aurity.io",
     features: Annotated[
         str,
-        typer.Option("--features", help="Comma-separated feature flags (e.g., soap,timeline,prescriptions)")
+        typer.Option(
+            "--features", help="Comma-separated feature flags (e.g., soap,timeline,prescriptions)"
+        ),
     ] = "soap,timeline,prescriptions",
     expires: Annotated[
-        str,
-        typer.Option("--expires", help="Expiration date (YYYY-MM-DD) or 'never' for perpetual")
+        str, typer.Option("--expires", help="Expiration date (YYYY-MM-DD) or 'never' for perpetual")
     ] = "",
     days: Annotated[
-        int,
-        typer.Option("--days", help="Days until expiration (alternative to --expires)")
+        int, typer.Option("--days", help="Days until expiration (alternative to --expires)")
     ] = 365,
 ) -> None:
     """
@@ -129,7 +127,7 @@ def generate(
     """
     from datetime import timedelta
 
-    from fi_license import LicensePayload, generate_license_key, format_license_key_display
+    from fi_license import LicensePayload, format_license_key_display, generate_license_key
 
     typer.echo("🔑 Generating new license key...")
 
@@ -150,13 +148,13 @@ def generate(
         expires_at = ""
     elif expires:
         try:
-            expires_dt = datetime.strptime(expires, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            expires_dt = datetime.strptime(expires, "%Y-%m-%d").replace(tzinfo=UTC)
             expires_at = expires_dt.isoformat()
         except ValueError:
             typer.echo(f"❌ Invalid date format: {expires}. Use YYYY-MM-DD", err=True)
             raise typer.Exit(1)
     else:
-        expires_dt = datetime.now(timezone.utc) + timedelta(days=days)
+        expires_dt = datetime.now(UTC) + timedelta(days=days)
         expires_at = expires_dt.isoformat()
 
     # Create payload
@@ -205,8 +203,7 @@ def generate(
 @app.command("verify")
 def verify(
     license_key: Annotated[
-        str,
-        typer.Argument(help="The license key to verify (AURITY-XXXX-XXXX-...)")
+        str, typer.Argument(help="The license key to verify (AURITY-XXXX-XXXX-...)")
     ],
 ) -> None:
     """
@@ -217,7 +214,7 @@ def verify(
     - Expiration status
     - Format correctness
     """
-    from fi_license import validate_license, LicenseStatus
+    from fi_license import LicenseStatus, validate_license
 
     typer.echo("🔍 Verifying license key...")
 
@@ -274,12 +271,10 @@ def verify(
 @app.command("info")
 def info(
     license_key: Annotated[
-        str,
-        typer.Argument(help="The license key to inspect (AURITY-XXXX-XXXX-...)")
+        str, typer.Argument(help="The license key to inspect (AURITY-XXXX-XXXX-...)")
     ],
     show_auth0: Annotated[
-        bool,
-        typer.Option("--show-auth0", help="Show full Auth0 credentials (normally masked)")
+        bool, typer.Option("--show-auth0", help="Show full Auth0 credentials (normally masked)")
     ] = False,
 ) -> None:
     """
@@ -341,13 +336,12 @@ def info(
 
 @app.command("export-pubkey")
 def export_pubkey(
-    format: Annotated[
+    output_format: Annotated[
         str,
-        typer.Option("--format", help="Output format: pem, base64, rust, typescript")
+        typer.Option("--format", help="Output format: pem, base64, rust, typescript"),
     ] = "pem",
     output: Annotated[
-        str,
-        typer.Option("--output", "-o", help="Output file path (default: stdout)")
+        str, typer.Option("--output", "-o", help="Output file path (default: stdout)")
     ] = "",
 ) -> None:
     """
@@ -369,28 +363,28 @@ def export_pubkey(
         pem_bytes = PUBLIC_KEY_PATH.read_bytes()
         pem_str = pem_bytes.decode("utf-8").strip()
 
-        if format == "pem":
+        if output_format == "pem":
             content = pem_str
-        elif format == "base64":
+        elif output_format == "base64":
             content = get_public_key_for_embedding()
-        elif format == "rust":
+        elif output_format == "rust":
             b64 = get_public_key_for_embedding()
-            content = f'''// Auto-generated by: fi license export-pubkey --format=rust
+            content = f"""// Auto-generated by: fi license export-pubkey --format=rust
 // DO NOT EDIT MANUALLY
 
 /// Ed25519 public key for license verification (base64-encoded PEM)
 pub const LICENSE_PUBLIC_KEY: &str = "{b64}";
-'''
-        elif format == "typescript":
+"""
+        elif output_format == "typescript":
             b64 = get_public_key_for_embedding()
-            content = f'''// Auto-generated by: fi license export-pubkey --format=typescript
+            content = f"""// Auto-generated by: fi license export-pubkey --format=typescript
 // DO NOT EDIT MANUALLY
 
 /** Ed25519 public key for license verification (base64-encoded PEM) */
 export const LICENSE_PUBLIC_KEY = "{b64}";
-'''
+"""
         else:
-            typer.echo(f"❌ Unknown format: {format}", err=True)
+            typer.echo(f"❌ Unknown format: {output_format}", err=True)
             typer.echo("   Valid formats: pem, base64, rust, typescript")
             raise typer.Exit(1)
 

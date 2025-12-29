@@ -1,0 +1,1 @@
+export { LicenseGenerator } from './LicenseGenerator';

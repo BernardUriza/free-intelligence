@@ -12,19 +12,20 @@ Used by both the admin CLI (for verification) and the desktop app
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from enum import Enum
 from typing import Optional
 
 from .generator import (
     LicensePayload,
-    verify_license_signature,
     decode_license_key,
+    verify_license_signature,
 )
 
 
 class LicenseStatus(str, Enum):
     """Status codes for license validation."""
+
     VALID = "valid"
     EXPIRED = "expired"
     INVALID_SIGNATURE = "invalid_signature"
@@ -36,10 +37,11 @@ class LicenseStatus(str, Enum):
 @dataclass
 class LicenseValidationResult:
     """Result of license validation."""
+
     status: LicenseStatus
-    payload: Optional[LicensePayload] = None
+    payload: LicensePayload | None = None
     message: str = ""
-    days_remaining: Optional[int] = None
+    days_remaining: int | None = None
     features: list[str] = None  # type: ignore
 
     def __post_init__(self):
@@ -64,13 +66,15 @@ class LicenseValidationResult:
                 "clinic_id": self.payload.clinic_id,
                 "clinic_name": self.payload.clinic_name,
                 "expires_at": self.payload.expires_at,
-            } if self.payload else None,
+            }
+            if self.payload
+            else None,
         }
 
 
 def validate_license(
     license_key: str,
-    public_key_pem: Optional[bytes] = None,
+    public_key_pem: bytes | None = None,
     check_expiration: bool = True,
 ) -> LicenseValidationResult:
     """
@@ -108,10 +112,8 @@ def validate_license(
     if check_expiration and payload:
         if payload.expires_at:
             try:
-                expires = datetime.fromisoformat(
-                    payload.expires_at.replace("Z", "+00:00")
-                )
-                now = datetime.now(timezone.utc)
+                expires = datetime.fromisoformat(payload.expires_at.replace("Z", "+00:00"))
+                now = datetime.now(UTC)
 
                 if now > expires:
                     days_expired = (now - expires).days
@@ -143,7 +145,7 @@ def validate_license(
     )
 
 
-def is_license_expired(license_key: str) -> tuple[bool, Optional[int]]:
+def is_license_expired(license_key: str) -> tuple[bool, int | None]:
     """
     Quick check if a license has expired.
 
@@ -162,7 +164,7 @@ def is_license_expired(license_key: str) -> tuple[bool, Optional[int]]:
             return False, None  # Perpetual license
 
         expires = datetime.fromisoformat(payload.expires_at.replace("Z", "+00:00"))
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         days = (expires - now).days
 
@@ -172,7 +174,7 @@ def is_license_expired(license_key: str) -> tuple[bool, Optional[int]]:
         return True, None  # Invalid license = treat as expired
 
 
-def get_license_info(license_key: str) -> Optional[dict]:
+def get_license_info(license_key: str) -> dict | None:
     """
     Extract license information without full validation.
 
@@ -191,10 +193,8 @@ def get_license_info(license_key: str) -> Optional[dict]:
         days_remaining = None
         if payload.expires_at:
             try:
-                expires = datetime.fromisoformat(
-                    payload.expires_at.replace("Z", "+00:00")
-                )
-                now = datetime.now(timezone.utc)
+                expires = datetime.fromisoformat(payload.expires_at.replace("Z", "+00:00"))
+                now = datetime.now(UTC)
                 days_remaining = (expires - now).days
             except ValueError:
                 pass

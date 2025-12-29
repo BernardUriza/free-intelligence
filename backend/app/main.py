@@ -323,6 +323,7 @@ Requires environment variables:
         from backend.src.fi_user.api.public import user_clinic
         from backend.src.fi_workflow.api.internal.triage import router as triage_router
         from backend.src.fi_license.api.public import router as licenses_router
+        from backend.src.fi_license.api.internal import router as licenses_admin_router
 
         # Import individual routers from new fi_* package structure
         from backend.src.fi_workflow.api.public.workflows_router import (
@@ -389,6 +390,9 @@ Requires environment variables:
         internal_app.include_router(
             fi_coder_router, prefix="/fi_coder", tags=["fi_coder"]
         )  # FI Coder task orchestrator
+        internal_app.include_router(
+            licenses_admin_router
+        )  # License generation (superadmin only)
 
         # Add health/version endpoints to public_app (they must be here, not on app,
         # because app.mount("/api", public_app) captures ALL /api/* routes)

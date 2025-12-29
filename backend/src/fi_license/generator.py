@@ -20,20 +20,19 @@ Security:
 
 import base64
 import json
-import os
 import re
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
-from pathlib import Path
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
+import os
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
-from cryptography.hazmat.primitives import serialization
-
+from pathlib import Path
 
 # Default paths for keypair storage
 ADMIN_DIR = Path.home() / ".aurity-admin"
@@ -53,6 +52,7 @@ class LicensePayload:
     All fields are stored in the license key and can be extracted
     by the desktop app after signature verification.
     """
+
     # Unique license identifier
     license_id: str = field(default_factory=lambda: str(uuid4()))
 
@@ -69,7 +69,7 @@ class LicensePayload:
     features: list[str] = field(default_factory=list)
 
     # Validity period
-    issued_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    issued_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     expires_at: str = ""  # ISO 8601 format
 
     # License metadata
@@ -90,7 +90,7 @@ class LicensePayload:
         if not self.expires_at:
             return False  # No expiration = never expires
         expires = datetime.fromisoformat(self.expires_at.replace("Z", "+00:00"))
-        return datetime.now(timezone.utc) > expires
+        return datetime.now(UTC) > expires
 
 
 def generate_keypair(force: bool = False) -> tuple[bytes, bytes]:
@@ -157,7 +157,7 @@ def load_private_key() -> Ed25519PrivateKey:
     return serialization.load_pem_private_key(private_pem, password=None)  # type: ignore
 
 
-def load_public_key(pem_data: Optional[bytes] = None) -> Ed25519PublicKey:
+def load_public_key(pem_data: bytes | None = None) -> Ed25519PublicKey:
     """
     Load the public key from PEM data or ~/.aurity-admin/license.pub
 
@@ -210,7 +210,7 @@ def generate_license_key(payload: LicensePayload) -> str:
     encoded = base64.b32encode(combined).decode("ascii").rstrip("=")
 
     # Format as AURITY-XXXX-XXXX-...
-    chunks = [encoded[i:i + CHUNK_SIZE] for i in range(0, len(encoded), CHUNK_SIZE)]
+    chunks = [encoded[i : i + CHUNK_SIZE] for i in range(0, len(encoded), CHUNK_SIZE)]
     formatted = f"{LICENSE_PREFIX}-" + "-".join(chunks)
 
     return formatted
@@ -236,7 +236,7 @@ def decode_license_key(license_key: str) -> tuple[LicensePayload, bytes]:
     if not key.startswith(LICENSE_PREFIX):
         raise ValueError(f"Invalid license key: must start with {LICENSE_PREFIX}")
 
-    encoded = key[len(LICENSE_PREFIX):]
+    encoded = key[len(LICENSE_PREFIX) :]
 
     # Add padding for base32 decoding
     padding = (8 - len(encoded) % 8) % 8
@@ -257,8 +257,8 @@ def decode_license_key(license_key: str) -> tuple[LicensePayload, bytes]:
     if len(combined) < 4 + payload_len + 64:
         raise ValueError("Invalid license key: incomplete data")
 
-    payload_bytes = combined[4:4 + payload_len]
-    signature = combined[4 + payload_len:4 + payload_len + 64]
+    payload_bytes = combined[4 : 4 + payload_len]
+    signature = combined[4 + payload_len : 4 + payload_len + 64]
 
     # Parse payload JSON
     try:
@@ -272,8 +272,8 @@ def decode_license_key(license_key: str) -> tuple[LicensePayload, bytes]:
 
 def verify_license_signature(
     license_key: str,
-    public_key_pem: Optional[bytes] = None,
-) -> tuple[bool, Optional[LicensePayload], Optional[str]]:
+    public_key_pem: bytes | None = None,
+) -> tuple[bool, LicensePayload | None, str | None]:
     """
     Verify a license key's signature and return the payload if valid.
 

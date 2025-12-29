@@ -20,32 +20,34 @@ Security:
 - Rate limited to prevent abuse
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 
 # Import license generator
-from fi_license import LicensePayload, generate_license_key, decode_license_key
+from fi_license import LicensePayload, decode_license_key, generate_license_key
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/licenses", tags=["licenses"])
 
 
 class RenewalRequest(BaseModel):
     """License renewal request from desktop app."""
+
     license_id: str
-    machine_fingerprint: Optional[str] = None
-    current_expires_at: Optional[str] = None
+    machine_fingerprint: str | None = None
+    current_expires_at: str | None = None
 
 
 class RenewalResponse(BaseModel):
     """License renewal response."""
+
     renewed: bool
-    reason: Optional[str] = None
-    new_expires_at: Optional[str] = None
-    new_license_key: Optional[str] = None
-    renewal_url: Optional[str] = None
+    reason: str | None = None
+    new_expires_at: str | None = None
+    new_license_key: str | None = None
+    renewal_url: str | None = None
     message: str
 
 
@@ -88,7 +90,7 @@ async def renew_license(request: RenewalRequest) -> RenewalResponse:
             current_expires = datetime.fromisoformat(
                 license_info.get("expires_at", "").replace("Z", "+00:00")
             )
-            new_expires = max(current_expires, datetime.now(timezone.utc)) + timedelta(days=365)
+            new_expires = max(current_expires, datetime.now(UTC)) + timedelta(days=365)
 
             # Generate new license key
             payload = LicensePayload(
@@ -118,7 +120,7 @@ async def renew_license(request: RenewalRequest) -> RenewalResponse:
             return RenewalResponse(
                 renewed=False,
                 reason="generation_error",
-                message=f"Failed to generate new license: {str(e)}",
+                message=f"Failed to generate new license: {e!s}",
             )
 
     elif payment_status in ("expired", "cancelled"):
@@ -168,7 +170,7 @@ async def get_license_status(license_id: str) -> dict:
     if expires_at:
         try:
             expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-            days_remaining = (expires - datetime.now(timezone.utc)).days
+            days_remaining = (expires - datetime.now(UTC)).days
         except ValueError:
             pass
 
@@ -203,7 +205,7 @@ async def register_license(license_key: str) -> dict:
             "features": payload.features,
             "expires_at": payload.expires_at,
             "payment_status": "active",  # Default to active on registration
-            "registered_at": datetime.now(timezone.utc).isoformat(),
+            "registered_at": datetime.now(UTC).isoformat(),
         }
 
         return {
