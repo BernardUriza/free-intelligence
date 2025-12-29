@@ -234,6 +234,18 @@ FORBIDDEN on production server:
   ❌ systemctl stop/restart (use CI/CD rollback)
   ❌ Adding print() or debug statements
   ❌ "Quick fixes" of any kind
+  ❌ rsync, scp para deployment (SIEMPRE usar CI/CD)
+  ❌ Copiar archivos manualmente al servidor
+  ❌ "Es más rápido si lo hago manual" (NO, NUNCA)
+
+DEPLOYMENT - REGLA ABSOLUTA:
+  ❌ PROHIBIDO: rsync ./out/ root@servidor:/path/
+  ❌ PROHIBIDO: scp archivo.dmg root@servidor:/path/
+  ❌ PROHIBIDO: ssh root@servidor "mkdir && cp..."
+
+  ✅ CORRECTO: git push → CI/CD deploya automáticamente
+  ✅ CORRECTO: GitHub Releases para artifacts (.dmg, .AppImage)
+  ✅ CORRECTO: DO Spaces / S3 via CI/CD para binarios grandes
 
 VIOLATION RESPONSE:
   1. Integrity monitor detects change within 5 minutes
