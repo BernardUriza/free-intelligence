@@ -14,6 +14,8 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from backend.src.fi_common.logging.logger import get_logger
+from fi_prescription.models.allergy import AllergyCheckResult
+from fi_prescription.models.interaction import InteractionCheckResult
 from fi_prescription.models.medication import Medication
 from fi_prescription.models.prescription import (
     PatientInfo,
@@ -268,6 +270,181 @@ class TemplateEngine:
         )
 
         return prescription
+
+    def check_interactions(
+        self,
+        medications: list[Medication],
+    ) -> InteractionCheckResult:
+        """Check medications for drug-drug interactions.
+
+        Should be called before finalizing a prescription to alert
+        the physician of potential interactions.
+
+        Args:
+            medications: List of medications to check
+
+        Returns:
+            InteractionCheckResult with alerts and recommendations
+        """
+        from fi_prescription.services.interaction_checker import get_interaction_checker
+
+        checker = get_interaction_checker()
+        result = checker.check_medication_objects(medications)
+
+        if result.alerts:
+            logger.warning(
+                "PRESCRIPTION_INTERACTIONS_DETECTED",
+                alert_count=len(result.alerts),
+                has_major=result.has_major_interactions,
+                can_proceed=result.can_proceed,
+            )
+
+        return result
+
+    def create_prescription_with_interaction_check(
+        self,
+        template_id: str,
+        patient: PatientInfo,
+        physician: PhysicianInfo,
+        diagnosis: str,
+        medications: list[Medication],
+        session_id: str | None = None,
+        **kwargs: Any,
+    ) -> tuple[Prescription, InteractionCheckResult]:
+        """Create a prescription and check for interactions.
+
+        Convenience method that creates the prescription and
+        runs interaction checking in one call.
+
+        Args:
+            template_id: Template to use
+            patient: Patient information
+            physician: Physician information
+            diagnosis: Primary diagnosis
+            medications: List of medications
+            session_id: Optional session ID
+            **kwargs: Additional prescription fields
+
+        Returns:
+            Tuple of (Prescription, InteractionCheckResult)
+
+        Note:
+            The prescription is created even if interactions are found.
+            The caller should handle the interaction alerts appropriately.
+        """
+        prescription = self.create_prescription(
+            template_id=template_id,
+            patient=patient,
+            physician=physician,
+            diagnosis=diagnosis,
+            medications=medications,
+            session_id=session_id,
+            **kwargs,
+        )
+
+        interaction_result = self.check_interactions(medications)
+
+        return prescription, interaction_result
+
+    def check_allergies(
+        self,
+        medications: list[Medication],
+        patient_allergies: list[str],
+    ) -> AllergyCheckResult:
+        """Check medications against patient allergies.
+
+        Should be called before finalizing a prescription to alert
+        the physician of potential allergy issues.
+
+        Args:
+            medications: List of medications to check
+            patient_allergies: Patient's recorded allergies
+
+        Returns:
+            AllergyCheckResult with alerts and recommendations
+        """
+        from fi_prescription.services.allergy_checker import get_allergy_checker
+
+        checker = get_allergy_checker()
+        result = checker.check_medication_objects(medications, patient_allergies)
+
+        if result.alerts:
+            logger.warning(
+                "PRESCRIPTION_ALLERGIES_DETECTED",
+                alert_count=len(result.alerts),
+                has_severe=result.has_severe_allergies,
+                can_proceed=result.can_proceed,
+            )
+
+        return result
+
+    def full_safety_check(
+        self,
+        medications: list[Medication],
+        patient_allergies: list[str],
+    ) -> dict[str, Any]:
+        """Run all safety checks on medications.
+
+        Combines interaction checking and allergy checking into
+        a single comprehensive safety report.
+
+        Args:
+            medications: List of medications to check
+            patient_allergies: Patient's recorded allergies
+
+        Returns:
+            Dict with interaction_result, allergy_result, and overall status
+        """
+        interaction_result = self.check_interactions(medications)
+        allergy_result = self.check_allergies(medications, patient_allergies)
+
+        # Determine overall safety
+        can_proceed = interaction_result.can_proceed and allergy_result.can_proceed
+        has_critical = (
+            interaction_result.has_major_interactions or allergy_result.has_severe_allergies
+        )
+
+        return {
+            "interactions": interaction_result,
+            "allergies": allergy_result,
+            "can_proceed": can_proceed,
+            "has_critical_issues": has_critical,
+            "summary": self._generate_safety_summary(
+                interaction_result, allergy_result, can_proceed
+            ),
+        }
+
+    def _generate_safety_summary(
+        self,
+        interactions: InteractionCheckResult,
+        allergies: AllergyCheckResult,
+        can_proceed: bool,
+    ) -> str:
+        """Generate overall safety summary.
+
+        Args:
+            interactions: Interaction check result
+            allergies: Allergy check result
+            can_proceed: Whether prescription can proceed
+
+        Returns:
+            Summary message in Spanish
+        """
+        if not interactions.alerts and not allergies.alerts:
+            return "✅ Sin alertas de seguridad. Prescripción puede proceder."
+
+        parts = []
+        if interactions.alerts:
+            parts.append(f"Interacciones: {len(interactions.alerts)}")
+        if allergies.alerts:
+            parts.append(f"Alergias: {len(allergies.alerts)}")
+
+        summary = f"⚠️ Alertas detectadas - {', '.join(parts)}."
+
+        if not can_proceed:
+            summary += "\n⛔ NO PROCEDER - Revisar alertas críticas antes de prescribir."
+
+        return summary
 
     def create_prescription_from_soap(
         self,

@@ -14,10 +14,23 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 tauri-plugin-process = "2"
+tauri-plugin-deep-link = "2"           # Deep links for OAuth callback (aurity://)
+tauri-plugin-single-instance = "2"     # Required for deep links on Windows/Linux
+tauri-plugin-opener = "2"              # Open browser for OAuth flow
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["json"] }
+dirs = "5.0"  # For getting home directory (5.0.1 verified on crates.io)
+
+# Auth0 OAuth 2.0 + PKCE dependencies
+sha2 = "0.10"          # SHA256 for PKCE challenge
+base64 = "0.22"        # Base64 URL-safe encoding for PKCE
+rand = "0.8"           # Random generation for state/verifier
+urlencoding = "2.1"    # URL encoding for OAuth params
+chrono = { version = "0.4", features = ["serde"] }  # Token expiration handling
+keyring = "3"          # Cross-platform secure credential storage (Keychain/Credential Manager/libsecret)
+url = "2.5"            # URL parsing for callback handling
 
 [features]
 default = ["custom-protocol"]

@@ -25,6 +25,7 @@ from fi_prescription.services.catalog_service import catalog_service
 logger = get_logger(__name__)
 
 # Prompt for extracting medications from treatment text
+# Note: Double braces {{ }} are escaped for .format()
 MEDICATION_EXTRACTION_PROMPT = """Eres un asistente médico experto en farmacología mexicana.
 Tu tarea es extraer medicamentos mencionados en el texto de tratamiento y devolver JSON estructurado.
 
@@ -37,14 +38,14 @@ IMPORTANTE:
 
 Formato de respuesta (JSON array):
 [
-  {
+  {{
     "name": "nombre del medicamento",
     "dosage": "dosis (ej: 500mg)",
     "frequency": "frecuencia en español",
-    "duration_days": número o null,
-    "route": "vía de administración",
+    "duration_days": numero o null,
+    "route": "via de administracion",
     "instructions": "indicaciones adicionales"
-  }
+  }}
 ]
 
 Frecuencias válidas:

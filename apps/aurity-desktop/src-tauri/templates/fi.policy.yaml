@@ -1,0 +1,125 @@
+# Aurity Desktop - Offline First Configuration
+# This is a simplified policy for local desktop deployment
+#
+# Features:
+# - Ollama as primary (and only) LLM provider
+# - No cloud dependencies
+# - Local storage only
+#
+# Version: 1.0.0 (Desktop)
+
+# ===== LLM Provider Configuration =====
+llm:
+  # Primary provider - Ollama local inference
+  primary_provider: ollama
+
+  # No fallback - fully offline
+  fallback_provider: null
+
+  # Offline-first mode enabled
+  enable_offline: true
+
+  # Provider configurations
+  providers:
+    # Ollama - Local inference (offline-first)
+    ollama:
+      model: qwen3:1.7b  # Qwen3 1.7B - thinking support + M1 optimized
+      base_url: http://localhost:11434  # Ollama server
+      timeout_seconds: 120  # Longer timeout for CPU inference
+      max_tokens: 2048  # Max output tokens
+      temperature: 0.5  # Lower temp for more factual responses
+      num_ctx: 8192  # Context window
+      embed_model: nomic-embed-text  # Embedding model (768-dim)
+
+  # Budget controls (local - no cost)
+  budgets:
+    max_cost_per_day: 0.0  # Free - local inference
+    max_requests_per_hour: 1000  # High limit for local
+    alert_threshold: 0.8
+
+  # Fallback rules
+  fallback_rules:
+    - condition: timeout
+      action: retry_with_backoff
+    - condition: api_error
+      action: retry_with_backoff
+
+# ===== Diarization (Disabled for Desktop) =====
+diarization:
+  # Desktop mode uses simple single-speaker
+  primary_provider: disabled
+  fallback_providers: []
+  expected_num_speakers: 1
+
+# ===== STT (Disabled - use browser Web Speech API) =====
+stt:
+  primary_provider: disabled
+  fallback_providers: []
+
+# ===== Export Policy =====
+export:
+  # Require manifest.json for all exports
+  require_manifest: true
+
+  # Compute SHA256 hashes for verification
+  compute_sha256: true
+
+  # Allowed export formats
+  allowed_formats:
+    - json
+    - markdown
+    - txt
+    - csv
+    - yaml
+
+  # Redact sensitive fields in exports
+  redact_fields:
+    - api_key
+    - session_token
+    - password
+
+  # Export destination - local only
+  allowed_destinations:
+    - local  # Local filesystem only
+
+# ===== Audit Policy =====
+audit:
+  # Log all LLM operations to audit trail
+  log_all_operations: true
+
+  # Retention period for audit logs
+  retention_days: 365  # 1 year
+
+  # Hash payloads (prompts) for privacy
+  hash_payloads: true
+
+  # Hash results (responses) for privacy
+  hash_results: true
+
+  # Log levels
+  log_levels:
+    llm_generate: info
+    llm_embed: info
+    export: warning
+    search: warning
+    delete: error
+
+  # PII detection
+  detect_pii: false
+
+# ===== Metadata =====
+metadata:
+  version: 1.0.0
+  last_updated: 2025-12-28
+  owner: Aurity Desktop
+  description: Offline-first desktop configuration for Aurity Medical AI
+
+  # Environment
+  environment: desktop
+
+  # Compliance
+  compliance:
+    - OFFLINE_FIRST  # No cloud dependencies
+    - LOCAL_ONLY     # Data stays on device
+    - APPEND_ONLY    # HDF5 corpus is append-only
+    - AUDIT_TRAIL    # All operations logged
