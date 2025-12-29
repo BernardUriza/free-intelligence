@@ -1,0 +1,143 @@
+name: Build Desktop App
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to build'
+        required: true
+        default: 'linux'
+        type: choice
+        options:
+          - linux
+          - macos
+          - windows
+          - all
+
+env:
+  AZURE_STORAGE_ACCOUNT: aurityreleases
+  AZURE_CONTAINER: releases
+
+jobs:
+  build-linux:
+    if: ${{ github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.AURITY_DEPLOY_KEY }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libgtk-3-dev \
+            libxdo-dev \
+            patchelf
+
+      - name: Install frontend dependencies
+        working-directory: apps/aurity-desktop
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri app
+        working-directory: apps/aurity-desktop
+        run: pnpm tauri build --target x86_64-unknown-linux-gnu
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: List build artifacts
+        run: |
+          ls -la apps/aurity-desktop/src-tauri/target/release/bundle/appimage/ || true
+          ls -la apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/ || true
+
+      - name: Upload to Azure Blob Storage
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az storage blob upload-batch \
+              --account-name ${{ env.AZURE_STORAGE_ACCOUNT }} \
+              --destination ${{ env.AZURE_CONTAINER }} \
+              --source apps/aurity-desktop/src-tauri/target/release/bundle/appimage/ \
+              --pattern "*.AppImage" \
+              --overwrite \
+              --auth-mode key \
+              --account-key ${{ secrets.AZURE_STORAGE_KEY }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurity-linux-appimage
+          path: apps/aurity-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+
+  build-macos:
+    if: ${{ github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all' }}
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.AURITY_DEPLOY_KEY }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Install frontend dependencies
+        working-directory: apps/aurity-desktop
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri app (Universal)
+        working-directory: apps/aurity-desktop
+        run: pnpm tauri build --target universal-apple-darwin
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Upload to Azure Blob Storage
+        run: |
+          brew install azure-cli
+          az storage blob upload-batch \
+            --account-name ${{ env.AZURE_STORAGE_ACCOUNT }} \
+            --destination ${{ env.AZURE_CONTAINER }} \
+            --source apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/ \
+            --pattern "*.dmg" \
+            --overwrite \
+            --auth-mode key \
+            --account-key ${{ secrets.AZURE_STORAGE_KEY }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurity-macos-dmg
+          path: apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error
