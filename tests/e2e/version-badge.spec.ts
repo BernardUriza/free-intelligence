@@ -47,10 +47,10 @@ test.describe('Backend Version API (Critical)', () => {
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
-    expect(data.service).toBe('AURITY');
-    expect(data.status).toBe('operational');
+    expect(data.service.codename).toBe('AURITY');
+    expect(data.status.operational).toBe(true);
 
-    console.log(`✅ Backend service: ${data.service} (${data.status})`);
+    console.log(`✅ Backend service: ${data.service.codename} (${data.status.operational ? 'operational' : 'down'})`);
   });
 });
 
