@@ -802,6 +802,7 @@ app = create_app()
 
 if __name__ == "__main__":
     import argparse
+
     import uvicorn
 
     parser = argparse.ArgumentParser(description="Aurity Backend Server")
