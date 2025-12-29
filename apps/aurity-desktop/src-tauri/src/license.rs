@@ -132,9 +132,10 @@ pub struct StoredLicense {
 }
 
 /// Get the license storage path
-fn get_license_path() -> PathBuf {
-    let home = dirs::home_dir().expect("Could not find home directory");
-    home.join(".aurity").join("storage").join("license.json")
+fn get_license_path() -> Result<PathBuf, String> {
+    let home = dirs::home_dir()
+        .ok_or_else(|| "Could not find home directory".to_string())?;
+    Ok(home.join(".aurity").join("storage").join("license.json"))
 }
 
 /// Load the embedded public key
@@ -232,13 +233,12 @@ pub fn verify_license_signature(license_key: &str) -> Result<LicensePayload, Str
     let payload_json = serde_json::to_string(&payload)
         .map_err(|e| format!("Failed to serialize payload: {}", e))?;
 
-    // Create signature
-    let signature = Signature::from_bytes(
-        signature_bytes
-            .as_slice()
-            .try_into()
-            .map_err(|_| "Invalid signature length")?
-    );
+    // Create signature (ed25519-dalek 2.x returns Result)
+    let sig_array: [u8; 64] = signature_bytes
+        .as_slice()
+        .try_into()
+        .map_err(|_| "Invalid signature length: expected 64 bytes")?;
+    let signature = Signature::from_bytes(&sig_array);
 
     // Verify
     public_key
@@ -302,7 +302,7 @@ pub fn activate_license(license_key: &str) -> Result<LicensePayload, String> {
     let payload = result.payload.ok_or("No payload in valid license")?;
 
     // Create storage directory
-    let license_path = get_license_path();
+    let license_path = get_license_path()?;
     if let Some(parent) = license_path.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| format!("Failed to create storage directory: {}", e))?;
@@ -328,7 +328,18 @@ pub fn activate_license(license_key: &str) -> Result<LicensePayload, String> {
 
 /// Get stored license status
 pub fn get_license_status() -> LicenseValidationResult {
-    let license_path = get_license_path();
+    let license_path = match get_license_path() {
+        Ok(p) => p,
+        Err(e) => {
+            return LicenseValidationResult {
+                status: LicenseStatus::InvalidFormat.as_str().to_string(),
+                is_valid: false,
+                message: e,
+                days_remaining: None,
+                payload: None,
+            };
+        }
+    };
 
     if !license_path.exists() {
         return LicenseValidationResult {
@@ -390,7 +401,7 @@ pub fn get_auth0_config() -> Result<Auth0Config, String> {
 
 /// Clear stored license (for testing/logout)
 pub fn clear_license() -> Result<(), String> {
-    let license_path = get_license_path();
+    let license_path = get_license_path()?;
 
     if license_path.exists() {
         fs::remove_file(&license_path)
