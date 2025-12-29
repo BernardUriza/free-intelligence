@@ -23,11 +23,13 @@ jobs:
     if: ${{ github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all' }}
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
+      - name: Checkout main repo
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          token: ${{ secrets.GH_PAT }}
+
+      - name: Checkout submodules
+        run: |
+          git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
+          git submodule update --init --recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -93,11 +95,13 @@ jobs:
     if: ${{ github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all' }}
     runs-on: macos-latest
     steps:
-      - name: Checkout
+      - name: Checkout main repo
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          token: ${{ secrets.GH_PAT }}
+
+      - name: Checkout submodules
+        run: |
+          git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
+          git submodule update --init --recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
