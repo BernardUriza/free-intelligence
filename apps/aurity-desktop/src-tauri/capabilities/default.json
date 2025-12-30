@@ -10,6 +10,12 @@
     "core:window:allow-close",
     "core:window:allow-set-focus",
     "core:event:default",
+    "dialog:allow-open",
+    "dialog:allow-message",
+    "dialog:allow-ask",
+    "process:default",
+    "opener:default",
+    "deep-link:default",
     {
       "identifier": "shell:allow-spawn",
       "allow": [

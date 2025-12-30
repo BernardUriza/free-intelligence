@@ -23,11 +23,13 @@ jobs:
     if: ${{ github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all' }}
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
+      - name: Checkout main repo
         uses: actions/checkout@v4
-        with:
-          submodules: true
-          token: ${{ secrets.AURITY_DEPLOY_KEY }}
+
+      - name: Checkout submodules
+        run: |
+          git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
+          git submodule update --init --recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -53,6 +55,27 @@ jobs:
             libxdo-dev \
             patchelf
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r backend/requirements-prod.txt
+
+      - name: Build Python backend sidecar
+        run: |
+          cd apps/aurity-desktop/pyinstaller
+          pyinstaller aurity-backend.spec
+          # Move to binaries folder with correct target triple name
+          mkdir -p ../src-tauri/binaries
+          mv dist/aurity-backend ../src-tauri/binaries/aurity-backend-x86_64-unknown-linux-gnu
+          chmod +x ../src-tauri/binaries/aurity-backend-x86_64-unknown-linux-gnu
+          ls -la ../src-tauri/binaries/
+
       - name: Install frontend dependencies
         working-directory: apps/aurity-desktop
         run: pnpm install --frozen-lockfile
@@ -76,7 +99,7 @@ jobs:
             az storage blob upload-batch \
               --account-name ${{ env.AZURE_STORAGE_ACCOUNT }} \
               --destination ${{ env.AZURE_CONTAINER }} \
-              --source apps/aurity-desktop/src-tauri/target/release/bundle/appimage/ \
+              --source apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/ \
               --pattern "*.AppImage" \
               --overwrite \
               --auth-mode key \
@@ -86,18 +109,20 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aurity-linux-appimage
-          path: apps/aurity-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+          path: apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
           if-no-files-found: error
 
   build-macos:
     if: ${{ github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all' }}
     runs-on: macos-latest
     steps:
-      - name: Checkout
+      - name: Checkout main repo
         uses: actions/checkout@v4
-        with:
-          submodules: true
-          token: ${{ secrets.AURITY_DEPLOY_KEY }}
+
+      - name: Checkout submodules
+        run: |
+          git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
+          git submodule update --init --recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -111,6 +136,34 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r backend/requirements-prod.txt
+
+      - name: Build Python backend sidecar (both architectures)
+        run: |
+          cd apps/aurity-desktop/pyinstaller
+          # Build for current architecture
+          pyinstaller aurity-backend.spec
+          # Move to binaries folder with target triple names
+          mkdir -p ../src-tauri/binaries
+          # For universal binary, we need both architectures
+          # PyInstaller on macOS builds for current architecture
+          # Copy to both target triples (Tauri will use the appropriate one)
+          cp dist/aurity-backend ../src-tauri/binaries/aurity-backend-aarch64-apple-darwin
+          cp dist/aurity-backend ../src-tauri/binaries/aurity-backend-x86_64-apple-darwin
+          chmod +x ../src-tauri/binaries/*
+          ls -la ../src-tauri/binaries/
 
       - name: Install frontend dependencies
         working-directory: apps/aurity-desktop

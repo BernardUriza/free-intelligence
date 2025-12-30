@@ -10,13 +10,17 @@
  *
  * Features:
  * - License key input with AURITY-XXXX-XXXX format
+ * - File import from .key files (Desktop only)
  * - Real-time validation
  * - Success/error feedback
  * - Option to request trial license
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { useLicense, LicenseValidationResult } from '@/hooks/useLicense';
+import { useLicense, LicenseValidationResult, LicensePayload } from '@/hooks/useLicense';
+
+// Tauri imports (optional - only available in desktop)
+const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
 
 interface LicenseActivationWizardProps {
   onActivated?: () => void;
@@ -29,14 +33,76 @@ export function LicenseActivationWizard({
   onSkip,
   showSkip = false,
 }: LicenseActivationWizardProps) {
-  const { activateLicense, validateKey, isLoading: licenseLoading } = useLicense();
+  const { activateLicense, validateKey, isLoading: licenseLoading, checkLicense } = useLicense();
 
   const [licenseKey, setLicenseKey] = useState('');
   const [isValidating, setIsValidating] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
+  const [isImportingFile, setIsImportingFile] = useState(false);
   const [validationResult, setValidationResult] = useState<LicenseValidationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [importedPayload, setImportedPayload] = useState<LicensePayload | null>(null);
+
+  // Handle file import from .key file (Desktop only)
+  const handleFileImport = useCallback(async () => {
+    if (!isTauri) {
+      setError('La importación de archivos solo está disponible en la versión de escritorio');
+      return;
+    }
+
+    setIsImportingFile(true);
+    setError(null);
+
+    try {
+      // Dynamic imports for Tauri APIs
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const { invoke } = await import('@tauri-apps/api/core');
+
+      // Open file picker
+      const selected = await open({
+        multiple: false,
+        filters: [
+          { name: 'Licencia Aurity', extensions: ['key'] },
+          { name: 'Todos los archivos', extensions: ['*'] },
+        ],
+        title: 'Seleccionar archivo de licencia',
+      });
+
+      if (!selected) {
+        // User cancelled
+        setIsImportingFile(false);
+        return;
+      }
+
+      // Import the license from the file
+      // open() with multiple:false returns string | null
+      const filePath = selected as string;
+      const payload = await invoke<LicensePayload>('import_license_from_file', {
+        file_path: filePath
+      });
+
+      // Success!
+      setImportedPayload(payload);
+      setSuccess(true);
+
+      // Verify license was activated
+      const status = await checkLicense();
+      if (status.is_valid) {
+        setValidationResult(status);
+      }
+
+      // Notify parent after brief delay
+      setTimeout(() => {
+        onActivated?.();
+      }, 1500);
+    } catch (err) {
+      console.error('[LicenseWizard] File import error:', err);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsImportingFile(false);
+    }
+  }, [checkLicense, onActivated]);
 
   // Format license key as user types
   const handleKeyChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,10 +193,11 @@ export function LicenseActivationWizard({
     setValidationResult(null);
   }, []);
 
-  const isLoading = licenseLoading || isValidating || isActivating;
+  const isLoading = licenseLoading || isValidating || isActivating || isImportingFile;
   const canActivate = validationResult?.is_valid && !isLoading;
 
   if (success) {
+    const clinicName = importedPayload?.clinic_name || validationResult?.payload?.clinic_name || 'Tu licencia';
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
         <div className="max-w-md w-full text-center">
@@ -141,7 +208,7 @@ export function LicenseActivationWizard({
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Licencia Activada</h2>
           <p className="text-slate-400 mb-4">
-            {validationResult?.payload?.clinic_name || 'Tu licencia'} ha sido activada correctamente.
+            {clinicName} ha sido activada correctamente.
           </p>
           <p className="text-sm text-slate-500">Iniciando Aurity...</p>
         </div>
@@ -245,6 +312,46 @@ export function LicenseActivationWizard({
 
         {/* Actions */}
         <div className="space-y-3">
+          {/* File import button (Desktop only) */}
+          {isTauri && (
+            <button
+              onClick={handleFileImport}
+              disabled={isLoading}
+              className={`
+                w-full py-3 px-4 rounded-xl font-medium
+                transition-all duration-200
+                flex items-center justify-center gap-2
+                ${isLoading
+                  ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700'
+                }
+              `}
+            >
+              {isImportingFile ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Cargar archivo .key
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Separator for desktop */}
+          {isTauri && (
+            <div className="flex items-center gap-3 text-slate-500 text-sm">
+              <div className="flex-1 h-px bg-slate-700" />
+              <span>o ingresa manualmente</span>
+              <div className="flex-1 h-px bg-slate-700" />
+            </div>
+          )}
+
           <button
             onClick={handleActivate}
             disabled={!canActivate}

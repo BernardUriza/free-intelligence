@@ -26,16 +26,41 @@ interface LicenseAwareAuth0ProviderProps {
   children: ReactNode;
 }
 
+// Check if running in Tauri (safe to call at module level)
+function isTauriRuntime(): boolean {
+  return typeof window !== 'undefined' && '__TAURI__' in window;
+}
+
 export function LicenseAwareAuth0Provider({ children }: LicenseAwareAuth0ProviderProps) {
-  const { isLoading, isValid, getAuth0Config, licenseStatus } = useLicense();
+  // Wait for hydration before doing anything Tauri-related
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [isTauri, setIsTauri] = useState(false);
+
+  useEffect(() => {
+    setIsTauri(isTauriRuntime());
+    setIsHydrated(true);
+  }, []);
+
+  // Use license hook (it handles non-Tauri case internally)
+  const { isLoading, isValid, getAuth0Config } = useLicense();
 
   const [auth0Config, setAuth0Config] = useState<Auth0Config | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
 
-  // Check license and load Auth0 config
+  // Check license and load Auth0 config AFTER hydration
   useEffect(() => {
+    // Don't do anything until hydrated and we know we're in Tauri
+    if (!isHydrated) return;
+
     const load = async () => {
+      // If not in Tauri, skip license check (shouldn't happen, but safety)
+      if (!isTauri) {
+        console.log('[LicenseAwareAuth0] Not in Tauri, skipping license check');
+        setConfigLoading(false);
+        return;
+      }
+
       if (isLoading) return;
 
       if (!isValid) {
@@ -62,7 +87,7 @@ export function LicenseAwareAuth0Provider({ children }: LicenseAwareAuth0Provide
     };
 
     load();
-  }, [isLoading, isValid, getAuth0Config]);
+  }, [isHydrated, isTauri, isLoading, isValid, getAuth0Config]);
 
   // Handle license activation
   const handleActivated = () => {
@@ -70,8 +95,8 @@ export function LicenseAwareAuth0Provider({ children }: LicenseAwareAuth0Provide
     window.location.reload();
   };
 
-  // Show loading
-  if (isLoading || configLoading) {
+  // Show loading during hydration or license check
+  if (!isHydrated || isLoading || configLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="text-center">

@@ -8,6 +8,33 @@
         "@modelcontextprotocol/server-azure-cli"
       ],
       "env": {}
+    },
+    "cloudflare-docs": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://docs.mcp.cloudflare.com/mcp"
+      ],
+      "env": {}
+    },
+    "cloudflare-observability": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://observability.mcp.cloudflare.com/mcp"
+      ],
+      "env": {}
+    },
+    "cloudflare-bindings": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://bindings.mcp.cloudflare.com/mcp"
+      ],
+      "env": {}
     }
   }
 }

@@ -245,6 +245,7 @@ fn main() {
         // Note: single-instance plugin removed due to Tauri 2.x config issues
         // Deep links on macOS handled via on_open_url() below, Windows/Linux can add back later
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(backend_state.clone())
         .manage(auth_state)
         .setup(move |app| {
@@ -383,6 +384,20 @@ fn main() {
 
                         // Step 4: Show main window or report error
                         if state.is_ready.load(Ordering::SeqCst) {
+                            // Step 4.1: Check for valid license BEFORE showing main window
+                            let has_license = license::has_valid_license();
+
+                            if !has_license {
+                                emit_status(&app_handle, "Licencia requerida...");
+                                println!("[Aurity] No valid license found - prompting for import");
+
+                                // Emit event so frontend can show license import dialog
+                                let _ = app_handle.emit("license-required", ());
+                            } else {
+                                emit_status(&app_handle, "Licencia válida!");
+                                println!("[Aurity] Valid license found");
+                            }
+
                             emit_status(&app_handle, "Listo!");
 
                             // Inject backend URL into main window
@@ -392,6 +407,13 @@ fn main() {
                                     port
                                 );
                                 let _ = main_window.eval(&js);
+
+                                // Also inject license status
+                                let license_js = format!(
+                                    "window.__AURITY_HAS_LICENSE__ = {};",
+                                    has_license
+                                );
+                                let _ = main_window.eval(&license_js);
 
                                 // Show main window
                                 let _ = main_window.show();
@@ -403,8 +425,11 @@ fn main() {
                                 let _ = splash.close();
                             }
 
-                            // Emit ready event
-                            let _ = app_handle.emit("backend-ready", port);
+                            // Emit ready event (includes license status)
+                            let _ = app_handle.emit("backend-ready", serde_json::json!({
+                                "port": port,
+                                "has_license": has_license
+                            }));
                         } else {
                             emit_status(&app_handle, "Error: Backend no responde");
                             eprintln!(
@@ -454,6 +479,9 @@ fn main() {
             license::check_license_renewal_status,
             license::request_license_renewal,
             license::register_license_for_renewal,
+            // License file import commands
+            license::import_license_from_file,
+            license::has_valid_license,
         ])
         .run(tauri::generate_context!())
         .expect("Error while running Aurity Desktop");

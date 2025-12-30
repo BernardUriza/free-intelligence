@@ -125,10 +125,7 @@ service-account.json
 # =============================================================================
 # BRYNTUM SCHEDULER PRO - Licensed Assets (FI-CHECKIN-005)
 # =============================================================================
-# These files contain embedded license key and must NOT be committed
-# Download from: https://bryntum.com/products/scheduler/ (requires license)
-# Copy to: public/js/bryntum/ and public/css/bryntum/
-public/js/bryntum/
-public/css/bryntum/
+# Bryntum files are now tracked in git for desktop builds
+# Source: BernardUriza/Planning-Scheduling-Software
 
 # =============================================================================

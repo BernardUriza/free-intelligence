@@ -359,6 +359,9 @@ Requires environment variables:
             system_resources.router
         )  # System Resources Monitor (RAM, Running Models)
         public_app.include_router(licenses_router)  # License renewal API (Desktop App renewals)
+        public_app.include_router(
+            licenses_admin_router
+        )  # License generation (superadmin only, needs frontend access)
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 
         # INTERNAL API (atomic resources, AURITY-only)
@@ -388,7 +391,6 @@ Requires environment variables:
         internal_app.include_router(
             fi_coder_router, prefix="/fi_coder", tags=["fi_coder"]
         )  # FI Coder task orchestrator
-        internal_app.include_router(licenses_admin_router)  # License generation (superadmin only)
 
         # Add health/version endpoints to public_app (they must be here, not on app,
         # because app.mount("/api", public_app) captures ALL /api/* routes)
