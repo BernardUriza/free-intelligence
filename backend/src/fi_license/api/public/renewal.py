@@ -25,8 +25,8 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
-# Import license generator
-from fi_license import LicensePayload, decode_license_key, generate_license_key
+# Import license generator (relative import within fi_license package)
+from backend.src.fi_license import LicensePayload, decode_license_key, generate_license_key
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/licenses", tags=["licenses"])
