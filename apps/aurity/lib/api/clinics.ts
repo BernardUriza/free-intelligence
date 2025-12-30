@@ -8,6 +8,8 @@
  * Created: 2025-11-22
  */
 
+import type { DoctorAvailability } from '@/components/admin/clinics/availability-designer/types';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:7001";
 
 // =============================================================================
@@ -72,8 +74,9 @@ export interface Doctor {
   cedula_profesional: string | null;
   phone: string | null;
   avg_consultation_minutes: number;
-  work_start_time: string | null; // e.g., "09:00" (24h format)
-  work_end_time: string | null;   // e.g., "18:00" (24h format)
+  work_start_time: string | null;      // Legacy: e.g., "09:00" (24h format)
+  work_end_time: string | null;        // Legacy: e.g., "18:00" (24h format)
+  working_hours: DoctorAvailability | null; // New: Full availability config
   is_active: boolean;
   is_linked: boolean;
   created_at: string;
@@ -102,8 +105,9 @@ export interface DoctorUpdate {
   email?: string;
   phone?: string;
   avg_consultation_minutes?: number;
-  work_start_time?: string; // e.g., "09:00"
-  work_end_time?: string;   // e.g., "18:00"
+  work_start_time?: string;             // Legacy: e.g., "09:00"
+  work_end_time?: string;               // Legacy: e.g., "18:00"
+  working_hours?: DoctorAvailability;   // New: Full availability config
   is_active?: boolean;
 }
 
