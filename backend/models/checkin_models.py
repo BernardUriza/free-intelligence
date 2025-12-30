@@ -29,7 +29,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 # =============================================================================
@@ -243,8 +243,9 @@ class Doctor(Base):
 
     # Availability
     avg_consultation_minutes = Column(Integer, default=30)
-    work_start_time = Column(String(5), nullable=True)  # e.g., "09:00" (HH:MM format)
-    work_end_time = Column(String(5), nullable=True)  # e.g., "18:00" (HH:MM format)
+    work_start_time = Column(String(5), nullable=True)  # Legacy: e.g., "09:00" (HH:MM format)
+    work_end_time = Column(String(5), nullable=True)  # Legacy: e.g., "18:00" (HH:MM format)
+    working_hours = Column(JSONB, nullable=True)  # New: Full availability config
     is_active = Column(Boolean, default=True)
 
     # Timestamps
@@ -281,6 +282,10 @@ class Doctor(Base):
             "cedula_profesional": self.cedula_profesional,
             "photo_url": self.photo_url,
             "avg_consultation_minutes": self.avg_consultation_minutes,
+            "work_start_time": self.work_start_time,
+            "work_end_time": self.work_end_time,
+            "working_hours": self.working_hours,
+            "is_active": self.is_active,
             "is_linked": self.auth0_user_id is not None,
         }
 
