@@ -349,9 +349,9 @@ class OllamaProvider(LLMProvider):
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
-        # Priority: OLLAMA_HOST env var > deployment target default > config > fallback
-        # get_ollama_host() handles env var and deployment target logic (cloud vs desktop)
-        self.base_url: str = str(self.config.get("base_url") or get_ollama_host())
+        # Priority: OLLAMA_HOST env var > deployment target > config fallback
+        # get_ollama_host() checks env var first, then deployment target (cloud reads tunnel file)
+        self.base_url: str = get_ollama_host()
         self.default_model: str = str(self.config.get("model") or "qwen3:1.7b")
         self.embed_model: str = str(self.config.get("embed_model") or "nomic-embed-text")
         self.timeout: int = int(self.config.get("timeout_seconds") or 120)
