@@ -17,6 +17,10 @@ on:
         description: 'Tag to rollback to (e.g., v0.1.5). Leave empty for normal deploy.'
         required: false
         type: string
+      ollama_url:
+        description: 'Ollama tunnel URL (e.g., https://xxx.trycloudflare.com). Leave empty to use saved URL.'
+        required: false
+        type: string
 
 concurrency:
   group: production-deploy
@@ -252,9 +256,11 @@ jobs:
       # ═══════════════════════════════════════════════════════════════════════
 
       - name: Rebuild and restart backend
+        env:
+          OLLAMA_INPUT_URL: ${{ github.event.inputs.ollama_url }}
         run: |
           ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
-            $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
+            $DROPLET_USER@$DROPLET_HOST "OLLAMA_INPUT_URL='$OLLAMA_INPUT_URL' bash -s" << 'ENDSSH'
           cd /opt/free-intelligence
 
           echo "🛑 Stopping old backend process..."
@@ -279,9 +285,11 @@ jobs:
           cd /opt/free-intelligence
 
           # FI Cloud: Use remote Ollama via Cloudflare Tunnel
-          # OLLAMA_HOST comes from /tmp/ollama-tunnel-url.txt (set by ollama-tunnel.sh)
-          # or falls back to localhost if file doesn't exist
-          OLLAMA_URL=$(cat /tmp/ollama-tunnel-url.txt 2>/dev/null || echo "http://localhost:11434")
+          # Priority: 1) workflow input, 2) saved file, 3) localhost fallback
+          OLLAMA_URL="${OLLAMA_INPUT_URL:-$(cat /tmp/ollama-tunnel-url.txt 2>/dev/null || echo "http://localhost:11434")}"
+
+          # Save URL for future deploys
+          echo "$OLLAMA_URL" > /tmp/ollama-tunnel-url.txt
           echo "🦙 Using OLLAMA_HOST=$OLLAMA_URL"
 
           PYTHONPATH=. PYTHONNOUSERSITE=1 OLLAMA_HOST="$OLLAMA_URL" nohup python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 > /tmp/backend.log 2>&1 &
