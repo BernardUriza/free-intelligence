@@ -359,7 +359,9 @@ Requires environment variables:
             system_resources.router
         )  # System Resources Monitor (RAM, Running Models)
         public_app.include_router(licenses_router)  # License renewal API (Desktop App renewals)
-        public_app.include_router(licenses_admin_router)  # License generation (superadmin only, needs frontend access)
+        public_app.include_router(
+            licenses_admin_router
+        )  # License generation (superadmin only, needs frontend access)
         # NOTE: Assistant router now in workflows/assistant.py (AURITY-specific)
 
         # INTERNAL API (atomic resources, AURITY-only)
