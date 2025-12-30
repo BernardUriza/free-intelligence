@@ -259,8 +259,19 @@ jobs:
         env:
           OLLAMA_INPUT_URL: ${{ github.event.inputs.ollama_url }}
         run: |
+          # Validate URL format (only allow https://*.trycloudflare.com or http://localhost)
+          if [ -n "$OLLAMA_INPUT_URL" ]; then
+            if ! echo "$OLLAMA_INPUT_URL" | grep -qE '^https://[a-z0-9-]+\.trycloudflare\.com$|^http://localhost:[0-9]+$'; then
+              echo "::error::Invalid OLLAMA_URL format. Must be https://*.trycloudflare.com or http://localhost:PORT"
+              exit 1
+            fi
+          fi
+
+          # Pass URL safely via base64 encoding
+          ENCODED_URL=$(printf '%s' "$OLLAMA_INPUT_URL" | base64 -w0)
+
           ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
-            $DROPLET_USER@$DROPLET_HOST "OLLAMA_INPUT_URL='$OLLAMA_INPUT_URL' bash -s" << 'ENDSSH'
+            $DROPLET_USER@$DROPLET_HOST "ENCODED_URL='$ENCODED_URL' bash -s" << 'ENDSSH'
           cd /opt/free-intelligence
 
           echo "🛑 Stopping old backend process..."
@@ -285,7 +296,10 @@ jobs:
           cd /opt/free-intelligence
 
           # FI Cloud: Use remote Ollama via Cloudflare Tunnel
-          # Priority: 1) workflow input, 2) saved file, 3) localhost fallback
+          # Priority: 1) workflow input (base64 decoded), 2) saved file, 3) localhost fallback
+          if [ -n "$ENCODED_URL" ]; then
+            OLLAMA_INPUT_URL=$(echo "$ENCODED_URL" | base64 -d)
+          fi
           OLLAMA_URL="${OLLAMA_INPUT_URL:-$(cat /tmp/ollama-tunnel-url.txt 2>/dev/null || echo "http://localhost:11434")}"
 
           # Save URL for future deploys
