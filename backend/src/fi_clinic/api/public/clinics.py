@@ -109,7 +109,9 @@ class DoctorUpdate(BaseModel):
     avg_consultation_minutes: int | None = Field(default=None, ge=5, le=180)
     work_start_time: str | None = Field(default=None, pattern=r"^([0-1][0-9]|2[0-3]):[0-5][0-9]$")
     work_end_time: str | None = Field(default=None, pattern=r"^([0-1][0-9]|2[0-3]):[0-5][0-9]$")
-    working_hours: dict | None = Field(default=None, description="Full availability config as JSONB")
+    working_hours: dict | None = Field(
+        default=None, description="Full availability config as JSONB"
+    )
     is_active: bool | None = None
 
 
