@@ -28,6 +28,7 @@ from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_events import DomainEvent, EventType, get_event_bus
 from backend.src.fi_llm.services.conversation_memory import get_memory_manager
 from backend.src.fi_llm.services.persona_manager import PersonaManager
+from backend.src.fi_observability.hooks import log_llm_call, log_llm_error
 from backend.src.fi_storage.services.trace_store import get_trace_store
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -392,6 +393,27 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
             cost_usd=round(cost_usd, 6),
         )
 
+        # Log to SQLite observability database
+        log_llm_call(
+            model=model_name,
+            provider=primary_provider,
+            latency_ms=latency_ms,
+            prompt_tokens=tokens_used,  # Total tokens (split not available)
+            completion_tokens=0,
+            status="success",
+            prompt_preview=prompt[:500] if prompt else "",
+            response_preview=response_text[:500] if response_text else "",
+            client_id=effective_doctor_id,
+            session_id=request.session_id,
+            persona=effective_persona,
+            prompt_hash=prompt_hash,
+            response_hash=response_hash,
+            metadata={
+                "memory_enabled": memory_enabled,
+                "cost_usd": round(cost_usd, 6),
+            },
+        )
+
         # Optional reasoning from provider metadata
         thinking = None
         try:
@@ -419,6 +441,7 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
     except HTTPException:
         raise
     except Exception as e:
+        latency_ms = int((time.time() - start_time) * 1000)
         logger.error(
             "INTERNAL_LLM_CHAT_FAILED",
             persona=request.persona,
@@ -427,6 +450,20 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
             session_id=request.session_id,
             exc_info=True,
         )
+
+        # Log error to SQLite observability database
+        log_llm_error(
+            model="unknown",
+            provider=policy_loader.get_primary_provider(),
+            latency_ms=latency_ms,
+            error_message=str(e),
+            error_type=type(e).__name__,
+            prompt_preview=prompt[:500] if prompt else "",
+            client_id=request.doctor_id,
+            session_id=request.session_id,
+            persona=request.persona,
+        )
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"LLM chat failed: {e!s}",

@@ -7,9 +7,12 @@
     "dev": "tauri dev",
     "dev:quick": "tauri dev --no-watch",
     "build": "tauri build",
+    "build:frontend": "pnpm --filter aurity build && node scripts/copy-splash.js",
     "build:backend": "cd pyinstaller && ./build.sh",
+    "build:backend:win": "cd pyinstaller && python -m PyInstaller aurity-backend.spec",
     "build:all": "pnpm build:backend && pnpm build",
-    "bundle:ollama": "./scripts/bundle-ollama.sh"
+    "bundle:ollama": "./scripts/bundle-ollama.sh",
+    "bundle:ollama:win": "powershell -File scripts/bundle-ollama.ps1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0"

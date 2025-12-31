@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "identifier": "io.aurity.desktop",
   "build": {
-    "beforeBuildCommand": "cd ../.. && STATIC_EXPORT=true NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop NEXT_PUBLIC_BACKEND_URL=http://localhost:7051 pnpm --filter aurity build && cp apps/aurity-desktop/src-tauri/splashscreen.html apps/aurity/out/",
-    "beforeDevCommand": "cd ../.. && STATIC_EXPORT=true NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop NEXT_PUBLIC_BACKEND_URL=http://localhost:7051 pnpm --filter aurity build && cp apps/aurity-desktop/src-tauri/splashscreen.html apps/aurity/out/",
+    "beforeBuildCommand": "pnpm run build:frontend",
+    "beforeDevCommand": "pnpm run build:frontend",
     "frontendDist": "../../aurity/out"
   },
   "app": {
@@ -47,12 +47,10 @@
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
-      "icons/icon.png"
+      "icons/icon.png",
+      "icons/icon.ico"
     ],
-    "externalBin": [
-      "binaries/aurity-backend"
-    ],
-    "category": "Medical",
+        "category": "Medical",
     "shortDescription": "Medical AI Assistant - 100% Offline",
     "longDescription": "Aurity Desktop is a medical AI assistant that runs entirely on your computer. No cloud required. Your data stays on your device.",
     "macOS": {
@@ -82,6 +80,20 @@
       },
       "deb": {
         "depends": ["libwebkit2gtk-4.1-0", "libsqlite3-0"]
+      }
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "wix": null,
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "headerImage": null,
+        "sidebarImage": null,
+        "installMode": "currentUser",
+        "languages": ["English", "Spanish"],
+        "displayLanguageSelector": true
       }
     }
   },

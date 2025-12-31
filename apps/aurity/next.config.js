@@ -2,9 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // ⚡ STATIC EXPORT MODE - For DigitalOcean Spaces/CDN
-  // Use STATIC_EXPORT=true in CI/CD to enable static export
-  ...(process.env.STATIC_EXPORT === 'true' && { output: 'export' }),
+  // ⚡ STATIC EXPORT MODE - For desktop and static hosting
+  // Set to 'export' for Tauri desktop builds
+  output: 'export',
 
   // Disable features that require Node.js server
   images: {

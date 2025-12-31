@@ -325,6 +325,16 @@ Requires environment variables:
         from backend.src.fi_user.api.public import user_clinic
         from backend.src.fi_workflow.api.internal.triage import router as triage_router
 
+        # Observability (LLM call logging for FI Edge Monitor)
+        from backend.src.fi_observability.api import router as observability_router
+        from backend.src.fi_observability import init_observability_db
+
+        # Initialize observability database on startup
+        try:
+            init_observability_db()
+        except Exception as obs_err:
+            pass  # Non-critical, log to structlog in observability module
+
         # Import individual routers from new fi_* package structure
         from backend.src.fi_workflow.api.public.workflows_router import (
             router as public_workflows_router,
@@ -358,6 +368,7 @@ Requires environment variables:
         public_app.include_router(
             system_resources.router
         )  # System Resources Monitor (RAM, Running Models)
+        public_app.include_router(observability_router)  # LLM Observability (FI Edge Monitor)
         public_app.include_router(licenses_router)  # License renewal API (Desktop App renewals)
         public_app.include_router(
             licenses_admin_router

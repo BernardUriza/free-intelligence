@@ -113,6 +113,218 @@ async fn check_ollama_status() -> Result<bool, String> {
     }
 }
 
+/// Ensure Ollama/Edge infrastructure is running
+/// On Windows: runs ollama-tunnel.ps1 start
+/// On macOS/Linux: runs ollama-tunnel.sh start
+#[tauri::command]
+async fn ensure_edge_infrastructure(app: tauri::AppHandle) -> Result<String, String> {
+    // First check if Ollama is already running
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let ollama_running = client
+        .get("http://localhost:11434/api/tags")
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false);
+
+    if ollama_running {
+        return Ok("Ollama already running".to_string());
+    }
+
+    // Ollama not running - execute the tunnel script
+    println!("[Aurity] Ollama not running, starting edge infrastructure...");
+
+    // Find the scripts directory (relative to app or project root)
+    let scripts_dir = find_scripts_dir();
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+
+        let script_path = scripts_dir.join("ollama-tunnel.ps1");
+        if !script_path.exists() {
+            return Err(format!("Script not found: {:?}", script_path));
+        }
+
+        let output = Command::new("powershell")
+            .args([
+                "-ExecutionPolicy", "Bypass",
+                "-File", &script_path.to_string_lossy(),
+                "start"
+            ])
+            .current_dir(&scripts_dir)
+            .output()
+            .map_err(|e| format!("Failed to execute script: {}", e))?;
+
+        if output.status.success() {
+            Ok("Edge infrastructure started (Windows)".to_string())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(format!("Script failed: {}", stderr))
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        use std::process::Command;
+
+        let script_path = scripts_dir.join("ollama-tunnel.sh");
+        if !script_path.exists() {
+            return Err(format!("Script not found: {:?}", script_path));
+        }
+
+        let output = Command::new("bash")
+            .args([&script_path.to_string_lossy().to_string(), "start"])
+            .current_dir(&scripts_dir)
+            .output()
+            .map_err(|e| format!("Failed to execute script: {}", e))?;
+
+        if output.status.success() {
+            Ok("Edge infrastructure started (Unix)".to_string())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(format!("Script failed: {}", stderr))
+        }
+    }
+}
+
+/// Find the scripts directory
+fn find_scripts_dir() -> PathBuf {
+    // Try relative paths from different locations
+    let candidates = vec![
+        PathBuf::from("scripts"),
+        PathBuf::from("../../../scripts"),
+        PathBuf::from("../../scripts"),
+        std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.join("scripts")))
+            .unwrap_or_default(),
+    ];
+
+    for candidate in candidates {
+        if candidate.exists() && candidate.is_dir() {
+            return candidate;
+        }
+    }
+
+    // Fallback
+    PathBuf::from("scripts")
+}
+
+// =============================================================================
+// WINDOWS AUTOSTART
+// =============================================================================
+
+const AUTOSTART_KEY: &str = "AurityDesktop";
+
+/// Internal function to setup Windows autostart
+#[cfg(target_os = "windows")]
+fn setup_windows_autostart_internal() -> Result<bool, String> {
+    use std::process::Command;
+
+    let exe_path = std::env::current_exe()
+        .map_err(|e| format!("Failed to get exe path: {}", e))?;
+
+    // Add to HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+    let output = Command::new("reg")
+        .args([
+            "add",
+            r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
+            "/v", AUTOSTART_KEY,
+            "/t", "REG_SZ",
+            "/d", &exe_path.to_string_lossy(),
+            "/f"  // Force overwrite
+        ])
+        .output()
+        .map_err(|e| format!("Failed to execute reg: {}", e))?;
+
+    if output.status.success() {
+        Ok(true)
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(format!("Failed to add registry key: {}", stderr))
+    }
+}
+
+/// Setup Windows autostart (adds to registry Run key)
+#[tauri::command]
+fn setup_windows_autostart() -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let result = setup_windows_autostart_internal();
+        if result.is_ok() {
+            println!("[Aurity] Windows autostart enabled");
+        }
+        result
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false) // Not applicable on other platforms
+    }
+}
+
+/// Remove Windows autostart
+#[tauri::command]
+fn remove_windows_autostart() -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+
+        let output = Command::new("reg")
+            .args([
+                "delete",
+                r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
+                "/v", AUTOSTART_KEY,
+                "/f"
+            ])
+            .output()
+            .map_err(|e| format!("Failed to execute reg: {}", e))?;
+
+        if output.status.success() {
+            println!("[Aurity] Windows autostart disabled");
+            Ok(true)
+        } else {
+            // Key might not exist, that's ok
+            Ok(false)
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false)
+    }
+}
+
+/// Check if Windows autostart is enabled
+#[tauri::command]
+fn check_windows_autostart() -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+
+        let output = Command::new("reg")
+            .args([
+                "query",
+                r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
+                "/v", AUTOSTART_KEY
+            ])
+            .output()
+            .map_err(|e| format!("Failed to execute reg: {}", e))?;
+
+        Ok(output.status.success())
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false)
+    }
+}
+
 /// First-run status for frontend wizard
 #[derive(Serialize)]
 struct FirstRunStatus {
@@ -284,6 +496,17 @@ fn main() {
                 Ok(true) => {
                     println!("[Aurity] First run - config bootstrapped");
                     let _ = app_handle.emit("first-run-detected", ());
+
+                    // On Windows first run, setup autostart
+                    #[cfg(target_os = "windows")]
+                    {
+                        emit_status(&app_handle, "Configurando inicio automático...");
+                        match setup_windows_autostart_internal() {
+                            Ok(true) => println!("[Aurity] Windows autostart configured"),
+                            Ok(false) => println!("[Aurity] Windows autostart skipped"),
+                            Err(e) => eprintln!("[Aurity] WARNING: Failed to setup autostart: {}", e),
+                        }
+                    }
                 }
                 Ok(false) => {
                     println!("[Aurity] Config already exists");
@@ -448,6 +671,31 @@ fn main() {
                     Err(e) => {
                         eprintln!("[Aurity] Failed to spawn sidecar: {}", e);
                         emit_status(&app_handle, &format!("Error: {}", e));
+
+                        // In dev mode, continue anyway without backend
+                        #[cfg(debug_assertions)]
+                        {
+                            println!("[Aurity] DEV MODE: Continuing without backend sidecar");
+                            sleep(Duration::from_secs(2)).await;
+                            emit_status(&app_handle, "Modo desarrollo (sin backend)");
+
+                            // Show main window anyway
+                            if let Some(main_window) = app_handle.get_webview_window("main") {
+                                let js = format!(
+                                    "window.__AURITY_BACKEND_URL__ = 'http://127.0.0.1:{}';",
+                                    port
+                                );
+                                let _ = main_window.eval(&js);
+                                let _ = main_window.eval("window.__AURITY_DEV_MODE__ = true;");
+                                let _ = main_window.show();
+                                let _ = main_window.set_focus();
+                            }
+
+                            // Close splashscreen
+                            if let Some(splash) = app_handle.get_webview_window("splashscreen") {
+                                let _ = splash.close();
+                            }
+                        }
                     }
                 }
             });
@@ -458,7 +706,12 @@ fn main() {
             get_backend_url,
             get_backend_status,
             check_ollama_status,
+            ensure_edge_infrastructure,
             check_first_run_status,
+            // Windows autostart
+            setup_windows_autostart,
+            remove_windows_autostart,
+            check_windows_autostart,
             // Auth0 OAuth commands
             auth::configure_auth0,
             auth::start_auth_flow,

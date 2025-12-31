@@ -58,34 +58,12 @@ export function Auth0Provider({ children }: Auth0ProviderProps): ReactElement {
 
   // DESKTOP MODE: Use DesktopAuth0Provider with PKCE + Keychain
   if (IS_DESKTOP_BUILD) {
-    // During SSR or before hydration, render children without auth
-    if (!isHydrated) {
-      return <>{children}</>;
-    }
-
-    // After hydration, if we're in Tauri, use license-aware desktop auth
-    if (isTauri) {
-      devLog('[Auth0Provider] Using LicenseAwareAuth0Provider (Tauri detected)');
-      return <LicenseAwareAuth0Provider>{children}</LicenseAwareAuth0Provider>;
-    }
-
-    // SECURITY: Block desktop builds running outside Tauri
-    devLog('[Auth0Provider] ERROR: Desktop build accessed outside Tauri');
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gray-900 text-white p-8">
-        <div className="max-w-md text-center space-y-4">
-          <div className="text-6xl">🔒</div>
-          <h1 className="text-2xl font-bold">Aurity Desktop Required</h1>
-          <p className="text-gray-400">
-            This application is designed to run inside Aurity Desktop.
-            Please open the app using the installed Aurity Desktop application.
-          </p>
-          <p className="text-sm text-gray-500">
-            If you&apos;re a developer, run: <code className="bg-gray-800 px-2 py-1 rounded">cargo tauri dev</code>
-          </p>
-        </div>
-      </div>
-    );
+    // Always render LicenseAwareAuth0Provider for desktop builds
+    // This ensures the DesktopAuth0Context is available from the first render
+    // preventing the "useDesktopAuth0 must be used within DesktopAuth0Provider" error
+    // The LicenseAwareAuth0Provider handles hydration and Tauri detection internally
+    devLog('[Auth0Provider] Using LicenseAwareAuth0Provider (desktop build)');
+    return <LicenseAwareAuth0Provider>{children}</LicenseAwareAuth0Provider>;
   }
 
   // CLOUD MODE: Use standard Auth0 SDK
