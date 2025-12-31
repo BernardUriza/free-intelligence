@@ -68,7 +68,9 @@ class LLMCall(LLMCallCreate):
         """Create LLMCall from database row."""
         return cls(
             id=row["id"],
-            timestamp=datetime.fromisoformat(row["timestamp"]) if isinstance(row["timestamp"], str) else row["timestamp"],
+            timestamp=datetime.fromisoformat(row["timestamp"])
+            if isinstance(row["timestamp"], str)
+            else row["timestamp"],
             model=row["model"],
             provider=row["provider"],
             prompt_tokens=row["prompt_tokens"],

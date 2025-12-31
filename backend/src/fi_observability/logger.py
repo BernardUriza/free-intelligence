@@ -59,7 +59,7 @@ class LLMLogger:
                     :prompt_hash, :response_hash, :metadata
                 )
                 """,
-                data
+                data,
             )
             conn.commit()
 
@@ -69,10 +69,7 @@ class LLMLogger:
     def get_call(self, call_id: str) -> Optional[LLMCall]:
         """Get a specific call by ID."""
         with get_connection() as conn:
-            row = conn.execute(
-                "SELECT * FROM llm_calls WHERE id = ?",
-                (call_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM llm_calls WHERE id = ?", (call_id,)).fetchone()
 
         if row:
             return LLMCall.from_row(dict(row))
@@ -138,7 +135,7 @@ class LLMLogger:
                 FROM llm_calls
                 WHERE {base_filter}
                 """,
-                params
+                params,
             ).fetchone()
 
             stats = CallStats(
@@ -157,7 +154,7 @@ class LLMLogger:
                 WHERE {base_filter} AND status = 'success'
                 ORDER BY latency_ms
                 """,
-                params
+                params,
             ).fetchall()
 
             if latencies:
@@ -175,12 +172,11 @@ class LLMLogger:
                 GROUP BY model
                 ORDER BY count DESC
                 """,
-                params
+                params,
             ).fetchall()
 
             stats.calls_by_model = {
-                r["model"]: {"count": r["count"], "tokens": r["tokens"] or 0}
-                for r in model_rows
+                r["model"]: {"count": r["count"], "tokens": r["tokens"] or 0} for r in model_rows
             }
 
             # By client (only if not filtering by client)
@@ -194,13 +190,10 @@ class LLMLogger:
                     ORDER BY count DESC
                     LIMIT 10
                     """,
-                    params
+                    params,
                 ).fetchall()
 
-                stats.calls_by_client = {
-                    r["client_id"]: r["count"]
-                    for r in client_rows
-                }
+                stats.calls_by_client = {r["client_id"]: r["count"] for r in client_rows}
 
         return stats
 
@@ -232,7 +225,7 @@ class LLMLogger:
                 FROM llm_calls
                 WHERE client_id = ? AND timestamp >= ?
                 """,
-                (client_id, period_start.isoformat())
+                (client_id, period_start.isoformat()),
             ).fetchone()
 
             report.total_calls = row["total"] or 0
@@ -250,12 +243,11 @@ class LLMLogger:
                 WHERE client_id = ? AND timestamp >= ?
                 GROUP BY model
                 """,
-                (client_id, period_start.isoformat())
+                (client_id, period_start.isoformat()),
             ).fetchall()
 
             report.calls_by_model = {
-                r["model"]: {"count": r["count"], "tokens": r["tokens"] or 0}
-                for r in model_rows
+                r["model"]: {"count": r["count"], "tokens": r["tokens"] or 0} for r in model_rows
             }
 
             # By persona
@@ -266,13 +258,10 @@ class LLMLogger:
                 WHERE client_id = ? AND timestamp >= ? AND persona IS NOT NULL
                 GROUP BY persona
                 """,
-                (client_id, period_start.isoformat())
+                (client_id, period_start.isoformat()),
             ).fetchall()
 
-            report.calls_by_persona = {
-                r["persona"]: r["count"]
-                for r in persona_rows
-            }
+            report.calls_by_persona = {r["persona"]: r["count"] for r in persona_rows}
 
             # Recent calls
             recent = conn.execute(
@@ -282,7 +271,7 @@ class LLMLogger:
                 ORDER BY timestamp DESC
                 LIMIT 10
                 """,
-                (client_id,)
+                (client_id,),
             ).fetchall()
 
             report.recent_calls = [LLMCall.from_row(dict(r)) for r in recent]
@@ -321,7 +310,7 @@ class LLMLogger:
                 ORDER BY timestamp DESC
                 LIMIT ?
                 """,
-                (f"%{query}%", f"%{query}%", limit)
+                (f"%{query}%", f"%{query}%", limit),
             ).fetchall()
 
         return [LLMCall.from_row(dict(row)) for row in rows]

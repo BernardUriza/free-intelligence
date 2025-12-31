@@ -115,6 +115,7 @@ def generate_id():
 # HOUSEKEEPER
 # =============================================================================
 
+
 def run_housekeeping() -> dict:
     """Clean old records from the database."""
     cutoff = (datetime.utcnow() - timedelta(hours=MAX_AGE_HOURS)).isoformat()
@@ -127,11 +128,14 @@ def run_housekeeping() -> dict:
         conn.execute("DELETE FROM llm_calls WHERE timestamp < ?", (cutoff,))
 
         # Keep only MAX_RECORDS (delete oldest if over limit)
-        conn.execute("""
+        conn.execute(
+            """
             DELETE FROM llm_calls WHERE id NOT IN (
                 SELECT id FROM llm_calls ORDER BY timestamp DESC LIMIT ?
             )
-        """, (MAX_RECORDS,))
+        """,
+            (MAX_RECORDS,),
+        )
 
         conn.commit()
 
@@ -316,7 +320,9 @@ def log_call(
     timestamp = datetime.utcnow().isoformat()
 
     prompt_hash = hashlib.sha256(prompt_preview.encode()).hexdigest()[:16] if prompt_preview else ""
-    response_hash = hashlib.sha256(response_preview.encode()).hexdigest()[:16] if response_preview else ""
+    response_hash = (
+        hashlib.sha256(response_preview.encode()).hexdigest()[:16] if response_preview else ""
+    )
 
     with get_db() as conn:
         conn.execute(
@@ -488,12 +494,14 @@ class EdgeHandler(BaseHTTPRequestHandler):
             ollama = check_ollama()
             model = get_loaded_model()
             system = get_system_info()
-            self.send_json({
-                "ollama": ollama,
-                "model": model,
-                "system": system,
-                "ollama_url": OLLAMA_URL,
-            })
+            self.send_json(
+                {
+                    "ollama": ollama,
+                    "model": model,
+                    "system": system,
+                    "ollama_url": OLLAMA_URL,
+                }
+            )
 
         elif path == "/stats":
             hours = 24
@@ -553,7 +561,9 @@ class EdgeHandler(BaseHTTPRequestHandler):
                     if "message" in result and "content" in result["message"]:
                         response_preview = result["message"]["content"][:500]
                     if "eval_count" in result:
-                        total_tokens = result.get("prompt_eval_count", 0) + result.get("eval_count", 0)
+                        total_tokens = result.get("prompt_eval_count", 0) + result.get(
+                            "eval_count", 0
+                        )
 
                 call_id = log_call(
                     model=model,

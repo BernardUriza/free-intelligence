@@ -75,6 +75,7 @@ class DbStatsResponse(BaseModel):
 
 # Routes
 
+
 @router.get("/health")
 async def health():
     """Health check for observability service."""

@@ -12,17 +12,16 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Default database location
-DEFAULT_DB_PATH = Path(os.getenv(
-    "FI_OBSERVABILITY_DB",
-    "/tmp/fi_observability.db"
-))
+DEFAULT_DB_PATH = Path(os.getenv("FI_OBSERVABILITY_DB", "/tmp/fi_observability.db"))
 
 # For Windows compatibility
 if os.name == "nt":
-    DEFAULT_DB_PATH = Path(os.getenv(
-        "FI_OBSERVABILITY_DB",
-        os.path.join(os.environ.get("TEMP", "C:/Temp"), "fi_observability.db")
-    ))
+    DEFAULT_DB_PATH = Path(
+        os.getenv(
+            "FI_OBSERVABILITY_DB",
+            os.path.join(os.environ.get("TEMP", "C:/Temp"), "fi_observability.db"),
+        )
+    )
 
 
 SCHEMA = """
@@ -152,8 +151,7 @@ def cleanup_old_records(days: int = 30) -> int:
 
     with get_connection() as conn:
         cursor = conn.execute(
-            "DELETE FROM llm_calls WHERE timestamp < datetime('now', ?)",
-            (f"-{days} days",)
+            "DELETE FROM llm_calls WHERE timestamp < datetime('now', ?)", (f"-{days} days",)
         )
         conn.commit()
         deleted = cursor.rowcount
@@ -174,9 +172,7 @@ def get_db_stats() -> dict:
         db_size = _db_path.stat().st_size if _db_path.exists() else 0
 
         # Date range
-        date_range = conn.execute(
-            "SELECT MIN(timestamp), MAX(timestamp) FROM llm_calls"
-        ).fetchone()
+        date_range = conn.execute("SELECT MIN(timestamp), MAX(timestamp) FROM llm_calls").fetchone()
 
         return {
             "total_records": total,
