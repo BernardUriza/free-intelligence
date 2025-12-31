@@ -1,5 +1,4 @@
 # fi_clinic.api.public - Public clinic API routes
-from . import clinics
-from . import clinic_media
+from . import clinic_media, clinics
 
 __all__ = ["clinics", "clinic_media"]
