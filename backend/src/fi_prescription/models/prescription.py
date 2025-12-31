@@ -15,7 +15,7 @@ from enum import Enum
 from typing import Any, Optional
 from uuid import uuid4
 
-from fi_prescription.models.medication import Medication
+from backend.src.fi_prescription.models.medication import Medication
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 

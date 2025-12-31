@@ -16,7 +16,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Optional
 
-from fi_prescription.models.medication import MedicationRoute
+from backend.src.fi_prescription.models.medication import MedicationRoute
 from pydantic import BaseModel, ConfigDict, Field
 
 

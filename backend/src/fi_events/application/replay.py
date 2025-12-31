@@ -7,7 +7,7 @@ Replay allows:
 - Rebuilding projections after schema changes
 
 Usage:
-    from fi_events.application.replay import replay_aggregate, ReplayResult
+    from backend.src.fi_events.application.replay import replay_aggregate, ReplayResult
 
     result = await replay_aggregate("session-123")
     print(result.event_count, result.final_state)

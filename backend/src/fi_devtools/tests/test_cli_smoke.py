@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fi_devtools.cli import app
+from backend.src.fi_devtools.cli import app
 from typer.testing import CliRunner
 
 runner = CliRunner()

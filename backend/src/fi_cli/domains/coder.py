@@ -4,7 +4,7 @@ from typing import Annotated
 
 import sys
 import typer
-from fi_coder.observability.metrics import MetricsCollector
+from backend.src.fi_coder.observability.metrics import MetricsCollector
 from pathlib import Path
 
 from .._common import resolve_repo_root, run_cmd
@@ -74,7 +74,7 @@ def lint_fix(
 
     # Import fi_coder execute function
     try:
-        from fi_coder.execution.executor import execute_qwen_code
+        from backend.src.fi_coder.execution.executor import execute_qwen_code
     except ImportError:
         typer.echo("❌ fi_coder not available. Install or configure qwen-code.", err=True)
         metrics.record_metric("lint_fix_failed", 1.0, tags={"reason": "import_error"})
@@ -153,7 +153,7 @@ def format_fix(
     typer.echo("Attempting to fix formatting issues with AI...")
 
     try:
-        from fi_coder.execution.executor import execute_qwen_code
+        from backend.src.fi_coder.execution.executor import execute_qwen_code
     except ImportError:
         typer.echo("❌ fi_coder not available. Install or configure qwen-code.", err=True)
         sys.exit(1)
@@ -212,7 +212,7 @@ def type_check_fix(
     typer.echo("Attempting to fix type checking errors with AI...")
 
     try:
-        from fi_coder.execution.executor import execute_qwen_code
+        from backend.src.fi_coder.execution.executor import execute_qwen_code
     except ImportError:
         typer.echo("❌ fi_coder not available. Install or configure qwen-code.", err=True)
         sys.exit(1)

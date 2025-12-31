@@ -6,7 +6,7 @@ configuration. The same codebase runs on both targets, differentiated
 only by the DEPLOYMENT_TARGET environment variable.
 
 Usage:
-    from fi_common.config.deployment import is_desktop, get_ollama_host
+    from backend.src.fi_common.config.deployment import is_desktop, get_ollama_host
 
     if is_desktop():
         # Desktop-specific logic

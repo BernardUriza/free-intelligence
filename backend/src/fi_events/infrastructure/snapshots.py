@@ -8,7 +8,7 @@ Snapshots optimize replay by:
 Storage: Dedicated HDF5 dataset per aggregate
 
 Usage:
-    from fi_events.infrastructure.snapshots import SnapshotStore
+    from backend.src.fi_events.infrastructure.snapshots import SnapshotStore
 
     store = SnapshotStore()
     await store.save_snapshot("session-123", state, event_version=50)

@@ -13,8 +13,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from backend.src.fi_common.logging.logger import get_logger
-from fi_prescription.data.allergen_catalog import ALLERGEN_CATALOG
-from fi_prescription.models.allergy import (
+from backend.src.fi_prescription.data.allergen_catalog import ALLERGEN_CATALOG
+from backend.src.fi_prescription.models.allergy import (
     AllergenEntry,
     AllergyAlert,
     AllergyCheckResult,
@@ -22,7 +22,7 @@ from fi_prescription.models.allergy import (
 )
 
 if TYPE_CHECKING:
-    from fi_prescription.models.medication import Medication
+    from backend.src.fi_prescription.models.medication import Medication
 
 logger = get_logger(__name__)
 

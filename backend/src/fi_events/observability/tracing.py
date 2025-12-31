@@ -9,7 +9,7 @@ Provides lightweight tracing spans for:
 Designed to be compatible with OpenTelemetry but standalone.
 
 Usage:
-    from fi_events.observability.tracing import trace_event, get_tracer
+    from backend.src.fi_events.observability.tracing import trace_event, get_tracer
 
     tracer = get_tracer()
     with tracer.span("publish_event", {"event_type": "TRANSCRIPTION_STARTED"}):

@@ -4,8 +4,8 @@
 import logging
 from typing import Optional
 
-from fi_observability.logger import get_llm_logger
-from fi_observability.models import CallStatus, LLMCallCreate
+from .logger import get_llm_logger
+from .models import CallStatus, LLMCallCreate
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def log_llm_call(
     Returns the call ID if successful, None if logging fails.
 
     Example usage in existing code:
-        from fi_observability.hooks import log_llm_call
+        from backend.src.fi_observability.hooks import log_llm_call
 
         log_llm_call(
             model=model_name,
