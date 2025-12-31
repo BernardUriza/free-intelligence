@@ -255,6 +255,12 @@ jobs:
             $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
           set -e  # Fail on any error (except explicit checks)
 
+          # Ensure sqlite3 is installed
+          if ! command -v sqlite3 &> /dev/null; then
+            echo "📦 Installing sqlite3..."
+            apt-get update -qq && apt-get install -y -qq sqlite3
+          fi
+
           DB_PATH="/opt/free-intelligence/data/aurity.db"
           BACKUP_DIR="/opt/free-intelligence/data/backups"
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
