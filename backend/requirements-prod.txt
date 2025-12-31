@@ -17,6 +17,7 @@ PyYAML>=6.0.0
 # Data storage
 h5py>=3.14.0
 sqlalchemy>=2.0.0
+alembic>=1.13.0
 
 # Validation and utilities
 jsonschema>=4.20.0
