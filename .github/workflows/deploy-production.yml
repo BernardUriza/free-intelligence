@@ -353,6 +353,7 @@ jobs:
           Environment="PYTHONPATH=/opt/free-intelligence:/opt/free-intelligence/backend/src"
           Environment="PYTHONNOUSERSITE=1"
           Environment="OLLAMA_HOST=$OLLAMA_URL"
+          Environment="DATABASE_URL=sqlite:////opt/free-intelligence/data/aurity.db"
           ExecStart=/usr/bin/python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001
           Restart=always
           RestartSec=5
