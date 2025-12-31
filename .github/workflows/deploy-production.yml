@@ -249,6 +249,46 @@ jobs:
           echo "✅ Dependencies installed"
           ENDSSH
 
+      - name: Backup database before migration
+        run: |
+          ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
+            $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
+          set -e  # Fail on any error (except explicit checks)
+
+          DB_PATH="/opt/free-intelligence/data/aurity.db"
+          BACKUP_DIR="/opt/free-intelligence/data/backups"
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          BACKUP_FILE="$BACKUP_DIR/aurity-pre-migration-$TIMESTAMP.db"
+
+          # Only tolerate "no DB found" case - other errors should fail
+          if [ ! -f "$DB_PATH" ]; then
+            echo "⏭️ No existing database to backup (first deploy)"
+            exit 0
+          fi
+
+          # Create backup directory
+          mkdir -p "$BACKUP_DIR"
+
+          # Use SQLite's safe backup API (handles live DB correctly)
+          echo "💾 Creating safe SQLite backup..."
+          sqlite3 "$DB_PATH" ".backup '$BACKUP_FILE'"
+
+          # Verify backup was created and has content
+          if [ ! -s "$BACKUP_FILE" ]; then
+            echo "❌ Backup file is empty or missing!"
+            exit 1
+          fi
+
+          echo "✅ Database backed up: aurity-pre-migration-$TIMESTAMP.db ($(du -h "$BACKUP_FILE" | cut -f1))"
+
+          # Keep only last 5 backups (safe pattern-based cleanup)
+          find "$BACKUP_DIR" -maxdepth 1 -name 'aurity-pre-migration-*.db' -type f -printf '%T@ %p\n' | \
+            sort -rn | tail -n +6 | cut -d' ' -f2- | xargs -r rm -f
+
+          BACKUP_COUNT=$(find "$BACKUP_DIR" -maxdepth 1 -name 'aurity-pre-migration-*.db' -type f | wc -l)
+          echo "📁 Backups retained: $BACKUP_COUNT files"
+          ENDSSH
+
       - name: Run database migrations
         run: |
           ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
