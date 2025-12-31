@@ -249,6 +249,28 @@ jobs:
           echo "✅ Dependencies installed"
           ENDSSH
 
+      - name: Backup database before migration
+        continue-on-error: true  # Don't fail if no DB exists yet (first deploy)
+        run: |
+          ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
+            $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
+          DB_PATH="/opt/free-intelligence/data/aurity.db"
+          BACKUP_DIR="/opt/free-intelligence/data/backups"
+
+          if [ -f "$DB_PATH" ]; then
+            mkdir -p "$BACKUP_DIR"
+            TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+            cp "$DB_PATH" "$BACKUP_DIR/aurity-pre-migration-$TIMESTAMP.db"
+            echo "💾 Database backed up: aurity-pre-migration-$TIMESTAMP.db"
+
+            # Keep only last 5 backups to save space
+            cd "$BACKUP_DIR" && ls -t | tail -n +6 | xargs rm -f 2>/dev/null || true
+            echo "📁 Backups: $(ls -1 | wc -l) files retained"
+          else
+            echo "⏭️ No existing database to backup (first deploy)"
+          fi
+          ENDSSH
+
       - name: Run database migrations
         run: |
           ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
