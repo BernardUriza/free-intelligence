@@ -14,7 +14,17 @@
       "Bash(cargo:*)",
       "Bash(rustc:*)",
       "Bash(taskkill:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(sqlite3:*)",
+      "Bash(ps:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr view:*)",
+      "Bash(ruff check:*)",
+      "Bash(gh api:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

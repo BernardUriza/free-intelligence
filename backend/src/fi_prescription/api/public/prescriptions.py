@@ -23,8 +23,6 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from backend.src.fi_common.logging.logger import get_logger
-from backend.validators import validate_session_id
-from fastapi import APIRouter, HTTPException, Query, status
 from backend.src.fi_prescription.models.medication import Medication
 from backend.src.fi_prescription.models.prescription import (
     PatientInfo,
@@ -34,6 +32,8 @@ from backend.src.fi_prescription.models.prescription import (
 )
 from backend.src.fi_prescription.models.template import PrescriptionTemplate
 from backend.src.fi_prescription.services.template_engine import get_template_engine
+from backend.validators import validate_session_id
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)

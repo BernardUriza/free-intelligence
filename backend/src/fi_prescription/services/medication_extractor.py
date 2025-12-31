@@ -19,7 +19,11 @@ from typing import Any
 
 from backend.providers.llm import llm_generate
 from backend.src.fi_common.logging.logger import get_logger
-from backend.src.fi_prescription.models.medication import Medication, MedicationFrequency, MedicationRoute
+from backend.src.fi_prescription.models.medication import (
+    Medication,
+    MedicationFrequency,
+    MedicationRoute,
+)
 from backend.src.fi_prescription.services.catalog_service import catalog_service
 
 logger = get_logger(__name__)

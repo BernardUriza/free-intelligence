@@ -13,8 +13,9 @@ from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
-from ...audio_metrics import audio_metrics
 from pydantic import BaseModel
+
+from ...audio_metrics import audio_metrics
 
 router = APIRouter(prefix="/api/observability", tags=["observability"])
 

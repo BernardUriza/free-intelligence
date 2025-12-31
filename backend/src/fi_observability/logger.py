@@ -6,9 +6,10 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
+from ulid import ULID
+
 from .database import ensure_initialized, get_connection
 from .models import CallStats, CallStatus, ClientReport, LLMCall, LLMCallCreate
-from ulid import ULID
 
 logger = logging.getLogger(__name__)
 

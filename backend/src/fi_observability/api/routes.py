@@ -6,10 +6,11 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
+
 from ..database import cleanup_old_records, get_db_stats
 from ..logger import get_llm_logger
 from ..models import CallStatus
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/observability", tags=["observability"])
 
