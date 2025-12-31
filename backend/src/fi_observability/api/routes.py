@@ -1,15 +1,15 @@
 # fi_observability/api/routes.py
 # API routes for LLM observability
 
-from fastapi import APIRouter, Query, HTTPException
-from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime
 from dataclasses import asdict
+from datetime import datetime
+from typing import Optional
 
+from fastapi import APIRouter, HTTPException, Query
+from fi_observability.database import cleanup_old_records, get_db_stats
 from fi_observability.logger import get_llm_logger
 from fi_observability.models import CallStatus
-from fi_observability.database import get_db_stats, cleanup_old_records
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/observability", tags=["observability"])
 

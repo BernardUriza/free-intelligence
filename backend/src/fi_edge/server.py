@@ -26,17 +26,18 @@ import argparse
 import hashlib
 import json
 import logging
-import os
 import platform
 import sqlite3
 import time
+import urllib.error
+import urllib.request
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from pathlib import Path
 from typing import Optional
-import urllib.error
-import urllib.request
+
+import os
+from pathlib import Path
 
 # Config
 OLLAMA_URL = os.getenv("OLLAMA_HOST", "http://localhost:11434")
@@ -181,8 +182,8 @@ def ensure_ollama_running() -> bool:
     # Try to start Ollama
     logger.info("Ollama not running, attempting to start...")
     try:
-        import subprocess
         import shutil
+        import subprocess
 
         # Find ollama executable
         ollama_path = shutil.which("ollama")

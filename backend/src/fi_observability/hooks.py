@@ -5,7 +5,7 @@ import logging
 from typing import Optional
 
 from fi_observability.logger import get_llm_logger
-from fi_observability.models import LLMCallCreate, CallStatus
+from fi_observability.models import CallStatus, LLMCallCreate
 
 logger = logging.getLogger(__name__)
 

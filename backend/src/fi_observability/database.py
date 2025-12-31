@@ -1,12 +1,13 @@
 # fi_observability/database.py
 # SQLite database for LLM call persistence
 
+import logging
 import sqlite3
-import os
-from pathlib import Path
 from contextlib import contextmanager
 from typing import Generator
-import logging
+
+import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 

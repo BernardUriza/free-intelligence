@@ -1,14 +1,14 @@
 # fi_observability/logger.py
 # LLM Logger - Logs all LLM calls to SQLite
 
+import json
 import logging
 from datetime import datetime, timedelta
 from typing import Optional
-from ulid import ULID
-import json
 
-from fi_observability.models import LLMCall, LLMCallCreate, CallStatus, CallStats, ClientReport
-from fi_observability.database import get_connection, ensure_initialized
+from fi_observability.database import ensure_initialized, get_connection
+from fi_observability.models import CallStats, CallStatus, ClientReport, LLMCall, LLMCallCreate
+from ulid import ULID
 
 logger = logging.getLogger(__name__)
 

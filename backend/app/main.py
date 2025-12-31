@@ -302,6 +302,10 @@ Requires environment variables:
         from backend.src.fi_llm.api.internal.llm import router as llm_router
         from backend.src.fi_llm.api.public import llm_models_admin
         from backend.src.fi_model_catalog.api.public import catalog_admin
+        from backend.src.fi_observability import init_observability_db
+
+        # Observability (LLM call logging for FI Edge Monitor)
+        from backend.src.fi_observability.api import router as observability_router
         from backend.src.fi_patient.api.public import patients
         from backend.src.fi_payment.api.public import payments
         from backend.src.fi_policy.api.public import policy
@@ -324,10 +328,6 @@ Requires environment variables:
         from backend.src.fi_tts.api.public import tts
         from backend.src.fi_user.api.public import user_clinic
         from backend.src.fi_workflow.api.internal.triage import router as triage_router
-
-        # Observability (LLM call logging for FI Edge Monitor)
-        from backend.src.fi_observability.api import router as observability_router
-        from backend.src.fi_observability import init_observability_db
 
         # Initialize observability database on startup
         try:

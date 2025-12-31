@@ -1,11 +1,11 @@
 # fi_observability/models.py
 # Data models for LLM call logging
 
-from dataclasses import dataclass, field, asdict
-from datetime import datetime
-from typing import Optional
-from enum import Enum
 import json
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Optional
 
 
 class CallStatus(str, Enum):
