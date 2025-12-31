@@ -24,12 +24,12 @@ class CallResponse(BaseModel):
     completion_tokens: int
     latency_ms: int
     status: str
-    error_message: Optional[str] = None
+    error_message: str | None = None
     prompt_preview: str
     response_preview: str
-    client_id: Optional[str] = None
-    session_id: Optional[str] = None
-    persona: Optional[str] = None
+    client_id: str | None = None
+    session_id: str | None = None
+    persona: str | None = None
 
     class Config:
         from_attributes = True
@@ -69,8 +69,8 @@ class DbStatsResponse(BaseModel):
     db_size_bytes: int
     db_size_mb: float
     db_path: str
-    oldest_record: Optional[str]
-    newest_record: Optional[str]
+    oldest_record: str | None
+    newest_record: str | None
 
 
 # Routes
@@ -85,7 +85,7 @@ async def health():
 @router.get("/stats", response_model=StatsResponse)
 async def get_stats(
     hours: int = Query(24, ge=1, le=168, description="Hours to look back"),
-    client_id: Optional[str] = Query(None, description="Filter by client ID"),
+    client_id: str | None = Query(None, description="Filter by client ID"),
 ):
     """Get aggregated statistics for LLM calls."""
     logger = get_llm_logger()
@@ -108,9 +108,9 @@ async def get_stats(
 @router.get("/calls/recent", response_model=list[CallResponse])
 async def get_recent_calls(
     limit: int = Query(5, ge=1, le=100, description="Number of calls to return"),
-    client_id: Optional[str] = Query(None, description="Filter by client ID"),
-    model: Optional[str] = Query(None, description="Filter by model"),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    client_id: str | None = Query(None, description="Filter by client ID"),
+    model: str | None = Query(None, description="Filter by model"),
+    status: str | None = Query(None, description="Filter by status"),
 ):
     """Get most recent LLM calls."""
     logger = get_llm_logger()

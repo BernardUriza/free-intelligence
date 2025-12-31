@@ -128,7 +128,7 @@ def init_observability_db(db_path: Path | str | None = None) -> None:
 
 
 @contextmanager
-def get_connection() -> Generator[sqlite3.Connection, None, None]:
+def get_connection() -> Generator[sqlite3.Connection]:
     """Get a database connection with row factory."""
     conn = sqlite3.connect(str(_db_path), timeout=30.0)
     conn.row_factory = sqlite3.Row

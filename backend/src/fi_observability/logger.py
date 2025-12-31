@@ -13,7 +13,7 @@ from ulid import ULID
 logger = logging.getLogger(__name__)
 
 # Singleton instance
-_logger_instance: Optional["LLMLogger"] = None
+_logger_instance: "LLMLogger" | None = None
 
 
 def get_llm_logger() -> "LLMLogger":
@@ -66,7 +66,7 @@ class LLMLogger:
         logger.debug(f"Logged LLM call {call_id}: {call.model} ({call.latency_ms}ms)")
         return call_id
 
-    def get_call(self, call_id: str) -> Optional[LLMCall]:
+    def get_call(self, call_id: str) -> LLMCall | None:
         """Get a specific call by ID."""
         with get_connection() as conn:
             row = conn.execute("SELECT * FROM llm_calls WHERE id = ?", (call_id,)).fetchone()
@@ -78,9 +78,9 @@ class LLMLogger:
     def get_recent_calls(
         self,
         limit: int = 5,
-        client_id: Optional[str] = None,
-        model: Optional[str] = None,
-        status: Optional[CallStatus] = None,
+        client_id: str | None = None,
+        model: str | None = None,
+        status: CallStatus | None = None,
     ) -> list[LLMCall]:
         """Get most recent calls with optional filters."""
         query = "SELECT * FROM llm_calls WHERE 1=1"
@@ -109,7 +109,7 @@ class LLMLogger:
     def get_stats(
         self,
         hours: int = 24,
-        client_id: Optional[str] = None,
+        client_id: str | None = None,
     ) -> CallStats:
         """Get aggregated statistics for the last N hours."""
         since = datetime.utcnow() - timedelta(hours=hours)

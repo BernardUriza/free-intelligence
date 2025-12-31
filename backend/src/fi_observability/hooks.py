@@ -18,16 +18,16 @@ def log_llm_call(
     prompt_tokens: int = 0,
     completion_tokens: int = 0,
     status: str = "success",
-    error_message: Optional[str] = None,
+    error_message: str | None = None,
     prompt_preview: str = "",
     response_preview: str = "",
-    client_id: Optional[str] = None,
-    session_id: Optional[str] = None,
-    persona: Optional[str] = None,
-    prompt_hash: Optional[str] = None,
-    response_hash: Optional[str] = None,
-    metadata: Optional[dict] = None,
-) -> Optional[str]:
+    client_id: str | None = None,
+    session_id: str | None = None,
+    persona: str | None = None,
+    prompt_hash: str | None = None,
+    response_hash: str | None = None,
+    metadata: dict | None = None,
+) -> str | None:
     """
     Log an LLM call to the observability database.
 
@@ -103,10 +103,10 @@ def log_llm_error(
     error_message: str,
     error_type: str = "unknown",
     prompt_preview: str = "",
-    client_id: Optional[str] = None,
-    session_id: Optional[str] = None,
-    persona: Optional[str] = None,
-) -> Optional[str]:
+    client_id: str | None = None,
+    session_id: str | None = None,
+    persona: str | None = None,
+) -> str | None:
     """
     Log a failed LLM call to the observability database.
 

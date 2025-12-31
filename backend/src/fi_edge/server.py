@@ -313,7 +313,7 @@ def log_call(
     completion_tokens: int = 0,
     total_tokens: int = 0,
     status: str = "success",
-    error_message: str = None,
+    error_message: str | None = None,
 ) -> str:
     """Log an LLM call to the database."""
     call_id = generate_id()
@@ -418,7 +418,7 @@ def get_recent_calls(limit: int = 10) -> list:
         return [dict(row) for row in rows]
 
 
-def get_call(call_id: str) -> Optional[dict]:
+def get_call(call_id: str) -> dict | None:
     """Get a specific call."""
     with get_db() as conn:
         row = conn.execute("SELECT * FROM llm_calls WHERE id = ?", (call_id,)).fetchone()
@@ -461,7 +461,7 @@ def get_system_info() -> dict:
 class EdgeHandler(BaseHTTPRequestHandler):
     """HTTP request handler for Edge Server."""
 
-    def log_message(self, format, *args):
+    def log_message(self, format, *args):  # noqa: A002
         """Suppress default logging."""
         pass
 
@@ -594,22 +594,22 @@ def run_server(port: int = DEFAULT_PORT):
     start_housekeeper()
 
     server = HTTPServer(("0.0.0.0", port), EdgeHandler)
-    logger.info(f"")
-    logger.info(f"╔═══════════════════════════════════════════════════════════╗")
-    logger.info(f"║  FI Edge Server v0.1.0                                    ║")
-    logger.info(f"╠═══════════════════════════════════════════════════════════╣")
+    logger.info("")
+    logger.info("╔═══════════════════════════════════════════════════════════╗")
+    logger.info("║  FI Edge Server v0.1.0                                    ║")
+    logger.info("╠═══════════════════════════════════════════════════════════╣")
     logger.info(f"║  Port:     {port:<47} ║")
     logger.info(f"║  Ollama:   {OLLAMA_URL:<47} ║")
-    logger.info(f"║  Database: {str(DB_PATH):<47} ║")
-    logger.info(f"╠═══════════════════════════════════════════════════════════╣")
-    logger.info(f"║  Endpoints:                                               ║")
-    logger.info(f"║    GET  /health     - Health check                        ║")
-    logger.info(f"║    GET  /status     - Ollama + system status              ║")
-    logger.info(f"║    GET  /stats      - Call statistics                     ║")
-    logger.info(f"║    GET  /calls      - Recent calls                        ║")
-    logger.info(f"║    POST /proxy/chat - Proxy to Ollama with logging        ║")
-    logger.info(f"╚═══════════════════════════════════════════════════════════╝")
-    logger.info(f"")
+    logger.info(f"║  Database: {DB_PATH!s:<47} ║")
+    logger.info("╠═══════════════════════════════════════════════════════════╣")
+    logger.info("║  Endpoints:                                               ║")
+    logger.info("║    GET  /health     - Health check                        ║")
+    logger.info("║    GET  /status     - Ollama + system status              ║")
+    logger.info("║    GET  /stats      - Call statistics                     ║")
+    logger.info("║    GET  /calls      - Recent calls                        ║")
+    logger.info("║    POST /proxy/chat - Proxy to Ollama with logging        ║")
+    logger.info("╚═══════════════════════════════════════════════════════════╝")
+    logger.info("")
 
     try:
         server.serve_forever()

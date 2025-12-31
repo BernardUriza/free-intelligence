@@ -31,20 +31,20 @@ class LLMCallCreate:
 
     # Status
     status: CallStatus = CallStatus.SUCCESS
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
     # Content previews (for debugging, not full content)
     prompt_preview: str = ""  # First 500 chars
     response_preview: str = ""  # First 500 chars
 
     # Context
-    client_id: Optional[str] = None  # User/doctor ID
-    session_id: Optional[str] = None
-    persona: Optional[str] = None  # general_assistant, soap_generator, etc.
+    client_id: str | None = None  # User/doctor ID
+    session_id: str | None = None
+    persona: str | None = None  # general_assistant, soap_generator, etc.
 
     # Hashes for dedup/lookup (from existing logging)
-    prompt_hash: Optional[str] = None
-    response_hash: Optional[str] = None
+    prompt_hash: str | None = None
+    response_hash: str | None = None
 
     # Extra metadata
     metadata: dict = field(default_factory=dict)
