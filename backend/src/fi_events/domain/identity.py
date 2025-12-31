@@ -10,7 +10,7 @@ ULID format: 01ARZ3NDEKTSV4RRFFQ69G5FAV
 - Last 16 chars: randomness
 
 Usage:
-    from fi_events.domain.identity import generate_event_id, generate_dedupe_key
+    from backend.src.fi_events.domain.identity import generate_event_id, generate_dedupe_key
 
     event_id = generate_event_id()  # ULID string
     dedupe_key = generate_dedupe_key(EventType.TRANSCRIPTION_STARTED, payload)

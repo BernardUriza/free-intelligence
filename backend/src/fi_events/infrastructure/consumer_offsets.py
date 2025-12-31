@@ -9,7 +9,7 @@ Consumer offsets enable:
 Storage: HDF5 dataset per consumer group
 
 Usage:
-    from fi_events.infrastructure.consumer_offsets import (
+    from backend.src.fi_events.infrastructure.consumer_offsets import (
         ConsumerOffsetStore,
         get_offset_store,
     )

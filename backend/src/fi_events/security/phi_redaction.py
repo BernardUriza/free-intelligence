@@ -23,7 +23,7 @@ HIPAA defines 18 identifiers as PHI:
 This module provides patterns to detect and redact common PHI types.
 
 Usage:
-    from fi_events.security.phi_redaction import redact_phi, detect_phi
+    from backend.src.fi_events.security.phi_redaction import redact_phi, detect_phi
 
     # Redact PHI from a dict
     safe_data = redact_phi({"patient_name": "John Doe", "count": 5})

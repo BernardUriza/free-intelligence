@@ -13,7 +13,7 @@ Each contract has:
 - upcaster: Optional function to migrate from previous version
 
 Usage:
-    from fi_events.domain.contracts import validate_payload, get_contract
+    from backend.src.fi_events.domain.contracts import validate_payload, get_contract
 
     # Validate before emitting
     validated = validate_payload(EventType.TRANSCRIPTION_STARTED, payload)

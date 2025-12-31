@@ -9,7 +9,7 @@ Metrics tracked:
 - consumer_lag_events: Gauge of consumer lag in events
 
 Usage:
-    from fi_events.observability.metrics import get_metrics
+    from backend.src.fi_events.observability.metrics import get_metrics
 
     metrics = get_metrics()
     metrics.record_event_published("TRANSCRIPTION_STARTED", 0.005)

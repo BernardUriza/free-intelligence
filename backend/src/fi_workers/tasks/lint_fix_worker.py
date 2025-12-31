@@ -8,8 +8,8 @@ from typing import Any
 
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_workers.tasks.base_worker import WorkerResult, measure_time
-from fi_coder.execution.executor import execute_qwen_code
-from fi_coder.observability.metrics import MetricsCollector
+from backend.src.fi_coder.execution.executor import execute_qwen_code
+from backend.src.fi_coder.observability.metrics import MetricsCollector
 from pathlib import Path
 
 logger = get_logger(__name__)

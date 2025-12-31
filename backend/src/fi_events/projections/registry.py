@@ -10,7 +10,7 @@ The registry:
 - Monitors projection health and lag
 
 Usage:
-    from fi_events.projections.registry import ProjectionRegistry, get_registry
+    from backend.src.fi_events.projections.registry import ProjectionRegistry, get_registry
 
     registry = get_registry()
     registry.register(SessionIndexProjection())

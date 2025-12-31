@@ -7,7 +7,7 @@ Provides:
 - Projection lag monitoring
 
 Usage:
-    from fi_events.observability import get_metrics, EventMetrics
+    from backend.src.fi_events.observability import get_metrics, EventMetrics
 
     metrics = get_metrics()
     metrics.record_event_published("TRANSCRIPTION_STARTED", 0.5)

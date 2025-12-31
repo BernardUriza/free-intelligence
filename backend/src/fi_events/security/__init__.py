@@ -6,7 +6,7 @@ Provides:
 - Audit logging
 
 Usage:
-    from fi_events.security import redact_phi, check_event_access
+    from backend.src.fi_events.security import redact_phi, check_event_access
 
     safe_payload = redact_phi(payload)
     if check_event_access(user, "session_index"):

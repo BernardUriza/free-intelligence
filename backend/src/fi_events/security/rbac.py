@@ -9,7 +9,7 @@ Roles:
 - FI-readonly: Read-only access to projections
 
 Usage:
-    from fi_events.security.rbac import check_event_access, require_event_permission
+    from backend.src.fi_events.security.rbac import check_event_access, require_event_permission
 
     # Check access
     if check_event_access(user, EventPermission.READ_STREAM, session_id="ses-123"):

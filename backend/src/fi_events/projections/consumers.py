@@ -8,11 +8,11 @@ These projections build materialized views from the event stream:
 - MetricsByType: Event counts and stats by type
 
 Usage:
-    from fi_events.projections.consumers import (
+    from backend.src.fi_events.projections.consumers import (
         SessionIndexProjection,
         TranscriptionTimelineProjection,
     )
-    from fi_events.projections.registry import get_registry
+    from backend.src.fi_events.projections.registry import get_registry
 
     registry = get_registry()
     registry.register(SessionIndexProjection())
