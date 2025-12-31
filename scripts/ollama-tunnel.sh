@@ -8,7 +8,15 @@
 #   ./scripts/ollama-tunnel.sh start    # Inicia tunnel y actualiza DO
 #   ./scripts/ollama-tunnel.sh stop     # Detiene tunnel
 #   ./scripts/ollama-tunnel.sh status   # Muestra estado actual
+#   ./scripts/ollama-tunnel.sh monitor  # Monitor interactivo (UI bonita)
 #   ./scripts/ollama-tunnel.sh url      # Muestra URL actual
+#   ./scripts/ollama-tunnel.sh restart  # Reinicia tunnel
+#
+# Monitor interactivo:
+#   [Q] Quit      - Salir del monitor
+#   [R] Restart   - Reiniciar tunnel
+#   [T] Test LLM  - Probar conexión con curl al LLM
+#   [C] Copy URL  - Copiar URL al clipboard
 # ============================================================================
 
 set -e
@@ -186,7 +194,7 @@ stop_tunnel() {
     success "Tunnel detenido"
 }
 
-# Mostrar estado
+# Mostrar estado (simple)
 show_status() {
     echo ""
     echo "=== AURITY Ollama Tunnel Status ==="
@@ -220,6 +228,297 @@ show_status() {
     echo ""
 }
 
+# ============================================================================
+# INTERACTIVE MONITOR MODE
+# ============================================================================
+
+# Get terminal width
+get_term_width() {
+    local width
+    if [ -n "$COLUMNS" ]; then
+        width=$COLUMNS
+    elif command -v tput >/dev/null 2>&1; then
+        width=$(tput cols 2>/dev/null || echo 80)
+    else
+        width=80
+    fi
+    # Minimum 60, maximum 120 for readability
+    [ "$width" -lt 60 ] && width=60
+    [ "$width" -gt 120 ] && width=120
+    echo "$width"
+}
+
+# Get active model info
+get_model_info() {
+    local model_data
+    model_data=$(curl -s -m 3 http://localhost:$OLLAMA_PORT/api/ps 2>/dev/null)
+    if [ -n "$model_data" ] && echo "$model_data" | jq -e '.models[0]' >/dev/null 2>&1; then
+        local name size_bytes size_gb
+        name=$(echo "$model_data" | jq -r '.models[0].name // "none"')
+        size_bytes=$(echo "$model_data" | jq -r '.models[0].size // 0')
+        size_gb=$(echo "scale=1; $size_bytes / 1073741824" | bc 2>/dev/null || echo "?")
+        echo "$name|${size_gb} GB loaded"
+    else
+        # No model loaded, get available models
+        local models
+        models=$(curl -s -m 3 http://localhost:$OLLAMA_PORT/api/tags 2>/dev/null | jq -r '.models[0].name // "none"')
+        echo "$models|not loaded"
+    fi
+}
+
+# Measure tunnel latency
+get_tunnel_latency() {
+    local url=$1
+    if [ -z "$url" ]; then
+        echo "N/A"
+        return
+    fi
+    local start end latency
+    start=$(date +%s%N 2>/dev/null || echo "0")
+    if curl -s -m 5 -o /dev/null "$url/api/tags" 2>/dev/null; then
+        end=$(date +%s%N 2>/dev/null || echo "0")
+        if [ "$start" != "0" ] && [ "$end" != "0" ]; then
+            latency=$(( (end - start) / 1000000 ))
+            echo "${latency}ms"
+        else
+            echo "OK"
+        fi
+    else
+        echo "FAIL"
+    fi
+}
+
+# Run LLM test
+run_llm_test() {
+    local url=$1
+    echo ""
+    echo -e "${BLUE}Running LLM test...${NC}"
+    local start end response time_ms
+    start=$(date +%s%N 2>/dev/null || echo "0")
+    response=$(curl -s -m 30 "$url/api/chat" -d '{
+        "model": "qwen3:1.7b",
+        "messages": [{"role": "user", "content": "Say hello in 5 words"}],
+        "think": false,
+        "stream": false
+    }' 2>/dev/null)
+    end=$(date +%s%N 2>/dev/null || echo "0")
+
+    if [ "$start" != "0" ] && [ "$end" != "0" ]; then
+        time_ms=$(( (end - start) / 1000000 ))
+    else
+        time_ms="?"
+    fi
+
+    if echo "$response" | jq -e '.message.content' >/dev/null 2>&1; then
+        local content
+        content=$(echo "$response" | jq -r '.message.content' | head -c 100)
+        echo -e "${GREEN}[OK]${NC} Response in ${time_ms}ms: $content"
+    else
+        echo -e "${RED}[FAIL]${NC} No response or error"
+        echo "$response" | head -c 200
+    fi
+    echo ""
+    echo "Press any key to continue..."
+    read -rsn1
+}
+
+# Copy URL to clipboard
+copy_url() {
+    local url=$1
+    if [ -z "$url" ]; then
+        echo -e "${RED}No URL available${NC}"
+        return
+    fi
+    # Try different clipboard commands
+    if command -v pbcopy >/dev/null 2>&1; then
+        echo -n "$url" | pbcopy
+        echo -e "${GREEN}URL copied to clipboard (pbcopy)${NC}"
+    elif command -v xclip >/dev/null 2>&1; then
+        echo -n "$url" | xclip -selection clipboard
+        echo -e "${GREEN}URL copied to clipboard (xclip)${NC}"
+    elif command -v xsel >/dev/null 2>&1; then
+        echo -n "$url" | xsel --clipboard
+        echo -e "${GREEN}URL copied to clipboard (xsel)${NC}"
+    else
+        echo -e "${YELLOW}No clipboard tool found. URL: $url${NC}"
+    fi
+    sleep 1
+}
+
+# Draw box line
+draw_line() {
+    local width=$1 char=$2 left=$3 right=$4
+    printf "%s" "$left"
+    for ((i=1; i<width-1; i++)); do printf "%s" "$char"; done
+    printf "%s\n" "$right"
+}
+
+# Pad string to width
+pad_string() {
+    local str=$1 width=$2
+    local len=${#str}
+    local spaces=$((width - len))
+    printf "%s" "$str"
+    for ((i=0; i<spaces; i++)); do printf " "; done
+}
+
+# Interactive monitor
+show_monitor() {
+    local width url tunnel_pid model_info model_name model_status latency current_time
+    local ollama_status tunnel_status
+
+    # Hide cursor
+    tput civis 2>/dev/null || true
+    trap 'tput cnorm 2>/dev/null; exit 0' EXIT INT TERM
+
+    while true; do
+        width=$(get_term_width)
+        local inner_width=$((width - 4))
+
+        # Gather data
+        url=""
+        [ -f "$TUNNEL_URL_FILE" ] && url=$(cat "$TUNNEL_URL_FILE" 2>/dev/null)
+
+        tunnel_pid=""
+        [ -f /tmp/ollama-tunnel.pid ] && tunnel_pid=$(cat /tmp/ollama-tunnel.pid 2>/dev/null)
+
+        # Check Ollama
+        if curl -s -m 2 http://localhost:$OLLAMA_PORT/api/tags >/dev/null 2>&1; then
+            ollama_status="${GREEN}● Running${NC}"
+        else
+            ollama_status="${RED}● Stopped${NC}"
+        fi
+
+        # Check tunnel
+        if pgrep -f "cloudflared tunnel" >/dev/null 2>&1; then
+            tunnel_status="${GREEN}● Running${NC}"
+        else
+            tunnel_status="${RED}● Stopped${NC}"
+        fi
+
+        # Get model info
+        model_info=$(get_model_info)
+        model_name=$(echo "$model_info" | cut -d'|' -f1)
+        model_status=$(echo "$model_info" | cut -d'|' -f2)
+
+        # Get latency (async would be better but keeping simple)
+        if [ -n "$url" ]; then
+            latency=$(get_tunnel_latency "$url")
+            if [ "$latency" = "FAIL" ]; then
+                url_status="${RED}● Unreachable${NC}"
+            else
+                url_status="${GREEN}● Accessible${NC}   Latency: $latency"
+            fi
+        else
+            latency="N/A"
+            url_status="${YELLOW}● No URL${NC}"
+        fi
+
+        current_time=$(date +"%H:%M:%S")
+
+        # Clear screen and draw
+        clear
+
+        # Header
+        draw_line "$width" "─" "┌" "┐"
+        printf "│  ${BLUE}FI EDGE MONITOR${NC}"
+        local header_right="AURITY v0.1.1 │"
+        local header_left_len=18  # "  FI EDGE MONITOR" visible length
+        local header_right_len=16 # "AURITY v0.1.1 │" length
+        local header_spaces=$((width - header_left_len - header_right_len - 2))
+        for ((i=0; i<header_spaces; i++)); do printf " "; done
+        printf "%s\n" "$header_right"
+        draw_line "$width" "─" "├" "┤"
+
+        # Ollama status
+        printf "│  OLLAMA   "
+        printf "%b    localhost:%s" "$ollama_status" "$OLLAMA_PORT"
+        local line1_len=$((11 + 9 + 6 + 10 + ${#OLLAMA_PORT}))  # approximate
+        for ((i=line1_len; i<inner_width; i++)); do printf " "; done
+        printf " │\n"
+
+        # Model info
+        printf "│  MODEL    %-12s (%s)" "$model_name" "$model_status"
+        local line2_base=$((10 + 12 + 3 + ${#model_status}))
+        for ((i=line2_base; i<inner_width; i++)); do printf " "; done
+        printf " │\n"
+
+        # Empty line
+        printf "│"
+        for ((i=0; i<width-2; i++)); do printf " "; done
+        printf "│\n"
+
+        # Tunnel status
+        printf "│  TUNNEL   "
+        printf "%b    PID: %-6s" "$tunnel_status" "${tunnel_pid:-N/A}"
+        local line3_len=$((11 + 9 + 11))
+        for ((i=line3_len; i<inner_width; i++)); do printf " "; done
+        printf " │\n"
+
+        # URL line (full URL)
+        printf "│  URL      "
+        if [ -n "$url" ]; then
+            local url_display="$url"
+            local max_url_len=$((inner_width - 11))
+            if [ ${#url} -gt $max_url_len ]; then
+                url_display="${url:0:$max_url_len}"
+            fi
+            printf "%-${max_url_len}s" "$url_display"
+        else
+            printf "%-$((inner_width - 11))s" "(no tunnel active)"
+        fi
+        printf " │\n"
+
+        # Status line
+        printf "│  STATUS   "
+        printf "%b" "$url_status"
+        # Calculate remaining space (approximate - ANSI codes make this tricky)
+        local status_base=30
+        for ((i=status_base; i<inner_width; i++)); do printf " "; done
+        printf " │\n"
+
+        # Separator
+        draw_line "$width" "─" "├" "┤"
+
+        # Footer with options
+        printf "│  [Q] Quit   [R] Restart   [T] Test LLM   [C] Copy URL"
+        local footer_left=55
+        local footer_right_len=$((8 + 2))  # time + " │"
+        local footer_spaces=$((width - footer_left - footer_right_len - 2))
+        for ((i=0; i<footer_spaces; i++)); do printf " "; done
+        printf "%s │\n" "$current_time"
+        draw_line "$width" "─" "└" "┘"
+
+        # Handle input (non-blocking with timeout)
+        read -rsn1 -t 2 key 2>/dev/null || key=""
+        case "$key" in
+            q|Q)
+                tput cnorm 2>/dev/null
+                echo "Exiting monitor..."
+                exit 0
+                ;;
+            r|R)
+                tput cnorm 2>/dev/null
+                echo "Restarting tunnel..."
+                stop_tunnel
+                sleep 2
+                exec "$0" start
+                ;;
+            t|T)
+                if [ -n "$url" ]; then
+                    run_llm_test "$url"
+                else
+                    echo -e "${RED}No tunnel URL available${NC}"
+                    sleep 2
+                fi
+                ;;
+            c|C)
+                copy_url "$url"
+                ;;
+        esac
+    done
+}
+
 # Mostrar URL actual
 show_url() {
     if [ -f "$TUNNEL_URL_FILE" ]; then
@@ -244,7 +543,7 @@ case "${1:-start}" in
         success "=== Tunnel configurado ==="
         echo "URL: $TUNNEL_URL"
         echo ""
-        echo "Para monitorear: tail -f $TUNNEL_LOG"
+        echo "Para monitorear: $0 monitor"
         echo "Para detener:    $0 stop"
         ;;
     stop)
@@ -252,6 +551,9 @@ case "${1:-start}" in
         ;;
     status)
         show_status
+        ;;
+    monitor)
+        show_monitor
         ;;
     url)
         show_url
@@ -262,7 +564,7 @@ case "${1:-start}" in
         exec "$0" start
         ;;
     *)
-        echo "Uso: $0 {start|stop|status|url|restart}"
+        echo "Uso: $0 {start|stop|status|monitor|url|restart}"
         exit 1
         ;;
 esac

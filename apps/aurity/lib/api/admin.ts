@@ -11,7 +11,7 @@
  * Author: Claude Code (P1 Architectural Fix)
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:7001';
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
 
 // ============================================================================
 // Types

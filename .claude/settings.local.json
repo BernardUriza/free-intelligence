@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(python:*)",
+      "Bash(powershell:*)",
+      "Bash(pnpm install)",
+      "Bash(cargo tauri dev:*)",
+      "Bash(pip install:*)",
+      "Bash(pnpm tauri dev:*)",
+      "Bash(where.exe:*)",
+      "Bash(/tmp/rustup-init.exe:*)",
+      "Bash(export PATH=\"$HOME/.cargo/bin:$PATH\")",
+      "Bash(cargo:*)",
+      "Bash(rustc:*)",
+      "Bash(taskkill:*)",
+      "Bash(git add:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "azure-cli",
+    "cloudflare-docs",
+    "cloudflare-observability",
+    "cloudflare-bindings"
+  ]
+}

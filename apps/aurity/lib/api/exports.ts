@@ -9,7 +9,7 @@
  */
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:7001';
+  process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
 
 // ============================================================================
 // TYPES

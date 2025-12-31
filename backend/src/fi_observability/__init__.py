@@ -1,10 +1,26 @@
-from __future__ import annotations
+# fi_observability - LLM Call Observability for FI Edge
+# Persists all LLM calls to SQLite for monitoring and reporting
 
-"""Read-only observability tooling for AURITY.
+from fi_observability.database import cleanup_old_records, get_db_stats, init_observability_db
+from fi_observability.hooks import log_llm_call, log_llm_error
+from fi_observability.logger import LLMLogger, get_llm_logger
+from fi_observability.models import CallStats, CallStatus, ClientReport, LLMCall, LLMCallCreate
 
-This package provides on-demand, deterministic analyzers for operational inspection.
-It is designed to run safely in production environments without mutating the
-observed system and without emitting PHI/PII.
-"""
-
-__all__ = []
+__all__ = [
+    # Models
+    "LLMCall",
+    "LLMCallCreate",
+    "CallStatus",
+    "CallStats",
+    "ClientReport",
+    # Logger
+    "LLMLogger",
+    "get_llm_logger",
+    # Database
+    "init_observability_db",
+    "get_db_stats",
+    "cleanup_old_records",
+    # Hooks (easy integration)
+    "log_llm_call",
+    "log_llm_error",
+]
