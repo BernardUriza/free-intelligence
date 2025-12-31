@@ -100,7 +100,7 @@ jobs:
         run: |
           echo "🔍 Validating migration files can be imported..."
           cd backend
-          python -c "from alembic.versions.d53f042798a1_initial_schema import upgrade, downgrade; print('✅ Migration imports successfully')"
+          python -c "from backend.alembic.versions.d53f042798a1_initial_schema import upgrade, downgrade; print('✅ Migration imports successfully')"
 
           echo "🔍 Running alembic upgrade head..."
           python -m alembic upgrade head
