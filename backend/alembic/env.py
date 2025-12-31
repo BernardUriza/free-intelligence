@@ -6,10 +6,10 @@ Supports both SQLite (development) and PostgreSQL (future production).
 
 from __future__ import annotations
 
-import os
-import sys
 from logging.config import fileConfig
 
+import os
+import sys
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
@@ -18,15 +18,15 @@ project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 sys.path.insert(0, project_root)
 
 # Import Base and all models to register them with metadata
-from backend.models.db_models import Base, Patient, Provider, UserPersonaConfig
 from backend.models.checkin_models import (
+    Appointment,
+    CheckinSession,
     Clinic,
     Doctor,
-    Appointment,
     PendingAction,
-    CheckinSession,
     WaitingRoomEvent,
 )
+from backend.models.db_models import Base, Patient, Provider, UserPersonaConfig
 
 # Alembic Config object
 config = context.config
