@@ -282,6 +282,29 @@ jobs:
           echo "✅ Database migrations complete"
           ENDSSH
 
+      - name: Seed initial data
+        continue-on-error: true  # Seed failures should not block deployment
+        run: |
+          ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
+            $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
+          cd /opt/free-intelligence
+
+          echo "🌱 Seeding initial demo data..."
+
+          # Set DATABASE_URL for production
+          export DATABASE_URL="sqlite:////opt/free-intelligence/data/aurity.db"
+
+          # Run seed script (idempotent - safe to run multiple times)
+          # Uses same python interpreter as the rest of deployment (3.14 installed on server)
+          if command -v python3.14 &> /dev/null; then
+            PYTHONPATH=/opt/free-intelligence python3.14 -m backend.scripts.seed_data || echo "⚠️ Seed failed but continuing deploy"
+          else
+            echo "⚠️ python3.14 not found, skipping seed"
+          fi
+
+          echo "✅ Seed step complete"
+          ENDSSH
+
       # ═══════════════════════════════════════════════════════════════════════
       # FI Cloud Architecture: LLM runs remotely via Cloudflare Tunnel
       # OLLAMA_HOST is set from GitHub secret (e.g., https://xxx.trycloudflare.com)
