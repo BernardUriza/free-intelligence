@@ -249,6 +249,39 @@ jobs:
           echo "✅ Dependencies installed"
           ENDSSH
 
+      - name: Run database migrations
+        run: |
+          ssh -i ~/.ssh/id_ed25519_do -o StrictHostKeyChecking=no \
+            $DROPLET_USER@$DROPLET_HOST << 'ENDSSH'
+          cd /opt/free-intelligence/backend
+
+          echo "🗄️ Running database migrations..."
+
+          # Verify python3.14 and alembic are available (installed in previous step)
+          if ! python3.14 --version > /dev/null 2>&1; then
+            echo "❌ python3.14 not found, cannot run migrations"
+            exit 1
+          fi
+
+          if ! python3.14 -c "import alembic" 2>/dev/null; then
+            echo "❌ alembic not importable, cannot run migrations"
+            exit 1
+          fi
+
+          echo "✓ python3.14 and alembic verified"
+
+          # Set DATABASE_URL for production (SQLite for now)
+          export DATABASE_URL="sqlite:////opt/free-intelligence/data/aurity.db"
+
+          # Create data directory if it doesn't exist
+          mkdir -p /opt/free-intelligence/data
+
+          # Run migrations with PYTHONPATH set for imports
+          PYTHONPATH=/opt/free-intelligence python3.14 -m alembic upgrade head
+
+          echo "✅ Database migrations complete"
+          ENDSSH
+
       # ═══════════════════════════════════════════════════════════════════════
       # FI Cloud Architecture: LLM runs remotely via Cloudflare Tunnel
       # OLLAMA_HOST is set from GitHub secret (e.g., https://xxx.trycloudflare.com)
