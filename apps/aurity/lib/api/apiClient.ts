@@ -11,7 +11,7 @@
 
 import type { Session, SessionsListResponse } from "../../types/session";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:7001";
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:7001";
 const TIMEOUT_MS = 1000; // 1 second timeout
 const CACHE_KEY_SESSIONS = "fi_sessions_cache";
 const CACHE_TTL_MS = 30000; // 30 seconds cache TTL
