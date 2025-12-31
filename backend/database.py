@@ -5,9 +5,9 @@ Minimal implementation for development - replace with proper database setup.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Iterator
 
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
