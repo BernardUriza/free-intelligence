@@ -55,6 +55,7 @@ export { useLongitudinalMemory } from './useLongitudinalMemory';
 // UI & UX
 export { useClipboard } from './useClipboard';
 export { useDashboardShortcuts } from './useDashboardShortcuts';
+export { useDebounce } from './useDebounce';
 export { useMediaQuery } from './useMediaQuery';
 export { useToast } from './useToast';
 export { useInstallPrompt } from './useInstallPrompt';
