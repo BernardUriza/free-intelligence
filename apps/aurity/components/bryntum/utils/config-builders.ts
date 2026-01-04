@@ -242,6 +242,10 @@ export function buildAppointmentSchedulerConfig({
     zoomOnMouseWheel: false,
     zoomOnTimeAxisDoubleClick: false,
     zoomKeepsOriginalTimespan: true, // Keep the same timespan when view changes
+    // Zoom level limits: 0=finest (minutes), 23=coarsest (years)
+    // For medical scheduler: min=5 (30min slots), max=14 (week view)
+    minZoomLevel: 5,
+    maxZoomLevel: 14,
     
     // Event listeners with async finalize pattern
     // Note: Type assertion needed because Bryntum's SchedulerListeners type is incomplete

@@ -16,7 +16,7 @@
 
 'use client';
 
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { SchedulerCore, buildAppointmentSchedulerConfig, useVirtualizedTimeRanges } from '@/components/bryntum';
 import { APPOINTMENT_VIEW_PRESETS, type AppointmentViewMode } from '@/components/bryntum/config/appointment-presets.config';
 import { type Doctor, type Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
@@ -111,8 +111,6 @@ export function AppointmentsCalendar({
   }, [viewMode, currentDate]);
 
   const handleReady = useCallback((instance: any) => {
-    console.log('[AppointmentsCalendar] Scheduler ready');
-
     // Cleanup previous virtualized ranges listener
     if (cleanupRef.current) {
       cleanupRef.current();
@@ -127,6 +125,16 @@ export function AppointmentsCalendar({
 
   const handleError = useCallback((error: unknown) => {
     console.error('[AppointmentsCalendar] Scheduler error:', error);
+  }, []);
+
+  // Cleanup virtualized time ranges on unmount (prevents memory leak)
+  useEffect(() => {
+    return () => {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+    };
   }, []);
 
   // ============================================================================

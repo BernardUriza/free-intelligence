@@ -228,6 +228,7 @@ export default function AppointmentsCalendarPage() {
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             zoomLevel={zoomLevel}
+            maxZoomLevel={14}
             onRefresh={() => fetchAppointments(selectedClinic, currentDate)}
             onNewAppointment={handleNewAppointment}
             dateDisplayText={getDateDisplayText()}

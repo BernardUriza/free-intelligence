@@ -38,6 +38,7 @@ interface AppointmentsToolbarProps {
   onZoomIn?: () => void;
   onZoomOut?: () => void;
   zoomLevel?: number;
+  minZoomLevel?: number;
   maxZoomLevel?: number;
 
   // Actions
@@ -59,7 +60,8 @@ export function AppointmentsToolbar({
   onZoomIn,
   onZoomOut,
   zoomLevel,
-  maxZoomLevel = 23,
+  minZoomLevel = 5,
+  maxZoomLevel = 14,
   onRefresh,
   onNewAppointment,
   dateDisplayText,
@@ -141,7 +143,7 @@ export function AppointmentsToolbar({
             variant="ghost"
             size="sm"
             icon={ZoomOut}
-            disabled={!zoomLevel || zoomLevel <= 0}
+            disabled={zoomLevel === undefined || zoomLevel <= minZoomLevel}
             aria-label="Alejar"
           />
           <span className="px-2 fi-text-xs-medium text-slate-200 min-w-[40px] text-center">
