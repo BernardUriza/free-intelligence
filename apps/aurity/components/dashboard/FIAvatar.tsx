@@ -19,7 +19,7 @@ import {
   ClinicImageWidget,
   ClinicVideoWidget,
   ClinicMessageWidget,
-} from './TVWidgets';
+} from '@/components/widgets';
 import { waitingRoomAPI, type TipCategory } from '@/lib/api/waiting-room';
 
 /**
