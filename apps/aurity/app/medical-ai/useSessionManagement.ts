@@ -30,8 +30,8 @@ export function useSessionManagement() {
 
         // Load statuses for sessions
         await loadSessionStatuses(summaries.map(s => s.metadata.session_id));
-      } catch (err) {
-        console.error('Failed to load sessions:', err);
+      } catch {
+        // Silent fail - sessions will remain empty
       } finally {
         setLoadingSessions(false);
       }
@@ -88,9 +88,7 @@ export function useSessionManagement() {
       setSessions((prev) => prev.filter((s) => s.metadata.session_id !== sessionId));
 
       setDeleteConfirmSession(null);
-      console.log('[SessionManagement] Session deleted:', sessionId);
-    } catch (err) {
-      console.error('[SessionManagement] Failed to delete session:', err);
+    } catch {
       toastError('Error al eliminar la sesión');
     } finally {
       setDeletingSession(null);
@@ -105,8 +103,6 @@ export function useSessionManagement() {
     setCurrentSessionId(sessionId);
     setIsExistingSession(true);
     setSessionDuration(duration);
-
-    console.log('[SessionManagement] Selected session:', sessionId, 'Duration:', duration);
   };
 
   // Copy session ID to clipboard
@@ -116,8 +112,8 @@ export function useSessionManagement() {
       await navigator.clipboard.writeText(sessionId);
       setCopiedSessionId(sessionId);
       setTimeout(() => setCopiedSessionId(null), 2000);
-    } catch (err) {
-      console.error('Failed to copy session ID:', err);
+    } catch {
+      // Clipboard API may fail silently in some browsers
     }
   };
 

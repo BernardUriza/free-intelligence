@@ -307,6 +307,11 @@ export interface BryntumSchedulerInstance {
     data: BryntumResource[];
   };
   
+  // Zoom
+  zoomLevel?: number;
+  minZoomLevel?: number;
+  maxZoomLevel?: number;
+
   // Methods
   destroy?: () => void;
   scrollToDate?: (date: Date, options?: { animate?: boolean; block?: string }) => void;

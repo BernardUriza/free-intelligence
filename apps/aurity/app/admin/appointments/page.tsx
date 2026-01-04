@@ -23,6 +23,7 @@ import { AppointmentsToolbar, StatusLegend, EmptyState, NewAppointmentModal, Edi
 import { ClinicCard, DoctorAvailabilityList } from "@/components/dashboard/QueueComponents";
 import { APPOINTMENT_VIEW_PRESETS, type AppointmentViewMode } from "@/components/bryntum/config/appointment-presets.config";
 import type { Appointment } from "@/components/bryntum/utils/appointment-transform.utils";
+import type { BryntumSchedulerInstance } from "@/components/bryntum/types/scheduler.types";
 import { useAppointments } from "@/hooks/useAppointments";
 
 // Lazy load AppointmentsCalendar (defers Bryntum ~800KB)
@@ -63,11 +64,10 @@ export default function AppointmentsCalendarPage() {
   const [prefilledData, setPrefilledData] = useState<{ date?: Date; doctorId?: string; endDate?: Date } | null>(null);
 
   // Scheduler instance & zoom state
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [schedulerInstance, setSchedulerInstance] = useState<any>(null);
+  const [schedulerInstance, setSchedulerInstance] = useState<BryntumSchedulerInstance | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(10); // Default Bryntum zoom level
 
-  const handleSchedulerReady = useCallback((instance: any) => {
+  const handleSchedulerReady = useCallback((instance: BryntumSchedulerInstance) => {
     setSchedulerInstance(instance);
     if (instance.zoomLevel !== undefined) {
       setZoomLevel(instance.zoomLevel);

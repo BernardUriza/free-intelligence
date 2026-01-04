@@ -13,6 +13,7 @@
 import { useAuth } from '@aurity-standalone/hooks/useAuth';
 import { ChatWidget } from '@/components/chat/ChatWidget';
 import { AppTemplate } from '@/components/layout/AppTemplate';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { chatHeader } from '@/config/page-headers';
 import { defaultChatConfig, type ChatConfig } from '@/config/chat.config';
 
@@ -64,12 +65,14 @@ export default function ChatPage() {
       showWatermark={false}
       showGeometricBg={false}
     >
-      <ChatWidget
-        config={chatConfig}
-        initialOpen={true}
-        initialMode="fullscreen"
-        embedded={true}
-      />
+      <ErrorBoundary>
+        <ChatWidget
+          config={chatConfig}
+          initialOpen={true}
+          initialMode="fullscreen"
+          embedded={true}
+        />
+      </ErrorBoundary>
     </AppTemplate>
   );
 }
