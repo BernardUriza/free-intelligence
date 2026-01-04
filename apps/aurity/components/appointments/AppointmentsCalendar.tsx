@@ -16,8 +16,8 @@
 
 'use client';
 
-import { useCallback, useMemo } from 'react';
-import { SchedulerCore, buildAppointmentSchedulerConfig } from '@/components/bryntum';
+import { useCallback, useMemo, useRef } from 'react';
+import { SchedulerCore, buildAppointmentSchedulerConfig, useVirtualizedTimeRanges } from '@/components/bryntum';
 import { APPOINTMENT_VIEW_PRESETS, type AppointmentViewMode } from '@/components/bryntum/config/appointment-presets.config';
 import { type Doctor, type Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
 
@@ -25,11 +25,11 @@ interface AppointmentsCalendarProps {
   // Data
   doctors: Doctor[];
   appointments: Appointment[];
-  
+
   // View state
   viewMode: AppointmentViewMode;
   currentDate: Date;
-  
+
   // API callbacks
   onEventDrop?: (eventData: {
     appointment_id: string;
@@ -51,6 +51,9 @@ interface AppointmentsCalendarProps {
   }) => Promise<void>;
   onEventClick?: (appointment: Appointment) => void;
   onScheduleClick?: (date: Date, doctorId: string, endDate?: Date | null) => void;
+
+  // Scheduler instance callback
+  onSchedulerReady?: (instance: any) => void;
 }
 
 export function AppointmentsCalendar({
@@ -63,7 +66,17 @@ export function AppointmentsCalendar({
   onEventEdit,
   onEventClick,
   onScheduleClick,
+  onSchedulerReady,
 }: AppointmentsCalendarProps) {
+  // Cleanup ref for virtualized time ranges
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  // Virtualized time ranges for performance
+  const { attachToScheduler } = useVirtualizedTimeRanges({
+    doctors,
+    enabled: true,
+  });
+
   // Build configuration from current state (memoized for stability)
   const getConfig = useCallback(() => {
     return buildAppointmentSchedulerConfig({
@@ -76,6 +89,7 @@ export function AppointmentsCalendar({
       onEventEdit,
       onEventClick,
       onScheduleClick,
+      skipTimeRanges: true, // Use virtualized time ranges instead
     });
   }, [
     viewMode,
@@ -97,8 +111,19 @@ export function AppointmentsCalendar({
   }, [viewMode, currentDate]);
 
   const handleReady = useCallback((instance: any) => {
-    console.log('[AppointmentsCalendar] Scheduler ready:', instance);
-  }, []);
+    console.log('[AppointmentsCalendar] Scheduler ready');
+
+    // Cleanup previous virtualized ranges listener
+    if (cleanupRef.current) {
+      cleanupRef.current();
+    }
+
+    // Attach virtualized time ranges (generates ranges only for visible viewport)
+    cleanupRef.current = attachToScheduler(instance) ?? null;
+
+    // Notify parent
+    onSchedulerReady?.(instance);
+  }, [attachToScheduler, onSchedulerReady]);
 
   const handleError = useCallback((error: unknown) => {
     console.error('[AppointmentsCalendar] Scheduler error:', error);

@@ -154,6 +154,8 @@ interface AppointmentSchedulerParams {
   }) => Promise<void>;
   onEventClick?: (appointment: Appointment) => void;
   onScheduleClick?: (date: Date, doctorId: string, endDate?: Date | null) => void;
+  /** Skip initial timeRanges generation (use virtualized hook instead) */
+  skipTimeRanges?: boolean;
 }
 
 /**
@@ -179,16 +181,14 @@ export function buildAppointmentSchedulerConfig({
   onEventEdit,
   onEventClick,
   onScheduleClick,
+  skipTimeRanges = false,
 }: AppointmentSchedulerParams): BryntumSchedulerConfig {
   const viewConfig = APPOINTMENT_VIEW_PRESETS[viewMode];
   const { start, end } = viewConfig.getDateRange(currentDate);
 
   // Generate resourceTimeRanges for non-working hours per doctor
-  const resourceTimeRanges = generateNonWorkingTimeRanges(doctors, start, end);
-
-  if (IS_DEV) {
-    console.debug('[Bryntum] resourceTimeRanges:', resourceTimeRanges.length, 'ranges');
-  }
+  // Skip if using virtualized hook (generates on-demand for visible range)
+  const resourceTimeRanges = skipTimeRanges ? [] : generateNonWorkingTimeRanges(doctors, start, end);
 
   return {
     // Time axis
@@ -219,7 +219,9 @@ export function buildAppointmentSchedulerConfig({
     // Data
     resources: transformDoctors(doctors),
     events: transformAppointments(appointments),
-    timeRanges: resourceTimeRanges, // Bryntum expects 'timeRanges' property
+    // Resource-specific time ranges (non-working hours per doctor)
+    // Bryntum 5.x uses resourceTimeRangesData for initial data
+    resourceTimeRangesData: resourceTimeRanges,
     columns: APPOINTMENT_COLUMNS,
     // Custom event renderer using React component via adapter
     eventRenderer: appointmentEventRenderer,
@@ -234,6 +236,12 @@ export function buildAppointmentSchedulerConfig({
     // Allow event creation
     readOnly: false,
     allowOverlap: true,
+
+    // Zoom restrictions - prevent zooming beyond day/week views
+    // These are top-level config properties, not features
+    zoomOnMouseWheel: false,
+    zoomOnTimeAxisDoubleClick: false,
+    zoomKeepsOriginalTimespan: true, // Keep the same timespan when view changes
     
     // Event listeners with async finalize pattern
     // Note: Type assertion needed because Bryntum's SchedulerListeners type is incomplete
@@ -360,7 +368,7 @@ export interface NonWorkingTimeRange {
   endDate: Date;
   name: string;
   cls: string;
-  timeRangeColor: string;
+  style: string;  // Inline CSS for guaranteed rendering
 }
 
 function generateNonWorkingTimeRanges(
@@ -390,7 +398,8 @@ function generateNonWorkingTimeRanges(
           endDate: zonedToDate(window.end),
           name: 'No disponible',
           cls: 'non-working-time',
-          timeRangeColor: 'gray',
+          // Inline style ensures visibility even if CSS file not loaded
+          style: 'background: rgba(100, 116, 139, 0.4); background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(148, 163, 184, 0.3) 5px, rgba(148, 163, 184, 0.3) 10px);',
         });
       });
 

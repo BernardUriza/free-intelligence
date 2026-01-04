@@ -9,7 +9,7 @@
  * - Refresh and new appointment actions
  */
 
-import { ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import type { AppointmentViewMode } from '@/components/bryntum/config/appointment-presets.config';
@@ -34,6 +34,12 @@ interface AppointmentsToolbarProps {
   onNavigateDate: (direction: 'prev' | 'next') => void;
   onGoToToday: () => void;
 
+  // Zoom controls
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  zoomLevel?: number;
+  maxZoomLevel?: number;
+
   // Actions
   onRefresh: () => void;
   onNewAppointment: () => void;
@@ -50,6 +56,10 @@ export function AppointmentsToolbar({
   onViewModeChange,
   onNavigateDate,
   onGoToToday,
+  onZoomIn,
+  onZoomOut,
+  zoomLevel,
+  maxZoomLevel = 23,
   onRefresh,
   onNewAppointment,
   dateDisplayText,
@@ -122,6 +132,31 @@ export function AppointmentsToolbar({
           aria-label="Día siguiente"
         />
       </div>
+
+      {/* Zoom Controls */}
+      {(onZoomIn || onZoomOut) && (
+        <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
+          <Button
+            onClick={onZoomOut}
+            variant="ghost"
+            size="sm"
+            icon={ZoomOut}
+            disabled={!zoomLevel || zoomLevel <= 0}
+            aria-label="Alejar"
+          />
+          <span className="px-2 fi-text-xs-medium text-slate-200 min-w-[40px] text-center">
+            {zoomLevel !== undefined ? `${zoomLevel}` : '-'}
+          </span>
+          <Button
+            onClick={onZoomIn}
+            variant="ghost"
+            size="sm"
+            icon={ZoomIn}
+            disabled={zoomLevel !== undefined && zoomLevel >= maxZoomLevel}
+            aria-label="Acercar"
+          />
+        </div>
+      )}
 
       {/* Refresh */}
       <Button
