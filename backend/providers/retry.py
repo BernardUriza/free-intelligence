@@ -465,3 +465,33 @@ def reset_circuit_breaker(name: str) -> None:
 def get_all_circuit_breaker_states() -> dict[str, dict[str, Any]]:
     """Get state information for all circuit breakers."""
     return {name: cb.get_state_info() for name, cb in _circuit_breakers.items()}
+
+
+def get_ollama_circuit_breakers() -> dict[str, CircuitBreaker]:
+    """Get all Ollama-related circuit breakers."""
+    return {
+        name: cb for name, cb in _circuit_breakers.items()
+        if name.startswith("ollama_")
+    }
+
+
+def reset_all_ollama_circuit_breakers() -> None:
+    """
+    Reset all Ollama circuit breakers to closed state.
+
+    Useful after:
+    - Tunnel restart (new URL available)
+    - Manual intervention
+    - Host recovery
+    """
+    reset_count = 0
+    for name in list(_circuit_breakers.keys()):
+        if name.startswith("ollama_"):
+            reset_circuit_breaker(name)
+            reset_count += 1
+
+    if reset_count > 0:
+        logger.info(
+            "OLLAMA_CIRCUIT_BREAKERS_RESET_BULK",
+            count=reset_count,
+        )

@@ -137,7 +137,7 @@ Location: main.py:#125
 
 ```
 # ════════════════════════════════════════════════════════════════════════════
-# DEPLOYMENT ARCHITECTURE (2025-12-28)
+# DEPLOYMENT ARCHITECTURE (2025-01-04)
 # ════════════════════════════════════════════════════════════════════════════
 #
 # FI Cloud (Production - app.aurity.io)
@@ -147,18 +147,33 @@ Location: main.py:#125
 #   - Next.js static frontend
 #   - FastAPI backend (port 7001)
 #
-# LLM inference runs on FI Edge via Cloudflare Tunnel:
-#   Browser → DO Backend → Cloudflare Tunnel → FI Edge (Mac/i9+RTX4060) → Ollama
+# LLM Inference with Multi-Host Fallback (FI-BACKEND-FALLBACK-001)
+# ─────────────────────────────────────────────────────────────────
+# Priority order:
+#   1. Windows tunnel (i9+RTX4060) - Primary, permanent tunnel
+#   2. Mac localhost - Fallback when traveling/developing
 #
-# FI Edge (Local Hardware)
-# ────────────────────────
-# Local machine running:
-#   - Ollama with Qwen3:1.7b (and other models)
-#   - Cloudflare Tunnel exposing port 11434
-#   - CORS enabled: OLLAMA_ORIGINS="*" OLLAMA_HOST="0.0.0.0:11434"
+# Flow:
+#   Request → Try Windows Tunnel (retry 3x) → Try Mac localhost (retry 3x) → Error
 #
-# Tunnel URL stored in: /tmp/ollama-tunnel-url.txt
-# DO backend reads: OLLAMA_HOST env var (set from tunnel URL)
+# FI Edge Windows (Primary - Home)
+# ─────────────────────────────────
+#   - PC with i9 + RTX4060 (GPU acceleration)
+#   - Ollama with Qwen3:1.7b, larger models
+#   - Cloudflare Tunnel running permanently
+#   - CORS: OLLAMA_ORIGINS="*" OLLAMA_HOST="0.0.0.0:11434"
+#
+# FI Edge Mac (Fallback - Travel)
+# ───────────────────────────────
+#   - MacBook for development
+#   - Ollama local (localhost:11434)
+#   - No tunnel, CPU inference only
+#   - Used when Windows is unreachable
+#
+# Configuration:
+#   - Tunnel URL: /tmp/ollama-tunnel-url.txt or OLLAMA_TUNNEL_URL env var
+#   - Mac fallback: OLLAMA_MAC_FALLBACK env var (default: localhost:11434)
+#   - Override (disable fallback): OLLAMA_HOST env var
 #
 # ════════════════════════════════════════════════════════════════════════════
 
@@ -167,6 +182,12 @@ Tunnel Management Script:
   ./scripts/ollama-tunnel.sh stop     # Stop tunnel
   ./scripts/ollama-tunnel.sh status   # Show status
   ./scripts/ollama-tunnel.sh restart  # Restart with new URL
+
+Multi-Host Fallback:
+  - OllamaProvider tries hosts in priority order
+  - Each host has independent circuit breaker (5 failures → open 60s)
+  - Response metadata includes hosts_tried for debugging
+  - Reset all circuits: reset_all_ollama_circuit_breakers()
 
 Requirements:
   - cloudflared: brew install cloudflared
