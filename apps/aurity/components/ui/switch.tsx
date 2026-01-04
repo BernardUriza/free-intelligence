@@ -1,8 +1,8 @@
 /**
- * Switch Component - Stub
+ * Switch Component
  *
- * Minimal implementation to unblock build.
- * TODO: Implement full switch functionality
+ * Accessible toggle switch with Tailwind styling.
+ * Follows WAI-ARIA switch pattern.
  */
 
 import React from 'react';
