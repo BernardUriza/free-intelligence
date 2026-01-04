@@ -1,13 +1,10 @@
 /**
  * TVWidgets - Re-export for backwards compatibility
  *
- * @deprecated Import from '@/components/dashboard/tv-widgets' instead
+ * @deprecated Import from '@/components/widgets' instead
  *
- * All widgets have been modularized into separate files:
- * - components/dashboard/tv-widgets/WeatherWidget.tsx
- * - components/dashboard/tv-widgets/HealthTriviaWidget.tsx
- * - components/dashboard/tv-widgets/BreathingExerciseWidget.tsx
- * - etc.
+ * Example:
+ *   import { WeatherWidget, HealthTriviaWidget } from '@/components/widgets';
  */
 
 export {
@@ -23,4 +20,4 @@ export {
   TestimonialWidget,
   WaitTimeDisplayWidget,
   CalmingNatureWidget,
-} from './tv-widgets';
+} from '@/components/widgets';

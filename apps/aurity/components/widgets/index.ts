@@ -1,26 +1,29 @@
 /**
- * TV Widgets - Modular components for Waiting Room TV
+ * Reusable Educational & Interactive Widgets
  *
- * Card: FI-UI-FEAT-TVD-001, FI-TV-002
- * Based on 2025 healthcare digital signage best practices
+ * These widgets are designed for:
+ * - Waiting room TV displays (digital signage)
+ * - Educational/didactic pages
+ * - Patient engagement interfaces
+ * - Health awareness campaigns
+ * - Interactive learning modules
  *
- * Each widget is optimized for:
+ * Features:
  * - Smart text scaling with CSS clamp() and viewport units
- * - Text legible from 3-10 meters distance
- * - Full-screen TV layouts
+ * - Responsive from mobile to large TV screens
+ * - Accessible and WCAG compliant
+ * - Customizable themes and content
  */
 
 // Time & Weather
 export { WeatherWidget } from './WeatherWidget';
 
-// Interactive Content
+// Interactive & Educational
 export { HealthTriviaWidget } from './HealthTriviaWidget';
 export { BreathingExerciseWidget } from './BreathingExerciseWidget';
-
-// Health Tips
 export { DailyTipWidget } from './DailyTipWidget';
 
-// Clinic Content
+// Media Content
 export { ClinicImageWidget } from './ClinicImageWidget';
 export { ClinicVideoWidget } from './ClinicVideoWidget';
 export { ClinicMessageWidget } from './ClinicMessageWidget';
