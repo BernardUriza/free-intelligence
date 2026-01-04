@@ -15,10 +15,15 @@ export function CalmingNatureWidget() {
   const [currentScene, setCurrentScene] = useState(0);
 
   useEffect(() => {
+    let isActive = true;
     const timer = setInterval(() => {
+      if (!isActive) return;
       setCurrentScene(prev => (prev + 1) % scenes.length);
     }, 8000);
-    return () => clearInterval(timer);
+    return () => {
+      isActive = false;
+      clearInterval(timer);
+    };
   }, []);
 
   const scene = scenes[currentScene];

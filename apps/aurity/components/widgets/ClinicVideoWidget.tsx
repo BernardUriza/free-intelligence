@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 interface ClinicVideoWidgetProps {
   videoUrl: string;
   title?: string;
@@ -7,6 +9,20 @@ interface ClinicVideoWidgetProps {
 }
 
 export function ClinicVideoWidget({ videoUrl, title, description }: ClinicVideoWidgetProps) {
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return (
+      <div className="bg-gradient-to-br from-slate-950/80 to-slate-900/80 border border-slate-700 rounded-xl overflow-hidden backdrop-blur-sm h-80 flex items-center justify-center">
+        <div className="text-center p-6">
+          <div className="text-5xl mb-4">🎬</div>
+          <p className="text-slate-400">Video no disponible</p>
+          {title && <p className="text-slate-500 text-sm mt-2">{title}</p>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gradient-to-br from-slate-950/80 to-slate-900/80 border border-slate-700 rounded-xl overflow-hidden backdrop-blur-sm">
       <div className="relative w-full h-80 bg-slate-900">
@@ -17,6 +33,7 @@ export function ClinicVideoWidget({ videoUrl, title, description }: ClinicVideoW
           muted
           loop
           playsInline
+          onError={() => setHasError(true)}
         />
       </div>
 

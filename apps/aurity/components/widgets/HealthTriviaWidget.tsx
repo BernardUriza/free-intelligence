@@ -19,7 +19,9 @@ export function HealthTriviaWidget({
   const [countdown, setCountdown] = useState(10);
 
   useEffect(() => {
+    let isActive = true;
     const countdownTimer = setInterval(() => {
+      if (!isActive) return;
       setCountdown(prev => {
         if (prev <= 1) {
           setShowAnswer(true);
@@ -29,7 +31,10 @@ export function HealthTriviaWidget({
       });
     }, 1000);
 
-    return () => clearInterval(countdownTimer);
+    return () => {
+      isActive = false;
+      clearInterval(countdownTimer);
+    };
   }, []);
 
   return (
