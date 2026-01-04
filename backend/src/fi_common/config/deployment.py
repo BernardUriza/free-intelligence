@@ -25,8 +25,22 @@ import os
 from enum import Enum
 from pathlib import Path
 from typing import TypedDict
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+
+def _is_valid_ollama_url(url: str) -> bool:
+    """Validate that URL is a proper HTTP(S) URL with host."""
+    try:
+        parsed = urlparse(url)
+        return (
+            parsed.scheme in ("http", "https")
+            and bool(parsed.netloc)  # Must have host
+            and len(url) < 2048  # Sanity check
+        )
+    except Exception:
+        return False
 
 
 class OllamaHost(TypedDict):
@@ -144,7 +158,7 @@ def get_ollama_hosts() -> list[OllamaHost]:
     if tunnel_file.exists():
         try:
             tunnel_url = tunnel_file.read_text().strip()
-            if tunnel_url and tunnel_url.startswith("http"):
+            if tunnel_url and _is_valid_ollama_url(tunnel_url):
                 hosts.append(OllamaHost(
                     url=tunnel_url,
                     name="windows_tunnel",

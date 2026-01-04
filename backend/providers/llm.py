@@ -91,15 +91,16 @@ def pad_embedding_to_768(embedding: np.ndarray) -> np.ndarray:
     return padded
 
 
-def sanitize_error_message(error_msg: str) -> str:
+def sanitize_error_message(error_msg: str, max_length: int = 100) -> str:
     """
     Sanitize error messages to remove API keys and sensitive data.
 
     Args:
         error_msg: Raw error message
+        max_length: Maximum length of output (default: 100). Use 0 for no limit.
 
     Returns:
-        Sanitized error message
+        Sanitized and truncated error message
 
     Examples:
         >>> sanitize_error_message("API key sk-ant-api03-abc123 is invalid")
@@ -120,6 +121,10 @@ def sanitize_error_message(error_msg: str) -> str:
     error_msg = re.sub(
         r"Bearer\s+[A-Za-z0-9_-]{20,}", "Bearer [REDACTED_TOKEN]", error_msg, flags=re.IGNORECASE
     )
+
+    # Truncate if max_length specified
+    if max_length > 0 and len(error_msg) > max_length:
+        return error_msg[:max_length] + "..."
 
     return error_msg
 
@@ -625,7 +630,7 @@ class OllamaProvider(LLMProvider):
             "OLLAMA_ALL_HOSTS_FAILED",
             hosts_tried=hosts_tried,
             total_hosts=len(self.hosts),
-            last_error=sanitize_error_message(str(last_exception))[:200] if last_exception else "unknown",
+            last_error=sanitize_error_message(str(last_exception), max_length=200) if last_exception else "unknown",
         )
 
         if last_exception:
@@ -634,7 +639,7 @@ class OllamaProvider(LLMProvider):
 
     def embed(self, text: str) -> np.ndarray:
         """
-        Generate embedding using Ollama.
+        Generate embedding using Ollama with multi-host fallback.
 
         Args:
             text: Input text to embed
@@ -646,25 +651,71 @@ class OllamaProvider(LLMProvider):
             - Uses nomic-embed-text by default (768-dim)
             - 100% local, no API calls
             - Suitable for RAG and semantic search
+            - FI-BACKEND-FALLBACK-001: Multi-host fallback support
         """
+        from backend.providers.retry import CircuitOpenError
+
         self.logger.info("OLLAMA_EMBED_STARTED", text_length=len(text))
 
-        try:
-            response = self.client.embeddings(model=self.embed_model, prompt=text)
+        last_exception: Exception | None = None
+        hosts_tried: list[str] = []
 
-            # Extract embedding vector
-            embedding = np.array(response["embedding"], dtype=np.float32)
+        # Multi-host fallback loop (same pattern as generate)
+        for host in self.hosts:
+            host_url = str(host["url"])
+            host_name = str(host["name"])
+            client = self.clients[host_url]
+            cb = self.circuit_breakers[host_url]
 
-            self.logger.info(
-                "OLLAMA_EMBED_COMPLETED", embedding_dim=len(embedding), model=self.embed_model
-            )
+            if not cb.can_execute():
+                continue
 
-            return embedding
+            hosts_tried.append(host_name)
 
-        except Exception as e:
-            sanitized_error = sanitize_error_message(str(e))
-            self.logger.error("OLLAMA_EMBED_FAILED", error=sanitized_error, model=self.embed_model)
-            raise
+            try:
+                response = client.embeddings(model=self.embed_model, prompt=text)
+                embedding = np.array(response["embedding"], dtype=np.float32)
+
+                cb.record_success()
+                with self._host_lock:
+                    if self.base_url != host_url:
+                        self.logger.info(
+                            "OLLAMA_HOST_PREFERENCE_CHANGED",
+                            previous_host=self.base_url,
+                            new_host=host_url,
+                            new_host_name=host_name,
+                        )
+                    self.base_url = host_url
+                    self.client = client
+                    self.circuit_breaker = cb
+
+                self.logger.info(
+                    "OLLAMA_EMBED_COMPLETED",
+                    embedding_dim=len(embedding),
+                    model=self.embed_model,
+                    host=host_name,
+                    hosts_tried=hosts_tried,
+                )
+                return embedding
+
+            except Exception as e:
+                last_exception = e
+                cb.record_failure()
+                self.logger.warning(
+                    "OLLAMA_EMBED_HOST_FAILED",
+                    host=host_name,
+                    error=sanitize_error_message(str(e)),
+                )
+
+        # All hosts failed
+        self.logger.error(
+            "OLLAMA_EMBED_ALL_HOSTS_FAILED",
+            hosts_tried=hosts_tried,
+            model=self.embed_model,
+        )
+        if last_exception:
+            raise last_exception
+        raise CircuitOpenError("ollama_all", "All Ollama hosts unavailable for embeddings")
 
     def generate_stream(self, prompt: str, **kwargs):
         """
@@ -831,7 +882,7 @@ class OllamaProvider(LLMProvider):
         self.logger.error(
             "OLLAMA_STREAM_ALL_HOSTS_FAILED",
             hosts_tried=hosts_tried,
-            last_error=sanitize_error_message(str(last_exception))[:200] if last_exception else "unknown",
+            last_error=sanitize_error_message(str(last_exception), max_length=200) if last_exception else "unknown",
         )
 
         if last_exception:
