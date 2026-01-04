@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import os
 import re
+import threading
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
@@ -15,12 +17,11 @@ from typing import Any, ClassVar
 import anthropic
 import numpy as np
 import ollama
-import os
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.response_parsers import GenericParser, QwenThinkingParser
 from backend.providers.retry import CircuitBreakerConfig, RetryConfig, get_circuit_breaker
 from backend.schemas.llm.audit_policy import require_audit_log
-from backend.src.fi_common.config.deployment import get_ollama_host, get_ollama_hosts
+from backend.src.fi_common.config.deployment import OllamaHost, get_ollama_host, get_ollama_hosts
 from backend.src.fi_common.logging.logger import get_logger
 from dotenv import load_dotenv
 
@@ -350,10 +351,13 @@ class OllamaProvider(LLMProvider):
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
 
+        # Thread safety lock for host state mutations (FI-BACKEND-FALLBACK-001)
+        self._host_lock = threading.Lock()
+
         # Multi-host fallback support (FI-BACKEND-FALLBACK-001)
         # Priority: Windows tunnel (primary) -> Mac localhost (fallback)
-        self.hosts: list[dict[str, str | int]] = get_ollama_hosts()
-        self.base_url: str = str(self.hosts[0]["url"])  # Start with highest priority
+        self.hosts: list[OllamaHost] = get_ollama_hosts()
+        self.base_url: str = self.hosts[0]["url"]  # Start with highest priority
 
         self.default_model: str = str(self.config.get("model") or "qwen3:1.7b")
         self.embed_model: str = str(self.config.get("embed_model") or "nomic-embed-text")
@@ -537,11 +541,21 @@ class OllamaProvider(LLMProvider):
                         completion_tokens = response["eval_count"]
                         total_tokens = response.get("prompt_eval_count", prompt_tokens) + completion_tokens
 
-                    # Success: record and update current host
+                    # Success: record and update current host (thread-safe)
                     cb.record_success()
-                    self.base_url = host_url
-                    self.client = client
-                    self.circuit_breaker = cb
+                    with self._host_lock:
+                        previous_host = self.base_url
+                        self.base_url = host_url
+                        self.client = client
+                        self.circuit_breaker = cb
+                        # Log when host preference changes
+                        if previous_host != host_url:
+                            self.logger.info(
+                                "OLLAMA_HOST_PREFERENCE_CHANGED",
+                                previous_host=previous_host,
+                                new_host=host_url,
+                                new_host_name=host_name,
+                            )
 
                     self.logger.info(
                         "OLLAMA_GENERATE_COMPLETED",
@@ -766,9 +780,18 @@ class OllamaProvider(LLMProvider):
 
                     latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
                     cb.record_success()
-                    self.base_url = host_url
-                    self.client = client
-                    self.circuit_breaker = cb
+                    with self._host_lock:
+                        previous_host = self.base_url
+                        self.base_url = host_url
+                        self.client = client
+                        self.circuit_breaker = cb
+                        if previous_host != host_url:
+                            self.logger.info(
+                                "OLLAMA_HOST_PREFERENCE_CHANGED",
+                                previous_host=previous_host,
+                                new_host=host_url,
+                                new_host_name=host_name,
+                            )
 
                     self.logger.info(
                         "OLLAMA_GENERATE_STREAM_COMPLETED",

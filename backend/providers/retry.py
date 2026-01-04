@@ -111,6 +111,7 @@ class CircuitBreaker:
 
     def record_success(self) -> None:
         """Record a successful call."""
+        state_changed = False
         if self.state == CircuitState.HALF_OPEN:
             self.success_count += 1
             if self.success_count >= self.config.success_threshold:
@@ -122,14 +123,23 @@ class CircuitBreaker:
                 self.state = CircuitState.CLOSED
                 self.failure_count = 0
                 self.success_count = 0
+                state_changed = True
         elif self.state == CircuitState.CLOSED:
             # Reset failure count on success
             self.failure_count = 0
+
+        # Persist state on significant changes (lazy import to avoid circular)
+        if state_changed:
+            try:
+                save_circuit_breaker_states()
+            except NameError:
+                pass  # Function not yet defined during class definition
 
     def record_failure(self) -> None:
         """Record a failed call."""
         self.failure_count += 1
         self.last_failure_time = time.time()
+        state_changed = False
 
         if self.state == CircuitState.HALF_OPEN:
             # Immediate trip back to OPEN on failure during half-open
@@ -139,6 +149,7 @@ class CircuitBreaker:
                 message="Failed during half-open state",
             )
             self.state = CircuitState.OPEN
+            state_changed = True
 
         elif self.state == CircuitState.CLOSED:
             if self.failure_count >= self.config.failure_threshold:
@@ -149,6 +160,14 @@ class CircuitBreaker:
                     threshold=self.config.failure_threshold,
                 )
                 self.state = CircuitState.OPEN
+                state_changed = True
+
+        # Persist state on significant changes (lazy import to avoid circular)
+        if state_changed:
+            try:
+                save_circuit_breaker_states()
+            except NameError:
+                pass  # Function not yet defined during class definition
 
     def get_state_info(self) -> dict[str, Any]:
         """Get current circuit breaker state information."""
@@ -495,3 +514,88 @@ def reset_all_ollama_circuit_breakers() -> None:
             "OLLAMA_CIRCUIT_BREAKERS_RESET_BULK",
             count=reset_count,
         )
+        save_circuit_breaker_states()
+
+
+# Circuit breaker persistence (FI-BACKEND-FALLBACK-001)
+_PERSISTENCE_FILE = "/tmp/fi_circuit_breakers.json"
+
+
+def save_circuit_breaker_states() -> bool:
+    """
+    Save circuit breaker states to disk for persistence across restarts.
+
+    Returns:
+        True if saved successfully, False otherwise
+    """
+    import json
+    from pathlib import Path
+
+    try:
+        states = {}
+        for name, cb in _circuit_breakers.items():
+            states[name] = {
+                "state": cb.state.value,
+                "failure_count": cb.failure_count,
+                "success_count": cb.success_count,
+                "last_failure_time": cb.last_failure_time,
+            }
+
+        Path(_PERSISTENCE_FILE).write_text(json.dumps(states, indent=2))
+        logger.info(
+            "CIRCUIT_BREAKER_STATES_SAVED",
+            file=_PERSISTENCE_FILE,
+            count=len(states),
+        )
+        return True
+    except Exception as e:
+        logger.warning(
+            "CIRCUIT_BREAKER_STATES_SAVE_FAILED",
+            error=str(e)[:100],
+        )
+        return False
+
+
+def restore_circuit_breaker_states() -> int:
+    """
+    Restore circuit breaker states from disk after restart.
+
+    Only restores state for circuit breakers that already exist in the registry.
+    Does NOT create new circuit breakers (they must be created via get_circuit_breaker first).
+
+    Returns:
+        Number of circuit breakers restored
+    """
+    import json
+    from pathlib import Path
+
+    persistence_file = Path(_PERSISTENCE_FILE)
+    if not persistence_file.exists():
+        return 0
+
+    try:
+        states = json.loads(persistence_file.read_text())
+        restored_count = 0
+
+        for name, state_data in states.items():
+            if name in _circuit_breakers:
+                cb = _circuit_breakers[name]
+                cb.state = CircuitState(state_data["state"])
+                cb.failure_count = state_data["failure_count"]
+                cb.success_count = state_data["success_count"]
+                cb.last_failure_time = state_data["last_failure_time"]
+                restored_count += 1
+
+        if restored_count > 0:
+            logger.info(
+                "CIRCUIT_BREAKER_STATES_RESTORED",
+                file=_PERSISTENCE_FILE,
+                count=restored_count,
+            )
+        return restored_count
+    except Exception as e:
+        logger.warning(
+            "CIRCUIT_BREAKER_STATES_RESTORE_FAILED",
+            error=str(e)[:100],
+        )
+        return 0
