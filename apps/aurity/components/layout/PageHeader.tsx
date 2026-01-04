@@ -15,6 +15,7 @@
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { UserDisplay } from '@/components/auth/UserDisplay'
+import { SystemStatus } from '@/components/ui/SystemStatus'
 import { Button } from '@/components/ui/button'
 import { AppNavigation } from './AppNavigation'
 import {
@@ -198,9 +199,10 @@ export function PageHeader({
           </div>
         )}
 
-        {/* Right: Actions + User */}
+        {/* Right: Actions + Status + User */}
         <div className="layout-header-right">
           {actions}
+          <SystemStatus />
           {showUserDisplay && <UserDisplay />}
         </div>
       </div>
