@@ -8,8 +8,8 @@ Adds subscription_plans table with doctor limits per plan.
 Adds plan_id and max_doctors_override to clinics table.
 """
 
-from typing import Sequence, Union
 import uuid
+from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op

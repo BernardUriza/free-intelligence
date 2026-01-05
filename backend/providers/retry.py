@@ -529,6 +529,7 @@ def save_circuit_breaker_states() -> bool:
         True if saved successfully, False otherwise
     """
     import json
+
     from pathlib import Path
 
     try:
@@ -567,6 +568,7 @@ def restore_circuit_breaker_states() -> int:
         Number of circuit breakers restored
     """
     import json
+
     from pathlib import Path
 
     persistence_file = Path(_PERSISTENCE_FILE)

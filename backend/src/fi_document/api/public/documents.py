@@ -200,7 +200,7 @@ async def upload_document(
     is_html = (
         content_start.startswith(b'<!doctype html') or
         content_start.startswith(b'<html') or
-        content_start.startswith(b'<?xml') and b'<html' in content_start
+        (content_start.startswith(b'<?xml') and b'<html' in content_start)
     )
     if is_html and not filename.lower().endswith(('.html', '.htm')):
         logger.error(
@@ -846,7 +846,7 @@ def _generate_initial_questions_via_rag(doc_id: str) -> list[str]:
 
     # 4. Format RAG context
     rag_parts = []
-    for i, (_, chunk_id, similarity, chunk_text) in enumerate(results):
+    for i, (_, _chunk_id, similarity, chunk_text) in enumerate(results):
         rag_parts.append(
             f"### Fragmento {i+1} (Relevancia: {similarity*100:.0f}%)\n"
             f"**Fuente:** {doc_title}\n"
@@ -923,10 +923,7 @@ def _generate_initial_questions_via_rag(doc_id: str) -> list[str]:
                 # Match lines starting with number or bullet
                 if line and (line[0].isdigit() or line.startswith("¿")):
                     # Remove numbering like "1." or "- "
-                    if line[0].isdigit():
-                        q = line.split(".", 1)[-1].strip()
-                    else:
-                        q = line
+                    q = line.split(".", 1)[-1].strip() if line[0].isdigit() else line
                     if q and len(q) > 10:  # Minimum question length
                         questions.append(q)
             if questions:

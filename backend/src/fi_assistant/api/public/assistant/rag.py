@@ -39,7 +39,7 @@ async def _get_rag_context(
             return None
 
         # Accumulate user query in each document found
-        unique_doc_ids = set(doc_id for doc_id, _, _, _ in relevant_results)
+        unique_doc_ids = {doc_id for doc_id, _, _, _ in relevant_results}
         for doc_id in unique_doc_ids:
             try:
                 user_question = DocumentQuestion(
