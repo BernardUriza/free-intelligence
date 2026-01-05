@@ -21,10 +21,14 @@ from backend.models.checkin_models import (
     Clinic,
     Doctor,
 )
+from backend.src.fi_clinic.services.doctor_limits import (
+    get_doctor_limit_info,
+    validate_can_add_doctor,
+)
 from backend.src.fi_common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 logger = get_logger(__name__)
 
@@ -364,10 +368,18 @@ def create_doctor(
     db: Session = Depends(get_db_dependency),
 ) -> DoctorResponse:
     """Create a new doctor for a clinic."""
-    # Verify clinic exists
-    clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
+    # Verify clinic exists (with subscription for limit validation)
+    clinic = (
+        db.query(Clinic)
+        .options(joinedload(Clinic.subscription))
+        .filter(Clinic.clinic_id == clinic_id)
+        .first()
+    )
     if not clinic:
         raise HTTPException(status_code=404, detail="Clinic not found")
+
+    # Validate doctor limit (raises 403 if exceeded)
+    validate_can_add_doctor(db, clinic)
 
     doctor = Doctor(clinic_id=clinic_id, **request.model_dump())
 
@@ -749,3 +761,84 @@ def delete_appointment(
         appointment_id=str(appointment.appointment_id),
         clinic_id=clinic_id,
     )
+
+
+# =============================================================================
+# DOCTOR LIMITS ENDPOINTS
+# =============================================================================
+
+
+class DoctorLimitInfoResponse(BaseModel):
+    """Response schema for doctor limit information."""
+
+    current_count: int
+    max_allowed: int | None  # None = unlimited
+    can_add: bool
+    plan_name: str
+    plan_display_name: str
+    has_override: bool
+
+
+class DoctorOverrideUpdate(BaseModel):
+    """Schema for updating doctor override."""
+
+    max_doctors_override: int | None = Field(
+        default=None,
+        ge=1,
+        le=1000,
+        description="Custom doctor limit. NULL removes the override and uses plan limit.",
+    )
+
+
+@router.get("/{clinic_id}/doctor-limits", response_model=DoctorLimitInfoResponse)
+def get_doctor_limits(
+    clinic_id: str,
+    db: Session = Depends(get_db_dependency),
+) -> DoctorLimitInfoResponse:
+    """Get doctor limit information for a clinic.
+
+    Returns current count, maximum allowed, and whether more doctors can be added.
+    """
+    clinic = (
+        db.query(Clinic)
+        .options(joinedload(Clinic.subscription))
+        .filter(Clinic.clinic_id == clinic_id)
+        .first()
+    )
+    if not clinic:
+        raise HTTPException(status_code=404, detail="Clinic not found")
+
+    info = get_doctor_limit_info(db, clinic)
+    return DoctorLimitInfoResponse(**info)
+
+
+@router.patch("/{clinic_id}/doctor-override", response_model=ClinicResponse)
+def update_doctor_override(
+    clinic_id: str,
+    request: DoctorOverrideUpdate,
+    db: Session = Depends(get_db_dependency),
+    # TODO: Add Auth0 JWT dependency with FI-superadmin role check
+) -> ClinicResponse:
+    """Update max_doctors_override for a clinic.
+
+    Requires FI-superadmin role.
+    Set to NULL to remove override and use plan limit.
+    """
+    clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
+    if not clinic:
+        raise HTTPException(status_code=404, detail="Clinic not found")
+
+    old_override = clinic.max_doctors_override
+    clinic.max_doctors_override = request.max_doctors_override
+    clinic.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(clinic)
+
+    logger.info(
+        "DOCTOR_OVERRIDE_UPDATED",
+        clinic_id=clinic_id,
+        old_override=old_override,
+        new_override=request.max_doctors_override,
+    )
+
+    return model_to_response(clinic, ClinicResponse)

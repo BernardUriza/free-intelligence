@@ -24,11 +24,25 @@
       "Bash(gh pr create:*)",
       "Bash(gh pr view:*)",
       "Bash(ruff check:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(git reset:*)",
+      "Bash(git restore:*)",
+      "Bash(git merge:*)",
+      "Bash(git fetch:*)",
+      "Bash(CLINIC_ID=\"2553e1d9-3680-4b7f-8d4e-d25ef2789ba8\" curl:*)",
+      "Bash(ssh root@104.131.175.65:*)",
+      "Bash(jq:*)",
+      "mcp__github__get_file_contents",
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__take_screenshot",
+      "Bash(# Reiniciar backend pkill -f \"\"uvicorn.*7001\"\" || true sleep 2 \\\\ PYTHONPATH=backend nohup python3 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 --reload 2>&1 & sleep 5 curl -s http://localhost:7001/api/health)",
+      "Bash(source ~/.zshrc)",
+      "Bash(aider:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
+    "chrome-devtools",
     "azure-cli",
     "cloudflare-docs",
     "cloudflare-observability",

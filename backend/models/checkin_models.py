@@ -163,8 +163,16 @@ class Clinic(Base):
     whatsapp_enabled = Column(Boolean, default=False)
 
     # Subscription
-    subscription_plan = Column(String(50), default="starter")
+    subscription_plan = Column(String(50), default="starter")  # Legacy: will be replaced by plan_id
     subscription_valid_until = Column(DateTime(timezone=True), nullable=True)
+
+    # Plan-based limits (new)
+    plan_id = Column(
+        UUID(as_uuid=False),
+        ForeignKey("subscription_plans.plan_id"),
+        nullable=True,  # Nullable during migration
+    )
+    max_doctors_override = Column(Integer, nullable=True)  # Superadmin override, NULL = use plan limit
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -174,6 +182,7 @@ class Clinic(Base):
     # Relationships (no type hints for SQLAlchemy 2.0 compatibility)
     doctors = relationship("Doctor", back_populates="clinic")
     appointments = relationship("Appointment", back_populates="clinic")
+    subscription = relationship("SubscriptionPlan", back_populates="clinics")
 
     def __repr__(self) -> str:
         """Return string representation of Clinic."""

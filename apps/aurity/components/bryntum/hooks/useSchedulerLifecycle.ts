@@ -125,6 +125,10 @@ export function useSchedulerLifecycle({
         throw new Error('Container ref lost during async load');
       }
 
+      // Debug: Verify resources in config
+      console.error('[useSchedulerLifecycle] Initializing with resources:', config.resources);
+      console.warn('[useSchedulerLifecycle] Events count:', Array.isArray(config.events) ? config.events.length : 0);
+
       // Instantiate scheduler
       // @ts-expect-error - SchedulerPro constructor (typed in config)
       const instance = new SchedulerPro({
@@ -134,6 +138,9 @@ export function useSchedulerLifecycle({
 
       instanceRef.current = instance as BryntumSchedulerInstance;
       isInitializedRef.current = true;
+
+      // Debug: Verify resources were loaded
+      console.error('[useSchedulerLifecycle] Scheduler created with resourceStore:', instance.resourceStore?.count || 0, 'resources');
 
       if (onReady) {
         onReady(instance as BryntumSchedulerInstance);

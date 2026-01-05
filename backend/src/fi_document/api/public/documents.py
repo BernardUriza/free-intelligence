@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
@@ -74,6 +75,7 @@ class DocumentDetailResponse(BaseModel):
 
     doc_id: str
     title: str
+    filename: str | None = None  # Original filename
     doc_type: str
     origin: str
     uploaded_by: str
@@ -127,15 +129,15 @@ class DocumentSearchResponse(BaseModel):
 # ============================================================================
 
 
-@router.post("/documents/upload", response_model=DocumentUploadResponse)
+@router.post("/documents/upload", response_model=DocumentDetailResponse)
 async def upload_document(
     file: UploadFile = File(...),
     title: str = Form(None),
     usage_instructions: str = Form(""),
-    assigned_personas: str = Form(""),  # Comma-separated
+    assigned_personas: str = Form(""),  # Comma-separated or JSON array
     origin: str = Form("admin_upload"),
     uploaded_by: str = Form("anonymous"),
-) -> DocumentUploadResponse:
+) -> DocumentDetailResponse:
     """Upload a new document to the knowledge base.
 
     The document will be queued for processing (text extraction + embedding).
@@ -145,16 +147,128 @@ async def upload_document(
     """
     # Validate file size (10 MB max)
     MAX_SIZE = 10 * 1024 * 1024
+    MIN_SIZE = 10  # Minimum 10 bytes - empty files are rejected
     content = await file.read()
+    filename = file.filename or "unknown"
 
-    if len(content) > MAX_SIZE:
+    # ==========================================================================
+    # STRICT CONTENT VALIDATION - Fail loudly on corrupted/empty uploads
+    # ==========================================================================
+
+    # 1. Reject empty files
+    if len(content) == 0:
+        logger.error(
+            "UPLOAD_REJECTED_EMPTY_FILE",
+            filename=filename,
+            content_type=file.content_type,
+            reason="File content is empty (0 bytes)",
+        )
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File too large. Maximum size is 10 MB, got {len(content) / 1024 / 1024:.1f} MB",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo está vacío. Por favor selecciona un archivo válido.",
         )
 
-    # Parse personas
-    personas = [p.strip() for p in assigned_personas.split(",") if p.strip()]
+    # 2. Reject suspiciously small files
+    if len(content) < MIN_SIZE:
+        logger.error(
+            "UPLOAD_REJECTED_TOO_SMALL",
+            filename=filename,
+            size_bytes=len(content),
+            min_required=MIN_SIZE,
+            reason="File too small to be valid",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"El archivo es demasiado pequeño ({len(content)} bytes). Mínimo {MIN_SIZE} bytes.",
+        )
+
+    # 3. Reject files that are too large
+    if len(content) > MAX_SIZE:
+        logger.error(
+            "UPLOAD_REJECTED_TOO_LARGE",
+            filename=filename,
+            size_bytes=len(content),
+            max_allowed=MAX_SIZE,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Archivo demasiado grande. Máximo 10 MB, recibido {len(content) / 1024 / 1024:.1f} MB",
+        )
+
+    # 4. Detect HTML content masquerading as other file types (common browser bug)
+    content_start = content[:100].lower()
+    is_html = (
+        content_start.startswith(b'<!doctype html') or
+        content_start.startswith(b'<html') or
+        content_start.startswith(b'<?xml') and b'<html' in content_start
+    )
+    if is_html and not filename.lower().endswith(('.html', '.htm')):
+        logger.error(
+            "UPLOAD_REJECTED_HTML_MASQUERADE",
+            filename=filename,
+            declared_type=file.content_type,
+            actual_content_start=content[:50].decode('utf-8', errors='replace'),
+            reason="Browser sent HTML instead of actual file content",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Error de navegador: Se recibió HTML en lugar del archivo. "
+                   "Intenta recargar la página y subir el archivo nuevamente.",
+        )
+
+    # 5. Validate magic bytes for known file types
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    magic_checks = {
+        'pdf': (b'%PDF', "PDF debe comenzar con %PDF"),
+        'png': (b'\x89PNG', "PNG debe tener header válido"),
+        'jpg': (b'\xff\xd8\xff', "JPEG debe tener header válido"),
+        'jpeg': (b'\xff\xd8\xff', "JPEG debe tener header válido"),
+        'docx': (b'PK\x03\x04', "DOCX debe ser un archivo ZIP válido"),
+    }
+
+    if ext in magic_checks:
+        expected_magic, error_msg = magic_checks[ext]
+        if not content.startswith(expected_magic):
+            logger.error(
+                "UPLOAD_REJECTED_INVALID_MAGIC",
+                filename=filename,
+                extension=ext,
+                expected_magic=expected_magic.hex(),
+                actual_magic=content[:10].hex(),
+                actual_start=content[:20].decode('utf-8', errors='replace'),
+                reason=error_msg,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"El archivo no es un {ext.upper()} válido. {error_msg}. "
+                       f"Contenido recibido: '{content[:30].decode('utf-8', errors='replace')}...'",
+            )
+
+    # Log successful validation
+    logger.info(
+        "UPLOAD_CONTENT_VALIDATED",
+        filename=filename,
+        size_bytes=len(content),
+        extension=ext,
+        content_type=file.content_type,
+        magic_bytes=content[:8].hex(),
+    )
+
+    # Parse personas (supports JSON array or comma-separated)
+    personas = []
+    if assigned_personas:
+        assigned_personas = assigned_personas.strip()
+        # Check if it's a JSON array
+        if assigned_personas.startswith("["):
+            try:
+                personas = json.loads(assigned_personas)
+                if not isinstance(personas, list):
+                    personas = [personas]
+            except json.JSONDecodeError:
+                personas = [p.strip() for p in assigned_personas.split(",") if p.strip()]
+        else:
+            # Comma-separated format
+            personas = [p.strip() for p in assigned_personas.split(",") if p.strip()]
 
     # Parse origin
     try:
@@ -187,11 +301,22 @@ async def upload_document(
         metadata.doc_id,
     )
 
-    return DocumentUploadResponse(
+    # Return full document metadata for frontend to use immediately
+    return DocumentDetailResponse(
         doc_id=metadata.doc_id,
         title=metadata.title,
+        filename=file.filename,  # Use original filename from upload
+        doc_type=metadata.doc_type.value,
+        origin=metadata.origin.value,
+        uploaded_by=metadata.uploaded_by,
+        uploaded_at=metadata.uploaded_at,
+        usage_instructions=metadata.usage_instructions,
+        assigned_personas=metadata.assigned_personas,
         status=metadata.status.value,
-        message="Document uploaded successfully. Processing queued.",
+        size_bytes=metadata.size_bytes,
+        sha256=metadata.sha256,
+        chunks_count=metadata.chunks_count,
+        error_message=metadata.error_message,
     )
 
 
@@ -242,6 +367,7 @@ async def get_document_details(
     return DocumentDetailResponse(
         doc_id=doc.metadata.doc_id,
         title=doc.metadata.title,
+        filename=None,  # Not stored in metadata, optional field
         doc_type=doc.metadata.doc_type.value,
         origin=doc.metadata.origin.value,
         uploaded_by=doc.metadata.uploaded_by,
@@ -284,6 +410,7 @@ async def update_document(
     return DocumentDetailResponse(
         doc_id=doc.metadata.doc_id,
         title=doc.metadata.title,
+        filename=None,  # Not stored in metadata, optional field
         doc_type=doc.metadata.doc_type.value,
         origin=doc.metadata.origin.value,
         uploaded_by=doc.metadata.uploaded_by,
@@ -453,6 +580,43 @@ def _process_document(doc_id: str) -> None:
             text_length=len(text),
             chunks_count=len(chunks),
         )
+
+        # =====================================================================
+        # POST-STEP: Generate initial questions using RAG (tests the embedding)
+        # =====================================================================
+        try:
+            questions_text = _generate_initial_questions_via_rag(doc_id)
+
+            if questions_text:
+                from datetime import UTC, datetime
+
+                from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
+                    DocumentQuestion,
+                    save_document_questions,
+                )
+
+                questions = [
+                    DocumentQuestion(
+                        question_id=i,
+                        question=q,
+                        source="llm_initial",
+                        timestamp=datetime.now(UTC).isoformat(),
+                    )
+                    for i, q in enumerate(questions_text)
+                ]
+                save_document_questions(doc_id, questions)
+                logger.info(
+                    "DOCUMENT_QUESTIONS_GENERATED",
+                    doc_id=doc_id,
+                    count=len(questions),
+                )
+        except Exception as qe:
+            logger.warning(
+                "QUESTION_GENERATION_FAILED",
+                doc_id=doc_id,
+                error=str(qe),
+            )
+            # Non-fatal: document already indexed successfully
 
     except Exception as e:
         logger.error("DOCUMENT_PROCESSING_FAILED", doc_id=doc_id, error=str(e))
@@ -628,3 +792,209 @@ def _get_embedding_model():
         _embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
         logger.info("EMBEDDING_MODEL_LOADED", model="all-MiniLM-L6-v2")
     return _embedding_model
+
+
+# ============================================================================
+# Question Generation (POST-STEP after indexing)
+# ============================================================================
+
+QUESTION_GENERATION_PROMPT = """TAREA: Genera EXACTAMENTE 3 preguntas sobre este documento médico.
+
+DOCUMENTO:
+{rag_context}
+
+RESPONDE SOLO CON ESTE JSON (reemplaza los ejemplos con preguntas reales):
+{{"questions": ["¿Pregunta 1?", "¿Pregunta 2?", "¿Pregunta 3?"]}}"""
+
+
+def _generate_initial_questions_via_rag(doc_id: str) -> list[str]:
+    """Generate initial questions using RAG on the freshly indexed document.
+
+    This tests that the embedding works correctly by searching within
+    the specific document and using the LLM to generate questions.
+
+    Args:
+        doc_id: Document UUID (must be indexed)
+
+    Returns:
+        List of 3 questions (or empty if generation fails)
+    """
+    import json
+
+    from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
+        search_documents_by_embedding,
+    )
+
+    # 1. Generate embedding for a generic query
+    query = "¿Cuáles son los temas principales y puntos clave de este documento?"
+    query_embedding = _get_embedding_sync(query)
+
+    # 2. Search ONLY within this document
+    results = search_documents_by_embedding(
+        query_embedding=query_embedding,
+        top_k=5,
+        doc_filter=doc_id,  # Filter by specific document
+    )
+
+    if not results:
+        logger.warning("RAG_NO_CHUNKS_FOUND", doc_id=doc_id)
+        return []
+
+    # 3. Get document metadata for context
+    doc = get_document(doc_id)
+    doc_title = doc.metadata.title if doc else "Documento"
+
+    # 4. Format RAG context
+    rag_parts = []
+    for i, (_, chunk_id, similarity, chunk_text) in enumerate(results):
+        rag_parts.append(
+            f"### Fragmento {i+1} (Relevancia: {similarity*100:.0f}%)\n"
+            f"**Fuente:** {doc_title}\n"
+            f"**Contenido:** {chunk_text}"
+        )
+    rag_context = "\n\n---\n\n".join(rag_parts)
+
+    # 5. Call LLM to generate questions
+    content = ""  # Initialize for fallback parsing
+    try:
+        from backend.providers.llm import llm_generate
+
+        prompt = QUESTION_GENERATION_PROMPT.format(rag_context=rag_context)
+
+        response = llm_generate(
+            prompt=prompt,
+            model="qwen3:1.7b",
+            temperature=0.5,  # Lower for more consistent output
+            max_tokens=1024,  # More space for 3 questions
+            enable_thinking=True,  # Required for Ollama to return content
+        )
+
+        content = response.content.strip()
+
+        # Log raw LLM response for debugging
+        logger.info(
+            "LLM_QUESTION_RESPONSE_RAW",
+            doc_id=doc_id,
+            content_length=len(content),
+            content_preview=content[:500] if content else "(empty)",
+        )
+
+        # 6. Parse JSON response
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        if start >= 0 and end > start:
+            json_str = content[start:end]
+            data = json.loads(json_str)
+            questions = data.get("questions", [])[:3]
+            logger.info(
+                "LLM_QUESTIONS_PARSED",
+                doc_id=doc_id,
+                count=len(questions),
+                questions=questions,
+            )
+            return questions
+        else:
+            # No JSON found - try fallback
+            logger.warning(
+                "LLM_QUESTION_NO_JSON_FOUND",
+                doc_id=doc_id,
+                content_preview=content[:200] if content else "(empty)",
+            )
+            # Fall through to fallback parsing below
+
+    except json.JSONDecodeError as jde:
+        logger.warning(
+            "LLM_QUESTION_JSON_PARSE_ERROR",
+            doc_id=doc_id,
+            error=str(jde),
+        )
+
+    except Exception as e:
+        logger.warning("LLM_QUESTION_GENERATION_FAILED", doc_id=doc_id, error=str(e))
+        return []
+
+    # Fallback: parse as numbered text (try if JSON failed or wasn't found)
+    try:
+        if content:
+            lines = content.split("\n")
+            questions = []
+            for line in lines:
+                line = line.strip()
+                # Match lines starting with number or bullet
+                if line and (line[0].isdigit() or line.startswith("¿")):
+                    # Remove numbering like "1." or "- "
+                    if line[0].isdigit():
+                        q = line.split(".", 1)[-1].strip()
+                    else:
+                        q = line
+                    if q and len(q) > 10:  # Minimum question length
+                        questions.append(q)
+            if questions:
+                logger.info(
+                    "LLM_QUESTIONS_PARSED_FALLBACK",
+                    doc_id=doc_id,
+                    count=len(questions),
+                    questions=questions[:3],
+                )
+                return questions[:3]
+
+        logger.warning(
+            "LLM_QUESTION_FALLBACK_FAILED",
+            doc_id=doc_id,
+            reason="No questions extracted from response",
+        )
+    except Exception as fe:
+        logger.warning(
+            "LLM_QUESTION_FALLBACK_ERROR",
+            doc_id=doc_id,
+            error=str(fe),
+        )
+
+    return []
+
+
+# ============================================================================
+# Question Endpoints
+# ============================================================================
+
+
+class DocumentQuestionResponse(BaseModel):
+    """Response for a document question."""
+
+    question_id: int
+    question: str
+    source: str  # "llm_initial" | "user_query"
+    timestamp: str
+    answer: str | None = None
+
+
+@router.get("/documents/{doc_id}/questions", response_model=list[DocumentQuestionResponse])
+async def get_document_questions_endpoint(doc_id: str) -> list[DocumentQuestionResponse]:
+    """Get all questions for a document.
+
+    Returns accumulated questions from:
+    - LLM initial generation (source="llm_initial") - created during indexing
+    - User queries via RAG (source="user_query") - accumulated during usage
+    """
+    from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
+        get_document_questions,
+    )
+
+    questions = get_document_questions(doc_id)
+
+    if questions is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document {doc_id} not found",
+        )
+
+    return [
+        DocumentQuestionResponse(
+            question_id=q.question_id,
+            question=q.question,
+            source=q.source,
+            timestamp=q.timestamp,
+            answer=q.answer,
+        )
+        for q in questions
+    ]

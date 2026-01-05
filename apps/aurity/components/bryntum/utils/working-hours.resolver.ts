@@ -1,5 +1,7 @@
 import type { Doctor, WorkingHour } from '@/components/bryntum/utils/appointment-transform.utils';
 import { TemporalAPI, getClinicTimeZone } from '@/lib/temporal';
+import type { DoctorAvailability } from '@/components/admin/clinics/availability-designer/types';
+import { toWorkingHours } from '@/components/admin/clinics/availability-designer/utils/transform';
 
 const Temporal = TemporalAPI;
 
@@ -181,8 +183,8 @@ function mergeWindows(windows: ResolvedWindow[]): { merged: ResolvedWindow[]; me
   merged.push(current);
 
   const totalMinutes = merged.reduce((acc, window) => {
-  const durationNs = window.end.epochNanoseconds - window.start.epochNanoseconds;
-  return acc + Math.floor(durationNs / 1_000_000_000 / 60);
+    const durationMs = window.end.epochMilliseconds - window.start.epochMilliseconds;
+    return acc + Math.floor(durationMs / 1000 / 60);
   }, 0);
 
   if (totalMinutes > MINUTES_PER_DAY) {
@@ -224,12 +226,32 @@ function buildNonWorkingRanges(
   return ranges;
 }
 
+/**
+ * Normalize working_hours to WorkingHourOverride[] format
+ * Handles both new DoctorAvailability object format and legacy array format
+ */
+function normalizeWorkingHours(workingHours: unknown): WorkingHourOverride[] {
+  if (!workingHours) return [];
+
+  // New format: DoctorAvailability object with version, weeklySchedule, etc.
+  if (typeof workingHours === 'object' && 'version' in (workingHours as object)) {
+    return toWorkingHours(workingHours as DoctorAvailability) as WorkingHourOverride[];
+  }
+
+  // Legacy format: already an array
+  if (Array.isArray(workingHours)) {
+    return workingHours as WorkingHourOverride[];
+  }
+
+  return [];
+}
+
 function pickSlotsForDate(
   doctor: Doctor,
   date: PlainDate
 ): { slots: WorkingHourOverride[]; fullDayClosed: boolean; dateISO: string } {
   const dateISO = date.toString();
-  const dailySlots = (doctor.working_hours || []) as WorkingHourOverride[];
+  const dailySlots = normalizeWorkingHours(doctor.working_hours);
   const override = dailySlots.filter((slot) => slot.date === dateISO);
   if (override.length) {
     const closed = override.some((slot) => slot.fullDayClosed || !slot.start || !slot.end);

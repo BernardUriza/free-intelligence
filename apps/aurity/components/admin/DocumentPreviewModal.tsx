@@ -42,11 +42,15 @@ import {
   ChevronRight,
   Maximize2,
   Minimize2,
+  HelpCircle,
+  Sparkles,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { fetchDocument, formatFileSize, formatDate } from '@aurity-standalone/api-client/knowledge';
-import type { DocumentMetadata, Document, DocumentType, DocumentStatus } from '@aurity-standalone/types/knowledge';
+import { fetchDocument, formatFileSize, formatDate, getDocumentQuestions } from '@aurity-standalone/api-client/knowledge';
+import type { DocumentMetadata, Document, DocumentType, DocumentStatus, DocumentQuestion, QuestionSource } from '@aurity-standalone/types/knowledge';
 import { toastSuccess, toastError } from '@/lib/swal';
+import { QUESTION_SOURCE_CONFIG, formatRelativeTime } from './knowledge';
 
 // =============================================================================
 // TYPES & CONSTANTS
@@ -101,6 +105,8 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showMetadata, setShowMetadata] = useState(true);
+  const [questions, setQuestions] = useState<DocumentQuestion[]>([]);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
 
   // Load full document with content when modal opens
   useEffect(() => {
@@ -125,6 +131,29 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
 
     loadDocument();
   }, [isOpen, docMeta]);
+
+  // Load questions when modal opens
+  useEffect(() => {
+    if (!isOpen || !docMeta?.doc_id) {
+      setQuestions([]);
+      return;
+    }
+
+    const loadQuestions = async () => {
+      setLoadingQuestions(true);
+      try {
+        const qs = await getDocumentQuestions(docMeta.doc_id);
+        setQuestions(qs);
+      } catch (err) {
+        console.error('Error loading questions:', err);
+        setQuestions([]);
+      } finally {
+        setLoadingQuestions(false);
+      }
+    };
+
+    loadQuestions();
+  }, [isOpen, docMeta?.doc_id]);
 
   // Handle copy to clipboard
   const handleCopy = async () => {
@@ -383,6 +412,29 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
                   </MetadataSection>
                 )}
 
+                {/* Questions Section */}
+                <MetadataSection title={`Preguntas (${questions.length})`} icon={HelpCircle}>
+                  {loadingQuestions ? (
+                    <div className="flex items-center gap-2 text-slate-400 text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Cargando...</span>
+                    </div>
+                  ) : questions.length === 0 ? (
+                    <p className="text-slate-500 text-sm italic">Sin preguntas aún</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <QuestionGroup
+                        source="llm_initial"
+                        questions={questions.filter(q => q.source === 'llm_initial')}
+                      />
+                      <QuestionGroup
+                        source="user_query"
+                        questions={questions.filter(q => q.source === 'user_query')}
+                      />
+                    </div>
+                  )}
+                </MetadataSection>
+
                 {/* Error Message */}
                 {docMeta.error_message && (
                   <MetadataSection title="Error" icon={AlertCircle}>
@@ -494,6 +546,46 @@ function MetadataItem({ icon: Icon, label, children }: MetadataItemProps) {
       <Icon className="w-3.5 h-3.5 text-slate-500 mt-0.5 flex-shrink-0" />
       <span className="text-slate-500 flex-shrink-0">{label}:</span>
       <span className="fi-text min-w-0">{children}</span>
+    </div>
+  );
+}
+
+// =============================================================================
+// QUESTION GROUP COMPONENT
+// =============================================================================
+
+interface QuestionGroupProps {
+  source: QuestionSource;
+  questions: DocumentQuestion[];
+}
+
+function QuestionGroup({ source, questions }: QuestionGroupProps) {
+  if (questions.length === 0) return null;
+
+  const config = QUESTION_SOURCE_CONFIG[source];
+  const Icon = config.icon;
+
+  return (
+    <div className={`rounded-lg p-3 ${config.bgClass}`}>
+      <div className={`flex items-center gap-2 mb-2 ${config.textClass}`}>
+        <Icon className="w-4 h-4" />
+        <span className="text-sm font-medium">
+          {config.label} ({questions.length})
+        </span>
+      </div>
+      <ul className="space-y-1.5">
+        {questions.map((q) => (
+          <li key={q.question_id} className="text-sm text-slate-300">
+            <span className="text-slate-500 mr-1">•</span>
+            {q.question}
+            {source === 'user_query' && q.timestamp && (
+              <span className="text-slate-500 text-xs ml-2">
+                {formatRelativeTime(q.timestamp)}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

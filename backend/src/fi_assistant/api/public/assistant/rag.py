@@ -9,12 +9,19 @@ async def _get_rag_context(
     query: str,
     persona: str,
     top_k: int = 5,
-    min_similarity: float = 0.35,
+    min_similarity: float = 0.25,  # Lowered from 0.35 for better recall
 ) -> str | None:
-    """Search documents and build RAG context for the LLM."""
+    """Search documents and build RAG context for the LLM.
+
+    Also accumulates the user query in the found documents for analytics.
+    """
     try:
+        from datetime import UTC, datetime
+
         from backend.src.fi_document.api.public.documents import _get_embedding
         from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
+            DocumentQuestion,
+            add_document_question,
             get_document,
             search_documents_by_embedding,
         )
@@ -30,6 +37,22 @@ async def _get_rag_context(
         relevant_results = [r for r in results if r[2] >= min_similarity]
         if not relevant_results:
             return None
+
+        # Accumulate user query in each document found
+        unique_doc_ids = set(doc_id for doc_id, _, _, _ in relevant_results)
+        for doc_id in unique_doc_ids:
+            try:
+                user_question = DocumentQuestion(
+                    question_id=0,  # Auto-assigned by add_document_question
+                    question=query,
+                    source="user_query",
+                    timestamp=datetime.now(UTC).isoformat(),
+                    answer=None,
+                )
+                add_document_question(doc_id, user_question)
+                logger.debug("USER_QUERY_ACCUMULATED", doc_id=doc_id, query=query[:50])
+            except Exception as qe:
+                logger.warning("FAILED_TO_ACCUMULATE_QUERY", doc_id=doc_id, error=str(qe))
 
         context_parts: list[str] = []
         for idx, (doc_id, _chunk_id, similarity, chunk_text) in enumerate(relevant_results, 1):
