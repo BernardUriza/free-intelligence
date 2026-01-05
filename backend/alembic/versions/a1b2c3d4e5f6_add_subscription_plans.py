@@ -31,7 +31,9 @@ def upgrade() -> None:
         sa.Column("display_name", sa.String(length=100), nullable=False),
         sa.Column("max_doctors", sa.Integer(), nullable=True),  # NULL = unlimited
         sa.Column("features", sa.JSON(), nullable=True),  # Use JSON for SQLite compatibility
-        sa.Column("price_usd", sa.Numeric(precision=10, scale=2), nullable=False, server_default="0"),
+        sa.Column(
+            "price_usd", sa.Numeric(precision=10, scale=2), nullable=False, server_default="0"
+        ),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column(
             "created_at",

@@ -191,11 +191,13 @@ def get_ollama_hosts() -> list[OllamaHost]:
         try:
             tunnel_url = tunnel_file.read_text().strip()
             if tunnel_url and _is_valid_ollama_url(tunnel_url):
-                hosts.append(OllamaHost(
-                    url=tunnel_url,
-                    name="windows_tunnel",
-                    priority=1,
-                ))
+                hosts.append(
+                    OllamaHost(
+                        url=tunnel_url,
+                        name="windows_tunnel",
+                        priority=1,
+                    )
+                )
             elif tunnel_file.stat().st_size == 0 or not tunnel_url:
                 # FI-BACKEND-FALLBACK-001: Warn about empty tunnel file
                 logger.warning(
@@ -213,19 +215,23 @@ def get_ollama_hosts() -> list[OllamaHost]:
     # 2. Windows tunnel from env var (GitHub Secret fallback)
     tunnel_env = os.getenv("OLLAMA_TUNNEL_URL")
     if tunnel_env and not any(h["url"] == tunnel_env for h in hosts):
-        hosts.append(OllamaHost(
-            url=tunnel_env,
-            name="windows_tunnel_env",
-            priority=2,
-        ))
+        hosts.append(
+            OllamaHost(
+                url=tunnel_env,
+                name="windows_tunnel_env",
+                priority=2,
+            )
+        )
 
     # 3. Mac localhost (fallback when traveling/developing)
     mac_fallback = os.getenv("OLLAMA_MAC_FALLBACK", "http://localhost:11434")
-    hosts.append(OllamaHost(
-        url=mac_fallback,
-        name="mac_localhost",
-        priority=99,
-    ))
+    hosts.append(
+        OllamaHost(
+            url=mac_fallback,
+            name="mac_localhost",
+            priority=99,
+        )
+    )
 
     return sorted(hosts, key=lambda h: h["priority"])
 

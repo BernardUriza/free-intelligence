@@ -198,32 +198,32 @@ async def upload_document(
     # 4. Detect HTML content masquerading as other file types (common browser bug)
     content_start = content[:100].lower()
     is_html = (
-        content_start.startswith(b'<!doctype html') or
-        content_start.startswith(b'<html') or
-        (content_start.startswith(b'<?xml') and b'<html' in content_start)
+        content_start.startswith(b"<!doctype html")
+        or content_start.startswith(b"<html")
+        or (content_start.startswith(b"<?xml") and b"<html" in content_start)
     )
-    if is_html and not filename.lower().endswith(('.html', '.htm')):
+    if is_html and not filename.lower().endswith((".html", ".htm")):
         logger.error(
             "UPLOAD_REJECTED_HTML_MASQUERADE",
             filename=filename,
             declared_type=file.content_type,
-            actual_content_start=content[:50].decode('utf-8', errors='replace'),
+            actual_content_start=content[:50].decode("utf-8", errors="replace"),
             reason="Browser sent HTML instead of actual file content",
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Error de navegador: Se recibió HTML en lugar del archivo. "
-                   "Intenta recargar la página y subir el archivo nuevamente.",
+            "Intenta recargar la página y subir el archivo nuevamente.",
         )
 
     # 5. Validate magic bytes for known file types
-    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     magic_checks = {
-        'pdf': (b'%PDF', "PDF debe comenzar con %PDF"),
-        'png': (b'\x89PNG', "PNG debe tener header válido"),
-        'jpg': (b'\xff\xd8\xff', "JPEG debe tener header válido"),
-        'jpeg': (b'\xff\xd8\xff', "JPEG debe tener header válido"),
-        'docx': (b'PK\x03\x04', "DOCX debe ser un archivo ZIP válido"),
+        "pdf": (b"%PDF", "PDF debe comenzar con %PDF"),
+        "png": (b"\x89PNG", "PNG debe tener header válido"),
+        "jpg": (b"\xff\xd8\xff", "JPEG debe tener header válido"),
+        "jpeg": (b"\xff\xd8\xff", "JPEG debe tener header válido"),
+        "docx": (b"PK\x03\x04", "DOCX debe ser un archivo ZIP válido"),
     }
 
     if ext in magic_checks:
@@ -235,13 +235,13 @@ async def upload_document(
                 extension=ext,
                 expected_magic=expected_magic.hex(),
                 actual_magic=content[:10].hex(),
-                actual_start=content[:20].decode('utf-8', errors='replace'),
+                actual_start=content[:20].decode("utf-8", errors="replace"),
                 reason=error_msg,
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"El archivo no es un {ext.upper()} válido. {error_msg}. "
-                       f"Contenido recibido: '{content[:30].decode('utf-8', errors='replace')}...'",
+                f"Contenido recibido: '{content[:30].decode('utf-8', errors='replace')}...'",
             )
 
     # Log successful validation
@@ -848,7 +848,7 @@ def _generate_initial_questions_via_rag(doc_id: str) -> list[str]:
     rag_parts = []
     for i, (_, _chunk_id, similarity, chunk_text) in enumerate(results):
         rag_parts.append(
-            f"### Fragmento {i+1} (Relevancia: {similarity*100:.0f}%)\n"
+            f"### Fragmento {i + 1} (Relevancia: {similarity * 100:.0f}%)\n"
             f"**Fuente:** {doc_title}\n"
             f"**Contenido:** {chunk_text}"
         )

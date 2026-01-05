@@ -544,7 +544,9 @@ class OllamaProvider(LLMProvider):
                     total_tokens = prompt_tokens + completion_tokens
                     if "eval_count" in response:
                         completion_tokens = response["eval_count"]
-                        total_tokens = response.get("prompt_eval_count", prompt_tokens) + completion_tokens
+                        total_tokens = (
+                            response.get("prompt_eval_count", prompt_tokens) + completion_tokens
+                        )
 
                     # Success: record and update current host (thread-safe)
                     cb.record_success()
@@ -630,7 +632,9 @@ class OllamaProvider(LLMProvider):
             "OLLAMA_ALL_HOSTS_FAILED",
             hosts_tried=hosts_tried,
             total_hosts=len(self.hosts),
-            last_error=sanitize_error_message(str(last_exception), max_length=200) if last_exception else "unknown",
+            last_error=sanitize_error_message(str(last_exception), max_length=200)
+            if last_exception
+            else "unknown",
         )
 
         if last_exception:
@@ -882,7 +886,9 @@ class OllamaProvider(LLMProvider):
         self.logger.error(
             "OLLAMA_STREAM_ALL_HOSTS_FAILED",
             hosts_tried=hosts_tried,
-            last_error=sanitize_error_message(str(last_exception), max_length=200) if last_exception else "unknown",
+            last_error=sanitize_error_message(str(last_exception), max_length=200)
+            if last_exception
+            else "unknown",
         )
 
         if last_exception:

@@ -488,10 +488,7 @@ def get_all_circuit_breaker_states() -> dict[str, dict[str, Any]]:
 
 def get_ollama_circuit_breakers() -> dict[str, CircuitBreaker]:
     """Get all Ollama-related circuit breakers."""
-    return {
-        name: cb for name, cb in _circuit_breakers.items()
-        if name.startswith("ollama_")
-    }
+    return {name: cb for name, cb in _circuit_breakers.items() if name.startswith("ollama_")}
 
 
 def reset_all_ollama_circuit_breakers() -> None:

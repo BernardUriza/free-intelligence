@@ -141,6 +141,8 @@ def get_doctor_limit_info(db: Session, clinic: Clinic) -> dict:
         "max_allowed": limit,
         "can_add": limit is None or current_count < limit,
         "plan_name": clinic.subscription.name if clinic.subscription else "free",
-        "plan_display_name": clinic.subscription.display_name if clinic.subscription else "Sin plan",
+        "plan_display_name": clinic.subscription.display_name
+        if clinic.subscription
+        else "Sin plan",
         "has_override": clinic.max_doctors_override is not None,
     }

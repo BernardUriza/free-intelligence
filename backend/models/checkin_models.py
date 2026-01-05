@@ -172,7 +172,9 @@ class Clinic(Base):
         ForeignKey("subscription_plans.plan_id"),
         nullable=True,  # Nullable during migration
     )
-    max_doctors_override = Column(Integer, nullable=True)  # Superadmin override, NULL = use plan limit
+    max_doctors_override = Column(
+        Integer, nullable=True
+    )  # Superadmin override, NULL = use plan limit
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
