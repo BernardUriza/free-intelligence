@@ -9,12 +9,15 @@ Created: 2025-12-12
 
 from __future__ import annotations
 
+import json
+import time
 from datetime import datetime
 
 import httpx
 import os
 import psutil
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
+from pathlib import Path
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/admin/system", tags=["System Resources"])
@@ -240,3 +243,106 @@ async def unload_model(model_name: str) -> dict:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to unload model: {e!s}",
         ) from e
+
+
+# =============================================================================
+# Ollama Source Configuration (FI-BACKEND-SOURCE-001)
+# =============================================================================
+
+CONFIG_FILE = Path.home() / ".aurity" / "ollama-source.json"
+
+DEFAULT_CONFIG = {
+    "source": "local",
+    "tunnel_url": "",
+    "local_url": "http://localhost:11434",
+}
+
+
+class OllamaSourceConfig(BaseModel):
+    """Ollama source configuration."""
+
+    source: str  # 'tunnel' or 'local'
+    tunnel_url: str
+    local_url: str
+
+
+class ConnectionTestResult(BaseModel):
+    """Result of testing Ollama connection."""
+
+    connected: bool
+    latency_ms: int | None = None
+    error: str | None = None
+
+
+@router.get("/ollama/config", response_model=OllamaSourceConfig)
+async def get_ollama_config() -> OllamaSourceConfig:
+    """Get current Ollama source configuration.
+
+    Returns:
+        Current configuration from ~/.aurity/ollama-source.json
+    """
+    if CONFIG_FILE.exists():
+        try:
+            data = json.loads(CONFIG_FILE.read_text())
+            return OllamaSourceConfig(**{**DEFAULT_CONFIG, **data})
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    return OllamaSourceConfig(**DEFAULT_CONFIG)
+
+
+@router.post("/ollama/config", response_model=OllamaSourceConfig)
+async def save_ollama_config(config: OllamaSourceConfig) -> OllamaSourceConfig:
+    """Save Ollama source configuration.
+
+    Args:
+        config: New configuration to save
+
+    Returns:
+        Saved configuration
+    """
+    # Ensure directory exists
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    # Save config
+    CONFIG_FILE.write_text(json.dumps(config.model_dump(), indent=2))
+
+    return config
+
+
+@router.get("/ollama/test", response_model=ConnectionTestResult)
+async def test_ollama_connection(
+    url: str = Query(default="http://localhost:11434", description="Ollama URL to test"),
+) -> ConnectionTestResult:
+    """Test connection to an Ollama endpoint.
+
+    Args:
+        url: Ollama URL to test
+
+    Returns:
+        Connection status with latency
+    """
+    try:
+        start = time.time()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{url}/api/tags", timeout=5.0)
+            response.raise_for_status()
+        latency = int((time.time() - start) * 1000)
+
+        return ConnectionTestResult(connected=True, latency_ms=latency)
+
+    except httpx.ConnectError:
+        return ConnectionTestResult(
+            connected=False,
+            error="Connection refused - Ollama not running?",
+        )
+    except httpx.TimeoutException:
+        return ConnectionTestResult(
+            connected=False,
+            error="Connection timeout (>5s)",
+        )
+    except Exception as e:
+        return ConnectionTestResult(
+            connected=False,
+            error=str(e)[:100],
+        )

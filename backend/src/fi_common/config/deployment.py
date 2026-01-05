@@ -20,14 +20,19 @@ Environment Variables:
 
 from __future__ import annotations
 
+import json
 import logging
-import os
 from enum import Enum
-from pathlib import Path
 from typing import TypedDict
 from urllib.parse import urlparse
 
+import os
+from pathlib import Path
+
 logger = logging.getLogger(__name__)
+
+# Config file for Ollama source selection
+OLLAMA_SOURCE_CONFIG = Path.home() / ".aurity" / "ollama-source.json"
 
 
 def _is_valid_ollama_url(url: str) -> bool:
@@ -100,13 +105,25 @@ def get_data_dir() -> Path:
     return Path("/opt/free-intelligence/storage")
 
 
+def _load_ollama_source_config() -> dict | None:
+    """Load Ollama source config from ~/.aurity/ollama-source.json."""
+    if not OLLAMA_SOURCE_CONFIG.exists():
+        return None
+    try:
+        return json.loads(OLLAMA_SOURCE_CONFIG.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("OLLAMA_SOURCE_CONFIG_READ_ERROR: %s", e)
+        return None
+
+
 def get_ollama_host() -> str:
     """
     Get Ollama endpoint based on deployment target.
 
     Priority:
         1. Explicit OLLAMA_HOST env var (always wins)
-        2. Default based on target:
+        2. User config from ~/.aurity/ollama-source.json
+        3. Default based on target:
            - Desktop: http://localhost:11434
            - Cloud: reads from /tmp/ollama-tunnel-url.txt or uses env var
 
@@ -116,6 +133,21 @@ def get_ollama_host() -> str:
     explicit = os.getenv("OLLAMA_HOST")
     if explicit:
         return explicit
+
+    # Check user config (FI-BACKEND-SOURCE-001)
+    config = _load_ollama_source_config()
+    if config:
+        source = config.get("source", "local")
+        if source == "tunnel":
+            tunnel_url = config.get("tunnel_url", "")
+            if tunnel_url and _is_valid_ollama_url(tunnel_url):
+                logger.debug("OLLAMA_HOST_FROM_CONFIG: source=tunnel url=%s", tunnel_url)
+                return tunnel_url
+        else:
+            local_url = config.get("local_url", "http://localhost:11434")
+            if local_url and _is_valid_ollama_url(local_url):
+                logger.debug("OLLAMA_HOST_FROM_CONFIG: source=local url=%s", local_url)
+                return local_url
 
     # Desktop always uses localhost
     if is_desktop():

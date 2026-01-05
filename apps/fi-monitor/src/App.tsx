@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { SourceConfig } from './components/SourceConfig'
 import { StatusCard } from './components/StatusCard'
 import { StatsCards } from './components/StatsCards'
 import { RecentCalls } from './components/RecentCalls'
@@ -112,6 +113,11 @@ export default function App() {
           </p>
         </div>
       )}
+
+      <section className="section">
+        <h2 className="section-title">Configuration</h2>
+        <SourceConfig />
+      </section>
 
       {status && (
         <section className="section">
