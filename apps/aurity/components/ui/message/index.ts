@@ -3,8 +3,8 @@
  *
  * Headless component pattern with multiple variants:
  * - TVMessage: Large text for TV displays (WaitingRoomHost)
- * - ChatMessage: Full-featured for chat widget (coming soon)
- * - OnboardingMessage: Markdown + actions for onboarding (coming soon)
+ * - ChatMessage: Full-featured for chat widget
+ * - OnboardingMessage: Markdown + actions for onboarding flows
  *
  * @see https://martinfowler.com/articles/headless-component.html
  */
