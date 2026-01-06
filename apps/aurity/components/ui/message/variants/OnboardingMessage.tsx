@@ -8,7 +8,7 @@
  * - Persona-based glassmorphism styling
  * - Timestamps and phase indicators
  * - Entrance animations
- * - TTS with persona voice
+ * - Copy button (TTS can be injected if needed)
  *
  * Refactored (2025-01-06): Now uses unified primitives instead of FIMessageBubble wrapper
  *
@@ -22,6 +22,9 @@ import { MessageContent } from '../primitives/MessageContent';
 import { MessageActions } from '../primitives/MessageActions';
 import { ModelBadge } from '../primitives/ModelBadge';
 import { MessageTimestamp } from '@/components/chat/MessageTimestamp';
+// TTS imports for onboarding (optional)
+import { SpeakButton } from '@/components/chat/MessageActions';
+import { useAudioPlayer, AudioPlayer } from '@/components/chat/AudioPlayer';
 
 /**
  * OnboardingMessage - Glassmorphism styled message for onboarding
@@ -50,6 +53,18 @@ export const OnboardingMessage = memo(function OnboardingMessage({
 }: OnboardingMessageProps) {
   // Use headless hook for shared logic (already calls usePersonas internally)
   const { isUser, personaStyle, personaLabel, personaVoice, personaModel } = useMessage({ message });
+
+  // TTS state for onboarding messages
+  const {
+    generateAudio,
+    audioUrl,
+    isLoading,
+    voiceName,
+    close: onClose,
+    changeVoice: onChangeVoice,
+  } = useAudioPlayer();
+
+  const voice = personaVoice || 'nova';
 
   // Border radius (default or override)
   const borderRadius = borderRadiusOverride || 'rounded-2xl rounded-tl-sm';
@@ -119,8 +134,29 @@ export const OnboardingMessage = memo(function OnboardingMessage({
             <MessageActions
               isUser={isUser}
               content={message.content}
-              voice={personaVoice}
-            />
+              showMoreButton={false}
+              audioPlayer={
+                (isLoading || audioUrl) && (
+                  <AudioPlayer
+                    audioUrl={audioUrl}
+                    isLoading={isLoading}
+                    voiceName={voiceName || 'Nova'}
+                    isUserMessage={isUser}
+                    currentVoice={voice}
+                    onClose={onClose}
+                    onChangeVoice={onChangeVoice}
+                  />
+                )
+              }
+            >
+              <SpeakButton
+                content={message.content}
+                size="sm"
+                voice={voice}
+                isUserMessage={isUser}
+                onOpenPlayer={generateAudio}
+              />
+            </MessageActions>
             {personaVoice && (
               <ModelBadge
                 model={personaModel || 'free-intelligence'}

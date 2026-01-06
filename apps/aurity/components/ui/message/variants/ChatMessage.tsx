@@ -7,6 +7,7 @@
  * - ReasoningBlock: AI thinking/reasoning display
  * - ModelBadge: LLM model indicator
  * - Auth0 integration for user names
+ * - TTS via AudioPlayer (injected into MessageActions)
  *
  * @see Headless Component Pattern: https://martinfowler.com/articles/headless-component.html
  */
@@ -20,8 +21,10 @@ import { MessageMeta } from '../primitives/MessageMeta';
 import { MessageContent } from '../primitives/MessageContent';
 import { MessageActions } from '../primitives/MessageActions';
 import { ModelBadge } from '../primitives/ModelBadge';
-// Chat-specific components
+// Chat-specific components (TTS, Reasoning)
 import { ReasoningBlock } from '@/components/chat/ReasoningBlock';
+import { SpeakButton } from '@/components/chat/MessageActions';
+import { useAudioPlayer, AudioPlayer } from '@/components/chat/AudioPlayer';
 
 export const ChatMessage = memo(function ChatMessage({
   message,
@@ -31,6 +34,18 @@ export const ChatMessage = memo(function ChatMessage({
 }: ChatMessageProps) {
   const { isUser, displayName, persona } = useMessage({ message });
   const { message: styles } = messageStyles;
+
+  // TTS state - lives here, injected into primitive
+  const {
+    generateAudio,
+    audioUrl,
+    isLoading,
+    voiceName,
+    close: onClose,
+    changeVoice: onChangeVoice,
+  } = useAudioPlayer();
+
+  const voice = message.metadata?.voice || 'nova';
 
   return (
     <article
@@ -83,12 +98,32 @@ export const ChatMessage = memo(function ChatMessage({
         </div>
       )}
 
-      {/* Hover Actions */}
+      {/* Hover Actions - TTS injected as children */}
       <MessageActions
         isUser={isUser}
         content={message.content}
-        voice={message.metadata?.voice}
-      />
+        audioPlayer={
+          (isLoading || audioUrl) && (
+            <AudioPlayer
+              audioUrl={audioUrl}
+              isLoading={isLoading}
+              voiceName={voiceName || 'Nova'}
+              isUserMessage={isUser}
+              currentVoice={voice}
+              onClose={onClose}
+              onChangeVoice={onChangeVoice}
+            />
+          )
+        }
+      >
+        <SpeakButton
+          content={message.content}
+          size="sm"
+          voice={voice}
+          isUserMessage={isUser}
+          onOpenPlayer={generateAudio}
+        />
+      </MessageActions>
     </article>
   );
 });
