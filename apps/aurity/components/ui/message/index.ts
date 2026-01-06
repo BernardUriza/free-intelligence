@@ -42,8 +42,14 @@ export {
 // Variants
 export { TVMessage } from './variants/TVMessage';
 
-// Primitives (to be added when migrating from chat/message-list/ui/)
-// export { MessageAvatar } from './primitives/MessageAvatar';
-// export { MessageMeta } from './primitives/MessageMeta';
-// export { MessageContent } from './primitives/MessageContent';
-// export { MessageActions } from './primitives/MessageActions';
+// Primitives
+export {
+  MessageAvatar,
+  MessageMeta,
+  MessageContent,
+  MessageActions,
+  type MessageAvatarProps,
+  type MessageMetaProps,
+  type MessageContentProps,
+  type MessageActionsProps,
+} from './primitives';
