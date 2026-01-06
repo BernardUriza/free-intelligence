@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Activity, Pause, Bell } from "lucide-react"
-import { FIAvatar } from "@/components/dashboard/FIAvatar"
+import { WaitingRoomHost } from "@/components/dashboard/waiting-room-host"
 import { Button } from '@/components/ui/button';
 
 export const TVPreview = ({
@@ -24,7 +24,7 @@ export const TVPreview = ({
           <Activity className="w-8 h-8 fi-text-purple animate-spin" />
         </div>
       ) : (
-        <FIAvatar
+        <WaitingRoomHost
           mode="broadcast"
           clinicName="Clínica AURITY"
           doctorMessage={doctorMessage}

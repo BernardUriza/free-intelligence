@@ -17,7 +17,6 @@ export {
   MessageMeta,
   MessageContent,
   MessageActions,
-  ChatMessage,
   DateDivider,
   TypingIndicator,
 } from './ui';

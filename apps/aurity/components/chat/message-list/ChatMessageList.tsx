@@ -24,7 +24,9 @@ import type { FIMessage, FITone } from '@aurity-standalone/types/assistant';
 import type { ChatConfig } from '@/config/chat.config';
 import { messageStyles } from './config/styles';
 import { useMessageGroups } from './hooks/useMessageGroups';
-import { ChatMessage, DateDivider, TypingIndicator } from './ui';
+import { DateDivider, TypingIndicator } from './ui';
+import { ChatMessage } from '@/components/ui/message';
+import { ChatConfigProvider } from '@/components/chat/ChatConfigContext';
 
 // ============================================================================
 // Props
@@ -76,69 +78,55 @@ export const ChatMessageList = memo(function ChatMessageList({
   // Enable for debugging: console.log('[ChatMessageList] Render:', { messagesCount: messages.length });
 
   return (
-    <div className={`${container.base} ${container.padding}`}>
-      {messageGroups.map((group) => (
-        <div key={group.date}>
-          {/* Date separator */}
-          <DateDivider date={group.date} />
+    <ChatConfigProvider showThinking={config.behavior.showThinking}>
+      <div className={`${container.base} ${container.padding}`}>
+        {messageGroups.map((group) => (
+          <div key={group.date}>
+            {/* Date separator */}
+            <DateDivider date={group.date} />
 
-          {/* Messages in group */}
-          <div className="space-y-0.5">
-            {group.messages.map((message, idx) => (
-              <ChatMessage
-                key={message.id || `${message.timestamp}-${idx}`}
-                message={message}
-                isStreaming={false}
-                showThinking={config.behavior.showThinking}
-              />
-            ))}
+            {/* Messages in group */}
+            <div className="space-y-0.5">
+              {group.messages.map((message, idx) => (
+                <ChatMessage
+                  key={message.id || `${message.timestamp}-${idx}`}
+                  message={message}
+                  isStreaming={false}
+                  // showThinking now comes from ChatConfigContext
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
 
-      {/* Streaming message - shows content as it arrives */}
-      {(() => {
-        // DEBUG: Log streaming state
-        if (streaming?.isStreaming) {
-          console.log('[ChatMessageList] 🔴 STREAMING STATE:', {
-            hasContent: Boolean(streaming.content),
-            contentLength: streaming.content?.length || 0,
-            hasThinking: Boolean(streaming.thinking),
-            thinkingLength: streaming.thinking?.length || 0,
-            thinkingPreview: streaming.thinking?.substring(0, 50),
-            showThinking: config.behavior.showThinking,
-          });
-        }
-        return null;
-      })()}
-      {streaming?.isStreaming && (streaming.content || streaming.thinking) && (
-        <>
+        {/* Streaming message - shows content as it arrives */}
+        {streaming?.isStreaming && (streaming.content || streaming.thinking) && (
           <ChatMessage
             message={{
               id: 'streaming-temp',
               role: 'assistant',
               content: streaming.content,
-              thinking: streaming.thinking || undefined,  // FIX: at root level (was in metadata)
+              thinking: streaming.thinking || undefined,
               timestamp: new Date().toISOString(),
               metadata: {
                 tone: currentPersona,
               },
             }}
             isStreaming={true}
-            showThinking={config.behavior.showThinking}
+            // showThinking now comes from ChatConfigContext
           />
-        </>
-      )}
+        )}
 
-      {/* Typing indicator */}
-      {isTyping && <TypingIndicator persona={currentPersona} />}
+        {/* Typing indicator */}
+        {isTyping && <TypingIndicator persona={currentPersona} />}
 
-      {/* Ghost spacer - prevents content from being hidden behind floating input */}
-      <div
-        className="h-28 w-full pointer-events-none select-none"
-        aria-hidden="true"
-        data-ghost-spacer
-      />
-    </div>
+        {/* Ghost spacer - prevents content from being hidden behind floating input */}
+        <div
+          className="h-28 w-full pointer-events-none select-none"
+          aria-hidden="true"
+          data-ghost-spacer
+        />
+      </div>
+    </ChatConfigProvider>
   );
 });

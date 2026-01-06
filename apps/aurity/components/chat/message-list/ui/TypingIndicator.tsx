@@ -8,7 +8,7 @@
 
 import { memo } from 'react';
 import { messageStyles } from '../config/styles';
-import { MessageAvatar } from './MessageAvatar';
+import { MessageAvatar } from '@/components/ui/message/primitives';
 import type { FITone } from '@aurity-standalone/types/assistant';
 
 /**

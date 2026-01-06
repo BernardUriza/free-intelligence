@@ -1,33 +1,33 @@
 'use client';
 
 /**
- * MessageAvatar - User/assistant avatar
+ * MessageAvatar - User/assistant avatar primitive
  *
  * Renders persona-specific icons for assistant messages using Lucide icons.
  * Shows User icon for user messages.
- * Circular, compact, with gradient background for assistant.
  */
 
 import { memo } from 'react';
 import { User } from 'lucide-react';
-import type { BaseMessageProps } from '../core/types';
-import { messageStyles } from '../config/styles';
-import { getPersonaIcon } from '@/types/select-configs';
-import type { FITone } from '@aurity-standalone/types/assistant';
+import { messageStyles } from '../styles/message-styles';
+import { getPersonaStyle } from '../styles/persona-styles';
 
-export interface MessageAvatarProps extends BaseMessageProps {
+export interface MessageAvatarProps {
+  /** Is this a user message */
+  isUser: boolean;
   /** Persona ID for icon selection (assistant only) */
-  persona?: FITone;
+  persona?: string;
 }
 
 export const MessageAvatar = memo(function MessageAvatar({
   isUser,
-  persona
+  persona,
 }: MessageAvatarProps) {
   const { avatar } = messageStyles;
 
   // Get persona-specific icon for assistant messages
-  const PersonaIcon = isUser ? User : getPersonaIcon(persona);
+  const personaStyle = getPersonaStyle(persona);
+  const IconComponent = isUser ? User : personaStyle.Icon;
 
   return (
     <div
@@ -39,7 +39,9 @@ export const MessageAvatar = memo(function MessageAvatar({
       `}
       aria-hidden="true"
     >
-      <PersonaIcon className={`w-4 h-4 ${isUser ? 'fi-text-primary' : 'fi-text-success'}`} />
+      <IconComponent
+        className={`w-4 h-4 ${isUser ? 'fi-text-primary' : 'fi-text-success'}`}
+      />
     </div>
   );
 });

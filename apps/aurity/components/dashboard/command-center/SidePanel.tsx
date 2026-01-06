@@ -9,7 +9,7 @@ import {
   Activity,
 } from "lucide-react"
 import { SlideManager } from "@/components/dashboard/SlideManager"
-import type { ContentItem } from '@/components/dashboard/FIAvatar';
+import type { ContentItem } from '@/components/dashboard/waiting-room-host';
 import { DoctorControlPanel } from "@/components/dashboard/DoctorControlPanel"
 
 // Minimal Patient shape used in SidePanel

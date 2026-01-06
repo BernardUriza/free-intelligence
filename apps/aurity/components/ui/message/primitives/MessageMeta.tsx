@@ -1,24 +1,23 @@
 'use client';
 
 /**
- * MessageMeta - Author name + timestamp
+ * MessageMeta - Author name + timestamp primitive
  *
  * Shows persona display name for assistant, user name for user messages.
- * Modern gradient text for assistant personas.
  */
 
 import { memo } from 'react';
-import type { BaseMessageProps } from '../core/types';
-import { messageStyles } from '../config/styles';
-import type { FITone } from '@aurity-standalone/types/assistant';
+import { messageStyles } from '../styles/message-styles';
 
-export interface MessageMetaProps extends BaseMessageProps {
+export interface MessageMetaProps {
+  /** Is this a user message */
+  isUser: boolean;
   /** ISO timestamp */
   timestamp: string;
   /** Custom name (default: Tú/AURITY) */
   name?: string;
   /** Persona ID for display name (assistant only) */
-  persona?: FITone;
+  persona?: string;
 }
 
 /**
@@ -29,6 +28,7 @@ const PERSONA_DISPLAY_NAMES: Record<string, string> = {
   soap_editor: 'Editor SOAP',
   clinical_advisor: 'Asesor Clínico',
   onboarding_guide: 'Guía de Onboarding',
+  waiting_room_host: 'Anfitrión de Sala',
   pattern_weaver: 'Tejedor de Patrones',
   sovereignty_guide: 'Guía de Soberanía',
   growth_mirror: 'Espejo de Crecimiento',
@@ -38,7 +38,7 @@ const PERSONA_DISPLAY_NAMES: Record<string, string> = {
 /**
  * Get persona display name
  */
-function getPersonaDisplayName(persona?: FITone): string {
+function getPersonaDisplayName(persona?: string): string {
   if (!persona) return 'AURITY';
   return PERSONA_DISPLAY_NAMES[persona] || 'AURITY';
 }
@@ -57,13 +57,13 @@ export const MessageMeta = memo(function MessageMeta({
   });
 
   // Use persona name for assistant, Auth0 name for user
-  const displayName = isUser
-    ? (name ?? 'Tú')
-    : getPersonaDisplayName(persona);
+  const displayName = isUser ? (name ?? 'Tú') : getPersonaDisplayName(persona);
 
   return (
     <div className={meta.container}>
-      <span className={`${meta.name} ${!isUser ? 'fi-gradient-text-brand font-semibold' : ''}`}>
+      <span
+        className={`${meta.name} ${!isUser ? 'fi-gradient-text-brand font-semibold' : ''}`}
+      >
         {displayName}
       </span>
       <time className={meta.time} dateTime={timestamp}>

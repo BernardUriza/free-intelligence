@@ -1,9 +1,8 @@
 'use client';
 
 /**
- * MessageContent - Markdown rendered content
+ * MessageContent - Markdown rendered content primitive
  *
- * Clean markdown with subtle styling
  * User messages: plain text
  * Assistant messages: full markdown
  */
@@ -11,10 +10,11 @@
 import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { BaseMessageProps } from '../core/types';
-import { messageStyles, markdownStyles } from '../config/styles';
+import { messageStyles, markdownStyles } from '../styles/message-styles';
 
-export interface MessageContentProps extends BaseMessageProps {
+export interface MessageContentProps {
+  /** Is this a user message */
+  isUser: boolean;
   /** Message content */
   content: string;
   /** Show streaming cursor */
@@ -82,7 +82,9 @@ export const MessageContent = memo(function MessageContent({
   const { content: styles } = messageStyles;
 
   return (
-    <div className={`${styles.base} ${isUser ? styles.user : styles.assistant} ${styles.indent}`}>
+    <div
+      className={`${styles.base} ${isUser ? styles.user : styles.assistant} ${styles.indent}`}
+    >
       {isUser ? (
         // User: plain text, preserve whitespace
         <p className="whitespace-pre-wrap">{content}</p>
