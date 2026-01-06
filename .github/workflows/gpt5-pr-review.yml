@@ -116,6 +116,13 @@ jobs:
           - Architecture decisions
           - Files excluded from this diff (build scripts, lock files) - they are reviewed separately
 
+          📁 TYPESCRIPT/NEXT.JS BARREL EXPORTS (CRITICAL - DO NOT FALSE POSITIVE):
+          - Import '@/components/foo/bar' can resolve to EITHER 'bar.tsx' OR 'bar/index.ts' (directory with barrel export)
+          - If you see an import to a path like 'components/dashboard/waiting-room-host', it may be a DIRECTORY containing 'index.ts'
+          - You CANNOT determine if an import is broken just by looking at the diff - only the build system knows
+          - If 'Backend: Compiles' or 'test' checks PASSED, trust them over your own import analysis
+          - NEVER block for 'missing module' if CI build checks passed - that's a false positive
+
           ⚠️ NOTE: Some files are excluded from this diff to prevent false positives:
           - pyinstaller/* (build scripts - complex but valid shell/Python)
           - *-lock.yaml, *-lock.json (generated dependency locks)
