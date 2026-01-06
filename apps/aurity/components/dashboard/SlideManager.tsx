@@ -14,7 +14,7 @@
 import { useState, useEffect } from 'react';
 import { Trash2, Lock, Layers, Clock, CheckCircle2, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { ContentItem } from './FIAvatar';
+import type { ContentItem } from './waiting-room-host';
 import { confirmDelete, toastError, toastSuccess } from '@/lib/swal';
 
 interface Slide {

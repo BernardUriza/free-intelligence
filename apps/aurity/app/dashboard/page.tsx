@@ -25,7 +25,7 @@ import { useSearchParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute"
-import { FIAvatar } from "@/components/dashboard/FIAvatar"
+import { WaitingRoomHost } from "@/components/dashboard/waiting-room-host"
 import { CheckinQRDisplay } from "@/components/checkin"
 import { QueueStatusBar } from "@/components/dashboard/QueueComponents"
 import { CommandCenterDisplay } from "@/components/dashboard/command-center/CommandCenterDisplay"
@@ -157,7 +157,7 @@ const TVModeDisplay = memo(function TVModeDisplay() {
             <div className="overflow-hidden flex flex-col min-h-0 order-1">
               <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/30 rounded-xl sm:rounded-2xl" style={{ minHeight: 'clamp(200px, 50vh, 600px)' }}>
                 <div className="flex-1 overflow-hidden flex flex-col min-h-0 p-2 sm:p-3 md:p-4 lg:p-5">
-                  <FIAvatar mode="broadcast" clinicName="Clínica AURITY" doctorMessage={doctorMessage} clinicSlides={slides} />
+                  <WaitingRoomHost mode="broadcast" clinicName="Clínica AURITY" doctorMessage={doctorMessage} clinicSlides={slides} />
                 </div>
               </div>
             </div>
