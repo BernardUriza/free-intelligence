@@ -30,7 +30,8 @@ import {
   SelectItem,
   type RichItemData,
 } from '@/components/ui/select';
-import { getPersonaIcon, getModelBadgeVariant } from '@/types/select-configs';
+import { getModelBadgeVariant } from '@/types/select-configs';
+import { getPersonaIcon } from '@/components/ui/message/styles/persona-styles';
 import { getVoiceDisplayName } from '@/lib/voiceAliases';
 
 // ============================================================================

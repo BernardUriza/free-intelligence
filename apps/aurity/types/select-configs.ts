@@ -35,7 +35,10 @@ export interface SelectItemConfig {
   disabled?: boolean;
 }
 
-// Persona icon mapping
+/**
+ * @deprecated Use getPersonaIcon from '@/components/ui/message/styles/persona-styles' instead.
+ * This mapping will be removed in a future version.
+ */
 export const PERSONA_ICONS: Record<string, LucideIcon> = {
   general_assistant: Stethoscope,
   soap_editor: FileEdit,
@@ -117,6 +120,7 @@ export function getProviderBadgeVariant(provider?: string): BadgeVariant {
 
 /**
  * Get icon for a persona ID
+ * @deprecated Use getPersonaIcon from '@/components/ui/message/styles/persona-styles' instead.
  */
 export function getPersonaIcon(personaId?: string): LucideIcon {
   if (!personaId) return PERSONA_ICONS.default;

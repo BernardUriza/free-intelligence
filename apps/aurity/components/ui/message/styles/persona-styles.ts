@@ -127,6 +127,16 @@ export function getPersonaStyle(persona: string | undefined): PersonaStyle {
 }
 
 /**
+ * Get persona icon (convenience function)
+ *
+ * Single source of truth for persona icons.
+ * Prefer this over duplicating PERSONA_ICONS elsewhere.
+ */
+export function getPersonaIcon(persona: string | undefined): PersonaStyle['Icon'] {
+  return getPersonaStyle(persona).Icon;
+}
+
+/**
  * Philosophical personas that use short "FI" prefix
  */
 const PHILOSOPHICAL_PERSONAS = [

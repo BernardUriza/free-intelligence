@@ -13,7 +13,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { getPersonaIcon } from '@/types/select-configs';
+import { getPersonaIcon } from '@/components/ui/message/styles/persona-styles';
 import type { FITone } from '@aurity-standalone/types/assistant';
 import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';

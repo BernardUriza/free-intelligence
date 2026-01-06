@@ -9,6 +9,9 @@
  * - Auth0 integration for user names
  * - TTS via AudioPlayer (injected into MessageActions)
  *
+ * showThinking is read from ChatConfigContext (eliminates props drilling)
+ * but can be overridden via prop for special cases.
+ *
  * @see Headless Component Pattern: https://martinfowler.com/articles/headless-component.html
  */
 
@@ -21,17 +24,21 @@ import { MessageMeta } from '../primitives/MessageMeta';
 import { MessageContent } from '../primitives/MessageContent';
 import { MessageActions } from '../primitives/MessageActions';
 import { ModelBadge } from '../primitives/ModelBadge';
-// Chat-specific components (TTS, Reasoning)
+// Chat-specific components (TTS, Reasoning, Config)
 import { ReasoningBlock } from '@/components/chat/ReasoningBlock';
 import { SpeakButton } from '@/components/chat/MessageActions';
 import { useAudioPlayer, AudioPlayer } from '@/components/chat/AudioPlayer';
+import { useChatConfig } from '@/components/chat/ChatConfigContext';
 
 export const ChatMessage = memo(function ChatMessage({
   message,
   isStreaming = false,
-  showThinking = true,
+  showThinking: showThinkingProp,
   className,
 }: ChatMessageProps) {
+  // Read from context, allow prop override
+  const config = useChatConfig();
+  const showThinking = showThinkingProp ?? config.showThinking;
   const { isUser, displayName, persona } = useMessage({ message });
   const { message: styles } = messageStyles;
 
