@@ -147,7 +147,7 @@ const TVModeDisplay = memo(function TVModeDisplay() {
   }, [])
 
   return (
-    <div className="h-[100dvh] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col overflow-hidden">
+    <div className="h-dvh bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col overflow-hidden">
       <div className="flex-shrink-0">
         <QueueStatusBar patients={queuePatients} />
       </div>
@@ -155,17 +155,17 @@ const TVModeDisplay = memo(function TVModeDisplay() {
         <div className="flex-1 min-h-0 grid gap-2 sm:gap-3 md:gap-4" style={{ gridTemplateColumns: 'minmax(0, 1fr)', gridTemplateRows: '1fr auto' }}>
           <div className="contents lg:grid lg:grid-cols-[3fr_1fr] xl:grid-cols-[4fr_1fr] lg:gap-4">
             <div className="overflow-hidden flex flex-col min-h-0 order-1">
-              <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/30 rounded-xl sm:rounded-2xl" style={{ minHeight: 'clamp(200px, 50vh, 600px)' }}>
+              <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-linear-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/30 rounded-xl sm:rounded-2xl" style={{ minHeight: 'clamp(200px, 50vh, 600px)' }}>
                 <div className="flex-1 overflow-hidden flex flex-col min-h-0 p-2 sm:p-3 md:p-4 lg:p-5">
                   <WaitingRoomHost mode="broadcast" clinicName="Clínica AURITY" doctorMessage={doctorMessage} clinicSlides={slides} />
                 </div>
               </div>
             </div>
             <div className="flex flex-row lg:flex-col gap-2 sm:gap-3 order-2 overflow-hidden min-h-0">
-              <div className="flex-[3] lg:flex-[3] overflow-hidden min-h-0" style={{ minHeight: 'clamp(120px, 25vh, 300px)' }}>
+              <div className="flex-3 lg:flex-3 overflow-hidden min-h-0" style={{ minHeight: 'clamp(120px, 25vh, 300px)' }}>
                 <CheckinQRDisplay clinicId="7f6ef952-d755-43d9-b668-32c3b6879149" clinicName="Clínica AURITY" />
               </div>
-              <div className="hidden md:flex flex-[1] lg:flex-[1] bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/30 rounded-xl p-3 sm:p-4 flex-col justify-center overflow-hidden min-h-0">
+              <div className="hidden md:flex flex-1 lg:flex-1 bg-linear-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/30 rounded-xl p-3 sm:p-4 flex-col justify-center overflow-hidden min-h-0">
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="fi-text-success flex-shrink-0" style={{ width: 'clamp(1rem, 2vw, 1.5rem)', height: 'clamp(1rem, 2vw, 1.5rem)' }} />
                   <span className="font-semibold text-slate-200" style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}>¿Ya llegaste?</span>
@@ -196,7 +196,7 @@ const TVModeDisplay = memo(function TVModeDisplay() {
 function RecepcionModeDisplay() {
   return (
     <ProtectedRoute>
-      <div className="h-[100dvh] bg-slate-950 flex flex-col">
+      <div className="h-dvh bg-slate-950 flex flex-col">
         <header className="flex-shrink-0 px-4 py-3 border-b border-slate-800">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center gap-4">
