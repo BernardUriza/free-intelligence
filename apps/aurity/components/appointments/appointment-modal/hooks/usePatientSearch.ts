@@ -41,7 +41,7 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
         setResults(data);
         setShowDropdown(true);
       } catch (err) {
-        console.error('Failed to search patients:', err);
+        console.error('[usePatientSearch] Search failed:', err);
         setResults([]);
       } finally {
         setLoading(false);
@@ -79,7 +79,9 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
 
     setCreating(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      // Backend expects full ISO 8601 datetime
+      const today = new Date().toISOString();
+      
       const created = await createPatient({
         nombre: newPatient.nombre,
         apellido: newPatient.apellido,
@@ -92,8 +94,9 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
       setShowDropdown(false);
       setNewPatient({ nombre: '', apellido: '', email: '', phone: '' });
     } catch (err) {
-      console.error('Failed to create patient:', err);
-      alert('Error al crear paciente');
+      console.error('[usePatientSearch] Create patient failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al crear paciente';
+      alert(errorMessage);
     } finally {
       setCreating(false);
     }

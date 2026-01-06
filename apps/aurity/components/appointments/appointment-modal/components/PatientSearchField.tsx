@@ -4,6 +4,10 @@
  * PatientSearchField Component
  *
  * Patient search input with dropdown results and inline creation.
+ * Features:
+ * - Search existing patients with debounced autocomplete
+ * - Quick "Nuevo" button always visible for creating new patients
+ * - Inline form for patient creation without leaving the modal
  */
 
 import { User, Search, X, Plus } from 'lucide-react';
@@ -68,7 +72,7 @@ export function PatientSearchField({
 
       <div className="relative" ref={dropdownRef}>
         {selectedPatientId ? (
-          // Show selected patient
+          // Selected patient display
           <div className="px-4 py-2 bg-cyan-900/20 border border-cyan-500/30 rounded-lg flex items-center justify-between">
             <span className="text-white">{selectedPatientName || selectedPatientId}</span>
             <Button
@@ -81,19 +85,30 @@ export function PatientSearchField({
             />
           </div>
         ) : (
-          // Show search input
-          <>
-            <input
-              type="text"
-              required
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-              onFocus={onFocus}
-              placeholder="Buscar por nombre o ID..."
-              className="fi-input-cyan pr-10"
-            />
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 fi-icon-sm text-slate-400" />
-          </>
+          // Search input + create button
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
+                onFocus={onFocus}
+                placeholder="Buscar por nombre..."
+                className="fi-input-cyan pr-10 w-full"
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 fi-icon-sm text-slate-400" />
+            </div>
+            <Button
+              type="button"
+              onClick={onOpenCreateForm}
+              variant="ghost"
+              size="sm"
+              className="fi-text-success hover:bg-emerald-900/20 whitespace-nowrap"
+            >
+              <Plus className="fi-icon-sm mr-1" />
+              Nuevo
+            </Button>
+          </div>
         )}
       </div>
 
@@ -114,38 +129,18 @@ export function PatientSearchField({
                 className="w-full px-4 py-3 text-left fi-hover-bg fi-border-bottom last:border-0"
               >
                 <div className="font-medium text-white">{patient.name}</div>
-                <div className="fi-subtitle">ID: {patient.id}</div>
+                <div className="fi-subtitle text-xs truncate">ID: {patient.id}</div>
               </button>
             ))}
-
-          {/* Create new patient button */}
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onOpenCreateForm();
-            }}
-            className="w-full px-4 py-3 text-left hover:bg-emerald-900/20 transition-colors fi-border-top flex items-center gap-2 fi-text-success"
-          >
-            <Plus className="fi-icon-sm" />
-            <span>Crear nuevo paciente</span>
-          </button>
         </div>
       )}
 
-      {/* No results */}
+      {/* No results message */}
       {showDropdown && !loading && results.length === 0 && search.length >= 2 && (
         <div className="fi-dropdown">
-          <div className="fi-dropdown-message">No se encontraron pacientes</div>
-          <button
-            type="button"
-            onClick={onOpenCreateForm}
-            className="w-full px-4 py-3 text-left hover:bg-emerald-900/20 transition-colors fi-border-top flex items-center gap-2 fi-text-success"
-          >
-            <Plus className="fi-icon-sm" />
-            <span>Crear nuevo paciente</span>
-          </button>
+          <div className="fi-dropdown-message text-slate-400">
+            No se encontraron pacientes. Usa el botón "Nuevo" para crear uno.
+          </div>
         </div>
       )}
 
@@ -170,6 +165,7 @@ export function PatientSearchField({
             value={newPatient.nombre}
             onChange={(e) => onNewPatientChange({ ...newPatient, nombre: e.target.value })}
             className="fi-input-sm"
+            autoFocus
           />
 
           <input
