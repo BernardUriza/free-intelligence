@@ -489,3 +489,89 @@ export async function adminGetUserClinicInfo(
 
   return response.json();
 }
+
+// =============================================================================
+// DOCTOR LIMITS ENDPOINTS
+// =============================================================================
+
+export interface DoctorLimitInfo {
+  current_count: number;
+  max_allowed: number | null; // null = unlimited
+  can_add: boolean;
+  plan_name: string;
+  plan_display_name: string;
+  has_override: boolean;
+}
+
+export interface DoctorLimitError {
+  error: 'DOCTOR_LIMIT_EXCEEDED';
+  message: string;
+  current_count: number;
+  max_allowed: number;
+  plan_name: string;
+}
+
+/**
+ * Get doctor limit information for a clinic
+ */
+export async function fetchDoctorLimits(clinicId: string): Promise<DoctorLimitInfo> {
+  const url = `${API_BASE}/api/clinics/${clinicId}/doctor-limits`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch doctor limits: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Update doctor override for a clinic (superadmin only)
+ */
+export async function updateDoctorOverride(
+  clinicId: string,
+  maxDoctorsOverride: number | null
+): Promise<Clinic> {
+  const url = `${API_BASE}/api/clinics/${clinicId}/doctor-override`;
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ max_doctors_override: maxDoctorsOverride }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail?.message || `Failed to update override: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Create doctor with limit error handling
+ */
+export async function createDoctorWithLimitCheck(
+  clinicId: string,
+  data: DoctorCreate
+): Promise<{ success: true; doctor: Doctor } | { success: false; error: DoctorLimitError }> {
+  const url = `${API_BASE}/api/clinics/${clinicId}/doctors`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  if (response.ok) {
+    const doctor = await response.json();
+    return { success: true, doctor };
+  }
+
+  if (response.status === 403) {
+    const error = await response.json();
+    if (error.detail?.error === 'DOCTOR_LIMIT_EXCEEDED') {
+      return { success: false, error: error.detail as DoctorLimitError };
+    }
+  }
+
+  throw new Error(`Failed to create doctor: ${response.statusText}`);
+}

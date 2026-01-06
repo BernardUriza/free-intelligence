@@ -1,5 +1,16 @@
 {
   "mcpServers": {
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/mcp-server-chrome-devtools"
+      ],
+      "env": {
+        "CHROME_USER_DATA_DIR": "/Users/bernardurizaorozco/.chrome-debug-profile"
+      }
+    },
     "azure-cli": {
       "type": "stdio",
       "command": "npx",

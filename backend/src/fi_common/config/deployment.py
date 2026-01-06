@@ -18,10 +18,42 @@ Environment Variables:
     DATA_DIR: Override data directory (optional)
 """
 
+from __future__ import annotations
+
+import json
+import logging
 from enum import Enum
+from typing import TypedDict
+from urllib.parse import urlparse
 
 import os
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+# Config file for Ollama source selection
+OLLAMA_SOURCE_CONFIG = Path.home() / ".aurity" / "ollama-source.json"
+
+
+def _is_valid_ollama_url(url: str) -> bool:
+    """Validate that URL is a proper HTTP(S) URL with host."""
+    try:
+        parsed = urlparse(url)
+        return (
+            parsed.scheme in ("http", "https")
+            and bool(parsed.netloc)  # Must have host
+            and len(url) < 2048  # Sanity check
+        )
+    except Exception:
+        return False
+
+
+class OllamaHost(TypedDict):
+    """Type-safe structure for Ollama host configuration (FI-BACKEND-FALLBACK-001)."""
+
+    url: str
+    name: str
+    priority: int
 
 
 class DeploymentTarget(Enum):
@@ -73,13 +105,25 @@ def get_data_dir() -> Path:
     return Path("/opt/free-intelligence/storage")
 
 
+def _load_ollama_source_config() -> dict | None:
+    """Load Ollama source config from ~/.aurity/ollama-source.json."""
+    if not OLLAMA_SOURCE_CONFIG.exists():
+        return None
+    try:
+        return json.loads(OLLAMA_SOURCE_CONFIG.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("OLLAMA_SOURCE_CONFIG_READ_ERROR: %s", e)
+        return None
+
+
 def get_ollama_host() -> str:
     """
     Get Ollama endpoint based on deployment target.
 
     Priority:
         1. Explicit OLLAMA_HOST env var (always wins)
-        2. Default based on target:
+        2. User config from ~/.aurity/ollama-source.json
+        3. Default based on target:
            - Desktop: http://localhost:11434
            - Cloud: reads from /tmp/ollama-tunnel-url.txt or uses env var
 
@@ -89,6 +133,21 @@ def get_ollama_host() -> str:
     explicit = os.getenv("OLLAMA_HOST")
     if explicit:
         return explicit
+
+    # Check user config (FI-BACKEND-SOURCE-001)
+    config = _load_ollama_source_config()
+    if config:
+        source = config.get("source", "local")
+        if source == "tunnel":
+            tunnel_url = config.get("tunnel_url", "")
+            if tunnel_url and _is_valid_ollama_url(tunnel_url):
+                logger.debug("OLLAMA_HOST_FROM_CONFIG: source=tunnel url=%s", tunnel_url)
+                return tunnel_url
+        else:
+            local_url = config.get("local_url", "http://localhost:11434")
+            if local_url and _is_valid_ollama_url(local_url):
+                logger.debug("OLLAMA_HOST_FROM_CONFIG: source=local url=%s", local_url)
+                return local_url
 
     # Desktop always uses localhost
     if is_desktop():
@@ -104,6 +163,77 @@ def get_ollama_host() -> str:
 
     # Fallback for cloud without tunnel
     return "http://localhost:11434"
+
+
+def get_ollama_hosts() -> list[OllamaHost]:
+    """
+    Get ordered list of Ollama hosts for multi-host fallback.
+
+    Priority:
+        1. Windows tunnel (from file or env var) - primary
+        2. Mac localhost - fallback when traveling
+
+    If OLLAMA_HOST is explicitly set, returns only that host (no fallback).
+
+    Returns:
+        List of OllamaHost TypedDicts, sorted by priority
+    """
+    # If explicit OLLAMA_HOST, use only that (disable fallback)
+    explicit = os.getenv("OLLAMA_HOST")
+    if explicit:
+        return [OllamaHost(url=explicit, name="explicit_override", priority=1)]
+
+    hosts: list[OllamaHost] = []
+
+    # 1. Windows tunnel from file (primary - set by ollama-tunnel.sh)
+    tunnel_file = Path("/tmp/ollama-tunnel-url.txt")
+    if tunnel_file.exists():
+        try:
+            tunnel_url = tunnel_file.read_text().strip()
+            if tunnel_url and _is_valid_ollama_url(tunnel_url):
+                hosts.append(
+                    OllamaHost(
+                        url=tunnel_url,
+                        name="windows_tunnel",
+                        priority=1,
+                    )
+                )
+            elif tunnel_file.stat().st_size == 0 or not tunnel_url:
+                # FI-BACKEND-FALLBACK-001: Warn about empty tunnel file
+                logger.warning(
+                    "OLLAMA_TUNNEL_FILE_EMPTY: %s exists but is empty, "
+                    "skipping Windows tunnel host",
+                    tunnel_file,
+                )
+        except OSError as e:
+            logger.warning(
+                "OLLAMA_TUNNEL_FILE_READ_ERROR: Failed to read %s: %s",
+                tunnel_file,
+                e,
+            )
+
+    # 2. Windows tunnel from env var (GitHub Secret fallback)
+    tunnel_env = os.getenv("OLLAMA_TUNNEL_URL")
+    if tunnel_env and not any(h["url"] == tunnel_env for h in hosts):
+        hosts.append(
+            OllamaHost(
+                url=tunnel_env,
+                name="windows_tunnel_env",
+                priority=2,
+            )
+        )
+
+    # 3. Mac localhost (fallback when traveling/developing)
+    mac_fallback = os.getenv("OLLAMA_MAC_FALLBACK", "http://localhost:11434")
+    hosts.append(
+        OllamaHost(
+            url=mac_fallback,
+            name="mac_localhost",
+            priority=99,
+        )
+    )
+
+    return sorted(hosts, key=lambda h: h["priority"])
 
 
 def get_storage_path(relative_path: str = "") -> Path:

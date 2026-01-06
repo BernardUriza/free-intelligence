@@ -19,7 +19,7 @@ import {
   ClinicImageWidget,
   ClinicVideoWidget,
   ClinicMessageWidget,
-} from './TVWidgets';
+} from '@/components/widgets';
 import { waitingRoomAPI, type TipCategory } from '@/lib/api/waiting-room';
 
 /**
@@ -225,7 +225,6 @@ export function FIAvatar({
   const [internalCurrentIndex, setInternalCurrentIndex] = useState(0);
   const [content, setContent] = useState<ContentItem[]>([]);
   const [displayMessage, setDisplayMessage] = useState<FIMessage | null>(null);
-  const [, setIsLoadingDynamic] = useState(true); // Start as loading
 
   // Use external index if provided, otherwise internal
   const currentIndex = externalCurrentIndex !== undefined ? externalCurrentIndex : internalCurrentIndex;
@@ -233,7 +232,6 @@ export function FIAvatar({
   // Load content from API seeds + dynamic content on mount
   useEffect(() => {
     async function loadDynamicContent() {
-      setIsLoadingDynamic(true);
       try {
         // 1. Fetch FI content seeds from API (replaces hardcoded DEFAULT_CONTENT)
         // This already includes pre-configured trivia and tips in widget_data
@@ -292,12 +290,9 @@ export function FIAvatar({
 
         // Notify parent of total content count and full array
         onContentLoad?.(updatedContent.length, updatedContent);
-      } catch (error) {
-        console.error('Failed to load dynamic content:', error);
+      } catch {
         // Fallback: Notify with empty content
         onContentLoad?.(0);
-      } finally {
-        setIsLoadingDynamic(false);
       }
     }
 

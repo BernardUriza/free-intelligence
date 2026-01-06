@@ -14,7 +14,7 @@
  * - Clean separation of concerns
  */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 import { AppTemplate } from "@/components/layout/AppTemplate";
@@ -23,6 +23,7 @@ import { AppointmentsToolbar, StatusLegend, EmptyState, NewAppointmentModal, Edi
 import { ClinicCard, DoctorAvailabilityList } from "@/components/dashboard/QueueComponents";
 import { APPOINTMENT_VIEW_PRESETS, type AppointmentViewMode } from "@/components/bryntum/config/appointment-presets.config";
 import type { Appointment } from "@/components/bryntum/utils/appointment-transform.utils";
+import type { BryntumSchedulerInstance } from "@/components/bryntum/types/scheduler.types";
 import { useAppointments } from "@/hooks/useAppointments";
 
 // Lazy load AppointmentsCalendar (defers Bryntum ~800KB)
@@ -61,6 +62,35 @@ export default function AppointmentsCalendarPage() {
   const [isEditAppointmentModalOpen, setIsEditAppointmentModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [prefilledData, setPrefilledData] = useState<{ date?: Date; doctorId?: string; endDate?: Date } | null>(null);
+
+  // Scheduler instance & zoom state
+  const [schedulerInstance, setSchedulerInstance] = useState<BryntumSchedulerInstance | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<number>(10); // Default Bryntum zoom level
+
+  const handleSchedulerReady = useCallback((instance: BryntumSchedulerInstance) => {
+    setSchedulerInstance(instance);
+    if (instance.zoomLevel !== undefined) {
+      setZoomLevel(instance.zoomLevel);
+    }
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    if (schedulerInstance?.zoomIn) {
+      schedulerInstance.zoomIn();
+      if (schedulerInstance.zoomLevel !== undefined) {
+        setZoomLevel(schedulerInstance.zoomLevel);
+      }
+    }
+  }, [schedulerInstance]);
+
+  const handleZoomOut = useCallback(() => {
+    if (schedulerInstance?.zoomOut) {
+      schedulerInstance.zoomOut();
+      if (schedulerInstance.zoomLevel !== undefined) {
+        setZoomLevel(schedulerInstance.zoomLevel);
+      }
+    }
+  }, [schedulerInstance]);
 
   // Navigation handlers
   function navigateDate(direction: "prev" | "next") {
@@ -179,28 +209,31 @@ export default function AppointmentsCalendarPage() {
   return (
     <>
       <AppTemplate
-        headerConfig={{
-          ...headerConfig,
-          actions: (
-            <AppointmentsToolbar
-              clinics={clinics}
-              selectedClinic={selectedClinic}
-              onClinicChange={setSelectedClinic}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              onNavigateDate={navigateDate}
-              onGoToToday={goToToday}
-              onRefresh={() => fetchAppointments(selectedClinic, currentDate)}
-              onNewAppointment={handleNewAppointment}
-              dateDisplayText={getDateDisplayText()}
-            />
-          ),
-        }}
+        headerConfig={headerConfig}
         backgroundGradient="none"
         padding="0"
         showWatermark={true}
         showGeometricBg={true}
       >
+        {/* Toolbar + Scheduler Container */}
+        <div className="px-6 pt-4">
+          <AppointmentsToolbar
+            clinics={clinics}
+            selectedClinic={selectedClinic}
+            onClinicChange={setSelectedClinic}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            onNavigateDate={navigateDate}
+            onGoToToday={goToToday}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            zoomLevel={zoomLevel}
+            maxZoomLevel={14}
+            onRefresh={() => fetchAppointments(selectedClinic, currentDate)}
+            onNewAppointment={handleNewAppointment}
+            dateDisplayText={getDateDisplayText()}
+          />
+        </div>
         <StatusLegend />
         {/* Doctors & Clinic mini status bar */}
         <div className="px-6 pb-2 flex flex-col md:flex-row gap-3">
@@ -241,6 +274,7 @@ export default function AppointmentsCalendarPage() {
               onEventEdit={handleEventEdit}
               onEventClick={handleEventClick}
               onScheduleClick={handleScheduleClick}
+              onSchedulerReady={handleSchedulerReady}
             />
           ) : (
             !loading && <EmptyState />

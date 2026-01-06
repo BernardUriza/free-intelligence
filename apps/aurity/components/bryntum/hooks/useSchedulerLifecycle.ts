@@ -126,8 +126,8 @@ export function useSchedulerLifecycle({
       }
 
       // Debug: Verify resources in config
-      console.log('[useSchedulerLifecycle] Initializing with resources:', config.resources);
-      console.log('[useSchedulerLifecycle] Events count:', Array.isArray(config.events) ? config.events.length : 0);
+      console.error('[useSchedulerLifecycle] Initializing with resources:', config.resources);
+      console.warn('[useSchedulerLifecycle] Events count:', Array.isArray(config.events) ? config.events.length : 0);
 
       // Instantiate scheduler
       // @ts-expect-error - SchedulerPro constructor (typed in config)
@@ -140,7 +140,7 @@ export function useSchedulerLifecycle({
       isInitializedRef.current = true;
 
       // Debug: Verify resources were loaded
-      console.log('[useSchedulerLifecycle] Scheduler created with resourceStore:', instance.resourceStore?.count || 0, 'resources');
+      console.error('[useSchedulerLifecycle] Scheduler created with resourceStore:', instance.resourceStore?.count || 0, 'resources');
 
       if (onReady) {
         onReady(instance as BryntumSchedulerInstance);

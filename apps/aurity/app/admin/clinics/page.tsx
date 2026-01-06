@@ -38,7 +38,7 @@ import { AppTemplate } from '@/components/layout/AppTemplate';
 import { adminClinicsHeader } from '@/config/page-headers';
 import { useAuth } from '@aurity-standalone/hooks/useAuth';
 import { useRBAC } from '@aurity-standalone/hooks/useRBAC';
-import type { Clinic, ClinicCreate, Doctor, Appointment, ClinicMembership, ClinicRole } from '@/lib/api/clinics';
+import type { Clinic, ClinicCreate, Doctor, Appointment, ClinicMembership, ClinicRole, DoctorLimitInfo } from '@/lib/api/clinics';
 import {
   fetchClinics,
   createClinic,
@@ -48,8 +48,14 @@ import {
   fetchAppointments,
   getClinicMembership,
   linkToClinic,
+  fetchDoctorLimits,
 } from '@/lib/api/clinics';
 import { confirmDialog, toastError } from '@/lib/swal';
+import { DoctorDetailModal } from '@/components/admin/clinics/DoctorDetailModal';
+import type { DoctorSaveData } from '@/components/admin/clinics/DoctorDetailModal';
+import { CreateDoctorModal } from '@/components/admin/clinics/CreateDoctorModal';
+import { DoctorLimitBadge } from '@/components/admin/clinics/DoctorLimitBadge';
+import { DoctorOverrideEditor } from '@/components/admin/clinics/DoctorOverrideEditor';
 
 // Role icons helper
 const RoleIcon = ({ role }: { role: ClinicRole | null }) => {
@@ -82,10 +88,6 @@ export default function ClinicsAdminPage() {
   // Doctor edit state
   const [showEditDoctorModal, setShowEditDoctorModal] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
-  const [doctorForm, setDoctorForm] = useState({
-    work_start_time: '09:00',
-    work_end_time: '18:00',
-  });
 
   // User-Clinic membership state
   const [membership, setMembership] = useState<ClinicMembership | null>(null);
@@ -97,6 +99,10 @@ export default function ClinicsAdminPage() {
     especialidad: '',
     role: 'OWNER' as ClinicRole,
   });
+
+  // Doctor limits and create modal state
+  const [doctorLimits, setDoctorLimits] = useState<DoctorLimitInfo | null>(null);
+  const [showCreateDoctorModal, setShowCreateDoctorModal] = useState(false);
 
   // Load clinics on mount
   useEffect(() => {
@@ -169,12 +175,14 @@ export default function ClinicsAdminPage() {
     setSelectedClinic(clinic);
     setLoadingDetails(true);
     try {
-      const [doctorsData, appointmentsData] = await Promise.all([
+      const [doctorsData, appointmentsData, limitsData] = await Promise.all([
         fetchDoctors(clinic.clinic_id, false),
         fetchAppointments(clinic.clinic_id),
+        fetchDoctorLimits(clinic.clinic_id),
       ]);
       setDoctors(doctorsData);
       setAppointments(appointmentsData);
+      setDoctorLimits(limitsData);
     } catch (err) {
       console.error('Failed to load clinic details:', err);
     } finally {
@@ -216,20 +224,16 @@ export default function ClinicsAdminPage() {
 
   const handleEditDoctorClick = (doctor: Doctor) => {
     setEditingDoctor(doctor);
-    setDoctorForm({
-      work_start_time: doctor.work_start_time || '09:00',
-      work_end_time: doctor.work_end_time || '18:00',
-    });
     setShowEditDoctorModal(true);
   };
 
-  const handleUpdateDoctor = async () => {
+  const handleUpdateDoctor = async (data: DoctorSaveData) => {
     if (!editingDoctor || !selectedClinic) return;
     try {
       const updated = await updateDoctor(
         selectedClinic.clinic_id,
         editingDoctor.doctor_id,
-        doctorForm
+        data
       );
       setDoctors((prev) =>
         prev.map((d) => (d.doctor_id === updated.doctor_id ? updated : d))
@@ -380,6 +384,21 @@ export default function ClinicsAdminPage() {
                   </div>
                 </div>
 
+                {/* Doctor Override Editor (Superadmin only) */}
+                {isSuperAdmin && doctorLimits && (
+                  <div className="mb-6">
+                    <DoctorOverrideEditor
+                      clinicId={selectedClinic.clinic_id}
+                      clinicName={selectedClinic.name}
+                      limits={doctorLimits}
+                      isSuperAdmin={isSuperAdmin}
+                      onUpdate={() => {
+                        fetchDoctorLimits(selectedClinic.clinic_id).then(setDoctorLimits);
+                      }}
+                    />
+                  </div>
+                )}
+
                 {loadingDetails ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
@@ -389,22 +408,44 @@ export default function ClinicsAdminPage() {
                     {/* Doctors Section */}
                     <div className="mb-6">
                       <div className="fi-flex-between mb-3">
-                        <h3 className="fi-title fi-flex-gap">
-                          <Users className="w-5 h-5 text-indigo-400" />
-                          Doctores ({doctors.length})
-                        </h3>
-                        {/* Link to clinic button - only for non-superadmin users who aren't linked */}
-                        {user && !membership && !isSuperAdmin && (
+                        <div className="flex items-center gap-3">
+                          <h3 className="fi-title fi-flex-gap">
+                            <Users className="w-5 h-5 text-indigo-400" />
+                            Doctores
+                          </h3>
+                          {doctorLimits && (
+                            <DoctorLimitBadge
+                              clinicId={selectedClinic.clinic_id}
+                              limits={doctorLimits}
+                              compact
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {/* Add Doctor button */}
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setShowLinkModal(true)}
-                            className="fi-text-success border-emerald-400/50 hover:bg-emerald-400/10"
+                            onClick={() => setShowCreateDoctorModal(true)}
+                            disabled={doctorLimits ? !doctorLimits.can_add : false}
+                            className="fi-text-primary border-indigo-400/50 hover:bg-indigo-400/10 disabled:opacity-50"
                           >
-                            <UserPlus className="w-4 h-4 mr-2" />
-                            Vincularme
+                            <Plus className="w-4 h-4 mr-2" />
+                            Agregar Doctor
                           </Button>
-                        )}
+                          {/* Link to clinic button - only for non-superadmin users who aren't linked */}
+                          {user && !membership && !isSuperAdmin && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowLinkModal(true)}
+                              className="fi-text-success border-emerald-400/50 hover:bg-emerald-400/10"
+                            >
+                              <UserPlus className="w-4 h-4 mr-2" />
+                              Vincularme
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <div className="space-y-2">
                         {/* Show superadmin banner if user is superadmin */}
@@ -678,64 +719,29 @@ export default function ClinicsAdminPage() {
 
       {/* Edit Doctor Modal */}
       {showEditDoctorModal && editingDoctor && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 rounded-lg p-6 w-full max-w-md">
-            <div className="fi-flex-between mb-4">
-              <h3 className="text-xl font-semibold text-white">Configurar Horario</h3>
-              <button
-                onClick={() => setShowEditDoctorModal(false)}
-                className="fi-btn-close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <p className="fi-subtitle mb-3">
-                  Doctor: <span className="text-white font-medium">{editingDoctor.display_name}</span>
-                </p>
-              </div>
+        <DoctorDetailModal
+          doctor={editingDoctor}
+          onClose={() => {
+            setShowEditDoctorModal(false);
+            setEditingDoctor(null);
+          }}
+          onSave={handleUpdateDoctor}
+          mode="edit"
+        />
+      )}
 
-              <div>
-                <label className="block fi-subtitle mb-1">Hora de inicio</label>
-                <Input
-                  type="time"
-                  value={doctorForm.work_start_time}
-                  onChange={(e) => setDoctorForm({ ...doctorForm, work_start_time: e.target.value })}
-                  className="w-full"
-                />
-              </div>
-
-              <div>
-                <label className="block fi-subtitle mb-1">Hora de fin</label>
-                <Input
-                  type="time"
-                  value={doctorForm.work_end_time}
-                  onChange={(e) => setDoctorForm({ ...doctorForm, work_end_time: e.target.value })}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => setShowEditDoctorModal(false)}
-                  variant="outline"
-                  fullWidth
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleUpdateDoctor}
-                  variant="indigo"
-                  fullWidth
-                >
-                  Guardar
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Create Doctor Modal */}
+      {showCreateDoctorModal && selectedClinic && (
+        <CreateDoctorModal
+          clinicId={selectedClinic.clinic_id}
+          clinicName={selectedClinic.name}
+          onClose={() => setShowCreateDoctorModal(false)}
+          onCreate={(newDoctor) => {
+            setDoctors((prev) => [...prev, newDoctor]);
+            // Reload limits after adding doctor
+            fetchDoctorLimits(selectedClinic.clinic_id).then(setDoctorLimits);
+          }}
+        />
       )}
 
     </AppTemplate>

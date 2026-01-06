@@ -12,6 +12,7 @@ import type {
   DocumentUpdateRequest,
   SearchResponse,
   DocumentStatus,
+  DocumentQuestion,
 } from '@aurity-standalone/types/knowledge';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
@@ -46,9 +47,12 @@ export async function fetchDocuments(params?: {
 
 /**
  * Fetch a single document by ID
+ *
+ * @param docId - Document UUID
+ * @param includeText - Whether to include extracted text content
  */
-export async function fetchDocument(docId: string, includeContent = false): Promise<Document> {
-  const url = `${BACKEND_URL}/api/workflows/aurity/documents/${docId}${includeContent ? '?include_content=true' : ''}`;
+export async function fetchDocument(docId: string, includeText = false): Promise<Document> {
+  const url = `${BACKEND_URL}/api/workflows/aurity/documents/${docId}${includeText ? '?include_text=true' : ''}`;
 
   const response = await fetch(url, {
     method: 'GET',
@@ -170,6 +174,31 @@ export async function searchDocuments(
 
   if (!response.ok) {
     throw new Error(`Search failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get questions for a document
+ *
+ * Returns accumulated questions from:
+ * - LLM initial generation (source="llm_initial") - created during indexing
+ * - User queries via RAG (source="user_query") - accumulated during usage
+ */
+export async function getDocumentQuestions(docId: string): Promise<DocumentQuestion[]> {
+  const response = await fetch(
+    `${BACKEND_URL}/api/workflows/aurity/documents/${docId}/questions`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch questions for document ${docId}: ${response.statusText}`);
   }
 
   return response.json();

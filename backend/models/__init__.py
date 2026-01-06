@@ -42,6 +42,7 @@ from backend.models.llm_model import (
     LLMProvider,
 )
 from backend.models.session import EncryptionMetadata, Session, SessionStatus
+from backend.models.subscription_models import SubscriptionPlan
 from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
 
 __all__ = [
@@ -72,6 +73,7 @@ __all__ = [
     "PendingActionType",
     "Session",
     "SessionStatus",
+    "SubscriptionPlan",
     "TranscriptionJob",
     "WaitingRoomEvent",
 ]

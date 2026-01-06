@@ -8,29 +8,20 @@
 
 'use client';
 
-import {
-  FileText,
-  FileCode,
-  Image as ImageIcon,
-  File,
-  FileQuestion,
-  Clock,
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-  Edit,
-  Trash2,
-  RefreshCw,
-  Bot,
-  Stethoscope,
-  Hand,
-  Eye,
-} from 'lucide-react';
-import type { DocumentMetadata, DocumentType, DocumentStatus } from '@aurity-standalone/types/knowledge';
+import { FileQuestion, Bot } from 'lucide-react';
+import type { DocumentMetadata } from '@aurity-standalone/types/knowledge';
 import { formatFileSize, formatDate } from '@aurity-standalone/api-client/knowledge';
+import { DocumentCardActions } from './knowledge/DocumentCardActions';
+import {
+  TYPE_ICONS,
+  STATUS_CONFIG,
+  PERSONA_ICONS,
+  PERSONA_COLORS,
+  formatPersonaLabel,
+} from './knowledge/constants';
 
 // =============================================================================
-// TYPES & CONSTANTS
+// TYPES
 // =============================================================================
 
 interface DocumentCardProps {
@@ -42,46 +33,6 @@ interface DocumentCardProps {
   onReindex: () => void;
   isDeleting?: boolean;
   isReindexing?: boolean;
-}
-
-const TYPE_ICONS: Record<DocumentType, typeof FileText> = {
-  pdf: FileText,
-  docx: FileText,
-  markdown: FileCode,
-  text: File,
-  image: ImageIcon,
-  unknown: FileQuestion,
-};
-
-const STATUS_CONFIG: Record<DocumentStatus, { icon: typeof Clock; color: string; label: string }> = {
-  pending: { icon: Clock, color: 'text-yellow-400', label: 'Pendiente' },
-  processing: { icon: Loader2, color: 'fi-text-primary', label: 'Procesando' },
-  indexed: { icon: CheckCircle, color: 'fi-text-success', label: 'Indexado' },
-  error: { icon: AlertCircle, color: 'fi-text-error', label: 'Error' },
-};
-
-const PERSONA_ICONS: Record<string, typeof Bot> = {
-  general_assistant: Bot,
-  clinical_advisor: Stethoscope,
-  soap_editor: FileText,
-  onboarding_guide: Hand,
-};
-
-const PERSONA_COLORS: Record<string, string> = {
-  general_assistant: 'bg-purple-900/50 text-purple-300 border-purple-700/50',
-  clinical_advisor: 'bg-emerald-900/50 text-emerald-300 border-emerald-700/50',
-  soap_editor: 'bg-blue-900/50 text-blue-300 border-blue-700/50',
-  onboarding_guide: 'bg-amber-900/50 text-amber-300 border-amber-700/50',
-};
-
-// Format persona ID to readable label
-function formatPersonaLabel(personaId: string): string {
-  return personaId
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (l) => l.toUpperCase())
-    .split(' ')
-    .slice(0, 2)
-    .join(' ');
 }
 
 // =============================================================================
@@ -102,13 +53,12 @@ export function DocumentCard({
   const statusConfig = STATUS_CONFIG[document.status];
   const StatusIcon = statusConfig.icon;
   const isProcessing = document.status === 'processing';
-  const isActionDisabled = isDeleting || isReindexing;
 
   const displayTitle = document.title || document.filename || 'Untitled';
 
   return (
     <article
-      className={viewMode === 'list' ? 'fi-doc-card-list' : 'fi-doc-card'}
+      className={`group ${viewMode === 'list' ? 'fi-doc-card-list' : 'fi-doc-card'}`}
     >
       {/* Header Section */}
       <div className={`flex items-start gap-3 ${viewMode === 'list' ? 'flex-1 min-w-0' : 'mb-3'}`}>
@@ -132,46 +82,16 @@ export function DocumentCard({
           )}
         </div>
 
-        {/* Actions - Always visible on mobile, hover on desktop */}
-        <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-          <ActionButton
-            onClick={onPreview}
-            disabled={isActionDisabled}
-            aria-label="Preview document"
-            className="fi-text-success hover:text-emerald-300 hover:bg-emerald-900/30"
-          >
-            <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          </ActionButton>
-          <ActionButton
-            onClick={onEdit}
-            disabled={isActionDisabled}
-            aria-label="Edit document"
-          >
-            <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          </ActionButton>
-          <ActionButton
-            onClick={onReindex}
-            disabled={isProcessing || isActionDisabled}
-            aria-label="Reindex document"
-            className={isReindexing ? 'fi-text-primary' : ''}
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isReindexing ? 'animate-spin' : ''}`}
-            />
-          </ActionButton>
-          <ActionButton
-            onClick={onDelete}
-            disabled={isActionDisabled}
-            aria-label="Delete document"
-            variant="danger"
-          >
-            {isDeleting ? (
-              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
-            ) : (
-              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            )}
-          </ActionButton>
-        </div>
+        {/* Actions */}
+        <DocumentCardActions
+          onPreview={onPreview}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onReindex={onReindex}
+          isDeleting={isDeleting}
+          isReindexing={isReindexing}
+          isProcessing={isProcessing}
+        />
       </div>
 
       {/* Content Section */}
@@ -255,35 +175,4 @@ export function DocumentCard({
   );
 }
 
-// =============================================================================
-// ACTION BUTTON SUB-COMPONENT
-// =============================================================================
-
-interface ActionButtonProps {
-  onClick: () => void;
-  disabled?: boolean;
-  'aria-label': string;
-  className?: string;
-  variant?: 'default' | 'danger';
-  children: React.ReactNode;
-}
-
-function ActionButton({
-  onClick,
-  disabled,
-  'aria-label': ariaLabel,
-  className = '',
-  variant = 'default',
-  children,
-}: ActionButtonProps) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      className={`${variant === 'danger' ? 'fi-action-btn-danger' : 'fi-action-btn-default'} ${className}`}
-    >
-      {children}
-    </button>
-  );
-}
+export default DocumentCard;

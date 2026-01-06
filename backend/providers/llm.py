@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
+import threading
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
@@ -20,7 +21,7 @@ from backend.policy.policy_loader import get_policy_loader
 from backend.providers.response_parsers import GenericParser, QwenThinkingParser
 from backend.providers.retry import CircuitBreakerConfig, RetryConfig, get_circuit_breaker
 from backend.schemas.llm.audit_policy import require_audit_log
-from backend.src.fi_common.config.deployment import get_ollama_host
+from backend.src.fi_common.config.deployment import OllamaHost, get_ollama_host, get_ollama_hosts
 from backend.src.fi_common.logging.logger import get_logger
 from dotenv import load_dotenv
 
@@ -90,15 +91,16 @@ def pad_embedding_to_768(embedding: np.ndarray) -> np.ndarray:
     return padded
 
 
-def sanitize_error_message(error_msg: str) -> str:
+def sanitize_error_message(error_msg: str, max_length: int = 100) -> str:
     """
     Sanitize error messages to remove API keys and sensitive data.
 
     Args:
         error_msg: Raw error message
+        max_length: Maximum length of output (default: 100). Use 0 for no limit.
 
     Returns:
-        Sanitized error message
+        Sanitized and truncated error message
 
     Examples:
         >>> sanitize_error_message("API key sk-ant-api03-abc123 is invalid")
@@ -119,6 +121,10 @@ def sanitize_error_message(error_msg: str) -> str:
     error_msg = re.sub(
         r"Bearer\s+[A-Za-z0-9_-]{20,}", "Bearer [REDACTED_TOKEN]", error_msg, flags=re.IGNORECASE
     )
+
+    # Truncate if max_length specified
+    if max_length > 0 and len(error_msg) > max_length:
+        return error_msg[:max_length] + "..."
 
     return error_msg
 
@@ -349,15 +355,20 @@ class OllamaProvider(LLMProvider):
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
-        # Priority: OLLAMA_HOST env var > deployment target > config fallback
-        # get_ollama_host() checks env var first, then deployment target (cloud reads tunnel file)
-        self.base_url: str = get_ollama_host()
+
+        # Thread safety lock for host state mutations (FI-BACKEND-FALLBACK-001)
+        self._host_lock = threading.Lock()
+
+        # Multi-host fallback support (FI-BACKEND-FALLBACK-001)
+        # Priority: Windows tunnel (primary) -> Mac localhost (fallback)
+        self.hosts: list[OllamaHost] = get_ollama_hosts()
+        self.base_url: str = self.hosts[0]["url"]  # Start with highest priority
+
         self.default_model: str = str(self.config.get("model") or "qwen3:1.7b")
         self.embed_model: str = str(self.config.get("embed_model") or "nomic-embed-text")
         self.timeout: int = int(self.config.get("timeout_seconds") or 120)
 
         # Retry configuration (FI-BACKEND-REF-005)
-
         self.retry_config = RetryConfig(
             max_retries=int(self.config.get("max_retries") or 3),
             base_delay=float(self.config.get("retry_base_delay") or 1.0),
@@ -366,24 +377,34 @@ class OllamaProvider(LLMProvider):
             jitter=True,
         )
 
-        # Circuit breaker: threshold=5 failures, 60s recovery window
-        self.circuit_breaker = get_circuit_breaker(
-            name=f"ollama_{self.base_url}",
-            config=CircuitBreakerConfig(
-                failure_threshold=int(self.config.get("circuit_failure_threshold") or 5),
-                recovery_timeout=float(self.config.get("circuit_recovery_timeout") or 60.0),
-                success_threshold=2,
-            ),
+        # Circuit breaker PER HOST (FI-BACKEND-FALLBACK-001)
+        cb_config = CircuitBreakerConfig(
+            failure_threshold=int(self.config.get("circuit_failure_threshold") or 5),
+            recovery_timeout=float(self.config.get("circuit_recovery_timeout") or 60.0),
+            success_threshold=2,
         )
 
-        # Initialize ollama client
+        self.circuit_breakers: dict[str, Any] = {}
+        self.clients: dict[str, Any] = {}
+
         try:
             self.ollama = ollama
-            self.client = ollama.Client(host=self.base_url)
+            for host in self.hosts:
+                host_url = str(host["url"])
+                host_name = str(host["name"])
+                self.circuit_breakers[host_url] = get_circuit_breaker(
+                    name=f"ollama_{host_name}",
+                    config=cb_config,
+                )
+                self.clients[host_url] = ollama.Client(host=host_url)
         except NameError:
             raise ImportError(
                 "ollama library not installed. Install with: pip install ollama"
             ) from None
+
+        # Backward compatibility: single client/circuit_breaker for current host
+        self.client = self.clients[self.base_url]
+        self.circuit_breaker = self.circuit_breakers[self.base_url]
 
         # Initialize response parsers
         self.qwen_parser = QwenThinkingParser()
@@ -394,13 +415,15 @@ class OllamaProvider(LLMProvider):
             base_url=self.base_url,
             model=self.default_model,
             embed_model=self.embed_model,
+            hosts=[{"name": h["name"], "url": h["url"]} for h in self.hosts],
+            fallback_enabled=len(self.hosts) > 1,
             retry_config=self.retry_config.__dict__,
-            circuit_breaker_config=self.circuit_breaker.config.__dict__,
+            circuit_breaker_config=cb_config.__dict__,
         )
 
     def generate(self, prompt: str, **kwargs) -> LLMResponse:
         """
-        Generate completion using Ollama API with retry and circuit breaker.
+        Generate completion using Ollama API with multi-host fallback.
 
         Args:
             prompt: Input text prompt
@@ -414,6 +437,7 @@ class OllamaProvider(LLMProvider):
             - Supports Chinese models (Qwen, DeepSeek)
             - 100% offline operation
             - FI-BACKEND-REF-005: Exponential backoff + circuit breaker
+            - FI-BACKEND-FALLBACK-001: Multi-host fallback (Windows tunnel -> Mac localhost)
         """
 
         from backend.providers.retry import CircuitOpenError, calculate_backoff_delay
@@ -430,206 +454,196 @@ class OllamaProvider(LLMProvider):
             "OLLAMA_GENERATE_STARTED",
             model=model,
             prompt_length=len(prompt),
-            base_url=self.base_url,
+            hosts_available=len(self.hosts),
         )
-
-        # Check circuit breaker before attempting
-        if not self.circuit_breaker.can_execute():
-            raise CircuitOpenError(
-                self.circuit_breaker.name,
-                f"Ollama service unavailable, retry after {self.circuit_breaker.config.recovery_timeout}s",
-            )
 
         start_time = datetime.now(UTC)
         last_exception: Exception | None = None
+        hosts_tried: list[str] = []
 
-        # Thinking mode control:
-        # 1. Request-level toggle (enable_thinking kwarg) takes precedence
-        # 2. Env var LLM_FORCE_THINKING forces it globally
-        # 3. Auto-detect for Qwen3 models (if not explicitly disabled)
+        # Thinking mode control
         force_thinking = os.getenv("LLM_FORCE_THINKING", "false").lower() in {"1", "true", "yes"}
-        enable_thinking = kwargs.get("enable_thinking", True)  # Default True
+        enable_thinking = kwargs.get("enable_thinking", True)
+        is_qwen3 = str(model).lower().startswith("qwen3")
+        use_generate_with_think = enable_thinking and (is_qwen3 or force_thinking)
 
-        for attempt in range(self.retry_config.max_retries + 1):
-            try:
-                # Call Ollama API
-                is_qwen3 = str(model).lower().startswith("qwen3")
-                # Use thinking if: enabled AND (is Qwen3 or force_thinking)
-                use_generate_with_think = enable_thinking and (is_qwen3 or force_thinking)
-                if use_generate_with_think:
-                    # Use generate endpoint for Qwen3 to expose separate thinking
-                    response = self.client.generate(
-                        model=model,
-                        prompt=prompt,
-                        options={
-                            "temperature": temperature,
-                            "num_predict": max_tokens,
-                            "think": True,
-                        },
-                    )
-                else:
-                    response = self.client.chat(
-                        model=model,
-                        messages=[{"role": "user", "content": prompt}],
-                        options={
-                            "temperature": temperature,
-                            "num_predict": max_tokens,  # Ollama uses num_predict instead of max_tokens
-                            # Disable separate thinking mode; capture if provider returns it
-                            "think": False,
-                        },
-                    )
+        # Multi-host fallback loop (FI-BACKEND-FALLBACK-001)
+        for host in self.hosts:
+            host_url = str(host["url"])
+            host_name = str(host["name"])
+            client = self.clients[host_url]
+            cb = self.circuit_breakers[host_url]
 
-                latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
-
-                # Parse response based on endpoint and model
-                thinking_text = None
-                if use_generate_with_think:
-                    # Use /generate endpoint with thinking enabled
-                    try:
-                        raw_response = str(response.get("response", ""))
-                        self.logger.debug(
-                            "QWEN_RAW_RESPONSE_PREVIEW",
-                            first_100_chars=raw_response[:100],
-                            last_100_chars=raw_response[-100:]
-                            if len(raw_response) > 100
-                            else raw_response,
-                            total_length=len(raw_response),
-                        )
-                        thinking_text, content = self.qwen_parser.parse(response)
-                        self.logger.info(
-                            "QWEN_THINKING_PARSED",
-                            raw_response_length=len(raw_response),
-                            thinking_length=len(thinking_text) if thinking_text else 0,
-                            content_length=len(content),
-                            content_preview=content[:50] if content else "EMPTY",
-                        )
-                    except ValueError as e:
-                        self.logger.error(
-                            "QWEN_PARSING_FAILED",
-                            error=str(e),
-                            model=model,
-                        )
-                        # Fallback: treat entire response as content
-                        content = str(response.get("response", "")).strip()
-
-                    # Also check for separate thinking field (some Ollama versions may provide it)
-                    if not thinking_text:
-                        t = response.get("thinking")
-                        if isinstance(t, str) and t.strip():
-                            thinking_text = t.strip()
-                else:
-                    # Use /chat endpoint - apply generic parsing
-                    try:
-                        thinking_text, content = self.generic_parser.parse(response)
-                    except Exception as e:
-                        self.logger.error(
-                            "GENERIC_PARSING_FAILED",
-                            error=str(e),
-                            model=model,
-                        )
-                        # Fallback: get from message.content
-                        content = response.get("message", {}).get("content", "").strip()
-                        thinking_text = None
-
-                # Estimate tokens (Ollama doesn't always provide exact counts)
-                # Use approximate: ~4 chars per token
-                prompt_tokens = len(prompt) // 4
-                completion_tokens = len(content) // 4
-                total_tokens = prompt_tokens + completion_tokens
-
-                # If response has actual token counts, use them
-                if "eval_count" in response:
-                    completion_tokens = response["eval_count"]
-                    total_tokens = (
-                        response.get("prompt_eval_count", prompt_tokens) + completion_tokens
-                    )
-
-                # Success: record in circuit breaker
-                self.circuit_breaker.record_success()
-
-                if attempt > 0:
-                    self.logger.info(
-                        "OLLAMA_RETRY_SUCCEEDED",
-                        model=model,
-                        attempt=attempt + 1,
-                        total_attempts=self.retry_config.max_retries + 1,
-                    )
-
+            # Skip hosts with open circuit breakers
+            if not cb.can_execute():
                 self.logger.info(
-                    "OLLAMA_GENERATE_COMPLETED",
-                    model=model,
-                    tokens_used=total_tokens,
-                    cost_usd=0.0,  # Local inference = free!
-                    latency_ms=round(latency_ms, 2),
-                    retry_attempts=attempt,
+                    "OLLAMA_HOST_SKIPPED_CIRCUIT_OPEN",
+                    host=host_name,
+                    host_url=host_url,
+                    recovery_timeout=cb.config.recovery_timeout,
                 )
+                continue
 
-                return LLMResponse(
-                    content=content,
-                    model=model,
-                    provider="ollama",
-                    tokens_used=total_tokens,
-                    cost_usd=0.0,  # Free!
-                    latency_ms=latency_ms,
-                    metadata={
-                        "prompt_tokens": prompt_tokens,
-                        "completion_tokens": completion_tokens,
-                        "base_url": self.base_url,
-                        "eval_count": response.get("eval_count"),
-                        "eval_duration": response.get("eval_duration"),
-                        "retry_attempts": attempt,
-                        # Expose optional provider reasoning without logging
-                        **({"thinking": thinking_text} if thinking_text else {}),
-                    },
-                )
+            hosts_tried.append(host_name)
+            self.logger.info(
+                "OLLAMA_TRYING_HOST",
+                host=host_name,
+                host_url=host_url,
+                priority=host["priority"],
+            )
 
-            except Exception as e:
-                last_exception = e
-                sanitized_error = sanitize_error_message(str(e))
+            # Retry loop for this host
+            for attempt in range(self.retry_config.max_retries + 1):
+                try:
+                    # Call Ollama API with this host's client
+                    if use_generate_with_think:
+                        response = client.generate(
+                            model=model,
+                            prompt=prompt,
+                            options={
+                                "temperature": temperature,
+                                "num_predict": max_tokens,
+                                "think": True,
+                            },
+                        )
+                    else:
+                        response = client.chat(
+                            model=model,
+                            messages=[{"role": "user", "content": prompt}],
+                            options={
+                                "temperature": temperature,
+                                "num_predict": max_tokens,
+                                "think": False,
+                            },
+                        )
 
-                # Record failure in circuit breaker
-                self.circuit_breaker.record_failure()
+                    latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
-                # Check if we have retries left
-                if attempt < self.retry_config.max_retries:
-                    delay = calculate_backoff_delay(attempt, self.retry_config)
+                    # Parse response
+                    thinking_text = None
+                    if use_generate_with_think:
+                        try:
+                            raw_response = str(response.get("response", ""))
+                            thinking_text, content = self.qwen_parser.parse(response)
+                        except ValueError:
+                            content = str(response.get("response", "")).strip()
+                        if not thinking_text:
+                            t = response.get("thinking")
+                            if isinstance(t, str) and t.strip():
+                                thinking_text = t.strip()
+                    else:
+                        try:
+                            thinking_text, content = self.generic_parser.parse(response)
+                        except Exception:
+                            content = response.get("message", {}).get("content", "").strip()
+                            thinking_text = None
 
-                    self.logger.warning(
-                        "OLLAMA_RETRY_ATTEMPT",
+                    # Token estimation
+                    prompt_tokens = len(prompt) // 4
+                    completion_tokens = len(content) // 4
+                    total_tokens = prompt_tokens + completion_tokens
+                    if "eval_count" in response:
+                        completion_tokens = response["eval_count"]
+                        total_tokens = (
+                            response.get("prompt_eval_count", prompt_tokens) + completion_tokens
+                        )
+
+                    # Success: record and update current host (thread-safe)
+                    cb.record_success()
+                    with self._host_lock:
+                        previous_host = self.base_url
+                        self.base_url = host_url
+                        self.client = client
+                        self.circuit_breaker = cb
+                        # Log when host preference changes
+                        if previous_host != host_url:
+                            self.logger.info(
+                                "OLLAMA_HOST_PREFERENCE_CHANGED",
+                                previous_host=previous_host,
+                                new_host=host_url,
+                                new_host_name=host_name,
+                            )
+
+                    self.logger.info(
+                        "OLLAMA_GENERATE_COMPLETED",
                         model=model,
-                        attempt=attempt + 1,
-                        max_retries=self.retry_config.max_retries,
-                        delay_seconds=round(delay, 2),
-                        error=sanitized_error[:100],
-                        circuit_state=self.circuit_breaker.state.value,
+                        host=host_name,
+                        tokens_used=total_tokens,
+                        latency_ms=round(latency_ms, 2),
+                        retry_attempts=attempt,
+                        hosts_tried=hosts_tried,
                     )
 
-                    time.sleep(delay)
-
-                    # Re-check circuit breaker after delay
-                    if not self.circuit_breaker.can_execute():
-                        raise CircuitOpenError(
-                            self.circuit_breaker.name,
-                            "Circuit opened during retry sequence",
-                        ) from None
-                else:
-                    self.logger.error(
-                        "OLLAMA_GENERATE_FAILED",
-                        error=sanitized_error,
+                    return LLMResponse(
+                        content=content,
                         model=model,
-                        base_url=self.base_url,
-                        total_attempts=self.retry_config.max_retries + 1,
-                        circuit_state=self.circuit_breaker.state.value,
+                        provider="ollama",
+                        tokens_used=total_tokens,
+                        cost_usd=0.0,
+                        latency_ms=latency_ms,
+                        metadata={
+                            "prompt_tokens": prompt_tokens,
+                            "completion_tokens": completion_tokens,
+                            "base_url": host_url,
+                            "host_name": host_name,
+                            "eval_count": response.get("eval_count"),
+                            "eval_duration": response.get("eval_duration"),
+                            "retry_attempts": attempt,
+                            "hosts_tried": hosts_tried,
+                            **({"thinking": thinking_text} if thinking_text else {}),
+                        },
                     )
 
-        # All retries exhausted
+                except Exception as e:
+                    last_exception = e
+                    sanitized_error = sanitize_error_message(str(e))
+                    cb.record_failure()
+
+                    if attempt < self.retry_config.max_retries:
+                        delay = calculate_backoff_delay(attempt, self.retry_config)
+                        self.logger.warning(
+                            "OLLAMA_RETRY_ATTEMPT",
+                            host=host_name,
+                            attempt=attempt + 1,
+                            max_retries=self.retry_config.max_retries,
+                            delay_seconds=round(delay, 2),
+                            error=sanitized_error[:100],
+                        )
+                        time.sleep(delay)
+
+                        if not cb.can_execute():
+                            self.logger.warning(
+                                "OLLAMA_HOST_CIRCUIT_OPENED_DURING_RETRY",
+                                host=host_name,
+                            )
+                            break  # Move to next host
+                    else:
+                        self.logger.warning(
+                            "OLLAMA_HOST_EXHAUSTED",
+                            host=host_name,
+                            host_url=host_url,
+                            error=sanitized_error[:100],
+                            total_attempts=self.retry_config.max_retries + 1,
+                        )
+                        break  # Move to next host
+
+        # All hosts exhausted
+        self.logger.error(
+            "OLLAMA_ALL_HOSTS_FAILED",
+            hosts_tried=hosts_tried,
+            total_hosts=len(self.hosts),
+            last_error=sanitize_error_message(str(last_exception), max_length=200)
+            if last_exception
+            else "unknown",
+        )
+
         if last_exception:
             raise last_exception
-        raise RuntimeError("Unexpected retry loop exit")
+        raise CircuitOpenError("ollama_all", "All Ollama hosts unavailable")
 
     def embed(self, text: str) -> np.ndarray:
         """
-        Generate embedding using Ollama.
+        Generate embedding using Ollama with multi-host fallback.
 
         Args:
             text: Input text to embed
@@ -641,29 +655,75 @@ class OllamaProvider(LLMProvider):
             - Uses nomic-embed-text by default (768-dim)
             - 100% local, no API calls
             - Suitable for RAG and semantic search
+            - FI-BACKEND-FALLBACK-001: Multi-host fallback support
         """
+        from backend.providers.retry import CircuitOpenError
+
         self.logger.info("OLLAMA_EMBED_STARTED", text_length=len(text))
 
-        try:
-            response = self.client.embeddings(model=self.embed_model, prompt=text)
+        last_exception: Exception | None = None
+        hosts_tried: list[str] = []
 
-            # Extract embedding vector
-            embedding = np.array(response["embedding"], dtype=np.float32)
+        # Multi-host fallback loop (same pattern as generate)
+        for host in self.hosts:
+            host_url = str(host["url"])
+            host_name = str(host["name"])
+            client = self.clients[host_url]
+            cb = self.circuit_breakers[host_url]
 
-            self.logger.info(
-                "OLLAMA_EMBED_COMPLETED", embedding_dim=len(embedding), model=self.embed_model
-            )
+            if not cb.can_execute():
+                continue
 
-            return embedding
+            hosts_tried.append(host_name)
 
-        except Exception as e:
-            sanitized_error = sanitize_error_message(str(e))
-            self.logger.error("OLLAMA_EMBED_FAILED", error=sanitized_error, model=self.embed_model)
-            raise
+            try:
+                response = client.embeddings(model=self.embed_model, prompt=text)
+                embedding = np.array(response["embedding"], dtype=np.float32)
+
+                cb.record_success()
+                with self._host_lock:
+                    if self.base_url != host_url:
+                        self.logger.info(
+                            "OLLAMA_HOST_PREFERENCE_CHANGED",
+                            previous_host=self.base_url,
+                            new_host=host_url,
+                            new_host_name=host_name,
+                        )
+                    self.base_url = host_url
+                    self.client = client
+                    self.circuit_breaker = cb
+
+                self.logger.info(
+                    "OLLAMA_EMBED_COMPLETED",
+                    embedding_dim=len(embedding),
+                    model=self.embed_model,
+                    host=host_name,
+                    hosts_tried=hosts_tried,
+                )
+                return embedding
+
+            except Exception as e:
+                last_exception = e
+                cb.record_failure()
+                self.logger.warning(
+                    "OLLAMA_EMBED_HOST_FAILED",
+                    host=host_name,
+                    error=sanitize_error_message(str(e)),
+                )
+
+        # All hosts failed
+        self.logger.error(
+            "OLLAMA_EMBED_ALL_HOSTS_FAILED",
+            hosts_tried=hosts_tried,
+            model=self.embed_model,
+        )
+        if last_exception:
+            raise last_exception
+        raise CircuitOpenError("ollama_all", "All Ollama hosts unavailable for embeddings")
 
     def generate_stream(self, prompt: str, **kwargs):
         """
-        Generate completion using Ollama API with real-time streaming.
+        Generate completion using Ollama API with real-time streaming and multi-host fallback.
 
         Yields chunks as they arrive from Ollama without waiting for complete response.
 
@@ -680,10 +740,10 @@ class OllamaProvider(LLMProvider):
             - No buffering - chunks sent immediately as generated
             - Suitable for real-time UI updates and SSE streaming
             - FI-BACKEND-REF-005: Exponential backoff + circuit breaker apply
+            - FI-BACKEND-FALLBACK-001: Multi-host fallback (Windows tunnel -> Mac localhost)
         """
         from backend.providers.retry import CircuitOpenError, calculate_backoff_delay
 
-        # Handle None model explicitly - use default if None or missing
         model_arg = kwargs.get("model")
         model: str = model_arg if model_arg else self.default_model
         max_tokens: int = int(kwargs.get("max_tokens") or self.config.get("max_tokens") or 2048)
@@ -695,176 +755,145 @@ class OllamaProvider(LLMProvider):
             "OLLAMA_GENERATE_STREAM_STARTED",
             model=model,
             prompt_length=len(prompt),
-            base_url=self.base_url,
+            hosts_available=len(self.hosts),
         )
-
-        # Check circuit breaker before attempting
-        if not self.circuit_breaker.can_execute():
-            raise CircuitOpenError(
-                self.circuit_breaker.name,
-                f"Ollama service unavailable, retry after {self.circuit_breaker.config.recovery_timeout}s",
-            )
 
         start_time = datetime.now(UTC)
         last_exception: Exception | None = None
+        hosts_tried: list[str] = []
 
         force_thinking = os.getenv("LLM_FORCE_THINKING", "false").lower() in {"1", "true", "yes"}
         enable_thinking = kwargs.get("enable_thinking", True)
+        is_qwen3 = str(model).lower().startswith("qwen3")
+        use_generate_with_think = enable_thinking and (is_qwen3 or force_thinking)
 
-        for attempt in range(self.retry_config.max_retries + 1):
-            try:
-                is_qwen3 = str(model).lower().startswith("qwen3")
-                use_generate_with_think = enable_thinking and (is_qwen3 or force_thinking)
+        # Multi-host fallback loop (FI-BACKEND-FALLBACK-001)
+        for host in self.hosts:
+            host_url = str(host["url"])
+            host_name = str(host["name"])
+            client = self.clients[host_url]
+            cb = self.circuit_breakers[host_url]
 
-                if use_generate_with_think:
-                    # Use generate endpoint with streaming and thinking enabled
-                    response = self.client.generate(
-                        model=model,
-                        prompt=prompt,
-                        stream=True,
-                        options={
-                            "temperature": temperature,
-                            "num_predict": max_tokens,
-                            "think": True,
-                        },
-                    )
-                else:
-                    # Use chat endpoint with streaming
-                    response = self.client.chat(
-                        model=model,
-                        messages=[{"role": "user", "content": prompt}],
-                        stream=True,
-                        options={
-                            "temperature": temperature,
-                            "num_predict": max_tokens,
-                            "think": False,
-                        },
-                    )
-
-                # Stream chunks as they arrive
-                chunk_count = 0
-                total_tokens = 0
-
-                for chunk in response:
-                    try:
-                        if use_generate_with_think:
-                            # Extract text from /generate streaming response
-                            # Ollama sends thinking in "thinking" field and content in "response" field
-                            thinking_text = chunk.get("thinking", "")
-                            response_text = chunk.get("response", "")
-                            total_tokens = chunk.get("eval_count", 0)
-
-                            # Yield thinking chunks with "thinking" type
-                            if thinking_text:
-                                chunk_count += 1
-                                self.logger.debug(
-                                    "OLLAMA_STREAM_CHUNK",
-                                    model=model,
-                                    chunk_num=chunk_count,
-                                    chunk_type="thinking",
-                                    chunk_length=len(thinking_text),
-                                )
-                                yield ("thinking", thinking_text)
-
-                            # Yield response chunks with "content" type
-                            if response_text:
-                                chunk_count += 1
-                                self.logger.debug(
-                                    "OLLAMA_STREAM_CHUNK",
-                                    model=model,
-                                    chunk_num=chunk_count,
-                                    chunk_type="content",
-                                    chunk_length=len(response_text),
-                                )
-                                yield ("content", response_text)
-                        else:
-                            # Extract text from /chat streaming response
-                            chunk_text = chunk.get("message", {}).get("content", "")
-                            total_tokens = chunk.get("eval_count", 0)
-
-                            if chunk_text:
-                                chunk_count += 1
-                                self.logger.debug(
-                                    "OLLAMA_STREAM_CHUNK",
-                                    model=model,
-                                    chunk_num=chunk_count,
-                                    chunk_type="content",
-                                    chunk_length=len(chunk_text),
-                                )
-                                yield ("content", chunk_text)
-                    except Exception as e:
-                        self.logger.warning(
-                            "OLLAMA_STREAM_CHUNK_PARSE_ERROR",
-                            error=str(e),
-                            chunk_data=str(chunk)[:100],
-                        )
-                        continue
-
-                latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
-
-                # Success: record in circuit breaker
-                self.circuit_breaker.record_success()
-
-                if attempt > 0:
-                    self.logger.info(
-                        "OLLAMA_STREAM_RETRY_SUCCEEDED",
-                        model=model,
-                        attempt=attempt + 1,
-                        total_chunks=chunk_count,
-                    )
-
+            if not cb.can_execute():
                 self.logger.info(
-                    "OLLAMA_GENERATE_STREAM_COMPLETED",
-                    model=model,
-                    chunks_yielded=chunk_count,
-                    latency_ms=round(latency_ms, 2),
-                    retry_attempts=attempt,
+                    "OLLAMA_STREAM_HOST_SKIPPED_CIRCUIT_OPEN",
+                    host=host_name,
                 )
-                return
+                continue
 
-            except Exception as e:
-                last_exception = e
-                sanitized_error = sanitize_error_message(str(e))
+            hosts_tried.append(host_name)
+            self.logger.info(
+                "OLLAMA_STREAM_TRYING_HOST",
+                host=host_name,
+                priority=host["priority"],
+            )
 
-                # Record failure in circuit breaker
-                self.circuit_breaker.record_failure()
+            for attempt in range(self.retry_config.max_retries + 1):
+                try:
+                    if use_generate_with_think:
+                        response = client.generate(
+                            model=model,
+                            prompt=prompt,
+                            stream=True,
+                            options={
+                                "temperature": temperature,
+                                "num_predict": max_tokens,
+                                "think": True,
+                            },
+                        )
+                    else:
+                        response = client.chat(
+                            model=model,
+                            messages=[{"role": "user", "content": prompt}],
+                            stream=True,
+                            options={
+                                "temperature": temperature,
+                                "num_predict": max_tokens,
+                                "think": False,
+                            },
+                        )
 
-                # Check if we have retries left
-                if attempt < self.retry_config.max_retries:
-                    delay = calculate_backoff_delay(attempt, self.retry_config)
+                    chunk_count = 0
+                    for chunk in response:
+                        try:
+                            if use_generate_with_think:
+                                thinking_text = chunk.get("thinking", "")
+                                response_text = chunk.get("response", "")
+                                if thinking_text:
+                                    chunk_count += 1
+                                    yield ("thinking", thinking_text)
+                                if response_text:
+                                    chunk_count += 1
+                                    yield ("content", response_text)
+                            else:
+                                chunk_text = chunk.get("message", {}).get("content", "")
+                                if chunk_text:
+                                    chunk_count += 1
+                                    yield ("content", chunk_text)
+                        except Exception:
+                            continue
 
-                    self.logger.warning(
-                        "OLLAMA_STREAM_RETRY_ATTEMPT",
+                    latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
+                    cb.record_success()
+                    with self._host_lock:
+                        previous_host = self.base_url
+                        self.base_url = host_url
+                        self.client = client
+                        self.circuit_breaker = cb
+                        if previous_host != host_url:
+                            self.logger.info(
+                                "OLLAMA_HOST_PREFERENCE_CHANGED",
+                                previous_host=previous_host,
+                                new_host=host_url,
+                                new_host_name=host_name,
+                            )
+
+                    self.logger.info(
+                        "OLLAMA_GENERATE_STREAM_COMPLETED",
                         model=model,
-                        attempt=attempt + 1,
-                        max_retries=self.retry_config.max_retries,
-                        delay_seconds=round(delay, 2),
-                        error=sanitized_error[:100],
+                        host=host_name,
+                        chunks_yielded=chunk_count,
+                        latency_ms=round(latency_ms, 2),
+                        hosts_tried=hosts_tried,
                     )
+                    return
 
-                    import time
+                except Exception as e:
+                    last_exception = e
+                    sanitized_error = sanitize_error_message(str(e))
+                    cb.record_failure()
 
-                    time.sleep(delay)
+                    if attempt < self.retry_config.max_retries:
+                        delay = calculate_backoff_delay(attempt, self.retry_config)
+                        self.logger.warning(
+                            "OLLAMA_STREAM_RETRY_ATTEMPT",
+                            host=host_name,
+                            attempt=attempt + 1,
+                            delay_seconds=round(delay, 2),
+                            error=sanitized_error[:100],
+                        )
+                        time.sleep(delay)
+                        if not cb.can_execute():
+                            break
+                    else:
+                        self.logger.warning(
+                            "OLLAMA_STREAM_HOST_EXHAUSTED",
+                            host=host_name,
+                            error=sanitized_error[:100],
+                        )
+                        break
 
-                    # Re-check circuit breaker after delay
-                    if not self.circuit_breaker.can_execute():
-                        raise CircuitOpenError(
-                            self.circuit_breaker.name,
-                            "Circuit opened during retry sequence",
-                        ) from None
-                else:
-                    self.logger.error(
-                        "OLLAMA_GENERATE_STREAM_FAILED",
-                        error=sanitized_error,
-                        model=model,
-                        base_url=self.base_url,
-                        total_attempts=self.retry_config.max_retries + 1,
-                    )
+        self.logger.error(
+            "OLLAMA_STREAM_ALL_HOSTS_FAILED",
+            hosts_tried=hosts_tried,
+            last_error=sanitize_error_message(str(last_exception), max_length=200)
+            if last_exception
+            else "unknown",
+        )
 
-        # All retries exhausted
         if last_exception:
             raise last_exception
-        raise RuntimeError("Unexpected retry loop exit")
+        raise CircuitOpenError("ollama_all", "All Ollama hosts unavailable for streaming")
 
     def get_provider_name(self) -> str:
         return "ollama"

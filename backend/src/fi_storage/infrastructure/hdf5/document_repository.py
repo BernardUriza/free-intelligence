@@ -163,6 +163,22 @@ class Document:
     chunks: list[DocumentChunk] = field(default_factory=list)
 
 
+@dataclass
+class DocumentQuestion:
+    """A question associated with a document.
+
+    Questions can come from:
+    - LLM initial generation (source="llm_initial")
+    - User queries via RAG (source="user_query")
+    """
+
+    question_id: int
+    question: str
+    source: str  # "llm_initial" | "user_query"
+    timestamp: str  # ISO format
+    answer: str | None = None
+
+
 def _ensure_documents_group(f: h5py.File) -> h5py.Group:
     """Ensure /documents group exists."""
     if "documents" not in f:
@@ -617,6 +633,7 @@ def search_documents_by_embedding(
     query_embedding: np.ndarray,
     top_k: int = 5,
     persona_filter: str | None = None,
+    doc_filter: str | None = None,
 ) -> list[tuple[str, int, float, str]]:
     """Search documents by semantic similarity.
 
@@ -624,6 +641,7 @@ def search_documents_by_embedding(
         query_embedding: Query vector (same dimension as chunk embeddings)
         top_k: Number of results to return
         persona_filter: Only search documents assigned to this persona
+        doc_filter: Only search within this specific document (by doc_id)
 
     Returns:
         List of (doc_id, chunk_id, similarity_score, chunk_text)
@@ -640,6 +658,10 @@ def search_documents_by_embedding(
         docs_group = f["documents"]
 
         for doc_id in docs_group:
+            # Skip if doc_filter is set and doesn't match
+            if doc_filter and doc_id != doc_filter:
+                continue
+
             doc_group = docs_group[doc_id]
 
             # Check persona filter
@@ -675,3 +697,192 @@ def search_documents_by_embedding(
     # Sort by similarity (descending) and return top_k
     results.sort(key=lambda x: x[2], reverse=True)
     return results[:top_k]
+
+
+# =============================================================================
+# DOCUMENT QUESTIONS (LLM-generated and user queries)
+# =============================================================================
+
+
+def save_document_questions(doc_id: str, questions: list[DocumentQuestion]) -> bool:
+    """Save multiple questions for a document (used during initial generation).
+
+    Args:
+        doc_id: Document UUID
+        questions: List of questions to save
+
+    Returns:
+        True if saved, False if document not found
+    """
+    if not CORPUS_PATH.exists():
+        return False
+
+    with _doc_lock, h5py.File(CORPUS_PATH, "a") as f:
+        if "documents" not in f:
+            return False
+
+        docs_group = f["documents"]
+        if doc_id not in docs_group:
+            return False
+
+        doc_group = docs_group[doc_id]
+
+        # Create or clear questions group
+        if "questions" in doc_group:
+            del doc_group["questions"]
+        q_group = doc_group.create_group("questions")
+
+        # Save each question
+        for q in questions:
+            q_subgroup = q_group.create_group(f"q_{q.question_id}")
+            q_subgroup.create_dataset(
+                "question",
+                data=q.question.encode("utf-8"),
+                dtype=h5py.string_dtype(encoding="utf-8"),
+            )
+            q_subgroup.create_dataset(
+                "source",
+                data=q.source.encode("utf-8"),
+                dtype=h5py.string_dtype(encoding="utf-8"),
+            )
+            q_subgroup.create_dataset(
+                "timestamp",
+                data=q.timestamp.encode("utf-8"),
+                dtype=h5py.string_dtype(encoding="utf-8"),
+            )
+            if q.answer:
+                q_subgroup.create_dataset(
+                    "answer",
+                    data=q.answer.encode("utf-8"),
+                    dtype=h5py.string_dtype(encoding="utf-8"),
+                )
+
+        f.flush()
+
+        logger.info(
+            "DOCUMENT_QUESTIONS_SAVED",
+            doc_id=doc_id,
+            count=len(questions),
+        )
+
+        return True
+
+
+def get_document_questions(doc_id: str) -> list[DocumentQuestion] | None:
+    """Get all questions for a document.
+
+    Args:
+        doc_id: Document UUID
+
+    Returns:
+        List of questions or None if document not found
+    """
+    if not CORPUS_PATH.exists():
+        return None
+
+    with _doc_lock, h5py.File(CORPUS_PATH, "r") as f:
+        if "documents" not in f:
+            return None
+
+        docs_group = f["documents"]
+        if doc_id not in docs_group:
+            return None
+
+        doc_group = docs_group[doc_id]
+
+        if "questions" not in doc_group:
+            return []  # No questions yet, but document exists
+
+        q_group = doc_group["questions"]
+        questions = []
+
+        for q_name in sorted(q_group, key=lambda x: int(x.split("_")[1])):
+            q_subgroup = q_group[q_name]
+
+            question = q_subgroup["question"][()].decode("utf-8")
+            source = q_subgroup["source"][()].decode("utf-8")
+            timestamp = q_subgroup["timestamp"][()].decode("utf-8")
+            answer = None
+            if "answer" in q_subgroup:
+                answer = q_subgroup["answer"][()].decode("utf-8")
+
+            questions.append(
+                DocumentQuestion(
+                    question_id=int(q_name.split("_")[1]),
+                    question=question,
+                    source=source,
+                    timestamp=timestamp,
+                    answer=answer,
+                )
+            )
+
+        return questions
+
+
+def add_document_question(doc_id: str, question: DocumentQuestion) -> bool:
+    """Add a single question to a document (used for accumulating user queries).
+
+    Args:
+        doc_id: Document UUID
+        question: Question to add (question_id is auto-assigned)
+
+    Returns:
+        True if added, False if document not found
+    """
+    if not CORPUS_PATH.exists():
+        return False
+
+    with _doc_lock, h5py.File(CORPUS_PATH, "a") as f:
+        if "documents" not in f:
+            return False
+
+        docs_group = f["documents"]
+        if doc_id not in docs_group:
+            return False
+
+        doc_group = docs_group[doc_id]
+
+        # Create questions group if it doesn't exist
+        if "questions" not in doc_group:
+            doc_group.create_group("questions")
+
+        q_group = doc_group["questions"]
+
+        # Find next available ID
+        existing_ids = [int(k.split("_")[1]) for k in q_group.keys() if k.startswith("q_")]
+        next_id = max(existing_ids, default=-1) + 1
+
+        # Create subgroup for the new question
+        q_subgroup = q_group.create_group(f"q_{next_id}")
+        q_subgroup.create_dataset(
+            "question",
+            data=question.question.encode("utf-8"),
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        q_subgroup.create_dataset(
+            "source",
+            data=question.source.encode("utf-8"),
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        q_subgroup.create_dataset(
+            "timestamp",
+            data=question.timestamp.encode("utf-8"),
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        if question.answer:
+            q_subgroup.create_dataset(
+                "answer",
+                data=question.answer.encode("utf-8"),
+                dtype=h5py.string_dtype(encoding="utf-8"),
+            )
+
+        f.flush()
+
+        logger.debug(
+            "DOCUMENT_QUESTION_ADDED",
+            doc_id=doc_id,
+            question_id=next_id,
+            source=question.source,
+        )
+
+        return True

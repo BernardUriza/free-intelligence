@@ -11,8 +11,8 @@ export type DocumentType = 'pdf' | 'docx' | 'markdown' | 'text' | 'image' | 'unk
 /** Document processing status */
 export type DocumentStatus = 'pending' | 'processing' | 'indexed' | 'error';
 
-/** Document origin */
-export type DocumentOrigin = 'upload' | 'api' | 'system';
+/** Document origin - matches backend DocumentOrigin enum */
+export type DocumentOrigin = 'upload' | 'api' | 'system' | 'admin_upload' | 'chat_widget';
 
 /** Document metadata */
 export interface DocumentMetadata {
@@ -82,6 +82,18 @@ export interface SearchResponse {
   results: SearchResult[];
   query: string;
   top_k: number;
+}
+
+/** Question source type */
+export type QuestionSource = 'llm_initial' | 'user_query';
+
+/** Document question (generated or accumulated from user queries) */
+export interface DocumentQuestion {
+  question_id: number;
+  question: string;
+  source: QuestionSource;
+  timestamp: string;
+  answer: string | null;
 }
 
 /** Status colors for UI */

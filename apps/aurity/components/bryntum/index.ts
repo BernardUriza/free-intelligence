@@ -26,6 +26,7 @@ export { useSchedulerState } from './hooks/useSchedulerState';
 export { useSchedulerLifecycle } from './hooks/useSchedulerLifecycle';
 export { useSchedulerEvents } from './hooks/useSchedulerEvents';
 export { useBryntumScheduler } from './hooks/useBryntumScheduler';
+export { useVirtualizedTimeRanges } from './hooks/useVirtualizedTimeRanges';
 
 // Utils
 export {

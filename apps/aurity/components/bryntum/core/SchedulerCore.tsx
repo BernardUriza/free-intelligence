@@ -126,7 +126,7 @@ export function SchedulerCore({
   showEmpty = false,
 }: SchedulerCoreProps) {
   // Scheduler hook (handles all lifecycle)
-  const { containerRef, instance, status } = useBryntumScheduler({
+  const { containerRef, instance, status, error } = useBryntumScheduler({
     buildConfig: getConfig,
     timeSpan: timeWindow,
     onInit: onReady,
@@ -134,6 +134,7 @@ export function SchedulerCore({
   });
 
   const isReady = status === 'ready';
+  const isError = status === 'error';
 
   // Resize observer (responsive grids)
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
@@ -141,6 +142,12 @@ export function SchedulerCore({
   useEffect(() => {
     if (!containerRef.current || !instance || !isReady) {
       return;
+    }
+
+    // Disconnect existing observer before creating new one (prevents duplicates)
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+      resizeObserverRef.current = null;
     }
 
     // Create resize observer
@@ -169,6 +176,8 @@ export function SchedulerCore({
       const cfg = getConfig();
       const resources = (cfg as any)?.resources;
       const events = (cfg as any)?.events;
+      // Bryntum 5.x uses resourceTimeRangesData for initial data
+      const resourceTimeRanges = (cfg as any)?.resourceTimeRangesData;
       const span = {
         startDate: (cfg as any)?.startDate ?? timeWindow?.startDate,
         endDate: (cfg as any)?.endDate ?? timeWindow?.endDate
@@ -177,7 +186,7 @@ export function SchedulerCore({
       if (span.startDate && span.endDate && typeof (instance as any)?.setTimeSpan === 'function') {
         (instance as any).setTimeSpan(span.startDate, span.endDate);
       }
-      if ((instance as any)?.eventStore && (events || resources)) {
+      if ((instance as any)?.eventStore && (events || resources || resourceTimeRanges)) {
         // Use hook's applyData if available on instance
         const s: any = instance;
         if (s.resourceStore && resources) {
@@ -185,6 +194,13 @@ export function SchedulerCore({
         }
         if (s.eventStore && events) {
           (s.eventStore.replaceData ?? s.eventStore.loadData)?.call(s.eventStore, events);
+        }
+        // Update resourceTimeRanges for non-working hours
+        if (s.resourceTimeRangeStore && resourceTimeRanges) {
+          (s.resourceTimeRangeStore.replaceData ?? s.resourceTimeRangeStore.loadData)?.call(
+            s.resourceTimeRangeStore,
+            resourceTimeRanges
+          );
         }
         (s.refresh ?? s.updateSize)?.call(s);
       }
@@ -224,6 +240,27 @@ export function SchedulerCore({
             <p className="text-slate-400 text-sm">
               {emptyMessage || 'No hay datos para mostrar'}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {isError && (
+        <div className="fi-overlay bg-red-900/20">
+          <div className="text-center p-6 bg-slate-800 rounded-lg border border-red-500/30 max-w-md">
+            <div className="text-red-400 text-4xl mb-3">⚠️</div>
+            <h3 className="text-red-400 font-semibold mb-2">
+              Error al cargar el calendario
+            </h3>
+            <p className="text-slate-400 text-sm mb-4">
+              {error instanceof Error ? error.message : 'Error desconocido al inicializar el scheduler'}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Reintentar
+            </button>
           </div>
         </div>
       )}

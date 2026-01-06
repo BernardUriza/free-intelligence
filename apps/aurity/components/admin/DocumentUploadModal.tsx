@@ -12,31 +12,24 @@ import { Button } from '@/components/ui/button';
 import {
   X,
   Upload,
-  FileText,
   CheckCircle,
   AlertCircle,
   Bot,
-  Stethoscope,
-  Hand,
 } from 'lucide-react';
 import type { DocumentMetadata } from '@aurity-standalone/types/knowledge';
 import { uploadDocument, formatFileSize } from '@aurity-standalone/api-client/knowledge';
 import { AVAILABLE_PERSONAS } from '@aurity-standalone/types/knowledge';
+import {
+  PERSONA_ICONS,
+  ACCEPTED_EXTENSIONS,
+  validateFile,
+} from './knowledge/constants';
 
 interface DocumentUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (doc: DocumentMetadata) => void;
 }
-
-const PERSONA_ICONS: Record<string, typeof Bot> = {
-  general_assistant: Bot,
-  clinical_advisor: Stethoscope,
-  soap_editor: FileText,
-  onboarding_guide: Hand,
-};
-
-const ACCEPTED_EXTENSIONS = '.pdf,.docx,.md,.txt,.png,.jpg,.jpeg';
 
 export function DocumentUploadModal({ isOpen, onClose, onSuccess }: DocumentUploadModalProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -59,27 +52,19 @@ export function DocumentUploadModal({ isOpen, onClose, onSuccess }: DocumentUplo
   }, []);
 
   // Declared before handleDrop which uses it
-  const validateAndSetFile = useCallback((file: File) => {
+  const validateAndSetFile = useCallback((fileToValidate: File) => {
     setError(null);
 
-    // Check file size (max 50MB)
-    if (file.size > 50 * 1024 * 1024) {
-      setError('El archivo es demasiado grande. Máximo 50MB.');
+    const validation = validateFile(fileToValidate);
+    if (!validation.valid) {
+      setError(validation.error || 'Invalid file');
       return;
     }
 
-    // Check file type
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    const validExts = ['pdf', 'docx', 'md', 'txt', 'png', 'jpg', 'jpeg'];
-    if (!ext || !validExts.includes(ext)) {
-      setError(`Tipo de archivo no soportado. Usa: ${validExts.join(', ')}`);
-      return;
-    }
-
-    setFile(file);
+    setFile(fileToValidate);
     // Auto-fill title from filename (without extension)
     if (!title) {
-      const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+      const nameWithoutExt = fileToValidate.name.replace(/\.[^/.]+$/, '');
       setTitle(nameWithoutExt.replace(/[_-]/g, ' '));
     }
   }, [title]);
@@ -145,16 +130,16 @@ export function DocumentUploadModal({ isOpen, onClose, onSuccess }: DocumentUplo
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="fi-modal-backdrop"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={handleClose}
+        aria-hidden="true"
       />
 
       {/* Modal */}
-      <div className="relative flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-slate-900 rounded-2xl shadow-2xl w-full max-w-xl border border-slate-700">
+      <div className="relative z-10 bg-slate-900 rounded-2xl shadow-2xl w-full max-w-xl border border-slate-700 max-h-[90vh] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between p-6 fi-border-bottom">
             <div className="fi-flex-gap-md">
@@ -301,7 +286,6 @@ export function DocumentUploadModal({ isOpen, onClose, onSuccess }: DocumentUplo
             </Button>
           </div>
         </div>
-      </div>
     </div>
   );
 }

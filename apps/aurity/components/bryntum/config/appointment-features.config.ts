@@ -159,6 +159,7 @@ export const APPOINTMENT_FEATURES: SchedulerFeatures = {
   },
 
   // Enable resource-specific time ranges (per-doctor schedules)
+  // Set to true to enable the feature - Bryntum 5.x
   resourceTimeRanges: true,
   
   // Dependencies disabled (appointments are independent)
