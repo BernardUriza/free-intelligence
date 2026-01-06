@@ -24,7 +24,8 @@ import type { FIMessage, FITone } from '@aurity-standalone/types/assistant';
 import type { ChatConfig } from '@/config/chat.config';
 import { messageStyles } from './config/styles';
 import { useMessageGroups } from './hooks/useMessageGroups';
-import { ChatMessage, DateDivider, TypingIndicator } from './ui';
+import { DateDivider, TypingIndicator } from './ui';
+import { ChatMessage } from '@/components/ui/message';
 
 // ============================================================================
 // Props
@@ -97,20 +98,6 @@ export const ChatMessageList = memo(function ChatMessageList({
       ))}
 
       {/* Streaming message - shows content as it arrives */}
-      {(() => {
-        // DEBUG: Log streaming state
-        if (streaming?.isStreaming) {
-          console.log('[ChatMessageList] 🔴 STREAMING STATE:', {
-            hasContent: Boolean(streaming.content),
-            contentLength: streaming.content?.length || 0,
-            hasThinking: Boolean(streaming.thinking),
-            thinkingLength: streaming.thinking?.length || 0,
-            thinkingPreview: streaming.thinking?.substring(0, 50),
-            showThinking: config.behavior.showThinking,
-          });
-        }
-        return null;
-      })()}
       {streaming?.isStreaming && (streaming.content || streaming.thinking) && (
         <>
           <ChatMessage

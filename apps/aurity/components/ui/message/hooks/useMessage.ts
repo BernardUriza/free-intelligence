@@ -54,11 +54,19 @@ export function useMessage(options: UseMessageOptions): UseMessageReturn {
     return getPersonaStyle(persona);
   }, [persona]);
 
+  // Get persona data from backend
+  const personaData = useMemo(() => {
+    return personas.find((p) => p.id === persona);
+  }, [personas, persona]);
+
   // Get persona label from backend data
   const personaLabel = useMemo(() => {
-    const personaData = personas.find((p) => p.id === persona);
     return generatePersonaLabel(personaData?.name, persona);
-  }, [personas, persona]);
+  }, [personaData?.name, persona]);
+
+  // Get voice and model from persona or message metadata
+  const personaVoice = message.metadata?.voice || personaData?.voice;
+  const personaModel = personaData?.model;
 
   // Copy to clipboard action
   const copyToClipboard = useCallback(async () => {
@@ -81,6 +89,8 @@ export function useMessage(options: UseMessageOptions): UseMessageReturn {
     personaStyle,
     personaLabel,
     persona,
+    personaVoice,
+    personaModel,
     copyToClipboard,
   };
 }

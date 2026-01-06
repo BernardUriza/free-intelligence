@@ -19,9 +19,9 @@ import { MessageAvatar } from '../primitives/MessageAvatar';
 import { MessageMeta } from '../primitives/MessageMeta';
 import { MessageContent } from '../primitives/MessageContent';
 import { MessageActions } from '../primitives/MessageActions';
+import { ModelBadge } from '../primitives/ModelBadge';
 // Chat-specific components
 import { ReasoningBlock } from '@/components/chat/ReasoningBlock';
-import { ModelBadge } from '@/components/chat/message-list/ui/ModelBadge';
 
 export const ChatMessage = memo(function ChatMessage({
   message,

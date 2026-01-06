@@ -80,6 +80,10 @@ export interface UseMessageReturn {
   personaStyle: PersonaStyle;
   personaLabel: string;
   persona: string;
+  /** Voice ID for TTS (from persona config or message metadata) */
+  personaVoice?: string;
+  /** Model name for badge (from persona config) */
+  personaModel?: string;
 
   // Actions
   copyToClipboard: () => Promise<void>;

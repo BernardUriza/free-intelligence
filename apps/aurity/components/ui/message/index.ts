@@ -50,8 +50,10 @@ export {
   MessageMeta,
   MessageContent,
   MessageActions,
+  ModelBadge,
   type MessageAvatarProps,
   type MessageMetaProps,
   type MessageContentProps,
   type MessageActionsProps,
+  type ModelBadgeProps,
 } from './primitives';

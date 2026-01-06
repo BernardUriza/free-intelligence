@@ -5,13 +5,14 @@
  * Shows the specific LLM model that generated the response
  *
  * Created: 2025-12-22
+ * Moved to primitives: 2025-01-06 (Fase 3.1)
  * Author: Bernard Uriza Orozco
  */
 
 import { Sparkles } from 'lucide-react';
 import { getVoiceDisplayName } from '@/lib/voiceAliases';
 
-interface ModelBadgeProps {
+export interface ModelBadgeProps {
   model: string;
   className?: string;
   voice?: string | null;

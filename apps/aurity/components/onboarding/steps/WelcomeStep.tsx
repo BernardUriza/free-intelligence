@@ -5,7 +5,7 @@
  */
 
 import { Button } from "@/components/ui/button";
-import { FIMessageBubble } from "../FIMessageBubble";
+import { OnboardingMessage } from "@/components/ui/message";
 import { FITypingIndicator } from "../FITypingIndicator";
 import type { StepProps } from "../types";
 
@@ -29,7 +29,7 @@ export function WelcomeStep({ context, callbacks, status }: StepProps) {
       <div className="space-y-4 max-w-3xl mx-auto">
         {/* Display FI introduction message */}
         {messages.map((msg, idx) => (
-          <FIMessageBubble
+          <OnboardingMessage
             key={idx}
             message={msg}
             showTimestamp={false}
