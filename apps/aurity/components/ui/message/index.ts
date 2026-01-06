@@ -22,7 +22,7 @@ export type {
 } from './types';
 
 // Hooks
-export { useMessage, useMessageSimple } from './hooks/useMessage';
+export { useMessage, useMessageTV, useMessageSimple } from './hooks/useMessage';
 
 // Styles
 export {

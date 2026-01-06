@@ -14,7 +14,7 @@
 
 import { memo } from 'react';
 import type { TVMessageProps } from '../types';
-import { useMessageSimple } from '../hooks/useMessage';
+import { useMessageTV } from '../hooks/useMessage';
 import { tvStyles, getTVFontSize } from '../styles/message-styles';
 
 export const TVMessage = memo(function TVMessage({
@@ -22,7 +22,7 @@ export const TVMessage = memo(function TVMessage({
   fontSize,
   className = '',
 }: TVMessageProps) {
-  const { personaStyle } = useMessageSimple({ message });
+  const { personaStyle } = useMessageTV({ message });
 
   // Calculate font size based on content length
   const computedFontSize = fontSize || getTVFontSize(message.content.length);

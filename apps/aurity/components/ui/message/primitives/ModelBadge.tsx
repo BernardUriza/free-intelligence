@@ -48,6 +48,11 @@ function formatModelName(model: string): string {
 
 
 export function ModelBadge({ model, className = '', voice = null }: ModelBadgeProps) {
+  // Early return if no model provided (don't render empty badge)
+  if (!model || model.trim() === '') {
+    return null;
+  }
+
   const displayName = formatModelName(model);
   const showVoice = typeof voice === 'string' && voice.length > 0;
   const voiceLabel = showVoice ? getVoiceDisplayName(voice as string) ?? '' : '';

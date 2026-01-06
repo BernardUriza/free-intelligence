@@ -49,24 +49,27 @@ export function useMessage(options: UseMessageOptions): UseMessageReturn {
     return 'AURITY';
   }, [isUser, user?.name]);
 
-  // Get persona style
-  const personaStyle = useMemo(() => {
-    return getPersonaStyle(persona);
-  }, [persona]);
+  // Consolidated persona lookup (single useMemo for all persona-derived values)
+  // This avoids re-memoizing on every render when personas array updates
+  const personaInfo = useMemo(() => {
+    const style = getPersonaStyle(persona);
+    const data = personas?.find((p) => p.id === persona);
+    const label = generatePersonaLabel(data?.name, persona);
 
-  // Get persona data from backend
-  const personaData = useMemo(() => {
-    return personas.find((p) => p.id === persona);
-  }, [personas, persona]);
+    return {
+      style,
+      data,
+      label,
+      voice: message.metadata?.voice || data?.voice,
+      model: data?.model,
+    };
+  }, [personas, persona, message.metadata?.voice]);
 
-  // Get persona label from backend data
-  const personaLabel = useMemo(() => {
-    return generatePersonaLabel(personaData?.name, persona);
-  }, [personaData?.name, persona]);
-
-  // Get voice and model from persona or message metadata
-  const personaVoice = message.metadata?.voice || personaData?.voice;
-  const personaModel = personaData?.model;
+  // Destructure for cleaner return
+  const personaStyle = personaInfo.style;
+  const personaLabel = personaInfo.label;
+  const personaVoice = personaInfo.voice;
+  const personaModel = personaInfo.model;
 
   // Copy to clipboard action
   const copyToClipboard = useCallback(async () => {
@@ -96,9 +99,20 @@ export function useMessage(options: UseMessageOptions): UseMessageReturn {
 }
 
 /**
- * Simplified hook for TV display (no auth/personas fetch needed)
+ * Lightweight hook for TV/broadcast displays
+ *
+ * Use when:
+ * - WaitingRoomHost, ContentRenderer (no personalization needed)
+ * - Static displays without user context
+ *
+ * Skips:
+ * - Auth/user profile fetching
+ * - Backend personas lookup
+ * - Voice/model metadata
+ *
+ * Use `useMessage` when you need full persona context (ChatMessage, OnboardingMessage).
  */
-export function useMessageSimple(options: UseMessageOptions) {
+export function useMessageTV(options: UseMessageOptions) {
   const { message, persona: explicitPersona } = options;
 
   const persona = explicitPersona || message.metadata?.tone || 'waiting_room_host';
@@ -113,3 +127,8 @@ export function useMessageSimple(options: UseMessageOptions) {
     personaLabel: 'FREE-INTELLIGENCE',
   };
 }
+
+/**
+ * @deprecated Use `useMessageTV` instead. Renamed for clarity.
+ */
+export const useMessageSimple = useMessageTV;
