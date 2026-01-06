@@ -41,6 +41,8 @@ export {
 
 // Variants
 export { TVMessage } from './variants/TVMessage';
+export { ChatMessage } from './variants/ChatMessage';
+export { OnboardingMessage } from './variants/OnboardingMessage';
 
 // Primitives
 export {
