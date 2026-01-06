@@ -102,10 +102,15 @@ jobs:
           🚫 BLOCK for these CRITICAL issues (you have real power - use it!):
           1) SQL injection, XSS, command injection, path traversal
           2) Hardcoded secrets/API keys (real credentials like sk-xxx, api_key=xxx)
-          3) Code that will crash at runtime (syntax errors, undefined variables, missing imports)
+          3) Code that will crash at runtime (syntax errors, undefined variables)
           4) Data loss bugs (DELETE without WHERE, DROP TABLE, unprotected file operations)
           5) Authentication/authorization bypasses
           6) Infinite loops or resource exhaustion
+
+          ⛔ MANDATORY RULE - READ THIS FIRST:
+          If 'Backend: Compiles' or 'test' checks show PASSED, you MUST NOT block for import/module errors.
+          The build system already verified imports work. Your diff analysis cannot see barrel exports (index.ts).
+          Blocking when CI passed = FALSE POSITIVE = BAD. Trust the build system over your own analysis.
 
           ✅ DO NOT BLOCK for (trust the developer):
           - Python f-string templates with {{ }} - these are VALID escape sequences
@@ -170,6 +175,14 @@ jobs:
           # Parse verdict
           if echo "$REVIEW" | grep -qiE "VERDICT.*BLOCK"; then
             VERDICT="BLOCK"
+
+            # OVERRIDE: If CI build passed but AI blocked for import/module issues, it's a false positive
+            if [ "$PASSED_CHECKS" != "None" ] && echo "$PASSED_CHECKS" | grep -qE "Backend:|test"; then
+              if echo "$REVIEW" | grep -qiE "missing.*(module|import)|barrel|index\.ts|cannot.*resolve"; then
+                echo "::warning::Overriding AI BLOCK - CI build passed, likely barrel export false positive"
+                VERDICT="APPROVE"
+              fi
+            fi
           else
             VERDICT="APPROVE"
           fi
