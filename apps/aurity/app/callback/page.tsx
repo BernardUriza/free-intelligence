@@ -16,18 +16,18 @@ import { Home, AlertTriangle, Lock } from 'lucide-react';
 
 export default function CallbackPage() {
   const { isLoading, isAuthenticated, error } = useAuth();
-  const router = useRouter();
+  const router = useRouter(); // Used only for error redirect
 
   useEffect(() => {
     console.log('[Callback] Auth state:', { isLoading, isAuthenticated, error });
 
-    // Redirect to dashboard after successful authentication
-    if (!isLoading && isAuthenticated) {
-      console.log('[Callback] Redirecting to /dashboard');
-      // Use replace instead of push to avoid back button issues
-      router.replace('/dashboard');
-    }
-  }, [isLoading, isAuthenticated, router, error]);
+    // NOTE: We do NOT redirect manually here.
+    // Auth0Provider's onRedirectCallback handles the redirect using appState.returnTo
+    // This preserves the user's intended destination (e.g., /medical-ai → login → /medical-ai)
+    //
+    // If we redirected here, we'd lose the appState and always go to a hardcoded path.
+    // The Auth0 SDK automatically calls onRedirectCallback after processing the auth code.
+  }, [isLoading, isAuthenticated, error]);
 
   // Error state
   if (error) {

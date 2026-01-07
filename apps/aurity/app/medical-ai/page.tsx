@@ -12,21 +12,23 @@
  * - WorkflowSteps: Workflow configuration
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { AppTemplate } from '@/components/layout/AppTemplate';
 import { medicalAiHeader } from '@/config/page-headers';
 import { PatientSelector, PatientModal } from '@/components/patients';
 import { SessionAuditPanel } from '@/components/medical';
-import { AlertCircle, CheckCircle2, ChevronRight, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronRight, Trash2, Calendar } from 'lucide-react';
 import { useEncounterTimer } from '@/hooks/useEncounterTimer';
 import { WorkflowStep, Encounter } from '@aurity-standalone/types/medical';
+import { DoctorDetailModal, type DoctorSaveData } from '@/components/admin/clinics/DoctorDetailModal';
 
 // Modular imports
 import { MedicalWorkflowSteps } from './WorkflowSteps';
 import { usePatientManagement } from './usePatientManagement';
 import { useSessionManagement } from './useSessionManagement';
+import { useCurrentDoctor } from './useCurrentDoctor';
 
 export default function MedicalAIWorkflow() {
   // Patient management (custom hook)
@@ -72,6 +74,16 @@ export default function MedicalAIWorkflow() {
 
   // Audit panel state (NEW)
   const [auditSessionId, setAuditSessionId] = useState<string | null>(null);
+
+  // Doctor availability modal
+  const { doctor, membership, updateDoctorProfile } = useCurrentDoctor();
+  const [showDoctorModal, setShowDoctorModal] = useState(false);
+
+  // Handle doctor availability save
+  const handleSaveDoctorAvailability = useCallback(async (data: DoctorSaveData) => {
+    await updateDoctorProfile(data);
+    setShowDoctorModal(false);
+  }, [updateDoctorProfile]);
 
   // Real-time encounter timer (only for new consultations)
   const isNewConsultation = Boolean(selectedPatient && !isExistingSession);
@@ -153,7 +165,24 @@ export default function MedicalAIWorkflow() {
     const headerConfig = medicalAiHeader({ subtitle: 'Selecciona un paciente para iniciar' });
 
     return (
-      <AppTemplate headerConfig={headerConfig} padding="0" showWatermark={true} showGeometricBg={true}>
+      <AppTemplate
+        headerConfig={headerConfig}
+        headerActions={
+          doctor && membership && (
+            <Button
+              onClick={() => setShowDoctorModal(true)}
+              variant="outline"
+              size="sm"
+              icon={Calendar}
+            >
+              Mi Disponibilidad
+            </Button>
+          )
+        }
+        padding="0"
+        showWatermark={true}
+        showGeometricBg={true}
+      >
         <div className="max-w-7xl mx-auto px-6 py-8">
           {/* Error Loading Patients */}
           {patientsError && (
@@ -264,6 +293,28 @@ export default function MedicalAIWorkflow() {
                 console.log('[MedicalAI] Session rejected:', auditSessionId);
                 // Refresh sessions list
               }}
+            />
+          )}
+
+          {/* Doctor Availability Modal */}
+          {showDoctorModal && doctor && (
+            <DoctorDetailModal
+              doctor={{
+                id: doctor.doctor_id,
+                doctor_id: doctor.doctor_id,
+                name: doctor.display_name || `${doctor.nombre} ${doctor.apellido}`,
+                display_name: doctor.display_name,
+                specialty: doctor.especialidad || undefined,
+                especialidad: doctor.especialidad,
+                work_start_time: doctor.work_start_time,
+                work_end_time: doctor.work_end_time,
+                working_hours: doctor.working_hours,
+                email: doctor.email,
+                cedula_profesional: doctor.cedula_profesional,
+              }}
+              onClose={() => setShowDoctorModal(false)}
+              onSave={handleSaveDoctorAvailability}
+              mode="edit"
             />
           )}
         </div>
