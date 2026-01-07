@@ -44,6 +44,16 @@ export {
   type AppointmentSchedulerParams,
 } from './utils/config-builders';
 export { loadBryntumOnce, isLoaded, getBryntumModule } from './utils/bryntum-loader';
+export {
+  generateBlockedTimeEvents,
+  isBlockedTimeEvent,
+  type BlockedTimeEvent,
+} from './utils/blocked-time-events';
+export {
+  initBryntumPatchHook,
+  updateDoctorsCache,
+  cleanupBryntumPatchHook,
+} from './utils/bryntum-patch-hook';
 
 // Core Component
 export { SchedulerCore } from './core/SchedulerCore';

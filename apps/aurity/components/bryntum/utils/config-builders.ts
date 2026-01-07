@@ -34,7 +34,8 @@ import {
   type Doctor,
   type Appointment,
 } from '../utils/appointment-transform.utils';
-import { resolveWorkingDay, zonedToDate } from '../utils/working-hours.resolver';
+import { resolveWorkingDay, zonedToDate, isDateInWorkingHours } from '../utils/working-hours.resolver';
+import { generateBlockedTimeEvents, isBlockedTimeEvent } from '../utils/blocked-time-events';
 import { TemporalAPI, getClinicTimeZone } from '@/lib/temporal';
 import type { BryntumSchedulerConfig } from '../types/scheduler.types';
 
@@ -186,9 +187,15 @@ export function buildAppointmentSchedulerConfig({
   const viewConfig = APPOINTMENT_VIEW_PRESETS[viewMode];
   const { start, end } = viewConfig.getDateRange(currentDate);
 
-  // Generate resourceTimeRanges for non-working hours per doctor
-  // Skip if using virtualized hook (generates on-demand for visible range)
-  const resourceTimeRanges = skipTimeRanges ? [] : generateNonWorkingTimeRanges(doctors, start, end);
+  // WORKAROUND: Generate blocked time as regular events (CSS/JS version mismatch)
+  // ResourceTimeRanges don't render correctly due to canvas positioning issues
+  // between CSS v6.0.0-alpha-1 and JS v5.6.6. Using regular events instead.
+  const blockedTimeEvents = skipTimeRanges ? [] : generateBlockedTimeEvents(doctors, start, end);
+  const appointmentEvents = transformAppointments(appointments);
+
+  // Combine appointments with blocked time events
+  // Blocked events render as gray stripes in non-working hours
+  const allEvents = [...appointmentEvents, ...blockedTimeEvents];
 
   return {
     // Time axis
@@ -202,7 +209,7 @@ export function buildAppointmentSchedulerConfig({
     // Layout - taller rows for appointment cards with patient info
     rowHeight: 200,
     barMargin: 5,
-    
+
     // Grid: locked resource column + flexible timeline
     subGridConfigs: {
       locked: {
@@ -218,10 +225,9 @@ export function buildAppointmentSchedulerConfig({
 
     // Data
     resources: transformDoctors(doctors),
-    events: transformAppointments(appointments),
-    // Resource-specific time ranges (non-working hours per doctor)
-    // Bryntum 5.x uses resourceTimeRangesData for initial data
-    resourceTimeRangesData: resourceTimeRanges,
+    events: allEvents,
+    // Disabled: ResourceTimeRanges don't work due to CSS/JS mismatch
+    // resourceTimeRangesData: resourceTimeRanges,
     columns: APPOINTMENT_COLUMNS,
     // Custom event renderer using React component via adapter
     eventRenderer: appointmentEventRenderer,
@@ -251,18 +257,65 @@ export function buildAppointmentSchedulerConfig({
     // Note: Type assertion needed because Bryntum's SchedulerListeners type is incomplete
     // and doesn't include dragCreateEnd, but the event is valid at runtime
     listeners: {
+      // VALIDATION: Block drag-create in non-working hours
+      // Returning false prevents the drag create operation from starting
+      beforeDragCreate: ({ date, resourceRecord }: { date: Date; resourceRecord: { id: string } }) => {
+        const doctor = doctors.find((d) => d.doctor_id === resourceRecord.id);
+        if (!doctor) {
+          return false; // Block if doctor not found
+        }
+        const isAllowed = isDateInWorkingHours(doctor, date);
+        if (!isAllowed) {
+          console.log(`[Bryntum] Blocked drag-create at ${date.toISOString()} - outside working hours for ${doctor.display_name || doctor.nombre}`);
+        }
+        return isAllowed;
+      },
+
       // CRITICAL: Intercept drag-created events to open custom modal
       dragCreateEnd: ({ eventRecord, resourceRecord }: { eventRecord: { startDate: Date; endDate: Date; eventStore: { remove: (record: unknown) => void } }; resourceRecord: { id: string } }) => {
         if (onScheduleClick) {
           const startDate = eventRecord.startDate;
           const endDate = eventRecord.endDate;
           const doctorId = resourceRecord.id;
-          
+
           // Remove the temporary event immediately
           eventRecord.eventStore.remove(eventRecord);
-          
+
           // Open modal with the drawn time range (start and end)
           onScheduleClick(startDate, doctorId, endDate);
+        }
+      },
+
+      // VALIDATION: Block event drop in non-working hours
+      // context.valid = false aborts the drop immediately
+      beforeEventDropFinalize: ({ context }: {
+        context: {
+          valid: boolean;
+          eventRecords: { startDate: Date; id: string }[];
+          newResource?: { id: string };
+        }
+      }) => {
+        const targetDoctorId = context.newResource?.id;
+        if (!targetDoctorId) {
+          return; // No resource change, allow
+        }
+        const doctor = doctors.find((d) => d.doctor_id === targetDoctorId);
+        if (!doctor) {
+          context.valid = false;
+          return;
+        }
+        // Check all dragged events
+        for (const eventRecord of context.eventRecords) {
+          // Skip blocked time events (shouldn't be draggable anyway)
+          if (typeof eventRecord.id === 'string' && eventRecord.id.startsWith('blocked-')) {
+            continue;
+          }
+          const isAllowed = isDateInWorkingHours(doctor, eventRecord.startDate);
+          if (!isAllowed) {
+            console.log(`[Bryntum] Blocked event drop at ${eventRecord.startDate.toISOString()} - outside working hours for ${doctor.display_name || doctor.nombre}`);
+            context.valid = false;
+            return;
+          }
         }
       },
 
@@ -323,10 +376,16 @@ export function buildAppointmentSchedulerConfig({
       // Click (open custom modal)
       eventClick: onEventClick
         ? ({ eventRecord }: { eventRecord: { data: Record<string, unknown> } }) => {
-            const data = eventRecord.data as { id: string };
+            const data = eventRecord.data;
+
+            // Skip blocked time events (non-working hours)
+            if (isBlockedTimeEvent(data)) {
+              return;
+            }
+
             // Find original appointment data
             const appointment = appointments.find(
-              (apt) => apt.appointment_id === data.id
+              (apt) => apt.appointment_id === (data as { id: string }).id
             );
 
             if (appointment) {

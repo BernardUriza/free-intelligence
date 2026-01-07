@@ -1,6 +1,21 @@
 /**
  * Bryntum CSS Overrides
  * Card: FI-BRYNTUM-UNIFY-001
+ *
+ * ⚠️ CSS/JS VERSION MISMATCH - KNOWN ISSUE
+ *
+ * Current state:
+ * - JS: Bryntum Scheduler Pro v5.6.6 (public/js/bryntum/schedulerpro.wc.module.js)
+ * - CSS: v6.0.0-alpha-1 (public/css/bryntum/schedulerpro.classic-dark.css)
+ *
+ * Impact:
+ * - ResourceTimeRanges render off-screen due to canvas positioning differences
+ *
+ * Workaround:
+ * - Using regular events with .blocked-time-event class instead of ResourceTimeRanges
+ * - See: components/bryntum/utils/blocked-time-events.ts
+ *
+ * Card: FI-BRYNTUM-CSS-001
  */
 
 /* ResourceTimeRanges - Non-working time styling */
@@ -40,4 +55,62 @@
 /* Ensure ranges are visible in dark theme */
 .b-sch-resourcetimerange {
   opacity: 1 !important;
+}
+
+/* ============================================================================
+ * BLOCKED TIME EVENTS (Workaround for CSS/JS mismatch)
+ * ============================================================================
+ * These are regular events styled to look like non-working time blocks.
+ * Used instead of ResourceTimeRanges which don't render correctly.
+ */
+
+/* Base blocked time event styling - target by ID pattern [data-event-id^="blocked-"] */
+.b-sch-event-wrap[data-event-id^="blocked-"],
+.b-sch-event-wrap[data-event-id^="blocked-"] .b-sch-event {
+  background-color: rgba(71, 85, 105, 0.5) !important; /* slate-600 */
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 8px,
+    rgba(100, 116, 139, 0.4) 8px,
+    rgba(100, 116, 139, 0.4) 16px
+  ) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important; /* Don't capture clicks */
+  z-index: 0 !important; /* Behind real events */
+}
+
+/* Hide content/label in blocked events */
+.b-sch-event-wrap[data-event-id^="blocked-"] .b-sch-event-content {
+  display: none !important;
+}
+
+/* Blocked events should span full row height */
+.b-sch-event-wrap[data-event-id^="blocked-"] {
+  top: 0 !important;
+  margin: 0 !important;
+}
+
+/* Remove hover effects */
+.b-sch-event-wrap[data-event-id^="blocked-"]:hover,
+.b-sch-event-wrap[data-event-id^="blocked-"]:hover .b-sch-event {
+  background-color: rgba(71, 85, 105, 0.5) !important;
+  transform: none !important;
+}
+
+/* Fallback: also support cls if Bryntum applies it */
+.b-sch-event.blocked-time-event,
+.b-sch-event-wrap.blocked-time-event .b-sch-event {
+  background-color: rgba(71, 85, 105, 0.5) !important;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 8px,
+    rgba(100, 116, 139, 0.4) 8px,
+    rgba(100, 116, 139, 0.4) 16px
+  ) !important;
+  pointer-events: none !important;
 }

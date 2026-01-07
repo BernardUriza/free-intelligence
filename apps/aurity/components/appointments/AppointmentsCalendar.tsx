@@ -16,8 +16,8 @@
 
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { SchedulerCore, buildAppointmentSchedulerConfig, useVirtualizedTimeRanges } from '@/components/bryntum';
+import { useCallback, useMemo, useEffect } from 'react';
+import { SchedulerCore, buildAppointmentSchedulerConfig, initBryntumPatchHook, cleanupBryntumPatchHook } from '@/components/bryntum';
 import { APPOINTMENT_VIEW_PRESETS, type AppointmentViewMode } from '@/components/bryntum/config/appointment-presets.config';
 import { type Doctor, type Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
 
@@ -68,16 +68,20 @@ export function AppointmentsCalendar({
   onScheduleClick,
   onSchedulerReady,
 }: AppointmentsCalendarProps) {
-  // Cleanup ref for virtualized time ranges
-  const cleanupRef = useRef<(() => void) | null>(null);
-
-  // Virtualized time ranges for performance
-  const { attachToScheduler } = useVirtualizedTimeRanges({
-    doctors,
-    enabled: true,
-  });
+  // Initialize the Bryntum patch hook with doctor data for working hours validation
+  // This connects our isDateInWorkingHours function to the patched Bryntum JS
+  useEffect(() => {
+    if (doctors.length > 0) {
+      initBryntumPatchHook(doctors);
+    }
+    return () => {
+      cleanupBryntumPatchHook();
+    };
+  }, [doctors]);
 
   // Build configuration from current state (memoized for stability)
+  // NOTE: Blocked time events are now generated as regular events in the config
+  // This is a workaround for CSS/JS version mismatch (Card: FI-BRYNTUM-CSS-001)
   const getConfig = useCallback(() => {
     return buildAppointmentSchedulerConfig({
       viewMode,
@@ -89,7 +93,7 @@ export function AppointmentsCalendar({
       onEventEdit,
       onEventClick,
       onScheduleClick,
-      skipTimeRanges: true, // Use virtualized time ranges instead
+      skipTimeRanges: false, // Generate blocked time events
     });
   }, [
     viewMode,
@@ -110,31 +114,12 @@ export function AppointmentsCalendar({
     return { startDate: start, endDate: end };
   }, [viewMode, currentDate]);
 
-  const handleReady = useCallback((instance: any) => {
-    // Cleanup previous virtualized ranges listener
-    if (cleanupRef.current) {
-      cleanupRef.current();
-    }
-
-    // Attach virtualized time ranges (generates ranges only for visible viewport)
-    cleanupRef.current = attachToScheduler(instance) ?? null;
-
-    // Notify parent
+  const handleReady = useCallback((instance: unknown) => {
     onSchedulerReady?.(instance);
-  }, [attachToScheduler, onSchedulerReady]);
+  }, [onSchedulerReady]);
 
   const handleError = useCallback((error: unknown) => {
     console.error('[AppointmentsCalendar] Scheduler error:', error);
-  }, []);
-
-  // Cleanup virtualized time ranges on unmount (prevents memory leak)
-  useEffect(() => {
-    return () => {
-      if (cleanupRef.current) {
-        cleanupRef.current();
-        cleanupRef.current = null;
-      }
-    };
   }, []);
 
   // ============================================================================

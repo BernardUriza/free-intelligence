@@ -343,3 +343,41 @@ export function resolveWorkingDay(
 export function zonedToDate(zdt: ZonedDateTime): Date {
   return new Date(zdt.epochMilliseconds);
 }
+
+/**
+ * Check if a given date/time falls within a doctor's working hours
+ *
+ * @param doctor - Doctor with working_hours configuration
+ * @param date - Date to check
+ * @returns true if the date is within working hours, false otherwise
+ */
+export function isDateInWorkingHours(doctor: Doctor, date: Date): boolean {
+  const timeZone = getClinicTimeZone();
+
+  // Convert Date to PlainDate for resolveWorkingDay
+  const instant = Temporal.Instant.from(date.toISOString());
+  const zonedDate = instant.toZonedDateTimeISO(timeZone);
+  const plainDate = zonedDate.toPlainDate();
+
+  // Get the working windows for this day
+  const resolution = resolveWorkingDay(doctor, plainDate, timeZone);
+
+  // If it's a full day off, nothing is allowed
+  if (resolution.fullDayOff) {
+    return false;
+  }
+
+  // Check if the date falls within any working window
+  const dateMs = date.getTime();
+
+  for (const window of resolution.windows) {
+    const startMs = window.start.epochMilliseconds;
+    const endMs = window.end.epochMilliseconds;
+
+    if (dateMs >= startMs && dateMs < endMs) {
+      return true;
+    }
+  }
+
+  return false;
+}
