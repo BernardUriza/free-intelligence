@@ -81,19 +81,31 @@ export function PatientSearchField({
             />
           </div>
         ) : (
-          // Show search input
-          <>
-            <input
-              type="text"
-              required
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-              onFocus={onFocus}
-              placeholder="Buscar por nombre o ID..."
-              className="fi-input-cyan pr-10"
-            />
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 fi-icon-sm text-slate-400" />
-          </>
+          // Show search input + create button
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                required
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
+                onFocus={onFocus}
+                placeholder="Buscar por nombre o ID..."
+                className="fi-input-cyan pr-10"
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 fi-icon-sm text-slate-400" />
+            </div>
+            <Button
+              type="button"
+              onClick={onOpenCreateForm}
+              variant="ghost"
+              size="sm"
+              className="fi-text-success hover:bg-emerald-900/20 whitespace-nowrap"
+            >
+              <Plus className="fi-icon-sm mr-1" />
+              Nuevo
+            </Button>
+          </div>
         )}
       </div>
 
@@ -117,35 +129,15 @@ export function PatientSearchField({
                 <div className="fi-subtitle">ID: {patient.id}</div>
               </button>
             ))}
-
-          {/* Create new patient button */}
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onOpenCreateForm();
-            }}
-            className="w-full px-4 py-3 text-left hover:bg-emerald-900/20 transition-colors fi-border-top flex items-center gap-2 fi-text-success"
-          >
-            <Plus className="fi-icon-sm" />
-            <span>Crear nuevo paciente</span>
-          </button>
         </div>
       )}
 
       {/* No results */}
       {showDropdown && !loading && results.length === 0 && search.length >= 2 && (
         <div className="fi-dropdown">
-          <div className="fi-dropdown-message">No se encontraron pacientes</div>
-          <button
-            type="button"
-            onClick={onOpenCreateForm}
-            className="w-full px-4 py-3 text-left hover:bg-emerald-900/20 transition-colors fi-border-top flex items-center gap-2 fi-text-success"
-          >
-            <Plus className="fi-icon-sm" />
-            <span>Crear nuevo paciente</span>
-          </button>
+          <div className="fi-dropdown-message">
+            No se encontraron pacientes. Usa el botón &quot;Nuevo&quot; para crear uno.
+          </div>
         </div>
       )}
 
@@ -180,10 +172,21 @@ export function PatientSearchField({
             className="fi-input-sm"
           />
 
+          <div>
+            <label className="text-xs text-slate-400 mb-1 block">Fecha de Nacimiento *</label>
+            <input
+              type="date"
+              value={newPatient.fecha_nacimiento}
+              onChange={(e) => onNewPatientChange({ ...newPatient, fecha_nacimiento: e.target.value })}
+              max={new Date().toISOString().split('T')[0]}
+              className="fi-input-sm"
+            />
+          </div>
+
           <Button
             type="button"
             onClick={onCreatePatient}
-            disabled={creating || !newPatient.nombre || !newPatient.apellido}
+            disabled={creating || !newPatient.nombre || !newPatient.apellido || !newPatient.fecha_nacimiento}
             variant="primary"
             fullWidth
             loading={creating}

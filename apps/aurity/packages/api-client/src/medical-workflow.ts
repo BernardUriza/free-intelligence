@@ -237,9 +237,10 @@ export const medicalWorkflowApi = {
     sessionId: string,
     lastChunkIdx?: number
   ): Promise<CheckpointResponse> => {
+    // Backend requires last_chunk_idx in body - default to 0 if not specified
     return api.post<CheckpointResponse>(
       `/api/workflows/aurity/sessions/${sessionId}/checkpoint`,
-      lastChunkIdx !== undefined ? { last_chunk_idx: lastChunkIdx } : undefined
+      { last_chunk_idx: lastChunkIdx ?? 0 }
     );
   },
 

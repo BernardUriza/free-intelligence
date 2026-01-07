@@ -50,6 +50,15 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
   const recognitionRef = useRef<any>(null);
   const isStoppingRef = useRef(false);
 
+  // Fix: Use refs to persist state across effect re-runs and avoid dependency array issues
+  const consecutiveErrorsRef = useRef(0);
+  const onTranscriptRef = useRef(onTranscript);
+
+  // Keep onTranscript ref updated without triggering effect re-run
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  }, [onTranscript]);
+
   // Check browser support
   const isSupported =
     typeof window !== 'undefined' &&
@@ -85,8 +94,9 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
         if (result.isFinal) {
           final += transcript + ' ';
           console.log('[WebSpeech] Final:', transcript);
-          if (onTranscript) {
-            onTranscript(transcript, true);
+          // Use ref to avoid stale closure and dependency array issues
+          if (onTranscriptRef.current) {
+            onTranscriptRef.current(transcript, true);
           }
         } else {
           interim += transcript;
@@ -100,8 +110,7 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
       }
     };
 
-    // Track consecutive errors for smart retry
-    let consecutiveErrors = 0;
+    // Use ref to persist error count across effect re-runs (fixes infinite loop bug)
     const MAX_CONSECUTIVE_ERRORS = 3;
 
     recognition.onerror = (event: any) => {
@@ -110,16 +119,16 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
         return; // Normal silence, don't log
       }
 
-      consecutiveErrors++;
+      consecutiveErrorsRef.current++;
 
       // Only log first few errors to avoid spam
-      if (consecutiveErrors <= MAX_CONSECUTIVE_ERRORS) {
+      if (consecutiveErrorsRef.current <= MAX_CONSECUTIVE_ERRORS) {
         console.warn(
-          `[WebSpeech] Error ${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}:`,
+          `[WebSpeech] Error ${consecutiveErrorsRef.current}/${MAX_CONSECUTIVE_ERRORS}:`,
           event.error,
           '(using backend transcription)'
         );
-      } else if (consecutiveErrors === MAX_CONSECUTIVE_ERRORS + 1) {
+      } else if (consecutiveErrorsRef.current === MAX_CONSECUTIVE_ERRORS + 1) {
         console.warn(
           '[WebSpeech] Too many errors - suppressing further logs. Backend transcription active.'
         );
@@ -134,7 +143,7 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
       // Auto-restart if not manually stopped (continuous mode)
       if (continuous && !isStoppingRef.current) {
         // Stop auto-restart after too many errors
-        if (consecutiveErrors > MAX_CONSECUTIVE_ERRORS) {
+        if (consecutiveErrorsRef.current > MAX_CONSECUTIVE_ERRORS) {
           console.warn(
             '[WebSpeech] Auto-restart disabled after multiple failures. Backend transcription active.'
           );
@@ -142,14 +151,14 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
         }
 
         // Only log restart on first few attempts
-        if (consecutiveErrors <= MAX_CONSECUTIVE_ERRORS) {
+        if (consecutiveErrorsRef.current <= MAX_CONSECUTIVE_ERRORS) {
           console.log('[WebSpeech] Auto-restarting...');
         }
 
         try {
           recognition.start();
         } catch (err) {
-          if (consecutiveErrors <= MAX_CONSECUTIVE_ERRORS) {
+          if (consecutiveErrorsRef.current <= MAX_CONSECUTIVE_ERRORS) {
             console.error('[WebSpeech] Restart failed:', err);
           }
         }
@@ -167,7 +176,8 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
         }
       }
     };
-  }, [isSupported, language, continuous, interimResults, onTranscript]);
+    // Note: onTranscript intentionally excluded - we use onTranscriptRef to avoid effect thrashing
+  }, [isSupported, language, continuous, interimResults]);
 
   const startWebSpeech = useCallback(() => {
     if (!isSupported) {
@@ -182,6 +192,7 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
 
     try {
       isStoppingRef.current = false;
+      consecutiveErrorsRef.current = 0; // Reset error counter on manual start
       recognitionRef.current.start();
       console.log('[WebSpeech] Start requested');
     } catch (err) {

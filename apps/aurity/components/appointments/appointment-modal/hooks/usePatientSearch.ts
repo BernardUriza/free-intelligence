@@ -22,6 +22,7 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
   const [newPatient, setNewPatient] = useState<NewPatientForm>({
     nombre: '',
     apellido: '',
+    fecha_nacimiento: '',
     email: '',
     phone: '',
   });
@@ -72,25 +73,24 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
   }, [onPatientSelect]);
 
   const handleCreatePatient = useCallback(async () => {
-    if (!newPatient.nombre || !newPatient.apellido) {
-      alert('Nombre y apellido son requeridos');
+    if (!newPatient.nombre || !newPatient.apellido || !newPatient.fecha_nacimiento) {
+      alert('Nombre, apellido y fecha de nacimiento son requeridos');
       return;
     }
 
     setCreating(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
       const created = await createPatient({
         nombre: newPatient.nombre,
         apellido: newPatient.apellido,
-        fecha_nacimiento: today,
+        fecha_nacimiento: newPatient.fecha_nacimiento,
       });
 
       onPatientSelect(created.id, created.name);
       setSearch(created.name);
       setShowCreateForm(false);
       setShowDropdown(false);
-      setNewPatient({ nombre: '', apellido: '', email: '', phone: '' });
+      setNewPatient({ nombre: '', apellido: '', fecha_nacimiento: '', email: '', phone: '' });
     } catch (err) {
       console.error('Failed to create patient:', err);
       alert('Error al crear paciente');
@@ -106,7 +106,7 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
 
   const closeCreateForm = useCallback(() => {
     setShowCreateForm(false);
-    setNewPatient({ nombre: '', apellido: '', email: '', phone: '' });
+    setNewPatient({ nombre: '', apellido: '', fecha_nacimiento: '', email: '', phone: '' });
   }, []);
 
   const clearSearch = useCallback(() => {

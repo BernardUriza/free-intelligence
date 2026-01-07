@@ -14,30 +14,33 @@ interface AppointmentFormFieldsProps {
   form: AppointmentDraft;
   doctors: Doctor[];
   onFieldChange: <K extends keyof AppointmentDraft>(field: K, value: AppointmentDraft[K]) => void;
+  hideDoctorField?: boolean;
 }
 
-export function AppointmentFormFields({ form, doctors, onFieldChange }: AppointmentFormFieldsProps) {
+export function AppointmentFormFields({ form, doctors, onFieldChange, hideDoctorField = false }: AppointmentFormFieldsProps) {
   return (
     <>
-      {/* Doctor Selection */}
-      <div>
-        <label className="flex items-center gap-2 fi-label">
-          <Stethoscope className="fi-icon-sm" />
-          Doctor
-        </label>
-        <Select value={form.doctor_id} onValueChange={(val) => onFieldChange('doctor_id', val)}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Seleccionar doctor" />
-          </SelectTrigger>
-          <SelectContent>
-            {doctors.map((doctor) => (
-              <SelectItem key={doctor.doctor_id} value={doctor.doctor_id}>
-                {doctor.display_name} - {doctor.especialidad}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Doctor Selection - hidden when doctor is implicit (e.g., MedicalAI) */}
+      {!hideDoctorField && (
+        <div>
+          <label className="flex items-center gap-2 fi-label">
+            <Stethoscope className="fi-icon-sm" />
+            Doctor
+          </label>
+          <Select value={form.doctor_id} onValueChange={(val) => onFieldChange('doctor_id', val)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Seleccionar doctor" />
+            </SelectTrigger>
+            <SelectContent>
+              {doctors.map((doctor) => (
+                <SelectItem key={doctor.doctor_id} value={doctor.doctor_id}>
+                  {doctor.display_name} - {doctor.especialidad}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* Date and Time */}
       <div className="fi-grid-2">

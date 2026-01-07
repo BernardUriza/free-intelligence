@@ -40,6 +40,18 @@ interface DoctorAppointmentsCalendarProps {
   availability?: DoctorAvailability | null;
 }
 
+// Non-business hours striped pattern (used in CSS and legend)
+const NON_BUSINESS_PATTERN = {
+  gradient: `repeating-linear-gradient(
+    -45deg,
+    rgba(100, 116, 139, 0.08),
+    rgba(100, 116, 139, 0.08) 4px,
+    rgba(100, 116, 139, 0.15) 4px,
+    rgba(100, 116, 139, 0.15) 8px
+  )`,
+  border: 'rgba(100, 116, 139, 0.3)',
+};
+
 // Appointment status colors
 const STATUS_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   scheduled: {
@@ -191,9 +203,17 @@ export function DoctorAppointmentsCalendar({
     [onSelectAppointment]
   );
 
-  // Date click handler (empty slot)
+  // Date click handler (empty slot) - blocks past times
   const handleDateClick = useCallback(
     (info: DateClickArg) => {
+      const now = new Date();
+      const currentHourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0);
+
+      // Don't allow creating appointments in the past
+      if (info.date < currentHourStart) {
+        return;
+      }
+
       onCreateAppointment(info.date);
     },
     [onCreateAppointment]
@@ -419,8 +439,8 @@ export function DoctorAppointmentsCalendar({
           <div
             className="w-3 h-3 rounded"
             style={{
-              background: 'repeating-linear-gradient(-45deg, rgba(100, 116, 139, 0.2), rgba(100, 116, 139, 0.2) 2px, rgba(100, 116, 139, 0.4) 2px, rgba(100, 116, 139, 0.4) 4px)',
-              border: '1px solid rgba(100, 116, 139, 0.4)',
+              background: NON_BUSINESS_PATTERN.gradient,
+              border: `1px solid ${NON_BUSINESS_PATTERN.border}`,
             }}
           />
           <span>No disponible</span>

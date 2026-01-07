@@ -366,7 +366,7 @@ function AvailabilityDot({ online }: { online: boolean }) {
 export function DoctorAvailabilityList({ doctors }: { doctors: DoctorInfo[] }) {
   return (
     <div
-      className="flex-1 xl:flex-none min-w-[240px] bg-slate-800/50 border border-slate-700 rounded-xl px-3 py-2"
+      className="flex-1 xl:flex-none min-w-60 bg-slate-800/50 border border-slate-700 rounded-xl px-3 py-2"
       role="region"
       aria-label="Doctores disponibles"
     >
