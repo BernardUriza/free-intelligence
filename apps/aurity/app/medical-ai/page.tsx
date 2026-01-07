@@ -12,7 +12,7 @@
  * - Click empty slot → create appointment → start workflow
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { AppTemplate } from '@/components/layout/AppTemplate';
@@ -314,6 +314,7 @@ export default function MedicalAIWorkflow() {
               onSelectAppointment={handleSelectAppointment}
               onCreateAppointment={handleCreateAppointment}
               loading={loadingAppointments || loadingDoctors}
+              availability={effectiveDoctor?.working_hours}
             />
           </div>
 

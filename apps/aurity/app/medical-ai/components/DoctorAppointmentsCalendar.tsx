@@ -14,6 +14,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { EventClickArg, DateClickArg } from '@fullcalendar/interaction';
 import type { Appointment } from '@/types/checkin';
+import type { DoctorAvailability } from '@/components/admin/clinics/availability-designer/types';
 import { ChevronLeft, ChevronRight, Calendar, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,6 +36,8 @@ interface DoctorAppointmentsCalendarProps {
   onSelectAppointment: (appointment: Appointment) => void;
   onCreateAppointment: (date: Date) => void;
   loading?: boolean;
+  /** Doctor's availability - used to show unavailable blocks */
+  availability?: DoctorAvailability | null;
 }
 
 // Appointment status colors
@@ -87,11 +90,51 @@ export function DoctorAppointmentsCalendar({
   onSelectAppointment,
   onCreateAppointment,
   loading = false,
+  availability,
 }: DoctorAppointmentsCalendarProps) {
   const calendarRef = useRef<FullCalendar>(null);
 
+  // Transform weeklySchedule to FullCalendar businessHours format
+  const businessHours = useMemo(() => {
+    if (!availability?.weeklySchedule?.length) {
+      // Default: Mon-Fri 9-18 if no availability defined
+      return {
+        daysOfWeek: [1, 2, 3, 4, 5],
+        startTime: '09:00',
+        endTime: '18:00',
+      };
+    }
+
+    // Group slots by day and create businessHours array
+    return availability.weeklySchedule.map((slot) => ({
+      daysOfWeek: [slot.day],
+      startTime: slot.start,
+      endTime: slot.end,
+    }));
+  }, [availability?.weeklySchedule]);
+
+  // Generate closed day events from overrides
+  const closedDayEvents = useMemo(() => {
+    if (!availability?.overrides?.length) return [];
+
+    return availability.overrides
+      .filter((override) => override.fullDayClosed)
+      .map((override) => ({
+        id: `closed-${override.date}`,
+        start: override.date,
+        allDay: true,
+        display: 'background' as const,
+        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+        borderColor: 'transparent',
+        extendedProps: {
+          type: 'closed',
+          reason: override.reason || 'No disponible',
+        },
+      }));
+  }, [availability?.overrides]);
+
   // Transform appointments to FullCalendar events
-  const events = useMemo(() => {
+  const appointmentEvents = useMemo(() => {
     return appointments.map((apt) => {
       const colors = STATUS_COLORS[apt.status] || STATUS_COLORS.scheduled;
       const startDate = new Date(apt.scheduled_at);
@@ -109,6 +152,11 @@ export function DoctorAppointmentsCalendar({
       };
     });
   }, [appointments]);
+
+  // Combine appointment events with closed day events
+  const events = useMemo(() => {
+    return [...appointmentEvents, ...closedDayEvents];
+  }, [appointmentEvents, closedDayEvents]);
 
   // Navigation handlers
   const goToToday = useCallback(() => {
@@ -235,6 +283,7 @@ export function DoctorAppointmentsCalendar({
           editable={false}
           eventClick={handleEventClick}
           dateClick={handleDateClick}
+          businessHours={businessHours}
         />
 
         {/* Theme Styles */}
@@ -329,11 +378,27 @@ export function DoctorAppointmentsCalendar({
           .fc-dark-theme .fc-timegrid-slot-lane:hover {
             background: rgba(99, 102, 241, 0.1);
           }
+
+          /* Non-business hours (unavailable) - striped pattern */
+          .fc-dark-theme .fc-non-business {
+            background: repeating-linear-gradient(
+              -45deg,
+              rgba(100, 116, 139, 0.08),
+              rgba(100, 116, 139, 0.08) 4px,
+              rgba(100, 116, 139, 0.15) 4px,
+              rgba(100, 116, 139, 0.15) 8px
+            ) !important;
+          }
+
+          /* Closed day background events */
+          .fc-dark-theme .fc-bg-event {
+            opacity: 1;
+          }
         `}</style>
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mt-3 px-2 text-xs text-slate-400">
+      <div className="flex items-center gap-4 mt-3 px-2 text-xs text-slate-400 flex-wrap">
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded" style={{ background: STATUS_COLORS.scheduled.bg, border: `1px solid ${STATUS_COLORS.scheduled.border}` }} />
           <span>Programada</span>
@@ -349,6 +414,16 @@ export function DoctorAppointmentsCalendar({
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded" style={{ background: STATUS_COLORS.completed.bg, border: `1px solid ${STATUS_COLORS.completed.border}` }} />
           <span>Completada</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div
+            className="w-3 h-3 rounded"
+            style={{
+              background: 'repeating-linear-gradient(-45deg, rgba(100, 116, 139, 0.2), rgba(100, 116, 139, 0.2) 2px, rgba(100, 116, 139, 0.4) 2px, rgba(100, 116, 139, 0.4) 4px)',
+              border: '1px solid rgba(100, 116, 139, 0.4)',
+            }}
+          />
+          <span>No disponible</span>
         </div>
       </div>
     </div>
