@@ -1,15 +1,15 @@
 "use client";
 
 /**
- * Medical AI Workflow - AURITY (REFACTORED)
+ * Medical AI Workflow - AURITY (REFACTORED v2)
  *
  * Production medical consultation workflow with AI-powered transcription
  * PROTECTED ROUTE: Requires Auth0 authentication + MEDICO or ADMIN role
  *
- * REFACTORED: Modular architecture with custom hooks
- * - usePatientManagement: Patient state
- * - useSessionManagement: Session state
- * - WorkflowSteps: Workflow configuration
+ * REFACTORED v2: Calendar-first UX
+ * - Doctor sees appointments calendar as main view
+ * - Click appointment → start workflow
+ * - Click empty slot → create appointment → start workflow
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -17,19 +17,22 @@ import { Button } from '@/components/ui/button';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { AppTemplate } from '@/components/layout/AppTemplate';
 import { medicalAiHeader } from '@/config/page-headers';
-import { PatientSelector, PatientModal } from '@/components/patients';
+import { PatientModal } from '@/components/patients';
 import { SessionAuditPanel } from '@/components/medical';
 import { AlertCircle, CheckCircle2, ChevronRight, Trash2, Calendar } from 'lucide-react';
 import { useEncounterTimer } from '@/hooks/useEncounterTimer';
 import { WorkflowStep, Encounter } from '@aurity-standalone/types/medical';
 import { DoctorDetailModal, type DoctorSaveData } from '@/components/admin/clinics/DoctorDetailModal';
-import { PreviewTab } from '@/components/admin/clinics/availability-designer/tabs/PreviewTab';
+import type { Appointment } from '@/types/checkin';
 
 // Modular imports
 import { MedicalWorkflowSteps } from './WorkflowSteps';
 import { usePatientManagement } from './usePatientManagement';
 import { useSessionManagement } from './useSessionManagement';
 import { useCurrentDoctor } from './useCurrentDoctor';
+import { useDoctorAppointments } from './hooks/useDoctorAppointments';
+import { DoctorAppointmentsCalendar } from './components/DoctorAppointmentsCalendar';
+import { QuickAppointmentModal, type QuickAppointmentData } from './components/QuickAppointmentModal';
 
 export default function MedicalAIWorkflow() {
   // Patient management (custom hook)
@@ -67,18 +70,32 @@ export default function MedicalAIWorkflow() {
   } = useSessionManagement();
 
   // UI state
-  const [showPatientSelector, setShowPatientSelector] = useState(true);
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('escuchar');
   const [isRecording, setIsRecording] = useState(false);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [encounterData] = useState<Partial<Encounter> | null>(null);
 
-  // Audit panel state (NEW)
+  // Audit panel state
   const [auditSessionId, setAuditSessionId] = useState<string | null>(null);
 
   // Doctor availability modal
   const { doctor, membership, updateDoctorProfile } = useCurrentDoctor();
   const [showDoctorModal, setShowDoctorModal] = useState(false);
+
+  // Appointments calendar state (NEW - Calendar-first UX)
+  const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null);
+  const [showQuickModal, setShowQuickModal] = useState(false);
+  const [selectedSlotTime, setSelectedSlotTime] = useState<Date | null>(null);
+
+  // Doctor appointments hook
+  const {
+    appointments,
+    loading: loadingAppointments,
+    currentDate,
+    setCurrentDate,
+    createAppointment,
+    startAppointment,
+  } = useDoctorAppointments(doctor?.doctor_id, membership?.clinic_id);
 
   // Handle doctor availability save
   const handleSaveDoctorAvailability = useCallback(async (data: DoctorSaveData) => {
@@ -144,26 +161,69 @@ export default function MedicalAIWorkflow() {
     }
   };
 
-  // Handle patient selection and session start
-  const handlePatientSelected = (patient: any) => {
+  // Handle appointment selection from calendar
+  const handleSelectAppointment = useCallback(async (appointment: Appointment) => {
+    // Find patient from appointment
+    const patient = patients.find(p => p.patient_id === appointment.patient_id);
+    if (!patient) {
+      console.error('[MedicalAI] Patient not found for appointment:', appointment.patient_id);
+      return;
+    }
+
+    // Mark appointment as in_progress
+    try {
+      await startAppointment(appointment.appointment_id);
+    } catch (error) {
+      console.error('[MedicalAI] Failed to start appointment:', error);
+    }
+
+    // Start workflow with this patient
     handleStartNewConsultation(patient);
+    setActiveAppointment(appointment);
     setIsExistingSession(false);
     setSessionDuration('');
-    setShowPatientSelector(false);
     setCurrentStep('escuchar');
     setCompletedSteps(new Set());
-  };
+  }, [patients, startAppointment, handleStartNewConsultation, setIsExistingSession, setSessionDuration]);
 
-  // Handle existing session selection
-  const handleExistingSessionSelected = (sessionId: string) => {
-    handleSelectSession(sessionId);
-    setShowPatientSelector(false);
+  // Handle creating appointment from calendar slot click
+  const handleCreateAppointment = useCallback((date: Date) => {
+    setSelectedSlotTime(date);
+    setShowQuickModal(true);
+  }, []);
+
+  // Handle quick appointment modal submit
+  const handleQuickAppointmentSubmit = useCallback(async (data: QuickAppointmentData) => {
+    // Create appointment
+    const appointment = await createAppointment({
+      patient_id: data.patient_id,
+      scheduled_at: data.scheduled_at,
+      appointment_type: data.appointment_type,
+      estimated_duration: data.estimated_duration,
+      reason: data.reason,
+    });
+
+    // Start workflow with patient
+    handleStartNewConsultation(data.patient);
+    setActiveAppointment(appointment);
+    setIsExistingSession(false);
+    setSessionDuration('');
     setCurrentStep('escuchar');
-  };
+    setCompletedSteps(new Set());
+    setShowQuickModal(false);
+  }, [createAppointment, handleStartNewConsultation, setIsExistingSession, setSessionDuration]);
 
-  // Patient Selector View
-  if (showPatientSelector) {
-    const headerConfig = medicalAiHeader({ subtitle: 'Selecciona un paciente para iniciar' });
+  // Handle returning to calendar view
+  const handleBackToCalendar = useCallback(() => {
+    setSelectedPatient(null);
+    setActiveAppointment(null);
+    setCurrentStep('escuchar');
+    setCompletedSteps(new Set());
+  }, [setSelectedPatient]);
+
+  // Calendar View (main view - no active appointment)
+  if (!activeAppointment) {
+    const headerConfig = medicalAiHeader({ subtitle: 'Mis citas de hoy' });
 
     return (
       <AppTemplate
@@ -196,30 +256,27 @@ export default function MedicalAIWorkflow() {
             </div>
           )}
 
-          {/* Patient & Session Selector */}
-          <PatientSelector
-            patients={patients}
-            sessions={sessions}
-            sessionStatuses={sessionStatuses}
-            sessionCounts={sessionCounts}
-            onSelectPatient={handlePatientSelected}
-            onEditPatient={handleEditPatient}
-            onSelectSession={handleExistingSessionSelected}
-            onDeleteSession={(sessionId) => setDeleteConfirmSession(sessionId)}
-            onCopySessionId={handleCopySessionId}
-            onAuditSession={(sessionId) => setAuditSessionId(sessionId)} // NEW
-            copiedSessionId={copiedSessionId}
-            loadingSessions={loadingSessions}
-            extractMedicalInfo={extractMedicalInfo}
-            onAddPatient={() => setShowPatientModal(true)}
-          />
+          {/* Doctor Appointments Calendar */}
+          <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl p-6 shadow-xl h-[600px]">
+            <DoctorAppointmentsCalendar
+              appointments={appointments}
+              currentDate={currentDate}
+              onDateChange={setCurrentDate}
+              onSelectAppointment={handleSelectAppointment}
+              onCreateAppointment={handleCreateAppointment}
+              loading={loadingAppointments}
+            />
+          </div>
 
-          {/* Doctor Availability Calendar */}
-          {doctor?.working_hours && (
-            <div className="mt-8">
-              <PreviewTab availability={doctor.working_hours} />
-            </div>
-          )}
+          {/* Quick Appointment Modal */}
+          <QuickAppointmentModal
+            isOpen={showQuickModal}
+            onClose={() => setShowQuickModal(false)}
+            onSubmit={handleQuickAppointmentSubmit}
+            patients={patients}
+            initialDate={selectedSlotTime || undefined}
+            loading={loadingAppointments}
+          />
 
           {/* Patient Creation/Edit Modal */}
           <PatientModal
@@ -350,13 +407,10 @@ export default function MedicalAIWorkflow() {
           ],
           actions: (
             <button
-              onClick={() => {
-                setSelectedPatient(null);
-                setShowPatientSelector(true);
-              }}
+              onClick={handleBackToCalendar}
               className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-sm rounded-lg transition-all border border-slate-700 hover:border-slate-600"
             >
-              Cambiar Paciente
+              Volver al Calendario
             </button>
           ),
         }}
