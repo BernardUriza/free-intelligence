@@ -31,8 +31,12 @@ import { usePatientManagement } from './usePatientManagement';
 import { useSessionManagement } from './useSessionManagement';
 import { useCurrentDoctor } from './useCurrentDoctor';
 import { useDoctorAppointments } from './hooks/useDoctorAppointments';
+import { useClinicDoctors } from './hooks/useClinicDoctors';
 import { DoctorAppointmentsCalendar } from './components/DoctorAppointmentsCalendar';
 import { QuickAppointmentModal, type QuickAppointmentData } from './components/QuickAppointmentModal';
+import { DoctorSelector } from './components/DoctorSelector';
+import { useRBAC, ROLES } from '@/hooks/useRBAC';
+import type { Doctor } from '@/lib/api/clinics';
 
 export default function MedicalAIWorkflow() {
   // Patient management (custom hook)
@@ -82,12 +86,44 @@ export default function MedicalAIWorkflow() {
   const { doctor, membership, updateDoctorProfile } = useCurrentDoctor();
   const [showDoctorModal, setShowDoctorModal] = useState(false);
 
+  // RBAC for admin features
+  const { isSuperAdmin, hasRole } = useRBAC();
+  const isClinicAdmin = isSuperAdmin || hasRole(ROLES.ADMIN);
+
+  // Clinic doctors (for admin selector)
+  const { doctors: clinicDoctors, loading: loadingDoctors } = useClinicDoctors(
+    isClinicAdmin ? membership?.clinic_id : undefined
+  );
+
+  // Selected doctor for calendar (admin can switch, doctor sees their own)
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
+
+  // Effective doctor for calendar view
+  const effectiveDoctor = useMemo(() => {
+    if (isClinicAdmin && selectedDoctorId) {
+      return clinicDoctors.find(d => d.doctor_id === selectedDoctorId) || null;
+    }
+    return doctor;
+  }, [isClinicAdmin, selectedDoctorId, clinicDoctors, doctor]);
+
+  // Initialize selected doctor to current doctor
+  useEffect(() => {
+    if (doctor && !selectedDoctorId) {
+      setSelectedDoctorId(doctor.doctor_id);
+    }
+  }, [doctor, selectedDoctorId]);
+
+  // Handle doctor selection (admin only)
+  const handleSelectDoctor = useCallback((selected: Doctor) => {
+    setSelectedDoctorId(selected.doctor_id);
+  }, []);
+
   // Appointments calendar state (NEW - Calendar-first UX)
   const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null);
   const [showQuickModal, setShowQuickModal] = useState(false);
   const [selectedSlotTime, setSelectedSlotTime] = useState<Date | null>(null);
 
-  // Doctor appointments hook
+  // Doctor appointments hook (uses effectiveDoctor for admin switching)
   const {
     appointments,
     loading: loadingAppointments,
@@ -95,7 +131,7 @@ export default function MedicalAIWorkflow() {
     setCurrentDate,
     createAppointment,
     startAppointment,
-  } = useDoctorAppointments(doctor?.doctor_id, membership?.clinic_id);
+  } = useDoctorAppointments(effectiveDoctor?.doctor_id, membership?.clinic_id);
 
   // Handle doctor availability save
   const handleSaveDoctorAvailability = useCallback(async (data: DoctorSaveData) => {
@@ -256,6 +292,19 @@ export default function MedicalAIWorkflow() {
             </div>
           )}
 
+          {/* Doctor Selector (Admin only) */}
+          {isClinicAdmin && clinicDoctors.length > 0 && (
+            <div className="mb-4 flex items-center gap-3">
+              <span className="text-sm text-slate-400">Viendo calendario de:</span>
+              <DoctorSelector
+                doctors={clinicDoctors}
+                selectedDoctor={effectiveDoctor}
+                onSelectDoctor={handleSelectDoctor}
+                loading={loadingDoctors}
+              />
+            </div>
+          )}
+
           {/* Doctor Appointments Calendar */}
           <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl p-6 shadow-xl h-[600px]">
             <DoctorAppointmentsCalendar
@@ -264,7 +313,7 @@ export default function MedicalAIWorkflow() {
               onDateChange={setCurrentDate}
               onSelectAppointment={handleSelectAppointment}
               onCreateAppointment={handleCreateAppointment}
-              loading={loadingAppointments}
+              loading={loadingAppointments || loadingDoctors}
             />
           </div>
 
