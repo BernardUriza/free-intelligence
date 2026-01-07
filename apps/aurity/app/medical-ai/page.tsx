@@ -23,6 +23,7 @@ import { AlertCircle, CheckCircle2, ChevronRight, Trash2, Calendar } from 'lucid
 import { useEncounterTimer } from '@/hooks/useEncounterTimer';
 import { WorkflowStep, Encounter } from '@aurity-standalone/types/medical';
 import { DoctorDetailModal, type DoctorSaveData } from '@/components/admin/clinics/DoctorDetailModal';
+import { PreviewTab } from '@/components/admin/clinics/availability-designer/tabs/PreviewTab';
 
 // Modular imports
 import { MedicalWorkflowSteps } from './WorkflowSteps';
@@ -212,6 +213,13 @@ export default function MedicalAIWorkflow() {
             extractMedicalInfo={extractMedicalInfo}
             onAddPatient={() => setShowPatientModal(true)}
           />
+
+          {/* Doctor Availability Calendar */}
+          {doctor?.working_hours && (
+            <div className="mt-8">
+              <PreviewTab availability={doctor.working_hours} />
+            </div>
+          )}
 
           {/* Patient Creation/Edit Modal */}
           <PatientModal
