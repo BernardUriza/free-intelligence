@@ -4,6 +4,7 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -15,12 +16,58 @@ use tauri::{
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tokio::time::sleep;
 
+// ============================================================================
+// Configuration Persistence
+// ============================================================================
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+struct AppConfig {
+    azure_sas_url: Option<String>,
+    last_tunnel_url: Option<String>,
+    last_upload_success: Option<String>,
+}
+
+fn get_config_path() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("fi-monitor")
+        .join("config.json")
+}
+
+fn load_config() -> AppConfig {
+    let path = get_config_path();
+    if path.exists() {
+        std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
+    } else {
+        AppConfig::default()
+    }
+}
+
+fn save_config(config: &AppConfig) -> Result<(), String> {
+    let path = get_config_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())?;
+    println!("[FI Monitor] Config saved to {:?}", path);
+    Ok(())
+}
+
+// ============================================================================
+// App State
+// ============================================================================
+
 #[derive(Default)]
 struct AppState {
     ollama_running: Mutex<bool>,
     tunnel_running: Mutex<bool>,
     tunnel_url: Mutex<Option<String>>,
     tunnel_process: Mutex<Option<u32>>,
+    config: Mutex<AppConfig>,
 }
 
 #[derive(Serialize, Clone)]
@@ -139,6 +186,7 @@ async fn start_tunnel(app: tauri::AppHandle, state: tauri::State<'_, Arc<AppStat
     let stderr = child.stderr.take().expect("Failed to capture stderr");
     let state_clone = Arc::clone(&*state);
     let app_clone = app.clone();
+    let config = state.config.lock().unwrap().clone();
     
     std::thread::spawn(move || {
         let reader = BufReader::new(stderr);
@@ -152,17 +200,29 @@ async fn start_tunnel(app: tauri::AppHandle, state: tauri::State<'_, Arc<AppStat
                 println!("[FI Monitor] ✅ Tunnel URL: {}", url);
                 *state_clone.tunnel_url.lock().unwrap() = Some(url.clone());
                 
+                // Update config with last tunnel URL
+                {
+                    let mut cfg = state_clone.config.lock().unwrap();
+                    cfg.last_tunnel_url = Some(url.clone());
+                    let _ = save_config(&cfg);
+                }
+                
                 // Emit event with URL
                 let _ = app_clone.emit("tunnel-url-found", url.clone());
                 let _ = app_clone.emit("tunnel-started", ());
                 
-                // Upload to Azure in background
+                // Upload to Azure in background with retries
                 let url_for_azure = url.clone();
+                let config_for_upload = config.clone();
                 std::thread::spawn(move || {
-                    if let Err(e) = upload_tunnel_url_to_azure(&url_for_azure) {
+                    if let Err(e) = upload_tunnel_url_to_azure(&url_for_azure, &config_for_upload) {
                         println!("[FI Monitor] ⚠️ Azure upload failed: {}", e);
                     }
                 });
+                
+                // Start periodic re-upload (every 5 minutes)
+                start_periodic_upload(url, config.clone());
+                
                 break;
             }
         }
@@ -187,44 +247,115 @@ async fn stop_tunnel(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, Str
     Ok(true)
 }
 
-/// Upload tunnel URL to Azure Blob Storage for cloud backend discovery
-fn upload_tunnel_url_to_azure(url: &str) -> Result<(), String> {
-    // Azure Blob Storage SAS URL - configured via environment or config
-    let azure_sas_url = std::env::var("FI_AZURE_TUNNEL_BLOB_SAS")
-        .unwrap_or_else(|_| {
-            // Fallback: Check for config file
-            let config_path = dirs::config_dir()
-                .map(|p| p.join("fi-monitor").join("azure.txt"))
-                .unwrap_or_default();
-            std::fs::read_to_string(config_path).unwrap_or_default().trim().to_string()
-        });
+/// Upload tunnel URL to Azure Blob Storage with retry logic
+fn upload_tunnel_url_to_azure(url: &str, config: &AppConfig) -> Result<(), String> {
+    // Get SAS URL from config (persisted) or environment
+    let azure_sas_url = config.azure_sas_url.clone()
+        .or_else(|| std::env::var("FI_AZURE_TUNNEL_BLOB_SAS").ok())
+        .unwrap_or_default();
     
     if azure_sas_url.is_empty() {
         println!("[FI Monitor] No Azure SAS URL configured, skipping upload");
+        // Still save locally as backup
+        save_tunnel_url_locally(url)?;
         return Ok(());
     }
     
     let hostname = gethostname::gethostname().to_string_lossy().to_string();
     let timestamp = chrono::Utc::now().to_rfc3339();
-    let content = format!("{{\n  \"tunnel_url\": \"{}\",\n  \"hostname\": \"{}\",\n  \"updated_at\": \"{}\"\n}}", url, hostname, timestamp);
+    let content = serde_json::json!({
+        "tunnel_url": url,
+        "hostname": hostname,
+        "updated_at": timestamp,
+        "version": "1.0"
+    }).to_string();
     
-    println!("[FI Monitor] Uploading tunnel URL to Azure...");
+    // Retry with exponential backoff
+    let max_retries = 3;
+    let mut last_error = String::new();
     
-    let client = reqwest::blocking::Client::new();
-    let response = client
-        .put(&azure_sas_url)
-        .header("x-ms-blob-type", "BlockBlob")
-        .header("Content-Type", "application/json")
-        .body(content)
-        .send()
-        .map_err(|e| format!("Azure request failed: {}", e))?;
-    
-    if response.status().is_success() {
-        println!("[FI Monitor] ✅ Tunnel URL uploaded to Azure");
-        Ok(())
-    } else {
-        Err(format!("Azure upload failed with status: {}", response.status()))
+    for attempt in 0..max_retries {
+        if attempt > 0 {
+            let delay = Duration::from_millis(500 * 2u64.pow(attempt as u32));
+            println!("[FI Monitor] Retry {} in {:?}...", attempt + 1, delay);
+            std::thread::sleep(delay);
+        }
+        
+        println!("[FI Monitor] Uploading tunnel URL to Azure (attempt {})...", attempt + 1);
+        
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .map_err(|e| format!("Client error: {}", e))?;
+        
+        match client
+            .put(&azure_sas_url)
+            .header("x-ms-blob-type", "BlockBlob")
+            .header("Content-Type", "application/json")
+            .body(content.clone())
+            .send()
+        {
+            Ok(response) if response.status().is_success() => {
+                println!("[FI Monitor] ✅ Tunnel URL uploaded to Azure");
+                // Also save locally as backup
+                let _ = save_tunnel_url_locally(url);
+                return Ok(());
+            }
+            Ok(response) => {
+                last_error = format!("HTTP {}: {}", response.status(), response.status().canonical_reason().unwrap_or("Unknown"));
+                println!("[FI Monitor] ⚠️ Azure returned: {}", last_error);
+            }
+            Err(e) => {
+                last_error = format!("Request failed: {}", e);
+                println!("[FI Monitor] ⚠️ {}", last_error);
+            }
+        }
     }
+    
+    // All retries failed - save locally as fallback
+    println!("[FI Monitor] ⚠️ Azure upload failed after {} retries, saving locally", max_retries);
+    save_tunnel_url_locally(url)?;
+    Err(last_error)
+}
+
+/// Save tunnel URL locally as backup
+fn save_tunnel_url_locally(url: &str) -> Result<(), String> {
+    let path = dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("fi-monitor")
+        .join("tunnel-url.json");
+    
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    
+    let hostname = gethostname::gethostname().to_string_lossy().to_string();
+    let timestamp = chrono::Utc::now().to_rfc3339();
+    let content = serde_json::json!({
+        "tunnel_url": url,
+        "hostname": hostname,
+        "updated_at": timestamp
+    });
+    
+    let json = serde_json::to_string_pretty(&content).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())?;
+    println!("[FI Monitor] 💾 Tunnel URL saved locally: {:?}", path);
+    Ok(())
+}
+
+/// Periodically re-upload tunnel URL to keep timestamp fresh
+fn start_periodic_upload(url: String, config: AppConfig) {
+    std::thread::spawn(move || {
+        loop {
+            // Wait 5 minutes
+            std::thread::sleep(Duration::from_secs(300));
+            
+            println!("[FI Monitor] 🔄 Periodic re-upload of tunnel URL...");
+            if let Err(e) = upload_tunnel_url_to_azure(&url, &config) {
+                println!("[FI Monitor] ⚠️ Periodic upload failed: {}", e);
+            }
+        }
+    });
 }
 
 fn find_cloudflared() -> Result<String, String> {
@@ -311,8 +442,47 @@ async fn disable_autostart(app: tauri::AppHandle) -> Result<bool, String> {
     Ok(true)
 }
 
+// ============================================================================
+// Config Commands
+// ============================================================================
+
+#[tauri::command]
+async fn set_azure_sas_url(state: tauri::State<'_, Arc<AppState>>, sas_url: String) -> Result<bool, String> {
+    let mut config = state.config.lock().unwrap();
+    config.azure_sas_url = Some(sas_url);
+    save_config(&config)?;
+    println!("[FI Monitor] Azure SAS URL configured and saved");
+    Ok(true)
+}
+
+#[tauri::command]
+async fn get_azure_sas_url(state: tauri::State<'_, Arc<AppState>>) -> Result<Option<String>, String> {
+    let config = state.config.lock().unwrap();
+    Ok(config.azure_sas_url.clone())
+}
+
+#[tauri::command]
+async fn get_last_tunnel_url(state: tauri::State<'_, Arc<AppState>>) -> Result<Option<String>, String> {
+    let config = state.config.lock().unwrap();
+    Ok(config.last_tunnel_url.clone())
+}
+
 fn main() {
-    let state = Arc::new(AppState::default());
+    // Load persisted config
+    let config = load_config();
+    println!("[FI Monitor] Config loaded from {:?}", get_config_path());
+    if config.azure_sas_url.is_some() {
+        println!("[FI Monitor] Azure SAS URL: configured ✓");
+    }
+    if let Some(ref url) = config.last_tunnel_url {
+        println!("[FI Monitor] Last tunnel URL: {}", url);
+    }
+    
+    let state = Arc::new(AppState {
+        config: Mutex::new(config),
+        ..Default::default()
+    });
+    
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
@@ -350,7 +520,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![start_ollama, stop_ollama, start_tunnel, stop_tunnel, get_status, test_ollama, is_autostart_enabled, enable_autostart, disable_autostart])
+        .invoke_handler(tauri::generate_handler![start_ollama, stop_ollama, start_tunnel, stop_tunnel, get_status, test_ollama, is_autostart_enabled, enable_autostart, disable_autostart, set_azure_sas_url, get_azure_sas_url, get_last_tunnel_url])
         .run(tauri::generate_context!())
         .expect("error running FI Monitor");
 }
