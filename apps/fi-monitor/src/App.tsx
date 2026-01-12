@@ -27,6 +27,7 @@ export default function App() {
   const [testResult, setTestResult] = useState<TestResult | null>(null)
   const [autoTest, setAutoTest] = useState(false)
   const [nextTestIn, setNextTestIn] = useState(60)
+  const [copiedUrl, setCopiedUrl] = useState(false)
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -47,10 +48,14 @@ export default function App() {
     const interval = setInterval(fetchStatus, 5000)
     const unlistenServices = listen('services-checked', () => fetchStatus())
     const unlistenTunnel = listen('tunnel-started', () => fetchStatus())
+    const unlistenTunnelUrl = listen<string>('tunnel-url-found', (event) => {
+      setStatus(prev => prev ? { ...prev, tunnel_url: event.payload } : prev)
+    })
     return () => {
       clearInterval(interval)
       unlistenServices.then(fn => fn())
       unlistenTunnel.then(fn => fn())
+      unlistenTunnelUrl.then(fn => fn())
     }
   }, [fetchStatus])
 
@@ -93,6 +98,18 @@ export default function App() {
     }, 1000)
     return () => clearInterval(countdown)
   }, [autoTest, status?.ollama_running, handleTestOllama])
+
+  const handleCopyUrl = async () => {
+    if (status?.tunnel_url) {
+      try {
+        await navigator.clipboard.writeText(status.tunnel_url)
+        setCopiedUrl(true)
+        setTimeout(() => setCopiedUrl(false), 2000)
+      } catch {
+        setCopiedUrl(false)
+      }
+    }
+  }
 
   if (loading) {
     return <div className="app loading"><div className="spinner" /><span>Conectando...</span></div>
@@ -148,7 +165,13 @@ export default function App() {
               {tunnelOn ? '● Conectado' : '○ Desconectado'}
             </div>
             {tunnelOn && status?.tunnel_url && (
-              <div className="tunnel-url" title={status.tunnel_url}>🔗 URL activa</div>
+              <div className="tunnel-url-box" onClick={handleCopyUrl} title="Click para copiar">
+                <span className="url-text">{status.tunnel_url.replace('https://', '').split('.')[0]}</span>
+                <span className="copy-icon">{copiedUrl ? '✓' : '📋'}</span>
+              </div>
+            )}
+            {tunnelOn && !status?.tunnel_url && (
+              <div className="tunnel-url-pending">⏳ Obteniendo URL...</div>
             )}
           </div>
           <button 

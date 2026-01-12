@@ -124,7 +124,35 @@ body {
 .service-status.on { color: var(--success); }
 .service-status.off { color: var(--text-dim); }
 .models { font-size: 10px; color: var(--text-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tunnel-url { font-size: 10px; color: var(--accent); margin-top: 2px; }
+
+/* Tunnel URL Box */
+.tunnel-url-box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 3px 6px;
+  background: rgba(88, 166, 255, 0.1);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tunnel-url-box:hover {
+  background: rgba(88, 166, 255, 0.2);
+  border-color: var(--accent);
+}
+.url-text {
+  font-size: 9px;
+  color: var(--accent);
+  font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+.copy-icon { font-size: 10px; flex-shrink: 0; }
+.tunnel-url-pending { font-size: 10px; color: var(--warning); margin-top: 2px; }
 
 .action-btn {
   width: 32px;

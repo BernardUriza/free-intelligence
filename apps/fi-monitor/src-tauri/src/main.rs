@@ -1,7 +1,9 @@
 // FI Monitor - Ollama Tunnel Manager
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -122,21 +124,51 @@ async fn start_tunnel(app: tauri::AppHandle, state: tauri::State<'_, Arc<AppStat
     }
     println!("[FI Monitor] Starting Cloudflare tunnel...");
     let cloudflared = find_cloudflared()?;
-    let child = Command::new(&cloudflared)
+    let mut child = Command::new(&cloudflared)
         .args(["tunnel", "--url", "http://localhost:11434"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to start cloudflared: {}", e))?;
+    
     let pid = child.id();
     *state.tunnel_process.lock().unwrap() = Some(pid);
     *state.tunnel_running.lock().unwrap() = true;
+    
+    // Capture stderr in separate thread to find tunnel URL
+    let stderr = child.stderr.take().expect("Failed to capture stderr");
+    let state_clone = Arc::clone(&*state);
     let app_clone = app.clone();
-    tauri::async_runtime::spawn(async move {
-        sleep(Duration::from_secs(5)).await;
-        let _ = app_clone.emit("tunnel-started", ());
+    
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        let url_regex = Regex::new(r"https://[a-z0-9-]+\.trycloudflare\.com").unwrap();
+        
+        for line in reader.lines().map_while(Result::ok) {
+            println!("[cloudflared] {}", line);
+            
+            if let Some(url_match) = url_regex.find(&line) {
+                let url = url_match.as_str().to_string();
+                println!("[FI Monitor] ✅ Tunnel URL: {}", url);
+                *state_clone.tunnel_url.lock().unwrap() = Some(url.clone());
+                
+                // Emit event with URL
+                let _ = app_clone.emit("tunnel-url-found", url.clone());
+                let _ = app_clone.emit("tunnel-started", ());
+                
+                // Upload to Azure in background
+                let url_for_azure = url.clone();
+                std::thread::spawn(move || {
+                    if let Err(e) = upload_tunnel_url_to_azure(&url_for_azure) {
+                        println!("[FI Monitor] ⚠️ Azure upload failed: {}", e);
+                    }
+                });
+                break;
+            }
+        }
     });
-    Ok("Tunnel starting...".to_string())
+    
+    Ok("Tunnel starting... URL will appear when ready".to_string())
 }
 
 #[tauri::command]
@@ -153,6 +185,46 @@ async fn stop_tunnel(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, Str
     *state.tunnel_running.lock().unwrap() = false;
     *state.tunnel_url.lock().unwrap() = None;
     Ok(true)
+}
+
+/// Upload tunnel URL to Azure Blob Storage for cloud backend discovery
+fn upload_tunnel_url_to_azure(url: &str) -> Result<(), String> {
+    // Azure Blob Storage SAS URL - configured via environment or config
+    let azure_sas_url = std::env::var("FI_AZURE_TUNNEL_BLOB_SAS")
+        .unwrap_or_else(|_| {
+            // Fallback: Check for config file
+            let config_path = dirs::config_dir()
+                .map(|p| p.join("fi-monitor").join("azure.txt"))
+                .unwrap_or_default();
+            std::fs::read_to_string(config_path).unwrap_or_default().trim().to_string()
+        });
+    
+    if azure_sas_url.is_empty() {
+        println!("[FI Monitor] No Azure SAS URL configured, skipping upload");
+        return Ok(());
+    }
+    
+    let hostname = gethostname::gethostname().to_string_lossy().to_string();
+    let timestamp = chrono::Utc::now().to_rfc3339();
+    let content = format!("{{\n  \"tunnel_url\": \"{}\",\n  \"hostname\": \"{}\",\n  \"updated_at\": \"{}\"\n}}", url, hostname, timestamp);
+    
+    println!("[FI Monitor] Uploading tunnel URL to Azure...");
+    
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .put(&azure_sas_url)
+        .header("x-ms-blob-type", "BlockBlob")
+        .header("Content-Type", "application/json")
+        .body(content)
+        .send()
+        .map_err(|e| format!("Azure request failed: {}", e))?;
+    
+    if response.status().is_success() {
+        println!("[FI Monitor] ✅ Tunnel URL uploaded to Azure");
+        Ok(())
+    } else {
+        Err(format!("Azure upload failed with status: {}", response.status()))
+    }
 }
 
 fn find_cloudflared() -> Result<String, String> {
