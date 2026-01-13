@@ -161,74 +161,7 @@ async fn stop_ollama(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, Str
 
 #[tauri::command]
 async fn start_tunnel(app: tauri::AppHandle, state: tauri::State<'_, Arc<AppState>>) -> Result<String, String> {
-    if !check_ollama().await {
-        return Err("Ollama is not running".to_string());
-    }
-    if *state.tunnel_running.lock().unwrap() {
-        if let Some(url) = state.tunnel_url.lock().unwrap().clone() {
-            return Ok(url);
-        }
-    }
-    println!("[FI Monitor] Starting Cloudflare tunnel...");
-    let cloudflared = find_cloudflared()?;
-    let mut child = Command::new(&cloudflared)
-        .args(["tunnel", "--url", "http://localhost:11434"])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to start cloudflared: {}", e))?;
-    
-    let pid = child.id();
-    *state.tunnel_process.lock().unwrap() = Some(pid);
-    *state.tunnel_running.lock().unwrap() = true;
-    
-    // Capture stderr in separate thread to find tunnel URL
-    let stderr = child.stderr.take().expect("Failed to capture stderr");
-    let state_clone = Arc::clone(&*state);
-    let app_clone = app.clone();
-    let config = state.config.lock().unwrap().clone();
-    
-    std::thread::spawn(move || {
-        let reader = BufReader::new(stderr);
-        let url_regex = Regex::new(r"https://[a-z0-9-]+\.trycloudflare\.com").unwrap();
-        
-        for line in reader.lines().map_while(Result::ok) {
-            println!("[cloudflared] {}", line);
-            
-            if let Some(url_match) = url_regex.find(&line) {
-                let url = url_match.as_str().to_string();
-                println!("[FI Monitor] ✅ Tunnel URL: {}", url);
-                *state_clone.tunnel_url.lock().unwrap() = Some(url.clone());
-                
-                // Update config with last tunnel URL
-                {
-                    let mut cfg = state_clone.config.lock().unwrap();
-                    cfg.last_tunnel_url = Some(url.clone());
-                    let _ = save_config(&cfg);
-                }
-                
-                // Emit event with URL
-                let _ = app_clone.emit("tunnel-url-found", url.clone());
-                let _ = app_clone.emit("tunnel-started", ());
-                
-                // Upload to Azure in background with retries
-                let url_for_azure = url.clone();
-                let config_for_upload = config.clone();
-                std::thread::spawn(move || {
-                    if let Err(e) = upload_tunnel_url_to_azure(&url_for_azure, &config_for_upload) {
-                        println!("[FI Monitor] ⚠️ Azure upload failed: {}", e);
-                    }
-                });
-                
-                // Start periodic re-upload (every 5 minutes)
-                start_periodic_upload(url, config.clone());
-                
-                break;
-            }
-        }
-    });
-    
-    Ok("Tunnel starting... URL will appear when ready".to_string())
+    start_tunnel_internal(app, Arc::clone(&*state)).await
 }
 
 #[tauri::command]
@@ -356,6 +289,157 @@ fn start_periodic_upload(url: String, config: AppConfig) {
             }
         }
     });
+}
+
+/// Check if a process with given PID is still running
+fn is_process_alive(pid: u32) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {}", pid), "/NH"])
+            .output()
+            .map(|output| {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                stdout.contains(&pid.to_string())
+            })
+            .unwrap_or(false)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
+    }
+}
+
+/// Watchdog to monitor tunnel process and auto-restart if it dies
+fn start_tunnel_watchdog(app: tauri::AppHandle, state: Arc<AppState>) {
+    std::thread::spawn(move || {
+        loop {
+            // Check every 30 seconds
+            std::thread::sleep(Duration::from_secs(30));
+
+            let pid_opt = state.tunnel_process.lock().unwrap().clone();
+            let tunnel_running = *state.tunnel_running.lock().unwrap();
+
+            if !tunnel_running {
+                // Tunnel was manually stopped, exit watchdog
+                println!("[FI Monitor Watchdog] Tunnel stopped, exiting watchdog");
+                break;
+            }
+
+            if let Some(pid) = pid_opt {
+                if !is_process_alive(pid) {
+                    println!("[FI Monitor Watchdog] ⚠️ Tunnel process {} died! Restarting...", pid);
+
+                    // Mark as not running
+                    *state.tunnel_running.lock().unwrap() = false;
+                    *state.tunnel_url.lock().unwrap() = None;
+
+                    // Emit event
+                    let _ = app.emit("tunnel-died", ());
+
+                    // Wait a bit before restart
+                    std::thread::sleep(Duration::from_secs(5));
+
+                    // Trigger restart via command (this is async, so spawn it)
+                    let app_clone = app.clone();
+                    let state_clone = state.clone();
+                    tauri::async_runtime::spawn(async move {
+                        // Re-check Ollama before restart
+                        if check_ollama().await {
+                            match start_tunnel_internal(app_clone.clone(), state_clone).await {
+                                Ok(_) => println!("[FI Monitor Watchdog] ✅ Tunnel restarted"),
+                                Err(e) => println!("[FI Monitor Watchdog] ❌ Failed to restart: {}", e),
+                            }
+                        } else {
+                            println!("[FI Monitor Watchdog] ❌ Ollama not running, cannot restart tunnel");
+                        }
+                    });
+
+                    // Exit this watchdog, the restart will spawn a new one
+                    break;
+                }
+            }
+        }
+    });
+}
+
+/// Internal function to start tunnel (used by both command and watchdog)
+async fn start_tunnel_internal(app: tauri::AppHandle, state: Arc<AppState>) -> Result<String, String> {
+    if !check_ollama().await {
+        return Err("Ollama is not running".to_string());
+    }
+    if *state.tunnel_running.lock().unwrap() {
+        if let Some(url) = state.tunnel_url.lock().unwrap().clone() {
+            return Ok(url);
+        }
+    }
+    println!("[FI Monitor] Starting Cloudflare tunnel...");
+    let cloudflared = find_cloudflared()?;
+    let mut child = Command::new(&cloudflared)
+        .args(["tunnel", "--url", "http://localhost:11434"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to start cloudflared: {}", e))?;
+
+    let pid = child.id();
+    *state.tunnel_process.lock().unwrap() = Some(pid);
+    *state.tunnel_running.lock().unwrap() = true;
+
+    // Capture stderr in separate thread to find tunnel URL
+    let stderr = child.stderr.take().expect("Failed to capture stderr");
+    let state_clone = Arc::clone(&state);
+    let app_clone = app.clone();
+    let config = state.config.lock().unwrap().clone();
+
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        let url_regex = Regex::new(r"https://[a-z0-9-]+\.trycloudflare\.com").unwrap();
+
+        for line in reader.lines().map_while(Result::ok) {
+            println!("[cloudflared] {}", line);
+
+            if let Some(url_match) = url_regex.find(&line) {
+                let url = url_match.as_str().to_string();
+                println!("[FI Monitor] ✅ Tunnel URL: {}", url);
+                *state_clone.tunnel_url.lock().unwrap() = Some(url.clone());
+
+                // Update config with last tunnel URL
+                {
+                    let mut cfg = state_clone.config.lock().unwrap();
+                    cfg.last_tunnel_url = Some(url.clone());
+                    let _ = save_config(&cfg);
+                }
+
+                // Emit event with URL
+                let _ = app_clone.emit("tunnel-url-found", url.clone());
+                let _ = app_clone.emit("tunnel-started", ());
+
+                // Upload to Azure in background with retries
+                let url_for_azure = url.clone();
+                let config_for_upload = config.clone();
+                std::thread::spawn(move || {
+                    if let Err(e) = upload_tunnel_url_to_azure(&url_for_azure, &config_for_upload) {
+                        println!("[FI Monitor] ⚠️ Azure upload failed: {}", e);
+                    }
+                });
+
+                // Start periodic re-upload (every 5 minutes)
+                start_periodic_upload(url.clone(), config.clone());
+
+                // Start tunnel watchdog (auto-restart if it dies)
+                start_tunnel_watchdog(app_clone.clone(), state_clone.clone());
+
+                break;
+            }
+        }
+    });
+
+    Ok("Tunnel starting... URL will appear when ready".to_string())
 }
 
 fn find_cloudflared() -> Result<String, String> {
