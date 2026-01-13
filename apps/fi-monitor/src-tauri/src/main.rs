@@ -524,11 +524,24 @@ fn main() {
             }
             
             tauri::async_runtime::spawn(async move {
-                println!("[FI Monitor] Checking services...");
-                if check_ollama().await {
-                    *state_clone.ollama_running.lock().unwrap() = true;
-                    println!("[FI Monitor] Ollama running");
+                println!("[FI Monitor] Checking services (with startup retry)...");
+                // Retry logic for startup - Ollama might still be booting
+                let mut attempts = 0;
+                let max_attempts = 20; // 20 attempts × 1.5s = 30s max
+                while attempts < max_attempts {
+                    if check_ollama().await {
+                        *state_clone.ollama_running.lock().unwrap() = true;
+                        println!("[FI Monitor] ✅ Ollama running (attempt {})", attempts + 1);
+                        let _ = app_handle.emit("services-checked", ());
+                        return;
+                    }
+                    attempts += 1;
+                    if attempts < max_attempts {
+                        println!("[FI Monitor] ⏳ Ollama not ready, retrying ({}/{})...", attempts, max_attempts);
+                        sleep(Duration::from_millis(1500)).await;
+                    }
                 }
+                println!("[FI Monitor] ⚠️ Ollama not found after {} attempts", max_attempts);
                 let _ = app_handle.emit("services-checked", ());
             });
             Ok(())
