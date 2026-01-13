@@ -12,10 +12,10 @@ Usage examples:
     # First-time setup: generate keypair
     fi license init-keys
 
-    # Generate a license for a clinic
+    # Generate a license (clinics are created AFTER activation)
     fi license generate \
-        --clinic-id=clinic_001 \
-        --clinic-name="Hospital Central" \
+        --max-clinics=3 \
+        --holder="Hospital Central" \
         --features=soap,timeline,prescriptions \
         --expires=2026-01-01 \
         --auth0-domain=dev-xxx.us.auth0.com \
@@ -91,11 +91,11 @@ def init_keys(
 
 @app.command("generate")
 def generate(
-    clinic_id: Annotated[
-        str, typer.Option("--clinic-id", help="Unique clinic/organization identifier")
-    ],
-    clinic_name: Annotated[
-        str, typer.Option("--clinic-name", help="Human-readable clinic name")
+    max_clinics: Annotated[
+        int, typer.Option("--max-clinics", help="Maximum number of clinics allowed (default: 1)")
+    ] = 1,
+    license_holder: Annotated[
+        str, typer.Option("--holder", help="License holder name (e.g., 'Dr. García' or 'Hospital Central')")
     ] = "",
     auth0_domain: Annotated[
         str, typer.Option("--auth0-domain", help="Auth0 tenant domain (e.g., dev-xxx.us.auth0.com)")
@@ -122,8 +122,8 @@ def generate(
     """
     Generate a new signed license key.
 
-    The license key encodes Auth0 credentials, features, and expiration.
-    It can be distributed to customers for desktop app activation.
+    The license key encodes Auth0 credentials, features, max clinics, and expiration.
+    Clinics are created AFTER activation by the admin (up to max_clinics limit).
     """
     from datetime import timedelta
 
@@ -138,6 +138,10 @@ def generate(
 
     if not auth0_client_id:
         typer.echo("❌ --auth0-client-id is required", err=True)
+        raise typer.Exit(1)
+
+    if max_clinics < 1:
+        typer.echo("❌ --max-clinics must be at least 1", err=True)
         raise typer.Exit(1)
 
     # Parse features
@@ -162,8 +166,8 @@ def generate(
         auth0_domain=auth0_domain,
         auth0_client_id=auth0_client_id,
         auth0_audience=auth0_audience,
-        clinic_id=clinic_id,
-        clinic_name=clinic_name,
+        max_clinics=max_clinics,
+        license_holder=license_holder,
         features=feature_list,
         expires_at=expires_at,
     )
@@ -183,14 +187,15 @@ def generate(
         typer.echo("═" * 60)
         typer.echo("")
         typer.echo("📝 License Details:")
-        typer.echo(f"   License ID:  {payload.license_id}")
-        typer.echo(f"   Clinic:      {clinic_name} ({clinic_id})")
-        typer.echo(f"   Features:    {', '.join(feature_list)}")
+        typer.echo(f"   License ID:   {payload.license_id}")
+        typer.echo(f"   Holder:       {license_holder or '(not specified)'}")
+        typer.echo(f"   Max Clinics:  {max_clinics}")
+        typer.echo(f"   Features:     {', '.join(feature_list)}")
         if expires_at:
-            typer.echo(f"   Expires:     {expires_at}")
+            typer.echo(f"   Expires:      {expires_at}")
         else:
-            typer.echo("   Expires:     Never (perpetual)")
-        typer.echo(f"   Auth0:       {auth0_domain}")
+            typer.echo("   Expires:      Never (perpetual)")
+        typer.echo(f"   Auth0:        {auth0_domain}")
         typer.echo("")
         typer.echo("📤 Send this key to the customer for activation.")
 
@@ -227,19 +232,20 @@ def verify(
         typer.echo("")
         typer.echo("📝 License Details:")
         if result.payload:
-            typer.echo(f"   License ID:  {result.payload.license_id}")
-            typer.echo(f"   Clinic:      {result.payload.clinic_name} ({result.payload.clinic_id})")
-            typer.echo(f"   Features:    {', '.join(result.payload.features)}")
-            typer.echo(f"   Issued:      {result.payload.issued_at}")
+            typer.echo(f"   License ID:   {result.payload.license_id}")
+            typer.echo(f"   Holder:       {result.payload.license_holder or '(not specified)'}")
+            typer.echo(f"   Max Clinics:  {result.payload.max_clinics}")
+            typer.echo(f"   Features:     {', '.join(result.payload.features)}")
+            typer.echo(f"   Issued:       {result.payload.issued_at}")
             if result.payload.expires_at:
-                typer.echo(f"   Expires:     {result.payload.expires_at}")
+                typer.echo(f"   Expires:      {result.payload.expires_at}")
                 if result.days_remaining is not None:
                     if result.days_remaining > 30:
-                        typer.echo(f"   Remaining:   {result.days_remaining} days")
+                        typer.echo(f"   Remaining:    {result.days_remaining} days")
                     else:
                         typer.echo(f"   ⚠️  Remaining: {result.days_remaining} days (expires soon!)")
             else:
-                typer.echo("   Expires:     Never (perpetual)")
+                typer.echo("   Expires:      Never (perpetual)")
 
     elif result.status == LicenseStatus.EXPIRED:
         typer.echo("❌ LICENSE EXPIRED")
@@ -298,9 +304,9 @@ def info(
         typer.echo(f"License ID:    {payload.license_id}")
         typer.echo(f"Version:       {payload.version}")
         typer.echo("")
-        typer.echo("Organization:")
-        typer.echo(f"  Clinic ID:   {payload.clinic_id}")
-        typer.echo(f"  Clinic Name: {payload.clinic_name}")
+        typer.echo("Capacity:")
+        typer.echo(f"  Holder:      {payload.license_holder or '(not specified)'}")
+        typer.echo(f"  Max Clinics: {payload.max_clinics}")
         typer.echo("")
         typer.echo("Features:")
         for feature in payload.features:

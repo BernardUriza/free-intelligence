@@ -39,8 +39,8 @@ router = APIRouter(prefix="/admin/licenses", tags=["licenses"])
 class LicenseGenerationRequest(BaseModel):
     """Request to generate a new license key."""
 
-    clinic_id: str = Field(..., min_length=1, description="Unique clinic identifier")
-    clinic_name: str = Field(default="", description="Human-readable clinic name")
+    max_clinics: int = Field(default=1, ge=1, le=100, description="Maximum clinics allowed (1-100)")
+    license_holder: str = Field(default="", description="License holder name (optional, for display)")
     auth0_domain: str = Field(..., min_length=1, description="Auth0 tenant domain")
     auth0_client_id: str = Field(..., min_length=1, description="Auth0 application client ID")
     auth0_audience: str = Field(default="https://app.aurity.io", description="Auth0 API audience")
@@ -58,8 +58,8 @@ class LicenseGenerationResponse(BaseModel):
 
     license_id: str
     license_key: str
-    clinic_id: str
-    clinic_name: str
+    max_clinics: int
+    license_holder: str
     auth0_domain: str
     expires_at: str
     features: list[str]
@@ -97,7 +97,7 @@ async def admin_generate_license(
 
     The license key is cryptographically signed with Ed25519 and contains:
     - Auth0 configuration (domain, client_id, audience)
-    - Clinic identification (id, name)
+    - Max clinics capacity (admin creates clinics after activation)
     - Feature flags
     - Expiration date
 
@@ -106,8 +106,8 @@ async def admin_generate_license(
     """
     logger.info(
         "LICENSE_GENERATION_REQUESTED",
-        clinic_id=request.clinic_id,
-        clinic_name=request.clinic_name,
+        max_clinics=request.max_clinics,
+        license_holder=request.license_holder,
         features=request.features,
         expires_days=request.expires_days,
         requested_by=current_user.email,
@@ -123,8 +123,8 @@ async def admin_generate_license(
             auth0_domain=request.auth0_domain,
             auth0_client_id=request.auth0_client_id,
             auth0_audience=request.auth0_audience,
-            clinic_id=request.clinic_id,
-            clinic_name=request.clinic_name,
+            max_clinics=request.max_clinics,
+            license_holder=request.license_holder,
             features=request.features,
             expires_at=expires_at.isoformat(),
         )
@@ -135,7 +135,7 @@ async def admin_generate_license(
         logger.info(
             "LICENSE_GENERATED_SUCCESSFULLY",
             license_id=payload.license_id,
-            clinic_id=request.clinic_id,
+            max_clinics=request.max_clinics,
             expires_at=expires_at.isoformat(),
             generated_by=current_user.email,
         )
@@ -143,8 +143,8 @@ async def admin_generate_license(
         return LicenseGenerationResponse(
             license_id=payload.license_id,
             license_key=license_key,
-            clinic_id=payload.clinic_id,
-            clinic_name=payload.clinic_name,
+            max_clinics=payload.max_clinics,
+            license_holder=payload.license_holder,
             auth0_domain=payload.auth0_domain,
             expires_at=payload.expires_at,
             features=payload.features,
@@ -166,7 +166,7 @@ async def admin_generate_license(
         logger.error(
             "LICENSE_GENERATION_FAILED",
             error=str(e),
-            clinic_id=request.clinic_id,
+            max_clinics=request.max_clinics,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
