@@ -16,14 +16,14 @@ File: backend/schema_normalizer.py
 Created: 2025-10-28
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-def normalize_output(output: Dict[str, Any], schema: Dict[str, Any]) -> dict[str, Any]:
+def normalize_output(output: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:
     """
     Normalize LLM output to match schema requirements.
 
@@ -60,10 +60,10 @@ def normalize_output(output: Dict[str, Any], schema: Dict[str, Any]) -> dict[str
         )
         return output
 
-    properties = schema.get("properties", {})
-    required = schema.get("required", [])
+    properties: dict[str, Any] = schema.get("properties", {})
+    required: list[str] = schema.get("required", [])
 
-    normalized = output.copy()
+    normalized: dict[str, Any] = output.copy()
 
     # Normalize properties
     for field_name, field_schema in properties.items():
@@ -101,6 +101,7 @@ def normalize_output(output: Dict[str, Any], schema: Dict[str, Any]) -> dict[str
                 field_type = next((t for t in field_type if t != "null"), None)
 
             # Add default value based on type
+            default_value: Any
             if field_type == "array":
                 default_value = []
             elif field_type == "object":
@@ -128,7 +129,7 @@ def normalize_output(output: Dict[str, Any], schema: Dict[str, Any]) -> dict[str
     return normalized
 
 
-def normalize_intake_output(output: Dict[str, Any]) -> dict[str, Any]:
+def normalize_intake_output(output: dict[str, Any]) -> dict[str, Any]:
     """
     Normalize IntakeCoach output specifically.
 
@@ -215,7 +216,7 @@ if __name__ == "__main__":
     # Test Case 1: Generic normalization
     print("\n1️⃣  Test: Generic schema normalization (null → [])")
 
-    schema = {
+    schema: dict[str, Any] = {
         "type": "object",
         "properties": {
             "items": {"type": "array"},
@@ -226,7 +227,7 @@ if __name__ == "__main__":
         "required": ["items", "count"],
     }
 
-    output = {
+    output: dict[str, Any] = {
         "items": None,  # Should become []
         "tags": None,  # Should become []
         "metadata": None,  # Should become {}

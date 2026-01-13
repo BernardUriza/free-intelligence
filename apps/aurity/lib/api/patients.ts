@@ -9,11 +9,27 @@
 
 import { api } from './client';
 
+// Gender enum matching backend
+export type Gender = 'MASCULINO' | 'FEMENINO' | 'OTRO' | 'NO_ESPECIFICADO';
+
+// CURP validation types
+export interface CurpValidationRequest {
+  curp: string;
+  exclude_patient_id?: string | null;
+}
+
+export interface CurpValidationResponse {
+  valid: boolean;
+  available: boolean;
+  message: string | null;
+}
+
 // Backend API types (matching backend/api/public/patients.py schemas)
 export interface PatientCreate {
   nombre: string;
   apellido: string;
   fecha_nacimiento: string; // ISO date string "YYYY-MM-DD"
+  genero?: Gender | null;
   curp?: string | null;
 }
 
@@ -21,6 +37,7 @@ export interface PatientUpdate {
   nombre?: string;
   apellido?: string;
   fecha_nacimiento?: string;
+  genero?: Gender | null;
   curp?: string | null;
 }
 
@@ -29,6 +46,7 @@ export interface PatientResponse {
   nombre: string;
   apellido: string;
   fecha_nacimiento: string;
+  genero: string | null;
   curp: string | null;
   created_at: string;
   updated_at: string | null;
@@ -39,16 +57,33 @@ export interface Patient {
   id: string;
   name: string;
   age: number;
-  gender: 'Masculino' | 'Femenino' | 'Otro';
+  gender: 'Masculino' | 'Femenino' | 'Otro' | 'No especificado';
   medicalHistory?: string[];
   allergies?: string[];
   chronicConditions?: string[];
   currentMedications?: string[];
   // Backend fields
+  genero?: Gender | null; // Raw backend value
   curp?: string | null;
   fechaNacimiento: string; // ISO date string "YYYY-MM-DD" - for edit operations
   createdAt: string;
   updatedAt?: string | null;
+}
+
+/**
+ * Map backend gender enum to frontend display value
+ */
+function mapGenderToDisplay(genero: string | null): Patient['gender'] {
+  switch (genero) {
+    case 'MASCULINO':
+      return 'Masculino';
+    case 'FEMENINO':
+      return 'Femenino';
+    case 'OTRO':
+      return 'Otro';
+    default:
+      return 'No especificado';
+  }
 }
 
 /**
@@ -62,7 +97,8 @@ function toFrontendPatient(p: PatientResponse): Patient {
     id: p.patient_id,
     name: `${p.nombre} ${p.apellido}`,
     age,
-    gender: 'Otro', // TODO: Add gender field to backend schema
+    gender: mapGenderToDisplay(p.genero),
+    genero: p.genero as Gender | null,
     curp: p.curp,
     fechaNacimiento: p.fecha_nacimiento,
     createdAt: p.created_at,
@@ -148,4 +184,35 @@ export async function updatePatient(patientId: string, updates: PatientUpdate): 
 export async function deletePatient(patientId: string): Promise<void> {
   // P1 FIX: Use API client instead of hardcoded fetch
   await api.delete(`/api/patients/${patientId}`);
+}
+
+/**
+ * Validate CURP format and availability
+ *
+ * Checks:
+ * 1. CURP format is valid (18 chars, matches Mexican CURP pattern)
+ * 2. CURP is not already in use by another patient
+ *
+ * @param curp - CURP to validate
+ * @param excludePatientId - Patient ID to exclude (for updates)
+ * @returns Validation result with availability status
+ */
+export async function validateCurp(
+  curp: string,
+  excludePatientId?: string | null
+): Promise<CurpValidationResponse> {
+  try {
+    const request: CurpValidationRequest = {
+      curp,
+      exclude_patient_id: excludePatientId,
+    };
+    return await api.post<CurpValidationResponse>('/api/patients/validate-curp', request);
+  } catch {
+    // On network error, return a soft failure that doesn't block the form
+    return {
+      valid: true,
+      available: true,
+      message: 'No se pudo verificar. Se validará al guardar.',
+    };
+  }
 }

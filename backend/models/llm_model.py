@@ -59,7 +59,7 @@ class LLMModelCreate(BaseModel):
     id: str = Field(..., min_length=2, max_length=50)
     label: str = Field(..., min_length=2, max_length=100)
     provider: LLMProvider
-    cost_tier: CostTier = CostTier.MEDIUM
+    cost_tier: CostTier = Field(default=CostTier.MEDIUM)
     max_tokens: int = Field(4096, ge=1, le=1000000)
     context_window: int = Field(128000, ge=1024, le=2000000)
     is_active: bool = True

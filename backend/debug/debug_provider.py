@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Script de depuración para verificar cómo se carga el proveedor Ollama
 """
@@ -30,8 +32,8 @@ def main():
     try:
         ollama_provider = get_provider("ollama", ollama_config)
         print("✅ Provider created successfully")
-        print(f"   - Model: {ollama_provider.default_model}")
-        print(f"   - Base URL: {ollama_provider.base_url}")
+        print(f"   - Model: {getattr(ollama_provider, 'default_model', None)}")
+        print(f"   - Base URL: {getattr(ollama_provider, 'base_url', None)}")
     except Exception as e:
         print(f"❌ Error creating provider: {e}")
         import traceback

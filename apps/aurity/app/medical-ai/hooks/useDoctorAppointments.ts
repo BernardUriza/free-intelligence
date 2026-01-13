@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Appointment } from '@/types/checkin';
+import type { Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
 import {
   fetchAppointmentsAPI,
   createAppointmentAPI,

@@ -23,7 +23,7 @@ import { AlertCircle, CheckCircle2, ChevronRight, Trash2, Calendar } from 'lucid
 import { useEncounterTimer } from '@/hooks/useEncounterTimer';
 import { WorkflowStep, Encounter } from '@aurity-standalone/types/medical';
 import { DoctorDetailModal, type DoctorSaveData } from '@/components/admin/clinics/DoctorDetailModal';
-import type { Appointment } from '@/types/checkin';
+import type { Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
 
 // Modular imports
 import { MedicalWorkflowSteps } from './WorkflowSteps';

@@ -80,6 +80,7 @@ dmypy.json
 .claude/auth0_actions.env
 .claude/learnings/
 .claude/plans/
+.claude/commands/
 
 # Rust / Tauri
 target/

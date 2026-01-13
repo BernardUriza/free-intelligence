@@ -19,7 +19,6 @@ Created: 2025-11-14
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
@@ -35,36 +34,82 @@ class SessionStatus(str, Enum):
     COMPLETED = "completed"  # SOAP generated
 
 
-@dataclass
 class EncryptionMetadata:
     """Encryption metadata for finalized sessions."""
 
-    algorithm: str = "AES-GCM-256"  # Encryption algorithm
-    key_id: str = ""  # Key identifier (for key rotation)
-    iv: str = ""  # Initialization vector (hex)
-    encrypted_at: str = ""  # ISO timestamp
-    encrypted_by: str = "system"  # User/system identifier
+    __slots__ = ("algorithm", "key_id", "iv", "encrypted_at", "encrypted_by")
+
+    def __init__(
+        self,
+        *,
+        algorithm: str = "AES-GCM-256",
+        key_id: str = "",
+        iv: str = "",
+        encrypted_at: str = "",
+        encrypted_by: str = "system",
+    ) -> None:
+        self.algorithm = algorithm
+        self.key_id = key_id
+        self.iv = iv
+        self.encrypted_at = encrypted_at
+        self.encrypted_by = encrypted_by
 
 
-@dataclass
 class Session:
     """Medical consultation session."""
 
-    session_id: str
-    status: SessionStatus
-    created_at: str
-    updated_at: str
-    patient_id: str | None = None  # Optional patient identifier
-    provider_id: str | None = None  # Optional provider identifier
-    recording_duration: float = 0.0  # Total recording time (seconds)
-    total_chunks: int = 0  # Number of audio chunks
-    encryption_metadata: EncryptionMetadata | None = None
-    diarization_job_id: str | None = None  # Reference to diarization job
-    soap_note_path: str | None = None  # Path in HDF5 to SOAP note
-    finalized_at: str | None = None
-    diarized_at: str | None = None
-    reviewed_at: str | None = None
-    completed_at: str | None = None
+    __slots__ = (
+        "session_id",
+        "status",
+        "created_at",
+        "updated_at",
+        "patient_id",
+        "provider_id",
+        "recording_duration",
+        "total_chunks",
+        "encryption_metadata",
+        "diarization_job_id",
+        "soap_note_path",
+        "finalized_at",
+        "diarized_at",
+        "reviewed_at",
+        "completed_at",
+    )
+
+    def __init__(
+        self,
+        *,
+        session_id: str,
+        status: SessionStatus | str,
+        created_at: str,
+        updated_at: str,
+        patient_id: str | None = None,
+        provider_id: str | None = None,
+        recording_duration: float = 0.0,
+        total_chunks: int = 0,
+        encryption_metadata: EncryptionMetadata | None = None,
+        diarization_job_id: str | None = None,
+        soap_note_path: str | None = None,
+        finalized_at: str | None = None,
+        diarized_at: str | None = None,
+        reviewed_at: str | None = None,
+        completed_at: str | None = None,
+    ) -> None:
+        self.session_id = session_id
+        self.status = status if isinstance(status, SessionStatus) else SessionStatus(str(status))
+        self.created_at = created_at
+        self.updated_at = updated_at
+        self.patient_id = patient_id
+        self.provider_id = provider_id
+        self.recording_duration = recording_duration
+        self.total_chunks = total_chunks
+        self.encryption_metadata = encryption_metadata
+        self.diarization_job_id = diarization_job_id
+        self.soap_note_path = soap_note_path
+        self.finalized_at = finalized_at
+        self.diarized_at = diarized_at
+        self.reviewed_at = reviewed_at
+        self.completed_at = completed_at
 
     @classmethod
     def create_now(cls, session_id: str) -> Session:
@@ -90,10 +135,11 @@ class Session:
         Args:
             encryption_metadata: Encryption details
         """
-        self.status = SessionStatus.FINALIZED
+        self.status = SessionStatus(str(SessionStatus.FINALIZED))
         self.encryption_metadata = encryption_metadata
-        self.finalized_at = datetime.now(UTC).isoformat()
-        self.updated_at = self.finalized_at
+        finalized_at = datetime.now(UTC).isoformat()
+        self.finalized_at = finalized_at
+        self.updated_at = finalized_at
 
     def mark_diarized(self, diarization_job_id: str) -> None:
         """Mark session as diarized (speaker separation completed).
@@ -101,16 +147,18 @@ class Session:
         Args:
             diarization_job_id: Job ID that performed diarization
         """
-        self.status = SessionStatus.DIARIZED
+        self.status = SessionStatus(str(SessionStatus.DIARIZED))
         self.diarization_job_id = diarization_job_id
-        self.diarized_at = datetime.now(UTC).isoformat()
-        self.updated_at = self.diarized_at
+        diarized_at = datetime.now(UTC).isoformat()
+        self.diarized_at = diarized_at
+        self.updated_at = diarized_at
 
     def mark_reviewed(self) -> None:
         """Mark session as reviewed (human approved)."""
-        self.status = SessionStatus.REVIEWED
-        self.reviewed_at = datetime.now(UTC).isoformat()
-        self.updated_at = self.reviewed_at
+        self.status = SessionStatus(str(SessionStatus.REVIEWED))
+        reviewed_at = datetime.now(UTC).isoformat()
+        self.reviewed_at = reviewed_at
+        self.updated_at = reviewed_at
 
     def mark_completed(self, soap_note_path: str) -> None:
         """Mark session as completed (SOAP note generated).
@@ -118,10 +166,11 @@ class Session:
         Args:
             soap_note_path: Path in HDF5 to SOAP note
         """
-        self.status = SessionStatus.COMPLETED
+        self.status = SessionStatus(str(SessionStatus.COMPLETED))
         self.soap_note_path = soap_note_path
-        self.completed_at = datetime.now(UTC).isoformat()
-        self.updated_at = self.completed_at
+        completed_at = datetime.now(UTC).isoformat()
+        self.completed_at = completed_at
+        self.updated_at = completed_at
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""

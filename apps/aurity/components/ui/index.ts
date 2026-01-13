@@ -17,7 +17,8 @@ export { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './
 
 // Feedback
 export { Callout, type CalloutProps } from './callout';
-export { Toast, type ToastProps, type ToastType } from './toast';
+export type { Toast, ToastProps, ToastType } from './toast';
+export { ToastProvider, useToast } from './toast';
 export { ToastContainer } from './ToastContainer';
 export { ConfirmDialog } from './ConfirmDialog';
 export { ErrorBoundary } from './ErrorBoundary';

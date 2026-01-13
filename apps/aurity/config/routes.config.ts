@@ -39,35 +39,6 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   {
     path: '/',
     access: 'public',
-    description: 'Landing/login page',
-  },
-  {
-    path: '/callback',
-    access: 'public',
-    description: 'Auth0 callback',
-  },
-  {
-    path: '/unauthorized',
-    access: 'public',
-    description: 'Access denied page',
-  },
-  {
-    path: '/checkin/*',
-    access: 'public',
-    description: 'Patient check-in (kiosk mode)',
-  },
-  {
-    path: '/receptionist/*',
-    access: 'public',
-    description: 'Receptionist TV display',
-  },
-
-  // ============================================================================
-  // PUBLIC ROUTES - No authentication required
-  // ============================================================================
-  {
-    path: '/',
-    access: 'public',
     description: 'Landing/login page - accessible to all users',
   },
   {

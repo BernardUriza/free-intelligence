@@ -136,10 +136,12 @@ export function AppointmentModal({
             onOpenCreateForm={patientSearch.openCreateForm}
             showCreateForm={patientSearch.showCreateForm}
             newPatient={patientSearch.newPatient}
-            onNewPatientChange={patientSearch.setNewPatient}
+            onNewPatientChange={patientSearch.handleNewPatientChange}
             onCreatePatient={patientSearch.handleCreatePatient}
             onCloseCreateForm={patientSearch.closeCreateForm}
             creating={patientSearch.creating}
+            getFieldError={patientSearch.getFieldError}
+            onFieldBlur={patientSearch.handleFieldBlur}
           />
 
           {/* Form Fields */}

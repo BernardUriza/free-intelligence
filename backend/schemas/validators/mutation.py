@@ -12,20 +12,29 @@ FI-DATA-FIX-001
 
 import ast
 import re
-from dataclasses import dataclass
 
 from pathlib import Path
 
 
-@dataclass
 class MutationViolation:
     """Represents a mutation policy violation."""
 
-    file_path: str
-    line_number: int
-    function_name: str
-    violation_type: str
-    message: str
+    __slots__ = ("file_path", "line_number", "function_name", "violation_type", "message")
+
+    def __init__(
+        self,
+        *,
+        file_path: str,
+        line_number: int,
+        function_name: str,
+        violation_type: str,
+        message: str,
+    ) -> None:
+        self.file_path = file_path
+        self.line_number = line_number
+        self.function_name = function_name
+        self.violation_type = violation_type
+        self.message = message
 
 
 # Forbidden function name patterns
@@ -136,7 +145,7 @@ def scan_file_for_mutations(file_path: str) -> list[MutationViolation]:
 
 
 def scan_directory(
-    directory: str, exclude_dirs: list[str | None] | None = None
+    directory: str, exclude_dirs: list[str] | None = None
 ) -> dict[str, list[MutationViolation]]:
     """
     Scan directory recursively for mutation violations.
@@ -160,7 +169,7 @@ def scan_directory(
     directory_path = Path(directory)
     for py_file in directory_path.rglob("*.py"):
         # Skip excluded directories (exclude_dirs is guaranteed non-None after line 155)
-        if any(excluded in str(py_file) for excluded in exclude_dirs):  # pyright: ignore[reportOperatorIssue]
+        if any(excluded in str(py_file) for excluded in exclude_dirs):
             continue
 
         violations = scan_file_for_mutations(str(py_file))
@@ -227,7 +236,7 @@ def validate_codebase(
     return is_valid, violations
 
 
-def print_violations_report(violations: dict[str, list[MutationViolation]]):
+def print_violations_report(violations: dict[str, list[MutationViolation]]) -> None:
     """
     Print formatted report of violations.
 

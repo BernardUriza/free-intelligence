@@ -35,7 +35,7 @@ class RateLimiter:
         """
         self.max_calls = max_calls
         self.period = period_seconds
-        self.calls = []  # Timestamps of recent calls
+        self.calls: list[float] = []  # Timestamps of recent calls
         self.lock = threading.Lock()
 
     def wait_if_needed(self) -> float:

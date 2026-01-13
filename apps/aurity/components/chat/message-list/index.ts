@@ -21,6 +21,9 @@ export {
   TypingIndicator,
 } from './ui';
 
+// ChatMessage from unified message system
+export { ChatMessage } from '@/components/ui/message';
+
 // Hooks
 export { useMessageGroups } from './hooks';
 

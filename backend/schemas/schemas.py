@@ -185,7 +185,7 @@ def success_response(
 def error_response(
     message: str,
     code: int = 400,
-    status: StatusCode = StatusCode.ERROR,
+    status: StatusCode | str = StatusCode.ERROR,
     request_id: str | None = None,
 ) -> APIResponse:
     """Build an error response.
@@ -199,8 +199,9 @@ def error_response(
     Returns:
         APIResponse instance
     """
+    status_enum = status if isinstance(status, StatusCode) else StatusCode(str(status))
     return APIResponse(
-        status=status,
+        status=status_enum,
         code=code,
         message=message,
         request_id=request_id,

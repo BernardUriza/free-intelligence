@@ -360,7 +360,7 @@ class ReduxAdapter:
         logger.info(
             "REDUX_ACTION_TRANSLATED",
             redux_action_type=action_type,
-            event_type=event_type.value,
+            event_type=str(event_type),
             event_id=event.event_id,
         )
 

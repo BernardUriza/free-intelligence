@@ -43,7 +43,13 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
       return;
     }
 
-    // Wait for auth to load
+    // Public routes never need auth - skip all checks
+    if (isPublicRoute(pathname)) {
+      setIsAuthorized(true);
+      return;
+    }
+
+    // Wait for auth to load (only for non-public routes)
     if (authLoading || rbacLoading) {
       return;
     }
@@ -112,12 +118,15 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
     hasAnyRole,
   ]);
 
-  // Public routes don't need loading state
+  // =========================================================================
+  // RENDER: Public routes render immediately (no auth check needed)
+  // =========================================================================
+  // This MUST be checked BEFORE the loading state to avoid redirect flicker
   if (isPublicRoute(pathname)) {
     return <>{children}</>;
   }
 
-  // Loading state for protected routes
+  // Loading state for protected routes only
   if (authLoading || rbacLoading || isAuthorized === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">

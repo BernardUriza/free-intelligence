@@ -59,7 +59,7 @@ class LANGuardMiddleware(BaseHTTPMiddleware):
         self.trusted_proxies = [ip.strip() for ip in trusted_str.split(",")]
 
         # Exclude paths (health check only if from LAN)
-        self.exclude_paths = set()
+        self.exclude_paths: set[str] = set()
 
         logger.info(
             "LAN_GUARD_INITIALIZED",

@@ -21,7 +21,6 @@ Card: Architecture unification
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
@@ -47,7 +46,6 @@ class JobStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-@dataclass
 class Job:
     """Base job model for all job types.
 
@@ -69,30 +67,56 @@ class Job:
         result_data: Job-specific result data (optional)
     """
 
-    job_id: str
-    session_id: str
-    job_type: JobType
-    status: JobStatus
-    created_at: str
-    started_at: str | None = None
-    completed_at: str | None = None
-    updated_at: str = ""
-    error_message: str | None = None
-    depends_on: list[str] = field(default_factory=list)
-    progress_percent: int = 0
-    result_data: dict[str, Any] | None = None
+    __slots__ = (
+        "job_id",
+        "session_id",
+        "job_type",
+        "status",
+        "created_at",
+        "started_at",
+        "completed_at",
+        "updated_at",
+        "error_message",
+        "depends_on",
+        "progress_percent",
+        "result_data",
+    )
 
-    def __post_init__(self):
-        """Set defaults after initialization."""
-        if not self.updated_at:
-            self.updated_at = self.created_at
+    def __init__(
+        self,
+        *,
+        job_id: str,
+        session_id: str,
+        job_type: JobType | str,
+        status: JobStatus | str,
+        created_at: str,
+        started_at: str | None = None,
+        completed_at: str | None = None,
+        updated_at: str = "",
+        error_message: str | None = None,
+        depends_on: list[str] | None = None,
+        progress_percent: int = 0,
+        result_data: dict[str, Any] | None = None,
+    ) -> None:
+        self.job_id = job_id
+        self.session_id = session_id
+        self.job_type = job_type if isinstance(job_type, JobType) else JobType(str(job_type))
+        self.status = status if isinstance(status, JobStatus) else JobStatus(str(status))
+        self.created_at = created_at
+        self.started_at = started_at
+        self.completed_at = completed_at
+        self.updated_at = updated_at or created_at
+        self.error_message = error_message
+        self.depends_on = list(depends_on or [])
+        self.progress_percent = progress_percent
+        self.result_data = result_data
 
     @classmethod
     def create_now(
         cls,
         job_id: str,
         session_id: str,
-        job_type: JobType,
+        job_type: JobType | str,
         depends_on: list[str] | None = None,
     ) -> Job:
         """Create a new job with current timestamp.
@@ -107,10 +131,11 @@ class Job:
             Job instance with pending status and current timestamp
         """
         now = datetime.now(UTC).isoformat()
+        resolved_job_type = job_type if isinstance(job_type, JobType) else JobType(str(job_type))
         return cls(
             job_id=job_id,
             session_id=session_id,
-            job_type=job_type,
+            job_type=resolved_job_type,
             status=JobStatus.PENDING,
             created_at=now,
             updated_at=now,
@@ -119,9 +144,10 @@ class Job:
 
     def start(self) -> None:
         """Mark job as started."""
-        self.status = JobStatus.IN_PROGRESS
-        self.started_at = datetime.now(UTC).isoformat()
-        self.updated_at = self.started_at
+        self.status = JobStatus(str(JobStatus.IN_PROGRESS))
+        started_at = datetime.now(UTC).isoformat()
+        self.started_at = started_at
+        self.updated_at = started_at
 
     def complete(self, result_data: dict[str, Any] | None = None) -> None:
         """Mark job as completed.
@@ -129,9 +155,10 @@ class Job:
         Args:
             result_data: Job-specific result data
         """
-        self.status = JobStatus.COMPLETED
-        self.completed_at = datetime.now(UTC).isoformat()
-        self.updated_at = self.completed_at
+        self.status = JobStatus(str(JobStatus.COMPLETED))
+        completed_at = datetime.now(UTC).isoformat()
+        self.completed_at = completed_at
+        self.updated_at = completed_at
         self.progress_percent = 100
         if result_data:
             self.result_data = result_data
@@ -142,7 +169,7 @@ class Job:
         Args:
             error_message: Error description
         """
-        self.status = JobStatus.FAILED
+        self.status = JobStatus(str(JobStatus.FAILED))
         self.error_message = error_message
         self.updated_at = datetime.now(UTC).isoformat()
 

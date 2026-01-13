@@ -5,7 +5,7 @@
 import React from 'react';
 import { confirmDelete } from '@/lib/swal';
 
-export default function ConfirmDialog({
+export function ConfirmDialog({
   children,
   onConfirm,
 }: {
@@ -19,3 +19,5 @@ export default function ConfirmDialog({
     }}>{children}</div>
   );
 }
+
+export default ConfirmDialog;

@@ -34,7 +34,6 @@ Task: FI-CORE-FIX-001
 from __future__ import annotations
 
 import ast
-from dataclasses import dataclass
 
 from pathlib import Path
 
@@ -126,14 +125,23 @@ FORBIDDEN_CALL_PATTERNS = {
 # ============================================================================
 
 
-@dataclass
 class RouterViolation:
     """Información de violación de router policy."""
 
-    filepath: str
-    lineno: int
-    violation_type: str  # 'import' | 'call'
-    details: str
+    __slots__ = ("filepath", "lineno", "violation_type", "details")
+
+    def __init__(
+        self,
+        *,
+        filepath: str,
+        lineno: int,
+        violation_type: str,  # 'import' | 'call'
+        details: str,
+    ) -> None:
+        self.filepath = filepath
+        self.lineno = lineno
+        self.violation_type = violation_type
+        self.details = details
 
     def __str__(self) -> str:
         """Return string representation of the violation."""
@@ -189,7 +197,7 @@ def has_forbidden_import(imports: set[str]) -> list[str]:
     return forbidden
 
 
-def extract_attribute_calls(tree: ast.AST) -> list[tuple]:
+def extract_attribute_calls(tree: ast.AST) -> list[tuple[int, str]]:
     """Extrae llamadas a métodos con atributos (e.g., client.messages.create()).
 
     Returns:
@@ -201,7 +209,7 @@ def extract_attribute_calls(tree: ast.AST) -> list[tuple]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             # Reconstruir call chain
-            call_chain = []
+            call_chain: list[str] = []
             current = node.func
 
             while isinstance(current, ast.Attribute):
@@ -215,7 +223,7 @@ def extract_attribute_calls(tree: ast.AST) -> list[tuple]:
     return calls
 
 
-def has_forbidden_call(calls: list[tuple]) -> list[tuple]:
+def has_forbidden_call(calls: list[tuple[int, str]]) -> list[tuple[int, str]]:
     """Verifica si hay llamadas prohibidas a APIs de LLM.
 
     Returns:

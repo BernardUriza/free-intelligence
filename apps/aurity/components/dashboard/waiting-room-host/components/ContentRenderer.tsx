@@ -39,38 +39,59 @@ export const ContentRenderer = memo(function ContentRenderer({
 
   // Render widget
   if (content.type === 'widget' && content.widgetType) {
+    const data = content.widgetData ?? {};
     return (
       <div className="transform transition-all duration-500 ease-in-out flex-1 flex flex-col min-h-0">
         {content.widgetType === 'weather' && <WeatherWidget city={clinicName} />}
         {content.widgetType === 'trivia' && (
-          <HealthTriviaWidget {...(content.widgetData as Record<string, unknown>)} />
+          <HealthTriviaWidget
+            question={String(data.question ?? 'Pregunta de trivia')}
+            options={Array.isArray(data.options) ? data.options.map(String) : ['A', 'B', 'C', 'D']}
+            correctAnswer={typeof data.correctAnswer === 'number' ? data.correctAnswer : 0}
+            explanation={String(data.explanation ?? 'Respuesta correcta')}
+          />
         )}
         {content.widgetType === 'breathing' && <BreathingExerciseWidget />}
         {content.widgetType === 'daily_tip' && (
-          <DailyTipWidget {...(content.widgetData as Record<string, unknown>)} />
+          <DailyTipWidget
+            tip={String(data.tip ?? 'Tip del día')}
+            category={(data.category as 'nutrition' | 'exercise' | 'mental_health' | 'prevention') ?? 'prevention'}
+          />
         )}
         {content.widgetType === 'calming' && <CalmingNatureWidget />}
         {content.widgetType === 'clinic_image' && (
-          <ClinicImageWidget {...(content.widgetData as Record<string, unknown>)} />
+          <ClinicImageWidget
+            imageUrl={String(data.imageUrl ?? '')}
+            title={typeof data.title === 'string' ? data.title : undefined}
+            description={typeof data.description === 'string' ? data.description : undefined}
+          />
         )}
         {content.widgetType === 'clinic_video' && (
-          <ClinicVideoWidget {...(content.widgetData as Record<string, unknown>)} />
+          <ClinicVideoWidget
+            videoUrl={String(data.videoUrl ?? '')}
+            title={typeof data.title === 'string' ? data.title : undefined}
+            description={typeof data.description === 'string' ? data.description : undefined}
+          />
         )}
         {content.widgetType === 'clinic_message' && (
-          <ClinicMessageWidget {...(content.widgetData as Record<string, unknown>)} />
+          <ClinicMessageWidget
+            message={String(data.message ?? 'Mensaje de la clínica')}
+            title={typeof data.title === 'string' ? data.title : undefined}
+          />
         )}
       </div>
     );
   }
 
   // Render text message using TVMessage
+  // Note: 'waiting_room_host' is not a valid FITone, use 'neutral' for TV display
   return (
     <TVMessage
       message={{
         role: 'assistant',
         content: content.content.replace(/\*\*(.*?)\*\*/g, '$1'), // Strip markdown bold
         timestamp: new Date().toISOString(),
-        metadata: { tone: 'waiting_room_host' },
+        metadata: { tone: 'neutral' },
       }}
       className="flex-1"
     />

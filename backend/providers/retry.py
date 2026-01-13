@@ -14,8 +14,7 @@ from __future__ import annotations
 import asyncio
 import random
 import time
-from collections.abc import Callable
-from dataclasses import dataclass, field
+from collections.abc import Awaitable, Callable
 from enum import Enum
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
@@ -36,27 +35,48 @@ class CircuitState(Enum):
     HALF_OPEN = "half_open"  # Testing if service recovered
 
 
-@dataclass
 class CircuitBreakerConfig:
     """Configuration for circuit breaker"""
 
-    failure_threshold: int = 5  # Failures before opening
-    recovery_timeout: float = 60.0  # Seconds to wait before half-open
-    success_threshold: int = 2  # Successes needed to close from half-open
+    __slots__ = ("failure_threshold", "recovery_timeout", "success_threshold")
+
+    def __init__(
+        self,
+        failure_threshold: int = 5,
+        recovery_timeout: float = 60.0,
+        success_threshold: int = 2,
+    ) -> None:
+        self.failure_threshold = failure_threshold  # Failures before opening
+        self.recovery_timeout = recovery_timeout  # Seconds to wait before half-open
+        self.success_threshold = success_threshold  # Successes to close from half-open
 
 
-@dataclass
 class RetryConfig:
     """Configuration for exponential backoff retry"""
 
-    max_retries: int = 3
-    base_delay: float = 1.0  # Initial delay in seconds
-    max_delay: float = 30.0  # Maximum delay cap
-    exponential_base: float = 2.0  # Multiplier for each retry
-    jitter: bool = True  # Add random jitter to prevent thundering herd
+    __slots__ = (
+        "max_retries",
+        "base_delay",
+        "max_delay",
+        "exponential_base",
+        "jitter",
+    )
+
+    def __init__(
+        self,
+        max_retries: int = 3,
+        base_delay: float = 1.0,
+        max_delay: float = 30.0,
+        exponential_base: float = 2.0,
+        jitter: bool = True,
+    ) -> None:
+        self.max_retries = max_retries
+        self.base_delay = base_delay  # Initial delay in seconds
+        self.max_delay = max_delay  # Maximum delay cap
+        self.exponential_base = exponential_base  # Multiplier for each retry
+        self.jitter = jitter  # Add random jitter to prevent thundering herd
 
 
-@dataclass
 class CircuitBreaker:
     """
     Circuit breaker implementation for fault tolerance.
@@ -77,21 +97,35 @@ class CircuitBreaker:
         ...         raise
     """
 
-    name: str
-    config: CircuitBreakerConfig = field(default_factory=CircuitBreakerConfig)
+    __slots__ = (
+        "name",
+        "config",
+        "state",
+        "failure_count",
+        "success_count",
+        "last_failure_time",
+    )
 
-    # State tracking
-    state: CircuitState = field(default=CircuitState.CLOSED)
-    failure_count: int = field(default=0)
-    success_count: int = field(default=0)
-    last_failure_time: float | None = field(default=None)
+    def __init__(
+        self,
+        name: str,
+        config: CircuitBreakerConfig | None = None,
+    ) -> None:
+        self.name = name
+        self.config = config or CircuitBreakerConfig()
+
+        # State tracking
+        self.state: str = "closed"
+        self.failure_count = 0
+        self.success_count = 0
+        self.last_failure_time = None
 
     def can_execute(self) -> bool:
         """Check if a call should be allowed through the circuit breaker."""
-        if self.state == CircuitState.CLOSED:
+        if self.state == "closed":
             return True
 
-        if self.state == CircuitState.OPEN:
+        if self.state == "open":
             # Check if recovery timeout has passed
             if self.last_failure_time is not None:
                 elapsed = time.time() - self.last_failure_time
@@ -101,7 +135,7 @@ class CircuitBreaker:
                         name=self.name,
                         elapsed_seconds=round(elapsed, 2),
                     )
-                    self.state = CircuitState.HALF_OPEN
+                    self.state = "half_open"
                     self.success_count = 0
                     return True
             return False
@@ -112,7 +146,7 @@ class CircuitBreaker:
     def record_success(self) -> None:
         """Record a successful call."""
         state_changed = False
-        if self.state == CircuitState.HALF_OPEN:
+        if self.state == "half_open":
             self.success_count += 1
             if self.success_count >= self.config.success_threshold:
                 logger.info(
@@ -120,11 +154,11 @@ class CircuitBreaker:
                     name=self.name,
                     success_count=self.success_count,
                 )
-                self.state = CircuitState.CLOSED
+                self.state = "closed"
                 self.failure_count = 0
                 self.success_count = 0
                 state_changed = True
-        elif self.state == CircuitState.CLOSED:
+        elif self.state == "closed":
             # Reset failure count on success
             self.failure_count = 0
 
@@ -141,17 +175,17 @@ class CircuitBreaker:
         self.last_failure_time = time.time()
         state_changed = False
 
-        if self.state == CircuitState.HALF_OPEN:
+        if self.state == "half_open":
             # Immediate trip back to OPEN on failure during half-open
             logger.warning(
                 "CIRCUIT_BREAKER_REOPENED",
                 name=self.name,
                 message="Failed during half-open state",
             )
-            self.state = CircuitState.OPEN
+            self.state = "open"
             state_changed = True
 
-        elif self.state == CircuitState.CLOSED:
+        elif self.state == "closed":
             if self.failure_count >= self.config.failure_threshold:
                 logger.warning(
                     "CIRCUIT_BREAKER_OPENED",
@@ -159,7 +193,7 @@ class CircuitBreaker:
                     failure_count=self.failure_count,
                     threshold=self.config.failure_threshold,
                 )
-                self.state = CircuitState.OPEN
+                self.state = "open"
                 state_changed = True
 
         # Persist state on significant changes (lazy import to avoid circular)
@@ -173,7 +207,7 @@ class CircuitBreaker:
         """Get current circuit breaker state information."""
         return {
             "name": self.name,
-            "state": self.state.value,
+            "state": self.state,
             "failure_count": self.failure_count,
             "success_count": self.success_count,
             "last_failure_time": self.last_failure_time,
@@ -332,12 +366,12 @@ def with_retry(
 
 
 async def with_retry_async(
-    func: Callable[P, T],
-    *args: P.args,
+    func: Callable[..., Awaitable[T]],
+    *args: Any,
     retry_config: RetryConfig | None = None,
     circuit_breaker: CircuitBreaker | None = None,
     retryable_exceptions: tuple[type[Exception], ...] = (Exception,),
-    **kwargs: P.kwargs,
+    **kwargs: Any,
 ) -> T:
     """
     Async version of retry logic with exponential backoff and circuit breaker.
@@ -533,7 +567,7 @@ def save_circuit_breaker_states() -> bool:
         states = {}
         for name, cb in _circuit_breakers.items():
             states[name] = {
-                "state": cb.state.value,
+                    "state": cb.state,
                 "failure_count": cb.failure_count,
                 "success_count": cb.success_count,
                 "last_failure_time": cb.last_failure_time,

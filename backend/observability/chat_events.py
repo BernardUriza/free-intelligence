@@ -27,7 +27,7 @@ def _ensure_fields(base: dict) -> dict:
     return {k: out.get(k, "") for k in REQUIRED_FIELDS if True} | out
 
 
-def log_chat_request(ctx: dict):
+def log_chat_request(ctx: dict) -> None:
     payload = _ensure_fields(
         {
             **ctx,
@@ -35,10 +35,10 @@ def log_chat_request(ctx: dict):
     )
     # Note: event is passed as first arg to structlog, not in payload
     payload.pop("event", None)  # Remove if present to avoid duplicate
-    log.info(ChatEvent.CHAT_REQUEST.value, **payload)
+    log.info(ChatEvent.CHAT_REQUEST, **payload)
 
 
-def log_llm_call(ctx: dict, usage: dict | None, llm_ms: int, status: str = "ok"):
+def log_llm_call(ctx: dict, usage: dict | None, llm_ms: int, status: str = "ok") -> None:
     usage = usage or {}
     payload = _ensure_fields(
         {
@@ -51,10 +51,12 @@ def log_llm_call(ctx: dict, usage: dict | None, llm_ms: int, status: str = "ok")
     )
     # Note: event is passed as first arg to structlog, not in payload
     payload.pop("event", None)  # Remove if present to avoid duplicate
-    log.info(ChatEvent.LLM_CALL.value, **payload)
+    log.info(ChatEvent.LLM_CALL, **payload)
 
 
-def log_chat_response(ctx: dict, total_ms: int, truncated: bool = False, status: str = "ok"):
+def log_chat_response(
+    ctx: dict, total_ms: int, truncated: bool = False, status: str = "ok"
+) -> None:
     payload = _ensure_fields(
         {
             "latency_ms": total_ms,
@@ -65,10 +67,10 @@ def log_chat_response(ctx: dict, total_ms: int, truncated: bool = False, status:
     )
     # Note: event is passed as first arg to structlog, not in payload
     payload.pop("event", None)  # Remove if present to avoid duplicate
-    log.info(ChatEvent.CHAT_RESPONSE.value, **payload)
+    log.info(ChatEvent.CHAT_RESPONSE, **payload)
 
 
-def log_chat_error(ctx: dict, err_kind: str, status_code: int):
+def log_chat_error(ctx: dict, err_kind: str, status_code: int) -> None:
     payload = _ensure_fields(
         {
             "status": str(status_code),
@@ -78,4 +80,4 @@ def log_chat_error(ctx: dict, err_kind: str, status_code: int):
     )
     # Note: event is passed as first arg to structlog, not in payload
     payload.pop("event", None)  # Remove if present to avoid duplicate
-    log.error(ChatEvent.CHAT_ERROR.value, **payload)
+    log.error(ChatEvent.CHAT_ERROR, **payload)

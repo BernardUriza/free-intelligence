@@ -35,7 +35,6 @@ Task: FI-CORE-FEAT-004
 import ast
 import functools
 from collections.abc import Callable
-from dataclasses import dataclass
 
 from pathlib import Path
 
@@ -136,15 +135,25 @@ def require_audit_log(func: Callable) -> Callable:
 # ============================================================================
 
 
-@dataclass
 class LLMFunctionInfo:
     """Información de función LLM detectada."""
 
-    name: str
-    lineno: int
-    has_decorator: bool
-    calls_audit_log: bool
-    filepath: str
+    __slots__ = ("name", "lineno", "has_decorator", "calls_audit_log", "filepath")
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        lineno: int,
+        has_decorator: bool,
+        calls_audit_log: bool,
+        filepath: str,
+    ) -> None:
+        self.name = name
+        self.lineno = lineno
+        self.has_decorator = has_decorator
+        self.calls_audit_log = calls_audit_log
+        self.filepath = filepath
 
     def is_compliant(self) -> bool:
         """Retorna True si cumple con la política."""

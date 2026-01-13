@@ -44,10 +44,9 @@ export interface AppointmentModalProps {
 import type { Doctor } from '@/components/bryntum/utils/appointment-transform.utils';
 export type { Doctor };
 
-export interface NewPatientForm {
-  nombre: string;
-  apellido: string;
-  fecha_nacimiento: string;
-  email: string;
-  phone: string;
-}
+// Re-export patient form types from shared location
+export type {
+  PatientFormData,
+  PatientFormErrors,
+  PatientFormField,
+} from '@/components/patients/usePatientFormValidation';
