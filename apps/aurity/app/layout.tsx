@@ -84,6 +84,8 @@ export default function RootLayout({
         <Auth0Provider>
           <ThemeProvider>
             <AudioPlayerProvider>
+              {/* DesktopSetupWizard must be OUTSIDE ProtectedLayout to show without auth */}
+              <DesktopSetupWizard />
               <ProtectedLayout>
                 <GlobalPolicyBanner />
                 {children}
@@ -93,7 +95,6 @@ export default function RootLayout({
                 </Suspense>
                 <AudioConsentBanner />
                 <VersionBadge />
-                <DesktopSetupWizard />
               </ProtectedLayout>
             </AudioPlayerProvider>
           </ThemeProvider>

@@ -11,8 +11,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod auth;
+mod fi_monitor;
 mod license;
 mod templates;
+mod wsl;
 
 use auth::AuthState;
 use serde::Serialize;
@@ -35,36 +37,21 @@ struct BackendState {
 
 /// Find an available port based on build mode
 /// Port allocation:
-///   - 7001-7050: Cloud (reserved)
-///   - 7051: Desktop dev (fixed, debug builds)
-///   - 7052+: Desktop production (dynamic, release builds)
+///   - 7001: Desktop (fixed, both dev and release)
+///   - 7002-7050: Fallback if 7001 is busy
 fn find_available_port() -> Option<u16> {
-    // In debug mode, use fixed port 7051 for desktop dev
-    #[cfg(debug_assertions)]
-    {
-        let port = 7051;
-        if TcpListener::bind(("127.0.0.1", port)).is_ok() {
-            return Some(port);
-        }
-        // Fallback to dynamic if 7051 is busy
-        for p in 7052..8000 {
-            if TcpListener::bind(("127.0.0.1", p)).is_ok() {
-                return Some(p);
-            }
-        }
-        None
+    // Always try 7001 first (frontend expects this)
+    let port = 7001;
+    if TcpListener::bind(("127.0.0.1", port)).is_ok() {
+        return Some(port);
     }
-
-    // In release mode, use dynamic port starting at 7052
-    #[cfg(not(debug_assertions))]
-    {
-        for port in 7052..8000 {
-            if TcpListener::bind(("127.0.0.1", port)).is_ok() {
-                return Some(port);
-            }
+    // Fallback to dynamic if 7001 is busy
+    for p in 7002..7050 {
+        if TcpListener::bind(("127.0.0.1", p)).is_ok() {
+            return Some(p);
         }
-        None
     }
+    None
 }
 
 /// Check if the backend is responding to health checks
@@ -712,6 +699,21 @@ fn main() {
             setup_windows_autostart,
             remove_windows_autostart,
             check_windows_autostart,
+            // FI Monitor integration
+            fi_monitor::check_fi_monitor_installed,
+            fi_monitor::launch_fi_monitor,
+            fi_monitor::download_fi_monitor,
+            fi_monitor::install_fi_monitor_silent,
+            fi_monitor::install_fi_monitor_full,
+            // WSL integration (Windows backend)
+            wsl::check_wsl_status,
+            wsl::install_wsl,
+            wsl::enable_wsl_feature,
+            wsl::setup_wsl_backend,
+            wsl::start_wsl_backend,
+            wsl::stop_wsl_backend,
+            wsl::check_wsl_backend_health,
+            wsl::get_wsl_backend_logs,
             // Auth0 OAuth commands
             auth::configure_auth0,
             auth::start_auth_flow,

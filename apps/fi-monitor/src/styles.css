@@ -67,6 +67,21 @@ body {
 .toggle-auto span { opacity: 0.4; transition: opacity 0.2s; }
 .toggle-auto input:checked + span { opacity: 1; }
 
+.minimize-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+.minimize-btn:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
 .toast {
   padding: 8px 12px;
   border-radius: 6px;

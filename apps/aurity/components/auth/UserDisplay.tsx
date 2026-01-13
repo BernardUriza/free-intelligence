@@ -15,9 +15,11 @@ import { useAuth } from '@aurity-standalone/hooks/useAuth';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
-import { LogIn, CheckCircle2, User, Settings, Star, LogOut, ChevronDown } from 'lucide-react';
+import { LogIn, CheckCircle2, User, Settings, Star, LogOut, ChevronDown, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRBAC } from '@aurity-standalone/hooks/useRBAC';
+import { isDesktop } from '@/lib/config/deployment';
+import { resetDesktopSetupWizard } from '@/components/onboarding/DesktopSetupWizard';
 
 export function UserDisplay() {
   const {
@@ -177,6 +179,20 @@ export function UserDisplay() {
               <Settings className="w-4 h-4" />
               Configuración
               <Star className="w-3 h-3 fi-text-purple ml-auto fill-purple-400" />
+            </button>
+          )}
+
+          {/* Desktop Setup Wizard - Desktop Mode Only */}
+          {isDesktop() && (
+            <button
+              onClick={() => {
+                setDropdownOpen(false);
+                resetDesktopSetupWizard();
+              }}
+              className="w-full px-4 py-2 text-left text-sm fi-text hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2"
+            >
+              <Wrench className="w-4 h-4" />
+              Asistente de Instalación
             </button>
           )}
         </div>

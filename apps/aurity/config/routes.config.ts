@@ -177,6 +177,11 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   // ONBOARDING - Special case (authenticated but guided)
   // ============================================================================
   {
+    path: '/onboarding',
+    access: 'authenticated',
+    description: 'Onboarding flow',
+  },
+  {
     path: '/onboarding/*',
     access: 'authenticated',
     description: 'Onboarding flow',

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 
 interface ServiceStatus {
   ollama_running: boolean
@@ -111,6 +112,11 @@ export default function App() {
     }
   }
 
+  const handleMinimizeToTray = async () => {
+    const window = getCurrentWindow()
+    await window.hide()
+  }
+
   if (loading) {
     return <div className="app loading"><div className="spinner" /><span>Conectando...</span></div>
   }
@@ -131,6 +137,9 @@ export default function App() {
             <input type="checkbox" checked={autostart} onChange={() => handleAction('autostart', autostart ? 'disable_autostart' : 'enable_autostart')} />
             <span>🚀</span>
           </label>
+          <button className="minimize-btn" onClick={handleMinimizeToTray} title="Minimizar al tray">
+            ⏬
+          </button>
         </div>
       </header>
 

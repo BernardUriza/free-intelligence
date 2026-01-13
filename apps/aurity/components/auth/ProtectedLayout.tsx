@@ -22,6 +22,7 @@ import {
   getRequiredRoles,
   isPublicRoute,
 } from '@/config/routes.config';
+import { isDesktop } from '@/lib/config/deployment';
 
 interface ProtectedLayoutProps {
   children: React.ReactNode;
@@ -35,6 +36,13 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
+    // In desktop mode, skip authentication requirements
+    // Desktop uses license-based access, not Auth0
+    if (isDesktop()) {
+      setIsAuthorized(true);
+      return;
+    }
+
     // Wait for auth to load
     if (authLoading || rbacLoading) {
       return;

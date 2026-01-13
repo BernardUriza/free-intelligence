@@ -510,6 +510,19 @@ fn main() {
                     }
                 })
                 .build(app)?;
+            
+            // Intercept close to minimize to tray instead of quitting
+            if let Some(window) = app.get_webview_window("main") {
+                let window_clone = window.clone();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = window_clone.hide();
+                        println!("[FI Monitor] Window minimized to tray");
+                    }
+                });
+            }
+            
             tauri::async_runtime::spawn(async move {
                 println!("[FI Monitor] Checking services...");
                 if check_ollama().await {
