@@ -484,16 +484,17 @@ fn main() {
                     println!("[Aurity] First run - config bootstrapped");
                     let _ = app_handle.emit("first-run-detected", ());
 
-                    // On Windows first run, setup autostart
-                    #[cfg(target_os = "windows")]
-                    {
-                        emit_status(&app_handle, "Configurando inicio automático...");
-                        match setup_windows_autostart_internal() {
-                            Ok(true) => println!("[Aurity] Windows autostart configured"),
-                            Ok(false) => println!("[Aurity] Windows autostart skipped"),
-                            Err(e) => eprintln!("[Aurity] WARNING: Failed to setup autostart: {}", e),
-                        }
-                    }
+                    // DISABLED: Only FI-monitor should autostart, not Aurity Desktop
+                    // User can manually enable autostart from settings if needed
+                    // #[cfg(target_os = "windows")]
+                    // {
+                    //     emit_status(&app_handle, "Configurando inicio automático...");
+                    //     match setup_windows_autostart_internal() {
+                    //         Ok(true) => println!("[Aurity] Windows autostart configured"),
+                    //         Ok(false) => println!("[Aurity] Windows autostart skipped"),
+                    //         Err(e) => eprintln!("[Aurity] WARNING: Failed to setup autostart: {}", e),
+                    //     }
+                    // }
                 }
                 Ok(false) => {
                     println!("[Aurity] Config already exists");
