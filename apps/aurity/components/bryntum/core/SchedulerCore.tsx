@@ -211,6 +211,65 @@ export function SchedulerCore({
   }, [getConfig, timeWindow, isReady, instance]);
 
   // ============================================================================
+  // WORKAROUND: Fix blocked time event positions (CSS/JS version mismatch)
+  // Card: FI-BRYNTUM-CSS-001
+  // ============================================================================
+  // Bryntum CSS v6.0.0-alpha-1 + JS v5.6.6 calculates wrong Y positions for events.
+  // This effect repositions blocked events to their correct resource rows.
+  useEffect(() => {
+    if (!isReady || !instance) return;
+
+    const fixBlockedEventPositions = () => {
+      const s = instance as any;
+      if (!s?.resourceStore?.allRecords) return;
+
+      // Build resourceId -> row index map
+      const resourceIndexMap: Record<string, number> = {};
+      s.resourceStore.allRecords.forEach((resource: any, index: number) => {
+        resourceIndexMap[resource.id] = index;
+      });
+
+      // Get row height from scheduler config
+      const rowHeight = s.rowHeight || 200;
+
+      // Find all blocked event wrappers and fix their positions
+      const blockedWrappers = document.querySelectorAll('.b-sch-event-wrap[data-event-id^="blocked-"]');
+
+      blockedWrappers.forEach((wrapper) => {
+        const resourceId = wrapper.getAttribute('data-resource-id');
+        if (!resourceId || resourceIndexMap[resourceId] === undefined) return;
+
+        const rowIndex = resourceIndexMap[resourceId];
+        const correctTop = rowIndex * rowHeight + 5; // 5px margin
+
+        // Apply correct position via CSS custom property
+        (wrapper as HTMLElement).style.setProperty('--blocked-row-top', `${correctTop}px`);
+        (wrapper as HTMLElement).classList.add('blocked-position-fixed');
+      });
+    };
+
+    // Run fix after initial render
+    const timeoutId = setTimeout(fixBlockedEventPositions, 100);
+
+    // Also run on scroll/zoom since Bryntum re-renders elements
+    const s = instance as any;
+    const handleRender = () => {
+      requestAnimationFrame(fixBlockedEventPositions);
+    };
+
+    s?.on?.('scroll', handleRender);
+    s?.on?.('zoomChange', handleRender);
+    s?.on?.('refresh', handleRender);
+
+    return () => {
+      clearTimeout(timeoutId);
+      s?.un?.('scroll', handleRender);
+      s?.un?.('zoomChange', handleRender);
+      s?.un?.('refresh', handleRender);
+    };
+  }, [isReady, instance, getConfig]);
+
+  // ============================================================================
   // Render
   // ============================================================================
 

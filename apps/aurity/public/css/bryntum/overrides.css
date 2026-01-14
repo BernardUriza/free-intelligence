@@ -114,3 +114,21 @@
   ) !important;
   pointer-events: none !important;
 }
+
+/* ============================================================================
+ * FIX: Blocked event position correction (CSS/JS version mismatch workaround)
+ * Card: FI-BRYNTUM-CSS-001
+ * ============================================================================
+ * Bryntum calculates wrong Y positions due to CSS v6.0.0-alpha-1 / JS v5.6.6 mismatch.
+ * JavaScript in SchedulerCore sets --blocked-row-top custom property with correct Y.
+ */
+.b-sch-event-wrap.blocked-position-fixed[data-event-id^="blocked-"] {
+  /* Use JS-calculated correct position */
+  transform: translateY(calc(var(--blocked-row-top, 0px) - 5px)) !important;
+  /* Override Bryntum's inline top: 5px to effectively be --blocked-row-top */
+}
+
+/* Ensure blocked events stay within viewport bounds */
+.b-sch-event-wrap.blocked-position-fixed[data-event-id^="blocked-"] .b-sch-event {
+  position: relative !important;
+}
