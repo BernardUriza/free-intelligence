@@ -640,26 +640,33 @@ fn main() {
             let app_for_update = app_handle.clone();
             tauri::async_runtime::spawn(async move {
                 println!("[FI Monitor] Checking for updates...");
-                match app_for_update.updater().check().await {
-                    Ok(Some(update)) => {
-                        println!("[FI Monitor] Update available: {} -> {}", update.current_version, update.version);
-                        println!("[FI Monitor] Downloading and installing update...");
+                match app_for_update.updater() {
+                    Ok(updater) => {
+                        match updater.check().await {
+                            Ok(Some(update)) => {
+                                println!("[FI Monitor] Update available: {} -> {}", update.current_version, update.version);
+                                println!("[FI Monitor] Downloading and installing update...");
 
-                        match update.download_and_install(|_, _| {}, || {}).await {
-                            Ok(_) => {
-                                println!("[FI Monitor] ✅ Update installed successfully! Restart required.");
-                                // Notify user (optional - could add notification here)
+                                match update.download_and_install(|_, _| {}, || {}).await {
+                                    Ok(_) => {
+                                        println!("[FI Monitor] ✅ Update installed successfully! Restart required.");
+                                        // Notify user (optional - could add notification here)
+                                    }
+                                    Err(e) => {
+                                        println!("[FI Monitor] ⚠️ Failed to install update: {}", e);
+                                    }
+                                }
+                            }
+                            Ok(None) => {
+                                println!("[FI Monitor] ✅ Already up to date");
                             }
                             Err(e) => {
-                                println!("[FI Monitor] ⚠️ Failed to install update: {}", e);
+                                println!("[FI Monitor] ⚠️ Failed to check for updates: {}", e);
                             }
                         }
                     }
-                    Ok(None) => {
-                        println!("[FI Monitor] ✅ Already up to date");
-                    }
                     Err(e) => {
-                        println!("[FI Monitor] ⚠️ Failed to check for updates: {}", e);
+                        println!("[FI Monitor] ⚠️ Failed to initialize updater: {}", e);
                     }
                 }
             });
