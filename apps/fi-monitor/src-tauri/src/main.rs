@@ -391,12 +391,17 @@ async fn start_tunnel_internal(app: tauri::AppHandle, state: Arc<AppState>) -> R
     *state.tunnel_running.lock().unwrap() = true;
 
     // Capture stderr in separate thread to find tunnel URL
+    // IMPORTANT: Must .take() to move ownership to thread, otherwise stderr closes when child drops
     let stderr = child.stderr.take().expect("Failed to capture stderr");
     let state_clone = Arc::clone(&state);
     let app_clone = app.clone();
     let config = state.config.lock().unwrap().clone();
 
+    // Move child into thread to keep it alive while reading stderr
+    // Without this, child drops and stderr pipe closes before we can read URL
     std::thread::spawn(move || {
+        // Keep child alive for the duration of this thread
+        let _child_guard = child;
         let reader = BufReader::new(stderr);
         let url_regex = Regex::new(r"https://[a-z0-9-]+\.trycloudflare\.com").unwrap();
 
@@ -437,6 +442,9 @@ async fn start_tunnel_internal(app: tauri::AppHandle, state: Arc<AppState>) -> R
                 break;
             }
         }
+
+        // _child_guard drops here, but process continues running
+        // (Rust Child has no Drop implementation - process is independent)
     });
 
     Ok("Tunnel starting... URL will appear when ready".to_string())
