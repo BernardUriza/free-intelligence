@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 
 interface ServiceStatus {
   ollama_running: boolean
@@ -24,7 +23,6 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [autostart, setAutostart] = useState(false)
   const [testResult, setTestResult] = useState<TestResult | null>(null)
   const [autoTest, setAutoTest] = useState(false)
   const [nextTestIn, setNextTestIn] = useState(60)
@@ -35,8 +33,6 @@ export default function App() {
       setError(null)
       const result = await invoke<ServiceStatus>('get_status')
       setStatus(result)
-      const isAutostart = await invoke<boolean>('is_autostart_enabled')
-      setAutostart(isAutostart)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -112,11 +108,6 @@ export default function App() {
     }
   }
 
-  const handleMinimizeToTray = async () => {
-    const window = getCurrentWindow()
-    await window.hide()
-  }
-
   if (loading) {
     return <div className="app loading"><div className="spinner" /><span>Conectando...</span></div>
   }
@@ -133,13 +124,6 @@ export default function App() {
         </div>
         <div className="system-info">
           <span className="host">{status?.system_info.hostname}</span>
-          <label className="toggle-auto" title="Iniciar con Windows">
-            <input type="checkbox" checked={autostart} onChange={() => handleAction('autostart', autostart ? 'disable_autostart' : 'enable_autostart')} />
-            <span>🚀</span>
-          </label>
-          <button className="minimize-btn" onClick={handleMinimizeToTray} title="Minimizar al tray">
-            ⏬
-          </button>
         </div>
       </header>
 
