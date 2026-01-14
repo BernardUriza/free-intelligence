@@ -398,10 +398,22 @@ export function buildAppointmentSchedulerConfig({
       scheduleClick: onScheduleClick
         ? ({ date, resourceRecord }: { date: Date; resourceRecord: unknown }) => {
             const resource = resourceRecord as { id: string };
-            if (resource && date) {
-              // Simple click: no end date (user will set duration manually)
-              onScheduleClick(date, resource.id, null);
+            if (!resource || !date) return;
+
+            // Block clicks on non-working hours (gray zones)
+            const doctor = doctors.find((d) => d.doctor_id === resource.id);
+            if (!doctor) return;
+
+            const isAllowed = isDateInWorkingHours(doctor, date);
+            if (!isAllowed) {
+              if (IS_DEV) {
+                console.log(`[Bryntum] Blocked schedule click at ${date.toISOString()} - outside working hours`);
+              }
+              return; // Don't open modal for non-working hours
             }
+
+            // Simple click: no end date (user will set duration manually)
+            onScheduleClick(date, resource.id, null);
           }
         : undefined,
     // Type assertion: Bryntum's SchedulerListeners doesn't include all valid events like dragCreateEnd
