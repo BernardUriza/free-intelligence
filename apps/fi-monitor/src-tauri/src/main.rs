@@ -17,6 +17,7 @@ use tauri::{
     Emitter, Manager,
 };
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
+use tauri_plugin_updater::UpdaterExt;
 use tokio::time::sleep;
 
 // ============================================================================
