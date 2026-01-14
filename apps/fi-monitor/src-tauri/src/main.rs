@@ -617,6 +617,13 @@ fn main() {
                         *state_clone.ollama_running.lock().unwrap() = true;
                         println!("[FI Monitor] ✅ Ollama running (attempt {})", attempts + 1);
                         let _ = app_handle.emit("services-checked", ());
+
+                        // Auto-start tunnel if Ollama is running
+                        println!("[FI Monitor] Auto-starting tunnel...");
+                        match start_tunnel_internal(app_handle.clone(), state_clone.clone()).await {
+                            Ok(_) => println!("[FI Monitor] ✅ Tunnel auto-started"),
+                            Err(e) => println!("[FI Monitor] ⚠️ Failed to auto-start tunnel: {}", e),
+                        }
                         return;
                     }
                     attempts += 1;
