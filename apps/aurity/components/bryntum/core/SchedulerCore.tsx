@@ -216,11 +216,13 @@ export function SchedulerCore({
   // ============================================================================
   // Bryntum CSS v6.0.0-alpha-1 + JS v5.6.6 calculates wrong Y positions for events.
   // This effect repositions blocked events to their correct resource rows.
+  // Uses MutationObserver to catch Bryntum's virtual rendering DOM changes.
   useEffect(() => {
     if (!isReady || !instance) return;
 
+    const s = instance as any;
+
     const fixBlockedEventPositions = () => {
-      const s = instance as any;
       if (!s?.resourceStore?.allRecords) return;
 
       // Build resourceId -> row index map
@@ -251,8 +253,36 @@ export function SchedulerCore({
     // Run fix after initial render
     const timeoutId = setTimeout(fixBlockedEventPositions, 100);
 
-    // Also run on scroll/zoom since Bryntum re-renders elements
-    const s = instance as any;
+    // MutationObserver to catch Bryntum's virtual rendering
+    // This is more reliable than event listeners for detecting DOM changes
+    const schedulerEl = containerRef.current;
+    let observer: MutationObserver | null = null;
+
+    if (schedulerEl) {
+      observer = new MutationObserver((mutations) => {
+        // Check if any blocked events were added
+        const hasBlockedEvents = mutations.some((mutation) =>
+          Array.from(mutation.addedNodes).some((node) => {
+            if (node instanceof HTMLElement) {
+              return node.matches?.('[data-event-id^="blocked-"]') ||
+                     node.querySelector?.('[data-event-id^="blocked-"]');
+            }
+            return false;
+          })
+        );
+
+        if (hasBlockedEvents) {
+          requestAnimationFrame(fixBlockedEventPositions);
+        }
+      });
+
+      observer.observe(schedulerEl, {
+        childList: true,
+        subtree: true,
+      });
+    }
+
+    // Also keep Bryntum event listeners as backup
     const handleRender = () => {
       requestAnimationFrame(fixBlockedEventPositions);
     };
@@ -263,6 +293,7 @@ export function SchedulerCore({
 
     return () => {
       clearTimeout(timeoutId);
+      observer?.disconnect();
       s?.un?.('scroll', handleRender);
       s?.un?.('zoomChange', handleRender);
       s?.un?.('refresh', handleRender);
