@@ -599,6 +599,7 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(state.clone())
         .setup(move |app| {
             let app_handle = app.handle().clone();
@@ -634,6 +635,34 @@ fn main() {
                 });
             }
             
+            // Check for updates in background
+            let app_for_update = app_handle.clone();
+            tauri::async_runtime::spawn(async move {
+                println!("[FI Monitor] Checking for updates...");
+                match app_for_update.updater().check().await {
+                    Ok(Some(update)) => {
+                        println!("[FI Monitor] Update available: {} -> {}", update.current_version, update.version);
+                        println!("[FI Monitor] Downloading and installing update...");
+
+                        match update.download_and_install(|_, _| {}, || {}).await {
+                            Ok(_) => {
+                                println!("[FI Monitor] ✅ Update installed successfully! Restart required.");
+                                // Notify user (optional - could add notification here)
+                            }
+                            Err(e) => {
+                                println!("[FI Monitor] ⚠️ Failed to install update: {}", e);
+                            }
+                        }
+                    }
+                    Ok(None) => {
+                        println!("[FI Monitor] ✅ Already up to date");
+                    }
+                    Err(e) => {
+                        println!("[FI Monitor] ⚠️ Failed to check for updates: {}", e);
+                    }
+                }
+            });
+
             tauri::async_runtime::spawn(async move {
                 println!("[FI Monitor] Checking services (with startup retry)...");
                 // Retry logic for startup - Ollama might still be booting

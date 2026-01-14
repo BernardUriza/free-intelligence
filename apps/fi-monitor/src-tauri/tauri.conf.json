@@ -59,6 +59,15 @@
   "plugins": {
     "shell": {
       "open": true
+    },
+    "updater": {
+      "endpoints": [
+        "https://github.com/BernardUriza/free-intelligence/releases/latest/download/fi-monitor-updater.json"
+      ],
+      "pubkey": "PLACEHOLDER_WILL_BE_REPLACED_AFTER_KEY_GENERATION",
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }
