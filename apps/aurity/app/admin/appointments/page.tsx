@@ -92,6 +92,26 @@ export default function AppointmentsCalendarPage() {
     }
   }, [schedulerInstance]);
 
+  // Horizontal scroll navigation (scroll by ~3 hours = 240px at tickWidth 80)
+  const SCROLL_AMOUNT = 240;
+
+  const handleScrollLeft = useCallback(() => {
+    if (!schedulerInstance) return;
+    const subgrid = document.querySelector('.b-grid-subgrid[data-region="normal"]');
+    if (subgrid) {
+      subgrid.scrollLeft = Math.max(0, subgrid.scrollLeft - SCROLL_AMOUNT);
+    }
+  }, [schedulerInstance]);
+
+  const handleScrollRight = useCallback(() => {
+    if (!schedulerInstance) return;
+    const subgrid = document.querySelector('.b-grid-subgrid[data-region="normal"]');
+    if (subgrid) {
+      const maxScroll = subgrid.scrollWidth - subgrid.clientWidth;
+      subgrid.scrollLeft = Math.min(maxScroll, subgrid.scrollLeft + SCROLL_AMOUNT);
+    }
+  }, [schedulerInstance]);
+
   // Navigation handlers
   function navigateDate(direction: "prev" | "next") {
     const newDate = new Date(currentDate);
@@ -229,6 +249,8 @@ export default function AppointmentsCalendarPage() {
             onZoomOut={handleZoomOut}
             zoomLevel={zoomLevel}
             maxZoomLevel={14}
+            onScrollLeft={handleScrollLeft}
+            onScrollRight={handleScrollRight}
             onRefresh={() => fetchAppointments(selectedClinic, currentDate)}
             onNewAppointment={handleNewAppointment}
             dateDisplayText={getDateDisplayText()}

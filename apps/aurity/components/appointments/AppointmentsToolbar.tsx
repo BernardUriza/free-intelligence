@@ -9,7 +9,7 @@
  * - Refresh and new appointment actions
  */
 
-import { ChevronLeft, ChevronRight, Plus, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, RefreshCw, ZoomIn, ZoomOut, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import type { AppointmentViewMode } from '@/components/bryntum/config/appointment-presets.config';
@@ -41,6 +41,10 @@ interface AppointmentsToolbarProps {
   minZoomLevel?: number;
   maxZoomLevel?: number;
 
+  // Horizontal scroll navigation
+  onScrollLeft?: () => void;
+  onScrollRight?: () => void;
+
   // Actions
   onRefresh: () => void;
   onNewAppointment: () => void;
@@ -62,6 +66,8 @@ export function AppointmentsToolbar({
   zoomLevel,
   minZoomLevel = 5,
   maxZoomLevel = 14,
+  onScrollLeft,
+  onScrollRight,
   onRefresh,
   onNewAppointment,
   dateDisplayText,
@@ -156,6 +162,28 @@ export function AppointmentsToolbar({
             icon={ZoomIn}
             disabled={zoomLevel !== undefined && zoomLevel >= maxZoomLevel}
             aria-label="Acercar"
+          />
+        </div>
+      )}
+
+      {/* Horizontal Scroll Navigation */}
+      {(onScrollLeft || onScrollRight) && (
+        <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
+          <Button
+            onClick={onScrollLeft}
+            variant="ghost"
+            size="sm"
+            icon={ArrowLeft}
+            aria-label="Scroll izquierda"
+            title="Scroll izquierda (horas anteriores)"
+          />
+          <Button
+            onClick={onScrollRight}
+            variant="ghost"
+            size="sm"
+            icon={ArrowRight}
+            aria-label="Scroll derecha"
+            title="Scroll derecha (horas siguientes)"
           />
         </div>
       )}
