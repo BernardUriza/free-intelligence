@@ -8,6 +8,9 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -295,8 +298,10 @@ fn start_periodic_upload(url: String, config: AppConfig) {
 fn is_process_alive(pid: u32) -> bool {
     #[cfg(target_os = "windows")]
     {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
         Command::new("tasklist")
             .args(["/FI", &format!("PID eq {}", pid), "/NH"])
+            .creation_flags(CREATE_NO_WINDOW)
             .output()
             .map(|output| {
                 let stdout = String::from_utf8_lossy(&output.stdout);
@@ -379,6 +384,20 @@ async fn start_tunnel_internal(app: tauri::AppHandle, state: Arc<AppState>) -> R
     }
     println!("[FI Monitor] Starting Cloudflare tunnel...");
     let cloudflared = find_cloudflared()?;
+
+    #[cfg(target_os = "windows")]
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    #[cfg(target_os = "windows")]
+    let mut child = Command::new(&cloudflared)
+        .args(["tunnel", "--url", "http://localhost:11434"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .map_err(|e| format!("Failed to start cloudflared: {}", e))?;
+
+    #[cfg(not(target_os = "windows"))]
     let mut child = Command::new(&cloudflared)
         .args(["tunnel", "--url", "http://localhost:11434"])
         .stdout(Stdio::piped())
