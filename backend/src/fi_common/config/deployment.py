@@ -26,6 +26,7 @@ from enum import Enum
 from typing import TypedDict
 from urllib.parse import urlparse
 
+import httpx
 import os
 from pathlib import Path
 
@@ -116,6 +117,33 @@ def _load_ollama_source_config() -> dict | None:
         return None
 
 
+def _fetch_azure_tunnel_url_sync() -> str | None:
+    """
+    Fetch tunnel URL from Azure Blob Storage (sync version).
+
+    Reads from fi-tunnels/tunnel-url.json blob which is updated
+    automatically by fi-monitor when cloudflared starts.
+
+    Returns:
+        Tunnel URL if available and valid, None otherwise.
+    """
+    blob_url = os.getenv(
+        "FI_TUNNEL_BLOB_URL",
+        "https://aurityreleases.blob.core.windows.net/fi-tunnels/tunnel-url.json",
+    )
+    try:
+        response = httpx.get(blob_url, timeout=5.0)
+        if response.status_code == 200:
+            data = response.json()
+            tunnel_url = data.get("tunnel_url")
+            if tunnel_url and _is_valid_ollama_url(tunnel_url):
+                logger.debug("OLLAMA_HOST_FROM_AZURE: url=%s", tunnel_url)
+                return tunnel_url
+    except Exception as e:
+        logger.debug("AZURE_TUNNEL_FETCH_FAILED: %s", e)
+    return None
+
+
 def get_ollama_host() -> str:
     """
     Get Ollama endpoint based on deployment target.
@@ -169,9 +197,11 @@ def get_ollama_hosts() -> list[OllamaHost]:
     """
     Get ordered list of Ollama hosts for multi-host fallback.
 
-    Priority:
-        1. Windows tunnel (from file or env var) - primary
-        2. Mac localhost - fallback when traveling
+    Priority (FI-BACKEND-FALLBACK-002):
+        1. Azure Blob (fi-tunnels/tunnel-url.json) - primary, auto-updated by fi-monitor
+        2. Local file (/tmp/ollama-tunnel-url.txt) - manual override
+        3. Env var (OLLAMA_TUNNEL_URL) - CI/CD fallback
+        99. Mac localhost - development fallback
 
     If OLLAMA_HOST is explicitly set, returns only that host (no fallback).
 
@@ -185,24 +215,34 @@ def get_ollama_hosts() -> list[OllamaHost]:
 
     hosts: list[OllamaHost] = []
 
-    # 1. Windows tunnel from file (primary - set by ollama-tunnel.sh)
+    # 1. Azure Blob (primary - auto-updated by fi-monitor)
+    azure_url = _fetch_azure_tunnel_url_sync()
+    if azure_url:
+        hosts.append(
+            OllamaHost(
+                url=azure_url,
+                name="azure_tunnel",
+                priority=1,
+            )
+        )
+
+    # 2. Local file (manual override - set by ollama-tunnel.sh or user)
     tunnel_file = Path("/tmp/ollama-tunnel-url.txt")
     if tunnel_file.exists():
         try:
             tunnel_url = tunnel_file.read_text().strip()
             if tunnel_url and _is_valid_ollama_url(tunnel_url):
-                hosts.append(
-                    OllamaHost(
-                        url=tunnel_url,
-                        name="windows_tunnel",
-                        priority=1,
+                if not any(h["url"] == tunnel_url for h in hosts):
+                    hosts.append(
+                        OllamaHost(
+                            url=tunnel_url,
+                            name="tunnel_file",
+                            priority=2,
+                        )
                     )
-                )
             elif tunnel_file.stat().st_size == 0 or not tunnel_url:
-                # FI-BACKEND-FALLBACK-001: Warn about empty tunnel file
                 logger.warning(
-                    "OLLAMA_TUNNEL_FILE_EMPTY: %s exists but is empty, "
-                    "skipping Windows tunnel host",
+                    "OLLAMA_TUNNEL_FILE_EMPTY: %s exists but is empty",
                     tunnel_file,
                 )
         except OSError as e:
@@ -212,18 +252,18 @@ def get_ollama_hosts() -> list[OllamaHost]:
                 e,
             )
 
-    # 2. Windows tunnel from env var (GitHub Secret fallback)
+    # 3. Env var (CI/CD fallback - GitHub Secret)
     tunnel_env = os.getenv("OLLAMA_TUNNEL_URL")
     if tunnel_env and not any(h["url"] == tunnel_env for h in hosts):
         hosts.append(
             OllamaHost(
                 url=tunnel_env,
-                name="windows_tunnel_env",
-                priority=2,
+                name="tunnel_env",
+                priority=3,
             )
         )
 
-    # 3. Mac localhost (fallback when traveling/developing)
+    # 99. Mac localhost (development fallback)
     mac_fallback = os.getenv("OLLAMA_MAC_FALLBACK", "http://localhost:11434")
     hosts.append(
         OllamaHost(

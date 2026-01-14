@@ -443,8 +443,8 @@ class OllamaProvider(LLMProvider):
             embed_model=self.embed_model,
             hosts=[{"name": h["name"], "url": h["url"]} for h in self.hosts],
             fallback_enabled=len(self.hosts) > 1,
-            retry_config=self.retry_config.__dict__,
-            circuit_breaker_config=cb_config.__dict__,
+            retry_config=self.retry_config.to_dict(),
+            circuit_breaker_config=cb_config.to_dict(),
         )
 
     def generate(self, prompt: str, **kwargs) -> LLMResponse:

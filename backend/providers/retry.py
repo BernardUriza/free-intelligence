@@ -50,6 +50,10 @@ class CircuitBreakerConfig:
         self.recovery_timeout = recovery_timeout  # Seconds to wait before half-open
         self.success_threshold = success_threshold  # Successes to close from half-open
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dict (needed because __slots__ doesn't have __dict__)."""
+        return {k: getattr(self, k) for k in self.__slots__}
+
 
 class RetryConfig:
     """Configuration for exponential backoff retry"""
@@ -75,6 +79,10 @@ class RetryConfig:
         self.max_delay = max_delay  # Maximum delay cap
         self.exponential_base = exponential_base  # Multiplier for each retry
         self.jitter = jitter  # Add random jitter to prevent thundering herd
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dict (needed because __slots__ doesn't have __dict__)."""
+        return {k: getattr(self, k) for k in self.__slots__}
 
 
 class CircuitBreaker:
@@ -498,7 +506,7 @@ def get_circuit_breaker(
         logger.info(
             "CIRCUIT_BREAKER_CREATED",
             name=name,
-            config=_circuit_breakers[name].config.__dict__,
+            config=_circuit_breakers[name].config.to_dict(),
         )
 
     return _circuit_breakers[name]
