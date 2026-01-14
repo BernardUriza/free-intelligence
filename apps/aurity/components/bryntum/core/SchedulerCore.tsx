@@ -254,31 +254,28 @@ export function SchedulerCore({
     const timeoutId = setTimeout(fixBlockedEventPositions, 100);
 
     // MutationObserver to catch Bryntum's virtual rendering
-    // This is more reliable than event listeners for detecting DOM changes
+    // Run fix on ANY DOM mutation - Bryntum recycles elements unpredictably
     const schedulerEl = containerRef.current;
     let observer: MutationObserver | null = null;
+    let pendingFix = false;
 
     if (schedulerEl) {
-      observer = new MutationObserver((mutations) => {
-        // Check if any blocked events were added
-        const hasBlockedEvents = mutations.some((mutation) =>
-          Array.from(mutation.addedNodes).some((node) => {
-            if (node instanceof HTMLElement) {
-              return node.matches?.('[data-event-id^="blocked-"]') ||
-                     node.querySelector?.('[data-event-id^="blocked-"]');
-            }
-            return false;
-          })
-        );
-
-        if (hasBlockedEvents) {
-          requestAnimationFrame(fixBlockedEventPositions);
+      observer = new MutationObserver(() => {
+        // Debounce: only schedule one fix per animation frame
+        if (!pendingFix) {
+          pendingFix = true;
+          requestAnimationFrame(() => {
+            fixBlockedEventPositions();
+            pendingFix = false;
+          });
         }
       });
 
       observer.observe(schedulerEl, {
         childList: true,
         subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class'], // Catch style/class changes too
       });
     }
 
