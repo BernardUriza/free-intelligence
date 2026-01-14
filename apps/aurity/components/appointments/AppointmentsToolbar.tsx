@@ -75,13 +75,17 @@ export function AppointmentsToolbar({
   return (
     <div className="fi-flex-gap-md">
       {/* Clinic Selector */}
-      <Select value={selectedClinic} onValueChange={onClinicChange}>
+      <Select
+        value={selectedClinic}
+        onValueChange={onClinicChange}
+        items={Object.fromEntries(clinics.map((c) => [c.clinic_id, { label: c.name }]))}
+      >
         <SelectTrigger className="w-48">
           <SelectValue placeholder="Seleccionar clínica" />
         </SelectTrigger>
         <SelectContent>
           {clinics.map((clinic) => (
-            <SelectItem key={clinic.clinic_id} value={clinic.clinic_id}>
+            <SelectItem key={clinic.clinic_id} value={clinic.clinic_id} label={clinic.name}>
               {clinic.name}
             </SelectItem>
           ))}
