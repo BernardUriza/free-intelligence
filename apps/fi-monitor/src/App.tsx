@@ -228,6 +228,7 @@ export default function App() {
         <span className={`dot ${ollamaOn ? 'green' : 'gray'}`} />
         <span className={`dot ${tunnelOn ? 'blue' : 'gray'}`} />
         <span className="status-text">{ollamaOn && tunnelOn ? 'Listo' : ollamaOn ? 'Tunnel pendiente' : 'Detenido'}</span>
+        <span className="version">v1.0.0</span>
       </footer>
     </div>
   )
