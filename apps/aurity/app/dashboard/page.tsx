@@ -13,14 +13,14 @@
  *
  * Modes:
  * - /dashboard (default): Command center view
- * - /dashboard?mode=tv: Fullscreen TV for waiting room
+ * - /dashboard?mode=tv&clinic_id=XXX: Fullscreen TV for waiting room
  * - /dashboard?mode=recepcion: Staff preview
  *
  * Card: FI-UI-DASH-002
  * Inspired by: Command center UIs, OBS Studio, Streaming dashboards
  */
 
-import React, { useEffect, useState, Suspense, memo } from "react"
+import React, { useEffect, useState, Suspense, memo, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
@@ -37,10 +37,12 @@ import {
   Activity,
   ChevronLeft,
   Maximize,
+  Building2,
 } from "lucide-react"
-
-// Clinic name from environment variable (configurable per deployment)
-const CLINIC_NAME = process.env.NEXT_PUBLIC_CLINIC_NAME || 'Mi Clínica';
+import { useCurrentDoctor } from "@/hooks/useCurrentDoctor"
+import { useRBAC, ROLES } from "@/hooks/useRBAC"
+import { fetchClinics, fetchClinic, type Clinic } from "@/lib/api/clinics"
+import { ClinicSelector } from "@/components/shared/ClinicSelector"
 
 // =============================================================================
 // INFO BAR - Bottom bar with time, date, branding (for TV mode)
@@ -123,7 +125,12 @@ const InfoBar = memo(function InfoBar({ clinicName }: { clinicName: string }) {
 // =============================================================================
 // TV MODE - Patient Waiting Room Display (Fullscreen)
 // =============================================================================
-const TVModeDisplay = memo(function TVModeDisplay() {
+interface TVModeDisplayProps {
+  clinicId: string;
+  clinicName: string;
+}
+
+const TVModeDisplay = memo(function TVModeDisplay({ clinicId, clinicName }: TVModeDisplayProps) {
   const [doctorMessage] = useState<string | null>(null)
   const [slides, setSlides] = useState<any[]>([])
   const [queuePatients] = useState<QueuePatient[]>([
@@ -159,30 +166,176 @@ const TVModeDisplay = memo(function TVModeDisplay() {
             <div className="overflow-hidden flex flex-col min-h-0 order-1">
               <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/30 rounded-xl sm:rounded-2xl" style={{ minHeight: 'clamp(200px, 50vh, 600px)' }}>
                 <div className="flex-1 overflow-hidden flex flex-col min-h-0 p-2 sm:p-3 md:p-4 lg:p-5">
-                  <WaitingRoomHost mode="broadcast" clinicName={CLINIC_NAME} doctorMessage={doctorMessage} clinicSlides={slides} />
+                  <WaitingRoomHost mode="broadcast" clinicName={clinicName} doctorMessage={doctorMessage} clinicSlides={slides} />
                 </div>
               </div>
             </div>
-            {/* QR Check-in Panel - Instructions already included in CheckinQRDisplay */}
+            {/* QR Check-in Panel */}
             <div className="flex flex-row lg:flex-col gap-2 sm:gap-3 order-2 overflow-hidden min-h-0">
               <div className="flex-1 overflow-hidden min-h-0" style={{ minHeight: 'clamp(120px, 25vh, 400px)' }}>
-                <CheckinQRDisplay clinicId="7f6ef952-d755-43d9-b668-32c3b6879149" clinicName={CLINIC_NAME} />
+                <CheckinQRDisplay clinicId={clinicId} clinicName={clinicName} />
               </div>
             </div>
           </div>
         </div>
       </main>
       <div className="flex-shrink-0">
-        <InfoBar clinicName={CLINIC_NAME} />
+        <InfoBar clinicName={clinicName} />
       </div>
     </div>
   )
 })
 
 // =============================================================================
-// RECEPCION MODE - Staff preview
+// TV MODE WRAPPER - Reads clinic from URL params or fetches it
+// =============================================================================
+function TVModeWrapper() {
+  const searchParams = useSearchParams()
+  const clinicIdParam = searchParams.get("clinic_id")
+  const [clinic, setClinic] = useState<{ id: string; name: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadClinic() {
+      if (!clinicIdParam) {
+        // No clinic_id in URL - show error
+        setError("No se especificó una clínica. Use /dashboard?mode=tv&clinic_id=XXX")
+        setLoading(false)
+        return
+      }
+
+      try {
+        const clinicData = await fetchClinic(clinicIdParam)
+        setClinic({ id: clinicData.clinic_id, name: clinicData.name })
+      } catch (err) {
+        console.error("Failed to fetch clinic:", err)
+        setError("No se pudo cargar la información de la clínica")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadClinic()
+  }, [clinicIdParam])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <Activity className="w-8 h-8 fi-text-success animate-spin mx-auto mb-3" />
+          <p className="text-slate-400 text-sm">Cargando clínica...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !clinic) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <Building2 className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white mb-2">Clínica no configurada</h2>
+          <p className="text-slate-400 text-sm mb-4">
+            {error || "Para mostrar el Dashboard TV, configure la clínica desde el centro de comando."}
+          </p>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Ir al Centro de Comando
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  return <TVModeDisplay clinicId={clinic.id} clinicName={clinic.name} />
+}
+
+// =============================================================================
+// RECEPCION MODE - Staff preview with clinic selector
 // =============================================================================
 function RecepcionModeDisplay() {
+  const { membership, loading: membershipLoading } = useCurrentDoctor()
+  const { hasRole } = useRBAC()
+  const isSuperadmin = hasRole(ROLES.SUPERADMIN)
+
+  // Clinic state
+  const [clinics, setClinics] = useState<Clinic[]>([])
+  const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null)
+  const [clinicsLoading, setClinicsLoading] = useState(false)
+
+  // Load clinics for superadmin
+  useEffect(() => {
+    if (isSuperadmin) {
+      setClinicsLoading(true)
+      fetchClinics()
+        .then(data => {
+          setClinics(data)
+          if (data.length > 0 && !selectedClinic) {
+            setSelectedClinic(data[0])
+          }
+        })
+        .catch(err => console.error("Failed to fetch clinics:", err))
+        .finally(() => setClinicsLoading(false))
+    }
+  }, [isSuperadmin, selectedClinic])
+
+  // Set clinic from membership for non-superadmin
+  useEffect(() => {
+    if (!isSuperadmin && membership && !selectedClinic) {
+      setSelectedClinic({
+        clinic_id: membership.clinic_id,
+        name: membership.clinic_name,
+        specialty: '',
+        timezone: 'America/Mexico_City',
+        welcome_message: null,
+        primary_color: null,
+        logo_url: null,
+        checkin_qr_enabled: true,
+        chat_enabled: true,
+        payments_enabled: false,
+        subscription_plan: 'basic',
+        is_active: true,
+        created_at: '',
+        updated_at: null,
+      })
+    }
+  }, [isSuperadmin, membership, selectedClinic])
+
+  const isLoading = membershipLoading || clinicsLoading
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <Activity className="w-8 h-8 fi-text-success animate-spin mx-auto mb-3" />
+          <p className="text-slate-400 text-sm">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // No clinic assigned
+  if (!selectedClinic) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <Building2 className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white mb-2">Sin clínica asignada</h2>
+          <p className="text-slate-400 text-sm">
+            No tienes una clínica asignada. Contacta al administrador para vincular tu cuenta.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const tvModeUrl = `/dashboard?mode=tv&clinic_id=${selectedClinic.clinic_id}`
+
   return (
     <ProtectedRoute>
       <div className="h-[100dvh] bg-slate-950 flex flex-col">
@@ -195,20 +348,42 @@ function RecepcionModeDisplay() {
               <h1 className="fi-title">Vista Recepción</h1>
               <span className="fi-text-xs-muted">Preview de pantalla de pacientes</span>
             </div>
-            <Link
-              href="/dashboard?mode=tv"
-              target="_blank"
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-lg transition-colors"
-            >
-              <Maximize className="w-4 h-4" />
-              Pantalla Completa
-            </Link>
+
+            <div className="flex items-center gap-3">
+              {/* Clinic Selector for superadmin */}
+              {isSuperadmin && clinics.length > 1 && (
+                <ClinicSelector
+                  clinics={clinics}
+                  selectedClinic={selectedClinic}
+                  onSelectClinic={setSelectedClinic}
+                  loading={clinicsLoading}
+                  compact
+                />
+              )}
+
+              {/* Current clinic badge for non-superadmin */}
+              {!isSuperadmin && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg">
+                  <Building2 className="w-4 h-4 text-cyan-400" />
+                  <span className="text-sm text-white font-medium">{selectedClinic.name}</span>
+                </div>
+              )}
+
+              <Link
+                href={tvModeUrl}
+                target="_blank"
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-lg transition-colors"
+              >
+                <Maximize className="w-4 h-4" />
+                Pantalla Completa
+              </Link>
+            </div>
           </div>
         </header>
         <main className="flex-1 p-4 overflow-hidden">
           <div className="max-w-6xl mx-auto h-full">
             <div className="h-full bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden">
-              <TVModeDisplay />
+              <TVModeDisplay clinicId={selectedClinic.clinic_id} clinicName={selectedClinic.name} />
             </div>
           </div>
         </main>
@@ -224,7 +399,7 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const mode = searchParams.get("mode")
 
-  if (mode === "tv") return <TVModeDisplay />
+  if (mode === "tv") return <TVModeWrapper />
   if (mode === "recepcion") return <RecepcionModeDisplay />
   return <CommandCenterDisplay />
 }

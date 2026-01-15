@@ -29,13 +29,13 @@ import type { Appointment } from '@/components/bryntum/utils/appointment-transfo
 import { MedicalWorkflowSteps } from './WorkflowSteps';
 import { usePatientManagement } from './usePatientManagement';
 import { useSessionManagement } from './useSessionManagement';
-import { useCurrentDoctor } from './useCurrentDoctor';
+import { useCurrentDoctor } from '@/hooks/useCurrentDoctor';
 import { useDoctorAppointments } from './hooks/useDoctorAppointments';
 import { useClinicDoctors } from './hooks/useClinicDoctors';
 import { DoctorAppointmentsCalendar } from './components/DoctorAppointmentsCalendar';
 import { AppointmentModal } from '@/components/appointments';
 import { DoctorSelector } from './components/DoctorSelector';
-import { ClinicSelector } from './components/ClinicSelector';
+import { ClinicSelector } from '@/components/shared/ClinicSelector';
 import { useRBAC, ROLES } from '@/hooks/useRBAC';
 import { fetchClinics, type Doctor, type Clinic } from '@/lib/api/clinics';
 import { confirmDialog } from '@/lib/swal';
