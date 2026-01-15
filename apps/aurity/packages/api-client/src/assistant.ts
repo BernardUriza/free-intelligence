@@ -285,6 +285,7 @@ export const assistantApi = {
       let thinking = '';
       let content = '';
       let currentEvent = 'message';
+      let responsePersona = requestPersona; // Default to request persona, may be updated by 'done' event
 
       try {
         const backendUrl = getBackendUrl();
@@ -345,7 +346,10 @@ export const assistantApi = {
               try {
                 const jsonData = JSON.parse(data);
 
-                if (currentEvent === 'meta' && jsonData.thinking) {
+                // Handle 'done' event with persona from backend
+                if (jsonData.done === true && jsonData.persona) {
+                  responsePersona = jsonData.persona;
+                } else if (currentEvent === 'meta' && jsonData.thinking) {
                   thinking += jsonData.thinking;
                   onThinking?.(thinking);
                 } else if (jsonData.choices?.[0]?.delta?.content) {
@@ -368,10 +372,10 @@ export const assistantApi = {
           }
         }
 
-        // Stream complete - use persona from request context
+        // Stream complete - use persona from backend 'done' event (or fallback to request)
         onComplete?.({
           message: sanitizeMessagePreview(content, 10_000),
-          persona: requestPersona,
+          persona: responsePersona,
           voice: 'nova',
           thinking: sanitizeMessagePreview(thinking, 10_000) || undefined,
         });

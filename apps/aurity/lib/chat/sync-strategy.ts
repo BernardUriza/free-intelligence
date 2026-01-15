@@ -93,16 +93,26 @@ export class BackendSyncStrategy implements IBackendSync {
       const data = await response.json();
 
       // Convert backend interactions to FIMessage format
-      const backendMessages: FIMessage[] = data.interactions.map((interaction: any) => ({
-        role: interaction.role,
-        content: interaction.content,
-        timestamp: new Date(interaction.timestamp * 1000).toISOString(),
-        metadata: {
-          phase,
-          tone: (interaction.persona || 'general_assistant') as FITone,
-          model: interaction.model,  // LLM model from backend
-        },
-      }));
+      const backendMessages: FIMessage[] = data.interactions.map((interaction: any) => {
+        // Preserve persona from backend, only fallback for legacy messages without persona
+        const persona = interaction.persona || 'general_assistant';
+        if (!interaction.persona && interaction.role === 'assistant') {
+          console.debug('[sync-strategy] Legacy message without persona, using fallback:', {
+            timestamp: interaction.timestamp,
+            preview: interaction.content?.slice(0, 50),
+          });
+        }
+        return {
+          role: interaction.role,
+          content: interaction.content,
+          timestamp: new Date(interaction.timestamp * 1000).toISOString(),
+          metadata: {
+            phase,
+            tone: persona as FITone,
+            model: interaction.model,  // LLM model from backend
+          },
+        };
+      });
 
       backendHealth.reportSuccess();
       return backendMessages;
@@ -139,16 +149,25 @@ export class BackendSyncStrategy implements IBackendSync {
       const data = await response.json();
 
       // Convert backend interactions to FIMessage format
-      const olderMessages: FIMessage[] = data.interactions.map((interaction: any) => ({
-        role: interaction.role,
-        content: interaction.content,
-        timestamp: new Date(interaction.timestamp * 1000).toISOString(),
-        metadata: {
-          phase,
-          tone: (interaction.persona || 'general_assistant') as FITone,
-          model: interaction.model,  // LLM model from backend
-        },
-      }));
+      const olderMessages: FIMessage[] = data.interactions.map((interaction: any) => {
+        const persona = interaction.persona || 'general_assistant';
+        if (!interaction.persona && interaction.role === 'assistant') {
+          console.debug('[sync-strategy] Legacy message without persona, using fallback:', {
+            timestamp: interaction.timestamp,
+            preview: interaction.content?.slice(0, 50),
+          });
+        }
+        return {
+          role: interaction.role,
+          content: interaction.content,
+          timestamp: new Date(interaction.timestamp * 1000).toISOString(),
+          metadata: {
+            phase,
+            tone: persona as FITone,
+            model: interaction.model,  // LLM model from backend
+          },
+        };
+      });
 
       return {
         messages: olderMessages,
@@ -266,13 +285,19 @@ export class WebSocketSyncStrategy implements IRealtimeSync {
 
           // Handle different message types
           if (data.type === 'new_message') {
+            // Preserve persona from WebSocket, fallback for legacy only
+            const persona = data.persona || 'general_assistant';
+            if (!data.persona && data.role === 'assistant') {
+              console.debug('[WebSocket] Message without persona, using fallback');
+            }
+
             // Convert WebSocket message to FIMessage
             const message: FIMessage = {
               role: data.role as 'user' | 'assistant',
               content: data.content,
               timestamp: data.timestamp,
               metadata: {
-                tone: (data.persona || 'general_assistant') as any,
+                tone: persona as any,
                 model: data.model,  // LLM model that generated this response
               },
             };
