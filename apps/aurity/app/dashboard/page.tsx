@@ -34,11 +34,13 @@ import {
   type QueuePatient,
 } from "@/lib/dashboard/constants"
 import {
-  CheckCircle2,
   Activity,
   ChevronLeft,
   Maximize,
 } from "lucide-react"
+
+// Clinic name from environment variable (configurable per deployment)
+const CLINIC_NAME = process.env.NEXT_PUBLIC_CLINIC_NAME || 'Mi Clínica';
 
 // =============================================================================
 // INFO BAR - Bottom bar with time, date, branding (for TV mode)
@@ -157,34 +159,21 @@ const TVModeDisplay = memo(function TVModeDisplay() {
             <div className="overflow-hidden flex flex-col min-h-0 order-1">
               <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/30 rounded-xl sm:rounded-2xl" style={{ minHeight: 'clamp(200px, 50vh, 600px)' }}>
                 <div className="flex-1 overflow-hidden flex flex-col min-h-0 p-2 sm:p-3 md:p-4 lg:p-5">
-                  <WaitingRoomHost mode="broadcast" clinicName="Clínica AURITY" doctorMessage={doctorMessage} clinicSlides={slides} />
+                  <WaitingRoomHost mode="broadcast" clinicName={CLINIC_NAME} doctorMessage={doctorMessage} clinicSlides={slides} />
                 </div>
               </div>
             </div>
+            {/* QR Check-in Panel - Instructions already included in CheckinQRDisplay */}
             <div className="flex flex-row lg:flex-col gap-2 sm:gap-3 order-2 overflow-hidden min-h-0">
-              <div className="flex-[3] lg:flex-[3] overflow-hidden min-h-0" style={{ minHeight: 'clamp(120px, 25vh, 300px)' }}>
-                <CheckinQRDisplay clinicId="7f6ef952-d755-43d9-b668-32c3b6879149" clinicName="Clínica AURITY" />
-              </div>
-              <div className="hidden md:flex flex-[1] lg:flex-[1] bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/30 rounded-xl p-3 sm:p-4 flex-col justify-center overflow-hidden min-h-0">
-                <div className="flex items-center gap-2 mb-3">
-                  <CheckCircle2 className="fi-text-success flex-shrink-0" style={{ width: 'clamp(1rem, 2vw, 1.5rem)', height: 'clamp(1rem, 2vw, 1.5rem)' }} />
-                  <span className="font-semibold text-slate-200" style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}>¿Ya llegaste?</span>
-                </div>
-                <ol className="fi-stack-sm">
-                  {[{ num: 1, text: 'Escanea el QR' }, { num: 2, text: 'Confirma llegada' }, { num: 3, text: 'Te avisamos' }].map(step => (
-                    <li key={step.num} className="flex items-center gap-2">
-                      <span className="rounded-full bg-emerald-500/20 fi-text-success flex items-center justify-center font-bold flex-shrink-0" style={{ width: 'clamp(1.25rem, 2vw, 1.75rem)', height: 'clamp(1.25rem, 2vw, 1.75rem)', fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}>{step.num}</span>
-                      <span className="fi-text" style={{ fontSize: 'clamp(0.75rem, 1.2vw, 1rem)' }}>{step.text}</span>
-                    </li>
-                  ))}
-                </ol>
+              <div className="flex-1 overflow-hidden min-h-0" style={{ minHeight: 'clamp(120px, 25vh, 400px)' }}>
+                <CheckinQRDisplay clinicId="7f6ef952-d755-43d9-b668-32c3b6879149" clinicName={CLINIC_NAME} />
               </div>
             </div>
           </div>
         </div>
       </main>
       <div className="flex-shrink-0">
-        <InfoBar clinicName="Clínica AURITY" />
+        <InfoBar clinicName={CLINIC_NAME} />
       </div>
     </div>
   )
