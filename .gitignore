@@ -89,6 +89,11 @@ apps/aurity-desktop/src-tauri/binaries/
 apps/aurity-desktop/src-tauri/resources/ollama/
 Cargo.lock
 
+# Tauri signing keys (CRITICAL: Never commit private keys)
+.tauri/
+*.key
+!*.key.pub
+
 # PyInstaller
 apps/aurity-desktop/pyinstaller/dist/
 apps/aurity-desktop/pyinstaller/build/

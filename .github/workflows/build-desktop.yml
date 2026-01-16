@@ -112,6 +112,85 @@ jobs:
           path: apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
           if-no-files-found: error
 
+      - name: Get version from tauri.conf.json
+        id: get_version
+        run: |
+          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: Aurity Desktop v${{ steps.get_version.outputs.version }}
+          body: |
+            ## Aurity Desktop v${{ steps.get_version.outputs.version }}
+
+            ### Downloads
+            - **macOS**: Universal (Intel + Apple Silicon)
+            - **Linux**: x86_64 AppImage
+
+            ### Requirements
+            - macOS: 12.0+ (Monterey or later)
+            - Linux: Ubuntu 22.04+ or equivalent
+            - 4GB RAM minimum
+
+            ---
+            🤖 Auto-generated release
+          files: |
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.AppImage
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate updater manifest
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Find signature files (platform-specific paths)
+          if [ -f apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig ]; then
+            DMG_SIG=$(cat apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig)
+          fi
+
+          if [ -f apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig ]; then
+            APPIMAGE_SIG=$(cat apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig)
+          fi
+
+          # Create updater.json
+          cat > aurity-desktop-updater.json << EOF
+          {
+            "version": "$VERSION",
+            "notes": "See changelog at https://github.com/BernardUriza/free-intelligence/releases/tag/v$VERSION",
+            "pub_date": "$PUB_DATE",
+            "platforms": {
+              "darwin-aarch64": {
+                "signature": "$DMG_SIG",
+                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_universal.dmg"
+              },
+              "darwin-x86_64": {
+                "signature": "$DMG_SIG",
+                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_universal.dmg"
+              },
+              "linux-x86_64": {
+                "signature": "$APPIMAGE_SIG",
+                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_amd64.AppImage"
+              }
+            }
+          }
+          EOF
+
+          # Upload to release
+          gh release upload v$VERSION aurity-desktop-updater.json --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-macos:
     if: ${{ github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all' }}
     runs-on: macos-latest
@@ -194,3 +273,82 @@ jobs:
           name: aurity-macos-dmg
           path: apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: error
+
+      - name: Get version from tauri.conf.json
+        id: get_version
+        run: |
+          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: Aurity Desktop v${{ steps.get_version.outputs.version }}
+          body: |
+            ## Aurity Desktop v${{ steps.get_version.outputs.version }}
+
+            ### Downloads
+            - **macOS**: Universal (Intel + Apple Silicon)
+            - **Linux**: x86_64 AppImage
+
+            ### Requirements
+            - macOS: 12.0+ (Monterey or later)
+            - Linux: Ubuntu 22.04+ or equivalent
+            - 4GB RAM minimum
+
+            ---
+            🤖 Auto-generated release
+          files: |
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.AppImage
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate updater manifest
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Find signature files (platform-specific paths)
+          if [ -f apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig ]; then
+            DMG_SIG=$(cat apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig)
+          fi
+
+          if [ -f apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig ]; then
+            APPIMAGE_SIG=$(cat apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig)
+          fi
+
+          # Create updater.json
+          cat > aurity-desktop-updater.json << EOF
+          {
+            "version": "$VERSION",
+            "notes": "See changelog at https://github.com/BernardUriza/free-intelligence/releases/tag/v$VERSION",
+            "pub_date": "$PUB_DATE",
+            "platforms": {
+              "darwin-aarch64": {
+                "signature": "$DMG_SIG",
+                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_universal.dmg"
+              },
+              "darwin-x86_64": {
+                "signature": "$DMG_SIG",
+                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_universal.dmg"
+              },
+              "linux-x86_64": {
+                "signature": "$APPIMAGE_SIG",
+                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_amd64.AppImage"
+              }
+            }
+          }
+          EOF
+
+          # Upload to release
+          gh release upload v$VERSION aurity-desktop-updater.json --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

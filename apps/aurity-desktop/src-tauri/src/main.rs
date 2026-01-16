@@ -441,6 +441,7 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         // Note: single-instance plugin removed due to Tauri 2.x config issues
         // Deep links on macOS handled via on_open_url() below, Windows/Linux can add back later
         .plugin(tauri_plugin_opener::init())

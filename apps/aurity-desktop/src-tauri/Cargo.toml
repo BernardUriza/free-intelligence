@@ -15,6 +15,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 tauri-plugin-process = "2"
 tauri-plugin-deep-link = "2"           # Deep links for OAuth callback (aurity://)
+tauri-plugin-updater = "2"             # Auto-updater with signature verification
 # Note: single-instance removed - causes config deserialization issues in Tauri 2.x
 # Deep links on macOS work via on_open_url(), Windows/Linux can add this back later
 tauri-plugin-opener = "2"              # Open browser for OAuth flow
