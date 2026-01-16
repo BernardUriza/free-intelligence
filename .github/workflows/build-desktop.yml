@@ -271,6 +271,16 @@ jobs:
           NEXT_PUBLIC_AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
           NEXT_PUBLIC_SUPERADMIN_EMAILS: ${{ secrets.SUPERADMIN_EMAILS }}
 
+      - name: Sign DMG for updater
+        working-directory: apps/aurity-desktop
+        run: |
+          DMG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Aurity_1.0.0_aarch64.dmg"
+          pnpm tauri signer sign "$DMG_PATH" --private-key "$TAURI_PRIVATE_KEY"
+          echo "Generated signature:"
+          ls -lh "${DMG_PATH}.sig"
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+
       - name: Upload to Azure Blob Storage
         run: |
           brew install azure-cli
