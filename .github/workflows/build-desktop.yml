@@ -424,7 +424,7 @@ jobs:
           pyinstaller aurity-backend-x86_64-pc-windows-msvc.spec
           # Move to binaries folder with correct target triple name
           New-Item -ItemType Directory -Force -Path ../src-tauri/binaries
-          Move-Item -Force dist/aurity-backend.exe ../src-tauri/binaries/aurity-backend-x86_64-pc-windows-msvc.exe
+          Move-Item -Force dist/aurity-backend-x86_64-pc-windows-msvc.exe ../src-tauri/binaries/aurity-backend-x86_64-pc-windows-msvc.exe
           Get-ChildItem ../src-tauri/binaries/
 
       - name: Install frontend dependencies
