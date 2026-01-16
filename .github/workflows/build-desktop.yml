@@ -277,7 +277,7 @@ jobs:
           # Save private key to temporary file (no trailing newline)
           echo -n "$SIGNING_KEY" > /tmp/tauri-signing.key
           DMG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Aurity_1.0.0_aarch64.dmg"
-          pnpm tauri signer sign "$DMG_PATH" --private-key-path /tmp/tauri-signing.key
+          pnpm tauri signer sign "$DMG_PATH" --private-key-path /tmp/tauri-signing.key --password ""
           echo "Generated signature:"
           ls -lh "${DMG_PATH}.sig"
           # Clean up key file
