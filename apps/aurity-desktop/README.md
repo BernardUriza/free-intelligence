@@ -120,10 +120,77 @@ create-dmg --volname "Aurity" \
   "target/release/bundle/macos/Aurity.app"
 ```
 
+### Production Build (Windows)
+
+```powershell
+# Kill running instances
+Get-Process | Where-Object {$_.ProcessName -match "Aurity"} | Stop-Process -Force
+Get-Process | Where-Object {$_.ProcessName -match "aurity-backend"} | Stop-Process -Force
+
+# Rebuild backend sidecar (PyInstaller)
+cd apps/aurity-desktop/pyinstaller
+python -m PyInstaller aurity-backend-x86_64-pc-windows-msvc.spec
+
+# Rebuild Tauri app
+cd ..
+pnpm tauri build --target x86_64-pc-windows-msvc
+
+# Installer output: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Aurity_1.0.0_x64-setup.nsis.zip
+```
+
+**Installation:**
+
+1. Download `Aurity_1.0.0_x64-setup.nsis.zip` from GitHub Releases
+2. Extract the `.nsis.zip` file
+3. Run the installer executable
+4. **SmartScreen Warning (Expected):**
+   - Windows SmartScreen will show "Windows protected your PC"
+   - This is normal for Ed25519-signed apps (not traditional Windows certificates)
+   - Click "More info" → "Run anyway" to proceed
+5. The app will install to `%LOCALAPPDATA%\Programs\Aurity`
+6. Shortcut created in Start Menu
+
+**Verification:**
+
+To verify the download integrity, compare the SHA256 hash provided in the GitHub Release notes:
+
+```powershell
+Get-FileHash Aurity_1.0.0_x64-setup.exe -Algorithm SHA256
+```
+
+### Production Build (Linux)
+
+```bash
+# Build backend sidecar
+cd apps/aurity-desktop/pyinstaller
+pyinstaller aurity-backend.spec
+
+# Build Tauri app
+cd ..
+pnpm tauri build --target x86_64-unknown-linux-gnu
+
+# Output: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+```
+
 ### Running with Logs
+
+**macOS:**
 
 ```bash
 ./target/release/bundle/macos/Aurity.app/Contents/MacOS/aurity-desktop
+```
+
+**Windows:**
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\Aurity\Aurity.exe"
+# Logs: %APPDATA%\io.aurity.desktop\logs\
+```
+
+**Linux:**
+
+```bash
+./Aurity_1.0.0_amd64.AppImage
 ```
 
 ## Local TLS Certificates

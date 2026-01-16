@@ -378,3 +378,213 @@ jobs:
           gh release upload v$VERSION aurity-desktop-updater.json --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    if: ${{ github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' }}
+    runs-on: windows-latest
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v4
+
+      - name: Checkout submodules
+        run: |
+          git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
+          git submodule update --init --recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r backend/requirements-prod.txt
+
+      - name: Build Python backend sidecar
+        shell: pwsh
+        run: |
+          cd apps/aurity-desktop/pyinstaller
+          pyinstaller aurity-backend-x86_64-pc-windows-msvc.spec
+          # Move to binaries folder with correct target triple name
+          New-Item -ItemType Directory -Force -Path ../src-tauri/binaries
+          Move-Item -Force dist/aurity-backend.exe ../src-tauri/binaries/aurity-backend-x86_64-pc-windows-msvc.exe
+          Get-ChildItem ../src-tauri/binaries/
+
+      - name: Install frontend dependencies
+        working-directory: apps/aurity-desktop
+        run: pnpm install --frozen-lockfile
+
+      - name: Create production env file for Next.js
+        shell: pwsh
+        run: |
+          @"
+          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
+          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
+          NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
+          NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
+          NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
+          "@ | Out-File -FilePath apps/aurity/.env.production -Encoding utf8
+
+      - name: Build Tauri app
+        working-directory: apps/aurity-desktop
+        run: pnpm tauri build --target x86_64-pc-windows-msvc
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          NEXT_PUBLIC_AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          NEXT_PUBLIC_AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          NEXT_PUBLIC_SUPERADMIN_EMAILS: ${{ secrets.SUPERADMIN_EMAILS }}
+
+      - name: Sign NSIS installer
+        working-directory: apps/aurity-desktop
+        shell: pwsh
+        run: |
+          # Save private key to temporary file (no trailing newline)
+          $env:SIGNING_KEY | Out-File -FilePath $env:TEMP/tauri-signing.key -Encoding utf8 -NoNewline
+          $NSIS_PATH = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Aurity_1.0.0_x64-setup.nsis.zip"
+          pnpm tauri signer sign $NSIS_PATH --private-key-path $env:TEMP/tauri-signing.key --password ""
+          Write-Host "Generated signature:"
+          Get-ChildItem "${NSIS_PATH}.sig"
+          # Clean up key file
+          Remove-Item $env:TEMP/tauri-signing.key
+        env:
+          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+
+      - name: Upload to Azure Blob Storage
+        shell: pwsh
+        run: |
+          az storage blob upload-batch `
+            --account-name ${{ env.AZURE_STORAGE_ACCOUNT }} `
+            --destination ${{ env.AZURE_CONTAINER }} `
+            --source apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/ `
+            --pattern "*.nsis.zip" `
+            --overwrite `
+            --auth-mode key `
+            --account-key ${{ secrets.AZURE_STORAGE_KEY }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurity-windows-nsis
+          path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip
+          if-no-files-found: error
+
+      - name: Get version from tauri.conf.json
+        id: get_version
+        shell: pwsh
+        run: |
+          $version = node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Detected version: $version"
+
+      - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: Aurity Desktop v${{ steps.get_version.outputs.version }}
+          body: |
+            ## Aurity Desktop v${{ steps.get_version.outputs.version }}
+
+            ### Downloads
+            - **macOS**: Apple Silicon (M1/M2/M3/M4)
+            - **Linux**: x86_64 AppImage
+            - **Windows**: x64 NSIS Installer
+
+            ### Requirements
+            - macOS: 12.0+ (Monterey or later) - Apple Silicon only
+            - Linux: Ubuntu 22.04+ or equivalent
+            - Windows: 10+ (64-bit), 4GB RAM minimum
+
+            ### Windows Installation Notes
+            - SmartScreen warning is expected (Ed25519 signing)
+            - Click "More info" → "Run anyway" to proceed
+            - SHA256 hash provided in release notes for verification
+
+            ---
+            🤖 Auto-generated release
+          files: |
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.AppImage
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.nsis.zip
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate updater manifest
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          $VERSION = node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version"
+          $PUB_DATE = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ" -AsUTC
+
+          # Find signature files (platform-specific paths)
+          $DMG_SIG = ""
+          $APPIMAGE_SIG = ""
+          $NSIS_SIG = ""
+
+          if (Test-Path "apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig") {
+            $DMG_SIG = Get-Content "apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig" -Raw
+          }
+
+          if (Test-Path "apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig") {
+            $APPIMAGE_SIG = Get-Content "apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig" -Raw
+          }
+
+          if (Test-Path "apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig") {
+            $NSIS_SIG = Get-Content "apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig" -Raw
+          }
+
+          # Create updater.json with all platforms
+          $manifest = @{
+            version = $VERSION
+            notes = "See changelog at https://github.com/BernardUriza/free-intelligence/releases/tag/v$VERSION"
+            pub_date = $PUB_DATE
+            platforms = @{}
+          }
+
+          if ($DMG_SIG) {
+            $manifest.platforms["darwin-aarch64"] = @{
+              signature = $DMG_SIG.Trim()
+              url = "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_aarch64.dmg"
+            }
+          }
+
+          if ($APPIMAGE_SIG) {
+            $manifest.platforms["linux-x86_64"] = @{
+              signature = $APPIMAGE_SIG.Trim()
+              url = "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_amd64.AppImage"
+            }
+          }
+
+          if ($NSIS_SIG) {
+            $manifest.platforms["windows-x86_64"] = @{
+              signature = $NSIS_SIG.Trim()
+              url = "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_x64-setup.nsis.zip"
+            }
+          }
+
+          $manifest | ConvertTo-Json -Depth 10 | Out-File -FilePath aurity-desktop-updater.json -Encoding utf8
+
+          # Upload to release
+          gh release upload v$VERSION aurity-desktop-updater.json --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
