@@ -245,15 +245,12 @@ jobs:
       - name: Build Python backend sidecar (both architectures)
         run: |
           cd apps/aurity-desktop/pyinstaller
-          # Build for current architecture
+          # Build for current architecture (macOS-14 runner is ARM)
           pyinstaller aurity-backend.spec
-          # Move to binaries folder with target triple names
+          # Move to binaries folder
           mkdir -p ../src-tauri/binaries
-          # For universal binary, we need both architectures
-          # PyInstaller on macOS builds for current architecture
-          # Copy to both target triples (Tauri will use the appropriate one)
-          cp dist/aurity-backend ../src-tauri/binaries/aurity-backend-aarch64-apple-darwin
-          cp dist/aurity-backend ../src-tauri/binaries/aurity-backend-x86_64-apple-darwin
+          # For universal target, Tauri expects the binary with this exact name
+          cp dist/aurity-backend ../src-tauri/binaries/aurity-backend-universal-apple-darwin
           chmod +x ../src-tauri/binaries/*
           ls -la ../src-tauri/binaries/
 
