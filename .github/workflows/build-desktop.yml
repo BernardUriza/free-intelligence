@@ -142,11 +142,11 @@ jobs:
             ## Aurity Desktop v${{ steps.get_version.outputs.version }}
 
             ### Downloads
-            - **macOS**: Universal (Intel + Apple Silicon)
+            - **macOS**: Apple Silicon (M1/M2/M3/M4)
             - **Linux**: x86_64 AppImage
 
             ### Requirements
-            - macOS: 12.0+ (Monterey or later)
+            - macOS: 12.0+ (Monterey or later) - Apple Silicon only
             - Linux: Ubuntu 22.04+ or equivalent
             - 4GB RAM minimum
 
@@ -168,15 +168,15 @@ jobs:
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
           # Find signature files (platform-specific paths)
-          if [ -f apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig ]; then
-            DMG_SIG=$(cat apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig)
+          if [ -f apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig ]; then
+            DMG_SIG=$(cat apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig)
           fi
 
           if [ -f apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig ]; then
             APPIMAGE_SIG=$(cat apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig)
           fi
 
-          # Create updater.json
+          # Create updater.json (ARM-only for macOS)
           cat > aurity-desktop-updater.json << EOF
           {
             "version": "$VERSION",
@@ -185,11 +185,7 @@ jobs:
             "platforms": {
               "darwin-aarch64": {
                 "signature": "$DMG_SIG",
-                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_universal.dmg"
-              },
-              "darwin-x86_64": {
-                "signature": "$DMG_SIG",
-                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_universal.dmg"
+                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_aarch64.dmg"
               },
               "linux-x86_64": {
                 "signature": "$APPIMAGE_SIG",
@@ -242,24 +238,15 @@ jobs:
           pip install pyinstaller
           pip install -r backend/requirements-prod.txt
 
-      - name: Build Python backend sidecar (both architectures)
+      - name: Build Python backend sidecar (ARM only)
         run: |
           cd apps/aurity-desktop/pyinstaller
-          # Build for current architecture (macOS-14 runner is ARM)
+          # Build for ARM64 (macos-latest runner is Apple Silicon)
           pyinstaller aurity-backend.spec
-          # Move to binaries folder
+          # Move to binaries folder with correct target triple name
           mkdir -p ../src-tauri/binaries
-          # For universal target, Tauri needs arch-specific binaries during compilation
-          # Copy ARM binary (native on macos-latest runner)
-          cp dist/aurity-backend ../src-tauri/binaries/aurity-backend-aarch64-apple-darwin
-          # Copy same binary for x86_64 (PyInstaller bundles are portable)
-          cp dist/aurity-backend ../src-tauri/binaries/aurity-backend-x86_64-apple-darwin
-          # Create universal binary for bundler (using lipo)
-          lipo -create \
-            ../src-tauri/binaries/aurity-backend-aarch64-apple-darwin \
-            ../src-tauri/binaries/aurity-backend-x86_64-apple-darwin \
-            -output ../src-tauri/binaries/aurity-backend-universal-apple-darwin
-          chmod +x ../src-tauri/binaries/*
+          mv dist/aurity-backend ../src-tauri/binaries/aurity-backend-aarch64-apple-darwin
+          chmod +x ../src-tauri/binaries/aurity-backend-aarch64-apple-darwin
           ls -la ../src-tauri/binaries/
 
       - name: Install frontend dependencies
@@ -276,9 +263,9 @@ jobs:
           NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
           EOF
 
-      - name: Build Tauri app (Universal)
+      - name: Build Tauri app (ARM64)
         working-directory: apps/aurity-desktop
-        run: pnpm tauri build --target universal-apple-darwin
+        run: pnpm tauri build --target aarch64-apple-darwin
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -292,7 +279,7 @@ jobs:
           az storage blob upload-batch \
             --account-name ${{ env.AZURE_STORAGE_ACCOUNT }} \
             --destination ${{ env.AZURE_CONTAINER }} \
-            --source apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/ \
+            --source apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/ \
             --pattern "*.dmg" \
             --overwrite \
             --auth-mode key \
@@ -302,7 +289,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aurity-macos-dmg
-          path: apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          path: apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
       - name: Get version from tauri.conf.json
@@ -322,11 +309,11 @@ jobs:
             ## Aurity Desktop v${{ steps.get_version.outputs.version }}
 
             ### Downloads
-            - **macOS**: Universal (Intel + Apple Silicon)
+            - **macOS**: Apple Silicon (M1/M2/M3/M4)
             - **Linux**: x86_64 AppImage
 
             ### Requirements
-            - macOS: 12.0+ (Monterey or later)
+            - macOS: 12.0+ (Monterey or later) - Apple Silicon only
             - Linux: Ubuntu 22.04+ or equivalent
             - 4GB RAM minimum
 
@@ -348,15 +335,15 @@ jobs:
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
           # Find signature files (platform-specific paths)
-          if [ -f apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig ]; then
-            DMG_SIG=$(cat apps/aurity-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig)
+          if [ -f apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig ]; then
+            DMG_SIG=$(cat apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig)
           fi
 
           if [ -f apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig ]; then
             APPIMAGE_SIG=$(cat apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig)
           fi
 
-          # Create updater.json
+          # Create updater.json (ARM-only for macOS)
           cat > aurity-desktop-updater.json << EOF
           {
             "version": "$VERSION",
@@ -365,11 +352,7 @@ jobs:
             "platforms": {
               "darwin-aarch64": {
                 "signature": "$DMG_SIG",
-                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_universal.dmg"
-              },
-              "darwin-x86_64": {
-                "signature": "$DMG_SIG",
-                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_universal.dmg"
+                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_aarch64.dmg"
               },
               "linux-x86_64": {
                 "signature": "$APPIMAGE_SIG",
