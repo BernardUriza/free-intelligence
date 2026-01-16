@@ -249,8 +249,11 @@ jobs:
           pyinstaller aurity-backend.spec
           # Move to binaries folder
           mkdir -p ../src-tauri/binaries
-          # For universal target, Tauri expects the binary with this exact name
-          cp dist/aurity-backend ../src-tauri/binaries/aurity-backend-universal-apple-darwin
+          # For universal target, Tauri needs arch-specific binaries first
+          # Copy ARM binary (native on macos-latest runner)
+          cp dist/aurity-backend ../src-tauri/binaries/aurity-backend-aarch64-apple-darwin
+          # Copy same binary for x86_64 (PyInstaller bundles are portable)
+          cp dist/aurity-backend ../src-tauri/binaries/aurity-backend-x86_64-apple-darwin
           chmod +x ../src-tauri/binaries/*
           ls -la ../src-tauri/binaries/
 
