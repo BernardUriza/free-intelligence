@@ -275,7 +275,7 @@ jobs:
         working-directory: apps/aurity-desktop
         run: |
           # Save private key to temporary file
-          echo "$TAURI_PRIVATE_KEY" > /tmp/tauri-signing.key
+          echo "$SIGNING_KEY" > /tmp/tauri-signing.key
           DMG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Aurity_1.0.0_aarch64.dmg"
           pnpm tauri signer sign "$DMG_PATH" --private-key-path /tmp/tauri-signing.key
           echo "Generated signature:"
@@ -283,7 +283,7 @@ jobs:
           # Clean up key file
           rm /tmp/tauri-signing.key
         env:
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
 
       - name: Upload to Azure Blob Storage
         run: |
