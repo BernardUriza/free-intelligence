@@ -80,6 +80,16 @@ jobs:
         working-directory: apps/aurity-desktop
         run: pnpm install --frozen-lockfile
 
+      - name: Create production env file for Next.js
+        run: |
+          cat > apps/aurity/.env.production << EOF
+          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
+          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
+          NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
+          NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
+          NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
+          EOF
+
       - name: Build Tauri app
         working-directory: apps/aurity-desktop
         run: pnpm tauri build --target x86_64-unknown-linux-gnu
@@ -250,6 +260,16 @@ jobs:
       - name: Install frontend dependencies
         working-directory: apps/aurity-desktop
         run: pnpm install --frozen-lockfile
+
+      - name: Create production env file for Next.js
+        run: |
+          cat > apps/aurity/.env.production << EOF
+          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
+          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
+          NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
+          NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
+          NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
+          EOF
 
       - name: Build Tauri app (Universal)
         working-directory: apps/aurity-desktop
