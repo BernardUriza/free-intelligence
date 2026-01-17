@@ -39,6 +39,7 @@ jobs:
 
       - name: Get pnpm store path
         id: pnpm-cache
+        shell: bash
         run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - name: Cache pnpm store
@@ -150,6 +151,7 @@ jobs:
 
       - name: Get pnpm store path
         id: pnpm-cache
+        shell: bash
         run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - name: Cache pnpm store
@@ -216,6 +218,7 @@ jobs:
 
       - name: Get pnpm store path
         id: pnpm-cache
+        shell: bash
         run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - name: Cache pnpm store
@@ -364,6 +367,7 @@ jobs:
 
       - name: Get pnpm store path
         id: pnpm-cache
+        shell: bash
         run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - name: Cache pnpm store
@@ -499,6 +503,7 @@ jobs:
 
       - name: Get pnpm store path
         id: pnpm-cache
+        shell: bash
         run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - name: Cache pnpm store
