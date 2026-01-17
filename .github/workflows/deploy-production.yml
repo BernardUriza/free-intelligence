@@ -404,6 +404,10 @@ jobs:
           echo "$OLLAMA_URL" > /tmp/ollama-tunnel-url.txt
           echo "🦙 Using OLLAMA_HOST=$OLLAMA_URL"
 
+          # Set ALLOWED_ORIGINS from workflow env var
+          ALLOWED_ORIGINS_VALUE="${{ env.ALLOWED_ORIGINS_PROD }}"
+          echo "🌐 CORS ALLOWED_ORIGINS=$ALLOWED_ORIGINS_VALUE"
+
           # Update systemd service file with proper PYTHONPATH and OLLAMA_HOST
           # This ensures the service uses correct env vars even after auto-restart
           cat > /etc/systemd/system/aurity-backend.service <<EOF
@@ -420,7 +424,7 @@ jobs:
           Environment="OLLAMA_HOST=$OLLAMA_URL"
           Environment="DATABASE_URL=sqlite:////opt/free-intelligence/data/aurity.db"
           Environment="ENVIRONMENT=production"
-          Environment="ALLOWED_ORIGINS=${{ env.ALLOWED_ORIGINS_PROD }}"
+          Environment="ALLOWED_ORIGINS=$ALLOWED_ORIGINS_VALUE"
           ExecStart=/usr/bin/python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001
           Restart=always
           RestartSec=5
