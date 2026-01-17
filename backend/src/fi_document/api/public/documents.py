@@ -566,6 +566,47 @@ def _process_document(doc_id: str) -> None:
                 for i, (text, emb) in enumerate(zip(chunks_text, embeddings, strict=True))
             ]
             logger.info("BATCH_EMBEDDING_SUCCESS", num_chunks=len(chunks))
+        except RuntimeError as e:
+            # CUDA OOM or driver error - fallback to CPU
+            if "CUDA" in str(e) or "out of memory" in str(e).lower():
+                import torch
+
+                logger.warning(
+                    "CUDA_OOM_FALLBACK",
+                    error=str(e),
+                    action="retrying on CPU",
+                )
+                torch.cuda.empty_cache()  # Clear GPU memory
+
+                # Retry on CPU
+                try:
+                    model = _get_embedding_model()
+                    # Force CPU device
+                    model = model.to("cpu")
+                    embeddings = model.encode(
+                        chunks_text,
+                        batch_size=16,  # Smaller batch for CPU
+                        convert_to_numpy=True,
+                        show_progress_bar=False,
+                    )
+                    chunks = [
+                        DocumentChunk(chunk_id=i, text=text, embedding=emb)
+                        for i, (text, emb) in enumerate(zip(chunks_text, embeddings, strict=True))
+                    ]
+                    logger.info("CPU_FALLBACK_SUCCESS", num_chunks=len(chunks))
+                except Exception as cpu_error:
+                    logger.error("CPU_FALLBACK_FAILED", error=str(cpu_error))
+                    chunks = [
+                        DocumentChunk(chunk_id=i, text=text, embedding=None)
+                        for i, text in enumerate(chunks_text)
+                    ]
+            else:
+                # Non-CUDA error
+                logger.error("BATCH_EMBEDDING_FAILED", error=str(e))
+                chunks = [
+                    DocumentChunk(chunk_id=i, text=text, embedding=None)
+                    for i, text in enumerate(chunks_text)
+                ]
         except Exception as e:
             logger.error("BATCH_EMBEDDING_FAILED", error=str(e))
             # Fallback: create chunks without embeddings
@@ -838,26 +879,31 @@ def _get_embedding_sync(text: str) -> np.ndarray:
         return np.zeros(384, dtype=np.float32)
 
 
-# Lazy-loaded embedding model
+# Lazy-loaded embedding model (thread-safe singleton)
 _embedding_model = None
+_embedding_model_lock = __import__("threading").Lock()
 
 
 def _get_embedding_model():
-    """Get or create the embedding model (singleton)."""
+    """Get or create the embedding model (thread-safe singleton)."""
     global _embedding_model
+    # Double-checked locking pattern for performance
     if _embedding_model is None:
-        import torch
-        from sentence_transformers import SentenceTransformer
+        with _embedding_model_lock:
+            # Check again inside lock (another thread may have initialized it)
+            if _embedding_model is None:
+                import torch
+                from sentence_transformers import SentenceTransformer
 
-        # Use GPU if available (leverages CUDA libraries like cuBLAS, cuDNN)
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
-        logger.info(
-            "EMBEDDING_MODEL_LOADED",
-            model="all-MiniLM-L6-v2",
-            device=device,
-            gpu_available=torch.cuda.is_available(),
-        )
+                # Use GPU if available (leverages CUDA libraries like cuBLAS, cuDNN)
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                _embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+                logger.info(
+                    "EMBEDDING_MODEL_LOADED",
+                    model="all-MiniLM-L6-v2",
+                    device=device,
+                    gpu_available=torch.cuda.is_available(),
+                )
     return _embedding_model
 
 

@@ -64,10 +64,11 @@ MEMORY_INDEX_PATH = Path(__file__).parent.parent.parent.parent / "storage" / "me
 _embedding_model: SentenceTransformer | None = None
 _embedding_dim: int = 384  # all-MiniLM-L6-v2 dimensions
 _memory_lock = threading.RLock()  # Lock for memory index writes
+_embedding_model_lock = threading.Lock()  # Lock for embedding model initialization
 
 
 def get_embedding_model() -> SentenceTransformer:
-    """Get singleton embedding model (lazy initialization).
+    """Get singleton embedding model (thread-safe lazy initialization).
 
     Model: all-MiniLM-L6-v2 (384 dimensions)
     - Fast: ~3000 sentences/sec on CPU
@@ -88,18 +89,22 @@ def get_embedding_model() -> SentenceTransformer:
         )
 
     global _embedding_model
+    # Double-checked locking pattern for performance
     if _embedding_model is None:
-        import torch
+        with _embedding_model_lock:
+            # Check again inside lock (another thread may have initialized it)
+            if _embedding_model is None:
+                import torch
 
-        # Use GPU if available (leverages CUDA libraries like cuBLAS, cuDNN)
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info(
-            "EMBEDDING_MODEL_INIT",
-            model="all-MiniLM-L6-v2",
-            device=device,
-            gpu_available=torch.cuda.is_available(),
-        )
-        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+                # Use GPU if available (leverages CUDA libraries like cuBLAS, cuDNN)
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                logger.info(
+                    "EMBEDDING_MODEL_INIT",
+                    model="all-MiniLM-L6-v2",
+                    device=device,
+                    gpu_available=torch.cuda.is_available(),
+                )
+                _embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
     return _embedding_model
 
 

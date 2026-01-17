@@ -34,8 +34,30 @@ async def _get_rag_context(
             persona_filter=persona,
         )
 
+        # Observability: Track near-miss results (0.25-0.50 range)
+        # These would have been included with old threshold but are now rejected
+        near_miss_threshold = 0.25
+        near_misses = [r for r in results if near_miss_threshold <= r[2] < min_similarity]
+        if near_misses:
+            logger.info(
+                "RAG_NEAR_MISS_RESULTS",
+                query=query[:50],
+                persona=persona,
+                near_miss_count=len(near_misses),
+                similarities=[f"{r[2]:.2f}" for r in near_misses[:3]],  # Log top 3
+                doc_ids=[r[0] for r in near_misses[:3]],
+            )
+
         relevant_results = [r for r in results if r[2] >= min_similarity]
         if not relevant_results:
+            logger.info(
+                "RAG_NO_RESULTS",
+                query=query[:50],
+                persona=persona,
+                min_similarity=min_similarity,
+                total_results=len(results),
+                near_misses=len(near_misses),
+            )
             return None
 
         # Accumulate user query in each document found

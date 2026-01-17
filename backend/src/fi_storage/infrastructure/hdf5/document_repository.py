@@ -104,6 +104,7 @@ class DocumentMetadata:
     size_bytes: int
     sha256: str
     chunks_count: int = 0
+    chunk_version: int = 2  # 1=char-based (512 chars), 2=token-based (256 tokens)
     error_message: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -121,6 +122,7 @@ class DocumentMetadata:
             "size_bytes": self.size_bytes,
             "sha256": self.sha256,
             "chunks_count": self.chunks_count,
+            "chunk_version": self.chunk_version,
             "error_message": self.error_message,
         }
 
@@ -140,6 +142,7 @@ class DocumentMetadata:
             size_bytes=data["size_bytes"],
             sha256=data["sha256"],
             chunks_count=data.get("chunks_count", 0),
+            chunk_version=data.get("chunk_version", 1),  # Default to v1 for old documents
             error_message=data.get("error_message"),
         )
 
