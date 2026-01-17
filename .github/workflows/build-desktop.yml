@@ -142,18 +142,16 @@ jobs:
 
             ### Downloads
             - **macOS**: Apple Silicon (M1/M2/M3/M4)
-            - **Linux**: x86_64 AppImage
 
             ### Requirements
-            - macOS: 12.0+ (Monterey or later) - Apple Silicon only
-            - Linux: Ubuntu 22.04+ or equivalent
+            - macOS: 12.0+ (Monterey or later)
+            - Apple Silicon only
             - 4GB RAM minimum
 
             ---
             🤖 Auto-generated release
           files: |
             apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.AppImage
             apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
           draft: false
           prerelease: false
@@ -166,16 +164,10 @@ jobs:
           VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-          # Find signature files (platform-specific paths)
-          if [ -f apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig ]; then
-            DMG_SIG=$(cat apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig)
-          fi
+          # Find DMG signature file
+          DMG_SIG=$(cat apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig)
 
-          if [ -f apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig ]; then
-            APPIMAGE_SIG=$(cat apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig)
-          fi
-
-          # Create updater.json (ARM-only for macOS)
+          # Create updater.json (macOS Apple Silicon only)
           cat > aurity-desktop-updater.json << EOF
           {
             "version": "$VERSION",
@@ -185,10 +177,6 @@ jobs:
               "darwin-aarch64": {
                 "signature": "$DMG_SIG",
                 "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_aarch64.dmg"
-              },
-              "linux-x86_64": {
-                "signature": "$APPIMAGE_SIG",
-                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_amd64.AppImage"
               }
             }
           }
@@ -277,13 +265,31 @@ jobs:
           # Save private key to temporary file (no trailing newline)
           echo -n "$SIGNING_KEY" > /tmp/tauri-signing.key
           DMG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Aurity_1.0.0_aarch64.dmg"
-          pnpm tauri signer sign "$DMG_PATH" --private-key-path /tmp/tauri-signing.key
+
+          # Create expect script for password automation
+          cat > /tmp/sign.exp << 'EXPECT_EOF'
+#!/usr/bin/expect -f
+set timeout 30
+set dmg_path [lindex $argv 0]
+set key_path [lindex $argv 1]
+set password [lindex $argv 2]
+spawn pnpm tauri signer sign $dmg_path --private-key-path $key_path
+expect "Password:"
+send "$password\r"
+expect eof
+EXPECT_EOF
+
+          chmod +x /tmp/sign.exp
+          /tmp/sign.exp "$DMG_PATH" /tmp/tauri-signing.key "$SIGNING_PASSWORD"
+
           echo "Generated signature:"
           ls -lh "${DMG_PATH}.sig"
-          # Clean up key file
-          rm /tmp/tauri-signing.key
+
+          # Clean up
+          rm /tmp/tauri-signing.key /tmp/sign.exp
         env:
           SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: Upload to Azure Blob Storage
         run: |
@@ -322,18 +328,16 @@ jobs:
 
             ### Downloads
             - **macOS**: Apple Silicon (M1/M2/M3/M4)
-            - **Linux**: x86_64 AppImage
 
             ### Requirements
-            - macOS: 12.0+ (Monterey or later) - Apple Silicon only
-            - Linux: Ubuntu 22.04+ or equivalent
+            - macOS: 12.0+ (Monterey or later)
+            - Apple Silicon only
             - 4GB RAM minimum
 
             ---
             🤖 Auto-generated release
           files: |
             apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.AppImage
             apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
           draft: false
           prerelease: false
@@ -346,16 +350,10 @@ jobs:
           VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-          # Find signature files (platform-specific paths)
-          if [ -f apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig ]; then
-            DMG_SIG=$(cat apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig)
-          fi
+          # Find DMG signature file
+          DMG_SIG=$(cat apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig)
 
-          if [ -f apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig ]; then
-            APPIMAGE_SIG=$(cat apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig)
-          fi
-
-          # Create updater.json (ARM-only for macOS)
+          # Create updater.json (macOS Apple Silicon only)
           cat > aurity-desktop-updater.json << EOF
           {
             "version": "$VERSION",
@@ -365,10 +363,6 @@ jobs:
               "darwin-aarch64": {
                 "signature": "$DMG_SIG",
                 "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_aarch64.dmg"
-              },
-              "linux-x86_64": {
-                "signature": "$APPIMAGE_SIG",
-                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_amd64.AppImage"
               }
             }
           }
