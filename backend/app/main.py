@@ -239,6 +239,8 @@ Requires environment variables:
             "http://127.0.0.1:9050",
             "http://localhost:3000",  # Next.js dev server
             "http://127.0.0.1:3000",
+            "http://localhost:8850",  # Art Collection dev server
+            "http://127.0.0.1:8850",
         ]
         # Also allow any explicitly configured origins
         explicit_origins = os.getenv("ALLOWED_ORIGINS", "")

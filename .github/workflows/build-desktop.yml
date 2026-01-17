@@ -1,13 +1,12 @@
-# Build Aurity Desktop for macOS and Windows
-name: 🖥️ Build Desktop (Win/Mac/Linux)
+name: Build Aurity Desktop
 
 on:
   workflow_dispatch:
     inputs:
       platform:
-        description: 'Platform to build'
+        description: 'Platform to build (linux, macos, windows, all)'
         required: true
-        default: 'linux'
+        default: 'all'
         type: choice
         options:
           - linux
@@ -15,23 +14,18 @@ on:
           - windows
           - all
 
-env:
-  AZURE_STORAGE_ACCOUNT: aurityreleases
-  AZURE_CONTAINER: releases
-
 jobs:
-  # ═══════════════════════════════════════════════════════════════════════════
-  # BUILD FRONTEND ONCE (reused by all platform builds)
-  # ═══════════════════════════════════════════════════════════════════════════
-  build-frontend:
-    if: ${{ github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' }}
-    runs-on: ubuntu-latest
-
+  build-fi-monitor:
+    if: github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all'
+    runs-on: windows-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout main repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+
+      - name: Checkout submodules
+        run: |
+          git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
+          git submodule update --init --recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -39,16 +33,136 @@ jobs:
           node-version: '20'
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v2
         with:
           version: 9
 
+      - name: Get pnpm store path
+        id: pnpm-cache
+        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            apps/fi-monitor/src-tauri/target
+            apps/aurity-desktop/src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('apps/**/src-tauri/src/**/*.rs') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-
+            cargo-${{ runner.os }}-
+
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        working-directory: apps/fi-monitor
+        run: pnpm install
+
+      - name: Build FI Monitor
+        working-directory: apps/fi-monitor
+        run: pnpm tauri build --target x86_64-pc-windows-msvc
+
+      - name: Get artifact paths
+        id: paths
+        shell: pwsh
+        run: |
+          $INFO = node apps/aurity-desktop/scripts/get-artifact-path.js fi-monitor x86_64-pc-windows-msvc nsis | ConvertFrom-Json
+          "path=$($INFO.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "sig=$($INFO.sig)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "file=$($INFO.file)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Sign NSIS installer
+        working-directory: apps/fi-monitor
+        run: pnpm tauri signer sign "${{ steps.paths.outputs.path }}" --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
+
+      - name: Upload NSIS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fi-monitor-windows-nsis
+          path: apps/fi-monitor/${{ steps.paths.outputs.path }}
+
+      - name: Upload NSIS signature
+        uses: actions/upload-artifact@v4
+        with:
+          name: fi-monitor-windows-nsis-sig
+          path: apps/fi-monitor/${{ steps.paths.outputs.sig }}
+
+      - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.paths.outputs.version }}
+          name: Release v${{ steps.paths.outputs.version }}
+          body: |
+            ## Aurity Desktop v${{ steps.paths.outputs.version }}
+
+            ### Downloads
+            - Windows: ${{ steps.paths.outputs.file }}
+
+            ---
+            🤖 Auto-generated release
+          files: |
+            apps/fi-monitor/${{ steps.paths.outputs.path }}
+            apps/fi-monitor/${{ steps.paths.outputs.sig }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-frontend:
+    if: |
+      github.event.inputs.platform == 'linux' ||
+      github.event.inputs.platform == 'macos' ||
+      github.event.inputs.platform == 'windows' ||
+      github.event.inputs.platform == 'all'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v4
+
+      - name: Checkout submodules
+        run: |
+          git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
+          git submodule update --init --recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Get pnpm store path
+        id: pnpm-cache
+        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
 
       - name: Create .env.production
+        working-directory: apps/aurity
         run: |
-          cat > apps/aurity/.env.production << EOF
+          cat > .env.production << EOF
           NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
           NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
           NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
@@ -58,10 +172,9 @@ jobs:
 
       - name: Build Next.js frontend
         working-directory: apps/aurity
-        run: pnpm build
-
-      - name: Copy splash screen
-        run: node apps/aurity-desktop/scripts/copy-splash.js
+        run: |
+          pnpm install
+          pnpm build
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
@@ -70,136 +183,6 @@ jobs:
           path: apps/aurity/out/
           retention-days: 1
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # BUILD FI MONITOR FIRST (infrastructure layer with Ollama bundled)
-  # ═══════════════════════════════════════════════════════════════════════════
-  build-fi-monitor:
-    if: ${{ github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' }}
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-msvc
-
-      - name: Install frontend dependencies
-        working-directory: apps/fi-monitor
-        run: pnpm install
-
-      - name: Download Ollama installer
-        working-directory: apps/fi-monitor
-        shell: pwsh
-        run: |
-          Write-Host "=== Downloading Ollama for bundling ===" -ForegroundColor Cyan
-
-          $BinDir = "src-tauri/binaries"
-          New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
-
-          $DownloadUrl = "https://ollama.com/download/OllamaSetup.exe"
-          $OutputFile = Join-Path $BinDir "OllamaSetup.exe"
-
-          Write-Host "Downloading from: $DownloadUrl" -ForegroundColor Yellow
-          Invoke-WebRequest -Uri $DownloadUrl -OutFile $OutputFile -UseBasicParsing
-
-          $FileInfo = Get-Item $OutputFile
-          Write-Host "Downloaded: $([math]::Round($FileInfo.Length / 1MB, 2)) MB" -ForegroundColor Green
-
-      - name: Build Tauri app
-        working-directory: apps/fi-monitor
-        run: pnpm tauri build --target x86_64-pc-windows-msvc
-
-      - name: Get artifact paths
-        id: paths_fi_monitor
-        shell: pwsh
-        run: |
-          $INFO = node apps/aurity-desktop/scripts/get-artifact-path.js fi-monitor x86_64-pc-windows-msvc nsis | ConvertFrom-Json
-          "path=$($INFO.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "sig=$($INFO.sig)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Host "Artifact path: $($INFO.path)"
-          Write-Host "Signature path: $($INFO.sig)"
-
-      - name: Sign NSIS installer
-        working-directory: apps/fi-monitor
-        shell: pwsh
-        run: |
-          $env:SIGNING_KEY | Out-File -FilePath $env:TEMP/tauri-signing.key -Encoding utf8 -NoNewline
-          $NSIS_PATH = "${{ steps.paths_fi_monitor.outputs.path }}"
-
-          pnpm tauri signer sign $NSIS_PATH --private-key-path $env:TEMP/tauri-signing.key
-
-          Write-Host "Generated signature:"
-          Get-ChildItem "${{ steps.paths_fi_monitor.outputs.sig }}"
-
-          Remove-Item $env:TEMP/tauri-signing.key
-        env:
-          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-
-      - name: Upload to Azure Blob Storage
-        uses: azure/CLI@v1
-        with:
-          azcliversion: latest
-          inlineScript: |
-            az storage blob upload `
-              --account-name ${{ env.AZURE_STORAGE_ACCOUNT }} `
-              --container-name ${{ env.AZURE_CONTAINER }} `
-              --name "fi-monitor/FI Monitor_1.0.1_x64-setup.nsis.zip" `
-              --file "apps/fi-monitor/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/FI Monitor_1.0.1_x64-setup.nsis.zip" `
-              --overwrite `
-              --auth-mode login
-
-            az storage blob upload `
-              --account-name ${{ env.AZURE_STORAGE_ACCOUNT }} `
-              --container-name ${{ env.AZURE_CONTAINER }} `
-              --name "fi-monitor/FI Monitor_1.0.1_x64-setup.nsis.zip.sig" `
-              --file "apps/fi-monitor/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/FI Monitor_1.0.1_x64-setup.nsis.zip.sig" `
-              --overwrite `
-              --auth-mode login
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: fi-monitor-windows-x64
-          path: |
-            apps/fi-monitor/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/FI Monitor_1.0.1_x64-setup.nsis.zip
-            apps/fi-monitor/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/FI Monitor_1.0.1_x64-setup.nsis.zip.sig
-          if-no-files-found: error
-
-      - name: Summary
-        shell: pwsh
-        run: |
-          Write-Host ""
-          Write-Host "══════════════════════════════════════════════════════" -ForegroundColor Cyan
-          Write-Host "  FI MONITOR BUILD COMPLETE (WITH OLLAMA)" -ForegroundColor Green
-          Write-Host "══════════════════════════════════════════════════════" -ForegroundColor Cyan
-          Write-Host ""
-          Write-Host "Bundled: Ollama installer (~500MB)" -ForegroundColor Yellow
-          Write-Host "Total size: ~600MB" -ForegroundColor Yellow
-          Write-Host "Uploaded to: Azure Blob Storage" -ForegroundColor Gray
-          Write-Host ""
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # BUILD AURITY DESKTOP (depends on FI Monitor being uploaded first)
-  # ═══════════════════════════════════════════════════════════════════════════
   build-linux:
     if: |
       (github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all') &&
@@ -231,139 +214,120 @@ jobs:
         with:
           version: 9
 
+      - name: Get pnpm store path
+        id: pnpm-cache
+        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
 
-      - name: Install Linux dependencies
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            apps/fi-monitor/src-tauri/target
+            apps/aurity-desktop/src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('apps/**/src-tauri/src/**/*.rs') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-
+            cargo-${{ runner.os }}-
+
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
             libappindicator3-dev \
             librsvg2-dev \
-            libgtk-3-dev \
-            libxdo-dev \
-            patchelf
+            patchelf \
+            libssl-dev \
+            libsqlite3-dev
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: Install Python dependencies
+      - name: Install PyInstaller
+        working-directory: apps/aurity-desktop/pyinstaller
         run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller
-          pip install -r backend/requirements-prod.txt
+          pip install -r requirements.txt
 
-      - name: Build Python backend sidecar
+      - name: Build backend with PyInstaller
+        working-directory: apps/aurity-desktop/pyinstaller
         run: |
-          cd apps/aurity-desktop/pyinstaller
           pyinstaller aurity-backend.spec
-          # Move to binaries folder with correct target triple name
-          mkdir -p ../src-tauri/binaries
-          mv dist/aurity-backend ../src-tauri/binaries/aurity-backend-x86_64-unknown-linux-gnu
-          chmod +x ../src-tauri/binaries/aurity-backend-x86_64-unknown-linux-gnu
-          ls -la ../src-tauri/binaries/
 
-      - name: Install frontend dependencies
+      - name: Copy backend binary
+        run: |
+          mkdir -p apps/aurity-desktop/src-tauri/binaries
+          cp apps/aurity-desktop/pyinstaller/dist/aurity-backend-x86_64-unknown-linux-gnu \
+             apps/aurity-desktop/src-tauri/binaries/aurity-backend-x86_64-unknown-linux-gnu
+          chmod +x apps/aurity-desktop/src-tauri/binaries/aurity-backend-x86_64-unknown-linux-gnu
+
+      - name: Install Tauri dependencies
         working-directory: apps/aurity-desktop
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Build Tauri app
         working-directory: apps/aurity-desktop
         run: pnpm tauri build --target x86_64-unknown-linux-gnu
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          NEXT_PUBLIC_AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
-          NEXT_PUBLIC_AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
-          NEXT_PUBLIC_SUPERADMIN_EMAILS: ${{ secrets.SUPERADMIN_EMAILS }}
 
-      - name: List build artifacts
+      - name: Sign AppImage
+        working-directory: apps/aurity-desktop
         run: |
-          ls -la apps/aurity-desktop/src-tauri/target/release/bundle/appimage/ || true
-          ls -la apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/ || true
+          pnpm tauri signer sign \
+            src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage \
+            --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
 
-      - name: Upload to Azure Blob Storage
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
-            az storage blob upload-batch \
-              --account-name ${{ env.AZURE_STORAGE_ACCOUNT }} \
-              --destination ${{ env.AZURE_CONTAINER }} \
-              --source apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/ \
-              --pattern "*.AppImage" \
-              --overwrite \
-              --auth-mode key \
-              --account-key ${{ secrets.AZURE_STORAGE_KEY }}
-
-      - name: Upload artifact
+      - name: Upload AppImage artifact
         uses: actions/upload-artifact@v4
         with:
           name: aurity-linux-appimage
           path: apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
-          if-no-files-found: error
+          retention-days: 7
 
-      - name: Get version from tauri.conf.json
-        id: get_version
-        run: |
-          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Detected version: $VERSION"
+      - name: Upload AppImage signature artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurity-linux-appimage-sig
+          path: apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig
+          retention-days: 7
 
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.get_version.outputs.version }}
-          name: Aurity Desktop v${{ steps.get_version.outputs.version }}
+          tag_name: v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          name: Release v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
           body: |
-            ## Aurity Desktop v${{ steps.get_version.outputs.version }}
+            ## Aurity Desktop v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
 
             ### Downloads
-            - **macOS**: Apple Silicon (M1/M2/M3/M4)
-
-            ### Requirements
-            - macOS: 12.0+ (Monterey or later)
-            - Apple Silicon only
-            - 4GB RAM minimum
+            - Linux: AppImage
 
             ---
             🤖 Auto-generated release
           files: |
             apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.AppImage
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.nsis.zip
             apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate updater manifest
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
-          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-          # Find DMG signature file
-          DMG_SIG=$(cat apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig)
-
-          # Create updater.json (macOS Apple Silicon only)
-          cat > aurity-desktop-updater.json << EOF
-          {
-            "version": "$VERSION",
-            "notes": "See changelog at https://github.com/BernardUriza/free-intelligence/releases/tag/v$VERSION",
-            "pub_date": "$PUB_DATE",
-            "platforms": {
-              "darwin-aarch64": {
-                "signature": "$DMG_SIG",
-                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_aarch64.dmg"
-              }
-            }
-          }
-          EOF
-
-          # Upload to release
-          gh release upload v$VERSION aurity-desktop-updater.json --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -398,129 +362,99 @@ jobs:
         with:
           version: 9
 
+      - name: Get pnpm store path
+        id: pnpm-cache
+        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          targets: aarch64-apple-darwin
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            apps/fi-monitor/src-tauri/target
+            apps/aurity-desktop/src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('apps/**/src-tauri/src/**/*.rs') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-
+            cargo-${{ runner.os }}-
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: Install Python dependencies
+      - name: Install PyInstaller
+        working-directory: apps/aurity-desktop/pyinstaller
         run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller
-          pip install -r backend/requirements-prod.txt
+          pip install -r requirements.txt
 
-      - name: Build Python backend sidecar (ARM only)
+      - name: Build backend with PyInstaller
+        working-directory: apps/aurity-desktop/pyinstaller
         run: |
-          cd apps/aurity-desktop/pyinstaller
-          # Build for ARM64 (macos-latest runner is Apple Silicon)
           pyinstaller aurity-backend.spec
-          # Move to binaries folder with correct target triple name
-          mkdir -p ../src-tauri/binaries
-          mv dist/aurity-backend ../src-tauri/binaries/aurity-backend-aarch64-apple-darwin
-          chmod +x ../src-tauri/binaries/aurity-backend-aarch64-apple-darwin
-          ls -la ../src-tauri/binaries/
 
-      - name: Install frontend dependencies
+      - name: Copy backend binary
+        run: |
+          mkdir -p apps/aurity-desktop/src-tauri/binaries
+          cp apps/aurity-desktop/pyinstaller/dist/aurity-backend-aarch64-apple-darwin \
+             apps/aurity-desktop/src-tauri/binaries/aurity-backend-aarch64-apple-darwin
+          chmod +x apps/aurity-desktop/src-tauri/binaries/aurity-backend-aarch64-apple-darwin
+
+      - name: Install Tauri dependencies
         working-directory: apps/aurity-desktop
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
-      - name: Build Tauri app (ARM64)
+      - name: Build Tauri app
         working-directory: apps/aurity-desktop
         run: pnpm tauri build --target aarch64-apple-darwin
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          NEXT_PUBLIC_AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
-          NEXT_PUBLIC_AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
-          NEXT_PUBLIC_SUPERADMIN_EMAILS: ${{ secrets.SUPERADMIN_EMAILS }}
 
-      - name: Get artifact paths
-        id: paths_aurity_macos
-        run: |
-          INFO=$(node apps/aurity-desktop/scripts/get-artifact-path.js aurity aarch64-apple-darwin dmg)
-          echo "path=$(echo $INFO | jq -r '.path')" >> $GITHUB_OUTPUT
-          echo "sig=$(echo $INFO | jq -r '.sig')" >> $GITHUB_OUTPUT
-          echo "Artifact path: $(echo $INFO | jq -r '.path')"
-          echo "Signature path: $(echo $INFO | jq -r '.sig')"
-
-      - name: Sign DMG for updater
+      - name: Sign DMG
         working-directory: apps/aurity-desktop
         run: |
-          # Save private key to temporary file (no trailing newline)
-          echo -n "$SIGNING_KEY" > /tmp/tauri-signing.key
-          DMG_PATH="${{ steps.paths_aurity_macos.outputs.path }}"
+          pnpm tauri signer sign \
+            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg \
+            --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
 
-          # Create expect script for password automation
-          printf '%s\n' \
-            '#!/usr/bin/expect -f' \
-            'set timeout 30' \
-            'set dmg_path [lindex $argv 0]' \
-            'set key_path [lindex $argv 1]' \
-            'set password [lindex $argv 2]' \
-            'spawn pnpm tauri signer sign $dmg_path --private-key-path $key_path' \
-            'expect "Password:"' \
-            'send "$password\r"' \
-            'expect eof' \
-            > /tmp/sign.exp
-
-          chmod +x /tmp/sign.exp
-          /tmp/sign.exp "$DMG_PATH" /tmp/tauri-signing.key "$SIGNING_PASSWORD"
-
-          echo "Generated signature:"
-          ls -lh "${{ steps.paths_aurity_macos.outputs.sig }}"
-
-          # Clean up
-          rm /tmp/tauri-signing.key /tmp/sign.exp
-        env:
-          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          SIGNING_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-
-      - name: Upload to Azure Blob Storage
-        run: |
-          brew install azure-cli
-          az storage blob upload-batch \
-            --account-name ${{ env.AZURE_STORAGE_ACCOUNT }} \
-            --destination ${{ env.AZURE_CONTAINER }} \
-            --source apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/ \
-            --pattern "*.dmg" \
-            --overwrite \
-            --auth-mode key \
-            --account-key ${{ secrets.AZURE_STORAGE_KEY }}
-
-      - name: Upload artifact
+      - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
           name: aurity-macos-dmg
           path: apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-          if-no-files-found: error
+          retention-days: 7
 
-      - name: Get version from tauri.conf.json
-        id: get_version
-        run: |
-          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Detected version: $VERSION"
+      - name: Upload DMG signature artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurity-macos-dmg-sig
+          path: apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig
+          retention-days: 7
 
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.get_version.outputs.version }}
-          name: Aurity Desktop v${{ steps.get_version.outputs.version }}
+          tag_name: v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          name: Release v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
           body: |
-            ## Aurity Desktop v${{ steps.get_version.outputs.version }}
+            ## Aurity Desktop v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
 
             ### Downloads
-            - **macOS**: Apple Silicon (M1/M2/M3/M4)
-
-            ### Requirements
-            - macOS: 12.0+ (Monterey or later)
-            - Apple Silicon only
-            - 4GB RAM minimum
+            - macOS: DMG (Apple Silicon)
 
             ---
             🤖 Auto-generated release
@@ -529,35 +463,6 @@ jobs:
             apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate updater manifest
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
-          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-          # Find DMG signature file
-          DMG_SIG=$(cat apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig)
-
-          # Create updater.json (macOS Apple Silicon only)
-          cat > aurity-desktop-updater.json << EOF
-          {
-            "version": "$VERSION",
-            "notes": "See changelog at https://github.com/BernardUriza/free-intelligence/releases/tag/v$VERSION",
-            "pub_date": "$PUB_DATE",
-            "platforms": {
-              "darwin-aarch64": {
-                "signature": "$DMG_SIG",
-                "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_aarch64.dmg"
-              }
-            }
-          }
-          EOF
-
-          # Upload to release
-          gh release upload v$VERSION aurity-desktop-updater.json --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -592,121 +497,99 @@ jobs:
         with:
           version: 9
 
+      - name: Get pnpm store path
+        id: pnpm-cache
+        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            apps/fi-monitor/src-tauri/target
+            apps/aurity-desktop/src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('apps/**/src-tauri/src/**/*.rs') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-
+            cargo-${{ runner.os }}-
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: Install Python dependencies
+      - name: Install PyInstaller
+        working-directory: apps/aurity-desktop/pyinstaller
         run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller
-          pip install -r backend/requirements-prod.txt
+          pip install -r requirements.txt
 
-      - name: Build Python backend sidecar
+      - name: Build backend with PyInstaller
+        working-directory: apps/aurity-desktop/pyinstaller
+        run: |
+          pyinstaller aurity-backend.spec
+
+      - name: Copy backend binary
         shell: pwsh
         run: |
-          cd apps/aurity-desktop/pyinstaller
-          # Use unified spec (auto-detects platform)
-          pyinstaller aurity-backend.spec
-          # Move to binaries folder with correct target triple name
-          New-Item -ItemType Directory -Force -Path ../src-tauri/binaries
-          Move-Item -Force dist/aurity-backend-x86_64-pc-windows-msvc.exe ../src-tauri/binaries/aurity-backend-x86_64-pc-windows-msvc.exe
-          Get-ChildItem ../src-tauri/binaries/
+          New-Item -ItemType Directory -Force -Path apps/aurity-desktop/src-tauri/binaries
+          Copy-Item apps/aurity-desktop/pyinstaller/dist/aurity-backend-x86_64-pc-windows-msvc.exe `
+                    apps/aurity-desktop/src-tauri/binaries/aurity-backend-x86_64-pc-windows-msvc.exe
 
-      - name: Install frontend dependencies
+      - name: Install Tauri dependencies
         working-directory: apps/aurity-desktop
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Build Tauri app
         working-directory: apps/aurity-desktop
         run: pnpm tauri build --target x86_64-pc-windows-msvc
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          NEXT_PUBLIC_AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
-          NEXT_PUBLIC_AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
-          NEXT_PUBLIC_SUPERADMIN_EMAILS: ${{ secrets.SUPERADMIN_EMAILS }}
-
-      - name: Get artifact paths
-        id: paths_aurity_windows
-        shell: pwsh
-        run: |
-          $INFO = node apps/aurity-desktop/scripts/get-artifact-path.js aurity x86_64-pc-windows-msvc nsis | ConvertFrom-Json
-          "path=$($INFO.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "sig=$($INFO.sig)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Host "Artifact path: $($INFO.path)"
-          Write-Host "Signature path: $($INFO.sig)"
 
       - name: Sign NSIS installer
         working-directory: apps/aurity-desktop
-        shell: pwsh
         run: |
-          # Save private key to temporary file (no trailing newline)
-          $env:SIGNING_KEY | Out-File -FilePath $env:TEMP/tauri-signing.key -Encoding utf8 -NoNewline
-          $NSIS_PATH = "${{ steps.paths_aurity_windows.outputs.path }}"
-          pnpm tauri signer sign $NSIS_PATH --private-key-path $env:TEMP/tauri-signing.key
-          Write-Host "Generated signature:"
-          Get-ChildItem "${{ steps.paths_aurity_windows.outputs.sig }}"
-          # Clean up key file
-          Remove-Item $env:TEMP/tauri-signing.key
-        env:
-          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          pnpm tauri signer sign `
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip `
+            --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
 
-      - name: Upload to Azure Blob Storage
-        shell: pwsh
-        run: |
-          az storage blob upload-batch `
-            --account-name ${{ env.AZURE_STORAGE_ACCOUNT }} `
-            --destination ${{ env.AZURE_CONTAINER }} `
-            --source apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/ `
-            --pattern "*.nsis.zip" `
-            --overwrite `
-            --auth-mode key `
-            --account-key ${{ secrets.AZURE_STORAGE_KEY }}
-
-      - name: Upload artifact
+      - name: Upload NSIS artifact
         uses: actions/upload-artifact@v4
         with:
           name: aurity-windows-nsis
           path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip
-          if-no-files-found: error
+          retention-days: 7
 
-      - name: Get version from tauri.conf.json
-        id: get_version
-        shell: pwsh
-        run: |
-          $version = node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version"
-          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Host "Detected version: $version"
+      - name: Upload NSIS signature artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurity-windows-nsis-sig
+          path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig
+          retention-days: 7
 
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.get_version.outputs.version }}
-          name: Aurity Desktop v${{ steps.get_version.outputs.version }}
+          tag_name: v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          name: Release v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
           body: |
-            ## Aurity Desktop v${{ steps.get_version.outputs.version }}
+            ## Aurity Desktop v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
 
             ### Downloads
-            - **macOS**: Apple Silicon (M1/M2/M3/M4)
-            - **Linux**: x86_64 AppImage
-            - **Windows**: x64 NSIS Installer
-
-            ### Requirements
-            - macOS: 12.0+ (Monterey or later) - Apple Silicon only
-            - Linux: Ubuntu 22.04+ or equivalent
-            - Windows: 10+ (64-bit), 4GB RAM minimum
-
-            ### Windows Installation Notes
-            - SmartScreen warning is expected (Ed25519 signing)
-            - Click "More info" → "Run anyway" to proceed
-            - SHA256 hash provided in release notes for verification
+            - Windows: NSIS installer
 
             ---
             🤖 Auto-generated release
@@ -720,62 +603,77 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  generate-manifest:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
       - name: Generate updater manifest
-        if: github.event_name == 'workflow_dispatch'
-        shell: pwsh
         run: |
-          $VERSION = node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version"
-          $PUB_DATE = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ" -AsUTC
+          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-          # Find signature files (platform-specific paths)
-          $DMG_SIG = ""
-          $APPIMAGE_SIG = ""
-          $NSIS_SIG = ""
-
-          if (Test-Path "apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig") {
-            $DMG_SIG = Get-Content "apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig" -Raw
+          # Create manifest base
+          cat > aurity-desktop-updater.json << EOF
+          {
+            "version": "$VERSION",
+            "notes": "See changelog at https://github.com/BernardUriza/free-intelligence/releases/tag/v$VERSION",
+            "pub_date": "$PUB_DATE",
+            "platforms": {}
           }
+          EOF
 
-          if (Test-Path "apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig") {
-            $APPIMAGE_SIG = Get-Content "apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig" -Raw
-          }
+          # Add macOS if signature exists
+          if [ -f artifacts/aurity-macos-dmg-sig/*.dmg.sig ]; then
+            echo "✅ Found macOS signature"
+            DMG_SIG=$(cat artifacts/aurity-macos-dmg-sig/*.dmg.sig)
+            jq --arg sig "$DMG_SIG" \
+               --arg url "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_aarch64.dmg" \
+               '.platforms["darwin-aarch64"] = {signature: $sig, url: $url}' \
+               aurity-desktop-updater.json > tmp.json && mv tmp.json aurity-desktop-updater.json
+          else
+            echo "⏭️  Skipping macOS (no signature found)"
+          fi
 
-          if (Test-Path "apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig") {
-            $NSIS_SIG = Get-Content "apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig" -Raw
-          }
+          # Add Linux if signature exists
+          if [ -f artifacts/aurity-linux-appimage-sig/*.AppImage.sig ]; then
+            echo "✅ Found Linux signature"
+            APPIMAGE_SIG=$(cat artifacts/aurity-linux-appimage-sig/*.AppImage.sig)
+            jq --arg sig "$APPIMAGE_SIG" \
+               --arg url "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_amd64.AppImage" \
+               '.platforms["linux-x86_64"] = {signature: $sig, url: $url}' \
+               aurity-desktop-updater.json > tmp.json && mv tmp.json aurity-desktop-updater.json
+          else
+            echo "⏭️  Skipping Linux (no signature found)"
+          fi
 
-          # Create updater.json with all platforms
-          $manifest = @{
-            version = $VERSION
-            notes = "See changelog at https://github.com/BernardUriza/free-intelligence/releases/tag/v$VERSION"
-            pub_date = $PUB_DATE
-            platforms = @{}
-          }
+          # Add Windows if signature exists
+          if [ -f artifacts/aurity-windows-nsis-sig/*.nsis.zip.sig ]; then
+            echo "✅ Found Windows signature"
+            NSIS_SIG=$(cat artifacts/aurity-windows-nsis-sig/*.nsis.zip.sig)
+            jq --arg sig "$NSIS_SIG" \
+               --arg url "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_x64-setup.nsis.zip" \
+               '.platforms["windows-x86_64"] = {signature: $sig, url: $url}' \
+               aurity-desktop-updater.json > tmp.json && mv tmp.json aurity-desktop-updater.json
+          else
+            echo "⏭️  Skipping Windows (no signature found)"
+          fi
 
-          if ($DMG_SIG) {
-            $manifest.platforms["darwin-aarch64"] = @{
-              signature = $DMG_SIG.Trim()
-              url = "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_aarch64.dmg"
-            }
-          }
+          # Display final manifest
+          echo "📄 Final manifest:"
+          cat aurity-desktop-updater.json | jq '.'
 
-          if ($APPIMAGE_SIG) {
-            $manifest.platforms["linux-x86_64"] = @{
-              signature = $APPIMAGE_SIG.Trim()
-              url = "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_amd64.AppImage"
-            }
-          }
-
-          if ($NSIS_SIG) {
-            $manifest.platforms["windows-x86_64"] = @{
-              signature = $NSIS_SIG.Trim()
-              url = "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_x64-setup.nsis.zip"
-            }
-          }
-
-          $manifest | ConvertTo-Json -Depth 10 | Out-File -FilePath aurity-desktop-updater.json -Encoding utf8
-
-          # Upload to release
+      - name: Upload manifest to release
+        run: |
+          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
           gh release upload v$VERSION aurity-desktop-updater.json --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
