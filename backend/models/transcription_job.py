@@ -31,19 +31,19 @@ class ChunkMetadata:
     """
 
     __slots__ = (
-        "chunk_number",
-        "status",
-        "audio_size_bytes",
         "audio_hash",
-        "transcript",
-        "duration",
-        "language",
-        "confidence",
         "audio_quality",
-        "timestamp_start",
-        "timestamp_end",
+        "audio_size_bytes",
+        "chunk_number",
+        "confidence",
         "created_at",
+        "duration",
         "error_message",
+        "language",
+        "status",
+        "timestamp_end",
+        "timestamp_start",
+        "transcript",
     )
 
     def __init__(
@@ -94,12 +94,12 @@ class TranscriptionJob(Job):
     """
 
     __slots__ = (
-        "chunks",
-        "total_chunks",
-        "processed_chunks",
-        "audio_file_path",
         "audio_duration",
+        "audio_file_path",
+        "chunks",
         "primary_language",
+        "processed_chunks",
+        "total_chunks",
     )
 
     def __init__(

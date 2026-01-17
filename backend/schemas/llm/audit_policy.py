@@ -138,7 +138,7 @@ def require_audit_log(func: Callable) -> Callable:
 class LLMFunctionInfo:
     """Información de función LLM detectada."""
 
-    __slots__ = ("name", "lineno", "has_decorator", "calls_audit_log", "filepath")
+    __slots__ = ("calls_audit_log", "filepath", "has_decorator", "lineno", "name")
 
     def __init__(
         self,

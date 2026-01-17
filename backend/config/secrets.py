@@ -136,14 +136,14 @@ class Secrets:
     """
 
     __slots__ = (
-        "AUTH0_DOMAIN",
-        "AUTH0_CLIENT_ID",
         "AUTH0_AUDIENCE",
+        "AUTH0_CLIENT_ID",
+        "AUTH0_DOMAIN",
         "AUTH0_MANAGEMENT_CLIENT_ID",
         "AUTH0_MANAGEMENT_CLIENT_SECRET",
+        "CLAUDE_API_KEY",
         "DATABASE_URL",
         "DEEPGRAM_API_KEY",
-        "CLAUDE_API_KEY",
         "HF_TOKEN",
     )
 
@@ -151,17 +151,17 @@ class Secrets:
         self,
         *,
         # Auth0
-        AUTH0_DOMAIN: str | None = None,
-        AUTH0_CLIENT_ID: str | None = None,
-        AUTH0_AUDIENCE: str | None = None,
-        AUTH0_MANAGEMENT_CLIENT_ID: str | None = None,
-        AUTH0_MANAGEMENT_CLIENT_SECRET: str | None = None,
+        AUTH0_DOMAIN: str | None = None,  # noqa: N803
+        AUTH0_CLIENT_ID: str | None = None,  # noqa: N803
+        AUTH0_AUDIENCE: str | None = None,  # noqa: N803
+        AUTH0_MANAGEMENT_CLIENT_ID: str | None = None,  # noqa: N803
+        AUTH0_MANAGEMENT_CLIENT_SECRET: str | None = None,  # noqa: N803
         # Database
-        DATABASE_URL: str = "sqlite:///./data/aurity.db",
+        DATABASE_URL: str = "sqlite:///./data/aurity.db",  # noqa: N803
         # Optional services
-        DEEPGRAM_API_KEY: str | None = None,
-        CLAUDE_API_KEY: str | None = None,
-        HF_TOKEN: str | None = None,
+        DEEPGRAM_API_KEY: str | None = None,  # noqa: N803
+        CLAUDE_API_KEY: str | None = None,  # noqa: N803
+        HF_TOKEN: str | None = None,  # noqa: N803
     ) -> None:
         self.AUTH0_DOMAIN = AUTH0_DOMAIN
         self.AUTH0_CLIENT_ID = AUTH0_CLIENT_ID

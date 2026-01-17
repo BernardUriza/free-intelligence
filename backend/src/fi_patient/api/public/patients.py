@@ -124,7 +124,7 @@ def validate_curp(
     """
     # CURP format validation
     curp_pattern = r"^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$"
-    if not re.match(curp_pattern, curp):
+    if not re.match(curp_pattern, request.curp):
         return CurpValidationResponse(
             valid=False,
             available=False,
@@ -133,7 +133,7 @@ def validate_curp(
 
     # Check availability in database
     try:
-        query = db.query(Patient).filter(Patient.curp == curp)
+        query = db.query(Patient).filter(Patient.curp == request.curp)
 
         # Exclude specific patient (for updates)
         if request.exclude_patient_id:
@@ -142,14 +142,14 @@ def validate_curp(
         existing = query.first()
 
         if existing:
-            logger.info("CURP_VALIDATION_DUPLICATE", curp_prefix=curp[:4])
+            logger.info("CURP_VALIDATION_DUPLICATE", curp_prefix=request.curp[:4])
             return CurpValidationResponse(
                 valid=True,
                 available=False,
                 message="Este CURP ya está registrado para otro paciente.",
             )
 
-        logger.info("CURP_VALIDATION_OK", curp_prefix=curp[:4])
+        logger.info("CURP_VALIDATION_OK", curp_prefix=request.curp[:4])
         return CurpValidationResponse(
             valid=True, available=True, message=None
         )

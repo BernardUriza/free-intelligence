@@ -37,7 +37,7 @@ class SessionStatus(str, Enum):
 class EncryptionMetadata:
     """Encryption metadata for finalized sessions."""
 
-    __slots__ = ("algorithm", "key_id", "iv", "encrypted_at", "encrypted_by")
+    __slots__ = ("algorithm", "encrypted_at", "encrypted_by", "iv", "key_id")
 
     def __init__(
         self,
@@ -59,21 +59,21 @@ class Session:
     """Medical consultation session."""
 
     __slots__ = (
-        "session_id",
-        "status",
+        "completed_at",
         "created_at",
-        "updated_at",
+        "diarization_job_id",
+        "diarized_at",
+        "encryption_metadata",
+        "finalized_at",
         "patient_id",
         "provider_id",
         "recording_duration",
-        "total_chunks",
-        "encryption_metadata",
-        "diarization_job_id",
-        "soap_note_path",
-        "finalized_at",
-        "diarized_at",
         "reviewed_at",
-        "completed_at",
+        "session_id",
+        "soap_note_path",
+        "status",
+        "total_chunks",
+        "updated_at",
     )
 
     def __init__(

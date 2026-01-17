@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 class DecisionEvent:
     """Domain event emitted by decision middleware"""
 
-    __slots__ = ("event", "priority", "metadata", "rule_name")
+    __slots__ = ("event", "metadata", "priority", "rule_name")
 
     def __init__(
         self,

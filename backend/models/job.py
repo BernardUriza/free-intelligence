@@ -68,18 +68,18 @@ class Job:
     """
 
     __slots__ = (
-        "job_id",
-        "session_id",
-        "job_type",
-        "status",
-        "created_at",
-        "started_at",
         "completed_at",
-        "updated_at",
-        "error_message",
+        "created_at",
         "depends_on",
+        "error_message",
+        "job_id",
+        "job_type",
         "progress_percent",
         "result_data",
+        "session_id",
+        "started_at",
+        "status",
+        "updated_at",
     )
 
     def __init__(

@@ -12,14 +12,14 @@ Run with: uvicorn backend_minimal:app --host 0.0.0.0 --port 7001 --reload
 
 from __future__ import annotations
 
-import os
-import sys
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
+import os
+import sys
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 from pydantic import BaseModel
 
 # Add backend/src to path for imports
@@ -113,7 +113,7 @@ async def get_current_user(request: Request):
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid token")
-    
+
     # In minimal mode, return a dev user
     return {
         "sub": "dev|minimal-user",
@@ -147,7 +147,7 @@ _sessions: dict[str, dict] = {}
 async def create_session(data: SessionCreate):
     """Create a new session."""
     import uuid
-    
+
     session_id = str(uuid.uuid4())
     _sessions[session_id] = {
         "id": session_id,
@@ -156,7 +156,7 @@ async def create_session(data: SessionCreate):
         "metadata": data.metadata,
         "status": "active",
     }
-    
+
     return SessionResponse(
         session_id=session_id,
         created_at=_sessions[session_id]["created_at"],
@@ -200,9 +200,9 @@ async def chat(request: ChatRequest):
     Proxy chat to Ollama or return mock response.
     """
     import httpx
-    
+
     ollama_url = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-    
+
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
@@ -213,7 +213,7 @@ async def chat(request: ChatRequest):
                     "stream": False,
                 },
             )
-            
+
             if response.status_code == 200:
                 data = response.json()
                 return {
@@ -236,7 +236,7 @@ async def chat(request: ChatRequest):
         # Network error, return mock
         return {
             "message": {
-                "role": "assistant", 
+                "role": "assistant",
                 "content": f"[Modo offline] Ollama no está corriendo. Error: {e}",
             },
             "model": request.model,
@@ -270,15 +270,15 @@ async def startup_event():
     print("=" * 60)
     print("🏥 Aurity Backend (Minimal Mode)")
     print("=" * 60)
-    print(f"  Mode:     MINIMAL (development)")
+    print("  Mode:     MINIMAL (development)")
     print(f"  Time:     {datetime.now().isoformat()}")
-    print(f"  Endpoints: /api/health, /api/chat, /api/sessions")
+    print("  Endpoints: /api/health, /api/chat, /api/sessions")
     print("=" * 60)
 
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "backend_minimal:app",
         host="0.0.0.0",

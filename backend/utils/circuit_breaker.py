@@ -70,7 +70,7 @@ class CircuitBreakerOpen(Exception):
 class CircuitBreakerCallResult:
     """Result of a call through circuit breaker."""
 
-    __slots__ = ("timestamp", "success", "duration_ms", "exception_type")
+    __slots__ = ("duration_ms", "exception_type", "success", "timestamp")
 
     def __init__(
         self,

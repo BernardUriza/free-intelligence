@@ -142,12 +142,12 @@ class LLMResponse:
 
     __slots__ = (
         "content",
-        "model",
-        "provider",
-        "tokens_used",
         "cost_usd",
         "latency_ms",
         "metadata",
+        "model",
+        "provider",
+        "tokens_used",
     )
 
     content: str

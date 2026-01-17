@@ -36,7 +36,7 @@ class ValidationResult:
     on dataclasses plugins.
     """
 
-    __slots__ = ("is_safe", "score", "reason", "severity")
+    __slots__ = ("is_safe", "reason", "score", "severity")
 
     is_safe: bool
     score: float

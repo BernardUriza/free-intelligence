@@ -128,7 +128,7 @@ FORBIDDEN_CALL_PATTERNS = {
 class RouterViolation:
     """Información de violación de router policy."""
 
-    __slots__ = ("filepath", "lineno", "violation_type", "details")
+    __slots__ = ("details", "filepath", "lineno", "violation_type")
 
     def __init__(
         self,

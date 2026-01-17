@@ -19,7 +19,7 @@ from pathlib import Path
 class MutationViolation:
     """Represents a mutation policy violation."""
 
-    __slots__ = ("file_path", "line_number", "function_name", "violation_type", "message")
+    __slots__ = ("file_path", "function_name", "line_number", "message", "violation_type")
 
     def __init__(
         self,

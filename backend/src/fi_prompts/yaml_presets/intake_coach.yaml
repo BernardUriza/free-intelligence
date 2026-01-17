@@ -9,7 +9,7 @@ version: "1.0.0"
 description: AI-powered medical intake assistant for triage and patient data collection
 
 llm:
-  provider: claude
+  provider: anthropic
   model: claude-3-5-sonnet-20241022
   temperature: 0.7
   max_tokens: 2048

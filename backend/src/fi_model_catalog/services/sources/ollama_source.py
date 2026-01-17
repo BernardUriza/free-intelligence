@@ -63,7 +63,7 @@ class OllamaCatalogSource(CatalogSourceBase):
 
     Consulta el daemon de Ollama para listar modelos disponibles.
     Estos modelos ya están descargados y listos para usar.
-    
+
     Supports dynamic tunnel URL from Azure blob (fi-tunnels/tunnel-url.json)
     for cloud-to-edge connectivity via Cloudflare tunnel.
     """
@@ -71,7 +71,7 @@ class OllamaCatalogSource(CatalogSourceBase):
     def __init__(self, base_url: str = "http://localhost:11434", use_tunnel: bool = True):
         """
         Initialize Ollama catalog source.
-        
+
         Args:
             base_url: Static fallback URL for Ollama.
             use_tunnel: If True, dynamically fetch tunnel URL from Azure.

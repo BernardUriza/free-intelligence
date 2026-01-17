@@ -36,7 +36,7 @@ class DiarizationProviderType(Enum):
 class Speaker:
     """Speaker information"""
 
-    __slots__ = ("speaker_id", "name", "confidence")
+    __slots__ = ("confidence", "name", "speaker_id")
 
     speaker_id: str  # "Speaker 1", "SPEAKER_01", etc.
     name: str | None  # "Doctor" or "Patient" (if known)
@@ -52,13 +52,13 @@ class DiarizationSegment:
     """A segment of speech from one speaker"""
 
     __slots__ = (
-        "start_time",
-        "end_time",
-        "speaker",
         "confidence",
-        "text",
-        "improved_text",
         "duration",
+        "end_time",
+        "improved_text",
+        "speaker",
+        "start_time",
+        "text",
     )
 
     start_time: float
@@ -92,14 +92,14 @@ class DiarizationResponse:
     """Unified response from diarization provider"""
 
     __slots__ = (
-        "segments",
-        "speakers",
-        "num_speakers",
-        "duration",
         "confidence",
-        "provider",
+        "duration",
         "latency_ms",
         "metadata",
+        "num_speakers",
+        "provider",
+        "segments",
+        "speakers",
     )
 
     segments: list[DiarizationSegment]

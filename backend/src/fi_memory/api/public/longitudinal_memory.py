@@ -179,12 +179,17 @@ def _get_chat_events(
 
 
 def _get_audio_events(
+    doctor_id: str,
     start_ts: int | None,
     end_ts: int | None,
     limit: int,
     offset: int,
 ) -> tuple[list[MemoryEvent], int]:
-    """Fetch audio transcription events from HDF5."""
+    """Fetch audio transcription events from HDF5.
+
+    Security: Filters events by doctor_id to ensure data isolation.
+    Sessions without owner metadata are excluded (legacy data).
+    """
     events: list[MemoryEvent] = []
     total_count = 0
 
@@ -201,6 +206,33 @@ def _get_audio_events(
             for session_id in sessions_group:
                 try:
                     session = sessions_group[session_id]
+
+                    # SECURITY: Check session ownership
+                    # Check for doctor_id/owner_id in session attrs
+                    session_owner = None
+                    if "doctor_id" in session.attrs:
+                        session_owner = session.attrs["doctor_id"]
+                    elif "owner_id" in session.attrs:
+                        session_owner = session.attrs["owner_id"]
+                    elif "user_id" in session.attrs:
+                        session_owner = session.attrs["user_id"]
+
+                    # If session has owner, verify it matches
+                    if session_owner is not None:
+                        if isinstance(session_owner, bytes):
+                            session_owner = session_owner.decode("utf-8")
+                        if session_owner != doctor_id:
+                            continue  # Skip - not owned by this doctor
+                    else:
+                        # Legacy session without owner - log and skip for security
+                        logger.debug(
+                            "AUDIO_SESSION_NO_OWNER",
+                            session_id=session_id,
+                            action="skipped",
+                            reason="No owner metadata - security isolation",
+                        )
+                        continue
+
                     if "tasks" not in session:  # type: ignore[operator]
                         continue
 
@@ -411,6 +443,7 @@ async def get_longitudinal_memory(
 
     if event_type in (EventType.ALL, EventType.AUDIO):
         audio_events, audio_total = _get_audio_events(
+            doctor_id=doctor_id,
             start_ts=start_ts,
             end_ts=end_ts,
             limit=limit,
@@ -506,31 +539,20 @@ async def search_memory(
         )
 
         for idx, interaction in enumerate(result["interactions"]):
-            # Check if query matches in user or assistant message
-            user_match = query_lower in interaction.user_message.lower()
-            assistant_match = query_lower in interaction.assistant_message.lower()
-
-            if user_match:
-                matching_events.append(
-                    MemoryEvent(
-                        id=f"chat_user_{interaction.timestamp}_{idx}",
-                        timestamp=interaction.timestamp,
-                        event_type="chat_user",
-                        content=interaction.user_message,
-                        source="chat",
-                        persona=None,
-                    )
+            # Check if query matches in content (case-insensitive)
+            if query_lower in interaction.content.lower():
+                event_type: Literal["chat_user", "chat_assistant"] = (
+                    "chat_user" if interaction.role == "user" else "chat_assistant"
                 )
-
-            if assistant_match:
                 matching_events.append(
                     MemoryEvent(
-                        id=f"chat_assistant_{interaction.timestamp}_{idx}",
+                        id=f"chat_{interaction.role}_{interaction.timestamp}_{idx}",
                         timestamp=interaction.timestamp,
-                        event_type="chat_assistant",
-                        content=interaction.assistant_message,
+                        event_type=event_type,
+                        content=interaction.content,
                         source="chat",
-                        persona=interaction.persona,
+                        session_id=interaction.session_id,
+                        persona=interaction.persona if interaction.role == "assistant" else None,
                     )
                 )
     except Exception as e:
@@ -542,6 +564,23 @@ async def search_memory(
             if "sessions" in f:
                 for session_key in f["sessions"]:
                     session_grp = f["sessions"][session_key]
+
+                    # SECURITY: Check session ownership
+                    session_owner = None
+                    if "doctor_id" in session_grp.attrs:
+                        session_owner = session_grp.attrs["doctor_id"]
+                    elif "owner_id" in session_grp.attrs:
+                        session_owner = session_grp.attrs["owner_id"]
+                    elif "user_id" in session_grp.attrs:
+                        session_owner = session_grp.attrs["user_id"]
+
+                    if session_owner is not None:
+                        if isinstance(session_owner, bytes):
+                            session_owner = session_owner.decode("utf-8")
+                        if session_owner != doctor_id:
+                            continue  # Skip - not owned by this doctor
+                    else:
+                        continue  # Skip legacy sessions without owner
 
                     if "tasks" not in session_grp:
                         continue
@@ -640,25 +679,60 @@ async def get_memory_stats(
     except Exception:
         pass
 
-    # Audio stats (quick scan)
+    # Audio stats (quick scan) - SECURITY: filter by doctor_id
+    all_timestamps: list[int] = []
     try:
         with h5py.File(CORPUS_PATH, "r") as f:
             if "sessions" in f:
                 sessions_group = f["sessions"]
                 for session_id in sessions_group:
-                    unique_sessions.add(session_id)
                     try:
                         session = sessions_group[session_id]
+
+                        # SECURITY: Check session ownership
+                        session_owner = None
+                        if "doctor_id" in session.attrs:
+                            session_owner = session.attrs["doctor_id"]
+                        elif "owner_id" in session.attrs:
+                            session_owner = session.attrs["owner_id"]
+                        elif "user_id" in session.attrs:
+                            session_owner = session.attrs["user_id"]
+
+                        if session_owner is not None:
+                            if isinstance(session_owner, bytes):
+                                session_owner = session_owner.decode("utf-8")
+                            if session_owner != doctor_id:
+                                continue  # Skip - not owned by this doctor
+                        else:
+                            continue  # Skip legacy sessions without owner
+
+                        unique_sessions.add(session_id)
                         if "tasks" in session:  # type: ignore[operator]
                             tasks = session["tasks"]
                             if "TRANSCRIPTION" in tasks:  # type: ignore[operator]
                                 trans = tasks["TRANSCRIPTION"]
                                 if "chunks" in trans:  # type: ignore[operator]
-                                    audio_count += len(trans["chunks"].keys())
+                                    chunks_grp = trans["chunks"]
+                                    audio_count += len(chunks_grp.keys())
+
+                                    # Collect timestamps for oldest/newest
+                                    for chunk_name in chunks_grp:
+                                        chunk = chunks_grp[chunk_name]
+                                        if "created_at" in chunk:  # type: ignore[operator]
+                                            created_at_ds = chunk["created_at"]
+                                            if isinstance(created_at_ds, h5py.Dataset):
+                                                created_at = created_at_ds[()].decode("utf-8")
+                                                ts = _parse_timestamp(created_at)
+                                                all_timestamps.append(ts)
                     except Exception:
                         continue
     except Exception:
         pass
+
+    # Calculate oldest/newest from collected timestamps
+    if all_timestamps:
+        oldest_ts = min(all_timestamps)
+        newest_ts = max(all_timestamps)
 
     return MemoryStatsResponse(
         total_events=chat_count + audio_count,

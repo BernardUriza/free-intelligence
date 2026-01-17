@@ -59,11 +59,11 @@ class RetryConfig:
     """Configuration for exponential backoff retry"""
 
     __slots__ = (
-        "max_retries",
         "base_delay",
-        "max_delay",
         "exponential_base",
         "jitter",
+        "max_delay",
+        "max_retries",
     )
 
     def __init__(
@@ -106,12 +106,12 @@ class CircuitBreaker:
     """
 
     __slots__ = (
-        "name",
         "config",
-        "state",
         "failure_count",
-        "success_count",
         "last_failure_time",
+        "name",
+        "state",
+        "success_count",
     )
 
     def __init__(
@@ -373,7 +373,7 @@ def with_retry(
     return decorator
 
 
-async def with_retry_async(
+async def with_retry_async[T](
     func: Callable[..., Awaitable[T]],
     *args: Any,
     retry_config: RetryConfig | None = None,

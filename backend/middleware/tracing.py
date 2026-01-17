@@ -59,7 +59,7 @@ class RequestTraceContext:
     Named to avoid collisions with Python 3.14/typeshed builtins (e.g., TraceContext).
     """
 
-    __slots__ = ("trace_id", "span_id", "parent_span_id", "session_id")
+    __slots__ = ("parent_span_id", "session_id", "span_id", "trace_id")
 
     def __init__(
         self,

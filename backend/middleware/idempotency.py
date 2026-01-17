@@ -39,7 +39,7 @@ logger = get_logger(__name__)
 class CachedResponse:
     """Cached idempotent response"""
 
-    __slots__ = ("status_code", "headers", "body", "created_at", "ttl_seconds")
+    __slots__ = ("body", "created_at", "headers", "status_code", "ttl_seconds")
 
     def __init__(
         self,

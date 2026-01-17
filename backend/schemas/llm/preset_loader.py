@@ -32,23 +32,23 @@ class PresetConfig:
     """Preset configuration"""
 
     __slots__ = (
-        "preset_id",
-        "version",
+        "cache_enabled",
+        "cache_key_fields",
+        "cache_ttl_seconds",
         "description",
-        "provider",
-        "model",
-        "temperature",
+        "examples",
         "max_tokens",
+        "metadata",
+        "model",
+        "output_schema_path",
+        "preset_id",
+        "provider",
         "stream",
         "system_prompt",
-        "output_schema_path",
+        "temperature",
         "validation_enabled",
         "validation_strict",
-        "cache_enabled",
-        "cache_ttl_seconds",
-        "cache_key_fields",
-        "examples",
-        "metadata",
+        "version",
     )
 
     def __init__(
