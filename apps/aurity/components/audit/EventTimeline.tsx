@@ -174,12 +174,21 @@ export function EventTimeline({
   // ========================================
 
   const defaultFormatTimestamp = (timestamp: string | number): string => {
-    if (typeof timestamp === 'number') {
-      const date = new Date(timestamp * 1000);
-      return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    }
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const date = typeof timestamp === 'number'
+      ? new Date(timestamp * 1000)
+      : new Date(timestamp);
+
+    // Format: "13 ene · 08:32:03 p.m."
+    const dateStr = date.toLocaleDateString('es-MX', {
+      day: 'numeric',
+      month: 'short'
+    });
+    const timeStr = date.toLocaleTimeString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    return `${dateStr} · ${timeStr}`;
   };
 
   const defaultGetColors = () => ({

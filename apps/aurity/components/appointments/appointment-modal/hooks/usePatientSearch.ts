@@ -2,17 +2,11 @@
  * usePatientSearch Hook
  *
  * Manages patient search with debounce, dropdown state, and inline creation.
- * Uses shared validation from PatientFormFields.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchPatients, createPatient, type Patient } from '@/lib/api/patients';
-import {
-  usePatientFormValidation,
-  validatePatientForm,
-  type PatientFormData,
-  type PatientFormField,
-} from '@/components/patients/usePatientFormValidation';
+import type { NewPatientForm } from '../types';
 
 interface UsePatientSearchProps {
   onPatientSelect: (patientId: string, patientName: string) => void;
@@ -25,15 +19,13 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newPatient, setNewPatient] = useState<PatientFormData>({
+  const [newPatient, setNewPatient] = useState<NewPatientForm>({
     nombre: '',
     apellido: '',
-    fecha_nacimiento: '',
+    email: '',
+    phone: '',
   });
   const [creating, setCreating] = useState(false);
-
-  // Use shared validation hook
-  const validation = usePatientFormValidation();
 
   // Search patients with debounce
   useEffect(() => {
@@ -49,7 +41,7 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
         setResults(data);
         setShowDropdown(true);
       } catch (err) {
-        console.error('Failed to search patients:', err);
+        console.error('[usePatientSearch] Search failed:', err);
         setResults([]);
       } finally {
         setLoading(false);
@@ -79,46 +71,32 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
     setShowDropdown(false);
   }, [onPatientSelect]);
 
-  /**
-   * Handle field change with immediate error clear
-   */
-  const handleNewPatientChange = useCallback((field: PatientFormField, value: string) => {
-    setNewPatient((prev) => ({ ...prev, [field]: value }));
-    validation.clearFieldError(field);
-  }, [validation]);
-
-  /**
-   * Handle field blur
-   */
-  const handleFieldBlur = useCallback((field: PatientFormField) => {
-    validation.handleBlur(field, newPatient[field]);
-  }, [validation, newPatient]);
-
   const handleCreatePatient = useCallback(async () => {
-    // Full form validation
-    const { isValid } = validation.validate(newPatient);
-    
-    if (!isValid) {
+    if (!newPatient.nombre || !newPatient.apellido) {
+      alert('Nombre y apellido son requeridos');
       return;
     }
 
     setCreating(true);
     try {
+      // Backend expects full ISO 8601 datetime
+      const today = new Date().toISOString();
+      
       const created = await createPatient({
         nombre: newPatient.nombre,
         apellido: newPatient.apellido,
-        fecha_nacimiento: newPatient.fecha_nacimiento,
+        fecha_nacimiento: today,
       });
 
       onPatientSelect(created.id, created.name);
       setSearch(created.name);
       setShowCreateForm(false);
       setShowDropdown(false);
-      setNewPatient({ nombre: '', apellido: '', fecha_nacimiento: '' });
-      validation.reset();
+      setNewPatient({ nombre: '', apellido: '', email: '', phone: '' });
     } catch (err) {
-      console.error('Failed to create patient:', err);
-      alert('Error al crear paciente');
+      console.error('[usePatientSearch] Create patient failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al crear paciente';
+      alert(errorMessage);
     } finally {
       setCreating(false);
     }
@@ -131,9 +109,8 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
 
   const closeCreateForm = useCallback(() => {
     setShowCreateForm(false);
-    setNewPatient({ nombre: '', apellido: '', fecha_nacimiento: '' });
-    validation.reset();
-  }, [validation]);
+    setNewPatient({ nombre: '', apellido: '', email: '', phone: '' });
+  }, []);
 
   const clearSearch = useCallback(() => {
     setSearch('');
@@ -156,7 +133,7 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
     loading,
     showCreateForm,
     newPatient,
-    handleNewPatientChange,
+    setNewPatient,
     creating,
     handleSelectPatient,
     handleCreatePatient,
@@ -164,8 +141,5 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
     closeCreateForm,
     clearSearch,
     handleFocus,
-    // Validation from shared hook
-    getFieldError: validation.getFieldError,
-    handleFieldBlur,
   };
 }

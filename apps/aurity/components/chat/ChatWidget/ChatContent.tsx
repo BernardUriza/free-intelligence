@@ -15,6 +15,7 @@ import { ChatToolbar } from '../ChatToolbar';
 import { ChatFilePreview, type UploadStatus } from '../ChatFilePreview';
 import { ChatStartScreen } from '../ChatStartScreen';
 import { HistorySearch, type InteractionResult } from '../HistorySearch';
+import { usePersonas } from '@aurity-standalone/hooks/usePersonas';
 import type { ChatConfig } from '@/config/chat.config';
 import type { FIMessage } from '@aurity-standalone/types/assistant';
 import type { ChatViewMode, VoiceRecordingState } from './types';
@@ -137,6 +138,18 @@ export function ChatContent({
   onAttach,
   onCancelUpload,
 }: ChatContentProps) {
+  // Get personas to find the selected persona's name
+  const { personas } = usePersonas();
+
+  // Find the selected persona's display name
+  const personaName = useMemo(() => {
+    const persona = personas.find(p => p.id === selectedPersona);
+    return persona?.name || 'Asistente';
+  }, [personas, selectedPersona]);
+
+  // Dynamic placeholder like ChatGPT: "Escribe a [Persona Name]"
+  const dynamicPlaceholder = `Escribe a ${personaName}...`;
+
   // Override config.behavior.showThinking with preference
   // MEMOIZED to prevent re-renders of ChatMessageList on every keystroke
   const configWithPrefs = useMemo<ChatConfig>(() => ({
@@ -206,47 +219,51 @@ export function ChatContent({
 
             {/* Show toolbar and input only in non-dense modes */}
             {viewMode !== 'dense' && (
-              <div className="mt-auto">
-                {/* File upload preview */}
-                {isUploadActive && uploadFile && (
-                  <ChatFilePreview
-                    file={uploadFile}
-                    status={uploadStatus}
-                    onCancel={onCancelUpload}
+              <div className="chat-input-wrapper">
+                <div className="chat-input-floating-box">
+                  {/* File upload preview */}
+                  {isUploadActive && uploadFile && (
+                    <ChatFilePreview
+                      file={uploadFile}
+                      status={uploadStatus}
+                      onCancel={onCancelUpload}
+                    />
+                  )}
+
+                  {/* Input ARRIBA - solo textarea */}
+                  <ChatWidgetInput
+                    message={message}
+                    loading={loading}
+                    placeholder={dynamicPlaceholder}
+                    onMessageChange={onMessageChange}
+                    onSend={onSend}
                   />
-                )}
 
-                {/* Toolbar */}
-                <ChatToolbar
-                  responseMode={responseMode}
-                  selectedPersona={selectedPersona}
-                  showThinking={showThinking}
-                  voiceRecording={voiceState}
-                  showAttach={true}
-                  showLanguage={false}
-                  showFormatting={false}
-                  showResponseMode={true}
-                  showVoice={true}
-                  showPersonaSelector={true}
-                  showThinkingToggle={true}
-                  onResponseModeToggle={onResponseModeToggle}
-                  onShowThinkingToggle={onShowThinkingToggle}
-                  onClearConversation={onClearConversation}
-                  onPersonaChange={onPersonaChange}
-                  onAttach={onAttach}
-                  onVoiceStart={onVoiceStart}
-                  onVoiceStop={onVoiceStop}
-                />
-
-                {/* Input */}
-                <ChatWidgetInput
-                  message={message}
-                  loading={loading}
-                  placeholder={config.behavior.inputPlaceholder}
-                  footer={config.footer}
-                  onMessageChange={onMessageChange}
-                  onSend={onSend}
-                />
+                  {/* Toolbar ABAJO - con botones + mic + send */}
+                  <ChatToolbar
+                    responseMode={responseMode}
+                    selectedPersona={selectedPersona}
+                    showThinking={showThinking}
+                    voiceRecording={voiceState}
+                    showAttach={true}
+                    showLanguage={false}
+                    showFormatting={false}
+                    showResponseMode={true}
+                    showVoice={true}
+                    showPersonaSelector={true}
+                    showThinkingToggle={true}
+                    onResponseModeToggle={onResponseModeToggle}
+                    onShowThinkingToggle={onShowThinkingToggle}
+                    onClearConversation={onClearConversation}
+                    onPersonaChange={onPersonaChange}
+                    onAttach={onAttach}
+                    onVoiceStart={onVoiceStart}
+                    onVoiceStop={onVoiceStop}
+                    onSend={onSend}
+                    canSend={message.trim().length > 0 && !loading}
+                    sendLoading={loading}
+                  />
+                </div>
               </div>
             )}
           </ChatWidgetContainer>

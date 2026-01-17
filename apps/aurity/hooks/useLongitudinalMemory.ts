@@ -157,9 +157,14 @@ export function useLongitudinalMemory(): UseLongitudinalMemoryReturn {
           }
 
           setTotal(response.total);
-          setHasMore(response.has_more);
-          setChatCount(response.chat_count);
-          setAudioCount(response.audio_count);
+          // Fix: If we received 0 events, there's nothing more to load
+          setHasMore(response.events.length > 0 && response.has_more);
+          // Only update counts on first fetch (reset=true) to avoid overwriting
+          // with 0 when subsequent pages have no matching events
+          if (reset) {
+            setChatCount(response.chat_count);
+            setAudioCount(response.audio_count);
+          }
           setIsSearching(false);
         } else {
           // Normal timeline fetch
@@ -181,9 +186,15 @@ export function useLongitudinalMemory(): UseLongitudinalMemoryReturn {
           }
 
           setTotal(response.total);
-          setHasMore(response.has_more);
-          setChatCount(response.chat_count);
-          setAudioCount(response.audio_count);
+          // Fix: If we received 0 events, there's nothing more to load
+          // (prevents infinite loop when backend returns has_more:true with 0 events)
+          setHasMore(response.events.length > 0 && response.has_more);
+          // Only update counts on first fetch (reset=true) to avoid overwriting
+          // with 0 when subsequent pages have no matching events
+          if (reset) {
+            setChatCount(response.chat_count);
+            setAudioCount(response.audio_count);
+          }
         }
       } catch (err) {
         console.error('[useLongitudinalMemory] Fetch error:', err);
@@ -213,19 +224,25 @@ export function useLongitudinalMemory(): UseLongitudinalMemoryReturn {
   // ============================================================================
 
   // Initial load when authenticated
+  // NOTE: We intentionally exclude fetchTimeline/fetchStats from deps.
+  // This effect should ONLY run when auth state changes, not when the
+  // callbacks change (which would cause infinite loops).
   useEffect(() => {
     if (isAuthenticated && doctorId && !authLoading) {
       fetchTimeline(true);
       fetchStats();
     }
-  }, [isAuthenticated, doctorId, authLoading, fetchTimeline, fetchStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, doctorId, authLoading]);
 
   // Refetch when filters change OR search query changes
+  // NOTE: fetchTimeline is included to ensure we use the latest version
+  // (fixes stale closure bug when clearing search)
   useEffect(() => {
     if (isAuthenticated && doctorId) {
       fetchTimeline(true);
     }
-  }, [filters, searchQuery, isAuthenticated, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filters, searchQuery, isAuthenticated, doctorId, fetchTimeline]);
 
   // ============================================================================
   // Actions

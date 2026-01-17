@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import numpy as np
 
+from backend.src.fi_auth.adapters.fastapi_adapter import User, get_current_user
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     Document,
@@ -39,7 +40,7 @@ from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     update_document_metadata,
     update_document_status,
 )
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -131,12 +132,12 @@ class DocumentSearchResponse(BaseModel):
 
 @router.post("/documents/upload", response_model=DocumentDetailResponse)
 async def upload_document(
+    current_user: User = Depends(get_current_user),
     file: UploadFile = File(...),
     title: str = Form(None),
     usage_instructions: str = Form(""),
     assigned_personas: str = Form(""),  # Comma-separated or JSON array
     origin: str = Form("admin_upload"),
-    uploaded_by: str = Form("anonymous"),
 ) -> DocumentDetailResponse:
     """Upload a new document to the knowledge base.
 
@@ -276,19 +277,21 @@ async def upload_document(
     except ValueError:
         doc_origin = DocumentOrigin.ADMIN_UPLOAD
 
-    # Create document
+    # Create document with user isolation
     try:
         metadata = create_document(
             content=content,
             filename=file.filename or "unknown",
-            uploaded_by=uploaded_by,
+            uploaded_by=current_user.email,  # Legacy field for backward compat
+            owner_user_id=current_user.user_id,  # SECURITY: Auth0 sub claim
+            clinic_id="",  # TODO: Extract from user metadata when multi-tenancy is added
             origin=doc_origin,
             title=title,
             usage_instructions=usage_instructions,
             assigned_personas=personas,
         )
     except Exception as e:
-        logger.error("DOCUMENT_UPLOAD_FAILED", error=str(e))
+        logger.error("DOCUMENT_UPLOAD_FAILED", error=str(e), user_id=current_user.user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload document: {e}",
@@ -322,11 +325,15 @@ async def upload_document(
 
 @router.get("/documents", response_model=DocumentListResponse)
 async def list_all_documents(
+    current_user: User = Depends(get_current_user),
     persona: str | None = None,
     origin: str | None = None,
     document_status: str | None = None,
 ) -> DocumentListResponse:
-    """List all documents with optional filters."""
+    """List documents accessible to current user (HIPAA isolation).
+
+    SECURITY: Only returns documents owned by the user or explicitly shared with them.
+    """
     # Parse filters
     origin_filter = None
     if origin:
@@ -338,7 +345,9 @@ async def list_all_documents(
         with contextlib.suppress(ValueError):
             status_filter = DocumentStatus(document_status)
 
+    # CRITICAL: Pass user_id for access control (HIPAA compliance)
     documents = list_documents(
+        user_id=current_user.user_id,
         persona_filter=persona,
         origin_filter=origin_filter,
         status_filter=status_filter,
@@ -463,8 +472,13 @@ async def reindex_document(doc_id: str) -> dict:
 
 
 @router.post("/documents/search", response_model=DocumentSearchResponse)
-async def search_documents(request: DocumentSearchRequest) -> DocumentSearchResponse:
-    """Search documents using semantic similarity.
+async def search_documents(
+    request: DocumentSearchRequest,
+    current_user: User = Depends(get_current_user),
+) -> DocumentSearchResponse:
+    """Search documents using semantic similarity (HIPAA isolation).
+
+    SECURITY: Only searches documents owned by the user or explicitly shared with them.
 
     Returns chunks of text that are most relevant to the query.
     """
@@ -476,17 +490,25 @@ async def search_documents(request: DocumentSearchRequest) -> DocumentSearchResp
     try:
         query_embedding = await _get_embedding(request.query)
     except Exception as e:
-        logger.error("EMBEDDING_GENERATION_FAILED", error=str(e))
+        logger.error("EMBEDDING_GENERATION_FAILED", error=str(e), user_id=current_user.user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate query embedding: {e}",
         )
 
-    # Search
+    # CRITICAL: Search with user_id for access control (HIPAA compliance)
     results = search_documents_by_embedding(
         query_embedding=query_embedding,
+        user_id=current_user.user_id,
         top_k=request.top_k,
         persona_filter=request.persona_filter,
+    )
+
+    logger.info(
+        "DOCUMENT_SEARCH_EXECUTED",
+        user_id=current_user.user_id,
+        query_length=len(request.query),
+        results_count=len(results),
     )
 
     # Enrich with document metadata
@@ -552,21 +574,68 @@ def _process_document(doc_id: str) -> None:
         # Split into chunks
         chunks_text = _split_text(text)
 
-        # Generate embeddings for each chunk
-        chunks = []
-        for i, chunk_text in enumerate(chunks_text):
-            try:
-                embedding = _get_embedding_sync(chunk_text)
-                chunks.append(
-                    DocumentChunk(
-                        chunk_id=i,
-                        text=chunk_text,
-                        embedding=embedding,
-                    )
+        # Generate embeddings for all chunks in batch (10-50x faster)
+        try:
+            model = _get_embedding_model()
+            embeddings = model.encode(
+                chunks_text,
+                batch_size=32,
+                convert_to_numpy=True,
+                show_progress_bar=False,  # Avoid clutter in logs
+            )
+            chunks = [
+                DocumentChunk(chunk_id=i, text=text, embedding=emb)
+                for i, (text, emb) in enumerate(zip(chunks_text, embeddings, strict=True))
+            ]
+            logger.info("BATCH_EMBEDDING_SUCCESS", num_chunks=len(chunks))
+        except RuntimeError as e:
+            # CUDA OOM or driver error - fallback to CPU
+            if "CUDA" in str(e) or "out of memory" in str(e).lower():
+                import torch
+
+                logger.warning(
+                    "CUDA_OOM_FALLBACK",
+                    error=str(e),
+                    action="retrying on CPU",
                 )
-            except Exception as e:
-                logger.warning("CHUNK_EMBEDDING_FAILED", chunk_id=i, error=str(e))
-                chunks.append(DocumentChunk(chunk_id=i, text=chunk_text, embedding=None))
+                torch.cuda.empty_cache()  # Clear GPU memory
+
+                # Retry on CPU
+                try:
+                    model = _get_embedding_model()
+                    # Force CPU device
+                    model = model.to("cpu")
+                    embeddings = model.encode(
+                        chunks_text,
+                        batch_size=16,  # Smaller batch for CPU
+                        convert_to_numpy=True,
+                        show_progress_bar=False,
+                    )
+                    chunks = [
+                        DocumentChunk(chunk_id=i, text=text, embedding=emb)
+                        for i, (text, emb) in enumerate(zip(chunks_text, embeddings, strict=True))
+                    ]
+                    logger.info("CPU_FALLBACK_SUCCESS", num_chunks=len(chunks))
+                except Exception as cpu_error:
+                    logger.error("CPU_FALLBACK_FAILED", error=str(cpu_error))
+                    chunks = [
+                        DocumentChunk(chunk_id=i, text=text, embedding=None)
+                        for i, text in enumerate(chunks_text)
+                    ]
+            else:
+                # Non-CUDA error
+                logger.error("BATCH_EMBEDDING_FAILED", error=str(e))
+                chunks = [
+                    DocumentChunk(chunk_id=i, text=text, embedding=None)
+                    for i, text in enumerate(chunks_text)
+                ]
+        except Exception as e:
+            logger.error("BATCH_EMBEDDING_FAILED", error=str(e))
+            # Fallback: create chunks without embeddings
+            chunks = [
+                DocumentChunk(chunk_id=i, text=text, embedding=None)
+                for i, text in enumerate(chunks_text)
+            ]
 
         # Save chunks
         save_document_chunks(doc_id, chunks)
@@ -728,30 +797,81 @@ def _extract_image_text(content: bytes) -> str:
         raise
 
 
-def _split_text(text: str, chunk_size: int = 512, overlap: int = 50) -> list[str]:
-    """Split text into overlapping chunks."""
-    if len(text) <= chunk_size:
-        return [text]
+def _split_text(text: str, chunk_size_tokens: int = 256, overlap_tokens: int = 50) -> list[str]:
+    """Split text into overlapping chunks based on tokens (not characters).
 
-    chunks = []
-    start = 0
+    Args:
+        text: Input text to split
+        chunk_size_tokens: Maximum tokens per chunk (default: 256 tokens ≈ 512 chars)
+        overlap_tokens: Overlap between chunks (default: 50 tokens)
 
-    while start < len(text):
-        end = start + chunk_size
+    Returns:
+        List of text chunks
+    """
+    try:
+        from transformers import AutoTokenizer
 
-        # Try to break at sentence boundary
-        if end < len(text):
-            # Look for sentence end (.!?) in last 100 chars
-            search_start = max(end - 100, start)
-            for i in range(end, search_start, -1):
-                if text[i] in ".!?\n":
-                    end = i + 1
-                    break
+        # Use same tokenizer as embedding model for consistency
+        tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
 
-        chunks.append(text[start:end].strip())
-        start = end - overlap
+        # Tokenize entire text
+        tokens = tokenizer.encode(text, add_special_tokens=False)
 
-    return [c for c in chunks if c]  # Filter empty chunks
+        # If text is short enough, return as-is
+        if len(tokens) <= chunk_size_tokens:
+            return [text]
+
+        chunks = []
+        start_token = 0
+
+        while start_token < len(tokens):
+            end_token = start_token + chunk_size_tokens
+
+            # Get chunk tokens
+            chunk_tokens = tokens[start_token:end_token]
+
+            # Decode back to text
+            chunk_text = tokenizer.decode(chunk_tokens, skip_special_tokens=True).strip()
+
+            if chunk_text:  # Only add non-empty chunks
+                chunks.append(chunk_text)
+
+            # Move start with overlap
+            start_token = end_token - overlap_tokens
+
+        return chunks
+
+    except Exception as e:
+        logger.warning(
+            "TOKEN_CHUNKING_FAILED",
+            error=str(e),
+            fallback="using character-based chunking",
+        )
+        # Fallback to character-based chunking (old method)
+        chunk_size_chars = chunk_size_tokens * 2  # Rough approximation
+        overlap_chars = overlap_tokens * 2
+
+        if len(text) <= chunk_size_chars:
+            return [text]
+
+        chunks = []
+        start = 0
+
+        while start < len(text):
+            end = start + chunk_size_chars
+
+            # Try to break at sentence boundary
+            if end < len(text):
+                search_start = max(end - 100, start)
+                for i in range(end, search_start, -1):
+                    if text[i] in ".!?\n":
+                        end = i + 1
+                        break
+
+            chunks.append(text[start:end].strip())
+            start = end - overlap_chars
+
+        return [c for c in chunks if c]
 
 
 async def _get_embedding(text: str) -> np.ndarray:
@@ -779,18 +899,31 @@ def _get_embedding_sync(text: str) -> np.ndarray:
         return np.zeros(384, dtype=np.float32)
 
 
-# Lazy-loaded embedding model
+# Lazy-loaded embedding model (thread-safe singleton)
 _embedding_model = None
+_embedding_model_lock = __import__("threading").Lock()
 
 
 def _get_embedding_model():
-    """Get or create the embedding model (singleton)."""
+    """Get or create the embedding model (thread-safe singleton)."""
     global _embedding_model
+    # Double-checked locking pattern for performance
     if _embedding_model is None:
-        from sentence_transformers import SentenceTransformer
+        with _embedding_model_lock:
+            # Check again inside lock (another thread may have initialized it)
+            if _embedding_model is None:
+                import torch
+                from sentence_transformers import SentenceTransformer
 
-        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-        logger.info("EMBEDDING_MODEL_LOADED", model="all-MiniLM-L6-v2")
+                # Use GPU if available (leverages CUDA libraries like cuBLAS, cuDNN)
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                _embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+                logger.info(
+                    "EMBEDDING_MODEL_LOADED",
+                    model="all-MiniLM-L6-v2",
+                    device=device,
+                    gpu_available=torch.cuda.is_available(),
+                )
     return _embedding_model
 
 
@@ -825,13 +958,21 @@ def _generate_initial_questions_via_rag(doc_id: str) -> list[str]:
         search_documents_by_embedding,
     )
 
-    # 1. Generate embedding for a generic query
+    # 1. Get document to extract owner_user_id for security
+    doc = get_document(doc_id)
+    if not doc:
+        logger.warning("RAG_DOCUMENT_NOT_FOUND", doc_id=doc_id)
+        return []
+    owner_user_id = doc.metadata.owner_user_id
+
+    # 2. Generate embedding for a generic query
     query = "¿Cuáles son los temas principales y puntos clave de este documento?"
     query_embedding = _get_embedding_sync(query)
 
-    # 2. Search ONLY within this document
+    # 3. Search ONLY within this document (with owner's permissions)
     results = search_documents_by_embedding(
         query_embedding=query_embedding,
+        user_id=owner_user_id,  # SECURITY: Use document owner's ID
         top_k=5,
         doc_filter=doc_id,  # Filter by specific document
     )

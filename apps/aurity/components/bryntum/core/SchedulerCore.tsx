@@ -169,6 +169,10 @@ export function SchedulerCore({
     };
   }, [instance, isReady]);
 
+  // Stable timestamps for dependency comparison (avoid object reference loops)
+  const timeWindowStartTs = timeWindow?.startDate?.getTime() ?? 0;
+  const timeWindowEndTs = timeWindow?.endDate?.getTime() ?? 0;
+
   // Apply data updates when getConfig/timeWindow changes and scheduler is ready
   useEffect(() => {
     if (!isReady || !instance) return;
@@ -208,7 +212,8 @@ export function SchedulerCore({
       // Non-fatal: keep previous data
       console.warn('[SchedulerCore] Failed to apply updated data/config:', e);
     }
-  }, [getConfig, timeWindow, isReady, instance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeWindowStartTs, timeWindowEndTs, isReady, instance]);
 
   // ============================================================================
   // WORKAROUND: Fix blocked time event positions (CSS/JS version mismatch)
@@ -295,7 +300,9 @@ export function SchedulerCore({
       s?.un?.('zoomChange', handleRender);
       s?.un?.('refresh', handleRender);
     };
-  }, [isReady, instance, getConfig]);
+    // Note: getConfig removed from deps to prevent infinite loops
+    // The fix runs on scroll/zoom/refresh events which covers config changes
+  }, [isReady, instance]);
 
   // ============================================================================
   // Render

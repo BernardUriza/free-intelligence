@@ -65,9 +65,13 @@ export function getResourceForEvent(event: UnifiedEvent): string {
  */
 export function transformEvent(event: UnifiedEvent): TransformedBryntumEvent {
   const startDate = new Date(event.timestamp * 1000);
-  
-  // Duration: use actual duration for audio, estimate 30s for chat
-  const durationMs = (event.duration || 30) * 1000;
+
+  // Duration: use actual duration for audio, minimum 1 hour for visual display
+  // Chat messages have no real duration, but need visual width to show content
+  const MIN_DISPLAY_DURATION_SEC = 60 * 60; // 1 hour for text readability in day view
+  const actualDuration = event.duration || 30; // 30s default for chat
+  const displayDuration = Math.max(actualDuration, MIN_DISPLAY_DURATION_SEC);
+  const durationMs = displayDuration * 1000;
   const endDate = new Date(startDate.getTime() + durationMs);
 
   // Truncate name for visual display

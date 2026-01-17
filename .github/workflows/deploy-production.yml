@@ -239,11 +239,6 @@ jobs:
 
           echo "📦 Installing Python dependencies..."
           python3.14 -m pip install --upgrade pip
-
-          echo "🔥 Installing PyTorch CPU-only (saves ~3GB vs CUDA version)..."
-          python3.14 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-
-          echo "📦 Installing remaining dependencies..."
           python3.14 -m pip install -r requirements-prod.txt
 
           echo "✅ Dependencies installed"

@@ -4,17 +4,16 @@
  * PatientSearchField Component
  *
  * Patient search input with dropdown results and inline creation.
- * Uses shared PatientFormFields for inline patient creation.
+ * Features:
+ * - Search existing patients with debounced autocomplete
+ * - Quick "Nuevo" button always visible for creating new patients
+ * - Inline form for patient creation without leaving the modal
  */
 
 import { User, Search, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Patient } from '@/lib/api/patients';
-import { PatientFormFields } from '@/components/patients/PatientFormFields';
-import type {
-  PatientFormData,
-  PatientFormField,
-} from '@/components/patients/usePatientFormValidation';
+import type { NewPatientForm } from '../types';
 
 interface PatientSearchFieldProps {
   // Selected state
@@ -37,15 +36,11 @@ interface PatientSearchFieldProps {
 
   // Create patient state
   showCreateForm: boolean;
-  newPatient: PatientFormData;
-  onNewPatientChange: (field: PatientFormField, value: string) => void;
+  newPatient: NewPatientForm;
+  onNewPatientChange: (form: NewPatientForm) => void;
   onCreatePatient: () => void;
   onCloseCreateForm: () => void;
   creating: boolean;
-
-  // Validation
-  getFieldError: (field: PatientFormField) => string | undefined;
-  onFieldBlur: (field: PatientFormField) => void;
 }
 
 export function PatientSearchField({
@@ -67,8 +62,6 @@ export function PatientSearchField({
   onCreatePatient,
   onCloseCreateForm,
   creating,
-  getFieldError,
-  onFieldBlur,
 }: PatientSearchFieldProps) {
   return (
     <div className="relative">
@@ -79,7 +72,7 @@ export function PatientSearchField({
 
       <div className="relative" ref={dropdownRef}>
         {selectedPatientId ? (
-          // Show selected patient
+          // Selected patient display
           <div className="px-4 py-2 bg-cyan-900/20 border border-cyan-500/30 rounded-lg flex items-center justify-between">
             <span className="text-white">{selectedPatientName || selectedPatientId}</span>
             <Button
@@ -92,17 +85,16 @@ export function PatientSearchField({
             />
           </div>
         ) : (
-          // Show search input + create button
+          // Search input + create button
           <div className="flex gap-2">
             <div className="relative flex-1">
               <input
                 type="text"
-                required
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
                 onFocus={onFocus}
-                placeholder="Buscar por nombre o ID..."
-                className="fi-input-cyan pr-10"
+                placeholder="Buscar por nombre..."
+                className="fi-input-cyan pr-10 w-full"
               />
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 fi-icon-sm text-slate-400" />
             </div>
@@ -137,25 +129,25 @@ export function PatientSearchField({
                 className="w-full px-4 py-3 text-left fi-hover-bg fi-border-bottom last:border-0"
               >
                 <div className="font-medium text-white">{patient.name}</div>
-                <div className="fi-subtitle">ID: {patient.id}</div>
+                <div className="fi-subtitle text-xs truncate">ID: {patient.id}</div>
               </button>
             ))}
         </div>
       )}
 
-      {/* No results */}
+      {/* No results message */}
       {showDropdown && !loading && results.length === 0 && search.length >= 2 && (
         <div className="fi-dropdown">
-          <div className="fi-dropdown-message">
-            No se encontraron pacientes. Usa el botón &quot;Nuevo&quot; para crear uno.
+          <div className="fi-dropdown-message text-slate-400">
+            No se encontraron pacientes. Usa el botón "Nuevo" para crear uno.
           </div>
         </div>
       )}
 
-      {/* Create patient form (using shared PatientFormFields) */}
+      {/* Create patient form */}
       {showCreateForm && (
-        <div className="mt-3 p-4 bg-slate-800/50 border border-emerald-500/30 rounded-lg">
-          <div className="flex items-center justify-between mb-3">
+        <div className="mt-3 p-4 bg-slate-800/50 border border-emerald-500/30 rounded-lg space-y-3">
+          <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-medium fi-text-success">Nuevo Paciente</h4>
             <Button
               type="button"
@@ -167,27 +159,33 @@ export function PatientSearchField({
             />
           </div>
 
-          <PatientFormFields
-            variant="compact"
-            data={newPatient}
-            errors={getFieldError}
-            onChange={onNewPatientChange}
-            onBlur={onFieldBlur}
-            disabled={creating}
+          <input
+            type="text"
+            placeholder="Nombre *"
+            value={newPatient.nombre}
+            onChange={(e) => onNewPatientChange({ ...newPatient, nombre: e.target.value })}
+            className="fi-input-sm"
+            autoFocus
           />
 
-          <div className="mt-3">
-            <Button
-              type="button"
-              onClick={onCreatePatient}
-              disabled={creating || !newPatient.nombre || !newPatient.apellido || !newPatient.fecha_nacimiento}
-              variant="primary"
-              fullWidth
-              loading={creating}
-            >
-              {creating ? 'Creando...' : 'Crear Paciente'}
-            </Button>
-          </div>
+          <input
+            type="text"
+            placeholder="Apellido *"
+            value={newPatient.apellido}
+            onChange={(e) => onNewPatientChange({ ...newPatient, apellido: e.target.value })}
+            className="fi-input-sm"
+          />
+
+          <Button
+            type="button"
+            onClick={onCreatePatient}
+            disabled={creating || !newPatient.nombre || !newPatient.apellido}
+            variant="primary"
+            fullWidth
+            loading={creating}
+          >
+            {creating ? 'Creando...' : 'Crear Paciente'}
+          </Button>
         </div>
       )}
     </div>

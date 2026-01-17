@@ -85,12 +85,28 @@
 
 @layer components {
   /* ========================================
+   * FLOATING INPUT BOX (ChatGPT style)
+   * ======================================== */
+  .chat-input-wrapper {
+    @apply mt-auto px-4 pb-4 pt-2;
+  }
+
+  .chat-input-floating-box {
+    @apply mx-auto max-w-4xl
+           bg-slate-800/60 backdrop-blur-xl
+           border border-slate-600/40
+           rounded-2xl
+           shadow-2xl shadow-black/30
+           overflow-hidden;
+  }
+
+  /* ========================================
    * TOOLBAR
    * ======================================== */
   .chat-toolbar {
     @apply @container flex items-center justify-between gap-1 @md:gap-2
-           px-2 @md:px-4 py-2 border-t border-slate-700/50
-           bg-slate-900/95 backdrop-blur-sm;
+           px-3 @md:px-4 py-2
+           border-t border-slate-700/30;
   }
 
   /* Toolbar variants (hereda de @utility chat-toolbar-btn) */
@@ -108,6 +124,8 @@
 
   /* Input Area */
   .chat-input-container { @apply flex items-end gap-2 p-3 border-t border-slate-700/50 bg-slate-900/95 backdrop-blur-sm; }
+  .chat-input-area { @apply flex items-end gap-2 p-3; }
+  .chat-input-area-top { @apply p-3; } /* Clean input without border (ChatGPT style) */
   .chat-input { @apply flex-1 resize-none bg-transparent text-white placeholder-slate-500 focus:outline-none max-h-[200px] overflow-y-auto; }
   .chat-send-btn { @apply p-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed; }
 

@@ -1,0 +1,3 @@
+🔍 Type checking with Mypy...
+ℹ️  Using uv run (extra: dev)
+Success: no issues found in 621 source files

@@ -16,7 +16,7 @@
  * Updated: 2025-11-22 - Added TimelineScheduler with Bryntum SchedulerPro
  */
 
-import React, { useEffect, useRef, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { AppTemplate } from '@/components/layout/AppTemplate';
 import { Button } from '@/components/ui/button';
@@ -84,6 +84,17 @@ export default function TimelinePage() {
   const [viewType, setViewType] = useState<ViewType>('both');
   const [schedulerExpanded, setSchedulerExpanded] = useState(true);
 
+  // Track scheduler's visible time range for filtering list view
+  const [schedulerTimeRange, setSchedulerTimeRange] = useState<{
+    startDate: Date;
+    endDate: Date;
+  } | null>(null);
+
+  // Handler for scheduler time range changes
+  const handleTimeRangeChange = useCallback((startDate: Date, endDate: Date) => {
+    setSchedulerTimeRange({ startDate, endDate });
+  }, []);
+
   // Sentinel ref for infinite scroll
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -121,8 +132,20 @@ export default function TimelinePage() {
   // Transform MemoryEvent to TimelineEvent for EventTimeline component
   // ============================================================================
 
+  // Filter events by scheduler's visible time range (if available)
+  const filteredEventsByTimeRange = useMemo(() => {
+    if (!schedulerTimeRange) return events;
+
+    const startTimestamp = schedulerTimeRange.startDate.getTime() / 1000;
+    const endTimestamp = schedulerTimeRange.endDate.getTime() / 1000;
+
+    return events.filter(
+      (e) => e.timestamp >= startTimestamp && e.timestamp <= endTimestamp
+    );
+  }, [events, schedulerTimeRange]);
+
   const timelineEvents = useMemo<TimelineEvent[]>(() => {
-    return events.map((e, idx) => ({
+    return filteredEventsByTimeRange.map((e, idx) => ({
       id: e.id,
       timestamp: e.timestamp, // Unix timestamp (seconds)
       // Normalize: event_type → type for EventTimeline compatibility
@@ -140,7 +163,7 @@ export default function TimelinePage() {
         source: e.source,
       },
     }));
-  }, [events]);
+  }, [filteredEventsByTimeRange]);
 
   // ============================================================================
   // Calculate metrics for header
@@ -287,15 +310,13 @@ export default function TimelinePage() {
             className="w-full"
           />
 
-          {/* TimelineFilters Component (replaces hardcoded tabs) */}
+          {/* TimelineFilters Component - Event type only (time filtering via scheduler) */}
           <TimelineFilters
             eventType={filters.eventType}
-            selectedPreset={filters.preset}
             totalCount={metrics.totalEvents}
             chatCount={metrics.chatCount}
             audioCount={metrics.audioCount}
             onEventTypeChange={setEventType}
-            onPresetChange={setTimeRangePreset}
           />
 
           {/* Bryntum SchedulerPro Visualization */}
@@ -329,6 +350,7 @@ export default function TimelinePage() {
                 <TimelineScheduler
                   events={events}
                   isLoading={isLoading}
+                  onTimeRangeChange={handleTimeRangeChange}
                   className="h-[400px]"
                 />
               )}

@@ -18,7 +18,6 @@ import { AvatarIndicator } from './components/AvatarIndicator';
 import { ContentRenderer } from './components/ContentRenderer';
 import { ProgressIndicator } from './components/ProgressIndicator';
 import { InteractiveHint } from './components/InteractiveHint';
-import { ClinicFooter } from './components/ClinicFooter';
 
 export function WaitingRoomHost({
   mode = 'broadcast',
@@ -65,8 +64,7 @@ export function WaitingRoomHost({
         </div>
       </div>
 
-      {/* Clinic branding footer */}
-      <ClinicFooter clinicName={clinicName} />
+      {/* Clinic branding footer removed - InfoBar in dashboard/page.tsx handles this */}
     </div>
   );
 }

@@ -74,6 +74,11 @@ struct AppState {
     tunnel_url: Mutex<Option<String>>,
     tunnel_process: Mutex<Option<u32>>,
     config: Mutex<AppConfig>,
+    // Phase 3: GPU acceleration services
+    rag_service_running: Mutex<bool>,
+    rag_service_process: Mutex<Option<u32>>,
+    gateway_running: Mutex<bool>,
+    gateway_process: Mutex<Option<u32>>,
 }
 
 #[derive(Serialize, Clone)]
@@ -82,6 +87,8 @@ struct ServiceStatus {
     ollama_models: Vec<String>,
     tunnel_running: bool,
     tunnel_url: Option<String>,
+    rag_service_running: bool,
+    gateway_running: bool,
     system_info: SystemInfo,
 }
 
@@ -165,6 +172,188 @@ async fn stop_ollama(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, Str
     Ok(true)
 }
 
+// ============================================================================
+// RAG Service & Gateway Commands (Phase 3 - GPU Acceleration)
+// ============================================================================
+
+async fn check_rag_service() -> bool {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .build()
+        .unwrap();
+    client
+        .get("http://localhost:11435/rag/health")
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false)
+}
+
+async fn check_gateway() -> bool {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .build()
+        .unwrap();
+    client
+        .get("http://localhost:11400/gateway/health")
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+async fn start_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
+    if check_rag_service().await {
+        *state.rag_service_running.lock().unwrap() = true;
+        return Ok(true);
+    }
+
+    println!("[FI Monitor] Starting RAG Service...");
+
+    // Find Python executable
+    let python = if cfg!(target_os = "windows") {
+        "python"
+    } else {
+        "python3"
+    };
+
+    // Get the app directory (where gateway/ and rag_service/ are located)
+    let app_dir = std::env::current_dir()
+        .map_err(|e| format!("Failed to get current dir: {}", e))?;
+
+    println!("[FI Monitor] App directory: {:?}", app_dir);
+
+    #[cfg(target_os = "windows")]
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    #[cfg(target_os = "windows")]
+    let mut cmd = Command::new(python);
+    cmd.args(["-m", "uvicorn", "rag_service.main:app", "--host", "0.0.0.0", "--port", "11435"])
+        .current_dir(&app_dir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .creation_flags(CREATE_NO_WINDOW);
+
+    #[cfg(not(target_os = "windows"))]
+    let mut cmd = Command::new(python);
+    cmd.args(["-m", "uvicorn", "rag_service.main:app", "--host", "0.0.0.0", "--port", "11435"])
+        .current_dir(&app_dir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+
+    let result = cmd.spawn();
+
+    match result {
+        Ok(child) => {
+            let pid = child.id();
+            *state.rag_service_process.lock().unwrap() = Some(pid);
+
+            // Wait for service to be ready
+            for _ in 0..30 {
+                sleep(Duration::from_millis(500)).await;
+                if check_rag_service().await {
+                    *state.rag_service_running.lock().unwrap() = true;
+                    println!("[FI Monitor] ✅ RAG Service started (PID: {})", pid);
+                    return Ok(true);
+                }
+            }
+            Err("RAG Service started but not responding".to_string())
+        }
+        Err(e) => Err(format!("Failed to start RAG Service: {}", e)),
+    }
+}
+
+#[tauri::command]
+async fn stop_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
+    println!("[FI Monitor] Stopping RAG Service...");
+
+    if let Some(pid) = state.rag_service_process.lock().unwrap().take() {
+        #[cfg(target_os = "windows")]
+        { let _ = Command::new("taskkill").args(["/F", "/PID", &pid.to_string()]).output(); }
+        #[cfg(not(target_os = "windows"))]
+        { let _ = Command::new("kill").arg(pid.to_string()).output(); }
+    }
+
+    *state.rag_service_running.lock().unwrap() = false;
+    Ok(true)
+}
+
+#[tauri::command]
+async fn start_gateway(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
+    if check_gateway().await {
+        *state.gateway_running.lock().unwrap() = true;
+        return Ok(true);
+    }
+
+    println!("[FI Monitor] Starting Gateway...");
+
+    // Find Python executable
+    let python = if cfg!(target_os = "windows") {
+        "python"
+    } else {
+        "python3"
+    };
+
+    // Get the app directory
+    let app_dir = std::env::current_dir()
+        .map_err(|e| format!("Failed to get current dir: {}", e))?;
+
+    #[cfg(target_os = "windows")]
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    #[cfg(target_os = "windows")]
+    let mut cmd = Command::new(python);
+    cmd.args(["-m", "uvicorn", "gateway.main:app", "--host", "0.0.0.0", "--port", "11400"])
+        .current_dir(&app_dir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .creation_flags(CREATE_NO_WINDOW);
+
+    #[cfg(not(target_os = "windows"))]
+    let mut cmd = Command::new(python);
+    cmd.args(["-m", "uvicorn", "gateway.main:app", "--host", "0.0.0.0", "--port", "11400"])
+        .current_dir(&app_dir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+
+    let result = cmd.spawn();
+
+    match result {
+        Ok(child) => {
+            let pid = child.id();
+            *state.gateway_process.lock().unwrap() = Some(pid);
+
+            // Wait for service to be ready
+            for _ in 0..30 {
+                sleep(Duration::from_millis(500)).await;
+                if check_gateway().await {
+                    *state.gateway_running.lock().unwrap() = true;
+                    println!("[FI Monitor] ✅ Gateway started (PID: {})", pid);
+                    return Ok(true);
+                }
+            }
+            Err("Gateway started but not responding".to_string())
+        }
+        Err(e) => Err(format!("Failed to start Gateway: {}", e)),
+    }
+}
+
+#[tauri::command]
+async fn stop_gateway(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
+    println!("[FI Monitor] Stopping Gateway...");
+
+    if let Some(pid) = state.gateway_process.lock().unwrap().take() {
+        #[cfg(target_os = "windows")]
+        { let _ = Command::new("taskkill").args(["/F", "/PID", &pid.to_string()]).output(); }
+        #[cfg(not(target_os = "windows"))]
+        { let _ = Command::new("kill").arg(pid.to_string()).output(); }
+    }
+
+    *state.gateway_running.lock().unwrap() = false;
+    Ok(true)
+}
+
 #[tauri::command]
 async fn start_tunnel(app: tauri::AppHandle, state: tauri::State<'_, Arc<AppState>>) -> Result<String, String> {
     start_tunnel_internal(app, Arc::clone(&*state)).await
@@ -206,7 +395,12 @@ fn upload_tunnel_url_to_azure(url: &str, config: &AppConfig) -> Result<(), Strin
         "tunnel_url": url,
         "hostname": hostname,
         "updated_at": timestamp,
-        "version": "1.0"
+        "version": "1.1",
+        "services": {
+            "ollama": format!("{}/api", url),
+            "rag": format!("{}/rag", url),
+            "gateway": format!("{}/gateway/health", url)
+        }
     }).to_string();
     
     // Retry with exponential backoff
@@ -393,7 +587,7 @@ async fn start_tunnel_internal(app: tauri::AppHandle, state: Arc<AppState>) -> R
 
     #[cfg(target_os = "windows")]
     let mut child = Command::new(&cloudflared)
-        .args(["tunnel", "--url", "http://localhost:11434"])
+        .args(["tunnel", "--url", "http://localhost:11400"])  // Gateway port (routes to Ollama + RAG)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .creation_flags(CREATE_NO_WINDOW)
@@ -402,7 +596,7 @@ async fn start_tunnel_internal(app: tauri::AppHandle, state: Arc<AppState>) -> R
 
     #[cfg(not(target_os = "windows"))]
     let mut child = Command::new(&cloudflared)
-        .args(["tunnel", "--url", "http://localhost:11434"])
+        .args(["tunnel", "--url", "http://localhost:11400"])  // Gateway port (routes to Ollama + RAG)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -490,12 +684,20 @@ fn find_cloudflared() -> Result<String, String> {
 async fn get_status(state: tauri::State<'_, Arc<AppState>>) -> Result<ServiceStatus, String> {
     let ollama_running = check_ollama().await;
     let models = if ollama_running { get_ollama_models().await } else { vec![] };
+    let rag_service_running = check_rag_service().await;
+    let gateway_running = check_gateway().await;
+
     *state.ollama_running.lock().unwrap() = ollama_running;
+    *state.rag_service_running.lock().unwrap() = rag_service_running;
+    *state.gateway_running.lock().unwrap() = gateway_running;
+
     Ok(ServiceStatus {
         ollama_running,
         ollama_models: models,
         tunnel_running: *state.tunnel_running.lock().unwrap(),
         tunnel_url: state.tunnel_url.lock().unwrap().clone(),
+        rag_service_running,
+        gateway_running,
         system_info: SystemInfo {
             platform: std::env::consts::OS.to_string(),
             hostname: gethostname::gethostname().to_string_lossy().to_string(),
@@ -682,9 +884,89 @@ fn main() {
                     if check_ollama().await {
                         *state_clone.ollama_running.lock().unwrap() = true;
                         println!("[FI Monitor] ✅ Ollama running (attempt {})", attempts + 1);
+
+                        // Phase 3: Auto-start RAG Service (GPU embeddings)
+                        println!("[FI Monitor] Auto-starting RAG Service...");
+                        if !check_rag_service().await {
+                            let python = if cfg!(target_os = "windows") { "python" } else { "python3" };
+                            let app_dir = std::env::current_dir().unwrap_or_default();
+
+                            #[cfg(target_os = "windows")]
+                            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+                            #[cfg(target_os = "windows")]
+                            let result = Command::new(python)
+                                .args(["-m", "uvicorn", "rag_service.main:app", "--host", "0.0.0.0", "--port", "11435"])
+                                .current_dir(&app_dir)
+                                .stdout(Stdio::null())
+                                .stderr(Stdio::null())
+                                .creation_flags(CREATE_NO_WINDOW)
+                                .spawn();
+
+                            #[cfg(not(target_os = "windows"))]
+                            let result = Command::new(python)
+                                .args(["-m", "uvicorn", "rag_service.main:app", "--host", "0.0.0.0", "--port", "11435"])
+                                .current_dir(&app_dir)
+                                .stdout(Stdio::null())
+                                .stderr(Stdio::null())
+                                .spawn();
+
+                            if let Ok(child) = result {
+                                let pid = child.id();
+                                *state_clone.rag_service_process.lock().unwrap() = Some(pid);
+                                // Wait for RAG service to be ready
+                                for _ in 0..20 {
+                                    sleep(Duration::from_millis(500)).await;
+                                    if check_rag_service().await {
+                                        *state_clone.rag_service_running.lock().unwrap() = true;
+                                        println!("[FI Monitor] ✅ RAG Service auto-started (PID: {})", pid);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Phase 3: Auto-start Gateway (HTTP router)
+                        println!("[FI Monitor] Auto-starting Gateway...");
+                        if !check_gateway().await {
+                            let python = if cfg!(target_os = "windows") { "python" } else { "python3" };
+                            let app_dir = std::env::current_dir().unwrap_or_default();
+
+                            #[cfg(target_os = "windows")]
+                            let result = Command::new(python)
+                                .args(["-m", "uvicorn", "gateway.main:app", "--host", "0.0.0.0", "--port", "11400"])
+                                .current_dir(&app_dir)
+                                .stdout(Stdio::null())
+                                .stderr(Stdio::null())
+                                .creation_flags(CREATE_NO_WINDOW)
+                                .spawn();
+
+                            #[cfg(not(target_os = "windows"))]
+                            let result = Command::new(python)
+                                .args(["-m", "uvicorn", "gateway.main:app", "--host", "0.0.0.0", "--port", "11400"])
+                                .current_dir(&app_dir)
+                                .stdout(Stdio::null())
+                                .stderr(Stdio::null())
+                                .spawn();
+
+                            if let Ok(child) = result {
+                                let pid = child.id();
+                                *state_clone.gateway_process.lock().unwrap() = Some(pid);
+                                // Wait for gateway to be ready
+                                for _ in 0..20 {
+                                    sleep(Duration::from_millis(500)).await;
+                                    if check_gateway().await {
+                                        *state_clone.gateway_running.lock().unwrap() = true;
+                                        println!("[FI Monitor] ✅ Gateway auto-started (PID: {})", pid);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
                         let _ = app_handle.emit("services-checked", ());
 
-                        // Auto-start tunnel if Ollama is running
+                        // Auto-start tunnel after all services are ready
                         println!("[FI Monitor] Auto-starting tunnel...");
                         match start_tunnel_internal(app_handle.clone(), state_clone.clone()).await {
                             Ok(_) => println!("[FI Monitor] ✅ Tunnel auto-started"),
@@ -706,6 +988,10 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             start_ollama,
             stop_ollama,
+            start_rag_service,
+            stop_rag_service,
+            start_gateway,
+            stop_gateway,
             start_tunnel,
             stop_tunnel,
             get_status,

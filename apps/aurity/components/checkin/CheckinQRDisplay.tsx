@@ -301,21 +301,7 @@ export function CheckinQRDisplay({
         ))}
       </div>
 
-      {/* Footer - Minimal for TV */}
-      <div className="flex-shrink-0 mt-3 sm:mt-4 pt-3 border-t border-indigo-700/30">
-        <div className="flex items-center justify-center gap-2">
-          <div
-            className="bg-green-500 rounded-full animate-pulse"
-            style={{ width: 'clamp(0.375rem, 0.6vw, 0.5rem)', height: 'clamp(0.375rem, 0.6vw, 0.5rem)' }}
-          />
-          <span
-            className="text-slate-500"
-            style={{ fontSize: 'clamp(0.5rem, 0.8vw, 0.75rem)' }}
-          >
-            {clinicName} · Sistema activo
-          </span>
-        </div>
-      </div>
+      {/* Footer removed - InfoBar in dashboard/page.tsx handles clinic branding */}
     </div>
   );
 }

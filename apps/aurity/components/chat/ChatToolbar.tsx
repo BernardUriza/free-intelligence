@@ -14,7 +14,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical } from 'lucide-react';
+import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 } from 'lucide-react';
 import { confirmDelete, toastSuccess } from '@/lib/swal';
 import { VoiceMicButton } from './VoiceMicButton';
 import { PersonaSelectorPanel } from './PersonaSelectorPanel';
@@ -76,6 +76,12 @@ export interface ChatToolbarProps {
   onClearConversation?: () => void;
   /** Show copy-curl button (copies a generic TTS curl template) */
   showCopyCurl?: boolean;
+  /** Send message callback */
+  onSend?: () => void;
+  /** Can send message (message not empty and not loading) */
+  canSend?: boolean;
+  /** Is sending message */
+  sendLoading?: boolean;
 }
 
 
@@ -101,6 +107,9 @@ export function ChatToolbar({
   onShowThinkingToggle,
   onClearConversation,
   showCopyCurl = true,
+  onSend,
+  canSend = false,
+  sendLoading = false,
 }: ChatToolbarProps) {
   // Fetch personas dynamically from backend (single source of truth)
   const { personas, loading: personasLoading } = usePersonas();
@@ -331,6 +340,24 @@ export function ChatToolbar({
             onStop={onVoiceStop || (() => {})}
           />
         )}
+
+        {/* Send Button (ChatGPT style - in toolbar) */}
+        <button
+          onClick={onSend}
+          disabled={!canSend}
+          className={`p-2.5 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+            canSend
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-900 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40'
+              : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+          }`}
+          aria-label="Enviar mensaje"
+        >
+          {sendLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
+        </button>
       </div>
     </div>
   );

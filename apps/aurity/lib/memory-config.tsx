@@ -13,6 +13,33 @@ import { Clock, Play, Pause, Zap, Radio, FileAudio, ChevronDown, ChevronUp, Mess
 import { Button } from '@/components/ui/button';
 import type { TimelineConfig, TimelineEvent } from '@/components/audit/EventTimeline';
 
+// ============================================================================
+// Persona Display Names (Human-readable Spanish)
+// ============================================================================
+
+/**
+ * Mapping from technical persona IDs to human-readable display names.
+ * Used in timeline/memory views for better UX.
+ */
+const PERSONA_DISPLAY_NAMES: Record<string, string> = {
+  general_assistant: 'Asistente General',
+  onboarding_guide: 'Guía de Bienvenida',
+  clinical_advisor: 'Asesor Clínico',
+  soap_editor: 'Editor SOAP',
+  waiting_room_host: 'Anfitrión Sala de Espera',
+  fi_receptionist: 'Recepcionista FI',
+  system: 'Sistema',
+};
+
+/**
+ * Get human-readable persona name from technical ID.
+ * Falls back to formatted version of ID if not mapped.
+ */
+export function getPersonaDisplayName(personaId: string | undefined): string {
+  if (!personaId) return 'Asistente';
+  return PERSONA_DISPLAY_NAMES[personaId] || personaId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export const timelineEventConfig: TimelineConfig = {
   title: 'Session Events',
   emptyMessage: 'No hay eventos de transcripción disponibles',
@@ -386,7 +413,22 @@ export const memoryConfig: TimelineConfig = {
   showExport: true,
   maxHeight: 'max-h-[700px]',
 
-  formatTimestamp: timelineEventConfig.formatTimestamp,
+  // Format with date + time: "13 ene · 08:32:03 p.m."
+  formatTimestamp: (timestamp: string | number): string => {
+    const date = typeof timestamp === 'number'
+      ? new Date(timestamp * 1000)
+      : new Date(timestamp);
+    const dateStr = date.toLocaleDateString('es-MX', {
+      day: 'numeric',
+      month: 'short',
+    });
+    const timeStr = date.toLocaleTimeString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    return `${dateStr} · ${timeStr}`;
+  },
   getColors: timelineEventConfig.getColors,
 
   // Custom header that differentiates chat vs audio events
@@ -423,8 +465,8 @@ export const memoryConfig: TimelineConfig = {
             {!isUser && persona && (
               <div className="flex items-center gap-1.5 px-2 py-1 bg-violet-950/30 border border-violet-800 rounded-md">
                 <Sparkles className="h-3 w-3 text-violet-400" />
-                <span className="text-xs font-mono text-violet-300">
-                  {persona}
+                <span className="text-xs text-violet-300">
+                  {getPersonaDisplayName(persona)}
                 </span>
               </div>
             )}
