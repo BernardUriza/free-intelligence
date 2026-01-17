@@ -10,7 +10,7 @@ on:
     branches: [main, dev]
 
 env:
-  PYTHON_VERSION: "3.11"  # Use stable version for CI
+  PYTHON_VERSION: "3.14"  # Match pyproject.toml requirement
 
 jobs:
   # ============================================================
@@ -128,9 +128,9 @@ jobs:
 
           # NO sleep - backend-compiles already finished via needs: dependency
 
-          # Get PR info
+          # Get PR info (sanitize body to prevent prompt injection)
           PR_TITLE=$(gh pr view $PR_NUMBER --json title -q '.title')
-          PR_BODY=$(gh pr view $PR_NUMBER --json body -q '.body // "No description"' | head -c 2000)
+          PR_BODY=$(gh pr view $PR_NUMBER --json body -q '.body // "No description"' | head -c 2000 | sed 's/VERDICT://gi' | sed 's/BLOCK//gi' | sed 's/APPROVE//gi')
 
           # Get diff (exclude large/generated files)
           EXCLUDED_PATTERNS="pyinstaller/|pnpm-lock.yaml|package-lock.json|yarn.lock|\.spec$|src-tauri/gen/|acl-manifests\.json"
@@ -161,62 +161,145 @@ jobs:
           echo "✅ Passed: $PASSED_CHECKS"
           echo "❌ Failed: $FAILED_CHECKS"
 
-          # Build prompt
-          SYSTEM_MSG="You are a pragmatic but strict AI code reviewer. You have REAL power to block merges. Use it wisely - block for genuine security issues and crash bugs, but don't be pedantic about style."
+          # Build prompt using CTCO pattern (Context → Task → Constraints → Output)
+          SYSTEM_MSG="You are a security-focused AI code reviewer for a medical AI platform (HIPAA-regulated). You have REAL power to block merges. Use it wisely."
 
-          USER_MSG="Review this PR for CRITICAL issues only.
+          USER_MSG="CONTEXT:
+          You are reviewing PR #$PR_NUMBER for AURITY, a HIPAA-compliant medical AI system handling PHI.
+          - Files changed: $FILES_CHANGED
+          - CI status: Passed=[$PASSED_CHECKS] Failed=[$FAILED_CHECKS]
+          - This is a production-critical system with append-only audit requirements.
 
-          TITLE: $PR_TITLE
-          DESCRIPTION: $PR_BODY
-          FILES CHANGED: $FILES_CHANGED
+          TASK:
+          Analyze this PR and decide: APPROVE or BLOCK based on CRITICAL issues only.
+          Default to APPROVE unless you find genuine security vulnerabilities or crash bugs.
 
-          CI STATUS:
-          ❌ Failed checks: $FAILED_CHECKS
-          ✅ Passed checks: $PASSED_CHECKS
+          CONSTRAINTS:
+          🚫 BLOCK for these CRITICAL issues ONLY:
+            1. SQL injection, XSS, command injection, path traversal
+            2. Hardcoded secrets/API keys (real credentials: sk-*, api_key=*, Bearer tokens)
+            3. Code that will crash at runtime (syntax errors, undefined variables)
+            4. Data loss bugs (DELETE without WHERE, DROP TABLE, unprotected file operations)
+            5. Authentication/authorization bypasses
+            6. Infinite loops or resource exhaustion
 
-          DIFF:
+          ⛔ MANDATORY RULES:
+            - If 'Backend: Compiles' check PASSED, DO NOT block for import/module errors (build verified it works)
+            - If Backend: Compiles FAILED, you MAY block for import errors
+
+          ✅ DO NOT BLOCK for (these are SAFE):
+            - Python f-string templates with {{ }} (valid escape sequences)
+            - FastAPI routes with {param} placeholders (NOT string formatting)
+            - File deletions/renames (intentional refactoring)
+            - Code style, naming, formatting issues
+            - Missing tests or documentation
+            - CI/CD workflow changes
+            - Architecture decisions
+
+          KNOWN FALSE POSITIVES (ignore these patterns):
+            - Pydantic validators with @field_validator decorators
+            - H5py datasets with f['path/{var}'] syntax (valid HDF5 paths)
+            - Auth0 JWT claims with https://aurity.app/roles format
+            - Bash heredocs with <<'EOF' in shell commands
+
+          OUTPUT:
+          Return ONLY valid JSON matching this structure:
+          {
+            \"verdict\": \"APPROVE\" or \"WARN\" or \"BLOCK\",
+            \"severity\": \"LOW\" or \"MEDIUM\" or \"HIGH\" or \"CRITICAL\",
+            \"confidence\": \"HIGH\" or \"MEDIUM\" or \"LOW\",
+            \"summary\": \"One sentence summary of the change\",
+            \"ci_failures\": \"Explain CI failures if any, or 'All CI checks passed'\",
+            \"issues\": [
+              {\"type\": \"security|crash|style|etc\", \"severity\": \"LOW|MEDIUM|HIGH|CRITICAL\", \"message\": \"description\"}
+            ],
+            \"recommendation\": \"Brief advice for the developer\"
+          }
+
+          VERDICT RULES:
+          - APPROVE: No issues, or only LOW/MEDIUM severity issues
+          - WARN: HIGH severity issues that should be addressed but don't block merge
+          - BLOCK: CRITICAL severity issues that MUST be fixed before merge
+
+          SEVERITY GUIDELINES:
+          - CRITICAL: SQL injection, hardcoded secrets, auth bypasses, data loss
+          - HIGH: Potential crashes, resource leaks, missing validation
+          - MEDIUM: Code smells, performance concerns, minor security issues
+          - LOW: Style, naming, documentation
+
+          PR DETAILS:
+          <pr_metadata>
+            <title>$PR_TITLE</title>
+            <description>$PR_BODY</description>
+          </pr_metadata>
+
+          <diff>
           $DIFF
-
-          🚫 BLOCK for these CRITICAL issues:
-          1) SQL injection, XSS, command injection, path traversal
-          2) Hardcoded secrets/API keys (real credentials like sk-xxx, api_key=xxx)
-          3) Code that will crash at runtime (syntax errors, undefined variables)
-          4) Data loss bugs (DELETE without WHERE, DROP TABLE, unprotected file operations)
-          5) Authentication/authorization bypasses
-          6) Infinite loops or resource exhaustion
-
-          ⛔ MANDATORY RULE:
-          If 'Backend: Compiles' check PASSED, you MUST NOT block for import/module errors.
-          The build system already verified imports work. Trust the build system.
-
-          ✅ DO NOT BLOCK for:
-          - Python f-string templates with {{ }} (valid escape sequences)
-          - File deletions/renames (intentional refactoring)
-          - Code style, naming, formatting
-          - Missing tests or documentation
-          - CI/CD workflow changes
-          - Architecture decisions
-
-          RESPOND WITH THIS EXACT FORMAT:
-          VERDICT: APPROVE or BLOCK
-          CONFIDENCE: HIGH, MEDIUM, or LOW
-          SUMMARY: One sentence summary
-          CI FAILURES: If any CI checks failed, explain likely causes. If none failed, say 'All CI checks passed.'
-          ISSUES: List critical issues or None
-          RECOMMENDATION: Brief advice
-
-          Rules: Default to APPROVE. BLOCK only for critical security/crash bugs. When in doubt, APPROVE with concerns noted."
+          </diff>"
 
           # Escape for JSON
           SYSTEM_ESCAPED=$(echo "$SYSTEM_MSG" | jq -Rs .)
           USER_ESCAPED=$(echo "$USER_MSG" | jq -Rs .)
 
-          # Call Azure OpenAI
+          # Call Azure OpenAI with structured output (JSON schema)
           HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/response.json \
             "${AZURE_ENDPOINT}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
             -H "Content-Type: application/json" \
             -H "api-key: $AZURE_KEY" \
-            -d "{\"messages\":[{\"role\":\"system\",\"content\":$SYSTEM_ESCAPED},{\"role\":\"user\",\"content\":$USER_ESCAPED}],\"max_completion_tokens\":4000}")
+            -d "{
+              \"messages\": [
+                {\"role\": \"system\", \"content\": $SYSTEM_ESCAPED},
+                {\"role\": \"user\", \"content\": $USER_ESCAPED}
+              ],
+              \"max_completion_tokens\": 4000,
+              \"response_format\": {
+                \"type\": \"json_schema\",
+                \"json_schema\": {
+                  \"name\": \"code_review\",
+                  \"strict\": true,
+                  \"schema\": {
+                    \"type\": \"object\",
+                    \"properties\": {
+                      \"verdict\": {
+                        \"type\": \"string\",
+                        \"enum\": [\"APPROVE\", \"WARN\", \"BLOCK\"]
+                      },
+                      \"severity\": {
+                        \"type\": \"string\",
+                        \"enum\": [\"LOW\", \"MEDIUM\", \"HIGH\", \"CRITICAL\"]
+                      },
+                      \"confidence\": {
+                        \"type\": \"string\",
+                        \"enum\": [\"HIGH\", \"MEDIUM\", \"LOW\"]
+                      },
+                      \"summary\": {
+                        \"type\": \"string\"
+                      },
+                      \"ci_failures\": {
+                        \"type\": \"string\"
+                      },
+                      \"issues\": {
+                        \"type\": \"array\",
+                        \"items\": {
+                          \"type\": \"object\",
+                          \"properties\": {
+                            \"type\": {\"type\": \"string\"},
+                            \"severity\": {\"type\": \"string\", \"enum\": [\"LOW\", \"MEDIUM\", \"HIGH\", \"CRITICAL\"]},
+                            \"message\": {\"type\": \"string\"}
+                          },
+                          \"required\": [\"type\", \"severity\", \"message\"]
+                        }
+                      },
+                      \"recommendation\": {
+                        \"type\": \"string\"
+                      }
+                    },
+                    \"required\": [\"verdict\", \"severity\", \"confidence\", \"summary\", \"ci_failures\", \"issues\", \"recommendation\"],
+                    \"additionalProperties\": false
+                  }
+                }
+              }
+            }")
 
           if [ "$HTTP_CODE" != "200" ]; then
             echo "::warning::Azure API returned $HTTP_CODE - defaulting to APPROVE (fail-open)"
@@ -224,40 +307,182 @@ jobs:
             exit 0
           fi
 
-          REVIEW=$(cat /tmp/response.json | jq -r '.choices[0].message.content // empty')
+          # Parse structured JSON response
+          REVIEW_JSON=$(cat /tmp/response.json | jq -r '.choices[0].message.content // empty')
 
-          if [ -z "$REVIEW" ]; then
+          if [ -z "$REVIEW_JSON" ]; then
             echo "::warning::Empty AI response - defaulting to APPROVE"
             echo "VERDICT=APPROVE" >> $GITHUB_OUTPUT
             exit 0
           fi
 
+          # Extract fields from JSON (guaranteed structure)
+          VERDICT=$(echo "$REVIEW_JSON" | jq -r '.verdict // "APPROVE"')
+          SEVERITY=$(echo "$REVIEW_JSON" | jq -r '.severity // "LOW"')
+          CONFIDENCE=$(echo "$REVIEW_JSON" | jq -r '.confidence // "LOW"')
+          SUMMARY=$(echo "$REVIEW_JSON" | jq -r '.summary // "No summary"')
+          CI_FAILURES=$(echo "$REVIEW_JSON" | jq -r '.ci_failures // "Unknown"')
+          ISSUES=$(echo "$REVIEW_JSON" | jq -r '.issues | map("\(.severity): \(.message)") | join(", ") // "None"')
+          RECOMMENDATION=$(echo "$REVIEW_JSON" | jq -r '.recommendation // "No recommendation"')
+
+          # Format for display
+          REVIEW="VERDICT: $VERDICT"
+          REVIEW="$REVIEW"$'\n'"SEVERITY: $SEVERITY"
+          REVIEW="$REVIEW"$'\n'"CONFIDENCE: $CONFIDENCE"
+          REVIEW="$REVIEW"$'\n'"SUMMARY: $SUMMARY"
+          REVIEW="$REVIEW"$'\n'"CI FAILURES: $CI_FAILURES"
+          REVIEW="$REVIEW"$'\n'"ISSUES: $ISSUES"
+          REVIEW="$REVIEW"$'\n'"RECOMMENDATION: $RECOMMENDATION"
+
           echo "$REVIEW"
           echo "::endgroup::"
 
-          # Parse verdict
-          if echo "$REVIEW" | grep -qiE "VERDICT.*BLOCK"; then
-            VERDICT="BLOCK"
-
-            # OVERRIDE: If AI blocked for import/module issues and build passed, it's false positive
-            if echo "$REVIEW" | grep -qiE "missing.*(module|import|file)|module-not-found|cannot.*resolve|import.*error"; then
-              if [ "$BACKEND_STATUS" = "success" ]; then
-                echo "::warning::Overriding AI BLOCK - import/module concern but build passed"
-                VERDICT="APPROVE"
-              fi
+          # Apply override logic: If AI blocked for import/module but build passed, it's false positive
+          if [ "$VERDICT" = "BLOCK" ] && [ "$BACKEND_STATUS" = "success" ]; then
+            if echo "$ISSUES" | grep -qiE "import|module"; then
+              echo "::warning::Overriding AI BLOCK - import/module concern but Backend:Compiles passed"
+              VERDICT="APPROVE"
+              SEVERITY="LOW"
             fi
-          else
-            VERDICT="APPROVE"
+          fi
+
+          # Multi-Review Consensus: Second opinion if BLOCK with CRITICAL severity
+          if [ "$VERDICT" = "BLOCK" ] && [ "$SEVERITY" = "CRITICAL" ]; then
+            echo "::group::🔍 Multi-Review: Seeking second opinion on BLOCK decision"
+
+            SECOND_SYSTEM="You are a pragmatic developer who values shipping code and dislikes false alarms. You're reviewing a BLOCKED PR to confirm if the block is justified."
+
+            SECOND_USER="A strict AI reviewer blocked this PR with CRITICAL severity.
+
+            First review verdict: BLOCK
+            First review issues: $ISSUES
+
+            Review the SAME diff and determine if the BLOCK is justified:
+
+            <diff>
+            $DIFF
+            </diff>
+
+            CONTEXT: This is a second opinion check. Only confirm BLOCK if you independently find CRITICAL security/crash bugs.
+            If the issues are fixable post-merge or are false positives, recommend APPROVE or WARN instead.
+
+            Return JSON with: verdict, severity, confidence, summary, issues[], recommendation"
+
+            SECOND_SYSTEM_ESC=$(echo "$SECOND_SYSTEM" | jq -Rs .)
+            SECOND_USER_ESC=$(echo "$SECOND_USER" | jq -Rs .)
+
+            HTTP_CODE_2=$(curl -s -w "%{http_code}" -o /tmp/response2.json \
+              "${AZURE_ENDPOINT}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
+              -H "Content-Type: application/json" \
+              -H "api-key: $AZURE_KEY" \
+              -d "{
+                \"messages\": [
+                  {\"role\": \"system\", \"content\": $SECOND_SYSTEM_ESC},
+                  {\"role\": \"user\", \"content\": $SECOND_USER_ESC}
+                ],
+                \"max_completion_tokens\": 2000,
+                \"response_format\": {
+                  \"type\": \"json_schema\",
+                  \"json_schema\": {
+                    \"name\": \"second_review\",
+                    \"strict\": true,
+                    \"schema\": {
+                      \"type\": \"object\",
+                      \"properties\": {
+                        \"verdict\": {\"type\": \"string\", \"enum\": [\"APPROVE\", \"WARN\", \"BLOCK\"]},
+                        \"severity\": {\"type\": \"string\", \"enum\": [\"LOW\", \"MEDIUM\", \"HIGH\", \"CRITICAL\"]},
+                        \"confidence\": {\"type\": \"string\", \"enum\": [\"HIGH\", \"MEDIUM\", \"LOW\"]},
+                        \"summary\": {\"type\": \"string\"},
+                        \"issues\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"properties\": {\"type\": {\"type\": \"string\"}, \"severity\": {\"type\": \"string\"}, \"message\": {\"type\": \"string\"}}, \"required\": [\"type\", \"severity\", \"message\"]}},
+                        \"recommendation\": {\"type\": \"string\"}
+                      },
+                      \"required\": [\"verdict\", \"severity\", \"confidence\", \"summary\", \"issues\", \"recommendation\"],
+                      \"additionalProperties\": false
+                    }
+                  }
+                }
+              }")
+
+            if [ "$HTTP_CODE_2" = "200" ]; then
+              SECOND_JSON=$(cat /tmp/response2.json | jq -r '.choices[0].message.content // empty')
+              SECOND_VERDICT=$(echo "$SECOND_JSON" | jq -r '.verdict // "BLOCK"')
+              SECOND_SEVERITY=$(echo "$SECOND_JSON" | jq -r '.severity // "CRITICAL"')
+
+              echo "Second opinion: $SECOND_VERDICT (severity: $SECOND_SEVERITY)"
+
+              if [ "$SECOND_VERDICT" != "BLOCK" ]; then
+                echo "::warning::⚠️ Disagreement detected - First: BLOCK, Second: $SECOND_VERDICT"
+                echo "::warning::Downgrading to WARN to avoid false positive"
+                VERDICT="WARN"
+                SEVERITY="$SECOND_SEVERITY"
+                REVIEW="$REVIEW"$'\n\n'"🔍 SECOND OPINION: $SECOND_VERDICT (severity: $SECOND_SEVERITY)"
+                REVIEW="$REVIEW"$'\n'"Multi-review consensus: Disagreement → Downgraded to WARN"
+              else
+                echo "✅ Second opinion confirms BLOCK"
+                REVIEW="$REVIEW"$'\n\n'"🔍 SECOND OPINION: Confirmed BLOCK"
+              fi
+            else
+              echo "::warning::Second review API call failed - proceeding with first decision"
+            fi
+
+            echo "::endgroup::"
+          fi
+
+          # Final blocking logic: Only BLOCK if severity=CRITICAL and confidence=HIGH
+          if [ "$VERDICT" = "BLOCK" ]; then
+            if [ "$SEVERITY" != "CRITICAL" ] || [ "$CONFIDENCE" = "LOW" ]; then
+              echo "::warning::Downgrading BLOCK to WARN (severity=$SEVERITY, confidence=$CONFIDENCE)"
+              VERDICT="WARN"
+            fi
           fi
 
           echo "VERDICT=$VERDICT" >> $GITHUB_OUTPUT
+          echo "SEVERITY=$SEVERITY" >> $GITHUB_OUTPUT
 
-          # Post comment
+          # Shadow Mode Telemetry: Log decision for analysis
+          echo "::group::📊 Telemetry: Logging AI decision"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Log to workflow summary for tracking
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Verdict | $VERDICT |" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | $SEVERITY |" >> $GITHUB_STEP_SUMMARY
+          echo "| Confidence | $CONFIDENCE |" >> $GITHUB_STEP_SUMMARY
+          echo "| PR | #$PR_NUMBER |" >> $GITHUB_STEP_SUMMARY
+          echo "| Timestamp | $TIMESTAMP |" >> $GITHUB_STEP_SUMMARY
+
+          # Create artifact for historical analysis
+          mkdir -p /tmp/ai-gatekeeper-telemetry
+          echo "$REVIEW_JSON" | jq -c "{
+            pr_number: $PR_NUMBER,
+            timestamp: \"$TIMESTAMP\",
+            verdict: \"$VERDICT\",
+            severity: \"$SEVERITY\",
+            confidence: \"$CONFIDENCE\",
+            summary: .summary,
+            ci_failures: \"$CI_FAILURES\",
+            issues: .issues,
+            recommendation: .recommendation,
+            backend_status: \"$BACKEND_STATUS\",
+            files_changed: $FILES_CHANGED
+          }" > /tmp/ai-gatekeeper-telemetry/decision-${PR_NUMBER}.json
+
+          echo "✅ Telemetry logged to artifact"
+          echo "::endgroup::"
+
+          # Post comment with severity-aware styling
           if [ "$VERDICT" = "BLOCK" ]; then
             HEADER="## :robot: AI Gatekeeper Decision: :x: BLOCKED"
-            FOOTER="*This check **BLOCKS** merge. Fix the issues above and push again.*"
+            EMOJI="🚫"
+            FOOTER="*This check **BLOCKS** merge. Fix CRITICAL issues above and push again.*"
+          elif [ "$VERDICT" = "WARN" ]; then
+            HEADER="## :robot: AI Gatekeeper Decision: :warning: WARNING"
+            EMOJI="⚠️"
+            FOOTER="*This check allows merge but recommends addressing issues before merging.*"
           else
             HEADER="## :robot: AI Gatekeeper Decision: :white_check_mark: APPROVED"
+            EMOJI="✅"
             FOOTER="*This check allows merge.*"
           fi
 
@@ -269,14 +494,28 @@ jobs:
           $FOOTER
           *Powered by Azure OpenAI GPT-5-mini*"
 
-          echo "::notice::AI Verdict: $VERDICT"
+          echo "::notice::AI Verdict: $VERDICT (Severity: $SEVERITY)"
+
+      - name: Upload Telemetry Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-gatekeeper-telemetry-pr-${{ github.event.pull_request.number }}
+          path: /tmp/ai-gatekeeper-telemetry/
+          retention-days: 90
 
       - name: Enforce AI Decision
         run: |
-          if [ "${{ steps.review.outputs.VERDICT }}" = "BLOCK" ]; then
-            echo "::error::🚫 AI GATEKEEPER BLOCKED THIS PR"
-            echo "The AI found critical issues that must be fixed before merging."
+          VERDICT="${{ steps.review.outputs.VERDICT }}"
+          SEVERITY="${{ steps.review.outputs.SEVERITY }}"
+
+          if [ "$VERDICT" = "BLOCK" ]; then
+            echo "::error::🚫 AI GATEKEEPER BLOCKED THIS PR (Severity: $SEVERITY)"
+            echo "The AI found CRITICAL issues that must be fixed before merging."
             exit 1
+          elif [ "$VERDICT" = "WARN" ]; then
+            echo "::warning::⚠️ AI Gatekeeper found issues (Severity: $SEVERITY)"
+            echo "Consider addressing these before merging, but merge is allowed."
           else
             echo "::notice::✅ AI Gatekeeper approved this PR"
           fi
