@@ -31,9 +31,7 @@ async def _get_rag_context(
     try:
         from datetime import UTC, datetime
 
-        from backend.src.fi_assistant.services.monitor_client import (
-            get_embedding_with_fallback,
-        )
+        from backend.src.fi_assistant.services.monitor_client import get_embedding
         from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
             DocumentQuestion,
             add_document_question,
@@ -41,8 +39,8 @@ async def _get_rag_context(
             search_documents_by_embedding,
         )
 
-        # Phase 2: Try Monitor GPU first, fallback to local CPU if unavailable
-        query_embedding = await get_embedding_with_fallback(query)
+        # Get embedding from FI Monitor GPU service
+        query_embedding = await get_embedding(query)
 
         # CRITICAL: Search with user_id for access control (HIPAA compliance)
         results = search_documents_by_embedding(

@@ -1,21 +1,15 @@
-"""FI Monitor Client - GPU Embedding with Circuit Breaker.
+"""FI Monitor Client - GPU Embedding Service.
 
-Provides GPU-accelerated embeddings via FI Monitor with automatic fallback to CPU.
+Provides GPU-accelerated embeddings via FI Monitor.
 
 Architecture:
-  1. Try Monitor GPU cache first (fast: 20-50ms)
-  2. Fallback to local CPU if unavailable (slower: 100-150ms)
-  3. Circuit breaker prevents cascade failures
-
-Circuit Breaker Logic:
-  - 3 consecutive failures → open circuit for 60 seconds
-  - During open circuit: skip Monitor, use CPU directly
-  - After 60s: half-open (try Monitor once)
-  - If success: close circuit (back to normal)
+  - FI Monitor runs Ollama (LLM) + RAG Service (GPU embeddings)
+  - Both services must be available for chat to work
+  - No fallback needed: if Monitor offline, chat offline
 
 Author: Bernard Uriza Orozco
 Created: 2026-01-16
-Card: Phase 2 - Fallback & Resilience
+Card: Phase 3 - Monitor GPU Cache
 """
 
 from __future__ import annotations
@@ -28,90 +22,6 @@ import numpy as np
 from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
-
-
-# ============================================================================
-# Circuit Breaker
-# ============================================================================
-
-
-class CircuitBreaker:
-    """Circuit breaker for Monitor GPU service.
-
-    Prevents cascade failures by opening circuit after repeated failures.
-    """
-
-    def __init__(self, failure_threshold: int = 3, timeout_seconds: int = 60):
-        """Initialize circuit breaker.
-
-        Args:
-            failure_threshold: Number of failures before opening circuit
-            timeout_seconds: Time to wait before trying again (half-open)
-        """
-        self.failure_threshold = failure_threshold
-        self.timeout_seconds = timeout_seconds
-        self.failures = 0
-        self.opened_at: Optional[float] = None
-
-    def is_open(self) -> bool:
-        """Check if circuit is open.
-
-        Returns:
-            True if circuit is open (should NOT call Monitor)
-        """
-        if self.opened_at is None:
-            return False
-
-        # Check if timeout elapsed (half-open)
-        elapsed = time.time() - self.opened_at
-        if elapsed > self.timeout_seconds:
-            logger.info(
-                "CIRCUIT_BREAKER_HALF_OPEN",
-                elapsed_seconds=int(elapsed),
-                timeout_seconds=self.timeout_seconds,
-            )
-            self.reset()
-            return False
-
-        return True
-
-    def on_success(self):
-        """Record successful Monitor call."""
-        if self.failures > 0 or self.opened_at is not None:
-            logger.info(
-                "CIRCUIT_BREAKER_SUCCESS",
-                previous_failures=self.failures,
-                was_open=self.opened_at is not None,
-            )
-        self.failures = 0
-        self.opened_at = None
-
-    def on_failure(self):
-        """Record failed Monitor call."""
-        self.failures += 1
-
-        if self.failures >= self.failure_threshold and self.opened_at is None:
-            self.opened_at = time.time()
-            logger.warning(
-                "CIRCUIT_BREAKER_OPENED",
-                failures=self.failures,
-                timeout_seconds=self.timeout_seconds,
-            )
-
-    def reset(self):
-        """Reset circuit breaker (for testing or manual intervention)."""
-        self.failures = 0
-        self.opened_at = None
-        logger.info("CIRCUIT_BREAKER_RESET")
-
-
-# Global circuit breaker for Monitor
-_monitor_circuit_breaker = CircuitBreaker()
-
-
-def reset_monitor_circuit_breaker():
-    """Reset circuit breaker (for testing or manual recovery)."""
-    _monitor_circuit_breaker.reset()
 
 
 # ============================================================================
@@ -156,28 +66,24 @@ async def discover_monitor_url() -> Optional[str]:
 # ============================================================================
 
 
-async def get_embedding_from_monitor(text: str, timeout: float = 0.2) -> np.ndarray:
-    """Get embedding from Monitor GPU cache.
+async def get_embedding_from_monitor(text: str, timeout: float = 5.0) -> np.ndarray:
+    """Get embedding from Monitor GPU service.
 
     Args:
         text: Text to embed
-        timeout: Request timeout in seconds (default: 200ms)
+        timeout: Request timeout in seconds (default: 5s)
 
     Returns:
         Embedding vector (384-dim)
 
     Raises:
-        ConnectionError: If circuit is open or Monitor unavailable
+        ConnectionError: If Monitor unavailable
         TimeoutError: If request exceeds timeout
     """
-    if _monitor_circuit_breaker.is_open():
-        raise ConnectionError("Circuit breaker open - skipping Monitor")
-
     # Discover Monitor URL
     monitor_url = await discover_monitor_url()
     if not monitor_url:
-        _monitor_circuit_breaker.on_failure()
-        raise ConnectionError("No Monitor URL available")
+        raise ConnectionError("FI Monitor not available - tunnel URL not found")
 
     start_time = time.time()
 
@@ -199,33 +105,22 @@ async def get_embedding_from_monitor(text: str, timeout: float = 0.2) -> np.ndar
             device=data.get("device", "unknown"),
         )
 
-        _monitor_circuit_breaker.on_success()
         return np.array(embeddings[0])
 
     except Exception as e:
         elapsed_ms = int((time.time() - start_time) * 1000)
-        logger.warning(
+        logger.error(
             "MONITOR_EMBEDDING_FAILED",
             error=str(e),
             latency_ms=elapsed_ms,
         )
-        _monitor_circuit_breaker.on_failure()
-        raise
+        raise ConnectionError(f"FI Monitor GPU service unavailable: {e}") from e
 
 
-# Global model instance (lazy loaded)
-_local_embedding_model = None
-_local_embedding_available = None  # None = not checked, True/False = checked
+async def get_embedding(text: str) -> np.ndarray:
+    """Get embedding from Monitor GPU service.
 
-
-async def get_embedding_local_cpu(text: str) -> np.ndarray:
-    """Get embedding using local CPU (fallback).
-
-    This is the reliable fallback when Monitor GPU is unavailable.
-
-    NOTE: Requires sentence-transformers to be installed.
-    In production (FI Cloud), this is NOT installed to reduce build time.
-    CPU fallback only works in development or if manually installed.
+    Main entry point for RAG embedding generation.
 
     Args:
         text: Text to embed
@@ -234,92 +129,6 @@ async def get_embedding_local_cpu(text: str) -> np.ndarray:
         Embedding vector (384-dim)
 
     Raises:
-        RuntimeError: If sentence-transformers not installed
+        ConnectionError: If FI Monitor unavailable
     """
-    global _local_embedding_model, _local_embedding_available
-
-    # Check availability (once)
-    if _local_embedding_available is None:
-        try:
-            from sentence_transformers import SentenceTransformer  # noqa: F401
-
-            _local_embedding_available = True
-        except ImportError:
-            _local_embedding_available = False
-            logger.warning(
-                "LOCAL_EMBEDDING_UNAVAILABLE",
-                reason="sentence-transformers not installed",
-                solution="FI Monitor GPU is required for RAG embeddings",
-            )
-
-    if not _local_embedding_available:
-        raise RuntimeError(
-            "CPU fallback unavailable: sentence-transformers not installed. "
-            "FI Monitor GPU service is required for RAG embeddings in production."
-        )
-
-    # Lazy load model (cached after first use)
-    if _local_embedding_model is None:
-        from sentence_transformers import SentenceTransformer
-
-        start_time = time.time()
-        _local_embedding_model = SentenceTransformer(
-            "sentence-transformers/all-MiniLM-L6-v2"
-        )
-        load_time_ms = int((time.time() - start_time) * 1000)
-        logger.info("LOCAL_EMBEDDING_MODEL_LOADED", load_time_ms=load_time_ms)
-
-    start_time = time.time()
-    embedding = _local_embedding_model.encode(
-        [text],
-        convert_to_numpy=True,
-        show_progress_bar=False,
-    )[0]
-    elapsed_ms = int((time.time() - start_time) * 1000)
-
-    logger.info("LOCAL_EMBEDDING_SUCCESS", latency_ms=elapsed_ms, device="cpu")
-    return embedding
-
-
-async def get_embedding_with_fallback(text: str) -> np.ndarray:
-    """Get embedding with Monitor GPU + CPU fallback.
-
-    This is the main entry point for embedding generation.
-
-    Strategy:
-      1. Try Monitor GPU (fast: 20-50ms)
-      2. If unavailable, try local CPU (slower: 100-150ms)
-      3. If CPU unavailable, raise error (RAG not available)
-
-    Args:
-        text: Text to embed
-
-    Returns:
-        Embedding vector (384-dim)
-
-    Raises:
-        RuntimeError: If both Monitor GPU and local CPU are unavailable
-    """
-    # Try Monitor GPU first
-    try:
-        return await get_embedding_from_monitor(text, timeout=0.2)
-    except (ConnectionError, TimeoutError, Exception) as monitor_error:
-        logger.info(
-            "MONITOR_UNAVAILABLE_FALLBACK_CPU",
-            error=str(monitor_error),
-        )
-
-        # Try CPU fallback
-        try:
-            return await get_embedding_local_cpu(text)
-        except RuntimeError as cpu_error:
-            # Both Monitor and CPU unavailable
-            logger.error(
-                "RAG_EMBEDDINGS_UNAVAILABLE",
-                monitor_error=str(monitor_error),
-                cpu_error=str(cpu_error),
-            )
-            raise RuntimeError(
-                "RAG embeddings unavailable: Monitor GPU offline and CPU fallback not installed. "
-                "FI Monitor GPU service is required."
-            ) from cpu_error
+    return await get_embedding_from_monitor(text)
