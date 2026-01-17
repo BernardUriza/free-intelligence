@@ -89,8 +89,17 @@ def get_embedding_model() -> SentenceTransformer:
 
     global _embedding_model
     if _embedding_model is None:
-        logger.info("EMBEDDING_MODEL_INIT", model="all-MiniLM-L6-v2")
-        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        import torch
+
+        # Use GPU if available (leverages CUDA libraries like cuBLAS, cuDNN)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info(
+            "EMBEDDING_MODEL_INIT",
+            model="all-MiniLM-L6-v2",
+            device=device,
+            gpu_available=torch.cuda.is_available(),
+        )
+        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
     return _embedding_model
 
 

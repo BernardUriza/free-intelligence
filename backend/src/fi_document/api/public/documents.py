@@ -552,21 +552,27 @@ def _process_document(doc_id: str) -> None:
         # Split into chunks
         chunks_text = _split_text(text)
 
-        # Generate embeddings for each chunk
-        chunks = []
-        for i, chunk_text in enumerate(chunks_text):
-            try:
-                embedding = _get_embedding_sync(chunk_text)
-                chunks.append(
-                    DocumentChunk(
-                        chunk_id=i,
-                        text=chunk_text,
-                        embedding=embedding,
-                    )
-                )
-            except Exception as e:
-                logger.warning("CHUNK_EMBEDDING_FAILED", chunk_id=i, error=str(e))
-                chunks.append(DocumentChunk(chunk_id=i, text=chunk_text, embedding=None))
+        # Generate embeddings for all chunks in batch (10-50x faster)
+        try:
+            model = _get_embedding_model()
+            embeddings = model.encode(
+                chunks_text,
+                batch_size=32,
+                convert_to_numpy=True,
+                show_progress_bar=False,  # Avoid clutter in logs
+            )
+            chunks = [
+                DocumentChunk(chunk_id=i, text=text, embedding=emb)
+                for i, (text, emb) in enumerate(zip(chunks_text, embeddings))
+            ]
+            logger.info("BATCH_EMBEDDING_SUCCESS", num_chunks=len(chunks))
+        except Exception as e:
+            logger.error("BATCH_EMBEDDING_FAILED", error=str(e))
+            # Fallback: create chunks without embeddings
+            chunks = [
+                DocumentChunk(chunk_id=i, text=text, embedding=None)
+                for i, text in enumerate(chunks_text)
+            ]
 
         # Save chunks
         save_document_chunks(doc_id, chunks)
@@ -728,30 +734,83 @@ def _extract_image_text(content: bytes) -> str:
         raise
 
 
-def _split_text(text: str, chunk_size: int = 512, overlap: int = 50) -> list[str]:
-    """Split text into overlapping chunks."""
-    if len(text) <= chunk_size:
-        return [text]
+def _split_text(
+    text: str, chunk_size_tokens: int = 256, overlap_tokens: int = 50
+) -> list[str]:
+    """Split text into overlapping chunks based on tokens (not characters).
 
-    chunks = []
-    start = 0
+    Args:
+        text: Input text to split
+        chunk_size_tokens: Maximum tokens per chunk (default: 256 tokens ≈ 512 chars)
+        overlap_tokens: Overlap between chunks (default: 50 tokens)
 
-    while start < len(text):
-        end = start + chunk_size
+    Returns:
+        List of text chunks
+    """
+    try:
+        from transformers import AutoTokenizer
 
-        # Try to break at sentence boundary
-        if end < len(text):
-            # Look for sentence end (.!?) in last 100 chars
-            search_start = max(end - 100, start)
-            for i in range(end, search_start, -1):
-                if text[i] in ".!?\n":
-                    end = i + 1
-                    break
+        # Use same tokenizer as embedding model for consistency
+        tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
 
-        chunks.append(text[start:end].strip())
-        start = end - overlap
+        # Tokenize entire text
+        tokens = tokenizer.encode(text, add_special_tokens=False)
 
-    return [c for c in chunks if c]  # Filter empty chunks
+        # If text is short enough, return as-is
+        if len(tokens) <= chunk_size_tokens:
+            return [text]
+
+        chunks = []
+        start_token = 0
+
+        while start_token < len(tokens):
+            end_token = start_token + chunk_size_tokens
+
+            # Get chunk tokens
+            chunk_tokens = tokens[start_token:end_token]
+
+            # Decode back to text
+            chunk_text = tokenizer.decode(chunk_tokens, skip_special_tokens=True).strip()
+
+            if chunk_text:  # Only add non-empty chunks
+                chunks.append(chunk_text)
+
+            # Move start with overlap
+            start_token = end_token - overlap_tokens
+
+        return chunks
+
+    except Exception as e:
+        logger.warning(
+            "TOKEN_CHUNKING_FAILED",
+            error=str(e),
+            fallback="using character-based chunking",
+        )
+        # Fallback to character-based chunking (old method)
+        chunk_size_chars = chunk_size_tokens * 2  # Rough approximation
+        overlap_chars = overlap_tokens * 2
+
+        if len(text) <= chunk_size_chars:
+            return [text]
+
+        chunks = []
+        start = 0
+
+        while start < len(text):
+            end = start + chunk_size_chars
+
+            # Try to break at sentence boundary
+            if end < len(text):
+                search_start = max(end - 100, start)
+                for i in range(end, search_start, -1):
+                    if text[i] in ".!?\n":
+                        end = i + 1
+                        break
+
+            chunks.append(text[start:end].strip())
+            start = end - overlap_chars
+
+        return [c for c in chunks if c]
 
 
 async def _get_embedding(text: str) -> np.ndarray:
