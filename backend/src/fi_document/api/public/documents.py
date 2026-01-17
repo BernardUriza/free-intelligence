@@ -563,7 +563,7 @@ def _process_document(doc_id: str) -> None:
             )
             chunks = [
                 DocumentChunk(chunk_id=i, text=text, embedding=emb)
-                for i, (text, emb) in enumerate(zip(chunks_text, embeddings))
+                for i, (text, emb) in enumerate(zip(chunks_text, embeddings, strict=True))
             ]
             logger.info("BATCH_EMBEDDING_SUCCESS", num_chunks=len(chunks))
         except Exception as e:
