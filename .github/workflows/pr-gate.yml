@@ -1,4 +1,4 @@
-name: PR Gate (Must Pass)
+name: ✅ PR Gate (Must Pass)
 
 # This is the ONLY workflow that should block merges to main
 # Keep it FAST and PRAGMATIC - blocks only critical issues

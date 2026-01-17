@@ -1,5 +1,5 @@
 # Build Aurity Desktop for macOS and Windows
-name: Build Desktop App
+name: 🖥️ Build Desktop (Win/Mac/Linux)
 
 on:
   workflow_dispatch:

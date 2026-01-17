@@ -1,4 +1,4 @@
-name: Debug Backend
+name: 🐛 Debug Backend
 
 on:
   workflow_dispatch:  # Manual trigger only
