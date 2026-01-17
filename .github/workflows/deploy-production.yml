@@ -404,9 +404,25 @@ jobs:
           echo "$OLLAMA_URL" > /tmp/ollama-tunnel-url.txt
           echo "🦙 Using OLLAMA_HOST=$OLLAMA_URL"
 
-          # Set ALLOWED_ORIGINS from workflow env var
+          # Set ALLOWED_ORIGINS from workflow env var with validation
           ALLOWED_ORIGINS_VALUE="${{ env.ALLOWED_ORIGINS_PROD }}"
-          echo "🌐 CORS ALLOWED_ORIGINS=$ALLOWED_ORIGINS_VALUE"
+
+          # Validate: only allow URLs (https://), commas, dots - prevent injection
+          if echo "$ALLOWED_ORIGINS_VALUE" | grep -qE '[^a-zA-Z0-9.:,/\-]'; then
+            echo "❌ ALLOWED_ORIGINS contains invalid characters (potential injection)"
+            exit 1
+          fi
+
+          # Confirm value is set (no debug echo to avoid leaking config)
+          if [ -z "$ALLOWED_ORIGINS_VALUE" ]; then
+            echo "⚠️  ALLOWED_ORIGINS is empty"
+          else
+            echo "✅ ALLOWED_ORIGINS configured (${#ALLOWED_ORIGINS_VALUE} chars)"
+          fi
+
+          # Escape ALLOWED_ORIGINS for safe insertion into systemd unit
+          # This prevents breaking the unit file if value contains quotes/newlines
+          ALLOWED_ORIGINS_ESCAPED=$(printf '%s' "$ALLOWED_ORIGINS_VALUE" | sed "s/\"/\\\\\"/g")
 
           # Update systemd service file with proper PYTHONPATH and OLLAMA_HOST
           # This ensures the service uses correct env vars even after auto-restart
@@ -424,7 +440,7 @@ jobs:
           Environment="OLLAMA_HOST=$OLLAMA_URL"
           Environment="DATABASE_URL=sqlite:////opt/free-intelligence/data/aurity.db"
           Environment="ENVIRONMENT=production"
-          Environment="ALLOWED_ORIGINS=$ALLOWED_ORIGINS_VALUE"
+          Environment="ALLOWED_ORIGINS=$ALLOWED_ORIGINS_ESCAPED"
           ExecStart=/usr/bin/python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001
           Restart=always
           RestartSec=5
