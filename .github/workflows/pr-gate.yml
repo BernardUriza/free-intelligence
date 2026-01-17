@@ -287,7 +287,8 @@ jobs:
                             \"severity\": {\"type\": \"string\", \"enum\": [\"LOW\", \"MEDIUM\", \"HIGH\", \"CRITICAL\"]},
                             \"message\": {\"type\": \"string\"}
                           },
-                          \"required\": [\"type\", \"severity\", \"message\"]
+                          \"required\": [\"type\", \"severity\", \"message\"],
+                          \"additionalProperties\": false
                         }
                       },
                       \"recommendation\": {
