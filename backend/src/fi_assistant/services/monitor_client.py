@@ -215,6 +215,7 @@ async def get_embedding_from_monitor(text: str, timeout: float = 0.2) -> np.ndar
 
 # Global model instance (lazy loaded)
 _local_embedding_model = None
+_local_embedding_available = None  # None = not checked, True/False = checked
 
 
 async def get_embedding_local_cpu(text: str) -> np.ndarray:
@@ -222,13 +223,40 @@ async def get_embedding_local_cpu(text: str) -> np.ndarray:
 
     This is the reliable fallback when Monitor GPU is unavailable.
 
+    NOTE: Requires sentence-transformers to be installed.
+    In production (FI Cloud), this is NOT installed to reduce build time.
+    CPU fallback only works in development or if manually installed.
+
     Args:
         text: Text to embed
 
     Returns:
         Embedding vector (384-dim)
+
+    Raises:
+        RuntimeError: If sentence-transformers not installed
     """
-    global _local_embedding_model
+    global _local_embedding_model, _local_embedding_available
+
+    # Check availability (once)
+    if _local_embedding_available is None:
+        try:
+            from sentence_transformers import SentenceTransformer  # noqa: F401
+
+            _local_embedding_available = True
+        except ImportError:
+            _local_embedding_available = False
+            logger.warning(
+                "LOCAL_EMBEDDING_UNAVAILABLE",
+                reason="sentence-transformers not installed",
+                solution="FI Monitor GPU is required for RAG embeddings",
+            )
+
+    if not _local_embedding_available:
+        raise RuntimeError(
+            "CPU fallback unavailable: sentence-transformers not installed. "
+            "FI Monitor GPU service is required for RAG embeddings in production."
+        )
 
     # Lazy load model (cached after first use)
     if _local_embedding_model is None:
@@ -260,19 +288,38 @@ async def get_embedding_with_fallback(text: str) -> np.ndarray:
 
     Strategy:
       1. Try Monitor GPU (fast: 20-50ms)
-      2. If unavailable, use local CPU (slower: 100-150ms)
+      2. If unavailable, try local CPU (slower: 100-150ms)
+      3. If CPU unavailable, raise error (RAG not available)
 
     Args:
         text: Text to embed
 
     Returns:
-        Embedding vector (384-dim) - always succeeds
+        Embedding vector (384-dim)
+
+    Raises:
+        RuntimeError: If both Monitor GPU and local CPU are unavailable
     """
+    # Try Monitor GPU first
     try:
         return await get_embedding_from_monitor(text, timeout=0.2)
-    except (ConnectionError, TimeoutError, Exception) as e:
+    except (ConnectionError, TimeoutError, Exception) as monitor_error:
         logger.info(
             "MONITOR_UNAVAILABLE_FALLBACK_CPU",
-            error=str(e),
+            error=str(monitor_error),
         )
-        return await get_embedding_local_cpu(text)
+
+        # Try CPU fallback
+        try:
+            return await get_embedding_local_cpu(text)
+        except RuntimeError as cpu_error:
+            # Both Monitor and CPU unavailable
+            logger.error(
+                "RAG_EMBEDDINGS_UNAVAILABLE",
+                monitor_error=str(monitor_error),
+                cpu_error=str(cpu_error),
+            )
+            raise RuntimeError(
+                "RAG embeddings unavailable: Monitor GPU offline and CPU fallback not installed. "
+                "FI Monitor GPU service is required."
+            ) from cpu_error
