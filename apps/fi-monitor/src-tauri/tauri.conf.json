@@ -54,6 +54,9 @@
     "category": "DeveloperTool",
     "shortDescription": "Ollama Tunnel Manager for Aurity",
     "longDescription": "FI Monitor manages the Cloudflare tunnel that exposes your local Ollama instance to the Aurity cloud backend.",
+    "copyright": "© 2026 Aurity. All rights reserved.",
+    "publisher": "Aurity",
+    "homepage": "https://app.aurity.io",
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
