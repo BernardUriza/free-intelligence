@@ -7,7 +7,6 @@
 use serde::Serialize;
 use std::path::PathBuf;
 use std::process::Command;
-use tauri::Emitter;
 
 #[derive(Serialize)]
 pub struct OllamaInstallStatus {
@@ -47,7 +46,7 @@ fn find_ollama_path() -> Option<String> {
     #[cfg(target_os = "windows")]
     {
         // Common Windows paths
-        let paths = vec![
+        let mut paths = vec![
             PathBuf::from(r"C:\Program Files\Ollama\ollama.exe"),
             PathBuf::from(r"C:\Program Files (x86)\Ollama\ollama.exe"),
         ];
