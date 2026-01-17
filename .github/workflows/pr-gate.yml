@@ -302,7 +302,12 @@ jobs:
             }")
 
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "::warning::Azure API returned $HTTP_CODE - defaulting to APPROVE (fail-open)"
+            echo "::error::Azure API returned $HTTP_CODE - defaulting to APPROVE (fail-open)"
+            echo "::group::Azure API Error Details"
+            echo "HTTP Status: $HTTP_CODE"
+            echo "Response body:"
+            cat /tmp/response.json | jq '.' || cat /tmp/response.json
+            echo "::endgroup::"
             echo "VERDICT=APPROVE" >> $GITHUB_OUTPUT
             exit 0
           fi
