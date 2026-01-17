@@ -418,6 +418,8 @@ jobs:
           Environment="PYTHONNOUSERSITE=1"
           Environment="OLLAMA_HOST=$OLLAMA_URL"
           Environment="DATABASE_URL=sqlite:////opt/free-intelligence/data/aurity.db"
+          Environment="ENVIRONMENT=production"
+          Environment="ALLOWED_ORIGINS=https://app.aurity.io,https://fabulous-zabaione-290d66.netlify.app"
           ExecStart=/usr/bin/python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001
           Restart=always
           RestartSec=5
