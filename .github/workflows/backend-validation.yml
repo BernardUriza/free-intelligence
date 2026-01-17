@@ -1,0 +1,88 @@
+name: Backend Validation (Reusable)
+
+# Reusable workflow for backend syntax and import validation
+# Called by: pr-gate.yml
+# Best practice: https://resources.github.com/learn/pathways/automation/intermediate/create-reusable-workflows-in-github-actions/
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python version to use'
+        required: false
+        type: string
+        default: '3.11'
+    outputs:
+      status:
+        description: 'Backend validation status (success/failure)'
+        value: ${{ jobs.validate.outputs.status }}
+
+jobs:
+  validate:
+    name: Backend Compiles & Imports
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      status: ${{ steps.set-status.outputs.status }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: 'pip'
+
+      - name: Install minimal dependencies
+        run: |
+          pip install --upgrade pip
+          pip install fastapi pydantic structlog h5py PyYAML httpx python-jose cryptography PyJWT
+
+      - name: Check Python syntax
+        id: syntax
+        run: |
+          echo "Checking all Python files compile..."
+          find backend/src -name "*.py" -exec python -m py_compile {} \;
+          echo "✅ All Python files compile successfully"
+
+      - name: Check critical imports
+        id: imports
+        run: |
+          cd backend
+          python -c "
+          import sys
+          sys.path.insert(0, 'src')
+
+          critical = [
+              'fi_common.logging.logger',
+              'fi_storage',
+              'fi_auth',
+              'fi_workflow',
+          ]
+
+          failed = []
+          for mod in critical:
+              try:
+                  __import__(mod)
+                  print(f'✅ {mod}')
+              except Exception as e:
+                  print(f'❌ {mod}: {e}')
+                  failed.append(mod)
+
+          if failed:
+              print(f'\\n❌ {len(failed)} critical imports failed')
+              sys.exit(1)
+          print('\\n✅ All critical imports OK')
+          "
+
+      - name: Set status output
+        id: set-status
+        if: always()
+        run: |
+          if [ "${{ steps.syntax.outcome }}" = "success" ] && [ "${{ steps.imports.outcome }}" = "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
