@@ -775,9 +775,7 @@ def _extract_image_text(content: bytes) -> str:
         raise
 
 
-def _split_text(
-    text: str, chunk_size_tokens: int = 256, overlap_tokens: int = 50
-) -> list[str]:
+def _split_text(text: str, chunk_size_tokens: int = 256, overlap_tokens: int = 50) -> list[str]:
     """Split text into overlapping chunks based on tokens (not characters).
 
     Args:
