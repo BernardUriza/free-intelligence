@@ -19,16 +19,29 @@ if [[ -z "$VERSION" ]]; then
   exit 1
 fi
 
+# SECURITY: Validate VERSION against strict semantic version pattern
+# Prevents path traversal attacks (e.g., ../../home/user)
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "❌ Error: Invalid version format"
+  echo "Expected semantic version (e.g., 1.0.0)"
+  echo "Got: ${VERSION}"
+  exit 1
+fi
+
 REPO="BernardUriza/free-intelligence"
 TAG="v${VERSION}"
-DOWNLOAD_DIR="/tmp/aurity-release-validation-${VERSION}"
+
+# SECURITY: Use mktemp -d to create isolated temporary directory
+# Never use rm -rf with user-controlled paths
+DOWNLOAD_DIR=$(mktemp -d -t "aurity-release-validation-XXXXXX")
+
+# Ensure cleanup on exit (even if script fails)
+trap "rm -rf '$DOWNLOAD_DIR'" EXIT
 
 echo "🔍 Validating release artifacts for ${TAG}"
+echo "📁 Download directory: ${DOWNLOAD_DIR}"
 echo ""
 
-# Cleanup previous validation
-rm -rf "$DOWNLOAD_DIR"
-mkdir -p "$DOWNLOAD_DIR"
 cd "$DOWNLOAD_DIR"
 
 # Expected artifacts

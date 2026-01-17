@@ -633,6 +633,48 @@ Reporta pero NO bloquea:
 Frontend: Se valida localmente con `cd apps/aurity && pnpm build`
 ```
 
+AI Gatekeeper (GPT-5 Security Review) - OBLIGATORIO
+
+```
+🤖 Modelo: Azure OpenAI GPT-5-mini
+🎯 Rol: Security-focused code reviewer con poder REAL de bloqueo
+🔒 Estado: Required check (enforce_admins: true)
+
+Qué revisa (CRITICAL issues only):
+  ❌ SQL injection, XSS, command injection, path traversal
+  ❌ Hardcoded secrets/API keys (sk-*, api_key=*, Bearer tokens)
+  ❌ Code that crashes at runtime (syntax errors, undefined vars)
+  ❌ Data loss bugs (DELETE without WHERE, DROP TABLE, rm -rf user input)
+  ❌ Authentication/authorization bypasses
+  ❌ Infinite loops or resource exhaustion
+
+Veredictos:
+  ✅ APPROVE - No issues o solo LOW/MEDIUM severity
+  ⚠️ WARN - HIGH severity (recomienda fix pero permite merge)
+  🚫 BLOCK - CRITICAL severity (merge DESHABILITADO físicamente)
+
+Branch Protection:
+  • "AI Gatekeeper" está en required_status_checks de main
+  • enforce_admins: true (ni admins pueden bypass si bloquea)
+  • Si BLOCK → botón de merge deshabilitado hasta fix
+
+Fail-Open Safety:
+  • Si Azure API falla (timeout, 500) → defaulta a APPROVE
+  • Previene bloquear deploys legítimos por outages
+  • Log: "Azure API returned XXX - defaulting to APPROVE"
+
+Telemetría:
+  • Cada review se guarda en GitHub Artifacts (90 días)
+  • Path: ai-gatekeeper-telemetry-pr-{number}/
+  • Includes: verdict, confidence, severity, issues[], timestamps
+
+Ejemplos de BLOCKS reales:
+  • PR #63: Path traversal en validate-release-artifacts.sh
+    - rm -rf "/tmp/data-${VERSION}" sin validar VERSION
+    - Attack: VERSION="../../../home/user" → borra /home/user
+    - Fix: Validar con regex o usar mktemp -d
+```
+
 CD (deploy-production.yml) - Deploy automático a app.aurity.io
 
 ```
