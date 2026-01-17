@@ -394,17 +394,17 @@ jobs:
           DMG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Aurity_1.0.0_aarch64.dmg"
 
           # Create expect script for password automation
-          cat > /tmp/sign.exp << 'EXPECT_EOF'
-#!/usr/bin/expect -f
-set timeout 30
-set dmg_path [lindex $argv 0]
-set key_path [lindex $argv 1]
-set password [lindex $argv 2]
-spawn pnpm tauri signer sign $dmg_path --private-key-path $key_path
-expect "Password:"
-send "$password\r"
-expect eof
-EXPECT_EOF
+          cat > /tmp/sign.exp <<'EXPECT_EOF'
+          #!/usr/bin/expect -f
+          set timeout 30
+          set dmg_path [lindex $argv 0]
+          set key_path [lindex $argv 1]
+          set password [lindex $argv 2]
+          spawn pnpm tauri signer sign $dmg_path --private-key-path $key_path
+          expect "Password:"
+          send "$password\r"
+          expect eof
+          EXPECT_EOF
 
           chmod +x /tmp/sign.exp
           /tmp/sign.exp "$DMG_PATH" /tmp/tauri-signing.key "$SIGNING_PASSWORD"
