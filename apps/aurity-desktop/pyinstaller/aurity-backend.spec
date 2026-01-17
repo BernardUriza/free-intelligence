@@ -24,6 +24,25 @@ BACKEND_ROOT = PROJECT_ROOT / "backend"
 BACKEND_SRC = BACKEND_ROOT / "src"
 BACKEND_APP = BACKEND_ROOT / "app"
 
+# Platform detection for cross-platform builds
+import platform
+SYSTEM = sys.platform
+MACHINE = platform.machine().lower()
+
+# Determine target triple for output naming
+if SYSTEM == "win32":
+    TARGET_TRIPLE = "x86_64-pc-windows-msvc"
+    EXE_EXTENSION = ".exe"
+elif SYSTEM == "darwin":
+    TARGET_TRIPLE = "aarch64-apple-darwin" if MACHINE == "arm64" else "x86_64-apple-darwin"
+    EXE_EXTENSION = ""
+else:  # Linux
+    TARGET_TRIPLE = "x86_64-unknown-linux-gnu"
+    EXE_EXTENSION = ""
+
+print(f"Building for platform: {SYSTEM} ({MACHINE})")
+print(f"Target triple: {TARGET_TRIPLE}")
+
 # Verify paths exist with helpful error messages
 def check_path(path, description):
     """Check if a path exists and provide a helpful error message if not."""
@@ -181,6 +200,7 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 # IMPORTANT: Tauri sidecar requires a SINGLE EXECUTABLE file
 # Using onefile mode (include all binaries in EXE, no COLLECT)
+# Output name includes target triple for multi-platform builds
 exe = EXE(
     pyz,
     a.scripts,
@@ -188,7 +208,7 @@ exe = EXE(
     a.zipfiles,      # Include zipfiles in EXE (onefile mode)
     a.datas,         # Include datas in EXE (onefile mode)
     [],
-    name="aurity-backend",
+    name=f"aurity-backend-{TARGET_TRIPLE}",
     debug=False,
     bootloader_ignore_signals=False,
     strip=True,

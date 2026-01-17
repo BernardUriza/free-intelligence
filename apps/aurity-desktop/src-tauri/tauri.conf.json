@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "identifier": "io.aurity.desktop",
   "build": {
-    "beforeBuildCommand": "pnpm run build:frontend",
+    "beforeBuildCommand": "node scripts/build-frontend-if-needed.js",
     "beforeDevCommand": "",
     "frontendDist": "../../aurity/out"
   },

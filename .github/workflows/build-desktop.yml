@@ -21,6 +21,56 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
+  # BUILD FRONTEND ONCE (reused by all platform builds)
+  # ═══════════════════════════════════════════════════════════════════════════
+  build-frontend:
+    if: ${{ github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create .env.production
+        run: |
+          cat > apps/aurity/.env.production << EOF
+          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
+          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
+          NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
+          NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
+          NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
+          EOF
+
+      - name: Build Next.js frontend
+        working-directory: apps/aurity
+        run: pnpm build
+
+      - name: Copy splash screen
+        run: node apps/aurity-desktop/scripts/copy-splash.js
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-static
+          path: apps/aurity/out/
+          retention-days: 1
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # BUILD FI MONITOR FIRST (infrastructure layer with Ollama bundled)
   # ═══════════════════════════════════════════════════════════════════════════
   build-fi-monitor:
@@ -74,17 +124,27 @@ jobs:
         working-directory: apps/fi-monitor
         run: pnpm tauri build --target x86_64-pc-windows-msvc
 
+      - name: Get artifact paths
+        id: paths_fi_monitor
+        shell: pwsh
+        run: |
+          $INFO = node apps/aurity-desktop/scripts/get-artifact-path.js fi-monitor x86_64-pc-windows-msvc nsis | ConvertFrom-Json
+          "path=$($INFO.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "sig=$($INFO.sig)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Artifact path: $($INFO.path)"
+          Write-Host "Signature path: $($INFO.sig)"
+
       - name: Sign NSIS installer
         working-directory: apps/fi-monitor
         shell: pwsh
         run: |
           $env:SIGNING_KEY | Out-File -FilePath $env:TEMP/tauri-signing.key -Encoding utf8 -NoNewline
-          $NSIS_PATH = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/FI Monitor_1.0.1_x64-setup.nsis.zip"
+          $NSIS_PATH = "${{ steps.paths_fi_monitor.outputs.path }}"
 
           pnpm tauri signer sign $NSIS_PATH --private-key-path $env:TEMP/tauri-signing.key
 
           Write-Host "Generated signature:"
-          Get-ChildItem "${NSIS_PATH}.sig"
+          Get-ChildItem "${{ steps.paths_fi_monitor.outputs.sig }}"
 
           Remove-Item $env:TEMP/tauri-signing.key
         env:
@@ -144,7 +204,7 @@ jobs:
     if: |
       (github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all') &&
       (needs.build-fi-monitor.result == 'success' || needs.build-fi-monitor.result == 'skipped')
-    needs: [build-fi-monitor]
+    needs: [build-fi-monitor, build-frontend]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout main repo
@@ -154,6 +214,12 @@ jobs:
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
           git submodule update --init --recursive
+
+      - name: Download pre-built frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-static
+          path: apps/aurity/out/
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -203,16 +269,6 @@ jobs:
       - name: Install frontend dependencies
         working-directory: apps/aurity-desktop
         run: pnpm install --frozen-lockfile
-
-      - name: Create production env file for Next.js
-        run: |
-          cat > apps/aurity/.env.production << EOF
-          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
-          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
-          NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
-          NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
-          NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
-          EOF
 
       - name: Build Tauri app
         working-directory: apps/aurity-desktop
@@ -315,7 +371,7 @@ jobs:
     if: |
       (github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all') &&
       (needs.build-fi-monitor.result == 'success' || needs.build-fi-monitor.result == 'skipped')
-    needs: [build-fi-monitor]
+    needs: [build-fi-monitor, build-frontend]
     runs-on: macos-latest
     steps:
       - name: Checkout main repo
@@ -325,6 +381,12 @@ jobs:
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
           git submodule update --init --recursive
+
+      - name: Download pre-built frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-static
+          path: apps/aurity/out/
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -367,16 +429,6 @@ jobs:
         working-directory: apps/aurity-desktop
         run: pnpm install --frozen-lockfile
 
-      - name: Create production env file for Next.js
-        run: |
-          cat > apps/aurity/.env.production << EOF
-          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
-          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
-          NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
-          NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
-          NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
-          EOF
-
       - name: Build Tauri app (ARM64)
         working-directory: apps/aurity-desktop
         run: pnpm tauri build --target aarch64-apple-darwin
@@ -386,12 +438,21 @@ jobs:
           NEXT_PUBLIC_AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
           NEXT_PUBLIC_SUPERADMIN_EMAILS: ${{ secrets.SUPERADMIN_EMAILS }}
 
+      - name: Get artifact paths
+        id: paths_aurity_macos
+        run: |
+          INFO=$(node apps/aurity-desktop/scripts/get-artifact-path.js aurity aarch64-apple-darwin dmg)
+          echo "path=$(echo $INFO | jq -r '.path')" >> $GITHUB_OUTPUT
+          echo "sig=$(echo $INFO | jq -r '.sig')" >> $GITHUB_OUTPUT
+          echo "Artifact path: $(echo $INFO | jq -r '.path')"
+          echo "Signature path: $(echo $INFO | jq -r '.sig')"
+
       - name: Sign DMG for updater
         working-directory: apps/aurity-desktop
         run: |
           # Save private key to temporary file (no trailing newline)
           echo -n "$SIGNING_KEY" > /tmp/tauri-signing.key
-          DMG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Aurity_1.0.0_aarch64.dmg"
+          DMG_PATH="${{ steps.paths_aurity_macos.outputs.path }}"
 
           # Create expect script for password automation
           printf '%s\n' \
@@ -410,7 +471,7 @@ jobs:
           /tmp/sign.exp "$DMG_PATH" /tmp/tauri-signing.key "$SIGNING_PASSWORD"
 
           echo "Generated signature:"
-          ls -lh "${DMG_PATH}.sig"
+          ls -lh "${{ steps.paths_aurity_macos.outputs.sig }}"
 
           # Clean up
           rm /tmp/tauri-signing.key /tmp/sign.exp
@@ -504,7 +565,7 @@ jobs:
     if: |
       (github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all') &&
       (needs.build-fi-monitor.result == 'success' || needs.build-fi-monitor.result == 'skipped')
-    needs: [build-fi-monitor]
+    needs: [build-fi-monitor, build-frontend]
     runs-on: windows-latest
     steps:
       - name: Checkout main repo
@@ -514,6 +575,12 @@ jobs:
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
           git submodule update --init --recursive
+
+      - name: Download pre-built frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-static
+          path: apps/aurity/out/
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -545,7 +612,8 @@ jobs:
         shell: pwsh
         run: |
           cd apps/aurity-desktop/pyinstaller
-          pyinstaller aurity-backend-x86_64-pc-windows-msvc.spec
+          # Use unified spec (auto-detects platform)
+          pyinstaller aurity-backend.spec
           # Move to binaries folder with correct target triple name
           New-Item -ItemType Directory -Force -Path ../src-tauri/binaries
           Move-Item -Force dist/aurity-backend-x86_64-pc-windows-msvc.exe ../src-tauri/binaries/aurity-backend-x86_64-pc-windows-msvc.exe
@@ -554,17 +622,6 @@ jobs:
       - name: Install frontend dependencies
         working-directory: apps/aurity-desktop
         run: pnpm install --frozen-lockfile
-
-      - name: Create production env file for Next.js
-        shell: pwsh
-        run: |
-          @"
-          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
-          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
-          NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
-          NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
-          NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
-          "@ | Out-File -FilePath apps/aurity/.env.production -Encoding utf8
 
       - name: Build Tauri app
         working-directory: apps/aurity-desktop
@@ -575,16 +632,26 @@ jobs:
           NEXT_PUBLIC_AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
           NEXT_PUBLIC_SUPERADMIN_EMAILS: ${{ secrets.SUPERADMIN_EMAILS }}
 
+      - name: Get artifact paths
+        id: paths_aurity_windows
+        shell: pwsh
+        run: |
+          $INFO = node apps/aurity-desktop/scripts/get-artifact-path.js aurity x86_64-pc-windows-msvc nsis | ConvertFrom-Json
+          "path=$($INFO.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "sig=$($INFO.sig)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Artifact path: $($INFO.path)"
+          Write-Host "Signature path: $($INFO.sig)"
+
       - name: Sign NSIS installer
         working-directory: apps/aurity-desktop
         shell: pwsh
         run: |
           # Save private key to temporary file (no trailing newline)
           $env:SIGNING_KEY | Out-File -FilePath $env:TEMP/tauri-signing.key -Encoding utf8 -NoNewline
-          $NSIS_PATH = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Aurity_1.0.0_x64-setup.nsis.zip"
+          $NSIS_PATH = "${{ steps.paths_aurity_windows.outputs.path }}"
           pnpm tauri signer sign $NSIS_PATH --private-key-path $env:TEMP/tauri-signing.key
           Write-Host "Generated signature:"
-          Get-ChildItem "${NSIS_PATH}.sig"
+          Get-ChildItem "${{ steps.paths_aurity_windows.outputs.sig }}"
           # Clean up key file
           Remove-Item $env:TEMP/tauri-signing.key
         env:
