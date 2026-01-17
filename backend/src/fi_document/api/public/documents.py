@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import numpy as np
 
+from backend.src.fi_auth.adapters.fastapi_adapter import User, get_current_user
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     Document,
@@ -39,7 +40,7 @@ from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     update_document_metadata,
     update_document_status,
 )
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -131,12 +132,12 @@ class DocumentSearchResponse(BaseModel):
 
 @router.post("/documents/upload", response_model=DocumentDetailResponse)
 async def upload_document(
+    current_user: User = Depends(get_current_user),
     file: UploadFile = File(...),
     title: str = Form(None),
     usage_instructions: str = Form(""),
     assigned_personas: str = Form(""),  # Comma-separated or JSON array
     origin: str = Form("admin_upload"),
-    uploaded_by: str = Form("anonymous"),
 ) -> DocumentDetailResponse:
     """Upload a new document to the knowledge base.
 
@@ -276,19 +277,21 @@ async def upload_document(
     except ValueError:
         doc_origin = DocumentOrigin.ADMIN_UPLOAD
 
-    # Create document
+    # Create document with user isolation
     try:
         metadata = create_document(
             content=content,
             filename=file.filename or "unknown",
-            uploaded_by=uploaded_by,
+            uploaded_by=current_user.email,  # Legacy field for backward compat
+            owner_user_id=current_user.user_id,  # SECURITY: Auth0 sub claim
+            clinic_id="",  # TODO: Extract from user metadata when multi-tenancy is added
             origin=doc_origin,
             title=title,
             usage_instructions=usage_instructions,
             assigned_personas=personas,
         )
     except Exception as e:
-        logger.error("DOCUMENT_UPLOAD_FAILED", error=str(e))
+        logger.error("DOCUMENT_UPLOAD_FAILED", error=str(e), user_id=current_user.user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload document: {e}",
@@ -322,11 +325,15 @@ async def upload_document(
 
 @router.get("/documents", response_model=DocumentListResponse)
 async def list_all_documents(
+    current_user: User = Depends(get_current_user),
     persona: str | None = None,
     origin: str | None = None,
     document_status: str | None = None,
 ) -> DocumentListResponse:
-    """List all documents with optional filters."""
+    """List documents accessible to current user (HIPAA isolation).
+
+    SECURITY: Only returns documents owned by the user or explicitly shared with them.
+    """
     # Parse filters
     origin_filter = None
     if origin:
@@ -338,7 +345,9 @@ async def list_all_documents(
         with contextlib.suppress(ValueError):
             status_filter = DocumentStatus(document_status)
 
+    # CRITICAL: Pass user_id for access control (HIPAA compliance)
     documents = list_documents(
+        user_id=current_user.user_id,
         persona_filter=persona,
         origin_filter=origin_filter,
         status_filter=status_filter,
@@ -463,8 +472,13 @@ async def reindex_document(doc_id: str) -> dict:
 
 
 @router.post("/documents/search", response_model=DocumentSearchResponse)
-async def search_documents(request: DocumentSearchRequest) -> DocumentSearchResponse:
-    """Search documents using semantic similarity.
+async def search_documents(
+    request: DocumentSearchRequest,
+    current_user: User = Depends(get_current_user),
+) -> DocumentSearchResponse:
+    """Search documents using semantic similarity (HIPAA isolation).
+
+    SECURITY: Only searches documents owned by the user or explicitly shared with them.
 
     Returns chunks of text that are most relevant to the query.
     """
@@ -476,17 +490,25 @@ async def search_documents(request: DocumentSearchRequest) -> DocumentSearchResp
     try:
         query_embedding = await _get_embedding(request.query)
     except Exception as e:
-        logger.error("EMBEDDING_GENERATION_FAILED", error=str(e))
+        logger.error("EMBEDDING_GENERATION_FAILED", error=str(e), user_id=current_user.user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate query embedding: {e}",
         )
 
-    # Search
+    # CRITICAL: Search with user_id for access control (HIPAA compliance)
     results = search_documents_by_embedding(
         query_embedding=query_embedding,
+        user_id=current_user.user_id,
         top_k=request.top_k,
         persona_filter=request.persona_filter,
+    )
+
+    logger.info(
+        "DOCUMENT_SEARCH_EXECUTED",
+        user_id=current_user.user_id,
+        query_length=len(request.query),
+        results_count=len(results),
     )
 
     # Enrich with document metadata
@@ -936,13 +958,21 @@ def _generate_initial_questions_via_rag(doc_id: str) -> list[str]:
         search_documents_by_embedding,
     )
 
-    # 1. Generate embedding for a generic query
+    # 1. Get document to extract owner_user_id for security
+    doc = get_document(doc_id)
+    if not doc:
+        logger.warning("RAG_DOCUMENT_NOT_FOUND", doc_id=doc_id)
+        return []
+    owner_user_id = doc.metadata.owner_user_id
+
+    # 2. Generate embedding for a generic query
     query = "¿Cuáles son los temas principales y puntos clave de este documento?"
     query_embedding = _get_embedding_sync(query)
 
-    # 2. Search ONLY within this document
+    # 3. Search ONLY within this document (with owner's permissions)
     results = search_documents_by_embedding(
         query_embedding=query_embedding,
+        user_id=owner_user_id,  # SECURITY: Use document owner's ID
         top_k=5,
         doc_filter=doc_id,  # Filter by specific document
     )

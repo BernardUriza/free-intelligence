@@ -6,9 +6,10 @@ import uuid as _uuid
 from backend.clients import get_llm_client
 from backend.observability import chat_events
 from backend.observability.logging import CTX_REQUEST_ID
+from backend.src.fi_auth.adapters.fastapi_adapter import User, get_current_user
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_llm.services.persona.manager import PersonaManager
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..assistant_schemas import (
     ChatCompletionChoice,
@@ -29,8 +30,13 @@ _persona_manager = PersonaManager()
 
 
 @router.post("/assistant/chat", response_model=ChatCompletionResponse)
-async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionResponse:
+async def chat_with_assistant(
+    request: ChatCompletionRequest,
+    current_user: User = Depends(get_current_user),
+) -> ChatCompletionResponse:
     """OpenAI-style chat completion endpoint for Free-Intelligence conversations.
+
+    SECURITY: JWT authentication required. RAG search respects user isolation (HIPAA compliance).
 
     Follows OpenAI Chat Completions API conventions with AURITY-specific extensions.
     """
@@ -138,6 +144,7 @@ async def chat_with_assistant(request: ChatCompletionRequest) -> ChatCompletionR
         rag_context = await _get_rag_context(
             query=last_message.content,
             persona=request.persona,
+            user_id=current_user.user_id,  # SECURITY: Pass user_id for HIPAA isolation
         )
         if rag_context:
             context["rag_context"] = rag_context

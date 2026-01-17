@@ -8,12 +8,25 @@ logger = get_logger(__name__)
 async def _get_rag_context(
     query: str,
     persona: str,
+    user_id: str,
     top_k: int = 5,
     min_similarity: float = 0.50,  # Medical safety requirement - only high-confidence matches
 ) -> str | None:
     """Search documents and build RAG context for the LLM.
 
+    SECURITY: Only searches documents owned by the user or explicitly shared with them (HIPAA compliance).
+
     Also accumulates the user query in the found documents for analytics.
+
+    Args:
+        query: User query for RAG search
+        persona: Persona filter
+        user_id: Auth0 user_id for access control (HIPAA isolation)
+        top_k: Number of top results
+        min_similarity: Minimum similarity threshold
+
+    Returns:
+        Formatted RAG context or None if no results
     """
     try:
         from datetime import UTC, datetime
@@ -28,10 +41,19 @@ async def _get_rag_context(
 
         query_embedding = await _get_embedding(query)
 
+        # CRITICAL: Search with user_id for access control (HIPAA compliance)
         results = search_documents_by_embedding(
             query_embedding=query_embedding,
+            user_id=user_id,
             top_k=top_k,
             persona_filter=persona,
+        )
+
+        logger.info(
+            "RAG_SEARCH_EXECUTED",
+            user_id=user_id,
+            query_length=len(query),
+            results_count=len(results),
         )
 
         # Observability: Track near-miss results (0.25-0.50 range)

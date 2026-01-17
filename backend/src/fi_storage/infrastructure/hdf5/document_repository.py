@@ -106,6 +106,10 @@ class DocumentMetadata:
     chunks_count: int = 0
     chunk_version: int = 2  # 1=char-based (512 chars), 2=token-based (256 tokens)
     error_message: str | None = None
+    # Security & Multi-tenancy (Phase 1 - HIPAA compliance)
+    owner_user_id: str = ""  # Auth0 user_id (sub claim) - primary owner
+    clinic_id: str = ""  # Clinic/organization ID for multi-tenant isolation
+    shared_with: list[str] = field(default_factory=list)  # User IDs with explicit access
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -124,11 +128,17 @@ class DocumentMetadata:
             "chunks_count": self.chunks_count,
             "chunk_version": self.chunk_version,
             "error_message": self.error_message,
+            "owner_user_id": self.owner_user_id,
+            "clinic_id": self.clinic_id,
+            "shared_with": self.shared_with,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DocumentMetadata:
-        """Create from dictionary."""
+        """Create from dictionary with backward compatibility."""
+        # Backward compatibility: If owner_user_id is missing, use uploaded_by
+        owner_user_id = data.get("owner_user_id", "") or data.get("uploaded_by", "")
+
         return cls(
             doc_id=data["doc_id"],
             title=data["title"],
@@ -144,6 +154,9 @@ class DocumentMetadata:
             chunks_count=data.get("chunks_count", 0),
             chunk_version=data.get("chunk_version", 1),  # Default to v1 for old documents
             error_message=data.get("error_message"),
+            owner_user_id=owner_user_id,
+            clinic_id=data.get("clinic_id", ""),
+            shared_with=data.get("shared_with", []),
         )
 
 
@@ -214,17 +227,21 @@ def create_document(
     title: str | None = None,
     usage_instructions: str = "",
     assigned_personas: list[str] | None = None,
+    owner_user_id: str | None = None,
+    clinic_id: str = "",
 ) -> DocumentMetadata:
     """Create a new document in the knowledge base.
 
     Args:
         content: Raw file bytes
         filename: Original filename (used for type detection)
-        uploaded_by: User/doctor ID who uploaded
+        uploaded_by: User/doctor ID who uploaded (legacy field)
         origin: Where the upload came from
         title: Document title (defaults to filename)
         usage_instructions: How the LLM should use this document
         assigned_personas: List of persona IDs that can use this document
+        owner_user_id: Auth0 user_id (sub claim) - primary owner for HIPAA isolation
+        clinic_id: Clinic/organization ID for multi-tenant isolation
 
     Returns:
         DocumentMetadata with doc_id and status=PENDING
@@ -232,6 +249,10 @@ def create_document(
     doc_id = str(uuid.uuid4())
     doc_type = _get_doc_type_from_filename(filename)
     sha256 = hashlib.sha256(content).hexdigest()
+
+    # Security: Default owner_user_id to uploaded_by if not explicitly provided
+    # This ensures backward compatibility with existing code
+    final_owner_user_id = owner_user_id if owner_user_id is not None else uploaded_by
 
     metadata = DocumentMetadata(
         doc_id=doc_id,
@@ -246,6 +267,9 @@ def create_document(
         size_bytes=len(content),
         sha256=sha256,
         chunks_count=0,
+        owner_user_id=final_owner_user_id,
+        clinic_id=clinic_id,
+        shared_with=[],  # Empty by default, explicit sharing required
     )
 
     # Store in HDF5
@@ -349,19 +373,24 @@ def get_document(doc_id: str, include_content: bool = False) -> Document | None:
 
 
 def list_documents(
+    user_id: str | None = None,
     persona_filter: str | None = None,
     origin_filter: DocumentOrigin | None = None,
     status_filter: DocumentStatus | None = None,
 ) -> list[DocumentMetadata]:
     """List all documents with optional filters.
 
+    SECURITY: If user_id is provided, only returns documents owned by that user
+    or explicitly shared with them (HIPAA compliance).
+
     Args:
+        user_id: Auth0 user_id for access control (None = no filtering - admin mode)
         persona_filter: Filter by assigned persona
         origin_filter: Filter by upload origin
         status_filter: Filter by processing status
 
     Returns:
-        List of document metadata
+        List of document metadata accessible to the user
     """
     if not CORPUS_PATH.exists():
         return []
@@ -379,7 +408,15 @@ def list_documents(
             metadata_json = doc_group.attrs["metadata"]
             metadata = DocumentMetadata.from_dict(json.loads(metadata_json))
 
-            # Apply filters
+            # CRITICAL: User access control check (HIPAA isolation)
+            if user_id is not None:
+                # User must be owner OR explicitly shared with
+                is_owner = metadata.owner_user_id == user_id
+                is_shared = user_id in metadata.shared_with
+                if not (is_owner or is_shared):
+                    continue  # User doesn't have access - skip
+
+            # Apply additional filters
             if persona_filter and persona_filter not in metadata.assigned_personas:
                 continue
             if origin_filter and metadata.origin != origin_filter:
@@ -634,14 +671,19 @@ def delete_document(doc_id: str) -> bool:
 
 def search_documents_by_embedding(
     query_embedding: np.ndarray,
+    user_id: str | None = None,
     top_k: int = 5,
     persona_filter: str | None = None,
     doc_filter: str | None = None,
 ) -> list[tuple[str, int, float, str]]:
     """Search documents by semantic similarity.
 
+    SECURITY: If user_id is provided, only searches documents owned by that user
+    or explicitly shared with them (HIPAA compliance).
+
     Args:
         query_embedding: Query vector (same dimension as chunk embeddings)
+        user_id: Auth0 user_id for access control (None = no filtering - admin mode)
         top_k: Number of results to return
         persona_filter: Only search documents assigned to this persona
         doc_filter: Only search within this specific document (by doc_id)
@@ -667,10 +709,20 @@ def search_documents_by_embedding(
 
             doc_group = docs_group[doc_id]
 
+            # Load metadata for access control and persona filter
+            metadata_json = doc_group.attrs["metadata"]
+            metadata = DocumentMetadata.from_dict(json.loads(metadata_json))
+
+            # CRITICAL: User access control check (HIPAA isolation)
+            if user_id is not None:
+                # User must be owner OR explicitly shared with
+                is_owner = metadata.owner_user_id == user_id
+                is_shared = user_id in metadata.shared_with
+                if not (is_owner or is_shared):
+                    continue  # User doesn't have access - skip
+
             # Check persona filter
             if persona_filter:
-                metadata_json = doc_group.attrs["metadata"]
-                metadata = DocumentMetadata.from_dict(json.loads(metadata_json))
                 if persona_filter not in metadata.assigned_personas:
                     continue
 
