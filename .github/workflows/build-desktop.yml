@@ -458,7 +458,7 @@ jobs:
           # Save private key to temporary file (no trailing newline)
           $env:SIGNING_KEY | Out-File -FilePath $env:TEMP/tauri-signing.key -Encoding utf8 -NoNewline
           $NSIS_PATH = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Aurity_1.0.0_x64-setup.nsis.zip"
-          pnpm tauri signer sign $NSIS_PATH --private-key-path $env:TEMP/tauri-signing.key --password ""
+          pnpm tauri signer sign $NSIS_PATH --private-key-path $env:TEMP/tauri-signing.key
           Write-Host "Generated signature:"
           Get-ChildItem "${NSIS_PATH}.sig"
           # Clean up key file
