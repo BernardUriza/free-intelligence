@@ -787,10 +787,18 @@ def _get_embedding_model():
     """Get or create the embedding model (singleton)."""
     global _embedding_model
     if _embedding_model is None:
+        import torch
         from sentence_transformers import SentenceTransformer
 
-        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-        logger.info("EMBEDDING_MODEL_LOADED", model="all-MiniLM-L6-v2")
+        # Use GPU if available (leverages CUDA libraries like cuBLAS, cuDNN)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+        logger.info(
+            "EMBEDDING_MODEL_LOADED",
+            model="all-MiniLM-L6-v2",
+            device=device,
+            gpu_available=torch.cuda.is_available(),
+        )
     return _embedding_model
 
 

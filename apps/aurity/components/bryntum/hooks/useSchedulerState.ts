@@ -69,13 +69,24 @@ export function useSchedulerState({
   }, [events, selectedSession]);
 
   // Derived: Event counts
+  // Check both 'source' field AND 'event_type' for robustness
+  // (event_type='chat_user'|'chat_assistant' → chat, 'transcription' → audio)
   const chatCount = useMemo(
-    () => filteredEvents.filter((e) => e.source === 'chat').length,
+    () =>
+      filteredEvents.filter(
+        (e) =>
+          e.source === 'chat' ||
+          e.event_type === 'chat_user' ||
+          e.event_type === 'chat_assistant'
+      ).length,
     [filteredEvents]
   );
 
   const audioCount = useMemo(
-    () => filteredEvents.filter((e) => e.source === 'audio').length,
+    () =>
+      filteredEvents.filter(
+        (e) => e.source === 'audio' || e.event_type === 'transcription'
+      ).length,
     [filteredEvents]
   );
 

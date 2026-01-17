@@ -21,6 +21,7 @@ import { TIMELINE_RESOURCES } from '../config/timeline-resources.config';
 import { TIMELINE_COLUMNS } from '../config/timeline-columns.config';
 import { TIMELINE_FEATURES } from '../features/timeline-features.config';
 import { transformEvents } from '../utils/event-transform.utils';
+import { timelineEventRenderer } from '../renderers/timelineEventRenderer.fn';
 import type { ViewMode, UnifiedEvent } from '../types/scheduler.types';
 
 // Appointments imports
@@ -95,7 +96,9 @@ export function buildTimelineSchedulerConfig({
     subGridConfigs: {
       locked: {
         width: 200,
+        minWidth: 200,
         flex: 0,
+        collapsed: false,
       },
       normal: {
         flex: 1,
@@ -110,8 +113,8 @@ export function buildTimelineSchedulerConfig({
     // Features (read-only)
     features: TIMELINE_FEATURES,
 
-    // Custom renderer - returns DomConfig for WC bundle compatibility
-    eventRenderer: appointmentEventRenderer,
+    // Custom renderer for timeline events (shows content, type icon, time)
+    eventRenderer: timelineEventRenderer,
 
     listeners: {
       eventClick: onEventClick

@@ -43,6 +43,8 @@ interface TimelineSchedulerProps {
   events: UnifiedEvent[];
   isLoading?: boolean;
   onEventClick?: (event: UnifiedEvent) => void;
+  /** Callback when visible time range changes (for syncing list view) */
+  onTimeRangeChange?: (startDate: Date, endDate: Date) => void;
   className?: string;
 }
 
@@ -54,6 +56,7 @@ export function TimelineScheduler({
   events,
   isLoading = false,
   onEventClick,
+  onTimeRangeChange,
   className = '',
 }: TimelineSchedulerProps) {
   // UI state
@@ -91,6 +94,16 @@ export function TimelineScheduler({
     const { start, end } = viewConfig.getDateRange(schedulerState.currentDate);
     return { startDate: start, endDate: end };
   }, [schedulerState.viewMode, schedulerState.currentDate]);
+
+  // Stable timestamps for dependency comparison (avoid Date object reference issues)
+  const startTimestamp = timeWindow.startDate.getTime();
+  const endTimestamp = timeWindow.endDate.getTime();
+
+  // Notify parent when time range changes (for syncing list view)
+  useEffect(() => {
+    onTimeRangeChange?.(timeWindow.startDate, timeWindow.endDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startTimestamp, endTimestamp]);
 
   // Track scheduler instance for keyboard shortcuts
   const [schedulerInstance, setSchedulerInstance] = useState<any>(null);

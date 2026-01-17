@@ -141,17 +141,17 @@ export function PersonaSelectorPanel({
   return (
     <Select value={selectedPersona} onValueChange={onSelect} items={initialItems}>
       {/* Trigger Button */}
-      {/* Ultra-compact when container is small (icon-only), full when wider (@md = 384px) */}
+      {/* ChatGPT style: icon + model badge only (name is in input placeholder) */}
       <SelectTrigger
-        className="bg-slate-800/80 hover:bg-slate-700/80 border-slate-600/50 transition-colors min-w-0 @md:min-w-[160px] @md:max-w-[240px] px-2 @md:px-2.5 py-1.5"
+        className="bg-slate-800/80 hover:bg-slate-700/80 border-slate-600/50 transition-colors min-w-0 px-2 py-1.5"
       >
         <SelectValue
           showIcon
           showBadge
           showDescription={false}
           placeholder={PLACEHOLDER_TEXT}
-          labelClassName="hidden @md:flex"
-          badgeClassName="hidden @lg:inline-flex"
+          labelClassName="hidden"
+          badgeClassName="inline-flex"
         />
       </SelectTrigger>
 

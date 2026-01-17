@@ -9,7 +9,7 @@ async def _get_rag_context(
     query: str,
     persona: str,
     top_k: int = 5,
-    min_similarity: float = 0.25,  # Lowered from 0.35 for better recall
+    min_similarity: float = 0.50,  # Medical safety requirement - only high-confidence matches
 ) -> str | None:
     """Search documents and build RAG context for the LLM.
 
