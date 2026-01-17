@@ -1008,6 +1008,76 @@ dir src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\
 
 ---
 
+## 🚨 Security Incidents & Response Process
+
+### Incident Log
+
+#### 2026-01-17: Path Traversal Vulnerability (PR #63)
+
+**Timeline:**
+- 17:04:27 - PR #63 merged to main (validation script with path traversal vuln)
+- 17:04:34 - AI Gatekeeper flagged as CRITICAL (7 seconds AFTER merge)
+- 17:05:00 - Hotfix PR #64 created with security fix
+- 17:XX:XX - PR #64 merged, vulnerability patched
+
+**Vulnerability:**
+```bash
+# VULNERABLE CODE (PR #63):
+VERSION="${1:-}"
+DOWNLOAD_DIR="/tmp/aurity-release-validation-${VERSION}"
+rm -rf "$DOWNLOAD_DIR"  # Path traversal possible
+
+# ATTACK VECTOR:
+./validate-release-artifacts.sh "../../home/user"
+# → rm -rf "/home/user"  # CATASTROPHIC
+```
+
+**Root Causes:**
+1. **AI Gatekeeper fail-open behavior** - Ran AFTER merge instead of BEFORE
+2. **No local security testing** - Malicious inputs not tested before commit
+3. **Input validation missing** - User-controlled VERSION used directly in filesystem ops
+
+**Fix Applied (PR #64):**
+1. Strict semantic version regex: `^[0-9]+\.[0-9]+\.[0-9]+$`
+2. `mktemp -d` for isolated temp dir (not user-controlled)
+3. `trap EXIT` for automatic cleanup
+4. Portable `${TMPDIR:-/tmp}/prefix.XXXXXX` form
+5. 13/13 security tests passing
+
+**Lessons Learned:**
+1. ✅ **ALWAYS test with malicious inputs locally before commit**
+   - Path traversal: `../../`, `../../../etc`
+   - Command injection: `1.0.0; rm -rf /`, `$(whoami)`
+   - Shell metacharacters: `|`, `&`, `;`, `$(...)`
+2. ✅ **Never trust AI Gatekeeper timing** - It may run AFTER merge
+3. ✅ **Validate ALL user inputs** with strict patterns before use in:
+   - Filesystem operations (rm, mkdir, cd)
+   - Command execution (system, exec, eval)
+   - SQL queries, file paths, URLs
+4. ✅ **Use mktemp for temp dirs** - Never derive paths from user input
+5. ✅ **Portable shell scripting** - Test flag compatibility across GNU/BSD
+
+**Response Process (Established):**
+1. Immediate hotfix PR creation (< 1 min after detection)
+2. Dual commit: security fix + regression tests
+3. Fast-track review (no waiting for normal PR queue)
+4. Document incident in CLAUDE.md
+5. Update `.github/SECURITY.md` if pattern affects other code
+
+**Prevention Checklist (Pre-Commit):**
+- [ ] Input validation with strict regex/whitelist
+- [ ] Security testing with malicious inputs
+- [ ] No user input in filesystem ops without sanitization
+- [ ] Portable shell syntax (POSIX-compatible where possible)
+- [ ] Code review focused on OWASP Top 10
+
+**Monitoring:**
+- AI Gatekeeper verdicts logged to `/var/log/aurity-security.log`
+- CRITICAL verdicts trigger Slack alert (even if merged)
+- Weekly security audit of merged PRs (manual review)
+
+---
+
 ## Browser MCPs (Automatización de Navegador)
 
 ### Chrome DevTools MCP (Interacción con el navegador)

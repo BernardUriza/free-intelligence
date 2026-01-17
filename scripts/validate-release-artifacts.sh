@@ -33,7 +33,8 @@ TAG="v${VERSION}"
 
 # SECURITY: Use mktemp -d to create isolated temporary directory
 # Never use rm -rf with user-controlled paths
-DOWNLOAD_DIR=$(mktemp -d -t "aurity-release-validation-XXXXXX")
+# NOTE: Portable form (works on GNU/Linux, macOS, BSD)
+DOWNLOAD_DIR=$(mktemp -d "${TMPDIR:-/tmp}/aurity-release-validation.XXXXXX")
 
 # Ensure cleanup on exit (even if script fails)
 trap "rm -rf '$DOWNLOAD_DIR'" EXIT
