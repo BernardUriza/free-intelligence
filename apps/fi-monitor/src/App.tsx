@@ -159,7 +159,7 @@ export default function App() {
             </div>
             {tunnelOn && status?.tunnel_url && (
               <div className="tunnel-url-box" onClick={handleCopyUrl} title="Click para copiar">
-                <span className="url-text">{status.tunnel_url.replace('https://', '').split('.')[0]}</span>
+                <span className="url-text" title={status.tunnel_url}>{status.tunnel_url.replace('https://', '')}</span>
                 <span className="copy-icon">{copiedUrl ? '✓' : '📋'}</span>
               </div>
             )}
