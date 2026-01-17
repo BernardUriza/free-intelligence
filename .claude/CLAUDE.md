@@ -590,6 +590,21 @@ COMANDOS DIARIOS:
   git add . && git commit -m "..."    # Commits frecuentes
   git push origin dev                 # CI valida automáticamente
 
+⚠️ SINCRONIZACIÓN CRÍTICA (después de merge a main):
+  # Cuando un PR se mergea a main, dev queda BEHIND
+  # SIEMPRE sincronizar antes de crear nuevos PRs
+
+  git checkout dev
+  git fetch origin
+  git merge origin/main -m "chore: sync dev with main after PR #XX merge"
+  git push origin dev
+
+  # Verificar que dev está actualizado
+  git log origin/main..origin/dev    # Debe estar vacío después de sync
+
+  ❌ PROBLEMA: Si no sincronizas, los PRs quedarán en estado "BEHIND" y no podrán mergearse
+  ✅ SOLUCIÓN: Sincronizar dev con main después de CADA merge
+
 DEPLOY A PRODUCCIÓN:
   gh pr create --base main --head dev --title "Release: descripción"
   # Esperar CI ✅ → Merge → Deploy manual
@@ -600,6 +615,9 @@ REGLAS PARA CLAUDE:
   ✅ Siempre trabajar en dev
   ✅ Usar PR para subir a main
   ✅ Verificar que CI pase antes de merge
+  ✅ CRÍTICO: Sincronizar dev con main después de CADA merge (git merge origin/main)
+     - Esto previene estado "BEHIND" en PRs futuros
+     - Ejecutar SIEMPRE después de mergear un PR a main
 ```
 
 CI (pr-gate.yml) - Valida antes de merge
