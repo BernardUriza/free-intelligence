@@ -1,0 +1,14 @@
+# Cloudflare Tunnel Configuration for FI Monitor
+# Routes traffic to multiple local services
+
+tunnel: auto-generated-tunnel
+credentials-file: /tmp/.cloudflared/auto-generated-tunnel.json
+
+ingress:
+  # Route /rag/* to RAG Service (GPU embeddings)
+  - hostname: "*.trycloudflare.com"
+    path: /rag/*
+    service: http://localhost:11435
+
+  # Route everything else to Ollama (LLM inference)
+  - service: http://localhost:11434
