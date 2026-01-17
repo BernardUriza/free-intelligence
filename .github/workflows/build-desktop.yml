@@ -21,6 +21,56 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
+  # BUILD FRONTEND ONCE (reused by all platform builds)
+  # ═══════════════════════════════════════════════════════════════════════════
+  build-frontend:
+    if: ${{ github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create .env.production
+        run: |
+          cat > apps/aurity/.env.production << EOF
+          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
+          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
+          NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
+          NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
+          NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
+          EOF
+
+      - name: Build Next.js frontend
+        working-directory: apps/aurity
+        run: pnpm build
+
+      - name: Copy splash screen
+        run: node apps/aurity-desktop/scripts/copy-splash.js
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-static
+          path: apps/aurity/out/
+          retention-days: 1
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # BUILD FI MONITOR FIRST (infrastructure layer with Ollama bundled)
   # ═══════════════════════════════════════════════════════════════════════════
   build-fi-monitor:
@@ -154,7 +204,7 @@ jobs:
     if: |
       (github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all') &&
       (needs.build-fi-monitor.result == 'success' || needs.build-fi-monitor.result == 'skipped')
-    needs: [build-fi-monitor]
+    needs: [build-fi-monitor, build-frontend]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout main repo
@@ -164,6 +214,12 @@ jobs:
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
           git submodule update --init --recursive
+
+      - name: Download pre-built frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-static
+          path: apps/aurity/out/
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -213,16 +269,6 @@ jobs:
       - name: Install frontend dependencies
         working-directory: apps/aurity-desktop
         run: pnpm install --frozen-lockfile
-
-      - name: Create production env file for Next.js
-        run: |
-          cat > apps/aurity/.env.production << EOF
-          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
-          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
-          NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
-          NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
-          NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
-          EOF
 
       - name: Build Tauri app
         working-directory: apps/aurity-desktop
@@ -325,7 +371,7 @@ jobs:
     if: |
       (github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all') &&
       (needs.build-fi-monitor.result == 'success' || needs.build-fi-monitor.result == 'skipped')
-    needs: [build-fi-monitor]
+    needs: [build-fi-monitor, build-frontend]
     runs-on: macos-latest
     steps:
       - name: Checkout main repo
@@ -335,6 +381,12 @@ jobs:
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
           git submodule update --init --recursive
+
+      - name: Download pre-built frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-static
+          path: apps/aurity/out/
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -376,16 +428,6 @@ jobs:
       - name: Install frontend dependencies
         working-directory: apps/aurity-desktop
         run: pnpm install --frozen-lockfile
-
-      - name: Create production env file for Next.js
-        run: |
-          cat > apps/aurity/.env.production << EOF
-          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
-          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
-          NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
-          NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
-          NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
-          EOF
 
       - name: Build Tauri app (ARM64)
         working-directory: apps/aurity-desktop
@@ -523,7 +565,7 @@ jobs:
     if: |
       (github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all') &&
       (needs.build-fi-monitor.result == 'success' || needs.build-fi-monitor.result == 'skipped')
-    needs: [build-fi-monitor]
+    needs: [build-fi-monitor, build-frontend]
     runs-on: windows-latest
     steps:
       - name: Checkout main repo
@@ -533,6 +575,12 @@ jobs:
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
           git submodule update --init --recursive
+
+      - name: Download pre-built frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-static
+          path: apps/aurity/out/
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -574,17 +622,6 @@ jobs:
       - name: Install frontend dependencies
         working-directory: apps/aurity-desktop
         run: pnpm install --frozen-lockfile
-
-      - name: Create production env file for Next.js
-        shell: pwsh
-        run: |
-          @"
-          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
-          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
-          NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
-          NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
-          NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
-          "@ | Out-File -FilePath apps/aurity/.env.production -Encoding utf8
 
       - name: Build Tauri app
         working-directory: apps/aurity-desktop
