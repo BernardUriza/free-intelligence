@@ -1,6 +1,8 @@
 // FI Monitor - Ollama Tunnel Manager
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod ollama_installer;
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
@@ -701,7 +703,23 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![start_ollama, stop_ollama, start_tunnel, stop_tunnel, get_status, test_ollama, is_autostart_enabled, enable_autostart, disable_autostart, set_azure_sas_url, get_azure_sas_url, get_last_tunnel_url])
+        .invoke_handler(tauri::generate_handler![
+            start_ollama,
+            stop_ollama,
+            start_tunnel,
+            stop_tunnel,
+            get_status,
+            test_ollama,
+            is_autostart_enabled,
+            enable_autostart,
+            disable_autostart,
+            set_azure_sas_url,
+            get_azure_sas_url,
+            get_last_tunnel_url,
+            ollama_installer::check_ollama_installed,
+            ollama_installer::install_ollama_silent,
+            ollama_installer::download_and_install_ollama,
+        ])
         .run(tauri::generate_context!())
         .expect("error running FI Monitor");
 }
