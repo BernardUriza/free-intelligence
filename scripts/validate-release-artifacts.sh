@@ -36,8 +36,14 @@ TAG="v${VERSION}"
 # NOTE: Portable form (works on GNU/Linux, macOS, BSD)
 DOWNLOAD_DIR=$(mktemp -d "${TMPDIR:-/tmp}/aurity-release-validation.XXXXXX")
 
+# Cleanup function (safer than inline trap string)
+cleanup() {
+  # Use -- to prevent paths starting with - from being interpreted as flags
+  rm -rf -- "$DOWNLOAD_DIR"
+}
+
 # Ensure cleanup on exit (even if script fails)
-trap "rm -rf '$DOWNLOAD_DIR'" EXIT
+trap cleanup EXIT
 
 echo "🔍 Validating release artifacts for ${TAG}"
 echo "📁 Download directory: ${DOWNLOAD_DIR}"
