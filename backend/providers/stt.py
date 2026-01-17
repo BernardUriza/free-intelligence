@@ -173,10 +173,16 @@ class AzureWhisperProvider(STTProvider):
 
                 result = subprocess.run(
                     [
-                        "ffmpeg", "-y", "-i", str(audio_path),
-                        "-ar", "16000",  # 16kHz sample rate (optimal for Whisper)
-                        "-ac", "1",  # Mono
-                        "-f", "wav",
+                        "ffmpeg",
+                        "-y",
+                        "-i",
+                        str(audio_path),
+                        "-ar",
+                        "16000",  # 16kHz sample rate (optimal for Whisper)
+                        "-ac",
+                        "1",  # Mono
+                        "-f",
+                        "wav",
                         str(converted_path),
                     ],
                     capture_output=True,

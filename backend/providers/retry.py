@@ -575,7 +575,7 @@ def save_circuit_breaker_states() -> bool:
         states = {}
         for name, cb in _circuit_breakers.items():
             states[name] = {
-                    "state": cb.state,
+                "state": cb.state,
                 "failure_count": cb.failure_count,
                 "success_count": cb.success_count,
                 "last_failure_time": cb.last_failure_time,

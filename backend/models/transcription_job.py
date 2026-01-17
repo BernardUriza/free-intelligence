@@ -168,7 +168,9 @@ class TranscriptionJob(Job):
         Returns:
             TranscriptionJob instance
         """
-        base_job = Job.create_now(job_id=job_id, session_id=session_id, job_type=JobType.TRANSCRIPTION)
+        base_job = Job.create_now(
+            job_id=job_id, session_id=session_id, job_type=JobType.TRANSCRIPTION
+        )
 
         return cls(
             job_id=base_job.job_id,

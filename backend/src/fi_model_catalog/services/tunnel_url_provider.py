@@ -63,7 +63,7 @@ class TunnelURLProvider:
         """
         self._blob_url = blob_url or os.getenv(
             "FI_TUNNEL_BLOB_URL",
-            "https://aurityreleases.blob.core.windows.net/fi-tunnels/tunnel-url.json"
+            "https://aurityreleases.blob.core.windows.net/fi-tunnels/tunnel-url.json",
         )
         self._cache_ttl = timedelta(seconds=cache_ttl_seconds)
         self._fallback_url = fallback_url
@@ -238,7 +238,9 @@ class TunnelURLProvider:
                     return response.json()
 
             except httpx.HTTPStatusError as e:
-                logger.warning("tunnel_blob_http_error", status=e.response.status_code, attempt=attempt + 1)
+                logger.warning(
+                    "tunnel_blob_http_error", status=e.response.status_code, attempt=attempt + 1
+                )
                 if attempt == max_retries - 1:
                     return None
             except Exception as e:

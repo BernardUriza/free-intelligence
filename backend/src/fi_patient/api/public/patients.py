@@ -92,9 +92,7 @@ class CurpValidationRequest(BaseModel):
     """Schema for CURP validation request."""
 
     curp: str = Field(..., min_length=18, max_length=18, description="CURP to validate")
-    exclude_patient_id: str | None = Field(
-        None, description="Patient ID to exclude (for updates)"
-    )
+    exclude_patient_id: str | None = Field(None, description="Patient ID to exclude (for updates)")
 
 
 class CurpValidationResponse(BaseModel):
@@ -106,9 +104,7 @@ class CurpValidationResponse(BaseModel):
 
 
 @router.post("/validate-curp", response_model=CurpValidationResponse)
-def validate_curp(
-    request: CurpValidationRequest, db: Session = Depends(get_db_dependency)
-):
+def validate_curp(request: CurpValidationRequest, db: Session = Depends(get_db_dependency)):
     """Validate CURP format and availability.
 
     Checks:
@@ -150,9 +146,7 @@ def validate_curp(
             )
 
         logger.info("CURP_VALIDATION_OK", curp_prefix=request.curp[:4])
-        return CurpValidationResponse(
-            valid=True, available=True, message=None
-        )
+        return CurpValidationResponse(valid=True, available=True, message=None)
 
     except Exception as e:
         logger.error("CURP_VALIDATION_FAILED", error=str(e))

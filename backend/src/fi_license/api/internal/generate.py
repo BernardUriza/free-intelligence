@@ -40,7 +40,9 @@ class LicenseGenerationRequest(BaseModel):
     """Request to generate a new license key."""
 
     max_clinics: int = Field(default=1, ge=1, le=100, description="Maximum clinics allowed (1-100)")
-    license_holder: str = Field(default="", description="License holder name (optional, for display)")
+    license_holder: str = Field(
+        default="", description="License holder name (optional, for display)"
+    )
     auth0_domain: str = Field(..., min_length=1, description="Auth0 tenant domain")
     auth0_client_id: str = Field(..., min_length=1, description="Auth0 application client ID")
     auth0_audience: str = Field(default="https://app.aurity.io", description="Auth0 API audience")

@@ -85,7 +85,9 @@ class MedicalChunkHandler(ChunkHandler):
 
         # Save session metadata (doctor_id + patient info) to HDF5 session attributes
         # SECURITY: doctor_id is ALWAYS saved for session ownership/isolation
-        if metadata and ("doctor_id" in metadata or any(k.startswith("patient_") for k in metadata)):
+        if metadata and (
+            "doctor_id" in metadata or any(k.startswith("patient_") for k in metadata)
+        ):
             # Use locked_session_h5 for per-session file (consistent with ensure_task_exists)
             with locked_session_h5(session_id, mode="a") as f:
                 session_path = f"/sessions/{session_id}"

@@ -54,9 +54,7 @@ class LLMStatusResponse(BaseModel):
     models: list[str] = Field(default_factory=list, description="Available models")
     latency_ms: int | None = Field(None, description="Response latency in ms")
     last_check: str = Field(..., description="ISO timestamp of this check")
-    priority: str = Field(
-        ..., description="Current priority: 'tunnel' or 'local_fallback'"
-    )
+    priority: str = Field(..., description="Current priority: 'tunnel' or 'local_fallback'")
 
 
 # ============================================================================
