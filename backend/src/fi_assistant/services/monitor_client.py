@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 # ============================================================================
 
 
-async def discover_monitor_url() -> Optional[str]:
+async def discover_monitor_url() -> str | None:
     """Discover FI Monitor URL from Azure Blob Storage.
 
     FI Monitor uploads its tunnel URL to Azure Blob on startup.
