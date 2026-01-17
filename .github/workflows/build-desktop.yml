@@ -1,3 +1,4 @@
+# Build Aurity Desktop for macOS and Windows
 name: Build Desktop App
 
 on:
