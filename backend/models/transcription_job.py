@@ -19,35 +19,65 @@ Card: Architecture unification
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any
 
 from backend.models.job import Job, JobStatus, JobType
 
 
-@dataclass
 class ChunkMetadata:
     """Metadata for a single audio chunk.
 
     This tracks the processing state of each chunk within a TranscriptionJob.
     """
 
-    chunk_number: int
-    status: str  # Union[pending, processing, completed] | failed
-    audio_size_bytes: int
-    audio_hash: str | None = None
-    transcript: str | None = None
-    duration: float | None = None
-    language: str | None = None
-    confidence: float | None = None  # 0-1 (normalized avg_logprob)
-    audio_quality: float | None = None  # 0-1 (heuristic: words/second)
-    timestamp_start: float | None = None
-    timestamp_end: float | None = None
-    created_at: str | None = None
-    error_message: str | None = None
+    __slots__ = (
+        "audio_hash",
+        "audio_quality",
+        "audio_size_bytes",
+        "chunk_number",
+        "confidence",
+        "created_at",
+        "duration",
+        "error_message",
+        "language",
+        "status",
+        "timestamp_end",
+        "timestamp_start",
+        "transcript",
+    )
+
+    def __init__(
+        self,
+        *,
+        chunk_number: int,
+        status: str,
+        audio_size_bytes: int,
+        audio_hash: str | None = None,
+        transcript: str | None = None,
+        duration: float | None = None,
+        language: str | None = None,
+        confidence: float | None = None,
+        audio_quality: float | None = None,
+        timestamp_start: float | None = None,
+        timestamp_end: float | None = None,
+        created_at: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        self.chunk_number = chunk_number
+        self.status = status
+        self.audio_size_bytes = audio_size_bytes
+        self.audio_hash = audio_hash
+        self.transcript = transcript
+        self.duration = duration
+        self.language = language
+        self.confidence = confidence
+        self.audio_quality = audio_quality
+        self.timestamp_start = timestamp_start
+        self.timestamp_end = timestamp_end
+        self.created_at = created_at
+        self.error_message = error_message
 
 
-@dataclass
 class TranscriptionJob(Job):
     """Transcription job for processing audio chunks.
 
@@ -63,18 +93,63 @@ class TranscriptionJob(Job):
         primary_language: Primary language detected (es, en, etc.)
     """
 
-    chunks: list[ChunkMetadata] = field(default_factory=list)
-    total_chunks: int = 0
-    processed_chunks: int = 0
-    audio_file_path: str | None = None
-    audio_duration: float | None = None
-    primary_language: str = "es"  # Default to Spanish
+    __slots__ = (
+        "audio_duration",
+        "audio_file_path",
+        "chunks",
+        "primary_language",
+        "processed_chunks",
+        "total_chunks",
+    )
 
-    def __post_init__(self):
-        """Ensure job_type is transcription."""
-        super().__post_init__()
+    def __init__(
+        self,
+        *,
+        # Base Job fields
+        job_id: str,
+        session_id: str,
+        job_type: JobType | str,
+        status: JobStatus | str,
+        created_at: str,
+        started_at: str | None = None,
+        completed_at: str | None = None,
+        updated_at: str = "",
+        error_message: str | None = None,
+        depends_on: list[str] | None = None,
+        progress_percent: int = 0,
+        result_data: dict[str, Any] | None = None,
+        # TranscriptionJob fields
+        chunks: list[ChunkMetadata] | None = None,
+        total_chunks: int = 0,
+        processed_chunks: int = 0,
+        audio_file_path: str | None = None,
+        audio_duration: float | None = None,
+        primary_language: str = "es",
+    ) -> None:
+        super().__init__(
+            job_id=job_id,
+            session_id=session_id,
+            job_type=job_type,
+            status=status,
+            created_at=created_at,
+            started_at=started_at,
+            completed_at=completed_at,
+            updated_at=updated_at,
+            error_message=error_message,
+            depends_on=depends_on,
+            progress_percent=progress_percent,
+            result_data=result_data,
+        )
+
         if self.job_type != JobType.TRANSCRIPTION:
-            self.job_type = JobType.TRANSCRIPTION
+            self.job_type = JobType(str(JobType.TRANSCRIPTION))
+
+        self.chunks = list(chunks or [])
+        self.total_chunks = total_chunks
+        self.processed_chunks = processed_chunks
+        self.audio_file_path = audio_file_path
+        self.audio_duration = audio_duration
+        self.primary_language = primary_language
 
     @classmethod
     def create_for_session(
@@ -94,9 +169,7 @@ class TranscriptionJob(Job):
             TranscriptionJob instance
         """
         base_job = Job.create_now(
-            job_id=job_id,
-            session_id=session_id,
-            job_type=JobType.TRANSCRIPTION,
+            job_id=job_id, session_id=session_id, job_type=JobType.TRANSCRIPTION
         )
 
         return cls(
@@ -259,11 +332,5 @@ class TranscriptionJob(Job):
         chunks_data = data.pop("chunks", [])
         chunks = [ChunkMetadata(**chunk_data) for chunk_data in chunks_data]
 
-        # Convert string enums to enum instances (from base Job)
-        if isinstance(data.get("job_type"), str):
-            data["job_type"] = JobType(data["job_type"])
-        if isinstance(data.get("status"), str):
-            data["status"] = JobStatus(data["status"])
-
-        # Create instance
+        # Create instance (base Job handles enum coercion)
         return cls(chunks=chunks, **data)

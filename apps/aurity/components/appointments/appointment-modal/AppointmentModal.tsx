@@ -25,6 +25,9 @@ export function AppointmentModal({
   doctors,
   initialData,
   prefilledData,
+  submitButtonText,
+  hideDoctorField = false,
+  onAfterSubmit,
 }: AppointmentModalProps) {
   const defaultDoctorId = prefilledData?.doctorId || doctors[0]?.doctor_id || '';
   const [patientName, setPatientName] = useState('');
@@ -44,6 +47,7 @@ export function AppointmentModal({
     defaultDoctorId,
     onSubmit,
     onClose,
+    onAfterSubmit,
   });
 
   const handlePatientSelect = useCallback((id: string, name: string) => {
@@ -132,10 +136,12 @@ export function AppointmentModal({
             onOpenCreateForm={patientSearch.openCreateForm}
             showCreateForm={patientSearch.showCreateForm}
             newPatient={patientSearch.newPatient}
-            onNewPatientChange={patientSearch.setNewPatient}
+            onNewPatientChange={patientSearch.handleNewPatientChange}
             onCreatePatient={patientSearch.handleCreatePatient}
             onCloseCreateForm={patientSearch.closeCreateForm}
             creating={patientSearch.creating}
+            getFieldError={patientSearch.getFieldError}
+            onFieldBlur={patientSearch.handleFieldBlur}
           />
 
           {/* Form Fields */}
@@ -143,6 +149,7 @@ export function AppointmentModal({
             form={form}
             doctors={doctors}
             onFieldChange={updateField}
+            hideDoctorField={hideDoctorField}
           />
 
           {/* Actions */}
@@ -167,9 +174,7 @@ export function AppointmentModal({
                 ? mode === 'create'
                   ? 'Creando…'
                   : 'Guardando…'
-                : mode === 'create'
-                ? 'Crear Cita'
-                : 'Guardar Cambios'}
+                : submitButtonText ?? (mode === 'create' ? 'Crear Cita' : 'Guardar Cambios')}
             </Button>
           </div>
         </form>

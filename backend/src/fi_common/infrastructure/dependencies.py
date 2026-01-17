@@ -14,10 +14,15 @@ from backend.policy.policy_enforcer import PolicyEnforcer
 
 
 def get_transcription_service():
-    """Get TranscriptionService from container."""
-    from .container import container
+    """Get TranscriptionService instance.
 
-    return container.get_transcription_service()
+    Direct import to avoid stub-fallback in container when backend.services is missing.
+    """
+    from backend.src.fi_transcription.services.transcription_service import (
+        TranscriptionService,
+    )
+
+    return TranscriptionService()
 
 
 def get_policy_enforcer(

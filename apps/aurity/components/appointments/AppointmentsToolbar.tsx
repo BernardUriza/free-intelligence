@@ -9,7 +9,7 @@
  * - Refresh and new appointment actions
  */
 
-import { ChevronLeft, ChevronRight, Plus, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, RefreshCw, ZoomIn, ZoomOut, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import type { AppointmentViewMode } from '@/components/bryntum/config/appointment-presets.config';
@@ -41,12 +41,19 @@ interface AppointmentsToolbarProps {
   minZoomLevel?: number;
   maxZoomLevel?: number;
 
+  // Horizontal scroll navigation
+  onScrollLeft?: () => void;
+  onScrollRight?: () => void;
+
   // Actions
   onRefresh: () => void;
   onNewAppointment: () => void;
 
   // Display helpers
   dateDisplayText: string;
+
+  // Loading/disabled state
+  isLoading?: boolean;
 }
 
 export function AppointmentsToolbar({
@@ -62,20 +69,30 @@ export function AppointmentsToolbar({
   zoomLevel,
   minZoomLevel = 5,
   maxZoomLevel = 14,
+  onScrollLeft,
+  onScrollRight,
   onRefresh,
   onNewAppointment,
   dateDisplayText,
+  isLoading = false,
 }: AppointmentsToolbarProps) {
+  // Controls disabled when no clinic selected or loading
+  const controlsDisabled = !selectedClinic || isLoading;
+
   return (
-    <div className="fi-flex-gap-md">
+    <nav aria-label="Controles del calendario" className="fi-flex-gap-md">
       {/* Clinic Selector */}
-      <Select value={selectedClinic} onValueChange={onClinicChange}>
+      <Select
+        value={selectedClinic}
+        onValueChange={onClinicChange}
+        items={Object.fromEntries(clinics.map((c) => [c.clinic_id, { label: c.name }]))}
+      >
         <SelectTrigger className="w-48">
           <SelectValue placeholder="Seleccionar clínica" />
         </SelectTrigger>
         <SelectContent>
           {clinics.map((clinic) => (
-            <SelectItem key={clinic.clinic_id} value={clinic.clinic_id}>
+            <SelectItem key={clinic.clinic_id} value={clinic.clinic_id} label={clinic.name}>
               {clinic.name}
             </SelectItem>
           ))}
@@ -83,7 +100,11 @@ export function AppointmentsToolbar({
       </Select>
 
       {/* View Mode Selector */}
-      <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
+      <div
+        role="group"
+        aria-label="Vista del calendario"
+        className={`flex items-center bg-slate-800 rounded-lg p-0.5 ${controlsDisabled ? 'opacity-50' : ''}`}
+      >
         {(Object.keys(APPOINTMENT_VIEW_PRESETS) as AppointmentViewMode[]).map((mode) => {
           const config = APPOINTMENT_VIEW_PRESETS[mode];
           const Icon = config.icon;
@@ -91,15 +112,18 @@ export function AppointmentsToolbar({
           return (
             <button
               key={mode}
+              type="button"
               onClick={() => onViewModeChange(mode)}
-              className={`flex items-center gap-1 px-2 py-1 rounded fi-text-xs-medium transition-colors ${
+              disabled={controlsDisabled}
+              aria-pressed={isActive}
+              className={`flex items-center gap-1 px-2 py-1 rounded fi-text-xs-medium transition-colors disabled:cursor-not-allowed ${
                 isActive
                   ? 'bg-cyan-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                  : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200 disabled:hover:bg-transparent'
               }`}
               title={config.label}
             >
-              <Icon className="h-3.5 w-3.5" />
+              <Icon className="h-3.5 w-3.5" aria-hidden="true" />
               <span className="hidden lg:inline">{config.label}</span>
             </button>
           );
@@ -107,46 +131,49 @@ export function AppointmentsToolbar({
       </div>
 
       {/* Date Navigation */}
-      <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
+      <div className={`flex items-center gap-1 bg-slate-800 rounded-lg p-0.5 ${controlsDisabled ? 'opacity-50' : ''}`}>
         <Button
           onClick={() => onNavigateDate('prev')}
           variant="ghost"
           size="sm"
           icon={ChevronLeft}
-          aria-label="Día anterior"
+          disabled={controlsDisabled}
+          aria-label="Fecha anterior"
         />
         <Button
           onClick={onGoToToday}
           variant="ghost"
           size="sm"
+          disabled={controlsDisabled}
           className="fi-text"
         >
           Hoy
         </Button>
-        <span className="px-2 py-1 fi-text-xs-medium min-w-[120px] text-center text-slate-200">
+        <time className="px-2 py-1 fi-text-xs-medium min-w-[120px] text-center text-slate-200">
           {dateDisplayText}
-        </span>
+        </time>
         <Button
           onClick={() => onNavigateDate('next')}
           variant="ghost"
           size="sm"
           icon={ChevronRight}
-          aria-label="Día siguiente"
+          disabled={controlsDisabled}
+          aria-label="Fecha siguiente"
         />
       </div>
 
       {/* Zoom Controls */}
       {(onZoomIn || onZoomOut) && (
-        <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
+        <div className={`flex items-center gap-1 bg-slate-800 rounded-lg p-0.5 ${controlsDisabled ? 'opacity-50' : ''}`}>
           <Button
             onClick={onZoomOut}
             variant="ghost"
             size="sm"
             icon={ZoomOut}
-            disabled={zoomLevel === undefined || zoomLevel <= minZoomLevel}
+            disabled={controlsDisabled || zoomLevel === undefined || zoomLevel <= minZoomLevel}
             aria-label="Alejar"
           />
-          <span className="px-2 fi-text-xs-medium text-slate-200 min-w-[40px] text-center">
+          <span className="px-2 fi-text-xs-medium text-slate-200 min-w-[40px] text-center" aria-live="polite">
             {zoomLevel !== undefined ? `${zoomLevel}` : '-'}
           </span>
           <Button
@@ -154,8 +181,32 @@ export function AppointmentsToolbar({
             variant="ghost"
             size="sm"
             icon={ZoomIn}
-            disabled={zoomLevel !== undefined && zoomLevel >= maxZoomLevel}
+            disabled={controlsDisabled || (zoomLevel !== undefined && zoomLevel >= maxZoomLevel)}
             aria-label="Acercar"
+          />
+        </div>
+      )}
+
+      {/* Horizontal Scroll Navigation */}
+      {(onScrollLeft || onScrollRight) && (
+        <div className={`flex items-center gap-1 bg-slate-800 rounded-lg p-0.5 ${controlsDisabled ? 'opacity-50' : ''}`}>
+          <Button
+            onClick={onScrollLeft}
+            variant="ghost"
+            size="sm"
+            icon={ArrowLeft}
+            disabled={controlsDisabled}
+            aria-label="Horas anteriores"
+            title="Ver horas anteriores"
+          />
+          <Button
+            onClick={onScrollRight}
+            variant="ghost"
+            size="sm"
+            icon={ArrowRight}
+            disabled={controlsDisabled}
+            aria-label="Horas siguientes"
+            title="Ver horas siguientes"
           />
         </div>
       )}
@@ -166,7 +217,9 @@ export function AppointmentsToolbar({
         variant="ghost"
         size="sm"
         icon={RefreshCw}
-        aria-label="Actualizar"
+        disabled={controlsDisabled || isLoading}
+        aria-label="Actualizar datos"
+        className={isLoading ? 'animate-spin' : ''}
       />
 
       {/* New Appointment */}
@@ -175,9 +228,10 @@ export function AppointmentsToolbar({
         variant="cyan"
         size="sm"
         icon={Plus}
+        disabled={controlsDisabled}
       >
         Nueva Cita
       </Button>
-    </div>
+    </nav>
   );
 }

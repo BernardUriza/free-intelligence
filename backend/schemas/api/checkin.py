@@ -197,7 +197,7 @@ class StartSessionRequest(BaseModel):
     """Request to start check-in session."""
 
     clinic_id: str = Field(..., min_length=1)
-    device_type: DeviceType = DeviceType.MOBILE
+    device_type: DeviceType = Field(default=DeviceType.MOBILE)
 
 
 class CheckinSessionResponse(BaseModel):

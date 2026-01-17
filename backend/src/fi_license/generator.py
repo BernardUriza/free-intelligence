@@ -51,6 +51,9 @@ class LicensePayload:
 
     All fields are stored in the license key and can be extracted
     by the desktop app after signature verification.
+
+    Note: Clinics are NOT tied to the license. The license defines
+    a max_clinics limit, and the admin creates clinics after activation.
     """
 
     # Unique license identifier
@@ -61,9 +64,11 @@ class LicensePayload:
     auth0_client_id: str = ""
     auth0_audience: str = ""
 
-    # Organization/clinic identifier
-    clinic_id: str = ""
-    clinic_name: str = ""
+    # License capacity (max clinics that can be created)
+    max_clinics: int = 1
+
+    # Optional: License holder info (for display purposes only)
+    license_holder: str = ""  # e.g., "Dr. García" or "Hospital Central"
 
     # Feature flags (what the license enables)
     features: list[str] = field(default_factory=list)
@@ -73,7 +78,7 @@ class LicensePayload:
     expires_at: str = ""  # ISO 8601 format
 
     # License metadata
-    version: str = "1.0"
+    version: str = "1.1"  # Bumped for new schema
 
     def to_json(self) -> str:
         """Serialize payload to compact JSON."""

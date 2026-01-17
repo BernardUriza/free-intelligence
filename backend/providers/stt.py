@@ -12,9 +12,8 @@ Note: Azure Whisper endpoint removed - AzureWhisperProvider kept for compatibili
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Union
+from typing import Any
 
 import os
 from backend.src.fi_common.logging.logger import get_logger
@@ -33,18 +32,40 @@ class STTProviderType(Enum):
     DEEPGRAM = "deepgram"
 
 
-@dataclass
 class STTResponse:
     """Unified response format from any STT provider"""
 
-    text: str  # Full transcription
-    segments: list[dict[str, Any]]  # [{start, end, text}, ...]
-    language: str  # Detected language (es, en, etc.)
-    duration: float  # Audio duration in seconds
-    confidence: float  # Overall confidence (0-1)
-    provider: str  # Provider name
-    latency_ms: float | None = None
-    metadata: dict[str, Any] | None = None
+    __slots__ = (
+        "confidence",
+        "duration",
+        "language",
+        "latency_ms",
+        "metadata",
+        "provider",
+        "segments",
+        "text",
+    )
+
+    def __init__(
+        self,
+        *,
+        text: str,
+        segments: list[dict[str, Any]],
+        language: str,
+        duration: float,
+        confidence: float,
+        provider: str,
+        latency_ms: float | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        self.text = text
+        self.segments = segments
+        self.language = language
+        self.duration = duration
+        self.confidence = confidence
+        self.provider = provider
+        self.latency_ms = latency_ms
+        self.metadata = metadata
 
 
 class STTProvider(ABC):
@@ -55,7 +76,7 @@ class STTProvider(ABC):
         self.logger = get_logger(self.__class__.__name__)
 
     @abstractmethod
-    def transcribe(self, audio_path: Union[str, Path], language: str | None = None) -> STTResponse:
+    def transcribe(self, audio_path: str | Path, language: str | None = None) -> STTResponse:
         """
         Transcribe audio file.
 
@@ -117,9 +138,11 @@ class AzureWhisperProvider(STTProvider):
             api_version=self.api_version,
         )
 
-    def transcribe(self, audio_path: Union[str, Path], language: str | None = None) -> STTResponse:
+    def transcribe(self, audio_path: str | Path, language: str | None = None) -> STTResponse:
         """Transcribe using Azure Whisper API"""
         import asyncio
+        import subprocess
+        import tempfile
         import time
 
         audio_path = Path(audio_path)
@@ -127,6 +150,7 @@ class AzureWhisperProvider(STTProvider):
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
         start_time = time.time()
+        converted_file = None  # Track temp file for cleanup
 
         try:
             self.logger.info(
@@ -135,8 +159,44 @@ class AzureWhisperProvider(STTProvider):
                 language=language,
             )
 
-            # Read audio file
-            audio_bytes = audio_path.read_bytes()
+            # Convert WebM to WAV if needed (Azure doesn't decode WebM well)
+            if audio_path.suffix.lower() == ".webm":
+                converted_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+                converted_path = Path(converted_file.name)
+                converted_file.close()
+
+                self.logger.info(
+                    "CONVERTING_WEBM_TO_WAV",
+                    source=str(audio_path),
+                    target=str(converted_path),
+                )
+
+                result = subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-i",
+                        str(audio_path),
+                        "-ar",
+                        "16000",  # 16kHz sample rate (optimal for Whisper)
+                        "-ac",
+                        "1",  # Mono
+                        "-f",
+                        "wav",
+                        str(converted_path),
+                    ],
+                    capture_output=True,
+                    timeout=30,
+                )
+
+                if result.returncode != 0:
+                    raise RuntimeError(f"ffmpeg conversion failed: {result.stderr.decode()}")
+
+                audio_bytes = converted_path.read_bytes()
+                self.logger.info("WEBM_CONVERTED_TO_WAV", size_bytes=len(audio_bytes))
+            else:
+                # Read audio file directly
+                audio_bytes = audio_path.read_bytes()
 
             # Call Azure API asynchronously
             # Use get_event_loop() instead of asyncio.run() to avoid nested loop error
@@ -188,6 +248,14 @@ class AzureWhisperProvider(STTProvider):
                 error=str(e),
             )
             raise
+
+        finally:
+            # Cleanup temporary WAV file if created
+            if converted_file is not None:
+                try:
+                    Path(converted_file.name).unlink(missing_ok=True)
+                except Exception:
+                    pass  # Ignore cleanup errors
 
     async def _transcribe_async(
         self, audio_bytes: bytes, language: str | None = None
@@ -300,7 +368,7 @@ class DeepgramProvider(STTProvider):
 
         self.logger.info("DEEPGRAM_PROVIDER_INITIALIZED")
 
-    def transcribe(self, audio_path: Union[str, Path], language: str | None = None) -> STTResponse:
+    def transcribe(self, audio_path: str | Path, language: str | None = None) -> STTResponse:
         """Transcribe using Deepgram API"""
         import time
 

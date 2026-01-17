@@ -158,7 +158,8 @@ interface UseFullCalendarOptions extends UseCalendarEventsOptions {
 }
 
 interface UseFullCalendarResult extends UseCalendarEventsResult {
-  calendarRef: React.RefObject<FullCalendar | null>;
+  /** Ref to the FullCalendar instance. Use as ref={calendarRef} on CalendarCore */
+  calendarRef: React.RefObject<FullCalendar>;
   navigation: CalendarNavigation;
 }
 
@@ -177,7 +178,9 @@ export function useFullCalendar(
   availability: AvailabilityData | null | undefined,
   options: UseFullCalendarOptions = {}
 ): UseFullCalendarResult {
-  const calendarRef = useRef<FullCalendar>(null);
+  // Note: useRef<T>(null) returns RefObject<T | null> in React 19
+  // We cast to RefObject<T> for forwardRef compatibility
+  const calendarRef = useRef<FullCalendar>(null) as React.RefObject<FullCalendar>;
   const { events, isLoading, error } = useCalendarEvents(availability, options);
   const navigation = useCalendarNavigation(calendarRef);
 

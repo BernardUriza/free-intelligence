@@ -23,7 +23,6 @@ import threading
 import time
 from collections import deque
 from collections.abc import Callable
-from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Type
@@ -38,7 +37,7 @@ logger = get_logger(__name__)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-class CircuitState(str, Enum):
+class CircuitState(Enum):
     """Circuit breaker states"""
 
     CLOSED = "closed"  # Normal operation
@@ -68,14 +67,23 @@ class CircuitBreakerOpen(Exception):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-@dataclass
-class CallResult:
-    """Result of a call through circuit breaker"""
+class CircuitBreakerCallResult:
+    """Result of a call through circuit breaker."""
 
-    timestamp: float
-    success: bool
-    duration_ms: float
-    exception_type: str | None = None
+    __slots__ = ("duration_ms", "exception_type", "success", "timestamp")
+
+    def __init__(
+        self,
+        *,
+        timestamp: float,
+        success: bool,
+        duration_ms: float,
+        exception_type: str | None = None,
+    ) -> None:
+        self.timestamp = timestamp
+        self.success = success
+        self.duration_ms = duration_ms
+        self.exception_type = exception_type
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -129,14 +137,14 @@ class CircuitBreaker:
         self.window_size = window_size
         self.excluded_exceptions = excluded_exceptions
 
-        self._state = CircuitState.CLOSED
+        self._state: str = CircuitState.CLOSED
         self._failure_count = 0
         self._success_count = 0
         self._last_failure_time: float | None = None
         self._opened_at: float | None = None
 
         # Sliding window of recent calls
-        self._call_history: deque[CallResult] = deque(maxlen=100)
+        self._call_history: deque[CircuitBreakerCallResult] = deque(maxlen=100)
 
         self._lock = threading.RLock()
         self.logger = get_logger(__name__)
@@ -149,7 +157,7 @@ class CircuitBreaker:
         )
 
     @property
-    def state(self) -> CircuitState:
+    def state(self) -> str:
         """Get current circuit state (thread-safe)"""
         with self._lock:
             return self._state
@@ -189,7 +197,7 @@ class CircuitBreaker:
 
             # Add to history
             self._call_history.append(
-                CallResult(timestamp=now, success=True, duration_ms=duration_ms)
+                CircuitBreakerCallResult(timestamp=now, success=True, duration_ms=duration_ms)
             )
 
             if self._state == CircuitState.HALF_OPEN:
@@ -231,7 +239,7 @@ class CircuitBreaker:
 
             # Add to history
             self._call_history.append(
-                CallResult(
+                CircuitBreakerCallResult(
                     timestamp=now,
                     success=False,
                     duration_ms=duration_ms,
@@ -306,7 +314,7 @@ class CircuitBreaker:
                 self.logger.warning(
                     "CIRCUIT_BREAKER_REJECTING_CALL",
                     name=self.name,
-                    state=self._state.value,
+                    state=self._state,
                     retry_after=round(retry_after, 1),
                 )
 
@@ -335,7 +343,7 @@ class CircuitBreaker:
 
             return {
                 "name": self.name,
-                "state": self._state.value,
+                "state": self._state,
                 "failure_threshold": self.failure_threshold,
                 "recovery_timeout": self.recovery_timeout,
                 "current_failures": self._failure_count,

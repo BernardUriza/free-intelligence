@@ -15,13 +15,16 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { X, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 
-type ToastType = 'error' | 'success' | 'info';
+export type ToastType = 'error' | 'success' | 'info';
 
-interface Toast {
+export interface Toast {
   id: string;
   type: ToastType;
   message: string;
 }
+
+// ToastProps exported for external usage
+export type ToastProps = Toast;
 
 interface ToastContextValue {
   toasts: Toast[];

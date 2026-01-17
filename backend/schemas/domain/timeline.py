@@ -14,8 +14,8 @@ Sprint: SPR-2025W44
 import hashlib
 import uuid
 from datetime import UTC, datetime
-from enum import Enum
-from typing import Any, List
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 # ============================================================================
 
 
-class TimelineEventType(str, Enum):
+class TimelineEventType(StrEnum):
     """Tipos de eventos en timeline."""
 
     # User actions
@@ -51,7 +51,7 @@ class TimelineEventType(str, Enum):
     EXPORT_CREATED = "export_created"
 
 
-class CausalityType(str, Enum):
+class CausalityType(StrEnum):
     """Tipo de relación causal entre eventos."""
 
     CAUSED_BY = "caused_by"  # Este evento fue causado por...
@@ -62,7 +62,7 @@ class CausalityType(str, Enum):
     CONTRADICTED = "contradicted"  # Este evento contradijo...
 
 
-class RedactionPolicy(str, Enum):
+class RedactionPolicy(StrEnum):
     """Política de redacción de contenido."""
 
     NONE = "none"  # Sin redacción (datos públicos)
@@ -71,7 +71,7 @@ class RedactionPolicy(str, Enum):
     FULL = "full"  # Redacción completa (solo hash)
 
 
-class TimelineMode(str, Enum):
+class TimelineMode(StrEnum):
     """Modo de generación de timeline."""
 
     AUTO = "auto"  # Automático con Ollama
@@ -137,7 +137,7 @@ class TimelineEvent(BaseModel):
     # Metadata
     session_id: str | None = Field(None, description="ID de sesión/consulta")
     reference_id: str | None = Field(None, description="ID en event store (HDF5)")
-    tags: List[str] = Field(default_factory=list, description="Tags para filtrado")
+    tags: list[str] = Field(default_factory=list, description="Tags para filtrado")
 
     # Auto-timeline metadata
     auto_generated: bool = Field(False, description="Si fue generado automáticamente")
@@ -214,7 +214,7 @@ class Timeline(BaseModel):
 
         Returns list of events in causal order.
         """
-        chain = []
+        chain: list[TimelineEvent] = []
         event = self.get_event_by_id(event_id)
 
         if not event:
@@ -259,17 +259,17 @@ class Timeline(BaseModel):
 
 
 def create_timeline_event(
-    event_type: TimelineEventType,
+    event_type: TimelineEventType | str,
     who: str,
     what: str,
     raw_content: str,
     summary: str | None = None,
-    causality: list[TimelineEventCausality | None] | None = None,
-    redaction_policy: RedactionPolicy = RedactionPolicy.SUMMARY,
+    causality: list[TimelineEventCausality] | None = None,
+    redaction_policy: RedactionPolicy | str = "summary",
     session_id: str | None = None,
-    tags: list[str | None] | None = None,
+    tags: list[str] | None = None,
     auto_generated: bool = False,
-    generation_mode: TimelineMode = TimelineMode.MANUAL,
+    generation_mode: TimelineMode | str = "manual",
 ) -> TimelineEvent:
     """
     Helper function to create timeline event with proper redaction.
@@ -293,6 +293,13 @@ def create_timeline_event(
     # Compute content hash (without storing raw content)
     content_hash = hashlib.sha256(raw_content.encode()).hexdigest()
 
+    if not isinstance(event_type, TimelineEventType):
+        event_type = TimelineEventType(str(event_type))
+    if not isinstance(redaction_policy, RedactionPolicy):
+        redaction_policy = RedactionPolicy(str(redaction_policy))
+    if not isinstance(generation_mode, TimelineMode):
+        generation_mode = TimelineMode(str(generation_mode))
+
     return TimelineEvent(
         event_type=event_type,
         who=who,
@@ -312,11 +319,15 @@ def create_timeline_event(
 
 def create_causality(
     related_event_id: str,
-    causality_type: CausalityType,
+    causality_type: CausalityType | str,
     explanation: str | None = None,
     confidence: float = 1.0,
 ) -> TimelineEventCausality:
     """Helper function to create causality relation."""
+
+    if not isinstance(causality_type, CausalityType):
+        causality_type = CausalityType(str(causality_type))
+
     return TimelineEventCausality(
         related_event_id=related_event_id,
         causality_type=causality_type,

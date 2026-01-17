@@ -221,7 +221,16 @@ type-check: ## Run Pyright type checker (fast)
 
 type-check-mypy: ## Run mypy type checker (thorough)
 	@echo "🔍 Type checking with Mypy..."
-	mypy backend/ --ignore-missing-imports --show-error-codes
+	@if command -v uv >/dev/null 2>&1; then \
+		echo "ℹ️  Using uv run (extra: dev)"; \
+		uv run --extra dev -m mypy backend/ --config-file mypy.ini --show-error-codes; \
+	else \
+		$(PY) -c "import mypy" >/dev/null 2>&1 || { \
+			echo "❌ mypy not installed for $(PY). Install dev deps (recommended): make uv-install (then rerun) OR pip install -e '.[dev]'"; \
+			exit 1; \
+		}; \
+		$(PY) -m mypy backend/ --config-file mypy.ini --show-error-codes; \
+	fi
 
 type-check-all: ## Run all type checkers (Pyright + Mypy + Ruff)
 	@echo "🔍 Running all type checkers..."
@@ -231,7 +240,7 @@ type-check-all: ## Run all type checkers (Pyright + Mypy + Ruff)
 	-pyright backend/
 	@echo ""
 	@echo "2️⃣  Mypy (thorough)..."
-	-mypy backend/ --ignore-missing-imports
+	-$(MAKE) type-check-mypy
 	@echo ""
 	@echo "3️⃣  Ruff (linting)..."
 	-ruff check backend/
@@ -621,7 +630,7 @@ deprecated-docker-ps: ## [DEPRECATED] Docker stack removed 2025-11-15
 
 uv-install: ## Install deps with uv (no --break-system-packages)
 	@command -v uv >/dev/null 2>&1 || { echo "❌ uv not found. Install: curl -LsSf https://astral.sh/uv/install.sh | sh"; exit 1; }
-	uv sync --python $(PY)
+	uv sync --python $(PY) --extra dev
 	@echo "✅ Dependencies installed via uv"
 
 uv-test: ## Run tests with uv

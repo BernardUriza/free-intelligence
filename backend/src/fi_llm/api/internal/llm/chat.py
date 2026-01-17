@@ -832,7 +832,8 @@ async def internal_llm_chat_stream(request: ChatRequest):
                         error=str(store_err),
                     )
 
-            yield f"data: {json.dumps({'done': True})}\n\n"
+            # Include persona in the final event so frontend knows which persona was used
+            yield f"data: {json.dumps({'done': True, 'persona': request.persona, 'model': model_name})}\n\n"
 
         except Exception as e:
             error_latency_ms = int((time.time() - start_time) * 1000)

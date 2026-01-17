@@ -300,10 +300,19 @@ export function filterEventsByDateRange(
 
   return events.filter((event) => {
     if (!event.start) return false;
-    const eventStart =
-      typeof event.start === 'string'
-        ? new Date(event.start).getTime()
-        : event.start.getTime();
+    let eventStart: number;
+    if (typeof event.start === 'string') {
+      eventStart = new Date(event.start).getTime();
+    } else if (event.start instanceof Date) {
+      eventStart = event.start.getTime();
+    } else if (typeof event.start === 'number') {
+      eventStart = event.start;
+    } else if (Array.isArray(event.start)) {
+      // number[] representing [year, month, day, ...] - convert to Date
+      eventStart = new Date(event.start[0], event.start[1] - 1, event.start[2] ?? 1).getTime();
+    } else {
+      return false;
+    }
     return eventStart >= startTime && eventStart < endTime;
   });
 }

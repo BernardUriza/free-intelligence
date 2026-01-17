@@ -13,9 +13,8 @@ Created: 2025-10-28
 
 import hashlib
 import json
-from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Dict, List
+from typing import Any
 
 import jsonschema
 import yaml
@@ -29,39 +28,73 @@ DEFAULT_OLLAMA_MODEL = "qwen3:1.7b"
 logger = get_logger(__name__)
 
 
-@dataclass
 class PresetConfig:
     """Preset configuration"""
 
-    preset_id: str
-    version: str
-    description: str
+    __slots__ = (
+        "cache_enabled",
+        "cache_key_fields",
+        "cache_ttl_seconds",
+        "description",
+        "examples",
+        "max_tokens",
+        "metadata",
+        "model",
+        "output_schema_path",
+        "preset_id",
+        "provider",
+        "stream",
+        "system_prompt",
+        "temperature",
+        "validation_enabled",
+        "validation_strict",
+        "version",
+    )
 
-    # LLM config
-    provider: str
-    model: str
-    temperature: float
-    max_tokens: int
-    stream: bool
-
-    # Prompts
-    system_prompt: str
-
-    # Validation
-    output_schema_path: str | None
-    validation_enabled: bool
-    validation_strict: bool
-
-    # Caching
-    cache_enabled: bool
-    cache_ttl_seconds: int
-    cache_key_fields: List[str]
-
-    # Examples (for few-shot)
-    examples: list[dict[str, str]]
-
-    # Metadata
-    metadata: Dict[str, Any]
+    def __init__(
+        self,
+        *,
+        preset_id: str,
+        version: str,
+        description: str,
+        # LLM
+        provider: LLMProvider,
+        model: str,
+        temperature: float,
+        max_tokens: int,
+        stream: bool,
+        # Prompts
+        system_prompt: str,
+        # Validation
+        output_schema_path: str | None,
+        validation_enabled: bool,
+        validation_strict: bool,
+        # Caching
+        cache_enabled: bool,
+        cache_ttl_seconds: int,
+        cache_key_fields: list[str],
+        # Examples
+        examples: list[dict[str, str]],
+        # Metadata
+        metadata: dict[str, Any],
+    ) -> None:
+        self.preset_id = preset_id
+        self.version = version
+        self.description = description
+        self.provider = provider
+        self.model = model
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.stream = stream
+        self.system_prompt = system_prompt
+        self.output_schema_path = output_schema_path
+        self.validation_enabled = validation_enabled
+        self.validation_strict = validation_strict
+        self.cache_enabled = cache_enabled
+        self.cache_ttl_seconds = cache_ttl_seconds
+        self.cache_key_fields = cache_key_fields
+        self.examples = examples
+        self.metadata = metadata
 
 
 class PresetLoader:
@@ -140,12 +173,19 @@ class PresetLoader:
             validation_config = data.get("validation", {})
             cache_config = data.get("cache", {})
 
+            provider_raw = llm_config.get("provider", LLMProvider.OLLAMA)
+            provider: LLMProvider
+            if isinstance(provider_raw, LLMProvider):
+                provider = provider_raw
+            else:
+                provider = LLMProvider(str(provider_raw))
+
             preset = PresetConfig(
                 preset_id=data["preset_id"],
                 version=data["version"],
                 description=data["description"],
                 # LLM
-                provider=llm_config.get("provider", LLMProvider.OLLAMA),
+                provider=provider,
                 model=llm_config.get("model", DEFAULT_OLLAMA_MODEL),
                 temperature=llm_config.get("temperature", 0.7),
                 max_tokens=llm_config.get("max_tokens", 2048),
@@ -218,7 +258,7 @@ class PresetLoader:
             self.logger.error("SCHEMA_LOADING_FAILED", schema_path=schema_path, error=str(e))
             raise ValueError(f"Failed to load schema {schema_path}: {e}")
 
-    def validate_output(self, output: Dict[str, Any], schema: Dict[str, Any]) -> bool:
+    def validate_output(self, output: dict[str, Any], schema: dict[str, Any]) -> bool:
         """
         Validate LLM output against JSON Schema.
 
@@ -256,7 +296,7 @@ class PresetLoader:
             SHA256 hash (hex)
         """
         # Build key from configured fields
-        key_parts = {"preset_id": preset.preset_id, "prompt": prompt}
+        key_parts: dict[str, Any] = {"preset_id": preset.preset_id, "prompt": prompt}
 
         # Add cache_key_fields from preset config
         for field in preset.cache_key_fields:

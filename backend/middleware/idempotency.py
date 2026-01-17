@@ -21,7 +21,6 @@ import hashlib
 import threading
 import time
 from collections import defaultdict
-from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from backend.src.fi_common.logging.logger import get_logger
@@ -37,15 +36,29 @@ logger = get_logger(__name__)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-@dataclass
 class CachedResponse:
     """Cached idempotent response"""
 
-    status_code: int
-    headers: dict[str, str]
-    body: bytes
-    created_at: float
-    ttl_seconds: int = 3600  # 1 hour default
+    __slots__ = ("body", "created_at", "headers", "status_code", "ttl_seconds")
+
+    def __init__(
+        self,
+        *,
+        status_code: int,
+        headers: dict[str, str],
+        body: bytes,
+        created_at: float,
+        ttl_seconds: int = 3600,
+    ) -> None:
+        self.status_code = status_code
+        self.headers = headers
+        self.body = body
+        self.created_at = created_at
+        self.ttl_seconds = ttl_seconds
+        self.headers = headers
+        self.body = body
+        self.created_at = created_at
+        self.ttl_seconds = ttl_seconds
 
     def is_expired(self) -> bool:
         """Check if cached response expired"""

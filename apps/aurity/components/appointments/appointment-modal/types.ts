@@ -34,15 +34,19 @@ export interface AppointmentModalProps {
   doctors: Doctor[];
   initialData?: Partial<AppointmentDraft & { appointment_id: AppointmentId }>;
   prefilledData?: { date?: Date; doctorId?: string; endDate?: Date } | null;
+  // Customization props for unified modal
+  submitButtonText?: string;    // Override submit button text (default: "Crear Cita" / "Guardar Cambios")
+  hideDoctorField?: boolean;    // Hide doctor selector when doctor is implicit (e.g., MedicalAI)
+  onAfterSubmit?: () => void;   // Callback after successful submit (e.g., start workflow)
 }
 
 // Re-export Doctor type from bryntum utils
 import type { Doctor } from '@/components/bryntum/utils/appointment-transform.utils';
 export type { Doctor };
 
-export interface NewPatientForm {
-  nombre: string;
-  apellido: string;
-  email: string;
-  phone: string;
-}
+// Re-export patient form types from shared location
+export type {
+  PatientFormData,
+  PatientFormErrors,
+  PatientFormField,
+} from '@/components/patients/usePatientFormValidation';

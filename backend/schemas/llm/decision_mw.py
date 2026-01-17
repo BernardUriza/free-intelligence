@@ -12,9 +12,8 @@ File: backend/decision_mw.py
 Created: 2025-10-28
 """
 
-from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 from backend.src.fi_common.logging.logger import get_logger
@@ -23,14 +22,23 @@ from pathlib import Path
 logger = get_logger(__name__)
 
 
-@dataclass
 class DecisionEvent:
     """Domain event emitted by decision middleware"""
 
-    event: str
-    priority: str
-    metadata: Dict[str, Any]
-    rule_name: str
+    __slots__ = ("event", "metadata", "priority", "rule_name")
+
+    def __init__(
+        self,
+        *,
+        event: str,
+        priority: str,
+        metadata: dict[str, Any],
+        rule_name: str,
+    ) -> None:
+        self.event = event
+        self.priority = priority
+        self.metadata = metadata
+        self.rule_name = rule_name
 
 
 class ConditionEvaluator:
@@ -50,7 +58,7 @@ class ConditionEvaluator:
     def __init__(self):
         self.logger = get_logger(__name__)
 
-    def evaluate(self, condition: Dict[str, Any], data: Dict[str, Any]) -> bool:
+    def evaluate(self, condition: dict[str, Any], data: dict[str, Any]) -> bool:
         """
         Evaluate condition against data.
 
@@ -119,7 +127,7 @@ class ConditionEvaluator:
         """Evaluate OR of multiple conditions"""
         return any(self.evaluate(cond, data) for cond in conditions)
 
-    def _get_field_value(self, data: Dict[str, Any], field: str) -> Any:
+    def _get_field_value(self, data: dict[str, Any], field: str) -> Any:
         """
         Get nested field value using dot notation.
 
@@ -129,7 +137,7 @@ class ConditionEvaluator:
             "medical_history.allergies" -> data["medical_history"]["allergies"]
         """
         keys = field.split(".")
-        value = data
+        value: Any = data
 
         for key in keys:
             if isinstance(value, dict):
@@ -208,7 +216,7 @@ class DecisionMiddleware:
             raise ValueError(f"Failed to load rules: {e}")
 
     def apply_rules(
-        self, preset_id: str, data: Dict[str, Any], stop_on_first_match: bool = False
+        self, preset_id: str, data: dict[str, Any], stop_on_first_match: bool = False
     ) -> list[DecisionEvent]:
         """
         Apply decision rules to validated JSON data.

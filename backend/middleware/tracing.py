@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import contextvars
 import uuid
-from dataclasses import dataclass
 from typing import Any
 
 from backend.src.fi_common.logging.logger import get_logger
@@ -49,23 +48,34 @@ _parent_span_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 )
 _session_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("session_id", default=None)
 
-
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # TRACE CONTEXT
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-@dataclass
-class TraceContext:
-    """Current trace context"""
+class RequestTraceContext:
+    """Current trace context.
 
-    trace_id: str
-    span_id: str
-    parent_span_id: str | None = None
-    session_id: str | None = None
+    Named to avoid collisions with Python 3.14/typeshed builtins (e.g., TraceContext).
+    """
+
+    __slots__ = ("parent_span_id", "session_id", "span_id", "trace_id")
+
+    def __init__(
+        self,
+        *,
+        trace_id: str,
+        span_id: str,
+        parent_span_id: str | None = None,
+        session_id: str | None = None,
+    ) -> None:
+        self.trace_id = trace_id
+        self.span_id = span_id
+        self.parent_span_id = parent_span_id
+        self.session_id = session_id
 
     def to_dict(self) -> dict[str, str]:
-        """Convert to dict for logging"""
+        """Convert to dict for logging."""
         return {
             "trace_id": self.trace_id,
             "span_id": self.span_id,
@@ -74,8 +84,8 @@ class TraceContext:
         }
 
     def to_headers(self) -> dict[str, str]:
-        """Convert to HTTP headers for propagation"""
-        headers = {
+        """Convert to HTTP headers for propagation."""
+        headers: dict[str, str] = {
             "X-Trace-Id": self.trace_id,
             "X-Span-Id": self.span_id,
         }
@@ -116,7 +126,7 @@ def set_trace_context(
     span_id: str,
     parent_span_id: str | None = None,
     session_id: str | None = None,
-) -> TraceContext:
+) -> RequestTraceContext:
     """
     Set trace context for current request.
 
@@ -127,14 +137,14 @@ def set_trace_context(
         session_id: Session identifier
 
     Returns:
-        TraceContext
+        RequestTraceContext
     """
     _trace_id.set(trace_id)
     _span_id.set(span_id)
     _parent_span_id.set(parent_span_id)
     _session_id.set(session_id)
 
-    return TraceContext(
+    return RequestTraceContext(
         trace_id=trace_id,
         span_id=span_id,
         parent_span_id=parent_span_id,
@@ -142,7 +152,7 @@ def set_trace_context(
     )
 
 
-def get_trace_context() -> TraceContext | None:
+def get_trace_context() -> RequestTraceContext | None:
     """Get current trace context"""
     trace_id = get_trace_id()
     span_id = get_span_id()
@@ -150,7 +160,7 @@ def get_trace_context() -> TraceContext | None:
     if not trace_id or not span_id:
         return None
 
-    return TraceContext(
+    return RequestTraceContext(
         trace_id=trace_id,
         span_id=span_id,
         parent_span_id=get_parent_span_id(),
@@ -171,7 +181,7 @@ def clear_trace_context() -> None:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-def create_child_span(operation_name: str) -> TraceContext:
+def create_child_span(operation_name: str) -> RequestTraceContext:
     """
     Create child span for nested operation.
 
@@ -186,7 +196,7 @@ def create_child_span(operation_name: str) -> TraceContext:
         operation_name: Name of operation (for logging)
 
     Returns:
-        TraceContext with new span
+        RequestTraceContext with new span
     """
     current_trace_id = get_trace_id()
     current_span_id = get_span_id()
@@ -222,7 +232,7 @@ def create_child_span(operation_name: str) -> TraceContext:
     return context
 
 
-def create_root_span(operation_name: str, session_id: str | None = None) -> TraceContext:
+def create_root_span(operation_name: str, session_id: str | None = None) -> RequestTraceContext:
     """
     Create root span (new trace).
 
@@ -235,7 +245,7 @@ def create_root_span(operation_name: str, session_id: str | None = None) -> Trac
         session_id: Optional session identifier
 
     Returns:
-        TraceContext with new trace
+        RequestTraceContext with new trace
     """
     trace_id = generate_trace_id()
     span_id = generate_span_id()

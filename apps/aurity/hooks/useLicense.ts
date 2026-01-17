@@ -22,13 +22,15 @@ export interface LicenseValidationResult {
 }
 
 // License payload structure
+// NOTE: Clinics are NOT embedded in license. The license sets max_clinics limit,
+// and actual clinics are created via API after license activation.
 export interface LicensePayload {
   license_id: string;
   auth0_domain: string;
   auth0_client_id: string;
   auth0_audience: string;
-  clinic_id: string;
-  clinic_name: string;
+  max_clinics: number;
+  license_holder: string;
   features: string[];
   issued_at: string;
   expires_at: string;
@@ -83,7 +85,8 @@ export interface UseLicenseReturn {
 
   // Derived data
   daysRemaining: number | null;
-  clinicName: string | null;
+  maxClinics: number;
+  licenseHolder: string | null;
   features: string[];
   needsRenewal: boolean;
 }
@@ -250,7 +253,8 @@ export function useLicense(): UseLicenseReturn {
   const isActivated = licenseStatus?.status !== 'not_activated';
   const isValid = licenseStatus?.is_valid ?? false;
   const daysRemaining = licenseStatus?.days_remaining ?? null;
-  const clinicName = licenseStatus?.payload?.clinic_name ?? null;
+  const maxClinics = licenseStatus?.payload?.max_clinics ?? 1;
+  const licenseHolder = licenseStatus?.payload?.license_holder ?? null;
   const features = licenseStatus?.payload?.features ?? [];
   const needsRenewal = renewalStatus?.needs_renewal ?? false;
 
@@ -270,7 +274,8 @@ export function useLicense(): UseLicenseReturn {
     checkRenewalStatus,
     requestRenewal,
     daysRemaining,
-    clinicName,
+    maxClinics,
+    licenseHolder,
     features,
     needsRenewal,
   };

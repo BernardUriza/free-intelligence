@@ -38,6 +38,9 @@ export interface Doctor {
 
 /**
  * Appointment entity from backend
+ *
+ * This is the minimal type for Bryntum scheduler transformations.
+ * Compatible with the full Appointment type in @/types/checkin.
  */
 export interface Appointment {
   appointment_id: string;
@@ -50,8 +53,24 @@ export interface Appointment {
   status: string;
   checkin_code: string;
   reason: string | null;
-  notes?: string | null; // Optional notes field
-  patient_name?: string; // Optional - fetched separately
+  notes?: string | null;
+  patient_name?: string;
+
+  // Status tracking (optional - from full checkin type)
+  checked_in_at?: string | null;
+  called_at?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+
+  // Check-in code expiration (optional)
+  checkin_code_expires_at?: string;
+
+  // Pending actions (optional - from full checkin type)
+  pending_actions?: unknown[];
+
+  // Timestamps (optional)
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**

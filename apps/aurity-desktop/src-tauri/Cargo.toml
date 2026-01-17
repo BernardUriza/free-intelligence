@@ -15,6 +15,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 tauri-plugin-process = "2"
 tauri-plugin-deep-link = "2"           # Deep links for OAuth callback (aurity://)
+tauri-plugin-updater = "2"             # Auto-updater with signature verification
 # Note: single-instance removed - causes config deserialization issues in Tauri 2.x
 # Deep links on macOS work via on_open_url(), Windows/Linux can add this back later
 tauri-plugin-opener = "2"              # Open browser for OAuth flow
@@ -22,7 +23,8 @@ tauri-plugin-dialog = "2"              # File picker for license import
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }  # Added stream for download progress
+futures-util = "0.3"   # For streaming downloads with progress
 dirs = "5.0"  # For getting home directory (5.0.1 verified on crates.io)
 
 # Auth0 OAuth 2.0 + PKCE dependencies

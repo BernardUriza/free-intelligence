@@ -80,6 +80,7 @@ dmypy.json
 .claude/auth0_actions.env
 .claude/learnings/
 .claude/plans/
+.claude/commands/
 
 # Rust / Tauri
 target/
@@ -87,6 +88,11 @@ apps/aurity-desktop/src-tauri/target/
 apps/aurity-desktop/src-tauri/binaries/
 apps/aurity-desktop/src-tauri/resources/ollama/
 Cargo.lock
+
+# Tauri signing keys (CRITICAL: Never commit private keys)
+.tauri/
+*.key
+!*.key.pub
 
 # PyInstaller
 apps/aurity-desktop/pyinstaller/dist/

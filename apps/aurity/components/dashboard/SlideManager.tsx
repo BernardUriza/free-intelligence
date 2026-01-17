@@ -129,10 +129,11 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
   void slides.filter(s => !s.is_active);
 
   // Helper function to get icon/label for content type
-  const getContentInfo = (item: ContentItem, index: number) => {
-    if (item.widgetType === 'clinic_image') return { icon: '📷', label: item.widgetData?.title || 'Imagen', editable: true };
-    if (item.widgetType === 'clinic_video') return { icon: '🎬', label: item.widgetData?.title || 'Video', editable: true };
-    if (item.widgetType === 'clinic_message') return { icon: '💬', label: item.widgetData?.title || 'Mensaje', editable: true };
+  const getContentInfo = (item: ContentItem, index: number): { icon: string; label: string; editable: boolean } => {
+    const title = typeof item.widgetData?.title === 'string' ? item.widgetData.title : undefined;
+    if (item.widgetType === 'clinic_image') return { icon: '📷', label: title || 'Imagen', editable: true };
+    if (item.widgetType === 'clinic_video') return { icon: '🎬', label: title || 'Video', editable: true };
+    if (item.widgetType === 'clinic_message') return { icon: '💬', label: title || 'Mensaje', editable: true };
     if (item.widgetType === 'weather') return { icon: '🌤️', label: 'Clima y Hora', editable: false };
     if (item.widgetType === 'trivia') return { icon: '🧠', label: 'Trivia de Salud', editable: false };
     if (item.widgetType === 'breathing') return { icon: '🫁', label: 'Ejercicio de Respiración', editable: false };

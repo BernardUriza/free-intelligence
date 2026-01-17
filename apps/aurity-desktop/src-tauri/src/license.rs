@@ -23,20 +23,22 @@ use std::path::PathBuf;
 ///
 /// IMPORTANT: Replace this with your actual public key from:
 /// ~/.aurity-admin/license.pub (base64 encoded)
-const LICENSE_PUBLIC_KEY_B64: &str = "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUNvd0JRWURLMlZ3QXlFQXlkN2JIMTBCL21PMnhPYTNXVEFxUldET0RHZUMvRzNKL0tVVHA0TkJpUWs9Ci0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQo=";
+const LICENSE_PUBLIC_KEY_B64: &str = "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUNvd0JRWURLMlZ3QXlFQWxDNmI5RmNTNUN2TDJRWlVZdmtpNWZsc0xLYjBRU0xha08rbTZpQ0puS0U9Ci0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQo=";
 
 /// License key prefix
 const LICENSE_PREFIX: &str = "AURITY";
 
 /// License payload structure (matches Python generator)
+/// NOTE: Clinics are NOT embedded in license. The license sets max_clinics limit,
+/// and actual clinics are created via API after license activation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LicensePayload {
     pub license_id: String,
     pub auth0_domain: String,
     pub auth0_client_id: String,
     pub auth0_audience: String,
-    pub clinic_id: String,
-    pub clinic_name: String,
+    pub max_clinics: u32,
+    pub license_holder: String,
     pub features: Vec<String>,
     pub issued_at: String,
     pub expires_at: String,

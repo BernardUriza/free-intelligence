@@ -90,7 +90,7 @@ class QwenThinkingParser(LLMResponseParser):
         thinking_parts = []
         content_parts = []
         depth = 0
-        current_think = []
+        current_think: list[str] = []
         i = 0
 
         while i < len(text):

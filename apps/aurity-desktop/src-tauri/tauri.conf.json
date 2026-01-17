@@ -5,7 +5,7 @@
   "identifier": "io.aurity.desktop",
   "build": {
     "beforeBuildCommand": "pnpm run build:frontend",
-    "beforeDevCommand": "pnpm run build:frontend",
+    "beforeDevCommand": "",
     "frontendDist": "../../aurity/out"
   },
   "app": {
@@ -43,6 +43,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": [
+      "binaries/aurity-backend"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -102,6 +105,12 @@
       "desktop": {
         "schemes": ["aurity"]
       }
+    },
+    "updater": {
+      "endpoints": [
+        "https://github.com/BernardUriza/free-intelligence/releases/latest/download/aurity-desktop-updater.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDA5RTgzMEFFQjVGREVGN0YKUldSLzcvMjFyakRvQ1FocDFIbkRoQ1JlbkdSUEc1QlhZR1F3TzF4NEFJcS9NM3BpVCtQbE9nYk0K"
     }
   }
 }

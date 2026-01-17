@@ -22,22 +22,38 @@ Created: 2025-10-28
 """
 
 import re
-from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, TypedDict
 
 from backend.src.fi_common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-@dataclass
 class ValidationResult:
-    """Result of medical validation"""
+    """Result of medical validation.
+
+    NOTE: We keep an explicit __init__ so MyPy can type-check without relying
+    on dataclasses plugins.
+    """
+
+    __slots__ = ("is_safe", "reason", "score", "severity")
 
     is_safe: bool
-    score: float  # 0-100
+    score: float
     reason: str
-    severity: str  # INFO, WARNING, BLOCKER
+    severity: str
+
+    def __init__(self, is_safe: bool, score: float, reason: str, severity: str) -> None:
+        self.is_safe = is_safe
+        self.score = score
+        self.reason = reason
+        self.severity = severity
+
+
+class PediatricContraindication(TypedDict):
+    drugs: list[str]
+    age_limit: int
+    reason: str
 
 
 class MedicalScorer:
@@ -52,10 +68,10 @@ class MedicalScorer:
     """
 
     # Urgency levels (ordered by severity)
-    URGENCY_ORDER = {"LOW": 0, "MODERATE": 1, "HIGH": 2, "CRITICAL": 3}
+    URGENCY_ORDER: dict[str, int] = {"LOW": 0, "MODERATE": 1, "HIGH": 2, "CRITICAL": 3}
 
     # Widow-maker patterns (life-threatening)
-    WIDOW_MAKER_PATTERNS = {
+    WIDOW_MAKER_PATTERNS: dict[str, list[str]] = {
         "stemi": [
             "crushing chest pain",
             "chest pressure",
@@ -221,7 +237,7 @@ class MedicalScorer:
             severity="WARNING",
         )
 
-    def score_required_history(self, output: Dict[str, Any], case_prompt: str) -> ValidationResult:
+    def score_required_history(self, output: dict[str, Any], case_prompt: str) -> ValidationResult:
         """
         Validate required medical history is present.
 
@@ -305,7 +321,7 @@ class MedicalScorer:
                 is_safe=True, score=score, reason="Required history complete", severity="INFO"
             )
 
-    def detect_widow_maker(self, case_prompt: str, output: Dict[str, Any]) -> ValidationResult:
+    def detect_widow_maker(self, case_prompt: str, output: dict[str, Any]) -> ValidationResult:
         """
         Detect widow-maker patterns (life-threatening conditions).
 
@@ -381,7 +397,7 @@ class PediatricValidator:
     - Aspirin < 18 years (Reye's syndrome)
     """
 
-    PEDIATRIC_CONTRAINDICATIONS = {
+    PEDIATRIC_CONTRAINDICATIONS: dict[str, PediatricContraindication] = {
         "fluoroquinolones": {
             "drugs": ["cipro", "ciprofloxacin", "levofloxacin", "moxifloxacin"],
             "age_limit": 18,
@@ -403,7 +419,7 @@ class PediatricValidator:
         self.logger = get_logger(__name__)
 
     def validate_pediatric_response(
-        self, output: Dict[str, Any], case_prompt: str
+        self, output: dict[str, Any], case_prompt: str
     ) -> ValidationResult:
         """
         Validate pediatric safety if patient age <18.

@@ -1012,12 +1012,12 @@ def add_audio_to_chunk(
         if filename in chunk_group:  # type: ignore[operator]
             del chunk_group[filename]  # type: ignore[index]
 
-            # Create audio dataset (binary data with opaque dtype)
-            import numpy as np
+        # Create audio dataset (binary data with opaque dtype)
+        import numpy as np
 
-            chunk_group.create_dataset(  # type: ignore[union-attr]
-                filename, data=np.frombuffer(audio_bytes, dtype=np.uint8)
-            )
+        chunk_group.create_dataset(  # type: ignore[union-attr]
+            filename, data=np.frombuffer(audio_bytes, dtype=np.uint8)
+        )
 
         audio_path = f"{chunk_path}/{filename}"
         logger.info(
@@ -1041,6 +1041,10 @@ def get_chunk_audio_bytes(
 ) -> bytes | None:
     """Get audio bytes from a chunk.
 
+    Searches in two locations (fallback pattern):
+    1. Session-specific HDF5 (storage/sessions/{session_id}.h5)
+    2. Corpus HDF5 (storage/corpus.h5) - for medical chunks
+
     Args:
         session_id: Session identifier
         task_type: Task type
@@ -1050,9 +1054,71 @@ def get_chunk_audio_bytes(
     Returns:
         Audio bytes or None if not found
     """
+    import h5py
 
     CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
+    # 1. Try session-specific HDF5 first
+    try:
+        with locked_session_h5(session_id, mode="r") as f:
+            chunk_path = f"/sessions/{session_id}/tasks/{task_type.value}/chunks/chunk_{chunk_idx}"
+
+            if chunk_path in f:  # type: ignore[operator]
+                chunk_group = f[chunk_path]  # type: ignore[index]
+                if filename in chunk_group:  # type: ignore[operator]
+                    audio_dataset = chunk_group[filename]  # type: ignore[index]
+                    audio_bytes = bytes(audio_dataset[()])  # type: ignore[index]
+                    logger.info(
+                        "CHUNK_AUDIO_READ",
+                        session_id=session_id,
+                        source="session_h5",
+                        chunk_idx=chunk_idx,
+                        size_bytes=len(audio_bytes),
+                    )
+                    return audio_bytes
+    except Exception:
+        pass  # Try corpus.h5 as fallback
+
+    # 2. Try corpus.h5 (medical chunks saved by MedicalChunkHandler)
+    try:
+        if CORPUS_PATH.exists():
+            with h5py.File(CORPUS_PATH, "r") as f:
+                # Medical handler saves as "audio" not "audio.webm"
+                for audio_key in ["audio", filename]:
+                    audio_path = f"/sessions/{session_id}/tasks/{task_type.name.lower()}/chunks/chunk_{chunk_idx}/{audio_key}"
+                    if audio_path in f:  # type: ignore[operator]
+                        audio_bytes = bytes(f[audio_path][()])  # type: ignore[index]
+                        logger.info(
+                            "CHUNK_AUDIO_READ",
+                            session_id=session_id,
+                            source="corpus_h5",
+                            chunk_idx=chunk_idx,
+                            audio_key=audio_key,
+                            size_bytes=len(audio_bytes),
+                        )
+                        return audio_bytes
+    except Exception as e:
+        logger.debug("CORPUS_AUDIO_READ_FAILED", error=str(e))
+
+    # Not found in either location
+    logger.warning(
+        "AUDIO_NOT_FOUND_IN_CHUNK",
+        session_id=session_id,
+        task_type=task_type.value,
+        chunk_idx=chunk_idx,
+        filename=filename,
+        searched=["session_h5", "corpus_h5"],
+    )
+    return None
+
+
+def _get_chunk_audio_legacy(
+    session_id: str,
+    task_type: TaskType,
+    chunk_idx: int,
+    filename: str,
+) -> bytes | None:
+    """Legacy implementation - kept for reference only."""
     try:
         with locked_session_h5(session_id, mode="r") as f:
             chunk_path = f"/sessions/{session_id}/tasks/{task_type.value}/chunks/chunk_{chunk_idx}"

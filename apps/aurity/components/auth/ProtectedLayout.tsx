@@ -22,6 +22,7 @@ import {
   getRequiredRoles,
   isPublicRoute,
 } from '@/config/routes.config';
+import { isDesktop } from '@/lib/config/deployment';
 
 interface ProtectedLayoutProps {
   children: React.ReactNode;
@@ -35,7 +36,20 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Wait for auth to load
+    // In desktop mode, skip authentication requirements
+    // Desktop uses license-based access, not Auth0
+    if (isDesktop()) {
+      setIsAuthorized(true);
+      return;
+    }
+
+    // Public routes never need auth - skip all checks
+    if (isPublicRoute(pathname)) {
+      setIsAuthorized(true);
+      return;
+    }
+
+    // Wait for auth to load (only for non-public routes)
     if (authLoading || rbacLoading) {
       return;
     }
@@ -104,12 +118,15 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
     hasAnyRole,
   ]);
 
-  // Public routes don't need loading state
+  // =========================================================================
+  // RENDER: Public routes render immediately (no auth check needed)
+  // =========================================================================
+  // This MUST be checked BEFORE the loading state to avoid redirect flicker
   if (isPublicRoute(pathname)) {
     return <>{children}</>;
   }
 
-  // Loading state for protected routes
+  // Loading state for protected routes only
   if (authLoading || rbacLoading || isAuthorized === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">

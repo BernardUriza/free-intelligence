@@ -14,7 +14,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { getPersonaIcon } from '@/components/ui/message/styles/persona-styles';
-import type { FITone } from '@aurity-standalone/types/assistant';
 import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
 
@@ -35,7 +34,7 @@ const PERSONA_DISPLAY_NAMES: Record<string, string> = {
 /**
  * Get persona display name
  */
-function getPersonaDisplayName(persona?: FITone): string {
+function getPersonaDisplayName(persona?: string): string {
   if (!persona) return 'AURITY';
   return PERSONA_DISPLAY_NAMES[persona] || 'AURITY';
 }
@@ -54,7 +53,7 @@ interface ReasoningBlockProps {
   /** Custom className */
   className?: string;
   /** Persona ID for icon and name */
-  persona?: FITone;
+  persona?: string;
 }
 
 // Animated brain icon for thinking state

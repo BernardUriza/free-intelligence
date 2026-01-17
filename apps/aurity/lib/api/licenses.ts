@@ -12,8 +12,8 @@ import { getBackendUrl } from './client';
 // ============================================================================
 
 export interface LicenseGenerationRequest {
-  clinic_id: string;
-  clinic_name?: string;
+  max_clinics?: number;       // Default: 1
+  license_holder?: string;    // Optional display name
   auth0_domain: string;
   auth0_client_id: string;
   auth0_audience?: string;
@@ -24,8 +24,8 @@ export interface LicenseGenerationRequest {
 export interface LicenseGenerationResponse {
   license_id: string;
   license_key: string;
-  clinic_id: string;
-  clinic_name: string;
+  max_clinics: number;
+  license_holder: string;
   auth0_domain: string;
   expires_at: string;
   features: string[];

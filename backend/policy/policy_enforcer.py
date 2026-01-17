@@ -294,7 +294,7 @@ class PolicyEnforcer:
 
         """
         keys = key_path.split(".")
-        value = self.policy
+        value: Any = self.policy
 
         for key in keys:
             if isinstance(value, dict):

@@ -1,70 +1,83 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "FI Monitor",
+  "version": "1.0.1",
+  "identifier": "io.aurity.fi-monitor",
   "build": {
-    "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist"
+    "beforeDevCommand": "pnpm dev",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420"
   },
-  "package": {
-    "productName": "FI Monitor",
-    "version": "0.1.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "open": true
-      }
-    },
-    "bundle": {
-      "active": true,
-      "category": "DeveloperTool",
-      "copyright": "2024 AURITY",
-      "deb": {
-        "depends": []
-      },
-      "externalBin": [],
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "identifier": "io.aurity.fi-monitor",
-      "longDescription": "FI Edge Monitor - Real-time LLM observability dashboard for tracking Ollama calls and performance metrics.",
-      "macOS": {
-        "entitlements": null,
-        "exceptionDomain": "",
-        "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": null
-      },
-      "resources": [],
-      "shortDescription": "LLM Observability Dashboard",
-      "targets": "all",
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
-    },
-    "security": {
-      "csp": null
-    },
-    "updater": {
-      "active": false
+  "app": {
+    "withGlobalTauri": true,
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false,
+      "title": "FI Monitor"
     },
     "windows": [
       {
-        "fullscreen": false,
-        "height": 800,
-        "resizable": true,
+        "label": "main",
         "title": "FI Monitor",
-        "width": 1200,
-        "minWidth": 800,
-        "minHeight": 600
+        "width": 420,
+        "height": 380,
+        "minWidth": 360,
+        "minHeight": 320,
+        "resizable": true,
+        "center": true,
+        "visible": true,
+        "decorations": true,
+        "alwaysOnTop": false,
+        "skipTaskbar": false
       }
-    ]
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:* http://127.0.0.1:*; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "resources": [
+      "binaries/OllamaSetup.exe"
+    ],
+    "externalBin": [],
+    "category": "DeveloperTool",
+    "shortDescription": "Ollama Tunnel Manager for Aurity",
+    "longDescription": "FI Monitor manages the Cloudflare tunnel that exposes your local Ollama instance to the Aurity cloud backend.",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser",
+        "languages": ["English", "Spanish"],
+        "displayLanguageSelector": true
+      }
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    },
+    "updater": {
+      "endpoints": [
+        "https://github.com/BernardUriza/free-intelligence/releases/latest/download/fi-monitor-updater.json"
+      ],
+      "pubkey": "PLACEHOLDER_WILL_BE_REPLACED_AFTER_KEY_GENERATION",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

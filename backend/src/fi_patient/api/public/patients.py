@@ -10,7 +10,9 @@ Card: FI-DATA-DB-001
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
+from enum import Enum
 from typing import List
 
 from backend.database import get_db_dependency
@@ -26,6 +28,20 @@ router = APIRouter(prefix="/patients", tags=["Patients"])
 
 
 # ============================================================================
+# Enums
+# ============================================================================
+
+
+class GenderEnum(str, Enum):
+    """Patient gender options - matches database enum."""
+
+    MASCULINO = "MASCULINO"
+    FEMENINO = "FEMENINO"
+    OTRO = "OTRO"
+    NO_ESPECIFICADO = "NO_ESPECIFICADO"
+
+
+# ============================================================================
 # Pydantic Schemas
 # ============================================================================
 
@@ -36,6 +52,9 @@ class PatientCreate(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100, description="First name(s)")
     apellido: str = Field(..., min_length=1, max_length=100, description="Last name(s)")
     fecha_nacimiento: datetime = Field(..., description="Date of birth (ISO 8601)")
+    genero: GenderEnum | None = Field(
+        None, description="Gender (MASCULINO, FEMENINO, OTRO, NO_ESPECIFICADO)"
+    )
     curp: str | None = Field(None, min_length=18, max_length=18, description="CURP (18 chars)")
 
 
@@ -45,6 +64,7 @@ class PatientUpdate(BaseModel):
     nombre: str | None = Field(None, min_length=1, max_length=100)
     apellido: str | None = Field(None, min_length=1, max_length=100)
     fecha_nacimiento: datetime | None = None
+    genero: GenderEnum | None = None
     curp: str | None = Field(None, min_length=18, max_length=18)
 
 
@@ -55,6 +75,7 @@ class PatientResponse(BaseModel):
     nombre: str
     apellido: str
     fecha_nacimiento: str
+    genero: str | None
     curp: str | None
     created_at: str
     updated_at: str
@@ -65,6 +86,77 @@ class PatientResponse(BaseModel):
 # ============================================================================
 # CRUD Endpoints
 # ============================================================================
+
+
+class CurpValidationRequest(BaseModel):
+    """Schema for CURP validation request."""
+
+    curp: str = Field(..., min_length=18, max_length=18, description="CURP to validate")
+    exclude_patient_id: str | None = Field(None, description="Patient ID to exclude (for updates)")
+
+
+class CurpValidationResponse(BaseModel):
+    """Schema for CURP validation response."""
+
+    valid: bool = Field(..., description="Whether CURP format is valid")
+    available: bool = Field(..., description="Whether CURP is available (not in use)")
+    message: str | None = Field(None, description="Error or info message")
+
+
+@router.post("/validate-curp", response_model=CurpValidationResponse)
+def validate_curp(request: CurpValidationRequest, db: Session = Depends(get_db_dependency)):
+    """Validate CURP format and availability.
+
+    Checks:
+    1. CURP format is valid (18 chars, matches pattern)
+    2. CURP is not already in use by another patient
+
+    Args:
+        request: CURP validation request
+        db: Database session (injected)
+
+    Returns:
+        Validation result with availability status
+    """
+    # CURP format validation
+    curp_pattern = r"^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$"
+    if not re.match(curp_pattern, request.curp):
+        return CurpValidationResponse(
+            valid=False,
+            available=False,
+            message="Formato de CURP inválido. Debe tener 18 caracteres alfanuméricos.",
+        )
+
+    # Check availability in database
+    try:
+        query = db.query(Patient).filter(Patient.curp == request.curp)
+
+        # Exclude specific patient (for updates)
+        if request.exclude_patient_id:
+            query = query.filter(Patient.patient_id != request.exclude_patient_id)
+
+        existing = query.first()
+
+        if existing:
+            logger.info("CURP_VALIDATION_DUPLICATE", curp_prefix=request.curp[:4])
+            return CurpValidationResponse(
+                valid=True,
+                available=False,
+                message="Este CURP ya está registrado para otro paciente.",
+            )
+
+        logger.info("CURP_VALIDATION_OK", curp_prefix=request.curp[:4])
+        return CurpValidationResponse(valid=True, available=True, message=None)
+
+    except Exception as e:
+        logger.error("CURP_VALIDATION_FAILED", error=str(e))
+        # On error, return valid=True but available=True to not block form
+        # The final create/update will catch duplicates
+        return CurpValidationResponse(
+            valid=True,
+            available=True,
+            message="No se pudo verificar disponibilidad. Se validará al guardar.",
+        )
 
 
 @router.post("/", response_model=PatientResponse, status_code=201)
@@ -94,6 +186,7 @@ def create_patient(patient: PatientCreate, db: Session = Depends(get_db_dependen
             nombre=patient.nombre,
             apellido=patient.apellido,
             fecha_nacimiento=patient.fecha_nacimiento,
+            genero=patient.genero.value if patient.genero else None,
             curp=patient.curp,
         )
         db.add(db_patient)
@@ -212,8 +305,11 @@ def update_patient(
                 raise HTTPException(status_code=400, detail=f"CURP {updates.curp} already exists")
 
         # Apply updates
-        update_data = updates.dict(exclude_unset=True)
+        update_data = updates.model_dump(exclude_unset=True)
         for key, value in update_data.items():
+            # Convert enum to string value for database
+            if key == "genero" and value is not None:
+                value = value.value if hasattr(value, "value") else value
             setattr(patient, key, value)
 
         db.commit()

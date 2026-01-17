@@ -23,6 +23,7 @@ interface UseAppointmentFormProps {
     notes?: string;
   }) => Promise<void>;
   onClose: () => void;
+  onAfterSubmit?: () => void;
 }
 
 export function useAppointmentForm({
@@ -32,6 +33,7 @@ export function useAppointmentForm({
   defaultDoctorId,
   onSubmit,
   onClose,
+  onAfterSubmit,
 }: UseAppointmentFormProps) {
   const initialDate = prefilledData?.date
     ? prefilledData.date.toISOString().split('T')[0]
@@ -108,6 +110,15 @@ export function useAppointmentForm({
         throw new Error('Fecha y hora son requeridas');
       }
 
+      // Validate not in the past (allow current hour)
+      const scheduledDateTime = new Date(`${form.scheduled_date}T${form.scheduled_time}:00`);
+      const now = new Date();
+      const currentHourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0);
+
+      if (scheduledDateTime < currentHourStart) {
+        throw new Error('No se pueden crear citas en el pasado');
+      }
+
       const scheduled_at = `${form.scheduled_date}T${form.scheduled_time}:00Z`;
       const typeMap: Record<AppointmentDraft['appointment_type'], string> = {
         FIRST_TIME: 'first_visit',
@@ -128,6 +139,7 @@ export function useAppointmentForm({
         reason: form.reason,
         notes: form.notes || undefined,
       });
+      onAfterSubmit?.();
       onClose();
     } catch (err) {
       console.error('[AppointmentModal] submit failed:', err);
@@ -136,7 +148,7 @@ export function useAppointmentForm({
     } finally {
       setLoading(false);
     }
-  }, [form, onSubmit, onClose, initialData?.appointment_id]);
+  }, [form, onSubmit, onClose, onAfterSubmit, initialData?.appointment_id]);
 
   return {
     form,

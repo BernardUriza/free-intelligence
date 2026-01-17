@@ -27,12 +27,11 @@ from __future__ import annotations
 
 from typing import Any
 
-import h5py
 from backend.models.task_type import TaskType
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_common.services.chunk_handler import ChunkHandler
+from backend.src.fi_storage.infrastructure.hdf5.session_locks import locked_session_h5
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
-    CORPUS_PATH,
     append_chunk_to_task,
     ensure_task_exists,
     get_task_chunks,
@@ -84,15 +83,19 @@ class MedicalChunkHandler(ChunkHandler):
             allow_existing=True,  # Allow resuming (pause/resume)
         )
 
-        # Save patient metadata to HDF5 session attributes
-        if metadata and any(k.startswith("patient_") for k in metadata):
-            CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
-            with h5py.File(CORPUS_PATH, "a") as f:
+        # Save session metadata (doctor_id + patient info) to HDF5 session attributes
+        # SECURITY: doctor_id is ALWAYS saved for session ownership/isolation
+        if metadata and (
+            "doctor_id" in metadata or any(k.startswith("patient_") for k in metadata)
+        ):
+            # Use locked_session_h5 for per-session file (consistent with ensure_task_exists)
+            with locked_session_h5(session_id, mode="a") as f:
                 session_path = f"/sessions/{session_id}"
-                if session_path not in f:  # type: ignore[operator]
-                    session_group = f.create_group(session_path)  # type: ignore[union-attr]
-                else:
-                    session_group = f[session_path]  # type: ignore[index]
+                session_group = f[session_path]  # type: ignore[index]
+
+                # SECURITY: Save doctor_id for session ownership/isolation
+                if "doctor_id" in metadata:
+                    session_group.attrs["doctor_id"] = metadata["doctor_id"]
 
                 # Save patient metadata as session attributes
                 if "patient_name" in metadata:
@@ -311,8 +314,8 @@ class MedicalChunkHandler(ChunkHandler):
             - Creates dataset at /sessions/{id}/tasks/TRANSCRIPTION/chunks/chunk_{N}/audio
             - Stores audio bytes as binary blob
         """
-        CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with h5py.File(CORPUS_PATH, "a") as f:
+        # Use locked_session_h5 for per-session file (consistent with other operations)
+        with locked_session_h5(session_id, mode="a") as f:
             audio_path = f"/sessions/{session_id}/tasks/{TaskType.TRANSCRIPTION.name.lower()}/chunks/chunk_{chunk_number}/audio"
 
             # Delete if exists (overwrite)

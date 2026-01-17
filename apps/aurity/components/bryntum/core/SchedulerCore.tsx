@@ -211,6 +211,93 @@ export function SchedulerCore({
   }, [getConfig, timeWindow, isReady, instance]);
 
   // ============================================================================
+  // WORKAROUND: Fix blocked time event positions (CSS/JS version mismatch)
+  // Card: FI-BRYNTUM-CSS-001
+  // ============================================================================
+  // Bryntum CSS v6.0.0-alpha-1 + JS v5.6.6 calculates wrong Y positions for events.
+  // This effect repositions blocked events to their correct resource rows.
+  // Uses MutationObserver to catch Bryntum's virtual rendering DOM changes.
+  useEffect(() => {
+    if (!isReady || !instance) return;
+
+    const s = instance as any;
+
+    const fixBlockedEventPositions = () => {
+      if (!s?.resourceStore?.allRecords) return;
+
+      // Build resourceId -> row index map
+      const resourceIndexMap: Record<string, number> = {};
+      s.resourceStore.allRecords.forEach((resource: any, index: number) => {
+        resourceIndexMap[resource.id] = index;
+      });
+
+      // Get row height from scheduler config
+      const rowHeight = s.rowHeight || 200;
+
+      // Find all blocked event wrappers and fix their positions
+      const blockedWrappers = document.querySelectorAll('.b-sch-event-wrap[data-event-id^="blocked-"]');
+
+      blockedWrappers.forEach((wrapper) => {
+        const resourceId = wrapper.getAttribute('data-resource-id');
+        if (!resourceId || resourceIndexMap[resourceId] === undefined) return;
+
+        const rowIndex = resourceIndexMap[resourceId];
+        const correctTop = rowIndex * rowHeight + 5; // 5px margin
+
+        // Apply correct position via CSS custom property
+        (wrapper as HTMLElement).style.setProperty('--blocked-row-top', `${correctTop}px`);
+        (wrapper as HTMLElement).classList.add('blocked-position-fixed');
+      });
+    };
+
+    // Run fix after initial render
+    const timeoutId = setTimeout(fixBlockedEventPositions, 100);
+
+    // MutationObserver to catch Bryntum's virtual rendering
+    // Run fix on ANY DOM mutation - Bryntum recycles elements unpredictably
+    const schedulerEl = containerRef.current;
+    let observer: MutationObserver | null = null;
+    let pendingFix = false;
+
+    if (schedulerEl) {
+      observer = new MutationObserver(() => {
+        // Debounce: only schedule one fix per animation frame
+        if (!pendingFix) {
+          pendingFix = true;
+          requestAnimationFrame(() => {
+            fixBlockedEventPositions();
+            pendingFix = false;
+          });
+        }
+      });
+
+      observer.observe(schedulerEl, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class'], // Catch style/class changes too
+      });
+    }
+
+    // Also keep Bryntum event listeners as backup
+    const handleRender = () => {
+      requestAnimationFrame(fixBlockedEventPositions);
+    };
+
+    s?.on?.('scroll', handleRender);
+    s?.on?.('zoomChange', handleRender);
+    s?.on?.('refresh', handleRender);
+
+    return () => {
+      clearTimeout(timeoutId);
+      observer?.disconnect();
+      s?.un?.('scroll', handleRender);
+      s?.un?.('zoomChange', handleRender);
+      s?.un?.('refresh', handleRender);
+    };
+  }, [isReady, instance, getConfig]);
+
+  // ============================================================================
   // Render
   // ============================================================================
 

@@ -1,26 +1,23 @@
 {
   "name": "fi-monitor",
-  "version": "0.1.0",
-  "description": "FI Edge Monitor - LLM Observability Dashboard",
+  "version": "1.0.0",
+  "description": "FI Monitor - Ollama Tunnel Manager",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "recharts": "^2.10.0",
-    "lucide-react": "^0.263.1",
-    "datatables.net-react": "^1.0.0",
-    "datatables.net-dt": "^2.0.0",
-    "jquery": "^3.7.1"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^1.5.0",
-    "@tauri-apps/api": "^1.5.0",
+    "@tauri-apps/cli": "^2",
+    "@tauri-apps/api": "^2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.2.0",

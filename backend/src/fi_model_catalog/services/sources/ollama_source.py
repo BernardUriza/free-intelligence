@@ -4,7 +4,11 @@ Ollama Catalog Source - Los modelos que ya moran en tu reino.
 Esta fuente lista los modelos que ya están instalados en Ollama.
 No descarga nada nuevo, solo muestra lo que ya tienes.
 Como el inventario de la armería de Gondor.
+
+Supports dynamic tunnel URL from Azure blob for cloud-to-edge connectivity.
 """
+
+from __future__ import annotations
 
 import contextlib
 from collections.abc import AsyncIterator
@@ -19,6 +23,7 @@ from backend.models.catalog_model import (
     ModelInstallProgress,
 )
 from backend.src.fi_model_catalog.services.sources.base import CatalogSourceBase
+from backend.src.fi_model_catalog.services.tunnel_url_provider import get_tunnel_url_provider
 
 
 def _parse_ollama_name(name: str) -> tuple[str, str]:
@@ -58,10 +63,29 @@ class OllamaCatalogSource(CatalogSourceBase):
 
     Consulta el daemon de Ollama para listar modelos disponibles.
     Estos modelos ya están descargados y listos para usar.
+
+    Supports dynamic tunnel URL from Azure blob (fi-tunnels/tunnel-url.json)
+    for cloud-to-edge connectivity via Cloudflare tunnel.
     """
 
-    def __init__(self, base_url: str = "http://localhost:11434"):
-        self._base_url = os.getenv("OLLAMA_HOST", base_url)
+    def __init__(self, base_url: str = "http://localhost:11434", use_tunnel: bool = True):
+        """
+        Initialize Ollama catalog source.
+
+        Args:
+            base_url: Static fallback URL for Ollama.
+            use_tunnel: If True, dynamically fetch tunnel URL from Azure.
+                       Set to False for local development.
+        """
+        self._static_url = os.getenv("OLLAMA_HOST", base_url)
+        self._use_tunnel = use_tunnel and os.getenv("FI_USE_TUNNEL", "false").lower() == "true"
+        self._tunnel_provider = get_tunnel_url_provider() if self._use_tunnel else None
+
+    async def _get_base_url(self) -> str:
+        """Get the current Ollama base URL (static or from tunnel)."""
+        if self._tunnel_provider:
+            return await self._tunnel_provider.get_ollama_url()
+        return self._static_url
 
     @property
     def source_name(self) -> str:
@@ -70,8 +94,9 @@ class OllamaCatalogSource(CatalogSourceBase):
     async def list_models(self, params: CatalogSearchParams | None = None) -> list[CatalogModel]:
         """Lista todos los modelos instalados en Ollama."""
         try:
+            base_url = await self._get_base_url()
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self._base_url}/api/tags", timeout=10.0)
+                response = await client.get(f"{base_url}/api/tags", timeout=10.0)
                 response.raise_for_status()
                 data = response.json()
 
@@ -124,11 +149,12 @@ class OllamaCatalogSource(CatalogSourceBase):
         )
 
         try:
+            base_url = await self._get_base_url()
             async with httpx.AsyncClient() as client:
                 # Ollama pull es streaming
                 async with client.stream(
                     "POST",
-                    f"{self._base_url}/api/pull",
+                    f"{base_url}/api/pull",
                     json={"name": ollama_name},
                     timeout=None,  # Descargas pueden ser largas
                 ) as response:
@@ -180,8 +206,9 @@ class OllamaCatalogSource(CatalogSourceBase):
     async def is_available(self) -> bool:
         """Verifica si el daemon de Ollama está corriendo."""
         try:
+            base_url = await self._get_base_url()
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self._base_url}/api/tags", timeout=5.0)
+                response = await client.get(f"{base_url}/api/tags", timeout=5.0)
                 return response.status_code == 200
         except Exception:
             return False
@@ -189,9 +216,10 @@ class OllamaCatalogSource(CatalogSourceBase):
     async def delete_model(self, model_name: str) -> bool:
         """Elimina un modelo de Ollama."""
         try:
+            base_url = await self._get_base_url()
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
-                    f"{self._base_url}/api/delete", json={"name": model_name}, timeout=30.0
+                    f"{base_url}/api/delete", json={"name": model_name}, timeout=30.0
                 )
                 return response.status_code == 200
         except Exception:

@@ -197,7 +197,7 @@ export function LicenseActivationWizard({
   const canActivate = validationResult?.is_valid && !isLoading;
 
   if (success) {
-    const clinicName = importedPayload?.clinic_name || validationResult?.payload?.clinic_name || 'Tu licencia';
+    const licenseHolder = importedPayload?.license_holder || validationResult?.payload?.license_holder || 'Tu licencia';
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
         <div className="max-w-md w-full text-center">
@@ -208,7 +208,7 @@ export function LicenseActivationWizard({
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Licencia Activada</h2>
           <p className="text-slate-400 mb-4">
-            {clinicName} ha sido activada correctamente.
+            {licenseHolder} ha sido activada correctamente.
           </p>
           <p className="text-sm text-slate-500">Iniciando Aurity...</p>
         </div>
@@ -295,7 +295,7 @@ export function LicenseActivationWizard({
                 Licencia Válida
               </div>
               <div className="text-slate-300 text-sm">
-                <p><span className="text-slate-500">Clínica:</span> {validationResult.payload.clinic_name}</p>
+                <p><span className="text-slate-500">Titular:</span> {validationResult.payload.license_holder}</p>
                 <p><span className="text-slate-500">Funciones:</span> {validationResult.payload.features.join(', ')}</p>
                 {validationResult.days_remaining !== null && (
                   <p>

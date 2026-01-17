@@ -32,7 +32,7 @@ export function VersionBadge() {
     const fetchVersion = async () => {
       try {
         const backendUrl = getBackendUrl();
-        const res = await fetch(`${backendUrl}/version`, {
+        const res = await fetch(`${backendUrl}/api/version`, {
           headers: { 'Accept': 'application/json' },
         });
         if (res.ok) {

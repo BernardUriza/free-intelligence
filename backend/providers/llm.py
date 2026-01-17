@@ -7,7 +7,6 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from functools import lru_cache
@@ -138,17 +137,44 @@ class LLMProviderType(Enum):
     AZURE = "azure"
 
 
-@dataclass
 class LLMResponse:
     """Unified response format from any LLM provider"""
+
+    __slots__ = (
+        "content",
+        "cost_usd",
+        "latency_ms",
+        "metadata",
+        "model",
+        "provider",
+        "tokens_used",
+    )
 
     content: str
     model: str
     provider: str
     tokens_used: int
-    cost_usd: float | None = None
-    latency_ms: float | None = None
-    metadata: dict[str, Any] | None = None
+    cost_usd: float | None
+    latency_ms: float | None
+    metadata: dict[str, Any] | None
+
+    def __init__(
+        self,
+        content: str,
+        model: str,
+        provider: str,
+        tokens_used: int,
+        cost_usd: float | None = None,
+        latency_ms: float | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        self.content = content
+        self.model = model
+        self.provider = provider
+        self.tokens_used = tokens_used
+        self.cost_usd = cost_usd
+        self.latency_ms = latency_ms
+        self.metadata = metadata
 
 
 class LLMProvider(ABC):
@@ -417,8 +443,8 @@ class OllamaProvider(LLMProvider):
             embed_model=self.embed_model,
             hosts=[{"name": h["name"], "url": h["url"]} for h in self.hosts],
             fallback_enabled=len(self.hosts) > 1,
-            retry_config=self.retry_config.__dict__,
-            circuit_breaker_config=cb_config.__dict__,
+            retry_config=self.retry_config.to_dict(),
+            circuit_breaker_config=cb_config.to_dict(),
         )
 
     def generate(self, prompt: str, **kwargs) -> LLMResponse:
@@ -1167,20 +1193,22 @@ def get_provider(provider_name: str, config: dict[str, Any] | None = None) -> LL
     Raises:
         ValueError: If provider not supported
     """
-    provider_map = {
+    from collections.abc import Callable
+
+    provider_map: dict[str, Callable[[dict[str, Any] | None], LLMProvider]] = {
         "claude": ClaudeProvider,
         "ollama": OllamaProvider,
         "azure": AzureOpenAIProvider,
         # "openai": OpenAIProvider,  # Future
     }
 
-    provider_class = provider_map.get(provider_name.lower())
-    if not provider_class:
+    provider_ctor = provider_map.get(provider_name.lower())
+    if not provider_ctor:
         raise ValueError(
             f"Unknown provider: {provider_name}. " + f"Supported: {list(provider_map.keys())}"
         )
 
-    return provider_class(config)
+    return provider_ctor(config)
 
 
 @require_audit_log

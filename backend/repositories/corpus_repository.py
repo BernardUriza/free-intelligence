@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Any, Union
+from typing import Any, Union, cast
 
 import h5py
 from backend.src.fi_common.logging.logger import get_logger
@@ -290,10 +290,10 @@ class CorpusRepository(BaseRepository):
                 for chunk_id in chunks_group:  # type: ignore[attr-defined]
                     if chunk_id.startswith(document_id):
                         chunk_group = chunks_group[chunk_id]  # type: ignore[index]
-                        chunk_data: DiarizationChunkDict = {}
+                        chunk_data: dict[str, Any] = {}
                         for key, value in chunk_group.attrs.items():  # type: ignore[attr-defined]
-                            chunk_data[key] = value
-                        chunks.append(chunk_data)
+                            chunk_data[str(key)] = value
+                        chunks.append(cast(DiarizationChunkDict, chunk_data))
 
                 return sorted(chunks, key=lambda c: c.get("chunk_idx", 0))
 

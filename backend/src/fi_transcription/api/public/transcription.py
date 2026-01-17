@@ -90,6 +90,7 @@ async def stream_chunk(
     session_id: str = Form(...),
     chunk_number: int = Form(...),
     audio: UploadFile = File(...),
+    doctor_id: str = Form(..., description="Doctor ID (Auth0 user.sub) for session ownership"),
     mode: str = Form("medical"),  # NEW: "medical" | "chat" (default: medical for backward compat)
     timestamp_start: float | None = Form(None),
     timestamp_end: float | None = Form(None),
@@ -182,7 +183,7 @@ async def stream_chunk(
 
         # 2. Initialize session (first chunk only)
         if chunk_number == 0:
-            metadata = {}
+            metadata = {"doctor_id": doctor_id}  # SECURITY: Always include owner
             if patient_name:
                 # Validate patient name
                 if len(patient_name.strip()) < 2:

@@ -9,7 +9,7 @@ export interface Patient {
   id: string;
   name: string;
   age: number;
-  gender: 'Masculino' | 'Femenino' | 'Otro';
+  gender: 'Masculino' | 'Femenino' | 'Otro' | 'No especificado';
   medicalHistory: string[];
   dateOfBirth?: string;
   allergies?: string[];

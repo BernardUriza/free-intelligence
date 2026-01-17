@@ -22,13 +22,13 @@ import json
 import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from typing import Dict, List
+from typing import Any
 
 import yaml
 from pathlib import Path
 
 
-@dataclass
+@dataclass(init=False)
 class Citation:
     """Citation reference for evidence"""
 
@@ -38,8 +38,22 @@ class Citation:
     page_number: int | None = None  # Page reference if available
     confidence: float = 1.0  # Confidence score for extraction
 
+    def __init__(
+        self,
+        citation_id: int,
+        source_id: str,
+        text: str,
+        page_number: int | None = None,
+        confidence: float = 1.0,
+    ) -> None:
+        self.citation_id = citation_id
+        self.source_id = source_id
+        self.text = text
+        self.page_number = page_number
+        self.confidence = confidence
 
-@dataclass
+
+@dataclass(init=False)
 class ClinicalSource:
     """Clinical source document"""
 
@@ -50,23 +64,67 @@ class ClinicalSource:
     hallazgo: str | None = None  # Clinical finding
     severidad: str | None = None  # Severity
     raw_text: str | None = None  # Original text
-    citations: List[Citation] | None = None  # Associated citations
+    citations: list[Citation] | None = None  # Associated citations
+
+    def __init__(
+        self,
+        source_id: str,
+        tipo_doc: str,
+        fecha: str,
+        paciente_id: str,
+        hallazgo: str | None = None,
+        severidad: str | None = None,
+        raw_text: str | None = None,
+        citations: list[Citation] | None = None,
+    ) -> None:
+        self.source_id = source_id
+        self.tipo_doc = tipo_doc
+        self.fecha = fecha
+        self.paciente_id = paciente_id
+        self.hallazgo = hallazgo
+        self.severidad = severidad
+        self.raw_text = raw_text
+        self.citations = citations
 
 
-@dataclass
+@dataclass(init=False)
 class EvidencePack:
     """Evidence pack with clinical sources"""
 
     pack_id: str  # Unique pack identifier
     created_at: str  # ISO-8601 timestamp
     session_id: str | None  # Associated session
-    sources: List[ClinicalSource]  # Clinical sources
-    source_hashes: List[str]  # SHA256 of each source
+    sources: list[ClinicalSource]  # Clinical sources
+    source_hashes: list[str]  # SHA256 of each source
     policy_snapshot_id: str  # Policy version at creation
-    metadata: Dict  # Additional metadata
-    citations: List[Citation] | None = None  # All citations in pack
+    metadata: dict[str, Any]  # Additional metadata
+    citations: list[Citation] | None = None  # All citations in pack
     consulta: str | None = None  # Clinical question being answered
     response: str | None = None  # Generated response with citations only
+
+    def __init__(
+        self,
+        pack_id: str,
+        created_at: str,
+        session_id: str | None,
+        sources: list[ClinicalSource],
+        source_hashes: list[str],
+        policy_snapshot_id: str,
+        metadata: dict[str, Any],
+        citations: list[Citation] | None = None,
+        consulta: str | None = None,
+        response: str | None = None,
+    ) -> None:
+        self.pack_id = pack_id
+        self.created_at = created_at
+        self.session_id = session_id
+        self.sources = sources
+        self.source_hashes = source_hashes
+        self.policy_snapshot_id = policy_snapshot_id
+        self.metadata = metadata
+        self.citations = citations
+        self.consulta = consulta
+        self.response = response
 
 
 class EvidencePackBuilder:
@@ -83,8 +141,8 @@ class EvidencePackBuilder:
             config_path = Path("config/extract/clinical_min.yaml")
 
         self.config = self._load_config(config_path)
-        self.sources: List[ClinicalSource] = []
-        self.citations: List[Citation] = []
+        self.sources: list[ClinicalSource] = []
+        self.citations: list[Citation] = []
         self.citation_counter: int = 1
         self.consulta: str | None = None
 
@@ -145,7 +203,7 @@ class EvidencePackBuilder:
         self.consulta = consulta
         return self
 
-    def extract_citations(self, source: ClinicalSource) -> List[Citation]:
+    def extract_citations(self, source: ClinicalSource) -> list[Citation]:
         """
         Extract citations from a clinical source.
 
@@ -155,7 +213,7 @@ class EvidencePackBuilder:
         Returns:
             List of citations
         """
-        citations = []
+        citations: list[Citation] = []
 
         # Extract citation from hallazgo (clinical finding)
         if source.hallazgo:

@@ -15,7 +15,6 @@ to enable speaker-specific SOAP note generation and quality metrics.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
@@ -34,40 +33,103 @@ class DiarizationProviderType(Enum):
     DEEPGRAM = "deepgram"
 
 
-@dataclass
 class Speaker:
     """Speaker information"""
 
+    __slots__ = ("confidence", "name", "speaker_id")
+
     speaker_id: str  # "Speaker 1", "SPEAKER_01", etc.
-    name: str | None = None  # "Doctor" or "Patient" (if known)
-    confidence: float = 0.0  # 0-1, confidence in assignment
+    name: str | None  # "Doctor" or "Patient" (if known)
+    confidence: float  # 0-1, confidence in assignment
+
+    def __init__(self, speaker_id: str, name: str | None = None, confidence: float = 0.0) -> None:
+        self.speaker_id = speaker_id
+        self.name = name
+        self.confidence = confidence
 
 
-@dataclass
 class DiarizationSegment:
     """A segment of speech from one speaker"""
 
-    start_time: float  # Seconds from start
-    end_time: float  # Seconds from start
-    speaker: Speaker  # Who is speaking
-    confidence: float  # 0-1, confidence in speaker assignment
-    text: str | None = None  # Transcript (if available)
-    improved_text: str | None = None  # GPT-4 enhanced text (grammar, punctuation, medical terms)
-    duration: float = 0.0  # end_time - start_time
+    __slots__ = (
+        "confidence",
+        "duration",
+        "end_time",
+        "improved_text",
+        "speaker",
+        "start_time",
+        "text",
+    )
+
+    start_time: float
+    end_time: float
+    speaker: Speaker
+    confidence: float
+    text: str | None
+    improved_text: str | None
+    duration: float
+
+    def __init__(
+        self,
+        start_time: float,
+        end_time: float,
+        speaker: Speaker,
+        confidence: float,
+        text: str | None = None,
+        improved_text: str | None = None,
+        duration: float | None = None,
+    ) -> None:
+        self.start_time = start_time
+        self.end_time = end_time
+        self.speaker = speaker
+        self.confidence = confidence
+        self.text = text
+        self.improved_text = improved_text
+        self.duration = duration if duration is not None else (end_time - start_time)
 
 
-@dataclass
 class DiarizationResponse:
     """Unified response from diarization provider"""
 
-    segments: list[DiarizationSegment]  # Ordered list of speaker segments
-    speakers: dict[str, Speaker]  # Map of speaker_id -> Speaker info
-    num_speakers: int  # Number of unique speakers detected
-    duration: float  # Total audio duration
-    confidence: float  # Overall confidence (0-1)
-    provider: str  # Provider name
-    latency_ms: float | None = None
-    metadata: dict[str, Any] | None = None
+    __slots__ = (
+        "confidence",
+        "duration",
+        "latency_ms",
+        "metadata",
+        "num_speakers",
+        "provider",
+        "segments",
+        "speakers",
+    )
+
+    segments: list[DiarizationSegment]
+    speakers: dict[str, Speaker]
+    num_speakers: int
+    duration: float
+    confidence: float
+    provider: str
+    latency_ms: float | None
+    metadata: dict[str, Any] | None
+
+    def __init__(
+        self,
+        segments: list[DiarizationSegment],
+        speakers: dict[str, Speaker],
+        num_speakers: int,
+        duration: float,
+        confidence: float,
+        provider: str,
+        latency_ms: float | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        self.segments = segments
+        self.speakers = speakers
+        self.num_speakers = num_speakers
+        self.duration = duration
+        self.confidence = confidence
+        self.provider = provider
+        self.latency_ms = latency_ms
+        self.metadata = metadata
 
 
 class DiarizationProvider(ABC):
@@ -497,7 +559,9 @@ def get_diarization_provider(
     Raises:
         ValueError: If provider not supported
     """
-    provider_map = {
+    from collections.abc import Callable
+
+    provider_map: dict[str, Callable[[dict[str, Any] | None], DiarizationProvider]] = {
         "pyannote": PyannoteProvider,
         "aws_transcribe": AWSTranscribeProvider,
         "google_speech": GoogleSpeechProvider,
@@ -505,14 +569,14 @@ def get_diarization_provider(
         "azure_gpt4": AzureGPT4Provider,
     }
 
-    provider_class = provider_map.get(provider_name.lower())
-    if not provider_class:
+    provider_ctor = provider_map.get(provider_name.lower())
+    if not provider_ctor:
         error_msg = (
             f"Unknown diarization provider: {provider_name}. Supported: {list(provider_map.keys())}"
         )
         raise ValueError(error_msg)
 
-    return provider_class(config)
+    return provider_ctor(config)
 
 
 class AzureGPT4Provider(DiarizationProvider):
