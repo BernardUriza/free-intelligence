@@ -87,7 +87,9 @@ jobs:
 
       - name: Sign NSIS installer
         working-directory: apps/fi-monitor
-        run: pnpm tauri signer sign "${{ steps.paths.outputs.path }}" --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
+        shell: pwsh
+        run: |
+          echo "" | pnpm tauri signer sign "${{ steps.paths.outputs.path }}" --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
 
       - name: Upload NSIS artifact
         uses: actions/upload-artifact@v4
