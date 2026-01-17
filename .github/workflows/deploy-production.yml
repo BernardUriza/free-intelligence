@@ -30,6 +30,7 @@ env:
   DROPLET_HOST: 104.131.175.65
   DROPLET_USER: root
   PROJECT_PATH: /opt/free-intelligence
+  ALLOWED_ORIGINS_PROD: ${{ vars.ALLOWED_ORIGINS_PROD }}
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
@@ -419,7 +420,7 @@ jobs:
           Environment="OLLAMA_HOST=$OLLAMA_URL"
           Environment="DATABASE_URL=sqlite:////opt/free-intelligence/data/aurity.db"
           Environment="ENVIRONMENT=production"
-          Environment="ALLOWED_ORIGINS=https://app.aurity.io,https://fabulous-zabaione-290d66.netlify.app"
+          Environment="ALLOWED_ORIGINS=${{ env.ALLOWED_ORIGINS_PROD }}"
           ExecStart=/usr/bin/python3.14 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 7001
           Restart=always
           RestartSec=5

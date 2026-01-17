@@ -47,11 +47,11 @@ test.describe('Backend Version API (Critical)', () => {
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
-    // Backend returns flat structure: {service: "AURITY", status: "operational"}
-    expect(data.service).toBe('AURITY');
-    expect(data.status).toBe('operational');
+    // Backend returns nested structure: {service: {codename: "AURITY", ...}, status: {operational: true, ...}}
+    expect(data.service.codename).toBe('AURITY');
+    expect(data.status.operational).toBe(true);
 
-    console.log(`✅ Backend service: ${data.service} (${data.status})`);
+    console.log(`✅ Backend service: ${data.service.codename} (operational: ${data.status.operational})`);
   });
 });
 
