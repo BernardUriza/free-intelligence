@@ -47,9 +47,6 @@
       "icons/icon.png",
       "icons/icon.ico"
     ],
-    "resources": [
-      "binaries/OllamaSetup.exe"
-    ],
     "externalBin": [],
     "category": "DeveloperTool",
     "shortDescription": "Ollama Tunnel Manager for Aurity",
