@@ -10,6 +10,10 @@ on:
   push:
     branches: [main, dev]
 
+permissions:
+  contents: read
+  pull-requests: write  # Required for AI gatekeepers to comment on PRs
+
 env:
   PYTHON_VERSION: "3.11"
 
