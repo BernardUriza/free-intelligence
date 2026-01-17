@@ -1,0 +1,237 @@
+name: AI Reliability Gate (Reusable)
+
+# AI-powered reliability review using GPT-5
+# Focus: Crash bugs, runtime errors, resource exhaustion, data loss
+# Called by: pr-gate.yml
+
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        description: 'Pull request number'
+        required: true
+        type: number
+      backend-status:
+        description: 'Backend validation status (success/failure)'
+        required: true
+        type: string
+    secrets:
+      azure-endpoint:
+        required: true
+      azure-key:
+        required: true
+      gh-token:
+        required: true
+    outputs:
+      verdict:
+        description: 'Reliability verdict (APPROVE/BLOCK)'
+        value: ${{ jobs.reliability-review.outputs.verdict }}
+      risk-level:
+        description: 'Risk level (HIGH/MEDIUM/LOW/NONE)'
+        value: ${{ jobs.reliability-review.outputs.risk }}
+
+jobs:
+  reliability-review:
+    name: Reliability Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      verdict: ${{ steps.decision.outputs.verdict }}
+      risk: ${{ steps.analysis.outputs.risk }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📊 Gather context
+        id: context
+        env:
+          GH_TOKEN: ${{ secrets.gh-token }}
+          PR_NUMBER: ${{ inputs.pr-number }}
+        run: |
+          PR_TITLE=$(gh pr view $PR_NUMBER --json title -q '.title')
+          FILES_CHANGED=$(gh pr view $PR_NUMBER --json files -q '.files | length')
+
+          # Extract diff (prioritize business logic files)
+          DIFF=$(gh pr diff $PR_NUMBER 2>/dev/null | \
+            awk '/\.spec$|test_|__pycache__|\.pyc|node_modules/ {skip=1} /^diff --git/ {skip=0} !skip {print}' | \
+            head -c 35000)
+
+          echo "$DIFF" > /tmp/pr_diff.txt
+          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+          echo "FILES_CHANGED=$FILES_CHANGED" >> $GITHUB_ENV
+
+      - name: 🛡️ AI Reliability Analysis
+        id: analysis
+        env:
+          AZURE_ENDPOINT: ${{ secrets.azure-endpoint }}
+          AZURE_KEY: ${{ secrets.azure-key }}
+          BACKEND_STATUS: ${{ inputs.backend-status }}
+        run: |
+          SYSTEM_PROMPT="You are a reliability engineer expert in:
+          - Crash bug detection
+          - Race condition analysis
+          - Resource exhaustion patterns
+          - Data loss scenarios
+          - Error handling best practices
+
+          Use systematic reasoning to identify runtime failures."
+
+          USER_PROMPT="# CONTEXT
+          PR: ${PR_TITLE}
+          Files: ${FILES_CHANGED}
+          Backend Compiled: ${BACKEND_STATUS}
+
+          Changes:
+          \$(cat /tmp/pr_diff.txt)
+
+          # TASK
+          Identify reliability issues that could cause:
+          1. Application crashes
+          2. Data corruption/loss
+          3. Resource leaks
+          4. Infinite loops
+          5. Unhandled exceptions
+
+          Think step by step:
+          - SCAN for risky patterns
+          - ASSESS impact (crash vs degradation)
+          - PRIORITIZE by user impact
+          - VERIFY with backend status
+
+          # CONSTRAINTS
+          🚫 HIGH RISK (BLOCK):
+          - Unhandled exceptions in critical paths
+          - SQL DELETE/DROP without WHERE clause
+          - File operations without error handling
+          - Infinite loops or recursion
+          - Race conditions in auth/payment
+
+          ⚠️ MEDIUM RISK (WARN):
+          - Missing null checks
+          - Resource leaks (unclosed files/connections)
+          - Poor error messages
+
+          ✅ IGNORE if Backend Compiled:
+          - Import errors (already validated)
+          - Type hints
+
+          # OUTPUT (JSON)
+          {
+            \"reasoning\": {
+              \"scan\": [\"observation\"],
+              \"impact\": \"crash|degradation|none\",
+              \"priority\": \"Explanation\"
+            },
+            \"verdict\": \"APPROVE|BLOCK\",
+            \"risk_level\": \"HIGH|MEDIUM|LOW|NONE\",
+            \"issues\": [
+              {
+                \"risk\": \"HIGH\",
+                \"category\": \"Crash Bug|Data Loss|Resource Leak|Race Condition\",
+                \"file\": \"path\",
+                \"line\": 123,
+                \"description\": \"What will fail\",
+                \"impact\": \"User-facing impact\",
+                \"fix\": \"How to fix\"
+              }
+            ],
+            \"summary\": \"One sentence\"
+          }"
+
+          SYSTEM_ESC=$(echo "$SYSTEM_PROMPT" | jq -Rs .)
+          USER_ESC=$(eval "echo \"$USER_PROMPT\"" | jq -Rs .)
+
+          HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/reliability_response.json \
+            --max-time 80 \
+            "${AZURE_ENDPOINT}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
+            -H "Content-Type: application/json" \
+            -H "api-key: $AZURE_KEY" \
+            -d "{
+              \"messages\": [
+                {\"role\": \"system\", \"content\": $SYSTEM_ESC},
+                {\"role\": \"user\", \"content\": $USER_ESC}
+              ],
+              \"max_completion_tokens\": 5000,
+              \"temperature\": 0.15,
+              \"response_format\": {\"type\": \"json_object\"}
+            }")
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::API failed - defaulting to APPROVE"
+            echo "verdict=APPROVE" >> $GITHUB_OUTPUT
+            echo "risk=NONE" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          ANALYSIS=$(cat /tmp/reliability_response.json | jq -r '.choices[0].message.content // empty')
+
+          if [ -z "$ANALYSIS" ] || ! echo "$ANALYSIS" | jq empty 2>/dev/null; then
+            echo "verdict=APPROVE" >> $GITHUB_OUTPUT
+            echo "risk=NONE" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "$ANALYSIS" > /tmp/reliability_analysis.json
+          echo "$ANALYSIS" | jq .
+
+          VERDICT=$(echo "$ANALYSIS" | jq -r '.verdict // "APPROVE"')
+          RISK=$(echo "$ANALYSIS" | jq -r '.risk_level // "NONE"')
+
+          # Override: Don't block if backend passed (imports OK)
+          if [ "$VERDICT" = "BLOCK" ] && [ "$BACKEND_STATUS" = "success" ]; then
+            if echo "$ANALYSIS" | jq -e '.issues[] | select(.description | test("import|module"; "i"))' >/dev/null 2>&1; then
+              echo "::warning::Overriding BLOCK - backend compiled successfully"
+              VERDICT="APPROVE"
+            fi
+          fi
+
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+          echo "risk=$RISK" >> $GITHUB_OUTPUT
+          echo "analysis<<EOF" >> $GITHUB_OUTPUT
+          echo "$ANALYSIS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: ⚖️ Post Results
+        id: decision
+        env:
+          GH_TOKEN: ${{ secrets.gh-token }}
+          PR_NUMBER: ${{ inputs.pr-number }}
+        run: |
+          VERDICT="${{ steps.analysis.outputs.verdict }}"
+          ANALYSIS='${{ steps.analysis.outputs.analysis }}'
+          RISK="${{ steps.analysis.outputs.risk }}"
+
+          if [ "$VERDICT" = "BLOCK" ]; then
+            HEADER="## 🛡️ Reliability Gate: :x: BLOCKED"
+            ICON="🚫"
+          else
+            HEADER="## 🛡️ Reliability Gate: :white_check_mark: APPROVED"
+            ICON="✅"
+          fi
+
+          ISSUES_MD=$(echo "$ANALYSIS" | jq -r '
+            if (.issues | length) > 0 then
+              "### ⚠️ Reliability Issues\n\n| Risk | Category | File:Line | Impact |\n|------|----------|-----------|--------|\n" +
+              (.issues[] | "| \(.risk) | \(.category) | `\(.file):\(.line)` | \(.impact) |")
+            else
+              "### ✅ No reliability issues"
+            end
+          ')
+
+          COMMENT="$HEADER
+
+          **Verdict:** $ICON $VERDICT
+          **Risk Level:** $RISK
+
+          $ISSUES_MD
+
+          ---
+          *Reliability analysis | Focus: Crash prevention & Data integrity*"
+
+          gh pr comment $PR_NUMBER --body "$COMMENT"
+
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+          echo "::notice::Reliability Gate: $VERDICT (Risk: $RISK)"

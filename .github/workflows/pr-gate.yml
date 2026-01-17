@@ -1,7 +1,8 @@
 name: ✅ PR Gate (Must Pass)
 
-# This is the ONLY workflow that should block merges to main
-# Keep it FAST and PRAGMATIC - blocks only critical issues
+# Modular AI Gatekeeper with specialized reviewers
+# Architecture: Reusable workflows (best practice 2026)
+# Source: https://wellarchitected.github.com/library/collaboration/recommendations/scaling-actions-reusability/
 
 on:
   pull_request:
@@ -10,75 +11,26 @@ on:
     branches: [main, dev]
 
 env:
-  PYTHON_VERSION: "3.11"  # Use stable version for CI
+  PYTHON_VERSION: "3.11"
 
 jobs:
   # ============================================================
-  # BACKEND: Syntax + Imports (MUST PASS)
+  # STEP 1: Backend Validation (Reusable Workflow)
   # ============================================================
-  backend-compiles:
-    name: "Backend: Compiles"
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-
-      - name: Install minimal deps
-        run: |
-          pip install --upgrade pip
-          pip install fastapi pydantic structlog h5py PyYAML httpx python-jose cryptography PyJWT
-
-      - name: Check Python syntax (all files compile)
-        run: |
-          echo "Checking Python syntax..."
-          find backend/src -name "*.py" -exec python -m py_compile {} \;
-          echo "✅ All Python files compile successfully"
-
-      - name: Check critical imports
-        run: |
-          cd backend
-          python -c "
-          import sys
-          sys.path.insert(0, 'src')
-
-          # Critical modules that MUST import
-          critical = [
-              'fi_common.logging.logger',
-              'fi_storage',
-              'fi_auth',
-              'fi_workflow',
-          ]
-
-          failed = []
-          for mod in critical:
-              try:
-                  __import__(mod)
-                  print(f'✅ {mod}')
-              except Exception as e:
-                  print(f'❌ {mod}: {e}')
-                  failed.append(mod)
-
-          if failed:
-              print(f'\\n❌ {len(failed)} critical imports failed')
-              sys.exit(1)
-          print('\\n✅ All critical imports OK')
-          "
+  backend-validation:
+    name: "Backend: Syntax & Imports"
+    uses: ./.github/workflows/backend-validation.yml
+    with:
+      python-version: "3.11"
 
   # ============================================================
-  # LINT: Reports issues (does NOT block)
+  # STEP 2: Lint Report (Non-blocking)
   # ============================================================
   lint-report:
     name: "Lint: Report"
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    continue-on-error: true  # Never blocks
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -96,235 +48,109 @@ jobs:
           echo "## Lint Report" >> $GITHUB_STEP_SUMMARY
           ruff check backend/src --output-format=github || true
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Note: Lint issues do not block merge" >> $GITHUB_STEP_SUMMARY
+          echo "📝 Lint issues do not block merge" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================
-  # AI GATEKEEPER: GPT-5 Review (MUST PASS)
+  # STEP 3: AI Security Gate (Reusable Workflow)
   # ============================================================
-  ai-gatekeeper:
-    name: "AI Gatekeeper"
-    runs-on: ubuntu-latest
-    needs: [backend-compiles, lint-report]
+  ai-security-gate:
+    name: "🔒 Security Review (AI)"
     if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: GPT-5 Reviews and Decides
-        id: review
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AZURE_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          AZURE_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          set -e
-
-          # NO sleep - backend-compiles already finished via needs: dependency
-
-          # Get PR info
-          PR_TITLE=$(gh pr view $PR_NUMBER --json title -q '.title')
-          PR_BODY=$(gh pr view $PR_NUMBER --json body -q '.body // "No description"' | head -c 2000)
-
-          # Get diff (exclude large/generated files)
-          EXCLUDED_PATTERNS="pyinstaller/|pnpm-lock.yaml|package-lock.json|yarn.lock|\.spec$|src-tauri/gen/|acl-manifests\.json"
-          DIFF=$(gh pr diff $PR_NUMBER 2>/dev/null | \
-            awk -v exclude="$EXCLUDED_PATTERNS" '
-              /^diff --git/ {
-                skip = 0
-                if (match($0, exclude)) skip = 1
-              }
-              !skip { print }
-            ' | head -c 25000 || echo "No diff available")
-
-          FILES_CHANGED=$(gh pr view $PR_NUMBER --json files -q '.files | length')
-
-          # Get CI status from needs context (guaranteed complete)
-          BACKEND_STATUS="${{ needs.backend-compiles.result }}"
-          LINT_STATUS="${{ needs.lint-report.result }}"
-
-          if [ "$BACKEND_STATUS" = "success" ]; then
-            PASSED_CHECKS="Backend: Compiles"
-            FAILED_CHECKS="None"
-          else
-            PASSED_CHECKS="None"
-            FAILED_CHECKS="Backend: Compiles"
-          fi
-
-          echo "::group::Analyzing PR #$PR_NUMBER - $PR_TITLE ($FILES_CHANGED files)"
-          echo "✅ Passed: $PASSED_CHECKS"
-          echo "❌ Failed: $FAILED_CHECKS"
-
-          # Build prompt
-          SYSTEM_MSG="You are a pragmatic but strict AI code reviewer. You have REAL power to block merges. Use it wisely - block for genuine security issues and crash bugs, but don't be pedantic about style."
-
-          USER_MSG="Review this PR for CRITICAL issues only.
-
-          TITLE: $PR_TITLE
-          DESCRIPTION: $PR_BODY
-          FILES CHANGED: $FILES_CHANGED
-
-          CI STATUS:
-          ❌ Failed checks: $FAILED_CHECKS
-          ✅ Passed checks: $PASSED_CHECKS
-
-          DIFF:
-          $DIFF
-
-          🚫 BLOCK for these CRITICAL issues:
-          1) SQL injection, XSS, command injection, path traversal
-          2) Hardcoded secrets/API keys (real credentials like sk-xxx, api_key=xxx)
-          3) Code that will crash at runtime (syntax errors, undefined variables)
-          4) Data loss bugs (DELETE without WHERE, DROP TABLE, unprotected file operations)
-          5) Authentication/authorization bypasses
-          6) Infinite loops or resource exhaustion
-
-          ⛔ MANDATORY RULE:
-          If 'Backend: Compiles' check PASSED, you MUST NOT block for import/module errors.
-          The build system already verified imports work. Trust the build system.
-
-          ✅ DO NOT BLOCK for:
-          - Python f-string templates with {{ }} (valid escape sequences)
-          - File deletions/renames (intentional refactoring)
-          - Code style, naming, formatting
-          - Missing tests or documentation
-          - CI/CD workflow changes
-          - Architecture decisions
-
-          RESPOND WITH THIS EXACT FORMAT:
-          VERDICT: APPROVE or BLOCK
-          CONFIDENCE: HIGH, MEDIUM, or LOW
-          SUMMARY: One sentence summary
-          CI FAILURES: If any CI checks failed, explain likely causes. If none failed, say 'All CI checks passed.'
-          ISSUES: List critical issues or None
-          RECOMMENDATION: Brief advice
-
-          Rules: Default to APPROVE. BLOCK only for critical security/crash bugs. When in doubt, APPROVE with concerns noted."
-
-          # Escape for JSON
-          SYSTEM_ESCAPED=$(echo "$SYSTEM_MSG" | jq -Rs .)
-          USER_ESCAPED=$(echo "$USER_MSG" | jq -Rs .)
-
-          # Call Azure OpenAI
-          HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/response.json \
-            "${AZURE_ENDPOINT}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
-            -H "Content-Type: application/json" \
-            -H "api-key: $AZURE_KEY" \
-            -d "{\"messages\":[{\"role\":\"system\",\"content\":$SYSTEM_ESCAPED},{\"role\":\"user\",\"content\":$USER_ESCAPED}],\"max_completion_tokens\":4000}")
-
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "::warning::Azure API returned $HTTP_CODE - defaulting to APPROVE (fail-open)"
-            echo "VERDICT=APPROVE" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          REVIEW=$(cat /tmp/response.json | jq -r '.choices[0].message.content // empty')
-
-          if [ -z "$REVIEW" ]; then
-            echo "::warning::Empty AI response - defaulting to APPROVE"
-            echo "VERDICT=APPROVE" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "$REVIEW"
-          echo "::endgroup::"
-
-          # Parse verdict
-          if echo "$REVIEW" | grep -qiE "VERDICT.*BLOCK"; then
-            VERDICT="BLOCK"
-
-            # OVERRIDE: If AI blocked for import/module issues and build passed, it's false positive
-            if echo "$REVIEW" | grep -qiE "missing.*(module|import|file)|module-not-found|cannot.*resolve|import.*error"; then
-              if [ "$BACKEND_STATUS" = "success" ]; then
-                echo "::warning::Overriding AI BLOCK - import/module concern but build passed"
-                VERDICT="APPROVE"
-              fi
-            fi
-          else
-            VERDICT="APPROVE"
-          fi
-
-          echo "VERDICT=$VERDICT" >> $GITHUB_OUTPUT
-
-          # Post comment
-          if [ "$VERDICT" = "BLOCK" ]; then
-            HEADER="## :robot: AI Gatekeeper Decision: :x: BLOCKED"
-            FOOTER="*This check **BLOCKS** merge. Fix the issues above and push again.*"
-          else
-            HEADER="## :robot: AI Gatekeeper Decision: :white_check_mark: APPROVED"
-            FOOTER="*This check allows merge.*"
-          fi
-
-          gh pr comment $PR_NUMBER --body "$HEADER
-
-          $REVIEW
-
-          ---
-          $FOOTER
-          *Powered by Azure OpenAI GPT-5-mini*"
-
-          echo "::notice::AI Verdict: $VERDICT"
-
-      - name: Enforce AI Decision
-        run: |
-          if [ "${{ steps.review.outputs.VERDICT }}" = "BLOCK" ]; then
-            echo "::error::🚫 AI GATEKEEPER BLOCKED THIS PR"
-            echo "The AI found critical issues that must be fixed before merging."
-            exit 1
-          else
-            echo "::notice::✅ AI Gatekeeper approved this PR"
-          fi
+    needs: [backend-validation]
+    uses: ./.github/workflows/ai-security-gate.yml
+    with:
+      pr-number: ${{ github.event.pull_request.number }}
+      backend-status: ${{ needs.backend-validation.outputs.status }}
+    secrets:
+      azure-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+      azure-key: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      gh-token: ${{ secrets.GITHUB_TOKEN }}
 
   # ============================================================
-  # SUMMARY: Final gate status
+  # STEP 4: AI Reliability Gate (Reusable Workflow)
+  # ============================================================
+  ai-reliability-gate:
+    name: "🛡️ Reliability Review (AI)"
+    if: github.event_name == 'pull_request'
+    needs: [backend-validation]
+    uses: ./.github/workflows/ai-reliability-gate.yml
+    with:
+      pr-number: ${{ github.event.pull_request.number }}
+      backend-status: ${{ needs.backend-validation.outputs.status }}
+    secrets:
+      azure-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+      azure-key: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      gh-token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================
+  # STEP 5: Final Gate Decision
   # ============================================================
   gate-status:
-    name: "PR Gate Status"
+    name: "Final Gate Decision"
     runs-on: ubuntu-latest
-    needs: [backend-compiles, ai-gatekeeper]
+    needs: [backend-validation, ai-security-gate, ai-reliability-gate]
     if: always()
 
     steps:
-      - name: Check gate results
+      - name: Check all gates
         run: |
-          echo "## PR Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 PR Gate Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Check backend compilation
-          if [[ "${{ needs.backend-compiles.result }}" == "success" ]]; then
-            echo "✅ Backend compiles" >> $GITHUB_STEP_SUMMARY
+          # Backend validation
+          BACKEND="${{ needs.backend-validation.result }}"
+          if [[ "$BACKEND" == "success" ]]; then
+            echo "✅ Backend compiles & imports OK" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Backend compilation failed" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Backend validation failed" >> $GITHUB_STEP_SUMMARY
           fi
 
-          # Check AI Gatekeeper (only for PRs, skipped for push to dev/main)
-          AI_RESULT="${{ needs.ai-gatekeeper.result }}"
-          if [[ "$AI_RESULT" == "success" ]]; then
-            echo "✅ AI Gatekeeper approved" >> $GITHUB_STEP_SUMMARY
-          elif [[ "$AI_RESULT" == "skipped" ]]; then
-            echo "⏭️ AI Gatekeeper skipped (push event)" >> $GITHUB_STEP_SUMMARY
+          # Security gate
+          SECURITY="${{ needs.ai-security-gate.result }}"
+          SECURITY_VERDICT="${{ needs.ai-security-gate.outputs.verdict }}"
+          SEVERITY="${{ needs.ai-security-gate.outputs.severity }}"
+
+          if [[ "$SECURITY" == "success" && "$SECURITY_VERDICT" == "APPROVE" ]]; then
+            echo "✅ Security Gate approved (Severity: $SEVERITY)" >> $GITHUB_STEP_SUMMARY
+          elif [[ "$SECURITY" == "skipped" ]]; then
+            echo "⏭️ Security Gate skipped (push event)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ AI Gatekeeper blocked" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Security Gate blocked (Severity: $SEVERITY)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Reliability gate
+          RELIABILITY="${{ needs.ai-reliability-gate.result }}"
+          RELIABILITY_VERDICT="${{ needs.ai-reliability-gate.outputs.verdict }}"
+          RISK="${{ needs.ai-reliability-gate.outputs.risk-level }}"
+
+          if [[ "$RELIABILITY" == "success" && "$RELIABILITY_VERDICT" == "APPROVE" ]]; then
+            echo "✅ Reliability Gate approved (Risk: $RISK)" >> $GITHUB_STEP_SUMMARY
+          elif [[ "$RELIABILITY" == "skipped" ]]; then
+            echo "⏭️ Reliability Gate skipped (push event)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Reliability Gate blocked (Risk: $RISK)" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📝 **Note:** Frontend (apps/aurity) is validated locally before deploy" >> $GITHUB_STEP_SUMMARY
-          echo "Run \`cd apps/aurity && pnpm build\` before merging frontend changes" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Fail if ANY check failed
-          BACKEND_OK="${{ needs.backend-compiles.result }}"
-          AI_OK="${{ needs.ai-gatekeeper.result }}"
-
-          if [[ "$BACKEND_OK" != "success" ]] || [[ "$AI_OK" != "success" && "$AI_OK" != "skipped" ]]; then
-            echo "❌ **PR Gate FAILED** - Fix issues before merging" >> $GITHUB_STEP_SUMMARY
+          # Determine final status
+          if [[ "$BACKEND" != "success" ]]; then
+            echo "🚫 **BLOCKED**: Backend compilation failed" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
-          echo "✅ **PR Gate PASSED** - Safe to merge" >> $GITHUB_STEP_SUMMARY
+          if [[ "$SECURITY_VERDICT" == "BLOCK" ]]; then
+            echo "🚫 **BLOCKED**: Critical security issues found" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          if [[ "$RELIABILITY_VERDICT" == "BLOCK" ]]; then
+            echo "🚫 **BLOCKED**: High-risk reliability issues found" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "✅ **PR GATE PASSED** - Safe to merge!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_Modular AI Gatekeeper | Security + Reliability | Chain of Thought + Reflexion_" >> $GITHUB_STEP_SUMMARY

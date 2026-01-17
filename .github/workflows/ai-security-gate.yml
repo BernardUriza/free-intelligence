@@ -1,0 +1,324 @@
+name: AI Security Gate (Reusable)
+
+# AI-powered security review using GPT-5 with Chain of Thought reasoning
+# Focus: OWASP Top 10, CWE/SANS Top 25, secrets detection
+# Called by: pr-gate.yml
+# Best practices: https://5ly.co/blog/ai-prompts-for-code-review/
+
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        description: 'Pull request number'
+        required: true
+        type: number
+      backend-status:
+        description: 'Backend validation status (success/failure)'
+        required: true
+        type: string
+    secrets:
+      azure-endpoint:
+        required: true
+      azure-key:
+        required: true
+      gh-token:
+        required: true
+    outputs:
+      verdict:
+        description: 'Security verdict (APPROVE/BLOCK)'
+        value: ${{ jobs.security-review.outputs.verdict }}
+      severity:
+        description: 'Highest severity found (CRITICAL/HIGH/MEDIUM/LOW/NONE)'
+        value: ${{ jobs.security-review.outputs.severity }}
+
+jobs:
+  security-review:
+    name: Security Analysis (Chain of Thought)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      verdict: ${{ steps.decision.outputs.verdict }}
+      severity: ${{ steps.analysis.outputs.severity }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📊 Gather PR context
+        id: context
+        env:
+          GH_TOKEN: ${{ secrets.gh-token }}
+          PR_NUMBER: ${{ inputs.pr-number }}
+        run: |
+          # Get PR metadata
+          PR_TITLE=$(gh pr view $PR_NUMBER --json title -q '.title')
+          PR_AUTHOR=$(gh pr view $PR_NUMBER --json author -q '.author.login')
+          FILES_CHANGED=$(gh pr view $PR_NUMBER --json files -q '.files | length')
+
+          # Smart diff extraction (prioritize security-sensitive files)
+          EXCLUDED="pyinstaller/|pnpm-lock|package-lock|yarn.lock|\.spec$|\.min\.|dist/|build/|vendor/|node_modules/|__pycache__/"
+
+          DIFF=$(gh pr diff $PR_NUMBER 2>/dev/null | \
+            awk -v exclude="$EXCLUDED" '
+              /^diff --git/ {
+                skip = 0
+                if (match($0, exclude)) skip = 1
+                # Prioritize auth, crypto, SQL files
+                if (match($0, /auth|crypto|sql|password|secret|token|session/)) priority = 1
+              }
+              !skip { print }
+            ' | head -c 40000)
+
+          # Save context
+          echo "$DIFF" > /tmp/pr_diff.txt
+          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+          echo "PR_AUTHOR=$PR_AUTHOR" >> $GITHUB_ENV
+          echo "FILES_CHANGED=$FILES_CHANGED" >> $GITHUB_ENV
+
+          echo "::notice::Context: $FILES_CHANGED files changed by $PR_AUTHOR"
+
+      - name: 🔍 AI Security Analysis
+        id: analysis
+        env:
+          AZURE_ENDPOINT: ${{ secrets.azure-endpoint }}
+          AZURE_KEY: ${{ secrets.azure-key }}
+          BACKEND_STATUS: ${{ inputs.backend-status }}
+        run: |
+          # CTCO Framework prompt (Context → Task → Constraints → Output)
+          # Source: https://www.atlabs.ai/blog/gpt-5.2-prompting-guide-the-2026-playbook-for-developers-agents
+
+          SYSTEM_PROMPT="You are a security expert specializing in:
+          - OWASP Top 10 (2025 edition)
+          - CWE/SANS Top 25 Most Dangerous Software Weaknesses
+          - HIPAA compliance for healthcare applications
+          - Secrets detection (API keys, credentials, tokens)
+
+          Use Chain of Thought reasoning: break down analysis into steps.
+          Be precise with CWE numbers and severity levels."
+
+          USER_PROMPT="# CONTEXT
+          PR Title: ${PR_TITLE}
+          Author: ${PR_AUTHOR}
+          Files Changed: ${FILES_CHANGED}
+          Backend Compilation: ${BACKEND_STATUS}
+
+          Code Changes:
+          \$(cat /tmp/pr_diff.txt)
+
+          # TASK
+          Perform security analysis using this Chain of Thought process:
+
+          Step 1 - SCAN: Identify all security-relevant code patterns
+          Step 2 - CATEGORIZE: Map to OWASP/CWE categories
+          Step 3 - SEVERITY: Assign severity (CRITICAL/HIGH/MEDIUM/LOW)
+          Step 4 - VALIDATE: Check for false positives
+          Step 5 - DECIDE: BLOCK only if CRITICAL or multiple HIGH
+
+          # CONSTRAINTS
+          🚫 CRITICAL (Always BLOCK):
+          - CWE-89: SQL Injection
+          - CWE-78: OS Command Injection
+          - CWE-22: Path Traversal
+          - CWE-798: Hardcoded Credentials (sk-*, api_key=, password=)
+          - CWE-287: Improper Authentication
+          - CWE-863: Incorrect Authorization
+
+          ⚠️ HIGH (BLOCK if 2+):
+          - CWE-79: XSS
+          - CWE-352: CSRF Missing
+          - CWE-502: Insecure Deserialization
+          - CWE-200: Sensitive Data Exposure
+
+          ✅ IGNORE:
+          - Code style/formatting
+          - Import errors if backend compiled successfully
+          - Test files unless they leak production secrets
+
+          # OUTPUT (JSON only)
+          {
+            \"reasoning\": {
+              \"scan\": [\"pattern 1\", \"pattern 2\"],
+              \"categorized\": [{\"cwe\": \"CWE-XXX\", \"file\": \"path\", \"line\": 123}],
+              \"severity_assigned\": \"Explanation\",
+              \"false_positives\": \"Checks performed\"
+            },
+            \"verdict\": \"APPROVE|BLOCK\",
+            \"highest_severity\": \"CRITICAL|HIGH|MEDIUM|LOW|NONE\",
+            \"issues\": [
+              {
+                \"severity\": \"CRITICAL\",
+                \"cwe\": \"CWE-89\",
+                \"owasp\": \"A03:2021 Injection\",
+                \"file\": \"path/file.py\",
+                \"line\": 123,
+                \"description\": \"SQL injection via unsanitized input\",
+                \"evidence\": \"Code snippet\",
+                \"fix\": \"Use parameterized queries\"
+              }
+            ],
+            \"summary\": \"One sentence summary\"
+          }"
+
+          # Escape and call Azure OpenAI
+          SYSTEM_ESC=$(echo "$SYSTEM_PROMPT" | jq -Rs .)
+          USER_ESC=$(eval "echo \"$USER_PROMPT\"" | jq -Rs .)
+
+          HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/security_response.json \
+            --max-time 90 \
+            "${AZURE_ENDPOINT}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
+            -H "Content-Type: application/json" \
+            -H "api-key: $AZURE_KEY" \
+            -d "{
+              \"messages\": [
+                {\"role\": \"system\", \"content\": $SYSTEM_ESC},
+                {\"role\": \"user\", \"content\": $USER_ESC}
+              ],
+              \"max_completion_tokens\": 6000,
+              \"temperature\": 0.1,
+              \"response_format\": {\"type\": \"json_object\"}
+            }")
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::Azure API failed ($HTTP_CODE) - defaulting to APPROVE"
+            echo "verdict=APPROVE" >> $GITHUB_OUTPUT
+            echo "severity=NONE" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          ANALYSIS=$(cat /tmp/security_response.json | jq -r '.choices[0].message.content // empty')
+
+          if [ -z "$ANALYSIS" ] || ! echo "$ANALYSIS" | jq empty 2>/dev/null; then
+            echo "::error::Invalid AI response"
+            echo "verdict=APPROVE" >> $GITHUB_OUTPUT
+            echo "severity=NONE" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Save analysis
+          echo "$ANALYSIS" > /tmp/security_analysis.json
+          echo "$ANALYSIS" | jq .
+
+          # Extract outputs
+          VERDICT=$(echo "$ANALYSIS" | jq -r '.verdict // "APPROVE"')
+          SEVERITY=$(echo "$ANALYSIS" | jq -r '.highest_severity // "NONE"')
+
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+          echo "severity=$SEVERITY" >> $GITHUB_OUTPUT
+          echo "analysis<<EOF" >> $GITHUB_OUTPUT
+          echo "$ANALYSIS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: 🔄 Self-Review (Reflexion)
+        id: reflexion
+        if: steps.analysis.outputs.verdict == 'BLOCK'
+        env:
+          AZURE_ENDPOINT: ${{ secrets.azure-endpoint }}
+          AZURE_KEY: ${{ secrets.azure-key }}
+        run: |
+          # Reflexion technique: AI reviews its own decision
+          # Source: https://5ly.co/blog/ai-prompts-for-code-review/
+
+          REFLECTION="Review your security analysis critically:
+
+          1. Are severity levels correct? (CRITICAL vs HIGH)
+          2. Did I miss any false positives?
+          3. Is the evidence strong enough to BLOCK?
+          4. Should I downgrade any issues?
+
+          Original analysis:
+          \$(cat /tmp/security_analysis.json)
+
+          Backend status: ${{ inputs.backend-status }}
+
+          JSON response:
+          {
+            \"reflection\": \"Self-critique\",
+            \"changes\": [\"adjustment 1\"],
+            \"final_verdict\": \"APPROVE|BLOCK\",
+            \"confidence\": \"HIGH|MEDIUM|LOW\"
+          }"
+
+          REFLECTION_ESC=$(eval "echo \"$REFLECTION\"" | jq -Rs .)
+
+          HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/reflection.json \
+            --max-time 60 \
+            "${AZURE_ENDPOINT}openai/deployments/gpt-5-mini/chat/completions?api-version=2024-08-01-preview" \
+            -H "Content-Type: application/json" \
+            -H "api-key: $AZURE_KEY" \
+            -d "{
+              \"messages\": [{\"role\": \"user\", \"content\": $REFLECTION_ESC}],
+              \"max_completion_tokens\": 2000,
+              \"temperature\": 0.1,
+              \"response_format\": {\"type\": \"json_object\"}
+            }")
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            REFL=$(cat /tmp/reflection.json | jq -r '.choices[0].message.content // empty')
+            if [ -n "$REFL" ] && echo "$REFL" | jq empty 2>/dev/null; then
+              FINAL=$(echo "$REFL" | jq -r '.final_verdict // "BLOCK"')
+              echo "final_verdict=$FINAL" >> $GITHUB_OUTPUT
+              echo "reflection<<EOF" >> $GITHUB_OUTPUT
+              echo "$REFL" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+
+              if [ "$FINAL" != "${{ steps.analysis.outputs.verdict }}" ]; then
+                echo "::notice::🔄 Reflexion changed: ${{ steps.analysis.outputs.verdict }} → $FINAL"
+              fi
+            fi
+          fi
+
+      - name: ⚖️ Final Decision
+        id: decision
+        env:
+          GH_TOKEN: ${{ secrets.gh-token }}
+          PR_NUMBER: ${{ inputs.pr-number }}
+        run: |
+          VERDICT="${{ steps.reflexion.outputs.final_verdict || steps.analysis.outputs.verdict }}"
+          ANALYSIS='${{ steps.analysis.outputs.analysis }}'
+          SEVERITY="${{ steps.analysis.outputs.severity }}"
+
+          # Build PR comment
+          if [ "$VERDICT" = "BLOCK" ]; then
+            HEADER="## 🔒 Security Gate: :x: BLOCKED"
+            ICON="🚫"
+          else
+            HEADER="## 🔒 Security Gate: :white_check_mark: APPROVED"
+            ICON="✅"
+          fi
+
+          # Extract issues table
+          ISSUES_MD=$(echo "$ANALYSIS" | jq -r '
+            if (.issues | length) > 0 then
+              "### 🔍 Security Issues\n\n| Severity | CWE | OWASP | File:Line | Description |\n|----------|-----|-------|-----------|-------------|\n" +
+              (.issues[] | "| \(.severity) | \(.cwe) | \(.owasp) | `\(.file):\(.line)` | \(.description) |")
+            else
+              "### ✅ No security issues found"
+            end
+          ')
+
+          # Reflexion section
+          REFL_MD=""
+          if [ -n "${{ steps.reflexion.outputs.reflection }}" ]; then
+            REFL='${{ steps.reflexion.outputs.reflection }}'
+            REFL_TEXT=$(echo "$REFL" | jq -r '.reflection')
+            REFL_MD="<details><summary>🔄 Self-Review</summary>\n\n$REFL_TEXT\n</details>\n"
+          fi
+
+          COMMENT="$HEADER
+
+          **Verdict:** $ICON $VERDICT
+          **Highest Severity:** $SEVERITY
+
+          $ISSUES_MD
+
+          $REFL_MD
+
+          ---
+          *Powered by GPT-5-mini | Chain of Thought + Reflexion | [OWASP Top 10](https://owasp.org/www-project-top-ten/)*"
+
+          gh pr comment $PR_NUMBER --body "$COMMENT"
+
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+          echo "::notice::Security Gate: $VERDICT (Severity: $SEVERITY)"
