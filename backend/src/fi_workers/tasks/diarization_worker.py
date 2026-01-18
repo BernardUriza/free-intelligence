@@ -36,7 +36,7 @@ def diarize_session_worker(
 
     Args:
         session_id: Session identifier
-        diarization_provider: Provider (azure_gpt4, ollama, etc)
+        diarization_provider: LLM provider (azure, ollama, claude)
 
     Returns:
         WorkerResult with segments, speakers, confidence
@@ -61,7 +61,7 @@ def diarize_session_worker(
         if not diarization_provider:
             policy_loader = get_policy_loader()
             diarization_config = policy_loader.get_diarization_config()
-            diarization_provider = diarization_config.get("primary_provider", "azure_gpt4")
+            diarization_provider = diarization_config.get("primary_provider", "azure")
 
         # Get transcription sources (Triple Vision: webspeech > full_text > chunks)
         chunks_data = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
@@ -164,13 +164,12 @@ def diarize_session_worker(
             TaskType.DIARIZATION,
             {
                 "progress_percent": 30,
-                "status_message": "Calling Azure GPT-4 for speaker separation...",
+                "status_message": "Calling LLM for speaker separation...",
             },
         )
 
-        # Diarize with TRIPLE VISION (this is the slow part - Azure API call)
+        # Diarize using LLM provider
         provider = get_diarization_provider(diarization_provider)
-        # Type ignore: AzureGPT4Provider extends base with additional optional params
         response = provider.diarize(
             audio_path=None,
             transcript=full_text,  # type: ignore[call-arg]
