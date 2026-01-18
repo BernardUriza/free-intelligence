@@ -22,6 +22,7 @@ import time
 
 import httpx
 import numpy as np
+import pytest
 
 # ============================================================================
 # Test Configuration
@@ -30,6 +31,9 @@ import numpy as np
 RAG_SERVICE_URL = "http://localhost:11435"
 GATEWAY_URL = "http://localhost:11400"
 RAG_API_KEY = "change-me-in-production"  # TODO: From env
+
+# Mark all tests as integration (skipped unless explicitly requested)
+pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
 # ============================================================================
