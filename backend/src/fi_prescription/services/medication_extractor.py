@@ -15,10 +15,12 @@ from __future__ import annotations
 
 import json
 import re
+from functools import lru_cache
 from typing import Any
 
 from backend.providers.llm import llm_generate
 from backend.src.fi_common.logging.logger import get_logger
+from backend.src.fi_prompts.yaml_provider import YAMLPromptProvider
 from backend.src.fi_prescription.models.medication import (
     Medication,
     MedicationFrequency,
@@ -28,44 +30,15 @@ from backend.src.fi_prescription.services.catalog_service import catalog_service
 
 logger = get_logger(__name__)
 
-# Prompt for extracting medications from treatment text
-# Note: Double braces {{ }} are escaped for .format()
-MEDICATION_EXTRACTION_PROMPT = """Eres un asistente médico experto en farmacología mexicana.
-Tu tarea es extraer medicamentos mencionados en el texto de tratamiento y devolver JSON estructurado.
 
-IMPORTANTE:
-- Extrae TODOS los medicamentos mencionados
-- Usa nombres genéricos cuando sea posible (ej: Tempra → Paracetamol)
-- Incluye dosis, frecuencia y duración si se mencionan
-- Si no se menciona un campo, usa null
-- Responde SOLO con JSON válido, sin texto adicional
-
-Formato de respuesta (JSON array):
-[
-  {{
-    "name": "nombre del medicamento",
-    "dosage": "dosis (ej: 500mg)",
-    "frequency": "frecuencia en español",
-    "duration_days": numero o null,
-    "route": "via de administracion",
-    "instructions": "indicaciones adicionales"
-  }}
-]
-
-Frecuencias válidas:
-- "cada 4 horas", "cada 6 horas", "cada 8 horas", "cada 12 horas", "cada 24 horas"
-- "una vez al día", "dos veces al día", "tres veces al día"
-- "antes de comer", "después de comer", "al acostarse"
-- "según sea necesario"
-
-Vías de administración:
-- "oral", "sublingual", "intramuscular", "intravenosa", "subcutánea"
-- "tópica", "oftálmica", "ótica", "nasal", "inhalada", "rectal", "vaginal"
-
-Texto de tratamiento a analizar:
-{treatment_text}
-
-Responde SOLO con el JSON array:"""
+@lru_cache(maxsize=1)
+def _load_medication_prompt() -> str:
+    """Load medication extraction prompt from fi_prompts (cached)."""
+    provider = YAMLPromptProvider(yaml_dir="backend/src/fi_prompts/yaml_presets")
+    prompt = provider.get_yaml_system_prompt("medication_extractor")
+    if not prompt:
+        raise ValueError("medication_extractor prompt not found")
+    return prompt
 
 
 # Map Spanish frequency text to enum values
@@ -156,8 +129,9 @@ class MedicationExtractor:
             return []
 
         try:
-            # Build prompt
-            prompt = MEDICATION_EXTRACTION_PROMPT.format(treatment_text=treatment_text.strip())
+            # Load prompt from fi_prompts and add treatment text
+            system_prompt = _load_medication_prompt()
+            prompt = f"{system_prompt}\n\nTexto de tratamiento a analizar:\n{treatment_text.strip()}\n\nResponde SOLO con el JSON array:"
 
             logger.info(
                 "MEDICATION_EXTRACTION_START",
