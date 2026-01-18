@@ -13,7 +13,6 @@ Following HIPAA: No real PHI in test data.
 from __future__ import annotations
 
 import pytest
-
 from backend.providers.adapters import (
     ACTION_TO_EVENT_MAP,
     PayloadTranslator,
