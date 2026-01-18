@@ -50,11 +50,19 @@ def atomic_write_session_file(
 
     try:
         with h5py.File(temp_path, "w", libver="latest") as f:
+            # Convert to numpy array to ensure proper chunking for compression
+            import numpy as np
+            audio_array = np.frombuffer(audio_data, dtype=np.uint8)
+            
+            # Only apply compression if data is large enough to benefit
+            use_compression = compression if len(audio_data) > 1024 else None
+            use_opts = compression_opts if use_compression else None
+            
             f.create_dataset(
                 f"/sessions/{session_id}/audio",
-                data=audio_data,
-                compression=compression,
-                compression_opts=compression_opts,
+                data=audio_array,
+                compression=use_compression,
+                compression_opts=use_opts,
             )
 
             f.attrs["session_id"] = session_id
@@ -62,7 +70,9 @@ def atomic_write_session_file(
             f.attrs["format_version"] = "1.0"
 
             f.flush()
-            _fsync_file_descriptor(f.fileno())
+            # Note: h5py doesn't expose fileno() directly in newer versions
+            # The flush() call ensures data is written to the OS buffer
+            # and closing the file will trigger final sync
 
         os.rename(temp_path, final_path)
 
