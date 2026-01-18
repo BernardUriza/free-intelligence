@@ -99,12 +99,66 @@ jobs:
           echo "Note: Lint issues do not block merge" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================
+  # BACKEND: Ruff Lint (MUST PASS - core modules only)
+  # ============================================================
+  backend-lint:
+    name: "Backend: Lint"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Ruff check (core modules)
+        run: |
+          echo "Checking core backend modules..."
+          ruff check backend/src backend/models backend/utils backend/providers
+          echo "✅ Ruff lint passed"
+
+  # ============================================================
+  # BACKEND: Unit Tests (MUST PASS)
+  # ============================================================
+  backend-tests:
+    name: "Backend: Unit Tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run unit tests
+        run: |
+          cd backend
+          PYTHONPATH=src python -m pytest tests/unit/ -v --tb=short
+          echo "✅ Unit tests passed"
+
+  # ============================================================
   # AI GATEKEEPER: GPT-5 Review (MUST PASS)
   # ============================================================
   ai-gatekeeper:
     name: "AI Gatekeeper"
     runs-on: ubuntu-latest
-    needs: [backend-compiles, lint-report]
+    needs: [backend-compiles, backend-lint, backend-tests, lint-report]
     if: github.event_name == 'pull_request'
     permissions:
       contents: read
