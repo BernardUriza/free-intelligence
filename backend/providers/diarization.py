@@ -1,7 +1,7 @@
 """Diarization models and LLM-based diarization.
 
 This module provides speaker diarization using the LLM provider.
-Single-provider architecture - prompts stored in backend/prompts/diarization.md
+Single-provider architecture - prompts from fi_prompts/yaml_presets/
 
 File: backend/providers/diarization.py
 Refactored: 2026-01-18
@@ -17,25 +17,29 @@ from typing import Any
 
 from backend.providers.llm import llm_generate
 from backend.src.fi_common.logging.logger import get_logger
-from pathlib import Path
 
 logger = get_logger(__name__)
 
 
 # ==============================================================================
-# PROMPT LOADING
+# PROMPT LOADING (from fi_prompts system)
 # ==============================================================================
-
-PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
 
 @lru_cache(maxsize=1)
 def _load_diarization_prompt() -> str:
-    """Load diarization prompt from markdown file (cached)."""
-    prompt_path = PROMPTS_DIR / "diarization.md"
-    if not prompt_path.exists():
-        raise FileNotFoundError(f"Diarization prompt not found: {prompt_path}")
-    return prompt_path.read_text(encoding="utf-8")
+    """Load diarization prompt from fi_prompts YAML preset (cached)."""
+    # Import directly to avoid broken __init__.py
+    from backend.src.fi_prompts.yaml_provider import YAMLPromptProvider
+
+    # Use the existing yaml_presets directory
+    provider = YAMLPromptProvider(yaml_dir="backend/src/fi_prompts/yaml_presets")
+    system_prompt = provider.get_yaml_system_prompt("diarization_analyst")
+
+    if not system_prompt:
+        raise ValueError("Diarization prompt not found in fi_prompts/yaml_presets/")
+
+    return system_prompt
 
 
 # ==============================================================================
@@ -195,9 +199,19 @@ def diarize_with_llm(
         provider=provider,
     )
 
-    # Load prompt from file and format
-    prompt_template = _load_diarization_prompt()
-    prompt = prompt_template.replace("{transcript}", transcript[:8000])  # Limit context
+    # Load system prompt from fi_prompts YAML preset
+    system_prompt = _load_diarization_prompt()
+
+    # Build full prompt (system + user message combined)
+    prompt = f"""{system_prompt}
+
+---
+
+TRANSCRIPT TO ANALYZE:
+{transcript[:8000]}
+
+Return a JSON array with each segment classified by speaker (DOCTOR, PATIENT, OTHER).
+Format: [{{"speaker": "DOCTOR", "text": "...", "improved_text": "..."}}]"""
 
     # Call LLM
     response = llm_generate(prompt=prompt, provider=provider)
