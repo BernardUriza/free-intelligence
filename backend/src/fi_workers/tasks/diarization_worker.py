@@ -1,4 +1,4 @@
-"""Diarization worker - Speaker separation."""
+"""Diarization worker - Speaker separation using LLM."""
 
 from __future__ import annotations
 
@@ -9,8 +9,7 @@ from typing import Any
 
 import h5py
 from backend.models.task_type import TaskStatus, TaskType
-from backend.policy.policy_loader import get_policy_loader
-from backend.providers.diarization import get_diarization_provider
+from backend.providers.diarization import diarize_with_llm
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     CORPUS_PATH,
@@ -28,15 +27,13 @@ logger = get_logger(__name__)
 @measure_time
 def diarize_session_worker(
     session_id: str,
-    diarization_provider: str | None = None,
+    provider: str | None = None,
 ) -> dict[str, Any]:
-    """Synchronous diarization (speaker separation).
-
-    P1 FIX: Now integrates with WorkflowTracker for completion detection.
+    """Synchronous diarization (speaker separation) using LLM.
 
     Args:
         session_id: Session identifier
-        diarization_provider: LLM provider (azure, ollama, claude)
+        provider: LLM provider (azure, ollama, claude). Defaults to azure.
 
     Returns:
         WorkerResult with segments, speakers, confidence
@@ -45,23 +42,20 @@ def diarize_session_worker(
     tracker = get_workflow_tracker()
     tracker.mark_task_started(session_id, TaskType.DIARIZATION)
 
+    # Default provider
+    llm_provider = provider or "azure"
+
     try:
         start_time = time.time()
         logger.info(
             "DIARIZE_SESSION_START",
             session_id=session_id,
-            provider=diarization_provider,
+            provider=llm_provider,
         )
 
         # Check DIARIZATION task exists
         if not task_exists(session_id, TaskType.DIARIZATION):
             raise ValueError(f"DIARIZATION task not found for {session_id}. Must finalize first.")
-
-        # Get provider
-        if not diarization_provider:
-            policy_loader = get_policy_loader()
-            diarization_config = policy_loader.get_diarization_config()
-            diarization_provider = diarization_config.get("primary_provider", "azure")
 
         # Get transcription sources (Triple Vision: webspeech > full_text > chunks)
         chunks_data = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
@@ -144,7 +138,7 @@ def diarize_session_worker(
             TaskType.DIARIZATION,
             {
                 "status": TaskStatus.IN_PROGRESS,
-                "provider": diarization_provider,
+                "provider": llm_provider,
                 "progress_percent": 10,
                 "estimated_duration_seconds": estimated_duration,
                 "started_at": datetime.now(UTC).isoformat(),
@@ -158,7 +152,7 @@ def diarize_session_worker(
             estimated_duration=estimated_duration,
         )
 
-        # Update progress: 30% (text loaded, calling provider)
+        # Update progress: 30% (text loaded, calling LLM)
         update_task_metadata(
             session_id,
             TaskType.DIARIZATION,
@@ -168,14 +162,11 @@ def diarize_session_worker(
             },
         )
 
-        # Diarize using LLM provider
-        provider = get_diarization_provider(diarization_provider)
-        response = provider.diarize(
-            audio_path=None,
-            transcript=full_text,  # type: ignore[call-arg]
+        # Call diarize_with_llm directly (single provider architecture)
+        response = diarize_with_llm(
+            transcript=full_text,
             num_speakers=2,
-            chunks=chunks_data,  # type: ignore[call-arg]
-            webspeech_final=webspeech_final,  # type: ignore[call-arg]
+            provider=llm_provider,
         )
 
         # Update progress: 80% (diarization complete, processing results)
@@ -208,7 +199,7 @@ def diarize_session_worker(
             TaskType.DIARIZATION,
             {
                 "status": TaskStatus.COMPLETED,
-                "provider": diarization_provider,
+                "provider": llm_provider,
                 "segment_count": len(result["segments"]),
                 "progress_percent": 100,
                 "completed_at": datetime.now(UTC).isoformat(),

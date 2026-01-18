@@ -1,8 +1,7 @@
 """Diarization models and LLM-based diarization.
 
 This module provides speaker diarization using the LLM provider.
-The previous multi-provider architecture (Pyannote, AWS, Google, Deepgram)
-has been consolidated to use the same LLM infrastructure as the rest of the system.
+Single-provider architecture - prompts stored in backend/prompts/diarization.md
 
 File: backend/providers/diarization.py
 Refactored: 2026-01-18
@@ -13,12 +12,30 @@ from __future__ import annotations
 import json
 import re
 from datetime import UTC, datetime
+from functools import lru_cache
 from typing import Any
 
-from backend.providers.llm import get_provider, llm_generate
+from backend.providers.llm import llm_generate
 from backend.src.fi_common.logging.logger import get_logger
+from pathlib import Path
 
 logger = get_logger(__name__)
+
+
+# ==============================================================================
+# PROMPT LOADING
+# ==============================================================================
+
+PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+
+
+@lru_cache(maxsize=1)
+def _load_diarization_prompt() -> str:
+    """Load diarization prompt from markdown file (cached)."""
+    prompt_path = PROMPTS_DIR / "diarization.md"
+    if not prompt_path.exists():
+        raise FileNotFoundError(f"Diarization prompt not found: {prompt_path}")
+    return prompt_path.read_text(encoding="utf-8")
 
 
 # ==============================================================================
@@ -151,27 +168,6 @@ class DiarizationResponse:
 # LLM-BASED DIARIZATION
 # ==============================================================================
 
-DIARIZATION_PROMPT = """Analyze this medical consultation transcript and identify speakers.
-
-TRANSCRIPT:
-{transcript}
-
-INSTRUCTIONS:
-1. Identify each speaker (typically Doctor and Patient)
-2. Split the transcript into segments by speaker
-3. For each segment, provide:
-   - speaker: "Doctor" or "Patient"
-   - text: The exact text spoken
-   - improved_text: Cleaned/corrected version (fix typos, add punctuation)
-
-Return JSON array:
-[
-  {{"speaker": "Doctor", "text": "...", "improved_text": "..."}},
-  {{"speaker": "Patient", "text": "...", "improved_text": "..."}}
-]
-
-Only return the JSON array, no other text."""
-
 
 def diarize_with_llm(
     transcript: str,
@@ -199,8 +195,9 @@ def diarize_with_llm(
         provider=provider,
     )
 
-    # Build prompt
-    prompt = DIARIZATION_PROMPT.format(transcript=transcript[:8000])  # Limit context
+    # Load prompt from file and format
+    prompt_template = _load_diarization_prompt()
+    prompt = prompt_template.replace("{transcript}", transcript[:8000])  # Limit context
 
     # Call LLM
     response = llm_generate(prompt=prompt, provider=provider)
@@ -292,41 +289,3 @@ def diarize_with_llm(
         latency_ms=latency_ms,
         metadata={"model": response.model, "tokens_used": response.tokens_used},
     )
-
-
-def get_diarization_provider(provider_name: str, config: dict[str, Any] | None = None) -> Any:
-    """Factory function for backward compatibility.
-
-    Returns a simple wrapper that calls diarize_with_llm.
-    This maintains API compatibility with the old multi-provider architecture.
-    """
-
-    class LLMDiarizationProvider:
-        """LLM-based diarization provider wrapper."""
-
-        def __init__(self, provider: str) -> None:
-            self.provider = provider
-            self.config = config or {}
-
-        def diarize(
-            self,
-            audio_path: str | None = None,
-            transcript: str | None = None,
-            num_speakers: int = 2,
-            **kwargs: Any,
-        ) -> DiarizationResponse:
-            """Perform diarization using LLM."""
-            if not transcript:
-                raise ValueError("Transcript is required for LLM-based diarization")
-
-            return diarize_with_llm(
-                transcript=transcript,
-                num_speakers=num_speakers,
-                provider=self.provider if self.provider != "azure_gpt4" else "azure",
-                **kwargs,
-            )
-
-    # Map old provider names to LLM providers
-    llm_provider = "azure" if provider_name in ("azure_gpt4", "azure") else provider_name
-
-    return LLMDiarizationProvider(llm_provider)

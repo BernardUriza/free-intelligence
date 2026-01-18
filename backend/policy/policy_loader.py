@@ -248,7 +248,7 @@ class PolicyLoader:
         Get diarization configuration section.
 
         Returns:
-            Dict with diarization configuration
+            Dict with diarization configuration (LLM-based, single provider)
 
         Raises:
             RuntimeError: If policy not loaded
@@ -256,35 +256,6 @@ class PolicyLoader:
         if self.policy is None:
             raise RuntimeError("Policy not loaded. Call load() first.")
         return self.policy.get("diarization", {})
-
-    def get_primary_diarization_provider(self) -> str:
-        """Get primary diarization provider name"""
-        return self.get_diarization_config()["primary_provider"]
-
-    def get_fallback_diarization_providers(self) -> list[str]:
-        """Get fallback diarization providers in order"""
-        return self.get_diarization_config()["fallback_providers"]
-
-    def get_diarization_provider_config(self, provider_name: str) -> dict[str, Any]:
-        """
-        Get configuration for specific diarization provider.
-
-        Args:
-            provider_name: Provider name (e.g., "azure", "ollama")
-
-        Returns:
-            Dict with provider configuration
-
-        Raises:
-            KeyError: If provider not found
-        """
-        diarization_config = self.get_diarization_config()
-        providers = diarization_config["providers"]
-
-        if provider_name not in providers:
-            raise KeyError(f"Diarization provider '{provider_name}' not found in policy")
-
-        return providers[provider_name]
 
     def get_stt_config(self) -> dict[str, Any]:
         """
