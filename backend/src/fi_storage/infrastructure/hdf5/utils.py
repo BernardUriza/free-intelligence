@@ -53,11 +53,11 @@ def atomic_write_session_file(
             # Convert to numpy array to ensure proper chunking for compression
             import numpy as np
             audio_array = np.frombuffer(audio_data, dtype=np.uint8)
-            
+
             # Only apply compression if data is large enough to benefit
             use_compression = compression if len(audio_data) > 1024 else None
             use_opts = compression_opts if use_compression else None
-            
+
             f.create_dataset(
                 f"/sessions/{session_id}/audio",
                 data=audio_array,
