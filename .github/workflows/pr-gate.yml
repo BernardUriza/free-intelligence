@@ -92,8 +92,8 @@ jobs:
 
       - name: Ruff check (core modules)
         run: |
-          echo "Checking core backend modules..."
-          ruff check backend/src backend/models backend/utils backend/providers
+          echo "Checking backend modules..."
+          ruff check backend/
           echo "✅ Ruff lint passed"
 
   # ============================================================

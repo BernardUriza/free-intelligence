@@ -45,7 +45,7 @@ class TestCircuitBreakerOpen:
         """Test exception can be raised and caught."""
         with pytest.raises(CircuitBreakerOpen) as exc_info:
             raise CircuitBreakerOpen("test_service", 10.0)
-        
+
         assert exc_info.value.service_name == "test_service"
 
 
@@ -86,10 +86,10 @@ class TestCircuitBreaker:
     def test_successful_call_stays_closed(self):
         """Test successful calls keep circuit CLOSED."""
         breaker = CircuitBreaker(name="test")
-        
+
         def success_func():
             return "success"
-        
+
         result = breaker.call(success_func)
         assert result == "success"
         assert breaker.state == CircuitState.CLOSED
@@ -101,15 +101,15 @@ class TestCircuitBreaker:
             failure_threshold=3,
             recovery_timeout=60.0,
         )
-        
+
         def failing_func():
             raise ConnectionError("Connection refused")
-        
+
         # Simulate 3 failures
-        for i in range(3):
+        for _ in range(3):
             with pytest.raises(ConnectionError):
                 breaker.call(failing_func)
-        
+
         # Circuit should be OPEN now
         assert breaker.state == CircuitState.OPEN
 
@@ -120,19 +120,19 @@ class TestCircuitBreaker:
             failure_threshold=2,
             recovery_timeout=60.0,
         )
-        
+
         def failing_func():
             raise ConnectionError()
-        
+
         # Open the circuit
         for _ in range(2):
             with pytest.raises(ConnectionError):
                 breaker.call(failing_func)
-        
+
         # Next call should be rejected
         with pytest.raises(CircuitBreakerOpen) as exc_info:
             breaker.call(lambda: "should not execute")
-        
+
         assert exc_info.value.service_name == "test_reject"
         assert exc_info.value.retry_after > 0
 
@@ -143,20 +143,20 @@ class TestCircuitBreaker:
             failure_threshold=2,
             recovery_timeout=0.1,  # 100ms for fast test
         )
-        
+
         def failing_func():
             raise ConnectionError()
-        
+
         # Open the circuit
         for _ in range(2):
             with pytest.raises(ConnectionError):
                 breaker.call(failing_func)
-        
+
         assert breaker.state == CircuitState.OPEN
-        
+
         # Wait for recovery timeout
         time.sleep(0.15)
-        
+
         # Next call should transition to HALF_OPEN
         result = breaker.call(lambda: "recovered")
         assert result == "recovered"
@@ -170,24 +170,24 @@ class TestCircuitBreaker:
             recovery_timeout=0.05,
             success_threshold=2,
         )
-        
+
         def failing_func():
             raise ConnectionError()
-        
+
         # Open the circuit
         for _ in range(2):
             with pytest.raises(ConnectionError):
                 breaker.call(failing_func)
-        
+
         # Wait for recovery
         time.sleep(0.1)
-        
+
         # First success - still HALF_OPEN
         breaker.call(lambda: "ok")
-        
+
         # Second success - should close
         breaker.call(lambda: "ok")
-        
+
         assert breaker.state == CircuitState.CLOSED
 
     def test_half_open_failure_reopens_circuit(self):
@@ -197,19 +197,19 @@ class TestCircuitBreaker:
             failure_threshold=2,
             recovery_timeout=0.05,
         )
-        
+
         # Open the circuit
         for _ in range(2):
             with pytest.raises(ConnectionError):
                 breaker.call(lambda: (_ for _ in ()).throw(ConnectionError()))
-        
+
         # Wait for recovery
         time.sleep(0.1)
-        
+
         # Fail in HALF_OPEN
         with pytest.raises(TimeoutError):
             breaker.call(lambda: (_ for _ in ()).throw(TimeoutError()))
-        
+
         assert breaker.state == CircuitState.OPEN
 
     def test_excluded_exceptions_not_counted(self):
@@ -219,15 +219,15 @@ class TestCircuitBreaker:
             failure_threshold=2,
             excluded_exceptions=(ValueError,),
         )
-        
+
         def value_error_func():
             raise ValueError("Not a failure")
-        
+
         # These shouldn't count as failures
         for _ in range(5):
             with pytest.raises(ValueError):
                 breaker.call(value_error_func)
-        
+
         # Circuit should still be CLOSED
         assert breaker.state == CircuitState.CLOSED
         assert breaker._failure_count == 0
@@ -239,25 +239,25 @@ class TestCircuitBreaker:
             failure_threshold=10,  # High threshold
             window_size=60.0,
         )
-        
+
         # 3 failures
         for _ in range(3):
             with pytest.raises(ConnectionError):
                 breaker.call(lambda: (_ for _ in ()).throw(ConnectionError()))
-        
+
         # 2 successes
         for _ in range(2):
             breaker.call(lambda: "ok")
-        
+
         # Failure rate: 3/5 = 0.6
         assert 0.55 <= breaker.failure_rate <= 0.65
 
     def test_get_stats(self):
         """Test get_stats returns comprehensive information."""
         breaker = CircuitBreaker(name="test_stats")
-        
+
         stats = breaker.get_stats()
-        
+
         assert stats["name"] == "test_stats"
         assert stats["state"] == CircuitState.CLOSED
         assert "failure_threshold" in stats
@@ -273,17 +273,17 @@ class TestCircuitBreakerRegistry:
         # Use unique name to avoid conflicts
         name = f"unique_test_{time.time()}"
         breaker = get_circuit_breaker(name=name)
-        
+
         assert breaker.name == name
         assert breaker.state == CircuitState.CLOSED
 
     def test_get_circuit_breaker_returns_same_instance(self):
         """Test get_circuit_breaker returns same instance for same name."""
         name = f"singleton_test_{time.time()}"
-        
+
         breaker1 = get_circuit_breaker(name=name)
         breaker2 = get_circuit_breaker(name=name)
-        
+
         assert breaker1 is breaker2
 
     def test_get_all_circuit_breakers(self):
@@ -291,9 +291,9 @@ class TestCircuitBreakerRegistry:
         # Create a unique breaker
         name = f"list_test_{time.time()}"
         get_circuit_breaker(name=name)
-        
+
         all_breakers = get_all_circuit_breakers()
-        
+
         assert name in all_breakers
         assert isinstance(all_breakers[name], CircuitBreaker)
 
@@ -304,27 +304,27 @@ class TestCircuitBreakerDecorator:
     def test_decorator_wraps_function(self):
         """Test decorator wraps function correctly."""
         name = f"decorator_test_{time.time()}"
-        
+
         @circuit_breaker(name=name)
         def my_function():
             return "decorated"
-        
+
         result = my_function()
         assert result == "decorated"
 
     def test_decorator_counts_failures(self):
         """Test decorator counts failures and opens circuit."""
         name = f"decorator_fail_{time.time()}"
-        
+
         @circuit_breaker(name=name, failure_threshold=2)
         def failing_function():
             raise ConnectionError()
-        
+
         # Cause 2 failures
         for _ in range(2):
             with pytest.raises(ConnectionError):
                 failing_function()
-        
+
         # Circuit should be open
         with pytest.raises(CircuitBreakerOpen):
             failing_function()
@@ -332,12 +332,12 @@ class TestCircuitBreakerDecorator:
     def test_decorator_preserves_function_metadata(self):
         """Test decorator preserves function name and docstring."""
         name = f"metadata_test_{time.time()}"
-        
+
         @circuit_breaker(name=name)
         def well_documented_function():
             """This is the docstring."""
             return True
-        
+
         assert well_documented_function.__name__ == "well_documented_function"
         assert "docstring" in well_documented_function.__doc__
 
@@ -348,27 +348,27 @@ class TestCircuitBreakerThreadSafety:
     def test_concurrent_calls_are_thread_safe(self):
         """Test circuit breaker handles concurrent calls."""
         import threading
-        
+
         name = f"thread_test_{time.time()}"
         breaker = get_circuit_breaker(name=name, failure_threshold=100)
-        
+
         results = []
         errors = []
-        
+
         def call_breaker():
             try:
                 result = breaker.call(lambda: "ok")
                 results.append(result)
             except Exception as e:
                 errors.append(e)
-        
+
         # Run 20 concurrent calls
         threads = [threading.Thread(target=call_breaker) for _ in range(20)]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
-        
+
         # All should succeed
         assert len(results) == 20
         assert len(errors) == 0

@@ -253,14 +253,14 @@ class TestComplexityEdgeCases:
     def test_very_long_transcript_over_1000_words(self):
         """Test word_count > 1000 branch (line 67)."""
         analyzer = ComplexityAnalyzer()
-        
+
         # Create a transcript with > 1000 words
         base_text = "Doctor: El paciente presenta síntomas diversos. Patient: Sí doctor. "
         long_transcript = base_text * 100  # ~800 words, need more
         long_transcript += "palabra " * 300  # Add 300 more words
-        
+
         metrics = analyzer.analyze(long_transcript)
-        
+
         assert metrics.word_count > 1000
         # Score should include 20 points for word count
         assert metrics.complexity_score >= 20
@@ -268,36 +268,36 @@ class TestComplexityEdgeCases:
     def test_long_transcript_over_500_words(self):
         """Test word_count > 500 branch (line 69)."""
         analyzer = ComplexityAnalyzer()
-        
+
         # Create a transcript with 500-1000 words
         base_text = "Doctor: Esta es una consulta médica detallada con el paciente. Patient: Entendido doctor gracias. "
         medium_transcript = base_text * 50  # ~600 words
-        
+
         metrics = analyzer.analyze(medium_transcript)
-        
+
         assert 500 < metrics.word_count <= 1000, f"word_count={metrics.word_count}"
         # Score should include 15 points for word count
 
     def test_many_speaker_turns_over_20(self):
         """Test speaker_turn_count > 20 branch (line 77)."""
         analyzer = ComplexityAnalyzer()
-        
+
         # Create transcript with > 20 speaker turns
         turns = []
         for i in range(25):
             turns.append(f"Doctor: Pregunta {i}.")
             turns.append(f"Patient: Respuesta {i}.")
-        
+
         many_turns_transcript = "\n".join(turns)
         metrics = analyzer.analyze(many_turns_transcript)
-        
+
         assert metrics.speaker_turn_count > 20
         # Score should include 15 points for speaker turns
 
     def test_critical_complexity_level(self):
         """Test CRITICAL complexity level (score >= 75, line 105)."""
         analyzer = ComplexityAnalyzer()
-        
+
         # Create a transcript that triggers CRITICAL level
         # Need: many words + many turns + many diagnoses + comorbidities + labs + imaging
         critical_transcript = """
@@ -319,7 +319,7 @@ class TestComplexityEdgeCases:
         Doctor: Vamos a hacer ecocardiograma y tomografía de tórax. También interconsulta
                 con nefrología, cardiología y neumología.
         Patient: Está bien doctor, lo que usted diga.
-        Doctor: El plan incluye: ajuste de insulina a esquema intensivo, optimización de 
+        Doctor: El plan incluye: ajuste de insulina a esquema intensivo, optimización de
                 diuréticos, anticoagulación supervisada, control estricto de presión arterial,
                 dieta hipoproteica e hiposódica, restricción hídrica.
         Patient: ¿Cuándo debo regresar?
@@ -328,9 +328,9 @@ class TestComplexityEdgeCases:
         Patient: Gracias doctor.
         Doctor: De nada. Cuídese mucho.
         """
-        
+
         metrics = analyzer.analyze(critical_transcript)
-        
+
         # Should be CRITICAL due to: multiple diagnoses, many medications,
         # labs, imaging, comorbidities, and substantial text
         assert metrics.complexity_score >= 75, f"Score {metrics.complexity_score} should be >= 75"
