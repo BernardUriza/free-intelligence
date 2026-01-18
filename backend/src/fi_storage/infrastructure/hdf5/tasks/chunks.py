@@ -46,7 +46,7 @@ def append_chunk_to_task(
     timestamp_end: float,
     confidence: float = 0.95,
     audio_quality: float = 0.85,
-    provider: str = "deepgram",
+    provider: str = "azure_whisper",
     polling_attempts: int = 0,
     resolution_time_seconds: float = 0.0,
     retry_attempts: int = 0,

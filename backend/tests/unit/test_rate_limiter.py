@@ -10,7 +10,7 @@ import time
 from unittest.mock import patch
 
 import pytest
-from backend.utils.rate_limiter import RateLimiter, azure_whisper_rate_limiter
+from backend.utils.rate_limiter import RateLimiter
 
 
 class TestRateLimiter:
@@ -140,17 +140,3 @@ class TestRateLimiter:
         
         assert len(limiter.calls) == 1
         assert before <= limiter.calls[0] <= after
-
-
-class TestGlobalRateLimiter:
-    """Test global rate limiter instance."""
-
-    def test_azure_whisper_limiter_exists(self):
-        """Test deprecated azure_whisper_rate_limiter exists."""
-        assert azure_whisper_rate_limiter is not None
-        assert isinstance(azure_whisper_rate_limiter, RateLimiter)
-
-    def test_azure_whisper_limiter_config(self):
-        """Test azure_whisper_rate_limiter has expected config."""
-        assert azure_whisper_rate_limiter.max_calls == 3
-        assert azure_whisper_rate_limiter.period == 60.0

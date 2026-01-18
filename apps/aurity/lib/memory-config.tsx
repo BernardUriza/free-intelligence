@@ -206,8 +206,7 @@ export const timelineEventConfig: TimelineConfig = {
             <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-950/30 border border-blue-800 rounded-md">
               <Radio className="h-3 w-3 fi-text-primary" />
               <span className="text-xs font-mono text-blue-300">
-                {sttProvider === 'deepgram' ? 'Deepgram' :
-                 sttProvider === 'azure_whisper' ? 'Azure (deprecated)' : sttProvider}
+                {sttProvider === 'azure_whisper' ? 'Azure Whisper' : sttProvider}
               </span>
             </div>
           )}
