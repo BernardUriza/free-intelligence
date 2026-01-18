@@ -28,7 +28,6 @@ from backend.src.fi_prompts.prompt_provider import (
     PromptType,
     get_available_prompts,
     get_prompt,
-    get_prompt_metadata,
     get_prompt_provider,
 )
 from backend.src.fi_prompts.yaml_provider import (
@@ -43,6 +42,5 @@ __all__ = [
     "get_available_prompts",
     "get_enhanced_prompt",
     "get_prompt",
-    "get_prompt_metadata",
     "get_prompt_provider",
 ]
