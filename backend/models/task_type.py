@@ -35,7 +35,7 @@ class TaskType(str, Enum):
     """Audio-to-text transcription (Whisper ASR)."""
 
     DIARIZATION = "DIARIZATION"
-    """Speaker diarization (pyannote)."""
+    """Speaker diarization (LLM-based)."""
 
     SOAP_GENERATION = "SOAP_GENERATION"
     """SOAP note generation from transcript."""

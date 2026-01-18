@@ -270,7 +270,7 @@ class PolicyLoader:
         Get configuration for specific diarization provider.
 
         Args:
-            provider_name: Provider name (e.g., "pyannote", "deepgram")
+            provider_name: Provider name (e.g., "azure", "ollama")
 
         Returns:
             Dict with provider configuration
