@@ -6,7 +6,6 @@ Tests token estimation utility for LLM operations.
 from __future__ import annotations
 
 import pytest
-
 from backend.utils.token_counter import TokenCounter
 
 

@@ -8,7 +8,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from backend.utils.metrics import (
     circuit_breaker_rejections_total,
     circuit_breaker_state,
