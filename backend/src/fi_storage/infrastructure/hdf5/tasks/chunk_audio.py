@@ -3,7 +3,6 @@
 Handles audio file storage and retrieval for transcription chunks:
 - add_audio_to_chunk: Attach audio bytes to an existing chunk
 - get_chunk_audio_bytes: Retrieve audio from chunk (session-first, corpus fallback)
-- _get_chunk_audio_legacy: Legacy implementation kept for reference
 
 Audio is stored as numpy uint8 arrays within chunk groups, enabling
 efficient binary storage alongside transcription metadata.
@@ -28,7 +27,6 @@ logger = get_logger(__name__)
 __all__ = [
     "add_audio_to_chunk",
     "get_chunk_audio_bytes",
-    "_get_chunk_audio_legacy",
 ]
 
 
@@ -162,61 +160,3 @@ def get_chunk_audio_bytes(
         searched=["session_h5", "corpus_h5"],
     )
     return None
-
-
-def _get_chunk_audio_legacy(
-    session_id: str,
-    task_type: TaskType,
-    chunk_idx: int,
-    filename: str,
-) -> bytes | None:
-    """Legacy implementation - kept for reference only."""
-    try:
-        with locked_session_h5(session_id, mode="r") as f:
-            chunk_path = f"/sessions/{session_id}/tasks/{task_type.value}/chunks/chunk_{chunk_idx}"
-
-            if chunk_path not in f:  # type: ignore[operator]
-                logger.warning(
-                    "CHUNK_NOT_FOUND",
-                    session_id=session_id,
-                    task_type=task_type.value,
-                    chunk_idx=chunk_idx,
-                )
-                return None
-
-            chunk_group = f[chunk_path]  # type: ignore[index]
-
-            if filename not in chunk_group:  # type: ignore[operator]
-                logger.warning(
-                    "AUDIO_NOT_FOUND_IN_CHUNK",
-                    session_id=session_id,
-                    task_type=task_type.value,
-                    chunk_idx=chunk_idx,
-                    filename=filename,
-                )
-                return None
-
-            # Read audio dataset
-            audio_dataset = chunk_group[filename]  # type: ignore[index]
-            audio_bytes = bytes(audio_dataset[()])  # type: ignore[index]
-
-            logger.info(
-                "CHUNK_AUDIO_READ",
-                session_id=session_id,
-                task_type=task_type.value,
-                chunk_idx=chunk_idx,
-                filename=filename,
-                size_bytes=len(audio_bytes),
-            )
-
-            return audio_bytes
-
-    except Exception as e:
-        logger.error(
-            "GET_CHUNK_AUDIO_FAILED",
-            session_id=session_id,
-            task_type=task_type.value,
-            chunk_idx=chunk_idx,
-            error=str(e),
-        )
-        return None

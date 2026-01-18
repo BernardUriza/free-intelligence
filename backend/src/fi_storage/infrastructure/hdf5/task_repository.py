@@ -27,7 +27,6 @@ Modules:
   - tasks/chunks.py: Transcription chunk management
   - tasks/chunk_audio.py: Audio blob storage
   - tasks/transcription_sources.py: WebSpeech, full transcription, full audio
-  - tasks/compat.py: Backwards compatibility with legacy schemas
   - tasks/diarization.py: Speaker diarization segments
   - tasks/soap.py: SOAP note storage
   - tasks/orders.py: Medical orders CRUD
@@ -67,8 +66,6 @@ from backend.src.fi_storage.infrastructure.hdf5.tasks import (
     # Diarization
     get_diarization_segments,
     get_orders,
-    # Compatibility
-    get_session_chunks_compat,
     # SOAP
     get_soap_data,
     get_task_chunks,
@@ -146,8 +143,6 @@ __all__ = [
     "add_full_audio",
     "add_full_transcription",
     "add_webspeech_transcripts",
-    # Compatibility
-    "get_session_chunks_compat",
     # Diarization
     "get_diarization_segments",
     "save_diarization_segments",

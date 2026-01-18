@@ -1,19 +1,21 @@
 # fi-devtools
 
-`fi-devtools` provides the `fi` CLI used in this monorepo to run developer utilities (lint fixers, migrations, inspections, recovery scripts, and CI helpers).
+`fi-devtools` provided the `fi` CLI used in this monorepo to run developer utilities (lint fixers, migrations, inspections, recovery scripts, and CI helpers).
 
-This package is a thin Typer wrapper around existing legacy scripts in the repository. Most commands accept extra arguments that are forwarded to the underlying script.
+This package has been removed from the main `backend/src` path and archived in `deprecated/fi_devtools_removed_backup` because its functionality is either obsolete or has been migrated to other tools. If you relied on `fi` for local developer tasks, see the "Restore (optional)" section below.
 
-## Install (editable, recommended)
+## Restore (optional)
 
-From the repository root:
+If you still need `fi_devtools` locally, you can restore the archived package (for local use only). From the repository root:
 
-- `python -m pip install -e backend/packages/fi_devtools`
+- `mv deprecated/fi_devtools_removed_backup backend/src/fi_devtools`
+- `python -m pip install -e backend/src/fi_devtools`
+
+Consider instead using the modernized scripts or CI tasks maintained elsewhere in the repo; consult the team before re-adding the package permanently.
 
 ## Usage
 
-- `fi --help`
-- `python -m fi_devtools --help`
+The `fi` CLI is not available by default in this checkout. See the "Restore (optional)" section to bring it back locally.
 
 ### Lint
 

@@ -10,7 +10,6 @@ Modules:
   - chunks: Transcription chunk management
   - chunk_audio: Audio blob storage
   - transcription_sources: WebSpeech, full transcription, full audio
-  - compat: Backwards compatibility with legacy schemas
   - diarization: Speaker diarization segments
   - soap: SOAP note storage
   - orders: Medical orders CRUD
@@ -40,11 +39,6 @@ from backend.src.fi_storage.infrastructure.hdf5.tasks.chunks import (
     get_task_chunks,
     get_task_transcript,
     update_chunk_dataset,
-)
-
-# Compatibility
-from backend.src.fi_storage.infrastructure.hdf5.tasks.compat import (
-    get_session_chunks_compat,
 )
 
 # Diarization
@@ -124,8 +118,6 @@ __all__ = [
     "add_full_audio",
     "add_full_transcription",
     "add_webspeech_transcripts",
-    # Compatibility
-    "get_session_chunks_compat",
     # Diarization
     "get_diarization_segments",
     "save_diarization_segments",

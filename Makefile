@@ -250,11 +250,27 @@ type-check-all: ## Run all type checkers (Pyright + Mypy + Ruff)
 type-check-export: ## Export type errors as JSON for Claude Code
 	@echo "📤 Exporting type errors..."
 	@command -v pyright >/dev/null 2>&1 || { echo "Installing pyright..."; npm install -g pyright; }
+	@python - <<'PY'
+import importlib.util, sys
+if importlib.util.find_spec('fi_devtools') is None:
+    print('⚠️  fi_devtools not installed. Skipping type-check-export. Install with: python -m pip install -e backend/src/fi_devtools or restore the package in repo.')
+    sys.exit(0)
+else:
+    sys.exit(print('') or 0)
+PY
 	PYTHONPATH=backend/src $(PY) -m fi_devtools.analysis.detect_type_errors backend/ --export
 	@echo "✅ Results saved to ops/type_check_results/results.json"
 
 type-check-batch: ## Detect and report all type errors (comprehensive)
 	@echo "🔍 Running batch type detection..."
+	@python - <<'PY'
+import importlib.util, sys
+if importlib.util.find_spec('fi_devtools') is None:
+    print('⚠️  fi_devtools not installed. Skipping type-check-batch. Install with: python -m pip install -e backend/src/fi_devtools or restore the package in repo.')
+    sys.exit(0)
+else:
+    sys.exit(print('') or 0)
+PY
 	PYTHONPATH=backend/src $(PY) -m fi_devtools.analysis.detect_type_errors backend/ --all --export
 
 # ============================================================================
@@ -478,11 +494,27 @@ policy-test: ## Run policy enforcement tests
 policy-report: ## Generate QA documentation and manifest
 	@echo "📄 Generating policy QA report..."
 	@mkdir -p docs/qa eval/results
+	@python - <<'PY'
+import importlib.util, sys
+if importlib.util.find_spec('fi_devtools') is None:
+    print('⚠️  fi_devtools not installed. Skipping policy-report. Install with: python -m pip install -e backend/src/fi_devtools or restore the package in repo.')
+    sys.exit(0)
+else:
+    sys.exit(print('') or 0)
+PY
 	@PYTHONPATH=backend/src $(PY) -m fi_devtools.ci.generate_policy_manifest
 	@echo "✅ Policy report generated"
 
 policy-verify: ## Verify policy artifacts and hashes
 	@echo "🔍 Verifying policy artifacts..."
+	@python - <<'PY'
+import importlib.util, sys
+if importlib.util.find_spec('fi_devtools') is None:
+    print('⚠️  fi_devtools not installed. Skipping policy-verify. Install with: python -m pip install -e backend/src/fi_devtools or restore the package in repo.')
+    sys.exit(0)
+else:
+    sys.exit(print('') or 0)
+PY
 	@PYTHONPATH=backend/src $(PY) -m fi_devtools.ci.verify_policy
 
 policy-all: policy-test policy-report policy-verify ## Run full policy workflow

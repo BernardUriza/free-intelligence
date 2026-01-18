@@ -289,3 +289,31 @@ class TestLLMResponseParserABC:
     def test_generic_parser_is_subclass(self) -> None:
         """GenericParser should be a subclass of LLMResponseParser."""
         assert issubclass(GenericParser, LLMResponseParser)
+
+
+class TestParseThinkingBlocksDirect:
+    """Direct tests for _parse_thinking_blocks static method."""
+
+    def test_parse_thinking_blocks_empty_string(self) -> None:
+        """Empty string should return (None, '')."""
+        result = QwenThinkingParser._parse_thinking_blocks("")
+
+        assert result == (None, "")
+
+    def test_parse_thinking_blocks_whitespace_only(self) -> None:
+        """Whitespace-only string should parse as content."""
+        result = QwenThinkingParser._parse_thinking_blocks("   ")
+
+        thinking, content = result
+        assert thinking is None
+        # Content is the whitespace string (no thinking blocks)
+        assert content == ""  # stripped
+
+    def test_parse_thinking_blocks_none_edge(self) -> None:
+        """Direct call with text containing only tags."""
+        result = QwenThinkingParser._parse_thinking_blocks("<think></think>")
+
+        thinking, content = result
+        # Empty thinking block results in None (no content inside)
+        assert thinking is None
+        assert content == ""

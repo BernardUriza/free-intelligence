@@ -193,6 +193,24 @@ class TestPatientStub:
         assert patient.age is None
         assert patient.gender is None
 
+    def test_age_validator_rejects_over_120(self) -> None:
+        """Age validator should reject ages over 120."""
+        with pytest.raises(ValidationError):
+            PatientStub(age=121)
+
+    def test_age_validator_rejects_negative(self) -> None:
+        """Age validator should reject negative ages."""
+        with pytest.raises(ValidationError):
+            PatientStub(age=-1)
+
+    def test_age_validator_accepts_boundary_values(self) -> None:
+        """Age validator should accept 0 and 120."""
+        patient_zero = PatientStub(age=0)
+        patient_max = PatientStub(age=120)
+
+        assert patient_zero.age == 0
+        assert patient_max.age == 120
+
     def test_valid_patient(self) -> None:
         """PatientStub should accept valid values."""
         patient = PatientStub(

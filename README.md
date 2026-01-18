@@ -149,6 +149,8 @@ pnpm dev
 
 # Backend: http://localhost:7001
 # Frontend: http://localhost:9000
+
+Note: The legacy developer CLI `fi_devtools` has been removed from the main `backend/src` tree and archived at `deprecated/fi_devtools_removed_backup`. If you depend on it, restore it from that path or consult the dev team for modern replacements.
 ```
 
 ### Production Deployment
