@@ -4,11 +4,11 @@ Provides consistent error handling across all API endpoints.
 
 Usage:
     from backend.utils.exception_handler import handle_exception
-    from backend.exceptions import SessionNotFoundError
+    from backend.src.fi_coder.utils.exceptions import FIException
 
     try:
         session = get_session(session_id)
-    except SessionNotFoundError as e:
+    except FIException as e:
         return handle_exception(e)
 
 Created: 2025-01-XX
@@ -17,8 +17,8 @@ Author: Claude Code (P1 Architectural Fix)
 
 from __future__ import annotations
 
-from backend.exceptions import FIException
 from backend.schemas import StatusCode, error_response
+from backend.src.fi_coder.utils.exceptions import FIException
 from backend.src.fi_common.logging.logger import get_logger
 from fastapi import HTTPException, status
 
@@ -142,7 +142,7 @@ def exception_to_response(exc: Exception) -> dict:
             message=exc.message,
             code=exc.status_code,
             status=status_code_enum,
-        ).dict()
+        ).model_dump()
 
     # Fallback for non-FIException
     http_exc = handle_exception(exc, log_error=False)
@@ -159,7 +159,7 @@ def exception_to_response(exc: Exception) -> dict:
             message=str(exc),
             code=http_exc.status_code,
             status=status_code_enum,
-        ).dict()
+        ).model_dump()
 
     # Should never reach here, but just in case
     return error_response(
