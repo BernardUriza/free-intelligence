@@ -135,7 +135,7 @@ class Session:
         Args:
             encryption_metadata: Encryption details
         """
-        self.status = SessionStatus(str(SessionStatus.FINALIZED))
+        self.status = SessionStatus.FINALIZED
         self.encryption_metadata = encryption_metadata
         finalized_at = datetime.now(UTC).isoformat()
         self.finalized_at = finalized_at
@@ -147,7 +147,7 @@ class Session:
         Args:
             diarization_job_id: Job ID that performed diarization
         """
-        self.status = SessionStatus(str(SessionStatus.DIARIZED))
+        self.status = SessionStatus.DIARIZED
         self.diarization_job_id = diarization_job_id
         diarized_at = datetime.now(UTC).isoformat()
         self.diarized_at = diarized_at
@@ -155,7 +155,7 @@ class Session:
 
     def mark_reviewed(self) -> None:
         """Mark session as reviewed (human approved)."""
-        self.status = SessionStatus(str(SessionStatus.REVIEWED))
+        self.status = SessionStatus.REVIEWED
         reviewed_at = datetime.now(UTC).isoformat()
         self.reviewed_at = reviewed_at
         self.updated_at = reviewed_at
@@ -166,7 +166,7 @@ class Session:
         Args:
             soap_note_path: Path in HDF5 to SOAP note
         """
-        self.status = SessionStatus(str(SessionStatus.COMPLETED))
+        self.status = SessionStatus.COMPLETED
         self.soap_note_path = soap_note_path
         completed_at = datetime.now(UTC).isoformat()
         self.completed_at = completed_at
