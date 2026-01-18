@@ -144,7 +144,7 @@ class Job:
 
     def start(self) -> None:
         """Mark job as started."""
-        self.status = JobStatus(str(JobStatus.IN_PROGRESS))
+        self.status = JobStatus.IN_PROGRESS
         started_at = datetime.now(UTC).isoformat()
         self.started_at = started_at
         self.updated_at = started_at
@@ -155,7 +155,7 @@ class Job:
         Args:
             result_data: Job-specific result data
         """
-        self.status = JobStatus(str(JobStatus.COMPLETED))
+        self.status = JobStatus.COMPLETED
         completed_at = datetime.now(UTC).isoformat()
         self.completed_at = completed_at
         self.updated_at = completed_at
@@ -169,7 +169,7 @@ class Job:
         Args:
             error_message: Error description
         """
-        self.status = JobStatus(str(JobStatus.FAILED))
+        self.status = JobStatus.FAILED
         self.error_message = error_message
         self.updated_at = datetime.now(UTC).isoformat()
 

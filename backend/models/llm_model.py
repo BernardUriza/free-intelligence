@@ -6,10 +6,15 @@ that can be assigned to AI personas.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+def _utc_now() -> datetime:
+    """Return current UTC datetime (timezone-aware)."""
+    return datetime.now(UTC)
 
 
 class LLMProvider(str, Enum):
@@ -46,8 +51,8 @@ class LLMModel(BaseModel):
     description: str | None = Field(None, description="Optional model description")
     size_bytes: int | None = Field(None, description="Model size in bytes (for local models)")
     ram_required_gb: float | None = Field(None, description="Estimated RAM required in GB")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
 
     model_config = ConfigDict(use_enum_values=True)
 
