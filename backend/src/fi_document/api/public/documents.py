@@ -931,13 +931,16 @@ def _get_embedding_model():
 # Question Generation (POST-STEP after indexing)
 # ============================================================================
 
-QUESTION_GENERATION_PROMPT = """TAREA: Genera EXACTAMENTE 3 preguntas sobre este documento médico.
 
-DOCUMENTO:
-{rag_context}
+def _load_question_prompt() -> str:
+    """Load question generation prompt from fi_prompts."""
+    from backend.src.fi_prompts.yaml_provider import YAMLPromptProvider
 
-RESPONDE SOLO CON ESTE JSON (reemplaza los ejemplos con preguntas reales):
-{{"questions": ["¿Pregunta 1?", "¿Pregunta 2?", "¿Pregunta 3?"]}}"""
+    provider = YAMLPromptProvider(yaml_dir="backend/src/fi_prompts/yaml_presets")
+    prompt = provider.get_yaml_system_prompt("question_generator")
+    if not prompt:
+        raise ValueError("question_generator prompt not found")
+    return prompt
 
 
 def _generate_initial_questions_via_rag(doc_id: str) -> list[str]:
@@ -1000,7 +1003,8 @@ def _generate_initial_questions_via_rag(doc_id: str) -> list[str]:
     try:
         from backend.providers.llm import llm_generate
 
-        prompt = QUESTION_GENERATION_PROMPT.format(rag_context=rag_context)
+        system_prompt = _load_question_prompt()
+        prompt = f"{system_prompt}\n\nDOCUMENTO:\n{rag_context}"
 
         response = llm_generate(
             prompt=prompt,
