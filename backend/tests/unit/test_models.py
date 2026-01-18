@@ -503,3 +503,404 @@ class TestLLMModelResponse:
         assert response.cost_tier == "medium"
         assert isinstance(response.created_at, str)
         assert isinstance(response.updated_at, str)
+
+
+# =============================================================================
+# Session Tests
+# =============================================================================
+class TestSessionStatus:
+    """Tests for SessionStatus enum."""
+
+    def test_statuses_exist(self) -> None:
+        """All expected session statuses exist."""
+        from backend.models.session import SessionStatus
+
+        assert SessionStatus.ACTIVE.value == "active"
+        assert SessionStatus.FINALIZED.value == "finalized"
+        assert SessionStatus.DIARIZED.value == "diarized"
+        assert SessionStatus.REVIEWED.value == "reviewed"
+        assert SessionStatus.COMPLETED.value == "completed"
+
+    def test_status_count(self) -> None:
+        """Verify expected number of statuses."""
+        from backend.models.session import SessionStatus
+
+        assert len(SessionStatus) == 5
+
+
+class TestEncryptionMetadata:
+    """Tests for EncryptionMetadata class."""
+
+    def test_creation_defaults(self) -> None:
+        """EncryptionMetadata has sensible defaults."""
+        from backend.models.session import EncryptionMetadata
+
+        meta = EncryptionMetadata()
+        assert meta.algorithm == "AES-GCM-256"
+        assert meta.encrypted_by == "system"
+        assert meta.key_id == ""
+        assert meta.iv == ""
+
+    def test_creation_with_values(self) -> None:
+        """EncryptionMetadata accepts all values."""
+        from backend.models.session import EncryptionMetadata
+
+        meta = EncryptionMetadata(
+            algorithm="AES-CBC-256",
+            key_id="key-123",
+            iv="iv-abc",
+            encrypted_at="2025-01-18T10:00:00Z",
+            encrypted_by="admin",
+        )
+        assert meta.algorithm == "AES-CBC-256"
+        assert meta.key_id == "key-123"
+        assert meta.iv == "iv-abc"
+        assert meta.encrypted_at == "2025-01-18T10:00:00Z"
+        assert meta.encrypted_by == "admin"
+
+
+class TestSession:
+    """Tests for Session class."""
+
+    def test_session_creation_with_enum(self) -> None:
+        """Session can be created with enum status."""
+        from backend.models.session import Session, SessionStatus
+
+        session = Session(
+            session_id="sess-123",
+            status=SessionStatus.ACTIVE,
+            created_at="2025-01-18T10:00:00Z",
+            updated_at="2025-01-18T10:00:00Z",
+        )
+        assert session.session_id == "sess-123"
+        assert session.status == SessionStatus.ACTIVE
+        assert session.total_chunks == 0
+        assert session.recording_duration == 0.0
+
+    def test_session_creation_with_string(self) -> None:
+        """Session can be created with string status."""
+        from backend.models.session import Session, SessionStatus
+
+        session = Session(
+            session_id="sess-123",
+            status="active",
+            created_at="2025-01-18T10:00:00Z",
+            updated_at="2025-01-18T10:00:00Z",
+        )
+        assert session.status == SessionStatus.ACTIVE
+
+    def test_session_create_now(self) -> None:
+        """Session.create_now creates active session."""
+        from backend.models.session import Session, SessionStatus
+
+        session = Session.create_now("sess-new")
+        assert session.session_id == "sess-new"
+        assert session.status == SessionStatus.ACTIVE
+        assert session.created_at is not None
+
+    def test_session_finalize(self) -> None:
+        """Session.finalize() transitions to FINALIZED."""
+        from backend.models.session import EncryptionMetadata, Session, SessionStatus
+
+        session = Session.create_now("sess-1")
+        meta = EncryptionMetadata(key_id="key-1", iv="iv-1")
+        session.finalize(meta)
+
+        assert session.status == SessionStatus.FINALIZED
+        assert session.encryption_metadata == meta
+        assert session.finalized_at is not None
+
+    def test_session_mark_diarized(self) -> None:
+        """Session.mark_diarized() transitions to DIARIZED."""
+        from backend.models.session import Session, SessionStatus
+
+        session = Session.create_now("sess-1")
+        session.mark_diarized("diar-job-123")
+
+        assert session.status == SessionStatus.DIARIZED
+        assert session.diarization_job_id == "diar-job-123"
+        assert session.diarized_at is not None
+
+    def test_session_mark_reviewed(self) -> None:
+        """Session.mark_reviewed() transitions to REVIEWED."""
+        from backend.models.session import Session, SessionStatus
+
+        session = Session.create_now("sess-1")
+        session.mark_reviewed()
+
+        assert session.status == SessionStatus.REVIEWED
+        assert session.reviewed_at is not None
+
+    def test_session_mark_completed(self) -> None:
+        """Session.mark_completed() transitions to COMPLETED."""
+        from backend.models.session import Session, SessionStatus
+
+        session = Session.create_now("sess-1")
+        session.mark_completed("/sessions/sess-1/soap/note.json")
+
+        assert session.status == SessionStatus.COMPLETED
+        assert session.soap_note_path == "/sessions/sess-1/soap/note.json"
+        assert session.completed_at is not None
+
+    def test_session_to_dict(self) -> None:
+        """Session.to_dict() serializes correctly."""
+        from backend.models.session import Session
+
+        session = Session.create_now("sess-1")
+        session.patient_id = "patient-abc"
+        session.total_chunks = 5
+
+        data = session.to_dict()
+        assert data["session_id"] == "sess-1"
+        assert data["status"] == "active"
+        assert data["patient_id"] == "patient-abc"
+        assert data["total_chunks"] == 5
+        assert data["encryption_metadata"] is None
+
+    def test_session_to_dict_with_encryption(self) -> None:
+        """Session.to_dict() includes encryption metadata."""
+        from backend.models.session import EncryptionMetadata, Session
+
+        session = Session.create_now("sess-1")
+        meta = EncryptionMetadata(key_id="key-1", iv="iv-1")
+        session.finalize(meta)
+
+        data = session.to_dict()
+        assert data["encryption_metadata"]["algorithm"] == "AES-GCM-256"
+        assert data["encryption_metadata"]["key_id"] == "key-1"
+
+    def test_session_from_dict(self) -> None:
+        """Session.from_dict() deserializes correctly."""
+        from backend.models.session import Session, SessionStatus
+
+        data = {
+            "session_id": "sess-abc",
+            "status": "finalized",
+            "created_at": "2025-01-18T10:00:00Z",
+            "updated_at": "2025-01-18T10:05:00Z",
+            "total_chunks": 10,
+        }
+        session = Session.from_dict(data)
+        assert session.session_id == "sess-abc"
+        assert session.status == SessionStatus.FINALIZED
+        assert session.total_chunks == 10
+
+    def test_session_from_dict_with_encryption(self) -> None:
+        """Session.from_dict() deserializes encryption metadata."""
+        from backend.models.session import Session
+
+        data = {
+            "session_id": "sess-abc",
+            "status": "finalized",
+            "created_at": "2025-01-18T10:00:00Z",
+            "updated_at": "2025-01-18T10:05:00Z",
+            "encryption_metadata": {
+                "algorithm": "AES-GCM-256",
+                "key_id": "key-xyz",
+                "iv": "iv-123",
+                "encrypted_at": "2025-01-18T10:05:00Z",
+                "encrypted_by": "system",
+            },
+        }
+        session = Session.from_dict(data)
+        assert session.encryption_metadata is not None
+        assert session.encryption_metadata.key_id == "key-xyz"
+
+
+# =============================================================================
+# TranscriptionJob Tests
+# =============================================================================
+class TestChunkMetadata:
+    """Tests for ChunkMetadata class."""
+
+    def test_creation_required_fields(self) -> None:
+        """ChunkMetadata requires chunk_number, status, audio_size_bytes."""
+        from backend.models.transcription_job import ChunkMetadata
+
+        chunk = ChunkMetadata(
+            chunk_number=0,
+            status="pending",
+            audio_size_bytes=1024,
+        )
+        assert chunk.chunk_number == 0
+        assert chunk.status == "pending"
+        assert chunk.audio_size_bytes == 1024
+        assert chunk.transcript is None
+
+    def test_creation_all_fields(self) -> None:
+        """ChunkMetadata accepts all optional fields."""
+        from backend.models.transcription_job import ChunkMetadata
+
+        chunk = ChunkMetadata(
+            chunk_number=1,
+            status="completed",
+            audio_size_bytes=2048,
+            audio_hash="abc123",
+            transcript="Hello world",
+            duration=13.5,
+            language="es",
+            confidence=0.95,
+            audio_quality=0.88,
+            timestamp_start=0.0,
+            timestamp_end=13.5,
+            created_at="2025-01-18T10:00:00Z",
+        )
+        assert chunk.transcript == "Hello world"
+        assert chunk.confidence == 0.95
+        assert chunk.language == "es"
+
+
+class TestTranscriptionJob:
+    """Tests for TranscriptionJob class."""
+
+    def test_create_for_session(self) -> None:
+        """TranscriptionJob.create_for_session creates correctly."""
+        from backend.models.job import JobStatus, JobType
+        from backend.models.transcription_job import TranscriptionJob
+
+        job = TranscriptionJob.create_for_session(
+            job_id="job-123",
+            session_id="sess-456",
+            total_chunks=5,
+        )
+        assert job.job_id == "job-123"
+        assert job.session_id == "sess-456"
+        assert job.job_type == JobType.TRANSCRIPTION
+        assert job.status == JobStatus.PENDING
+        assert job.total_chunks == 5
+        assert job.processed_chunks == 0
+        assert job.chunks == []
+
+    def test_add_chunk_new(self) -> None:
+        """TranscriptionJob.add_chunk adds new chunk."""
+        from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
+
+        job = TranscriptionJob.create_for_session("job-1", "sess-1")
+        chunk = ChunkMetadata(chunk_number=0, status="pending", audio_size_bytes=1024)
+        job.add_chunk(chunk)
+
+        assert len(job.chunks) == 1
+        assert job.chunks[0].chunk_number == 0
+        assert job.total_chunks == 1
+
+    def test_add_chunk_updates_existing(self) -> None:
+        """TranscriptionJob.add_chunk updates existing chunk."""
+        from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
+
+        job = TranscriptionJob.create_for_session("job-1", "sess-1")
+        chunk1 = ChunkMetadata(chunk_number=0, status="pending", audio_size_bytes=1024)
+        job.add_chunk(chunk1)
+
+        chunk2 = ChunkMetadata(chunk_number=0, status="completed", audio_size_bytes=1024)
+        job.add_chunk(chunk2)
+
+        assert len(job.chunks) == 1
+        assert job.chunks[0].status == "completed"
+
+    def test_add_chunks_sorted(self) -> None:
+        """TranscriptionJob.add_chunk keeps chunks sorted."""
+        from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
+
+        job = TranscriptionJob.create_for_session("job-1", "sess-1")
+        job.add_chunk(ChunkMetadata(chunk_number=2, status="pending", audio_size_bytes=1024))
+        job.add_chunk(ChunkMetadata(chunk_number=0, status="pending", audio_size_bytes=1024))
+        job.add_chunk(ChunkMetadata(chunk_number=1, status="pending", audio_size_bytes=1024))
+
+        assert [c.chunk_number for c in job.chunks] == [0, 1, 2]
+
+    def test_mark_chunk_completed(self) -> None:
+        """TranscriptionJob.mark_chunk_completed updates chunk."""
+        from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
+
+        job = TranscriptionJob.create_for_session("job-1", "sess-1", total_chunks=2)
+        job.add_chunk(ChunkMetadata(chunk_number=0, status="pending", audio_size_bytes=1024))
+        job.add_chunk(ChunkMetadata(chunk_number=1, status="pending", audio_size_bytes=1024))
+
+        job.mark_chunk_completed(
+            chunk_number=0,
+            transcript="Test transcript",
+            duration=13.0,
+            language="es",
+            audio_hash="hash123",
+            confidence=0.92,
+            audio_quality=0.85,
+            timestamp_start=0.0,
+            timestamp_end=13.0,
+            created_at="2025-01-18T10:00:00Z",
+        )
+
+        assert job.chunks[0].status == "completed"
+        assert job.chunks[0].transcript == "Test transcript"
+        assert job.processed_chunks == 1
+        assert job.progress_percent == 50
+
+    def test_mark_chunk_failed(self) -> None:
+        """TranscriptionJob.mark_chunk_failed updates chunk."""
+        from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
+
+        job = TranscriptionJob.create_for_session("job-1", "sess-1")
+        job.add_chunk(ChunkMetadata(chunk_number=0, status="pending", audio_size_bytes=1024))
+
+        job.mark_chunk_failed(0, "Whisper timeout")
+
+        assert job.chunks[0].status == "failed"
+        assert job.chunks[0].error_message == "Whisper timeout"
+
+    def test_get_chunk(self) -> None:
+        """TranscriptionJob.get_chunk returns chunk by number."""
+        from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
+
+        job = TranscriptionJob.create_for_session("job-1", "sess-1")
+        job.add_chunk(ChunkMetadata(chunk_number=0, status="pending", audio_size_bytes=1024))
+        job.add_chunk(ChunkMetadata(chunk_number=1, status="pending", audio_size_bytes=2048))
+
+        chunk = job.get_chunk(1)
+        assert chunk is not None
+        assert chunk.audio_size_bytes == 2048
+
+        missing = job.get_chunk(99)
+        assert missing is None
+
+    def test_to_dict(self) -> None:
+        """TranscriptionJob.to_dict serializes correctly."""
+        from backend.models.transcription_job import ChunkMetadata, TranscriptionJob
+
+        job = TranscriptionJob.create_for_session("job-1", "sess-1", total_chunks=1)
+        job.add_chunk(ChunkMetadata(chunk_number=0, status="completed", audio_size_bytes=1024))
+        job.primary_language = "en"
+
+        data = job.to_dict()
+        assert data["job_id"] == "job-1"
+        assert data["job_type"] == "transcription"
+        assert data["total_chunks"] == 1
+        assert data["primary_language"] == "en"
+        assert len(data["chunks"]) == 1
+        assert data["chunks"][0]["chunk_number"] == 0
+
+    def test_from_dict(self) -> None:
+        """TranscriptionJob.from_dict deserializes correctly."""
+        from backend.models.job import JobStatus, JobType
+        from backend.models.transcription_job import TranscriptionJob
+
+        data = {
+            "job_id": "job-abc",
+            "session_id": "sess-xyz",
+            "job_type": "transcription",
+            "status": "in_progress",
+            "created_at": "2025-01-18T10:00:00Z",
+            "updated_at": "2025-01-18T10:05:00Z",
+            "total_chunks": 3,
+            "processed_chunks": 1,
+            "primary_language": "es",
+            "chunks": [
+                {"chunk_number": 0, "status": "completed", "audio_size_bytes": 1024},
+                {"chunk_number": 1, "status": "pending", "audio_size_bytes": 2048},
+            ],
+        }
+        job = TranscriptionJob.from_dict(data)
+        assert job.job_id == "job-abc"
+        assert job.job_type == JobType.TRANSCRIPTION
+        assert job.status == JobStatus.IN_PROGRESS
+        assert job.total_chunks == 3
+        assert len(job.chunks) == 2
+        assert job.chunks[0].status == "completed"
