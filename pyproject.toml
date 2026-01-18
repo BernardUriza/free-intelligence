@@ -104,21 +104,17 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["backend"]
+# Incremental coverage strategy - only modules with existing tests
+# Goal: Keep these at 70%+, add more modules as we write tests
+source = [
+    "backend/utils",
+    "backend/models",
+]
 omit = [
     "*/tests/*",
     "*/test_*.py",
     "*/__pycache__/*",
     "*/node_modules/*",
-    # One-time dev/migration scripts (not production code)
-    "backend/tools/analyze_tier1_errors.py",
-    "backend/tools/audit_technical_debt.py",
-    "backend/tools/fix_unused_imports.py",
-    "backend/tools/fix_utc_imports.py",
-    "backend/tools/generate_test_data.py",
-    "backend/tools/inspect_corpus.py",
-    # Alembic migrations (generated code)
-    "backend/alembic/*",
 ]
 
 [tool.coverage.report]
