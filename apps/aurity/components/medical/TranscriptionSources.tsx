@@ -209,9 +209,9 @@ export function TranscriptionSources({
                 const confidence = chunk.confidence || 0;
 
                 // Badge class for provider
-                const providerBadge = provider === 'deepgram'
+                const providerBadge = provider === 'azure_whisper'
                   ? 'fi-badge-info'
-                  : 'fi-badge-secondary'; // azure_whisper (deprecated) & others
+                  : 'fi-badge-secondary';
 
                 // Warning colors for high metrics
                 const pollingColor = pollingAttempts > 5 ? 'text-yellow-400' : 'text-slate-400';
@@ -229,7 +229,7 @@ export function TranscriptionSources({
                         [Chunk {chunk.chunk_number}]
                       </span>
                       <span className={providerBadge}>
-                        {provider === 'deepgram' ? '⚡ Deepgram' : provider === 'azure_whisper' ? '🔷 Azure (deprecated)' : provider}
+                        {provider === 'azure_whisper' ? '🔷 Azure Whisper' : provider}
                       </span>
                       {confidence > 0 && (
                         <span className="fi-text-xs">

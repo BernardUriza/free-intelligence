@@ -64,23 +64,21 @@ diarization:
 
 # ===== STT Provider Configuration =====
 stt:
-  # Primary provider for transcription (single provider - no load balancer needed)
-  primary_provider: deepgram  # Deepgram nova-2 (fast, reliable)
-
-  # Note: azure_whisper deprecated (endpoint removed by Microsoft)
-  # No fallback - single provider architecture
+  # Primary provider for transcription (single provider architecture)
+  primary_provider: azure_whisper  # Azure OpenAI Whisper
 
   # Provider configuration
   providers:
-    # Deepgram - Cloud-based STT (very fast, nova-2 model)
-    deepgram:
-      model: nova-2
+    # Azure OpenAI Whisper - Cloud-based STT
+    azure_whisper:
+      api_version: "2024-02-15-preview"
       timeout_seconds: 30
-      language_default: es
-      retry_on_empty: true
       retry_max_attempts: 3
+      retry_base_delay_seconds: 15
+      retry_backoff_multiplier: 2
       # Credentials from environment:
-      # - DEEPGRAM_API_KEY: your-api-key
+      # - AZURE_OPENAI_ENDPOINT: https://resource.openai.azure.com/
+      # - AZURE_OPENAI_KEY: your-api-key
 
 # ===== LLM Provider Configuration =====
 llm:

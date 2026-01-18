@@ -17,6 +17,7 @@ from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     update_task_metadata,
 )
 from backend.src.fi_workers.tasks.base_worker import WorkerResult, measure_time
+from backend.utils.stt_load_balancer import get_stt_load_balancer
 
 logger = get_logger(__name__)
 
@@ -32,14 +33,16 @@ def transcribe_chunk_worker(
     Args:
         session_id: Session identifier
         chunk_number: Chunk index
-        stt_provider: Provider name (deepgram). Defaults to deepgram if None.
+        stt_provider: Provider name (deepgram - primary, azure_whisper deprecated). If None, uses adaptive selection.
 
     Returns:
         WorkerResult with transcript, duration, language, confidence
     """
+    # Initialize variables for exception handler type checking
     import time
 
-    start_time = time.time()
+    balancer = None
+    start_time = time.time()  # Track resolution time
 
     try:
         # Get metadata first (read-only operation)
@@ -48,14 +51,29 @@ def transcribe_chunk_worker(
             "processed_chunks": 0,
         }
 
-        # Read audio
+        # Read audio BEFORE selecting provider (needed for size-based routing)
         audio_bytes = get_chunk_audio_bytes(session_id, TaskType.TRANSCRIPTION, chunk_number)
         if not audio_bytes:
             raise ValueError(f"No audio for chunk {chunk_number}")
 
-        # Single provider: Deepgram (no load balancer needed)
+        # Get policy-driven load balancer and select provider based on file size
+        balancer = get_stt_load_balancer()
         if stt_provider is None:
-            stt_provider = "deepgram"
+            # Pass audio size for policy-based selection
+            stt_provider, decision_reason = balancer.select_provider_for_file(
+                audio_size_bytes=len(audio_bytes), chunk_number=chunk_number, session_id=session_id
+            )
+            logger.info(
+                "POLICY_BASED_PROVIDER_SELECTED",
+                session_id=session_id,
+                chunk_number=chunk_number,
+                provider=stt_provider,
+                decision_reason=decision_reason,
+                audio_size_mb=len(audio_bytes) / (1024 * 1024),
+            )
+        else:
+            # Provider was forced by caller
+            decision_reason = "forced_by_caller"
 
         logger.info(
             "TRANSCRIBE_CHUNK_START",
@@ -106,9 +124,9 @@ def transcribe_chunk_worker(
         processed = task_metadata.get("processed_chunks", 0) + 1
         progress = int((processed / total) * 100)
 
-        # Estimate time remaining based on provider
+        # Estimate time remaining (Azure Whisper: ~15s per chunk)
         remaining_chunks = total - processed
-        avg_time_per_chunk = 2.0 if stt_provider == "deepgram" else 15.0  # Deepgram: 2s, Azure: 15s
+        avg_time_per_chunk = 15.0
         estimated_seconds_remaining = int(remaining_chunks * avg_time_per_chunk)
 
         update_task_metadata(
@@ -153,6 +171,19 @@ def transcribe_chunk_worker(
         ).to_dict()
 
     except Exception as e:
+        # Record performance failure if we got far enough to select a provider
+        try:
+            if balancer is not None and stt_provider is not None:
+                resolution_time = time.time() - start_time
+                balancer.record_performance(
+                    provider=stt_provider,
+                    resolution_time=resolution_time,
+                    retry_attempts=0,
+                    failed=True,
+                )
+        except Exception:
+            pass  # Don't let performance tracking errors hide the original error
+
         logger.error(
             "TRANSCRIBE_CHUNK_FAILED",
             session_id=session_id,
@@ -214,17 +245,78 @@ def _transcribe_audio(audio_bytes: bytes, provider_name: str) -> dict[str, Any]:
         tmp_path = tmp.name
 
     try:
-        # Single provider: Deepgram (no fallback chain needed)
-        provider = get_stt_provider(provider_name)
+        # Get policy configuration for provider
+        balancer = get_stt_load_balancer()
+        provider_config = balancer.policy.get("stt", {}).get("providers", {}).get(provider_name, {})
+
+        # Try primary provider with policy configuration
+        provider = get_stt_provider(provider_name, config=provider_config)
         response = provider.transcribe(tmp_path, language="es")
 
-        # Log empty transcripts but accept them (confirmed silence)
+        # If empty transcript, check policy for fallback
         if not response.text or len(response.text.strip()) == 0:
-            logger.info(
-                "EMPTY_TRANSCRIPT",
-                provider=provider_name,
-                message="Provider returned empty transcript - likely silence",
+            # Get policy-driven fallback provider
+            fallback_provider = balancer.get_fallback_for_empty(provider_name)
+
+            if not fallback_provider:
+                logger.info(
+                    "NO_FALLBACK_FOR_EMPTY",
+                    provider=provider_name,
+                    message="No fallback configured - accepting empty transcript",
+                )
+                # Return empty result without retry
+                return {
+                    "transcript": response.text,
+                    "language": response.language,
+                    "confidence": response.confidence,
+                    "duration": response.duration,
+                    "segments": response.segments,
+                    "provider": response.provider,
+                    "retry_attempts": 0,
+                }
+
+            retry_attempts = 1  # Fallback attempt
+
+            logger.warning(
+                "EMPTY_TRANSCRIPT_TRYING_FALLBACK",
+                primary_provider=provider_name,
+                fallback_provider=fallback_provider,
+                message="Primary provider returned empty transcript - trying policy-based fallback",
             )
+
+            try:
+                # Get fallback provider config from policy
+                fallback_config = (
+                    balancer.policy.get("stt", {}).get("providers", {}).get(fallback_provider, {})
+                )
+                fallback = get_stt_provider(fallback_provider, config=fallback_config)
+                fallback_response = fallback.transcribe(tmp_path, language="es")
+
+                if fallback_response.text and len(fallback_response.text.strip()) > 0:
+                    # Fallback succeeded - use its result
+                    logger.info(
+                        "FALLBACK_TRANSCRIPTION_SUCCESS",
+                        fallback_provider=fallback_provider,
+                        transcript_length=len(fallback_response.text),
+                        message="Fallback provider detected speech where primary failed",
+                    )
+                    response = fallback_response
+                    provider_name = fallback_provider
+                else:
+                    # Both providers return empty - confirmed silence
+                    logger.info(
+                        "CONFIRMED_SILENCE",
+                        primary_provider=provider_name,
+                        fallback_provider=fallback_provider,
+                        message="Both providers confirmed: chunk contains no speech",
+                    )
+            except Exception as fallback_error:
+                logger.error(
+                    "FALLBACK_TRANSCRIPTION_FAILED",
+                    fallback_provider=fallback_provider,
+                    error=str(fallback_error),
+                    message="Fallback failed - using primary empty result",
+                )
 
         return {
             "transcript": response.text,
@@ -233,7 +325,7 @@ def _transcribe_audio(audio_bytes: bytes, provider_name: str) -> dict[str, Any]:
             "duration": response.duration,
             "segments": response.segments,
             "provider": response.provider,
-            "retry_attempts": 0,
+            "retry_attempts": retry_attempts,  # NEW: Track fallback usage
         }
     finally:
         if os.path.exists(tmp_path):
