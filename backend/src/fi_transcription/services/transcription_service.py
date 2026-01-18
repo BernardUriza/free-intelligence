@@ -220,15 +220,9 @@ class TranscriptionService:
         # 5. Dispatch worker to background (fire-and-forget)
         from backend.src.fi_workers.executor_pool import spawn_worker
         from backend.src.fi_workers.sync_workers import transcribe_chunk_worker
-        from backend.utils.stt_load_balancer import get_stt_load_balancer
 
-        # Use load balancer to select provider intelligently (policy-driven)
-        load_balancer = get_stt_load_balancer()
-        stt_provider, decision_reason = load_balancer.select_provider_for_file(
-            audio_size_bytes=len(audio_bytes),
-            chunk_number=chunk_number,
-            session_id=session_id,
-        )
+        # Single provider: Deepgram (no load balancer needed)
+        stt_provider = "deepgram"
 
         spawn_worker(
             transcribe_chunk_worker,
@@ -242,7 +236,6 @@ class TranscriptionService:
             session_id=session_id,
             chunk_number=chunk_number,
             provider=stt_provider,
-            decision_reason=decision_reason,
             audio_size_mb=len(audio_bytes) / (1024 * 1024),
         )
 
@@ -286,7 +279,7 @@ class TranscriptionService:
         Returns:
             dict with keys:
                 - text: Transcription text
-                - provider: STT provider used (deepgram - primary, azure_whisper deprecated)
+                - provider: STT provider used (deepgram)
                 - confidence: Confidence score (0.0-1.0)
                 - duration: Audio duration in seconds
                 - language: Detected language
@@ -296,21 +289,14 @@ class TranscriptionService:
 
         import os
         from backend.providers.stt import get_stt_provider
-        from backend.utils.stt_load_balancer import get_stt_load_balancer
 
-        # Get load balancer and select provider
-        balancer = get_stt_load_balancer()
-        provider_name, decision_reason = balancer.select_provider_for_file(
-            audio_size_bytes=len(audio_bytes),
-            chunk_number=0,  # Chat doesn't use chunk numbers for routing
-            session_id="chat",  # Placeholder
-        )
+        # Single provider: Deepgram (no load balancer needed)
+        provider_name = "deepgram"
 
         logger.info(
             "SYNC_TRANSCRIPTION_START",
             provider=provider_name,
             audio_size_kb=len(audio_bytes) / 1024,
-            decision_reason=decision_reason,
         )
 
         # Write audio to temp file
@@ -319,14 +305,9 @@ class TranscriptionService:
             tmp_path = tmp.name
 
         try:
-            # Get provider config from policy
-            provider_config = (
-                balancer.policy.get("stt", {}).get("providers", {}).get(provider_name, {})
-            )
-
             # Transcribe in thread pool (blocking call)
             def _do_transcribe():
-                provider = get_stt_provider(provider_name, config=provider_config)
+                provider = get_stt_provider(provider_name)
                 return provider.transcribe(tmp_path, language="es")
 
             response = await asyncio.to_thread(_do_transcribe)
