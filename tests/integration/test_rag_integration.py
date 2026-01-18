@@ -23,7 +23,6 @@ import time
 import httpx
 import numpy as np
 
-
 # ============================================================================
 # Test Configuration
 # ============================================================================
@@ -184,7 +183,9 @@ async def test_gateway_routing_rag():
 
 
 # ============================================================================
-# Phase 2 Tests: Circuit Breaker & Fallback
+# Phase 2 Tests: Circuit Breaker
+# GPU-ONLY ARCHITECTURE: No CPU fallback tests
+# See README.md: "No CPU fallback, no degraded mode"
 # ============================================================================
 
 
@@ -224,86 +225,24 @@ async def test_circuit_breaker():
         return False
 
 
-async def test_cpu_fallback():
-    """Test local CPU embedding fallback."""
-    print_test("CPU Fallback (Local Embedding)")
-
-    from backend.src.fi_assistant.services.monitor_client import (
-        get_embedding_local_cpu,
-    )
-
-    test_text = "Test CPU embedding fallback"
-
-    try:
-        start = time.time()
-        embedding = await get_embedding_local_cpu(test_text)
-        elapsed_ms = int((time.time() - start) * 1000)
-
-        print(f"  Text: {test_text}")
-        print(f"  Embedding dim: {len(embedding)}")
-        print(f"  Device: CPU")
-
-        if len(embedding) == 384:
-            print_result(True, "CPU fallback works", elapsed_ms)
-            return True, elapsed_ms
-        else:
-            print_result(False, f"Wrong dimension: {len(embedding)}")
-            return False, None
-
-    except Exception as e:
-        print_result(False, f"CPU fallback failed: {e}")
-        return False, None
-
-
-async def test_hybrid_fallback():
-    """Test Monitor GPU → CPU fallback."""
-    print_test("Hybrid Fallback (GPU → CPU)")
-
-    from backend.src.fi_assistant.services.monitor_client import (
-        get_embedding_with_fallback,
-    )
-
-    test_text = "Test hybrid fallback"
-
-    try:
-        start = time.time()
-        embedding = await get_embedding_with_fallback(test_text)
-        elapsed_ms = int((time.time() - start) * 1000)
-
-        print(f"  Text: {test_text}")
-        print(f"  Embedding dim: {len(embedding)}")
-        print(f"  Note: Will use Monitor GPU if available, CPU otherwise")
-
-        if len(embedding) == 384:
-            print_result(True, "Hybrid fallback works", elapsed_ms)
-            return True, elapsed_ms
-        else:
-            print_result(False, f"Wrong dimension: {len(embedding)}")
-            return False, None
-
-    except Exception as e:
-        print_result(False, f"Hybrid fallback failed: {e}")
-        return False, None
-
-
 # ============================================================================
 # Performance Benchmark
+# GPU-ONLY ARCHITECTURE: Only GPU benchmarks
 # ============================================================================
 
 
-async def benchmark_gpu_vs_cpu():
-    """Benchmark GPU vs CPU embedding performance."""
-    print_test("Performance Benchmark: GPU vs CPU")
+async def benchmark_gpu_performance():
+    """Benchmark GPU embedding performance."""
+    print_test("Performance Benchmark: GPU Embeddings")
 
     from backend.src.fi_assistant.services.monitor_client import (
-        get_embedding_local_cpu,
         get_embedding_from_monitor,
     )
 
-    test_text = "Compare GPU and CPU embedding performance"
+    test_text = "Benchmark GPU embedding performance"
     iterations = 5
 
-    # GPU benchmark (if available)
+    # GPU benchmark
     gpu_times = []
     print(f"\n  GPU Benchmark ({iterations} iterations):")
     for i in range(iterations):
@@ -314,38 +253,22 @@ async def benchmark_gpu_vs_cpu():
             gpu_times.append(elapsed_ms)
             print(f"    Iteration {i+1}: {elapsed_ms}ms")
         except Exception as e:
-            print(f"    GPU unavailable: {e}")
-            break
-
-    # CPU benchmark
-    cpu_times = []
-    print(f"\n  CPU Benchmark ({iterations} iterations):")
-    for i in range(iterations):
-        start = time.time()
-        await get_embedding_local_cpu(test_text)
-        elapsed_ms = int((time.time() - start) * 1000)
-        cpu_times.append(elapsed_ms)
-        print(f"    Iteration {i+1}: {elapsed_ms}ms")
+            print(f"    GPU error: {e}")
+            print_result(False, f"GPU required but unavailable: {e}")
+            return False
 
     # Results
     print("\n  Results:")
-    if gpu_times:
-        gpu_avg = sum(gpu_times) / len(gpu_times)
-        print(f"    GPU avg: {gpu_avg:.0f}ms")
-    else:
-        gpu_avg = None
-        print(f"    GPU avg: N/A (service unavailable)")
+    gpu_avg = sum(gpu_times) / len(gpu_times)
+    print(f"    GPU avg: {gpu_avg:.0f}ms")
 
-    cpu_avg = sum(cpu_times) / len(cpu_times)
-    print(f"    CPU avg: {cpu_avg:.0f}ms")
-
-    if gpu_avg:
-        speedup = cpu_avg / gpu_avg
-        print(f"    Speedup: {speedup:.1f}x faster with GPU")
-        success = speedup > 2.0  # Expect at least 2x speedup
-        print_result(success, f"GPU is {speedup:.1f}x faster than CPU")
+    # Target: <50ms average per README
+    success = gpu_avg < 100  # Allow some margin
+    if success:
+        print_result(True, f"GPU embeddings avg {gpu_avg:.0f}ms (target: <100ms)")
     else:
-        print_result(True, "CPU fallback works (GPU unavailable)")
+        print_result(False, f"GPU too slow: {gpu_avg:.0f}ms (target: <100ms)")
+    return success
 
 
 # ============================================================================
@@ -354,9 +277,14 @@ async def benchmark_gpu_vs_cpu():
 
 
 async def run_all_tests():
-    """Run all integration tests."""
+    """Run all integration tests.
+    
+    GPU-ONLY ARCHITECTURE: No CPU fallback tests.
+    See README.md: "No CPU fallback, no degraded mode, no 'it works but slow'"
+    """
     print("\n" + "=" * 60)
     print("RAG GPU ACCELERATION - INTEGRATION TESTS")
+    print("GPU-ONLY ARCHITECTURE - No CPU fallback")
     print("=" * 60)
 
     results = []
@@ -369,11 +297,9 @@ async def run_all_tests():
 
     # Phase 2: Circuit Breaker
     results.append(("Circuit Breaker", await test_circuit_breaker()))
-    results.append(("CPU Fallback", (await test_cpu_fallback())[0]))
-    results.append(("Hybrid Fallback", (await test_hybrid_fallback())[0]))
 
-    # Benchmark
-    await benchmark_gpu_vs_cpu()
+    # Benchmark (GPU only)
+    results.append(("GPU Performance", await benchmark_gpu_performance()))
 
     # Summary
     print("\n" + "=" * 60)

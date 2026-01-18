@@ -14,7 +14,7 @@ from enum import Enum
 from typing import Any
 
 from backend.src.fi_events.domain.metadata import EventMetadata
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # Schema version for all events (bump when breaking changes)
 SCHEMA_VERSION = "1.0"
@@ -114,10 +114,7 @@ class DomainEvent(BaseModel):
         default=None, description="Deduplication key (hash of type+payload)"
     )
 
-    class Config:
-        """Pydantic config."""
-
-        frozen = True  # Immutable
+    model_config = ConfigDict(frozen=True)
 
     def with_dedupe_key(self) -> "DomainEvent":
         """Generate dedupe_key if not set.

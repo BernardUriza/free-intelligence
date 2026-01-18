@@ -29,7 +29,7 @@ from typing import Any, Callable, TypeVar
 
 from backend.src.fi_common.logging.logger import get_logger
 from backend.src.fi_events.domain.events import EventType
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 logger = get_logger(__name__)
 
@@ -50,8 +50,7 @@ class TranscriptionStartedPayload(BaseModel):
     mode: str = Field(..., pattern="^(medical|chat)$")
     source: str = Field(default="stream")
 
-    class Config:
-        extra = "forbid"  # No extra fields allowed
+    model_config = ConfigDict(extra="forbid")  #
 
 
 class TranscriptionChunkPayload(BaseModel):
@@ -61,8 +60,7 @@ class TranscriptionChunkPayload(BaseModel):
     duration_ms: float = Field(default=0.0, ge=0)
     audio_size_bytes: int = Field(default=0, ge=0)
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")  #
 
     @field_validator("chunk_number")
     @classmethod
@@ -79,8 +77,7 @@ class TranscriptionEndedPayload(BaseModel):
     total_duration_ms: float = Field(..., ge=0)
     status: str = Field(default="completed", pattern="^(completed|cancelled|timeout)$")
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")  #
 
 
 class TranscriptionFailedPayload(BaseModel):
@@ -89,8 +86,7 @@ class TranscriptionFailedPayload(BaseModel):
     error_code: str = Field(..., min_length=1, max_length=50)
     error_message: str = Field(..., max_length=200)  # Truncated, no stack traces
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")  #
 
 
 class SessionCreatedPayload(BaseModel):
@@ -99,8 +95,7 @@ class SessionCreatedPayload(BaseModel):
     session_type: str = Field(default="medical")
     created_by: str = Field(default="system")  # NOT user_id (PHI)
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")  #
 
 
 class SessionFinalizedPayload(BaseModel):
@@ -111,8 +106,7 @@ class SessionFinalizedPayload(BaseModel):
     has_soap: bool = Field(default=False)
     has_diarization: bool = Field(default=False)
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")  #
 
 
 class SOAPGenerationStartedPayload(BaseModel):
@@ -120,8 +114,7 @@ class SOAPGenerationStartedPayload(BaseModel):
 
     trigger: str = Field(default="manual", pattern="^(manual|auto|scheduled)$")
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")  #
 
 
 class SOAPGenerationCompletedPayload(BaseModel):
@@ -131,8 +124,7 @@ class SOAPGenerationCompletedPayload(BaseModel):
     completeness: float = Field(..., ge=0, le=100)
     sections_generated: list[str] = Field(default_factory=list)
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")  #
 
 
 class SOAPGenerationFailedPayload(BaseModel):
@@ -140,8 +132,7 @@ class SOAPGenerationFailedPayload(BaseModel):
 
     error_code: str = Field(..., min_length=1, max_length=50)
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")  #
 
 
 class DiarizationCompletedPayload(BaseModel):
@@ -150,8 +141,7 @@ class DiarizationCompletedPayload(BaseModel):
     speaker_count: int = Field(..., ge=1, le=20)
     total_segments: int = Field(..., ge=0)
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")  #
 
 
 class AssistantMessagePayload(BaseModel):
@@ -162,8 +152,7 @@ class AssistantMessagePayload(BaseModel):
     persona: str = Field(default="default")
     # NO message content - that's PHI
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")  #
 
 
 class AssistantResponsePayload(BaseModel):
@@ -176,8 +165,7 @@ class AssistantResponsePayload(BaseModel):
     provider: str = Field(default="unknown")
     # NO response content - that's PHI
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")  #
 
 
 class SystemErrorPayload(BaseModel):
@@ -187,8 +175,7 @@ class SystemErrorPayload(BaseModel):
     component: str = Field(..., min_length=1, max_length=100)
     # NO stack trace or sensitive details
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")  #
 
 
 # ============================================================================

@@ -575,6 +575,8 @@ def _process_document(doc_id: str) -> None:
         chunks_text = _split_text(text)
 
         # Generate embeddings for all chunks in batch (10-50x faster)
+        # GPU-ONLY ARCHITECTURE: No CPU fallback - fail fast if GPU unavailable
+        # See README.md: "No CPU fallback, no degraded mode, no 'it works but slow'"
         try:
             model = _get_embedding_model()
             embeddings = model.encode(
@@ -589,53 +591,18 @@ def _process_document(doc_id: str) -> None:
             ]
             logger.info("BATCH_EMBEDDING_SUCCESS", num_chunks=len(chunks))
         except RuntimeError as e:
-            # CUDA OOM or driver error - fallback to CPU
-            if "CUDA" in str(e) or "out of memory" in str(e).lower():
-                import torch
-
-                logger.warning(
-                    "CUDA_OOM_FALLBACK",
-                    error=str(e),
-                    action="retrying on CPU",
-                )
-                torch.cuda.empty_cache()  # Clear GPU memory
-
-                # Retry on CPU
-                try:
-                    model = _get_embedding_model()
-                    # Force CPU device
-                    model = model.to("cpu")
-                    embeddings = model.encode(
-                        chunks_text,
-                        batch_size=16,  # Smaller batch for CPU
-                        convert_to_numpy=True,
-                        show_progress_bar=False,
-                    )
-                    chunks = [
-                        DocumentChunk(chunk_id=i, text=text, embedding=emb)
-                        for i, (text, emb) in enumerate(zip(chunks_text, embeddings, strict=True))
-                    ]
-                    logger.info("CPU_FALLBACK_SUCCESS", num_chunks=len(chunks))
-                except Exception as cpu_error:
-                    logger.error("CPU_FALLBACK_FAILED", error=str(cpu_error))
-                    chunks = [
-                        DocumentChunk(chunk_id=i, text=text, embedding=None)
-                        for i, text in enumerate(chunks_text)
-                    ]
-            else:
-                # Non-CUDA error
-                logger.error("BATCH_EMBEDDING_FAILED", error=str(e))
-                chunks = [
-                    DocumentChunk(chunk_id=i, text=text, embedding=None)
-                    for i, text in enumerate(chunks_text)
-                ]
+            # GPU-only: fail fast, no CPU fallback
+            logger.error(
+                "EMBEDDING_FAILED_GPU_REQUIRED",
+                error=str(e),
+                hint="GPU required for embeddings. Check CUDA/Metal availability.",
+            )
+            raise RuntimeError(
+                f"GPU embedding failed: {e}. GPU is required for document processing."
+            ) from e
         except Exception as e:
             logger.error("BATCH_EMBEDDING_FAILED", error=str(e))
-            # Fallback: create chunks without embeddings
-            chunks = [
-                DocumentChunk(chunk_id=i, text=text, embedding=None)
-                for i, text in enumerate(chunks_text)
-            ]
+            raise RuntimeError(f"Embedding generation failed: {e}") from e
 
         # Save chunks
         save_document_chunks(doc_id, chunks)

@@ -114,3 +114,15 @@ docs/13 Startups de Salud Digital Revolucionando el Sector.pdf
 .turbo/
 backend/migration-manifest.json
 .aider*
+
+# Test databases (never commit)
+*.db
+test.db
+*.sqlite
+*.sqlite3
+
+# Temp/scratch scripts in root (keep root clean!)
+/run_*.py
+/broker_*.py
+/temp_*.py
+/scratch_*.py
