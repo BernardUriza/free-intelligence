@@ -618,6 +618,26 @@ REGLAS PARA CLAUDE:
   ✅ CRÍTICO: Sincronizar dev con main después de CADA merge (git merge origin/main)
      - Esto previene estado "BEHIND" en PRs futuros
      - Ejecutar SIEMPRE después de mergear un PR a main
+
+💡 OPTIMIZACIÓN: No necesitas main local
+  • Este workflow usa 2 branches REMOTAS (origin/dev, origin/main)
+  • Pero solo necesitas 1 branch LOCAL (dev)
+  • main local queda desactualizado y causa confusión ("behind 16 commits")
+
+  Beneficios de borrar main local:
+  ✅ Imposible commitear accidentalmente a main
+  ✅ origin/main siempre es truth source (actualizado)
+  ✅ Menos confusión mental (solo una rama local)
+  ✅ git diff origin/main..dev funciona igual
+
+  Cómo borrar main local:
+  git checkout dev                    # Asegurar que estás en dev
+  git branch -D main                  # Borrar main local (safe, no afecta remoto)
+
+  Después de borrar, el workflow es idéntico:
+  git fetch origin                    # Actualizar referencias remotas
+  git merge origin/main               # Sincronizar desde remoto (no main local)
+  git diff origin/main..dev           # Comparar con remoto (no main local)
 ```
 
 CI (pr-gate.yml) - Valida antes de merge

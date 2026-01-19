@@ -25,48 +25,18 @@ jobs:
       - name: Checkout submodules
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+          git submodule update --init --recursive --depth 1
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Tauri build environment
+        uses: ./.github/actions/setup-tauri
         with:
-          node-version: '20'
+          rust-target: x86_64-pc-windows-msvc
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
 
-      - name: Get pnpm store path
-        id: pnpm-cache
-        shell: bash
-        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.path }}
-          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: pnpm-${{ runner.os }}-
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-msvc
-
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-            apps/fi-monitor/src-tauri/target
-            apps/aurity-desktop/src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('apps/**/src-tauri/src/**/*.rs') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-
-            cargo-${{ runner.os }}-
+      - name: Configure sccache
+        run: echo "RUSTC_WRAPPER=sccache" >> $env:GITHUB_ENV
 
       - name: Install dependencies
         working-directory: apps/fi-monitor
@@ -139,29 +109,10 @@ jobs:
       - name: Checkout submodules
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+          git submodule update --init --recursive --depth 1
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
-
-      - name: Get pnpm store path
-        id: pnpm-cache
-        shell: bash
-        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.path }}
-          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: pnpm-${{ runner.os }}-
+      - name: Setup frontend build environment
+        uses: ./.github/actions/setup-frontend
 
       - name: Create .env.production
         working-directory: apps/aurity
@@ -188,10 +139,8 @@ jobs:
           retention-days: 1
 
   build-linux:
-    if: |
-      (github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all') &&
-      (needs.build-fi-monitor.result == 'success' || needs.build-fi-monitor.result == 'skipped')
-    needs: [build-fi-monitor, build-frontend]
+    if: github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all'
+    needs: [build-frontend]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout main repo
@@ -200,7 +149,7 @@ jobs:
       - name: Checkout submodules
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+          git submodule update --init --recursive --depth 1
 
       - name: Download pre-built frontend
         uses: actions/download-artifact@v4
@@ -208,46 +157,16 @@ jobs:
           name: frontend-static
           path: apps/aurity/out/
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Tauri build environment
+        uses: ./.github/actions/setup-tauri
         with:
-          node-version: '20'
+          rust-target: x86_64-unknown-linux-gnu
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
 
-      - name: Get pnpm store path
-        id: pnpm-cache
-        shell: bash
-        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.path }}
-          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: pnpm-${{ runner.os }}-
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-gnu
-
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-            apps/fi-monitor/src-tauri/target
-            apps/aurity-desktop/src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('apps/**/src-tauri/src/**/*.rs') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-
-            cargo-${{ runner.os }}-
+      - name: Configure sccache
+        run: echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
 
       - name: Install system dependencies
         run: |
@@ -261,10 +180,18 @@ jobs:
             libsqlite3-dev
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.14'
           cache: 'pip'
+
+      - name: Cache PyInstaller build
+        uses: actions/cache@v4
+        with:
+          path: apps/aurity-desktop/pyinstaller/dist
+          key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
+          restore-keys: |
+            pyinstaller-${{ runner.os }}-
 
       - name: Install PyInstaller
         working-directory: apps/aurity-desktop/pyinstaller
@@ -337,10 +264,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-macos:
-    if: |
-      (github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all') &&
-      (needs.build-fi-monitor.result == 'success' || needs.build-fi-monitor.result == 'skipped')
-    needs: [build-fi-monitor, build-frontend]
+    if: github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all'
+    needs: [build-frontend]
     runs-on: macos-latest
     steps:
       - name: Checkout main repo
@@ -349,7 +274,7 @@ jobs:
       - name: Checkout submodules
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+          git submodule update --init --recursive --depth 1
 
       - name: Download pre-built frontend
         uses: actions/download-artifact@v4
@@ -357,52 +282,30 @@ jobs:
           name: frontend-static
           path: apps/aurity/out/
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Tauri build environment
+        uses: ./.github/actions/setup-tauri
         with:
-          node-version: '20'
+          rust-target: aarch64-apple-darwin
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
 
-      - name: Get pnpm store path
-        id: pnpm-cache
-        shell: bash
-        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.path }}
-          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: pnpm-${{ runner.os }}-
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin
-
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-            apps/fi-monitor/src-tauri/target
-            apps/aurity-desktop/src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('apps/**/src-tauri/src/**/*.rs') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-
-            cargo-${{ runner.os }}-
+      - name: Configure sccache
+        run: echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.14'
           cache: 'pip'
+
+      - name: Cache PyInstaller build
+        uses: actions/cache@v4
+        with:
+          path: apps/aurity-desktop/pyinstaller/dist
+          key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
+          restore-keys: |
+            pyinstaller-${{ runner.os }}-
 
       - name: Install PyInstaller
         working-directory: apps/aurity-desktop/pyinstaller
@@ -473,10 +376,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows:
-    if: |
-      (github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all') &&
-      (needs.build-fi-monitor.result == 'success' || needs.build-fi-monitor.result == 'skipped')
-    needs: [build-fi-monitor, build-frontend]
+    if: github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all'
+    needs: [build-frontend]
     runs-on: windows-latest
     steps:
       - name: Checkout main repo
@@ -485,7 +386,7 @@ jobs:
       - name: Checkout submodules
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+          git submodule update --init --recursive --depth 1
 
       - name: Download pre-built frontend
         uses: actions/download-artifact@v4
@@ -493,52 +394,30 @@ jobs:
           name: frontend-static
           path: apps/aurity/out/
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Tauri build environment
+        uses: ./.github/actions/setup-tauri
         with:
-          node-version: '20'
+          rust-target: x86_64-pc-windows-msvc
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
 
-      - name: Get pnpm store path
-        id: pnpm-cache
-        shell: bash
-        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.path }}
-          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: pnpm-${{ runner.os }}-
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-msvc
-
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-            apps/fi-monitor/src-tauri/target
-            apps/aurity-desktop/src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('apps/**/src-tauri/src/**/*.rs') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-
-            cargo-${{ runner.os }}-
+      - name: Configure sccache
+        run: echo "RUSTC_WRAPPER=sccache" >> $env:GITHUB_ENV
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.14'
           cache: 'pip'
+
+      - name: Cache PyInstaller build
+        uses: actions/cache@v4
+        with:
+          path: apps/aurity-desktop/pyinstaller/dist
+          key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
+          restore-keys: |
+            pyinstaller-${{ runner.os }}-
 
       - name: Install PyInstaller
         working-directory: apps/aurity-desktop/pyinstaller
@@ -560,6 +439,27 @@ jobs:
       - name: Install Tauri dependencies
         working-directory: apps/aurity-desktop
         run: pnpm install
+
+      - name: Cache Python 3.14 installer
+        uses: actions/cache@v4
+        with:
+          path: apps/aurity-desktop/resources/python-installer/python-3.14.0-amd64.exe
+          key: python-installer-3.14.0-amd64
+
+      - name: Prepare Python 3.14 Installer
+        shell: bash
+        run: |
+          cd apps/aurity-desktop
+          bash scripts/prepare-python-full.sh
+        env:
+          PYTHON_VERSION: "3.14.0"
+
+      - name: Verify Python Resources
+        shell: bash
+        run: |
+          ls -lh apps/aurity-desktop/resources/python-installer/
+          echo "Python installer size:"
+          du -h apps/aurity-desktop/resources/python-installer/python-3.14.0-amd64.exe
 
       - name: Build Tauri app
         working-directory: apps/aurity-desktop
