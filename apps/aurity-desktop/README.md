@@ -72,7 +72,7 @@ The app registers `aurity://` URL scheme on:
 - Rust 1.70+
 - Node.js 20+
 - pnpm 8+
-- Python 3.11+ (for backend sidecar)
+- Python 3.14+ (automatically installed with Aurity Desktop on Windows)
 
 ### Development Build
 
@@ -234,3 +234,23 @@ For HTTPS in development:
 - Refresh token rotation limits token reuse
 - Backend validates tokens via Auth0 JWKS
 - PHI is never logged
+
+## Python Installation (Windows)
+
+Aurity Desktop automatically installs Python 3.14 Full during setup if not already present.
+
+**Installation details:**
+- **Location:** `%LOCALAPPDATA%\Programs\Python\Python314\`
+- **Scope:** Per-user (no admin required)
+- **Dependencies:** Includes pip, fastapi, uvicorn, httpx, sentence-transformers
+
+**Verify installation:**
+```powershell
+python --version  # Should show: Python 3.14.0
+python -m pip list | Select-String "fastapi|uvicorn"
+```
+
+**Troubleshooting:**
+- If `python` command not found: Restart terminal (PATH updated)
+- If fi-monitor fails: Run `apps/aurity-desktop/scripts/test-python-install.ps1`
+- Manual repair: Re-run Aurity installer (will re-check and reinstall if needed)

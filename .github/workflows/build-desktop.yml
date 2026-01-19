@@ -398,6 +398,21 @@ jobs:
         working-directory: apps/aurity-desktop
         run: pnpm install
 
+      - name: Prepare Python 3.14 Installer
+        shell: bash
+        run: |
+          cd apps/aurity-desktop
+          bash scripts/prepare-python-full.sh
+        env:
+          PYTHON_VERSION: "3.14.0"
+
+      - name: Verify Python Resources
+        shell: bash
+        run: |
+          ls -lh apps/aurity-desktop/resources/python-installer/
+          echo "Python installer size:"
+          du -h apps/aurity-desktop/resources/python-installer/python-3.14.0-amd64.exe
+
       - name: Build Tauri app
         working-directory: apps/aurity-desktop
         run: pnpm tauri build --target x86_64-pc-windows-msvc

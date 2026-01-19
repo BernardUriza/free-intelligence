@@ -55,6 +55,13 @@ const invokeTauri = async <T,>(cmd: string, args?: Record<string, unknown>): Pro
   return null;
 };
 
+interface PythonStatus {
+  installed: boolean;
+  version: string | null;
+  pip_available: boolean;
+  fi_monitor_deps_installed: boolean;
+}
+
 interface FiMonitorStatus {
   installed: boolean;
   running: boolean;
@@ -109,6 +116,7 @@ export function DesktopSetupWizard() {
   const [wslProgress, setWslProgress] = useState('');
   const [settingUpBackend, setSettingUpBackend] = useState(false);
   const [backendProgress, setBackendProgress] = useState('');
+  const [pythonStatus, setPythonStatus] = useState<PythonStatus | null>(null);
 
   // Check WSL status (Windows only)
   const checkWsl = useCallback(async () => {
@@ -401,6 +409,23 @@ export function DesktopSetupWizard() {
     }
   };
 
+  // Check Python installation status
+  useEffect(() => {
+    const checkPython = async () => {
+      if (typeof window !== 'undefined' && '__TAURI__' in window) {
+        try {
+          const status = await invokeTauri<PythonStatus>('check_python_installation');
+          if (status) {
+            setPythonStatus(status);
+          }
+        } catch (err) {
+          console.error('[DesktopWizard] Failed to check Python status:', err);
+        }
+      }
+    };
+    checkPython();
+  }, []);
+
   useEffect(() => {
     // Only show wizard in desktop mode
     if (!isDesktop()) {
@@ -621,6 +646,20 @@ export function DesktopSetupWizard() {
           {pullingModel && (
             <div className="p-3 bg-slate-800/50 rounded-lg">
               <p className="text-sm text-slate-300 font-mono">{pullProgress}</p>
+            </div>
+          )}
+
+          {/* Python 3.14 Runtime Status */}
+          {pythonStatus && (
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
+                <span className="font-medium text-green-800 dark:text-green-300">Python 3.14 Runtime</span>
+              </div>
+              <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+                ✅ {pythonStatus.version || 'Python installed'}
+                {pythonStatus.fi_monitor_deps_installed && ' (fi-monitor dependencies ready)'}
+              </p>
             </div>
           )}
 

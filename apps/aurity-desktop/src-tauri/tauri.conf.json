@@ -92,6 +92,7 @@
       "wix": null,
       "nsis": {
         "installerIcon": "icons/icon.ico",
+        "template": "installer-template.nsi",
         "headerImage": null,
         "sidebarImage": null,
         "installMode": "currentUser",

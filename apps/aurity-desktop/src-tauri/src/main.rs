@@ -312,6 +312,62 @@ fn check_windows_autostart() -> Result<bool, String> {
     }
 }
 
+/// Python installation status
+#[derive(Serialize)]
+struct PythonStatus {
+    installed: bool,
+    version: Option<String>,
+    pip_available: bool,
+    fi_monitor_deps_installed: bool,
+}
+
+/// Check Python 3.14+ installation and dependencies
+#[tauri::command]
+async fn check_python_installation() -> Result<PythonStatus, String> {
+    use std::process::Command;
+
+    // Check python --version
+    let version_output = Command::new("python")
+        .arg("--version")
+        .output();
+
+    let (installed, version) = match version_output {
+        Ok(output) if output.status.success() => {
+            let v = String::from_utf8_lossy(&output.stdout).to_string();
+            (true, Some(v.trim().to_string()))
+        }
+        _ => (false, None),
+    };
+
+    if !installed {
+        return Ok(PythonStatus {
+            installed: false,
+            version: None,
+            pip_available: false,
+            fi_monitor_deps_installed: false,
+        });
+    }
+
+    // Check pip
+    let pip_output = Command::new("python")
+        .args(["-m", "pip", "--version"])
+        .output();
+    let pip_available = pip_output.map(|o| o.status.success()).unwrap_or(false);
+
+    // Check fi-monitor deps (fastapi, uvicorn, httpx, sentence_transformers)
+    let deps_check = Command::new("python")
+        .args(["-c", "import fastapi, uvicorn, httpx, sentence_transformers"])
+        .output();
+    let fi_monitor_deps_installed = deps_check.map(|o| o.status.success()).unwrap_or(false);
+
+    Ok(PythonStatus {
+        installed,
+        version,
+        pip_available,
+        fi_monitor_deps_installed,
+    })
+}
+
 /// First-run status for frontend wizard
 #[derive(Serialize)]
 struct FirstRunStatus {
@@ -701,6 +757,8 @@ fn main() {
             setup_windows_autostart,
             remove_windows_autostart,
             check_windows_autostart,
+            // Python verification
+            check_python_installation,
             // FI Monitor integration
             fi_monitor::check_fi_monitor_installed,
             fi_monitor::launch_fi_monitor,
