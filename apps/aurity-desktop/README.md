@@ -193,6 +193,38 @@ pnpm tauri build --target x86_64-unknown-linux-gnu
 ./Aurity_1.0.0_amd64.AppImage
 ```
 
+## 📧 CI/CD Email Notifications
+
+Windows builds envían notificación automática cuando terminan exitosamente vía **Azure Communication Services**.
+
+### Setup de Secrets (one-time)
+
+Los siguientes secrets deben estar configurados en GitHub:
+
+```bash
+gh secret set ACS_SMTP_USERNAME      # ResourceName|AppID|TenantID
+gh secret set ACS_SMTP_PASSWORD      # Entra ID app secret
+gh secret set ACS_FROM_EMAIL         # DoNotReply@xxxxx.azurecomm.net
+gh secret set NOTIFY_EMAIL           # Destinatario de notificaciones
+```
+
+### Trigger manual
+
+```bash
+gh workflow run build-desktop.yml -f platform=windows
+# Email llega cuando el build termina (~10-15 min)
+```
+
+### Troubleshooting
+
+| Problema | Solución |
+|----------|----------|
+| Email no llega | Revisa spam, verifica secrets con `gh secret list` |
+| Authentication error | Verifica formato username: `ResourceName\|AppID\|TenantID` |
+| Workflow falla | Email tiene `continue-on-error: true`, no debería fallar workflow |
+| Cambiar email destino | `gh secret set NOTIFY_EMAIL --body "nuevo@email.com"` |
+| Rotar credentials | Generar nuevo app secret en Azure AD, actualizar `ACS_SMTP_PASSWORD` |
+
 ## Local TLS Certificates
 
 For HTTPS in development:
