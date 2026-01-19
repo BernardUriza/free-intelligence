@@ -5,10 +5,92 @@
 !include "FileFunc.nsh"
 !include "LogicLib.nsh"
 
+# Windows API Constants
+!define HWND_BROADCAST 0xFFFF
+!define WM_SETTINGCHANGE 0x1A
+
 # Variables
 Var PythonFound
 Var PythonVersion
 Var PythonPath
+
+# ============================================
+# UTILITY FUNCTIONS
+# ============================================
+
+# Validates that Python is accessible and broadcasts PATH changes if needed
+# Input (stack): Python executable path
+# Output (stack): Return code (0=success, 1=failed)
+Function ValidatePythonPath
+  Pop $R0  # Python path
+
+  DetailPrint "Verifying Python at: $R0"
+  nsExec::ExecToStack '"$R0" --version'
+  Pop $R1  # Return code
+  Pop $R2  # Output (ignored)
+
+  ${If} $R1 != 0
+    DetailPrint "⚠️ PATH not updated, broadcasting environment change..."
+    # Broadcast WM_SETTINGCHANGE to refresh PATH without reboot
+    SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
+    Sleep 1000  # Wait for apps to process broadcast
+
+    # Retry verification
+    nsExec::ExecToStack '"$R0" --version'
+    Pop $R1
+    Pop $R2
+  ${EndIf}
+
+  Push $R1  # Return status
+FunctionEnd
+
+# Installs pip dependencies with retry logic and logging
+# Input (stack, in order): Python path, requirements file path, log file path
+# Output (stack): Return code (0=success, non-zero=failed)
+Function InstallPipDependencies
+  Pop $R2  # Log path
+  Pop $R1  # Requirements path
+  Pop $R0  # Python path
+
+  DetailPrint "Installing dependencies from: $R1"
+  DetailPrint "Log file: $R2"
+
+  # First attempt with full pip options
+  # --log: Save detailed log for debugging
+  # --timeout=60: Increase from default 15s for corporate networks
+  # --retries=3: pip native retry with exponential backoff
+  # --prefer-binary: Use pre-compiled wheels (faster, no build tools needed)
+  nsExec::ExecToLog '"$R0" -m pip install --log "$R2" --quiet --timeout=60 --retries=3 --prefer-binary --no-warn-script-location -r "$R1"'
+  Pop $R3  # Return code
+
+  ${If} $R3 != 0
+    DetailPrint "⚠️ First attempt failed (exit code $R3)"
+    DetailPrint "⚠️ Retry: Installing dependencies (attempt 2)..."
+    Sleep 2000  # Wait before retry
+
+    # Second attempt
+    nsExec::ExecToLog '"$R0" -m pip install --log "$R2" --quiet --timeout=60 --retries=3 --prefer-binary --no-warn-script-location -r "$R1"'
+    Pop $R3
+
+    ${If} $R3 != 0
+      DetailPrint "❌ Failed after 2 attempts (exit code $R3)"
+      DetailPrint "   Log saved at: $R2"
+      # Keep log file for debugging (don't delete)
+    ${Else}
+      DetailPrint "✅ Dependencies installed on retry"
+      Delete "$R2"  # Cleanup log on success
+    ${EndIf}
+  ${Else}
+    DetailPrint "✅ Dependencies installed"
+    Delete "$R2"  # Cleanup log on success
+  ${EndIf}
+
+  Push $R3  # Return status
+FunctionEnd
+
+# ============================================
+# MAIN INSTALLATION SECTION
+# ============================================
 
 # Python installation section (runs BEFORE main app)
 Section "Install Python 3.14 Runtime" SecPython
@@ -49,7 +131,7 @@ Section "Install Python 3.14 Runtime" SecPython
     File "resources\python-installer\python-3.14.0-amd64.exe"
     File "resources\python-installer\fi-monitor-requirements.txt"
 
-    # Run Python installer with timeout (max 5 minutes)
+    # Run Python installer
     # /quiet - Silent install
     # InstallAllUsers=0 - Per-user install (no admin required)
     # PrependPath=1 - Add to PATH
@@ -66,24 +148,30 @@ Section "Install Python 3.14 Runtime" SecPython
       # Set Python path dynamically
       StrCpy $PythonPath "$LOCALAPPDATA\Programs\Python\Python314\python.exe"
 
-      # Install fi-monitor dependencies with retry logic
-      DetailPrint "Installing fi-monitor dependencies..."
-      nsExec::ExecToLog '"$PythonPath" -m pip install --quiet --no-warn-script-location -r "$TEMP\fi-monitor-requirements.txt"'
-      Pop $0
-
-      ${If} $0 != 0
-        # Retry once on failure (network issues, etc.)
-        DetailPrint "⚠️ Retry: Installing dependencies (attempt 2)..."
-        Sleep 2000  # Wait 2 seconds before retry
-        nsExec::ExecToLog '"$PythonPath" -m pip install --quiet --no-warn-script-location -r "$TEMP\fi-monitor-requirements.txt"'
-        Pop $0
-      ${EndIf}
+      # Validate PATH configuration
+      Push "$PythonPath"
+      Call ValidatePythonPath
+      Pop $0  # Get validation result (0=success)
 
       ${If} $0 == 0
-        DetailPrint "✅ Dependencies installed"
+        DetailPrint "✅ Python PATH verified"
       ${Else}
-        DetailPrint "⚠️ Warning: Failed to install dependencies after 2 attempts (exit code $0)"
+        DetailPrint "⚠️ Warning: Python PATH verification failed, continuing anyway..."
+      ${EndIf}
+
+      # Install fi-monitor dependencies using utility function
+      Push "$PythonPath"
+      Push "$TEMP\fi-monitor-requirements.txt"
+      Push "$TEMP\aurity-pip-install.log"
+      Call InstallPipDependencies
+      Pop $0  # Get result (0=success)
+
+      ${If} $0 == 0
+        DetailPrint "✅ All dependencies installed successfully"
+      ${Else}
+        DetailPrint "⚠️ Warning: Failed to install dependencies (exit code $0)"
         DetailPrint "   FI Monitor may require manual dependency installation"
+        DetailPrint "   Check log at: $TEMP\aurity-pip-install.log"
       ${EndIf}
 
       # Cleanup temp files
@@ -91,7 +179,11 @@ Section "Install Python 3.14 Runtime" SecPython
       Delete "$TEMP\fi-monitor-requirements.txt"
     ${Else}
       DetailPrint "❌ Python installation failed (exit code $0)"
-      MessageBox MB_ICONEXCLAMATION|MB_OK "Python installation failed with exit code $0.$\nFI Monitor may not work properly.$\n$\nYou can install Python 3.14+ manually from python.org"
+
+      # Show error dialog only in interactive mode (skip if /S flag used)
+      IfSilent skip_python_error_dialog
+        MessageBox MB_ICONEXCLAMATION|MB_OK "Python installation failed with exit code $0.$\nFI Monitor may not work properly.$\n$\nYou can install Python 3.14+ manually from python.org"
+      skip_python_error_dialog:
 
       # Cleanup on failure
       Delete "$TEMP\python-3.14.0-amd64.exe"

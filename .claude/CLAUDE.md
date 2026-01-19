@@ -1026,6 +1026,36 @@ dir src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\
 | `apps/aurity-desktop/pyinstaller/aurity-backend-x86_64-pc-windows-msvc.spec` | PyInstaller config Windows |
 | `apps/aurity-desktop/README.md` | User-facing build instructions |
 
+### Email Notifications (Windows Builds)
+
+**Trigger:** Automático cuando build de Windows termina exitosamente
+
+**Proveedor:** Azure Communication Services (ACS) - Servicio nativo de Azure
+
+**Secrets requeridos:**
+- `ACS_SMTP_USERNAME` - Format: `ResourceName|AppID|TenantID`
+- `ACS_SMTP_PASSWORD` - Entra ID app secret
+- `ACS_FROM_EMAIL` - DoNotReply@xxxxx.azurecomm.net
+- `NOTIFY_EMAIL` - bernarduriza@gmail.com
+
+**Email incluye:**
+- Versión del build
+- Commit SHA (short)
+- Link directo a GitHub Release
+- Link a workflow logs
+- Timestamp del build
+
+**Autenticación:** Entra ID (Azure AD) app credentials (más seguro que SMTP básico)
+
+**Fail-safe:** Email failures NO bloquean builds (`continue-on-error: true`)
+
+**Testing:**
+```bash
+gh workflow run build-desktop.yml --ref test-branch -f platform=windows
+```
+
+**Rate limits:** 100 emails/hora, 500/mes gratis (después $0.25/1000)
+
 ---
 
 ## 🚨 Security Incidents & Response Process
