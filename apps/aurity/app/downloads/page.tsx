@@ -151,71 +151,9 @@ export default function DownloadsPage() {
 
   const fetchLatestRelease = async () => {
     setLoading(true);
-    setError(null);
 
-    // Strategy A: Try dynamic fetch with GitHub API (requires token for private repos)
-    const githubToken = process.env.NEXT_PUBLIC_GITHUB_TOKEN;
-
-    if (githubToken) {
-      try {
-        const response = await fetch(
-          'https://api.github.com/repos/BernardUriza/free-intelligence/releases/latest',
-          {
-            headers: {
-              'Authorization': `Bearer ${githubToken}`,
-              'Accept': 'application/vnd.github+json',
-            },
-          }
-        );
-
-        if (response.ok) {
-          const release = await response.json();
-
-          // Parse assets to build platform-specific URLs
-          const platforms: Release['platforms'] = {};
-
-          release.assets.forEach((asset: any) => {
-            if (asset.name.endsWith('.dmg')) {
-              platforms.macos = {
-                url: asset.browser_download_url,
-                size: `${Math.round(asset.size / 1024 / 1024)} MB`,
-                sha256: 'See release notes',
-              };
-            } else if (asset.name.endsWith('.nsis.zip')) {
-              platforms.windows = {
-                url: asset.browser_download_url,
-                size: `${Math.round(asset.size / 1024 / 1024)} MB`,
-                sha256: 'See release notes',
-              };
-            } else if (asset.name.endsWith('.AppImage')) {
-              platforms.linux = {
-                url: asset.browser_download_url,
-                size: `${Math.round(asset.size / 1024 / 1024)} MB`,
-                sha256: 'See release notes',
-              };
-            }
-          });
-
-          setReleases([
-            {
-              version: release.tag_name.replace('v', ''),
-              date: new Date(release.published_at).toISOString().split('T')[0],
-              platforms,
-              changelog: release.body?.split('\n').filter((line: string) =>
-                line.trim().startsWith('-') || line.trim().startsWith('*')
-              ).map((line: string) => line.replace(/^[-*]\s*/, '').trim()) || [],
-            },
-          ]);
-          setLoading(false);
-          return;
-        }
-      } catch (err) {
-        console.warn('GitHub API fetch failed, falling back to direct links:', err);
-      }
-    }
-
-    // Strategy B: Direct links (works for private repos - release assets are public)
-    // Use version from staticReleases as source of truth
+    // Direct links to GitHub Releases (works for private repos - assets are public)
+    // Version is source of truth from staticReleases
     const version = staticReleases[0].version;
     const baseUrl = `https://github.com/BernardUriza/free-intelligence/releases/download/v${version}`;
 
