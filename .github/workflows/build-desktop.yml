@@ -139,7 +139,8 @@ jobs:
           retention-days: 1
 
   build-linux:
-    if: github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all'
+    if: false  # DISABLED - Solo buildear Windows para testing
+    # if: github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all'
     needs: [build-frontend]
     runs-on: ubuntu-22.04
     steps:
@@ -264,7 +265,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-macos:
-    if: github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all'
+    if: false  # DISABLED - Solo buildear Windows para testing
+    # if: github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all'
     needs: [build-frontend]
     runs-on: macos-latest
     steps:
