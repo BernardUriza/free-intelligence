@@ -469,7 +469,7 @@ class ConsultationEvent(BaseModel):
 class MessageReceivedEvent(ConsultationEvent):
     """Event: User or assistant message received."""
 
-    event_type: EventType = EventType(str(EventType.MESSAGE_RECEIVED))
+    event_type: EventType = EventType.MESSAGE_RECEIVED
 
     class PayloadSchema(BaseModel):
         message_content: str
@@ -480,7 +480,7 @@ class MessageReceivedEvent(ConsultationEvent):
 class ExtractionStartedEvent(ConsultationEvent):
     """Event: Medical data extraction started."""
 
-    event_type: EventType = EventType(str(EventType.EXTRACTION_STARTED))
+    event_type: EventType = EventType.EXTRACTION_STARTED
 
     class PayloadSchema(BaseModel):
         iteration: int = Field(ge=1, le=5)
@@ -491,7 +491,7 @@ class ExtractionStartedEvent(ConsultationEvent):
 class ExtractionCompletedEvent(ConsultationEvent):
     """Event: Medical data extraction completed."""
 
-    event_type: EventType = EventType(str(EventType.EXTRACTION_COMPLETED))
+    event_type: EventType = EventType.EXTRACTION_COMPLETED
 
     class PayloadSchema(BaseModel):
         iteration: int
@@ -504,7 +504,7 @@ class ExtractionCompletedEvent(ConsultationEvent):
 class SOAPGenerationCompletedEvent(ConsultationEvent):
     """Event: SOAP note generation completed."""
 
-    event_type: EventType = EventType(str(EventType.SOAP_GENERATION_COMPLETED))
+    event_type: EventType = EventType.SOAP_GENERATION_COMPLETED
 
     class PayloadSchema(BaseModel):
         soap_data: Dict[str, Any]  # Full SOAP structure
@@ -515,7 +515,7 @@ class SOAPGenerationCompletedEvent(ConsultationEvent):
 class CriticalPatternDetectedEvent(ConsultationEvent):
     """Event: Life-threatening pattern detected."""
 
-    event_type: EventType = EventType(str(EventType.CRITICAL_PATTERN_DETECTED))
+    event_type: EventType = EventType.CRITICAL_PATTERN_DETECTED
 
     class PayloadSchema(BaseModel):
         pattern_name: str
@@ -529,7 +529,7 @@ class CriticalPatternDetectedEvent(ConsultationEvent):
 class ConsultationCommittedEvent(ConsultationEvent):
     """Event: SOAP note committed (final, immutable)."""
 
-    event_type: EventType = EventType(str(EventType.CONSULTATION_COMMITTED))
+    event_type: EventType = EventType.CONSULTATION_COMMITTED
 
     class PayloadSchema(BaseModel):
         soap_data: Dict[str, Any]
