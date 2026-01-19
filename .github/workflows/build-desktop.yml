@@ -556,6 +556,46 @@ jobs:
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip `
             --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
 
+      - name: Upload to Azure Blob Storage
+        shell: pwsh
+        run: |
+          # Install Azure CLI (viene preinstalado en GitHub Windows runners)
+          # Verificar instalación
+          az --version
+
+          # Login con connection string (evita az login interactivo)
+          $env:AZURE_STORAGE_CONNECTION_STRING = "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}"
+
+          # Obtener versión y path del .nsis.zip
+          $VERSION = node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version"
+          $NSIS_ZIP = Get-ChildItem -Path "apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip" | Select-Object -First 1
+          $NSIS_SIG = Get-ChildItem -Path "apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig" | Select-Object -First 1
+
+          # Nombre de blob en Azure (debe coincidir con downloads/page.tsx)
+          $BLOB_NAME = "Aurity_${VERSION}_x64-setup.nsis.zip"
+          $SIG_BLOB_NAME = "Aurity_${VERSION}_x64-setup.nsis.zip.sig"
+
+          Write-Host "Uploading $BLOB_NAME to Azure Blob Storage..."
+
+          # Upload .nsis.zip
+          az storage blob upload `
+            --container-name releases `
+            --name $BLOB_NAME `
+            --file $NSIS_ZIP.FullName `
+            --overwrite `
+            --content-type "application/zip"
+
+          # Upload .sig file
+          az storage blob upload `
+            --container-name releases `
+            --name $SIG_BLOB_NAME `
+            --file $NSIS_SIG.FullName `
+            --overwrite `
+            --content-type "text/plain"
+
+          Write-Host "✅ Upload complete"
+          Write-Host "URL: https://aurityreleases.blob.core.windows.net/releases/$BLOB_NAME"
+
       - name: Send build success email notification
         if: success()
         uses: dawidd6/action-send-mail@v3

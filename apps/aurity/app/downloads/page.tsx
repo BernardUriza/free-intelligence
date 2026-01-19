@@ -45,6 +45,11 @@ interface Release {
       size: string;
       sha256: string;
     };
+    windows?: {
+      url: string;
+      size: string;
+      sha256: string;
+    };
     linux?: {
       url: string;
       size: string;
@@ -79,6 +84,12 @@ const systemRequirements = {
     ram: '8 GB minimum, 16 GB recommended',
     disk: '10 GB free space',
   },
+  windows: {
+    os: 'Windows 10 (64-bit) or Windows 11',
+    cpu: 'x86_64 processor',
+    ram: '8 GB minimum, 16 GB recommended',
+    disk: '10 GB free space',
+  },
   linux: {
     os: 'Ubuntu 22.04 LTS or compatible',
     cpu: 'x86_64 processor',
@@ -98,6 +109,11 @@ const staticReleases: Release[] = [
         url: 'https://aurityreleases.blob.core.windows.net/releases/Aurity_1.0.0_aarch64.dmg',
         size: '96 MB',
         sha256: '40d54b686c3f81bd70935b793ee577e7',
+      },
+      windows: {
+        url: 'https://aurityreleases.blob.core.windows.net/releases/Aurity_1.0.0_x64-setup.nsis.zip',
+        size: '~150 MB',
+        sha256: 'pending',
       },
       linux: {
         url: 'https://aurityreleases.blob.core.windows.net/releases/Aurity_1.0.0_amd64.AppImage',
@@ -240,7 +256,7 @@ export default function DownloadsPage() {
               <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 gap-8 mb-12">
+            <div className="grid md:grid-cols-3 gap-6 mb-12">
               {/* macOS Download */}
               <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-lg border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center gap-4 mb-6">
@@ -289,6 +305,62 @@ export default function DownloadsPage() {
                 </h3>
                 <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
                   {Object.entries(systemRequirements.macos).map(([key, value]) => (
+                    <li key={key} className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>{value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Windows Download */}
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-lg border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center">
+                    <Monitor className="w-10 h-10 text-slate-700 dark:text-slate-300" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                      Windows
+                    </h2>
+                    <p className="text-slate-500">NSIS Installer (x64)</p>
+                  </div>
+                </div>
+
+                {latestRelease?.platforms.windows ? (
+                  <>
+                    <Button
+                      className="w-full mb-4 h-12 text-lg"
+                      onClick={() => {
+                        if (latestRelease.platforms.windows?.url !== '#coming-soon') {
+                          window.open(latestRelease.platforms.windows?.url, '_blank');
+                        }
+                      }}
+                      disabled={latestRelease.platforms.windows.url === '#coming-soon'}
+                    >
+                      <Download className="w-5 h-5 mr-2" />
+                      {latestRelease.platforms.windows.url === '#coming-soon'
+                        ? 'Coming Soon'
+                        : `Download v${latestRelease.version}`}
+                    </Button>
+                    <div className="text-sm text-slate-500 space-y-1">
+                      <p>Size: {latestRelease.platforms.windows.size}</p>
+                      <p className="font-mono text-xs truncate">
+                        SHA256: {latestRelease.platforms.windows.sha256}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-slate-500">Not available yet</p>
+                )}
+
+                <hr className="my-6 border-slate-200 dark:border-slate-700" />
+
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
+                  System Requirements
+                </h3>
+                <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
+                  {Object.entries(systemRequirements.windows).map(([key, value]) => (
                     <li key={key} className="flex items-start gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                       <span>{value}</span>
@@ -380,7 +452,7 @@ export default function DownloadsPage() {
             <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
               Installation
             </h2>
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                   <Apple className="w-5 h-5" /> macOS
@@ -390,6 +462,18 @@ export default function DownloadsPage() {
                   <li>Double-click to open</li>
                   <li>Drag Aurity to Applications</li>
                   <li>First run: Right-click → Open (to bypass Gatekeeper)</li>
+                </ol>
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                  <Monitor className="w-5 h-5" /> Windows
+                </h3>
+                <ol className="text-slate-600 dark:text-slate-300 space-y-2 list-decimal list-inside">
+                  <li>Download the .nsis.zip file</li>
+                  <li>Extract the zip file</li>
+                  <li>Run the .exe installer</li>
+                  <li>Follow the installation wizard</li>
+                  <li>First run: Click "More info" → "Run anyway" (SmartScreen)</li>
                 </ol>
               </div>
               <div>
