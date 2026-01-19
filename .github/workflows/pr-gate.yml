@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  PYTHON_VERSION: "3.14"  # Match pyproject.toml requirement
+  PYTHON_VERSION: "3.13"  # TODO: Upgrade to 3.14 when available in GitHub Actions
 
 jobs:
   # ============================================================
