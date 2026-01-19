@@ -249,17 +249,28 @@ def get_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> list[di
             for chunk_name in sorted(chunks_group):  # type: ignore[union-attr]
                 chunk_group = chunks_group[chunk_name]  # type: ignore[index]
                 chunk_idx = int(chunk_name.split("_")[1])
-                transcript = chunk_group["transcript"][()].decode("utf-8")  # type: ignore[index]
+
+                # Handle both bytes and str returns from HDF5
+                transcript_data = chunk_group["transcript"][()]  # type: ignore[index]
+                transcript = (
+                    transcript_data.decode("utf-8", errors="ignore")
+                    if isinstance(transcript_data, bytes)
+                    else str(transcript_data)
+                )
 
                 # Determine status based on transcript presence
                 status = "completed" if transcript else "pending"
 
                 # Read metrics (with fallback for older chunks)
-                provider = (
-                    chunk_group["provider"][()].decode("utf-8")
-                    if "provider" in chunk_group  # type: ignore[operator]
-                    else "unknown"
-                )  # type: ignore[index]
+                if "provider" in chunk_group:  # type: ignore[operator]
+                    provider_data = chunk_group["provider"][()]  # type: ignore[index]
+                    provider = (
+                        provider_data.decode("utf-8", errors="ignore")
+                        if isinstance(provider_data, bytes)
+                        else str(provider_data)
+                    )
+                else:
+                    provider = "unknown"
                 polling_attempts = (
                     int(chunk_group["polling_attempts"][()])
                     if "polling_attempts" in chunk_group  # type: ignore[operator]
@@ -274,20 +285,44 @@ def get_task_chunks(session_id: str, task_type: Union[TaskType, str]) -> list[di
                     int(chunk_group["retry_attempts"][()]) if "retry_attempts" in chunk_group else 0  # type: ignore[operator]
                 )  # type: ignore[index]
 
+                # Handle bytes/str for audio_hash
+                audio_hash_data = chunk_group["audio_hash"][()]  # type: ignore[index]
+                audio_hash = (
+                    audio_hash_data.decode("utf-8", errors="ignore")
+                    if isinstance(audio_hash_data, bytes)
+                    else str(audio_hash_data)
+                )
+
+                # Handle bytes/str for language
+                language_data = chunk_group["language"][()]  # type: ignore[index]
+                language = (
+                    language_data.decode("utf-8", errors="ignore")
+                    if isinstance(language_data, bytes)
+                    else str(language_data)
+                )
+
+                # Handle bytes/str for created_at
+                created_at_data = chunk_group["created_at"][()]  # type: ignore[index]
+                created_at = (
+                    created_at_data.decode("utf-8", errors="ignore")
+                    if isinstance(created_at_data, bytes)
+                    else str(created_at_data)
+                )
+
                 chunks.append(
                     {
                         "chunk_idx": chunk_idx,
                         "chunk_number": chunk_idx,  # Alias for frontend compatibility
                         "status": status,
                         "transcript": transcript,
-                        "audio_hash": chunk_group["audio_hash"][()].decode("utf-8"),  # type: ignore[index]
+                        "audio_hash": audio_hash,
                         "duration": float(chunk_group["duration"][()]),  # type: ignore[index]
-                        "language": chunk_group["language"][()].decode("utf-8"),  # type: ignore[index]
+                        "language": language,
                         "timestamp_start": float(chunk_group["timestamp_start"][()]),  # type: ignore[index]
                         "timestamp_end": float(chunk_group["timestamp_end"][()]),  # type: ignore[index]
                         "confidence": float(chunk_group["confidence"][()]),  # type: ignore[index]
                         "audio_quality": float(chunk_group["audio_quality"][()]),  # type: ignore[index]
-                        "created_at": chunk_group["created_at"][()].decode("utf-8"),  # type: ignore[index]
+                        "created_at": created_at,
                         # NEW: Transcription metrics
                         "provider": provider,
                         "polling_attempts": polling_attempts,
