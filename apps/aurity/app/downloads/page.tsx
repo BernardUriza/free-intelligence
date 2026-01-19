@@ -152,59 +152,98 @@ export default function DownloadsPage() {
   const fetchLatestRelease = async () => {
     setLoading(true);
     setError(null);
-    try {
-      const response = await fetch(
-        'https://api.github.com/repos/BernardUriza/free-intelligence/releases/latest'
-      );
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch latest release');
-      }
+    // Strategy A: Try dynamic fetch with GitHub API (requires token for private repos)
+    const githubToken = process.env.NEXT_PUBLIC_GITHUB_TOKEN;
 
-      const release = await response.json();
+    if (githubToken) {
+      try {
+        const response = await fetch(
+          'https://api.github.com/repos/BernardUriza/free-intelligence/releases/latest',
+          {
+            headers: {
+              'Authorization': `Bearer ${githubToken}`,
+              'Accept': 'application/vnd.github+json',
+            },
+          }
+        );
 
-      // Parse assets to build platform-specific URLs
-      const platforms: Release['platforms'] = {};
+        if (response.ok) {
+          const release = await response.json();
 
-      release.assets.forEach((asset: any) => {
-        if (asset.name.endsWith('.dmg')) {
-          platforms.macos = {
-            url: asset.browser_download_url,
-            size: `${Math.round(asset.size / 1024 / 1024)} MB`,
-            sha256: 'See release notes',
-          };
-        } else if (asset.name.endsWith('.nsis.zip')) {
-          platforms.windows = {
-            url: asset.browser_download_url,
-            size: `${Math.round(asset.size / 1024 / 1024)} MB`,
-            sha256: 'See release notes',
-          };
-        } else if (asset.name.endsWith('.AppImage')) {
-          platforms.linux = {
-            url: asset.browser_download_url,
-            size: `${Math.round(asset.size / 1024 / 1024)} MB`,
-            sha256: 'See release notes',
-          };
+          // Parse assets to build platform-specific URLs
+          const platforms: Release['platforms'] = {};
+
+          release.assets.forEach((asset: any) => {
+            if (asset.name.endsWith('.dmg')) {
+              platforms.macos = {
+                url: asset.browser_download_url,
+                size: `${Math.round(asset.size / 1024 / 1024)} MB`,
+                sha256: 'See release notes',
+              };
+            } else if (asset.name.endsWith('.nsis.zip')) {
+              platforms.windows = {
+                url: asset.browser_download_url,
+                size: `${Math.round(asset.size / 1024 / 1024)} MB`,
+                sha256: 'See release notes',
+              };
+            } else if (asset.name.endsWith('.AppImage')) {
+              platforms.linux = {
+                url: asset.browser_download_url,
+                size: `${Math.round(asset.size / 1024 / 1024)} MB`,
+                sha256: 'See release notes',
+              };
+            }
+          });
+
+          setReleases([
+            {
+              version: release.tag_name.replace('v', ''),
+              date: new Date(release.published_at).toISOString().split('T')[0],
+              platforms,
+              changelog: release.body?.split('\n').filter((line: string) =>
+                line.trim().startsWith('-') || line.trim().startsWith('*')
+              ).map((line: string) => line.replace(/^[-*]\s*/, '').trim()) || [],
+            },
+          ]);
+          setLoading(false);
+          return;
         }
-      });
-
-      setReleases([
-        {
-          version: release.tag_name.replace('v', ''),
-          date: new Date(release.published_at).toISOString().split('T')[0],
-          platforms,
-          changelog: release.body?.split('\n').filter((line: string) =>
-            line.trim().startsWith('-') || line.trim().startsWith('*')
-          ).map((line: string) => line.replace(/^[-*]\s*/, '').trim()) || [],
-        },
-      ]);
-    } catch (err) {
-      console.error('Failed to fetch latest release:', err);
-      // Fallback to static data
-      setReleases(staticReleases);
-    } finally {
-      setLoading(false);
+      } catch (err) {
+        console.warn('GitHub API fetch failed, falling back to direct links:', err);
+      }
     }
+
+    // Strategy B: Direct links (works for private repos - release assets are public)
+    // Use version from staticReleases as source of truth
+    const version = staticReleases[0].version;
+    const baseUrl = `https://github.com/BernardUriza/free-intelligence/releases/download/v${version}`;
+
+    setReleases([
+      {
+        version,
+        date: staticReleases[0].date,
+        platforms: {
+          macos: {
+            url: `${baseUrl}/Aurity_${version}_aarch64.dmg`,
+            size: staticReleases[0].platforms.macos?.size || '~150 MB',
+            sha256: staticReleases[0].platforms.macos?.sha256 || 'See release notes',
+          },
+          windows: {
+            url: `${baseUrl}/Aurity_${version}_x64-setup.nsis.zip`,
+            size: staticReleases[0].platforms.windows?.size || '~150 MB',
+            sha256: staticReleases[0].platforms.windows?.sha256 || 'See release notes',
+          },
+          linux: {
+            url: `${baseUrl}/Aurity_${version}_amd64.AppImage`,
+            size: staticReleases[0].platforms.linux?.size || '~200 MB',
+            sha256: staticReleases[0].platforms.linux?.sha256 || 'See release notes',
+          },
+        },
+        changelog: staticReleases[0].changelog,
+      },
+    ]);
+    setLoading(false);
   };
 
   // Show "already installed" message in desktop mode
