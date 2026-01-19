@@ -267,10 +267,6 @@ class TestLifecycleOperations:
 
     def test_task_exists_returns_true_when_exists(self, temp_storage):
         """Test task_exists returns True when task exists."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle import (
-            task_exists,
-        )
-
         session_id = "test-session-exists"
         session_file = temp_storage / f"{session_id}.h5"
 
@@ -284,6 +280,10 @@ class TestLifecycleOperations:
             "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
+            # Import AFTER mock to ensure module uses mocked function
+            from backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle import (
+                task_exists,
+            )
             result = task_exists(session_id, TaskType.TRANSCRIPTION)
             assert result is True
 
