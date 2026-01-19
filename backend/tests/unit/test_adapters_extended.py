@@ -494,7 +494,7 @@ class TestBatchReduxAdapter:
             consultation_id="consul-123",
             user_id="user-456",
         )
-        
+
         assert events == []
 
     def test_batch_translate_single_action(self) -> None:
@@ -502,20 +502,20 @@ class TestBatchReduxAdapter:
         from backend.providers.adapters import BatchReduxAdapter
 
         adapter = BatchReduxAdapter()
-        
+
         actions = [
             {
                 "type": "medicalChat/addMessage",
                 "payload": {"content": "Test message"},
             }
         ]
-        
+
         events = adapter.translate_batch(
             redux_actions=actions,
             consultation_id="consul-123",
             user_id="user-456",
         )
-        
+
         assert len(events) == 1
 
     def test_batch_translate_multiple_actions(self) -> None:
@@ -523,20 +523,20 @@ class TestBatchReduxAdapter:
         from backend.providers.adapters import BatchReduxAdapter
 
         adapter = BatchReduxAdapter()
-        
+
         actions = [
             {"type": "medicalChat/addMessage", "payload": {"content": "First"}},
             {"type": "medicalChat/addMessage", "payload": {"content": "Second"}},
             {"type": "medicalChat/updateMessage", "payload": {"id": "msg-1", "content": "Updated"}},
         ]
-        
+
         events = adapter.translate_batch(
             redux_actions=actions,
             consultation_id="consul-123",
             user_id="user-456",
             session_id="session-789",
         )
-        
+
         assert len(events) == 3
 
     def test_batch_translate_skips_invalid_actions(self) -> None:
@@ -544,19 +544,19 @@ class TestBatchReduxAdapter:
         from backend.providers.adapters import BatchReduxAdapter
 
         adapter = BatchReduxAdapter()
-        
+
         actions = [
             {"type": "medicalChat/addMessage", "payload": {"content": "Valid"}},
             {"type": "unknown/invalidAction", "payload": {}},  # Will cause error
             {"type": "medicalChat/addMessage", "payload": {"content": "Also Valid"}},
         ]
-        
+
         events = adapter.translate_batch(
             redux_actions=actions,
             consultation_id="consul-123",
             user_id="user-456",
         )
-        
+
         # Should have at least the valid actions
         assert len(events) >= 2
 
