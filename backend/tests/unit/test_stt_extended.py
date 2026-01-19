@@ -243,10 +243,10 @@ class TestGetSTTProvider:
         "AZURE_OPENAI_API_KEY": "test-key",
     })
     def test_get_stt_provider_default(self) -> None:
-        """Test get_stt_provider returns Azure provider by default."""
+        """Test get_stt_provider with azure_whisper provider."""
         from backend.providers.stt import AzureWhisperProvider, get_stt_provider
 
-        provider = get_stt_provider()
+        provider = get_stt_provider("azure_whisper")
 
         assert isinstance(provider, AzureWhisperProvider)
 
@@ -277,17 +277,16 @@ class TestGetSTTProvider:
         assert isinstance(provider2, AzureWhisperProvider)
 
     @patch.dict("os.environ", {
-        "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com/",
-        "AZURE_OPENAI_API_KEY": "test-key",
+        "DEEPGRAM_API_KEY": "test-deepgram-key",
     })
     def test_get_stt_provider_deepgram_fallback(self) -> None:
-        """Test get_stt_provider falls back from deprecated deepgram."""
-        from backend.providers.stt import AzureWhisperProvider, get_stt_provider
+        """Test get_stt_provider with deepgram provider."""
+        from backend.providers.stt import DeepgramProvider, get_stt_provider
 
-        # Deepgram was removed, should fallback to azure_whisper
+        # Deepgram is a valid provider
         provider = get_stt_provider("deepgram")
 
-        assert isinstance(provider, AzureWhisperProvider)
+        assert isinstance(provider, DeepgramProvider)
 
     def test_get_stt_provider_unknown(self) -> None:
         """Test get_stt_provider raises error for unknown provider."""
