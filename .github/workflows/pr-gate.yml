@@ -469,40 +469,42 @@ jobs:
             fi
           fi
 
-          echo "VERDICT=$VERDICT" >> $GITHUB_OUTPUT
-          echo "SEVERITY=$SEVERITY" >> $GITHUB_OUTPUT
+          echo "VERDICT=$VERDICT" >> $GITHUB_OUTPUT || echo "::warning::Failed to write VERDICT to output"
+          echo "SEVERITY=$SEVERITY" >> $GITHUB_OUTPUT || echo "::warning::Failed to write SEVERITY to output"
 
-          # Shadow Mode Telemetry: Log decision for analysis
-          echo "::group::📊 Telemetry: Logging AI decision"
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          # Shadow Mode Telemetry: Log decision for analysis (non-critical, don't fail job if this breaks)
+          (
+            echo "::group::📊 Telemetry: Logging AI decision"
+            TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-          # Log to workflow summary for tracking
-          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Verdict | $VERDICT |" >> $GITHUB_STEP_SUMMARY
-          echo "| Severity | $SEVERITY |" >> $GITHUB_STEP_SUMMARY
-          echo "| Confidence | $CONFIDENCE |" >> $GITHUB_STEP_SUMMARY
-          echo "| PR | #$PR_NUMBER |" >> $GITHUB_STEP_SUMMARY
-          echo "| Timestamp | $TIMESTAMP |" >> $GITHUB_STEP_SUMMARY
+            # Log to workflow summary for tracking
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Verdict | $VERDICT |" >> $GITHUB_STEP_SUMMARY
+            echo "| Severity | $SEVERITY |" >> $GITHUB_STEP_SUMMARY
+            echo "| Confidence | $CONFIDENCE |" >> $GITHUB_STEP_SUMMARY
+            echo "| PR | #$PR_NUMBER |" >> $GITHUB_STEP_SUMMARY
+            echo "| Timestamp | $TIMESTAMP |" >> $GITHUB_STEP_SUMMARY
 
-          # Create artifact for historical analysis
-          mkdir -p /tmp/ai-gatekeeper-telemetry
-          echo "$REVIEW_JSON" | jq -c "{
-            pr_number: $PR_NUMBER,
-            timestamp: \"$TIMESTAMP\",
-            verdict: \"$VERDICT\",
-            severity: \"$SEVERITY\",
-            confidence: \"$CONFIDENCE\",
-            summary: .summary,
-            ci_failures: \"$CI_FAILURES\",
-            issues: .issues,
-            recommendation: .recommendation,
-            backend_status: \"$BACKEND_STATUS\",
-            files_changed: $FILES_CHANGED
-          }" > /tmp/ai-gatekeeper-telemetry/decision-${PR_NUMBER}.json
+            # Create artifact for historical analysis
+            mkdir -p /tmp/ai-gatekeeper-telemetry
+            echo "$REVIEW_JSON" | jq -c "{
+              pr_number: $PR_NUMBER,
+              timestamp: \"$TIMESTAMP\",
+              verdict: \"$VERDICT\",
+              severity: \"$SEVERITY\",
+              confidence: \"$CONFIDENCE\",
+              summary: .summary,
+              ci_failures: \"$CI_FAILURES\",
+              issues: .issues,
+              recommendation: .recommendation,
+              backend_status: \"$BACKEND_STATUS\",
+              files_changed: $FILES_CHANGED
+            }" > /tmp/ai-gatekeeper-telemetry/decision-${PR_NUMBER}.json
 
-          echo "✅ Telemetry logged to artifact"
-          echo "::endgroup::"
+            echo "✅ Telemetry logged to artifact"
+            echo "::endgroup::"
+          ) || echo "::warning::Telemetry logging failed (non-critical)"
 
           # Post comment with severity-aware styling
           if [ "$VERDICT" = "BLOCK" ]; then
@@ -525,7 +527,7 @@ jobs:
 
           ---
           $FOOTER
-          *Powered by Azure OpenAI GPT-5-mini*"
+          *Powered by Azure OpenAI GPT-5-mini*" || echo "::warning::Failed to post PR comment"
 
           echo "::notice::AI Verdict: $VERDICT (Severity: $SEVERITY)"
 
