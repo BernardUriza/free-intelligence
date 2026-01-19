@@ -15,8 +15,64 @@ on:
           - all
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      fi_monitor: ${{ steps.changes.outputs.fi_monitor }}
+      aurity_desktop: ${{ steps.changes.outputs.aurity_desktop }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Need 2 commits to diff
+
+      - name: Detect what changed
+        id: changes
+        run: |
+          # Get changed files in last commit
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD || echo "all")
+
+          # Check FI Monitor changes
+          if echo "$CHANGED_FILES" | grep -q "apps/fi-monitor/"; then
+            echo "fi_monitor=true" >> $GITHUB_OUTPUT
+            echo "✅ FI Monitor changed"
+          else
+            echo "fi_monitor=false" >> $GITHUB_OUTPUT
+            echo "⏩ FI Monitor unchanged"
+          fi
+
+          # Check Aurity Desktop changes (includes backend)
+          if echo "$CHANGED_FILES" | grep -qE "apps/aurity-desktop/|backend/"; then
+            echo "aurity_desktop=true" >> $GITHUB_OUTPUT
+            echo "✅ Aurity Desktop changed"
+          else
+            echo "aurity_desktop=false" >> $GITHUB_OUTPUT
+            echo "⏩ Aurity Desktop unchanged"
+          fi
+
+          # Check Frontend changes
+          if echo "$CHANGED_FILES" | grep -q "apps/aurity/"; then
+            echo "frontend=true" >> $GITHUB_OUTPUT
+            echo "✅ Frontend changed"
+          else
+            echo "frontend=false" >> $GITHUB_OUTPUT
+            echo "⏩ Frontend unchanged"
+          fi
+
+          # If workflow_dispatch or can't detect changes, build everything
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$CHANGED_FILES" = "all" ]; then
+            echo "fi_monitor=true" >> $GITHUB_OUTPUT
+            echo "aurity_desktop=true" >> $GITHUB_OUTPUT
+            echo "frontend=true" >> $GITHUB_OUTPUT
+            echo "🔄 Manual trigger - building everything"
+          fi
+
   build-fi-monitor:
-    if: github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all'
+    needs: [detect-changes]
+    if: |
+      (github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all') &&
+      needs.detect-changes.outputs.fi_monitor == 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout main repo
@@ -96,11 +152,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-frontend:
+    needs: [detect-changes]
     if: |
-      github.event.inputs.platform == 'linux' ||
-      github.event.inputs.platform == 'macos' ||
-      github.event.inputs.platform == 'windows' ||
-      github.event.inputs.platform == 'all'
+      (github.event.inputs.platform == 'linux' ||
+       github.event.inputs.platform == 'macos' ||
+       github.event.inputs.platform == 'windows' ||
+       github.event.inputs.platform == 'all') &&
+      needs.detect-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main repo
@@ -378,8 +436,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows:
-    if: github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all'
-    needs: [build-frontend]
+    needs: [detect-changes, build-frontend]
+    if: |
+      (github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all') &&
+      needs.detect-changes.outputs.aurity_desktop == 'true' &&
+      !cancelled()
     runs-on: windows-latest
     steps:
       - name: Checkout main repo
