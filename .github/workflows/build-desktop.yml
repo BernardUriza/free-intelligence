@@ -597,10 +597,15 @@ jobs:
           key: python-installer-3.14.0-amd64
 
       - name: Prepare Python 3.14 Installer
-        shell: bash
-        run: |
-          cd apps/aurity-desktop
-          bash scripts/prepare-python-full.sh
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            cd apps/aurity-desktop
+            bash scripts/prepare-python-full.sh
+          shell: bash
         env:
           PYTHON_VERSION: "3.14.0"
 
