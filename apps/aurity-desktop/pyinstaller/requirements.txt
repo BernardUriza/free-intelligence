@@ -1,8 +1,0 @@
-# PyInstaller build dependencies
-# This file points to the backend's production requirements
-
-# Install PyInstaller
-pyinstaller>=6.0.0
-
-# Backend dependencies (relative path to backend/requirements-prod.txt)
--r ../../../backend/requirements-prod.txt

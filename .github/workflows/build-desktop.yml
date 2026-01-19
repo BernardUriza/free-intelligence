@@ -312,7 +312,7 @@ jobs:
           path: apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig
           retention-days: 7
 
-      - name: Create GitHub Release (Linux)
+      - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v1
         with:
@@ -327,8 +327,10 @@ jobs:
             ---
             🤖 Auto-generated release
           files: |
-            apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
-            apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.AppImage
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.nsis.zip
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
           draft: false
           prerelease: false
         env:
@@ -448,7 +450,7 @@ jobs:
           path: apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig
           retention-days: 7
 
-      - name: Create GitHub Release (macOS)
+      - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v1
         with:
@@ -463,8 +465,8 @@ jobs:
             ---
             🤖 Auto-generated release
           files: |
-            apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-            apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
           draft: false
           prerelease: false
         env:
@@ -490,14 +492,6 @@ jobs:
         with:
           name: frontend-static
           path: apps/aurity/out/
-
-      - name: Set dynamic version
-        shell: pwsh
-        run: |
-          $commitHash = git rev-parse --short HEAD
-          $version = "0.0.0-$commitHash"
-          node apps/aurity-desktop/scripts/set-version.js $version
-          Write-Host "✅ Version set to: $version"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -571,54 +565,12 @@ jobs:
         working-directory: apps/aurity-desktop
         run: pnpm tauri build --target x86_64-pc-windows-msvc
 
-      - name: Verify Windows build outputs
-        shell: pwsh
-        working-directory: apps/aurity-desktop
-        run: |
-          $bundlePath = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis"
-
-          if (-not (Test-Path $bundlePath)) {
-            Write-Error "❌ Bundle directory not found: $bundlePath"
-            exit 1
-          }
-
-          $nsisZip = Get-ChildItem "$bundlePath/*.nsis.zip" -ErrorAction SilentlyContinue
-          if (-not $nsisZip) {
-            Write-Error "❌ NSIS zip not found in $bundlePath"
-            Write-Host "Contents of bundle directory:"
-            Get-ChildItem $bundlePath -Recurse | Format-Table Name, Length
-            exit 1
-          }
-
-          Write-Host "✅ Build outputs verified:"
-          Get-ChildItem $bundlePath -Recurse | ForEach-Object {
-            $sizeMB = [math]::Round($_.Length/1MB, 2)
-            Write-Host "  - $($_.Name) ($sizeMB MB)"
-          }
-
       - name: Sign NSIS installer
-        shell: pwsh
         working-directory: apps/aurity-desktop
-        env:
-          TAURI_PRIVATE_KEY_PASSWORD: ""
         run: |
-          $nsisPath = Get-ChildItem -Path src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip | Select-Object -First 1
-
-          if (-not $nsisPath) {
-            Write-Error "❌ NSIS bundle not found for signing"
-            exit 1
-          }
-
-          Write-Host "✅ Found NSIS bundle: $($nsisPath.FullName)"
-
-          pnpm tauri signer sign $nsisPath.FullName --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
-
-          if (-not (Test-Path "$($nsisPath.FullName).sig")) {
-            Write-Error "❌ Signature file not generated"
-            exit 1
-          }
-
-          Write-Host "✅ Signature created: $($nsisPath.FullName).sig"
+          pnpm tauri signer sign `
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip `
+            --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
 
       - name: Upload NSIS artifact
         uses: actions/upload-artifact@v4
@@ -634,7 +586,7 @@ jobs:
           path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig
           retention-days: 7
 
-      - name: Create GitHub Release (Windows)
+      - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v1
         with:
@@ -649,8 +601,10 @@ jobs:
             ---
             🤖 Auto-generated release
           files: |
-            apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip
-            apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.AppImage
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.nsis.zip
+            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
           draft: false
           prerelease: false
         env:

@@ -44,9 +44,7 @@
     "active": true,
     "targets": "all",
     "externalBin": [
-      "binaries/aurity-backend-x86_64-pc-windows-msvc",
-      "binaries/aurity-backend-aarch64-apple-darwin",
-      "binaries/aurity-backend-x86_64-unknown-linux-gnu"
+      "binaries/aurity-backend"
     ],
     "icon": [
       "icons/32x32.png",
