@@ -99,24 +99,24 @@ const systemRequirements = {
 };
 
 // Static releases data (API routes don't work with static export)
-// Downloads served from Azure Blob Storage CDN
+// Downloads served from GitHub Releases
 const staticReleases: Release[] = [
   {
     version: '1.0.0',
     date: '2024-12-28',
     platforms: {
       macos: {
-        url: 'https://aurityreleases.blob.core.windows.net/releases/Aurity_1.0.0_aarch64.dmg',
+        url: 'https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.0/Aurity_1.0.0_aarch64.dmg',
         size: '96 MB',
         sha256: '40d54b686c3f81bd70935b793ee577e7',
       },
       windows: {
-        url: 'https://aurityreleases.blob.core.windows.net/releases/Aurity_1.0.0_x64-setup.nsis.zip',
+        url: 'https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.0/Aurity_1.0.0_x64-setup.nsis.zip',
         size: '~150 MB',
         sha256: 'pending',
       },
       linux: {
-        url: 'https://aurityreleases.blob.core.windows.net/releases/Aurity_1.0.0_amd64.AppImage',
+        url: 'https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.0/Aurity_1.0.0_amd64.AppImage',
         size: '201 MB',
         sha256: '93207017e6c56bc7d347585887042662',
       },
@@ -185,31 +185,8 @@ export default function DownloadsPage() {
       setReleases(data.releases || []);
     } catch (err) {
       console.error('Failed to fetch releases:', err);
-      // Use placeholder data if API fails
-      setReleases([
-        {
-          version: '1.0.0',
-          date: '2024-12-28',
-          platforms: {
-            macos: {
-              url: '#coming-soon',
-              size: '~150 MB',
-              sha256: 'pending',
-            },
-            linux: {
-              url: 'https://aurityreleases.blob.core.windows.net/releases/Aurity_1.0.0_amd64.AppImage',
-              size: '201 MB',
-              sha256: '93207017e6c56bc7d347585887042662',
-            },
-          },
-          changelog: [
-            'Initial release',
-            'Offline AI medical assistant',
-            'Local LLM integration via Ollama',
-            'Encrypted local storage',
-          ],
-        },
-      ]);
+      // Use static data if API fails (same as staticReleases)
+      setReleases(staticReleases);
     } finally {
       setLoading(false);
     }
