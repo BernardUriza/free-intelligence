@@ -30,8 +30,8 @@ logger = get_logger(__name__)
 def _load_diarization_prompt() -> str:
     """Load diarization prompt from fi_prompts YAML preset (cached)."""
     # Import directly to avoid broken __init__.py
-    from pathlib import Path
     from backend.src.fi_prompts.yaml_provider import YAMLPromptProvider
+    from pathlib import Path
 
     # Use path relative to this file (works from any cwd)
     prompts_dir = Path(__file__).parent.parent / "src" / "fi_prompts" / "yaml_presets"
