@@ -296,10 +296,27 @@ def update_task_metadata(
 
         # Read existing metadata
         if "job_metadata" in task_group:  # type: ignore[operator]
-            existing_json = task_group["job_metadata"][()]  # type: ignore[index]
-            if isinstance(existing_json, bytes):
-                existing_json = existing_json.decode("utf-8")
-            existing_metadata = json.loads(existing_json)
+            dataset = task_group["job_metadata"]  # type: ignore[index]
+
+            # OOM protection: Check size before loading
+            MAX_METADATA_BYTES = 10 * 1024 * 1024  # 10MB safety limit
+            # Use h5py-compatible size calculation (not .nbytes which is numpy-only)
+            dataset_size = dataset.size * dataset.dtype.itemsize  # type: ignore[attr-defined]
+
+            if dataset_size > MAX_METADATA_BYTES:
+                logger.warning(
+                    "METADATA_TOO_LARGE_SKIPPING_MERGE",
+                    session_id=session_id,
+                    task_type=task_type_str,
+                    size_mb=dataset_size / (1024 * 1024),
+                    max_mb=MAX_METADATA_BYTES / (1024 * 1024),
+                )
+                existing_metadata = {}  # Skip merge, overwrite instead
+            else:
+                existing_json = dataset[()]  # type: ignore[index]
+                if isinstance(existing_json, bytes):
+                    existing_json = existing_json.decode("utf-8")
+                existing_metadata = json.loads(existing_json)
         else:
             existing_metadata = {}
 

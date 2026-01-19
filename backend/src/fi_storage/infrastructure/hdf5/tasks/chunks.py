@@ -16,6 +16,7 @@ Refactored: 2026-01-18 (modularization)
 
 from __future__ import annotations
 
+import hashlib
 import threading
 import time
 from datetime import UTC, datetime
@@ -516,13 +517,19 @@ def update_chunk_dataset(
                         dtype=h5py.string_dtype(encoding="utf-8"),
                     )
 
+                # HIPAA: Hash value instead of logging PHI
+                # Convert once to avoid double str() conversion for large values
+                value_bytes = str(value).encode("utf-8")
+                value_hash = hashlib.sha256(value_bytes).hexdigest()[:16]
+
                 logger.info(
                     "CHUNK_DATASET_UPDATED",
                     session_id=session_id,
                     task_type=task_type_str,
                     chunk_idx=chunk_idx,
                     field=field,
-                    value=str(value)[:100],  # Log first 100 chars
+                    value_hash=value_hash,  # SHA256 prefix (HIPAA-safe)
+                    value_size=len(value_bytes),  # Bytes for accurate storage size
                 )
                 return True
 
