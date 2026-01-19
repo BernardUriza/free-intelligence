@@ -25,12 +25,18 @@ jobs:
       - name: Checkout submodules
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+          git submodule update --init --recursive --depth 1
 
       - name: Setup Tauri build environment
         uses: ./.github/actions/setup-tauri
         with:
           rust-target: x86_64-pc-windows-msvc
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
+      - name: Configure sccache
+        run: echo "RUSTC_WRAPPER=sccache" >> $env:GITHUB_ENV
 
       - name: Install dependencies
         working-directory: apps/fi-monitor
@@ -103,7 +109,7 @@ jobs:
       - name: Checkout submodules
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+          git submodule update --init --recursive --depth 1
 
       - name: Setup frontend build environment
         uses: ./.github/actions/setup-frontend
@@ -133,10 +139,8 @@ jobs:
           retention-days: 1
 
   build-linux:
-    if: |
-      (github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all') &&
-      (needs.build-fi-monitor.result == 'success' || needs.build-fi-monitor.result == 'skipped')
-    needs: [build-fi-monitor, build-frontend]
+    if: github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all'
+    needs: [build-frontend]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout main repo
@@ -145,7 +149,7 @@ jobs:
       - name: Checkout submodules
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+          git submodule update --init --recursive --depth 1
 
       - name: Download pre-built frontend
         uses: actions/download-artifact@v4
@@ -157,6 +161,12 @@ jobs:
         uses: ./.github/actions/setup-tauri
         with:
           rust-target: x86_64-unknown-linux-gnu
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
+      - name: Configure sccache
+        run: echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
 
       - name: Install system dependencies
         run: |
@@ -174,6 +184,14 @@ jobs:
         with:
           python-version: '3.14'
           cache: 'pip'
+
+      - name: Cache PyInstaller build
+        uses: actions/cache@v4
+        with:
+          path: apps/aurity-desktop/pyinstaller/dist
+          key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
+          restore-keys: |
+            pyinstaller-${{ runner.os }}-
 
       - name: Install PyInstaller
         working-directory: apps/aurity-desktop/pyinstaller
@@ -246,10 +264,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-macos:
-    if: |
-      (github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all') &&
-      (needs.build-fi-monitor.result == 'success' || needs.build-fi-monitor.result == 'skipped')
-    needs: [build-fi-monitor, build-frontend]
+    if: github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all'
+    needs: [build-frontend]
     runs-on: macos-latest
     steps:
       - name: Checkout main repo
@@ -258,7 +274,7 @@ jobs:
       - name: Checkout submodules
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+          git submodule update --init --recursive --depth 1
 
       - name: Download pre-built frontend
         uses: actions/download-artifact@v4
@@ -271,11 +287,25 @@ jobs:
         with:
           rust-target: aarch64-apple-darwin
 
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
+      - name: Configure sccache
+        run: echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.14'
           cache: 'pip'
+
+      - name: Cache PyInstaller build
+        uses: actions/cache@v4
+        with:
+          path: apps/aurity-desktop/pyinstaller/dist
+          key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
+          restore-keys: |
+            pyinstaller-${{ runner.os }}-
 
       - name: Install PyInstaller
         working-directory: apps/aurity-desktop/pyinstaller
@@ -346,10 +376,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows:
-    if: |
-      (github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all') &&
-      (needs.build-fi-monitor.result == 'success' || needs.build-fi-monitor.result == 'skipped')
-    needs: [build-fi-monitor, build-frontend]
+    if: github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all'
+    needs: [build-frontend]
     runs-on: windows-latest
     steps:
       - name: Checkout main repo
@@ -358,7 +386,7 @@ jobs:
       - name: Checkout submodules
         run: |
           git config --global url."https://${{ secrets.GH_PAT }}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+          git submodule update --init --recursive --depth 1
 
       - name: Download pre-built frontend
         uses: actions/download-artifact@v4
@@ -371,11 +399,25 @@ jobs:
         with:
           rust-target: x86_64-pc-windows-msvc
 
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
+      - name: Configure sccache
+        run: echo "RUSTC_WRAPPER=sccache" >> $env:GITHUB_ENV
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.14'
           cache: 'pip'
+
+      - name: Cache PyInstaller build
+        uses: actions/cache@v4
+        with:
+          path: apps/aurity-desktop/pyinstaller/dist
+          key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
+          restore-keys: |
+            pyinstaller-${{ runner.os }}-
 
       - name: Install PyInstaller
         working-directory: apps/aurity-desktop/pyinstaller
@@ -397,6 +439,12 @@ jobs:
       - name: Install Tauri dependencies
         working-directory: apps/aurity-desktop
         run: pnpm install
+
+      - name: Cache Python 3.14 installer
+        uses: actions/cache@v4
+        with:
+          path: apps/aurity-desktop/resources/python-installer/python-3.14.0-amd64.exe
+          key: python-installer-3.14.0-amd64
 
       - name: Prepare Python 3.14 Installer
         shell: bash

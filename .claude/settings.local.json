@@ -84,7 +84,8 @@
       "Bash(if [ -f /private/tmp/claude/-Users-bernardurizaorozco-Documents-free-intelligence/tasks/b54874b.output ])",
       "Bash(then cat /private/tmp/claude/-Users-bernardurizaorozco-Documents-free-intelligence/tasks/b54874b.output)",
       "Bash(else echo \"Still running...\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(chmod:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
