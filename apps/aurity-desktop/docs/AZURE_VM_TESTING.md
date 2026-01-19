@@ -6,15 +6,15 @@ VM de Windows 11 en Azure para testing del installer de Aurity Desktop cada 3 me
 
 **Gestión de costos:**
 - VM deallocated (apagada) = $0/mes compute + ~$9/mes disco
-- VM running solo durante testing (~1-2 días cada 3 meses) = ~$4-10 adicionales
-- **Costo trimestral estimado**: ~$31
-- **Costo anual estimado**: ~$124
+- VM running solo durante testing (~1-2 días cada 3 meses) = ~$12 adicionales
+- **Costo trimestral estimado**: ~$39
+- **Costo anual estimado**: ~$156
 
 **Especificaciones:**
-- **Size**: Standard_B2s (2 vCPUs, 4GB RAM) - $30/mes running, $0 deallocated
+- **Size**: Standard_D2s_v4 (2 vCPUs, 8GB RAM) - $96/mes running, $0 deallocated
 - **OS**: Windows 11 Pro (versión más reciente)
 - **Disco**: 127GB SSD estándar
-- **Región**: East US (más cercana y económica desde México)
+- **Región**: East US
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ VM de Windows 11 en Azure para testing del installer de Aurity Desktop cada 3 me
 # 3. Obtener IP para RDP
 az vm show \
   --resource-group aurity-testing-vms \
-  --name aurity-win11-tester \
+  --name aurity-win11 \
   --show-details \
   --query publicIps \
   --output tsv
@@ -39,14 +39,15 @@ az vm show \
 ### 1. Configurar variables
 
 ```bash
-# Configuración (personalizar si es necesario)
+# Configuración ACTUAL de la VM creada
 RESOURCE_GROUP="aurity-testing-vms"
-VM_NAME="aurity-win11-tester"
+VM_NAME="aurity-win11"
 LOCATION="eastus"
-VM_SIZE="Standard_B2s"
+VM_SIZE="Standard_D2s_v4"  # 2 vCPU, 8GB RAM
 IMAGE="MicrosoftWindowsDesktop:windows-11:win11-23h2-pro:latest"
 ADMIN_USER="auritytest"
-ADMIN_PASS="AurityTest2025!"  # Cambiar por algo más seguro
+ADMIN_PASS="AurityTest2025!"
+IP_PUBLICA="74.235.4.214"  # Cambia cada vez que deallocas/inicias
 ```
 
 ### 2. Crear resource group
@@ -114,12 +115,12 @@ brew install --cask microsoft-remote-desktop
 # O manualmente
 az vm start \
   --resource-group aurity-testing-vms \
-  --name aurity-win11-tester
+  --name aurity-win11
 
 # Obtener IP pública
 az vm show \
   --resource-group aurity-testing-vms \
-  --name aurity-win11-tester \
+  --name aurity-win11 \
   --show-details \
   --query publicIps \
   --output tsv
@@ -137,7 +138,7 @@ az vm show \
 # O manualmente
 az vm deallocate \
   --resource-group aurity-testing-vms \
-  --name aurity-win11-tester
+  --name aurity-win11
 ```
 
 **Tiempo**: ~30-60 segundos
@@ -152,7 +153,7 @@ az vm deallocate \
 # O manualmente
 az vm get-instance-view \
   --resource-group aurity-testing-vms \
-  --name aurity-win11-tester \
+  --name aurity-win11 \
   --query instanceView.statuses[1].displayStatus \
   --output tsv
 ```
@@ -172,7 +173,7 @@ az vm get-instance-view \
 # 2. Obtener IP
 IP=$(az vm show \
   --resource-group aurity-testing-vms \
-  --name aurity-win11-tester \
+  --name aurity-win11 \
   --show-details \
   --query publicIps -o tsv)
 echo "Conectar a RDP: $IP"
@@ -202,20 +203,20 @@ En la VM Windows:
 # Debe decir: "VM deallocated"
 ```
 
-## Costos Estimados (East US, Standard_B2s)
+## Costos Estimados (East US, Standard_D2s_v4)
 
 | Componente | Running | Deallocated |
 |------------|---------|-------------|
-| Compute (2 vCPU, 4GB RAM) | $30.37/mes | $0.00 |
+| Compute (2 vCPU, 8GB RAM) | $96.00/mes | $0.00 |
 | OS Disk (127GB SSD) | $6.40/mes | $6.40/mes |
 | Public IP | $3.00/mes | $3.00/mes |
-| **Total por mes** | **$39.77** | **$9.40** |
+| **Total por mes** | **$105.40** | **$9.40** |
 
 **Uso real (3 días cada 3 meses):**
-- 3 días running: ~$4.00
-- 87 días deallocated: $27.00
-- **Costo trimestral**: ~$31.00
-- **Costo anual**: ~$124.00
+- 3 días running: ~$10.50
+- 87 días deallocated: $28.20
+- **Costo trimestral**: ~$39.00
+- **Costo anual**: ~$156.00
 
 ## Optimizaciones de Costo
 
@@ -225,7 +226,7 @@ En la VM Windows:
 # Antes de deallocate VM
 az network public-ip delete \
   --resource-group aurity-testing-vms \
-  --name "aurity-win11-testerPublicIP"
+  --name "aurity-win11PublicIP"
 
 # Cuando enciendas VM, se crea nueva IP automáticamente
 ```
@@ -239,25 +240,25 @@ az network public-ip delete \
 # Crear snapshot del disco (antes de borrar VM)
 az snapshot create \
   --resource-group aurity-testing-vms \
-  --name "aurity-win11-tester-snapshot" \
+  --name "aurity-win11-snapshot" \
   --source $(az vm show \
     -g aurity-testing-vms \
-    -n aurity-win11-tester \
+    -n aurity-win11 \
     --query "storageProfile.osDisk.managedDisk.id" -o tsv)
 
 # Borrar VM completa
-az vm delete -g aurity-testing-vms -n aurity-win11-tester --yes
+az vm delete -g aurity-testing-vms -n aurity-win11 --yes
 
 # Cuando necesites la VM, recrear desde snapshot
 az disk create \
   --resource-group aurity-testing-vms \
-  --name "aurity-win11-tester-os-disk" \
-  --source "aurity-win11-tester-snapshot"
+  --name "aurity-win11-os-disk" \
+  --source "aurity-win11-snapshot"
 
 az vm create \
   --resource-group aurity-testing-vms \
-  --name aurity-win11-tester \
-  --attach-os-disk "aurity-win11-tester-os-disk" \
+  --name aurity-win11 \
+  --attach-os-disk "aurity-win11-os-disk" \
   --os-type Windows
 ```
 
@@ -281,14 +282,14 @@ az account set --subscription "d61ba6bc-eda9-4327-a264-5cfddef30bc8"
 # Verificar NSG (Network Security Group) tiene regla RDP
 az network nsg rule list \
   --resource-group aurity-testing-vms \
-  --nsg-name "aurity-win11-testerNSG" \
+  --nsg-name "aurity-win11NSG" \
   --query "[?destinationPortRange=='3389'].{Name:name,Access:access,Priority:priority}" \
   --output table
 
 # Si no existe, crear regla
 az network nsg rule create \
   --resource-group aurity-testing-vms \
-  --nsg-name "aurity-win11-testerNSG" \
+  --nsg-name "aurity-win11NSG" \
   --name AllowRDP \
   --priority 300 \
   --source-address-prefixes '*' \
@@ -305,14 +306,14 @@ Esto es normal con IP dinámica. Soluciones:
 ```bash
 az network public-ip update \
   --resource-group aurity-testing-vms \
-  --name "aurity-win11-testerPublicIP" \
+  --name "aurity-win11PublicIP" \
   --allocation-method Static
 ```
 
 **Opción B**: Obtener IP cada vez que enciendes
 ```bash
-az vm start -g aurity-testing-vms -n aurity-win11-tester && \
-az vm show -g aurity-testing-vms -n aurity-win11-tester --show-details --query publicIps -o tsv
+az vm start -g aurity-testing-vms -n aurity-win11 && \
+az vm show -g aurity-testing-vms -n aurity-win11 --show-details --query publicIps -o tsv
 ```
 
 ### Error: "VM already exists"
@@ -322,7 +323,7 @@ az vm show -g aurity-testing-vms -n aurity-win11-tester --show-details --query p
 az vm list -g aurity-testing-vms --output table
 
 # Borrar VM existente
-az vm delete -g aurity-testing-vms -n aurity-win11-tester --yes
+az vm delete -g aurity-testing-vms -n aurity-win11 --yes
 
 # Recrear con comandos de Setup
 ```
@@ -334,7 +335,7 @@ az vm delete -g aurity-testing-vms -n aurity-win11-tester --yes
 ```bash
 az vm delete \
   --resource-group aurity-testing-vms \
-  --name aurity-win11-tester \
+  --name aurity-win11 \
   --yes
 ```
 

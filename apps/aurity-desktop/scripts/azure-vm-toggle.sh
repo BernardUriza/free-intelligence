@@ -3,7 +3,7 @@
 # Usage: ./azure-vm-toggle.sh
 
 RESOURCE_GROUP="aurity-testing-vms"
-VM_NAME="aurity-win11-tester"
+VM_NAME="aurity-win11"
 
 STATUS=$(az vm get-instance-view -g $RESOURCE_GROUP -n $VM_NAME --query instanceView.statuses[1].displayStatus -o tsv)
 
