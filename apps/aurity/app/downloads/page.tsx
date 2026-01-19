@@ -144,11 +144,68 @@ export default function DownloadsPage() {
     if (isDesktop()) {
       setIsDesktopMode(true);
     } else {
-      // Use static data (API routes don't work with static export)
-      setReleases(staticReleases);
-      setLoading(false);
+      // Fetch latest release from GitHub API
+      fetchLatestRelease();
     }
   }, []);
+
+  const fetchLatestRelease = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        'https://api.github.com/repos/BernardUriza/free-intelligence/releases/latest'
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch latest release');
+      }
+
+      const release = await response.json();
+
+      // Parse assets to build platform-specific URLs
+      const platforms: Release['platforms'] = {};
+
+      release.assets.forEach((asset: any) => {
+        if (asset.name.endsWith('.dmg')) {
+          platforms.macos = {
+            url: asset.browser_download_url,
+            size: `${Math.round(asset.size / 1024 / 1024)} MB`,
+            sha256: 'See release notes',
+          };
+        } else if (asset.name.endsWith('.nsis.zip')) {
+          platforms.windows = {
+            url: asset.browser_download_url,
+            size: `${Math.round(asset.size / 1024 / 1024)} MB`,
+            sha256: 'See release notes',
+          };
+        } else if (asset.name.endsWith('.AppImage')) {
+          platforms.linux = {
+            url: asset.browser_download_url,
+            size: `${Math.round(asset.size / 1024 / 1024)} MB`,
+            sha256: 'See release notes',
+          };
+        }
+      });
+
+      setReleases([
+        {
+          version: release.tag_name.replace('v', ''),
+          date: new Date(release.published_at).toISOString().split('T')[0],
+          platforms,
+          changelog: release.body?.split('\n').filter((line: string) =>
+            line.trim().startsWith('-') || line.trim().startsWith('*')
+          ).map((line: string) => line.replace(/^[-*]\s*/, '').trim()) || [],
+        },
+      ]);
+    } catch (err) {
+      console.error('Failed to fetch latest release:', err);
+      // Fallback to static data
+      setReleases(staticReleases);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Show "already installed" message in desktop mode
   if (isDesktopMode) {
@@ -172,25 +229,6 @@ export default function DownloadsPage() {
       </AppTemplate>
     );
   }
-
-  const fetchReleases = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/releases');
-      if (!response.ok) {
-        throw new Error('Failed to fetch releases');
-      }
-      const data = await response.json();
-      setReleases(data.releases || []);
-    } catch (err) {
-      console.error('Failed to fetch releases:', err);
-      // Use static data if API fails (same as staticReleases)
-      setReleases(staticReleases);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const latestRelease = releases[0];
 
