@@ -27,3 +27,10 @@ dirs = "5.0"
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+opt-level = "z"          # Optimize for size (más agresivo que "s")
+lto = true               # Link-time optimization (cross-crate)
+strip = true             # Remove debug symbols (~30% size reduction)
+codegen-units = 1        # Mejor optimización (trade-off: build más lento)
+panic = "abort"          # No unwind tables (reduce size)
