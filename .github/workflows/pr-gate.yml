@@ -134,14 +134,35 @@ jobs:
 
           # Get diff (exclude large/generated files)
           EXCLUDED_PATTERNS="pyinstaller/|pnpm-lock.yaml|package-lock.json|yarn.lock|\.spec$|src-tauri/gen/|acl-manifests\.json"
-          DIFF=$(gh pr diff $PR_NUMBER 2>/dev/null | \
+
+          # Get raw diff first (for debugging)
+          RAW_DIFF=$(gh pr diff $PR_NUMBER 2>&1)
+          echo "::debug::Raw diff size: ${#RAW_DIFF} chars"
+
+          if [ -z "$RAW_DIFF" ] || echo "$RAW_DIFF" | grep -q "Error"; then
+            echo "::warning::gh pr diff failed, using git diff fallback"
+            # Fallback: use git diff between base and head
+            BASE_SHA=$(gh pr view $PR_NUMBER --json baseRefOid -q '.baseRefOid')
+            HEAD_SHA=$(gh pr view $PR_NUMBER --json headRefOid -q '.headRefOid')
+            RAW_DIFF=$(git diff "${BASE_SHA}...${HEAD_SHA}" 2>&1 || echo "")
+            echo "::debug::Fallback diff size: ${#RAW_DIFF} chars"
+          fi
+
+          # Filter and truncate
+          DIFF=$(echo "$RAW_DIFF" | \
             awk -v exclude="$EXCLUDED_PATTERNS" '
               /^diff --git/ {
                 skip = 0
                 if (match($0, exclude)) skip = 1
               }
               !skip { print }
-            ' | head -c 25000 || echo "No diff available")
+            ' | head -c 25000)
+
+          if [ -z "$DIFF" ]; then
+            DIFF="No code changes detected (diff is empty)"
+          fi
+
+          echo "::debug::Final diff size for AI: ${#DIFF} chars"
 
           FILES_CHANGED=$(gh pr view $PR_NUMBER --json files -q '.files | length')
 
