@@ -73,13 +73,49 @@ jobs:
           "
 
   # ============================================================
-  # LINT: Reports issues (does NOT block)
+  # BACKEND: Unit Tests (MUST PASS)
+  # ============================================================
+  backend-tests:
+    name: "Backend: Tests"
+    runs-on: ubuntu-22.04
+    needs: [backend-compiles]
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements-prod.txt
+          pip install pytest pytest-cov
+
+      - name: Run unit tests
+        run: |
+          cd backend
+          PYTHONPATH=src pytest tests/unit -v --cov=src --cov-report=term
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/.coverage
+
+  # ============================================================
+  # LINT: Reports issues (BLOCKS on critical errors)
   # ============================================================
   lint-report:
     name: "Lint: Report"
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    continue-on-error: true  # Never blocks
+    # Fails build on critical errors (F401, F821, E999)
 
     steps:
       - uses: actions/checkout@v4
@@ -569,7 +605,7 @@ jobs:
   gate-status:
     name: "PR Gate Status"
     runs-on: ubuntu-latest
-    needs: [backend-compiles, lint-report, ai-gatekeeper]
+    needs: [backend-compiles, backend-tests, lint-report, ai-gatekeeper]
     if: always()
 
     steps:
@@ -585,11 +621,18 @@ jobs:
             echo "❌ Backend compilation failed" >> $GITHUB_STEP_SUMMARY
           fi
 
-          # Check lint report (informational only, does not block)
-          if [[ "${{ needs.lint-report.result }}" == "success" ]]; then
-            echo "✅ Lint report generated" >> $GITHUB_STEP_SUMMARY
+          # Check backend tests (BLOCKING)
+          if [[ "${{ needs.backend-tests.result }}" == "success" ]]; then
+            echo "✅ Backend tests passed" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⏭️ Lint report skipped" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Backend tests failed - BLOCKING merge" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check lint report (NOW BLOCKING)
+          if [[ "${{ needs.lint-report.result }}" == "success" ]]; then
+            echo "✅ Lint checks passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Lint errors detected - BLOCKING merge" >> $GITHUB_STEP_SUMMARY
           fi
 
           # Check AI Gatekeeper (only for PRs, skipped for push to dev/main)
@@ -609,9 +652,13 @@ jobs:
 
           # Fail if ANY critical check failed
           BACKEND_OK="${{ needs.backend-compiles.result }}"
+          TESTS_OK="${{ needs.backend-tests.result }}"
+          LINT_OK="${{ needs.lint-report.result }}"
           AI_OK="${{ needs.ai-gatekeeper.result }}"
 
           if [[ "$BACKEND_OK" != "success" ]] || \
+             [[ "$TESTS_OK" != "success" ]] || \
+             [[ "$LINT_OK" != "success" ]] || \
              [[ "$AI_OK" != "success" && "$AI_OK" != "skipped" ]]; then
             echo "❌ **PR Gate FAILED** - Fix issues before merging" >> $GITHUB_STEP_SUMMARY
             exit 1

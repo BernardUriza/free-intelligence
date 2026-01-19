@@ -77,6 +77,18 @@ def save_soap_data(
 
         # Delete existing if present (VIOLATION: append-only)
         if "soap_data" in task_group:  # type: ignore[operator]
+            # Log deletion for audit trail (HIPAA compliance)
+            old_data = task_group["soap_data"][()]  # type: ignore[index]
+            old_value = old_data.decode("utf-8", errors="ignore") if isinstance(old_data, bytes) else str(old_data)
+            logger.warning(
+                "DATASET_DELETED",
+                session_id=session_id,
+                path=f"{task_path}/soap_data",
+                old_value_size=len(old_value),
+                old_value_preview=old_value[:100],
+                reason="soap_regeneration",
+                timestamp=datetime.now(UTC).isoformat(),
+            )
             del task_group["soap_data"]  # type: ignore[index]
 
         task_group.create_dataset(  # type: ignore[union-attr]

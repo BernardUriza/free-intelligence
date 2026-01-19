@@ -182,6 +182,18 @@ def update_order(
         order_json = json.dumps(order_data)
 
         # Delete and recreate (HDF5 doesn't support in-place update)
+        # Log deletion for audit trail (HIPAA compliance)
+        old_data = orders_group[order_id][()]  # type: ignore[index]
+        old_value = old_data.decode("utf-8", errors="ignore") if isinstance(old_data, bytes) else str(old_data)
+        logger.warning(
+            "DATASET_DELETED",
+            session_id=session_id,
+            path=f"{task_path}/orders/{order_id}",
+            old_value_size=len(old_value),
+            old_value_preview=old_value[:100],
+            reason="order_update",
+            timestamp=datetime.now(UTC).isoformat(),
+        )
         del orders_group[order_id]  # type: ignore[index]
         orders_group.create_dataset(order_id, data=order_json.encode("utf-8"))  # type: ignore[union-attr]
 
@@ -227,6 +239,18 @@ def delete_order(
         if order_id not in orders_group:  # type: ignore[operator]
             raise ValueError(f"Order {order_id} not found")
 
+        # Log deletion for audit trail (HIPAA compliance)
+        old_data = orders_group[order_id][()]  # type: ignore[index]
+        old_value = old_data.decode("utf-8", errors="ignore") if isinstance(old_data, bytes) else str(old_data)
+        logger.warning(
+            "DATASET_DELETED",
+            session_id=session_id,
+            path=f"{task_path}/orders/{order_id}",
+            old_value_size=len(old_value),
+            old_value_preview=old_value[:100],
+            reason="order_deletion",
+            timestamp=datetime.now(UTC).isoformat(),
+        )
         del orders_group[order_id]  # type: ignore[index] # VIOLATION: append-only
 
         logger.info(

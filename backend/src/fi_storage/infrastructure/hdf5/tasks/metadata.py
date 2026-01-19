@@ -75,6 +75,18 @@ def update_task_metadata(
 
         # Delete old dataset (VIOLATION: append-only)
         if "job_metadata" in task_group:  # type: ignore[operator]
+            # Log deletion for audit trail (HIPAA compliance)
+            old_data = task_group["job_metadata"][()]  # type: ignore[index]
+            old_value = old_data.decode("utf-8", errors="ignore") if isinstance(old_data, bytes) else str(old_data)
+            logger.warning(
+                "DATASET_DELETED",
+                session_id=session_id,
+                path=f"{task_path}/job_metadata",
+                old_value_size=len(old_value),
+                old_value_preview=old_value[:100],
+                reason="metadata_update",
+                timestamp=datetime.now(UTC).isoformat(),
+            )
             del task_group["job_metadata"]  # type: ignore[index]
 
         # Create new dataset
