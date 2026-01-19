@@ -518,7 +518,9 @@ def update_chunk_dataset(
                     )
 
                 # HIPAA: Hash value instead of logging PHI
-                value_hash = hashlib.sha256(str(value).encode("utf-8")).hexdigest()[:16]
+                # Convert once to avoid double str() conversion for large values
+                value_bytes = str(value).encode("utf-8")
+                value_hash = hashlib.sha256(value_bytes).hexdigest()[:16]
 
                 logger.info(
                     "CHUNK_DATASET_UPDATED",
@@ -527,7 +529,7 @@ def update_chunk_dataset(
                     chunk_idx=chunk_idx,
                     field=field,
                     value_hash=value_hash,  # SHA256 prefix (HIPAA-safe)
-                    value_size=len(str(value)),  # Size for debugging
+                    value_size=len(value_bytes),  # Bytes for accurate storage size
                 )
                 return True
 
