@@ -51,7 +51,7 @@ class TestSoapStorage:
             "backend.src.fi_storage.infrastructure.hdf5.tasks.soap.get_session_h5_path",
             return_value=session_file,
         ), patch(
-            "backend.src.fi_storage.infrastructure.hdf5.session_locks.ensure_session_h5_exists",
+            "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
             result_path = save_soap_data(session_id, soap_data)
@@ -88,7 +88,7 @@ class TestSoapStorage:
             "backend.src.fi_storage.infrastructure.hdf5.tasks.soap.get_session_h5_path",
             return_value=session_file,
         ), patch(
-            "backend.src.fi_storage.infrastructure.hdf5.session_locks.ensure_session_h5_exists",
+            "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
             # Save first version
@@ -126,7 +126,7 @@ class TestTranscriptionSourcesStorage:
             f.create_group(task_path)
 
         with patch(
-            "backend.src.fi_storage.infrastructure.hdf5.session_locks.ensure_session_h5_exists",
+            "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
             # Add transcripts
@@ -160,7 +160,7 @@ class TestTranscriptionSourcesStorage:
             f.create_group(task_path)
 
         with patch(
-            "backend.src.fi_storage.infrastructure.hdf5.session_locks.ensure_session_h5_exists",
+            "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
             # Add full transcription
@@ -192,7 +192,7 @@ class TestTranscriptionSourcesStorage:
             f.create_group(task_path)
 
         with patch(
-            "backend.src.fi_storage.infrastructure.hdf5.session_locks.ensure_session_h5_exists",
+            "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
             # Add audio
@@ -222,7 +222,7 @@ class TestTranscriptionSourcesStorage:
             f.create_group(f"/sessions/{session_id}")
 
         with patch(
-            "backend.src.fi_storage.infrastructure.hdf5.session_locks.ensure_session_h5_exists",
+            "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
             # Should raise ValueError
@@ -252,7 +252,7 @@ class TestLifecycleOperations:
             "backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle.get_session_h5_path",
             return_value=session_file,
         ), patch(
-            "backend.src.fi_storage.infrastructure.hdf5.session_locks.ensure_session_h5_exists",
+            "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
             result = ensure_task_exists(session_id, TaskType.TRANSCRIPTION)
@@ -281,7 +281,7 @@ class TestLifecycleOperations:
 
         # Mock to use our temp file instead of production path
         with patch(
-            "backend.src.fi_storage.infrastructure.hdf5.session_locks.ensure_session_h5_exists",
+            "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
             result = task_exists(session_id, TaskType.TRANSCRIPTION)
