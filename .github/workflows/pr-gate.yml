@@ -94,7 +94,7 @@ jobs:
           cd backend
           pip install --upgrade pip
           pip install -r requirements-prod.txt
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov pytest-asyncio
 
       - name: Run unit tests
         run: |

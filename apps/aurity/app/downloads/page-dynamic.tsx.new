@@ -1,0 +1,486 @@
+/**
+ * Downloads Page (Dynamic GitHub Releases)
+ *
+ * Fetches latest releases from GitHub API instead of hardcoded URLs.
+ * Auto-updates when new releases are published.
+ *
+ * Migration from Azure Blob Storage → GitHub Releases
+ */
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { AppTemplate } from '@/components/layout/AppTemplate';
+import { Button } from '@/components/ui/button';
+import {
+  Download,
+  Apple,
+  Monitor,
+  Shield,
+  Cpu,
+  HardDrive,
+  RefreshCw,
+  CheckCircle,
+  ExternalLink,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
+
+// Check if running in desktop mode
+const isDesktop = () => {
+  if (typeof window === 'undefined') return false;
+  if ('__TAURI__' in window) return true;
+  if (process.env.NEXT_PUBLIC_DEPLOYMENT_TARGET === 'desktop') return true;
+  return false;
+};
+
+interface PlatformRelease {
+  url: string;
+  size: string;
+  sha256?: string;
+}
+
+interface Release {
+  version: string;
+  date: string;
+  platforms: {
+    macos?: PlatformRelease;
+    linux?: PlatformRelease;
+    windows?: PlatformRelease;
+  };
+  changelog?: string[];
+}
+
+const features = [
+  {
+    icon: Shield,
+    title: '100% Offline',
+    description: 'All AI processing happens on your device. No data leaves your computer.',
+  },
+  {
+    icon: Cpu,
+    title: 'Local LLM',
+    description: 'Powered by Ollama with Qwen3, Llama, or your preferred model.',
+  },
+  {
+    icon: HardDrive,
+    title: 'Your Data',
+    description: 'Medical records stored locally in ~/.aurity with full encryption.',
+  },
+];
+
+const systemRequirements = {
+  macos: {
+    os: 'macOS 12.0 (Monterey) or later',
+    cpu: 'Apple Silicon (M1/M2/M3) or Intel',
+    ram: '8 GB minimum, 16 GB recommended',
+    disk: '10 GB free space',
+  },
+  linux: {
+    os: 'Ubuntu 22.04 LTS or compatible',
+    cpu: 'x86_64 processor',
+    ram: '8 GB minimum, 16 GB recommended',
+    disk: '10 GB free space',
+  },
+  windows: {
+    os: 'Windows 10/11 (64-bit)',
+    cpu: 'x86_64 processor',
+    ram: '8 GB minimum, 16 GB recommended',
+    disk: '10 GB free space',
+  },
+};
+
+// Fetch releases from GitHub API
+async function fetchGitHubReleases(): Promise<Release[]> {
+  try {
+    const response = await fetch(
+      'https://api.github.com/repos/BernardUriza/free-intelligence/releases/latest',
+      {
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status}`);
+    }
+
+    const release = await response.json();
+
+    // Parse assets
+    const macosAsset = release.assets.find((a: any) => a.name.endsWith('.dmg'));
+    const linuxAsset = release.assets.find((a: any) => a.name.endsWith('.AppImage'));
+    const windowsAsset = release.assets.find((a: any) => a.name.endsWith('.nsis.zip'));
+
+    const platforms: Release['platforms'] = {};
+
+    if (macosAsset) {
+      platforms.macos = {
+        url: macosAsset.browser_download_url,
+        size: `${(macosAsset.size / 1024 / 1024).toFixed(0)} MB`,
+        sha256: 'See release notes',
+      };
+    }
+
+    if (linuxAsset) {
+      platforms.linux = {
+        url: linuxAsset.browser_download_url,
+        size: `${(linuxAsset.size / 1024 / 1024).toFixed(0)} MB`,
+        sha256: 'See release notes',
+      };
+    }
+
+    if (windowsAsset) {
+      platforms.windows = {
+        url: windowsAsset.browser_download_url,
+        size: `${(windowsAsset.size / 1024 / 1024).toFixed(0)} MB`,
+        sha256: 'See release notes',
+      };
+    }
+
+    // Parse changelog from release body
+    const changelog = release.body
+      ?.split('\n')
+      .filter((line: string) => line.startsWith('- '))
+      .map((line: string) => line.substring(2));
+
+    return [
+      {
+        version: release.tag_name.replace(/^v/, ''),
+        date: new Date(release.published_at).toISOString().split('T')[0],
+        platforms,
+        changelog: changelog?.length > 0 ? changelog : undefined,
+      },
+    ];
+  } catch (error) {
+    console.error('Failed to fetch GitHub releases:', error);
+    throw error;
+  }
+}
+
+export default function DownloadsPage() {
+  const router = useRouter();
+  const [releases, setReleases] = useState<Release[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDesktopMode, setIsDesktopMode] = useState(false);
+
+  useEffect(() => {
+    if (isDesktop()) {
+      setIsDesktopMode(true);
+      setLoading(false);
+    } else {
+      fetchGitHubReleases()
+        .then(setReleases)
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false));
+    }
+  }, []);
+
+  // Show "already installed" message in desktop mode
+  if (isDesktopMode) {
+    return (
+      <AppTemplate backgroundGradient="none">
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+          <div className="text-center p-8 max-w-md">
+            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+              Ya tienes Aurity Desktop
+            </h1>
+            <p className="text-slate-600 dark:text-slate-300 mb-6">
+              Estás corriendo la aplicación de escritorio.
+              No necesitas descargar nada más.
+            </p>
+            <Button onClick={() => router.push('/chat')}>Ir al Chat</Button>
+          </div>
+        </div>
+      </AppTemplate>
+    );
+  }
+
+  const latestRelease = releases[0];
+
+  return (
+    <AppTemplate backgroundGradient="none">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
+        {/* Hero Section */}
+        <div className="max-w-6xl mx-auto px-4 py-12">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">
+              Aurity Desktop
+            </h1>
+            <p className="text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+              Medical AI Assistant that runs 100% on your device. No cloud. No data
+              sharing. Complete privacy.
+            </p>
+          </div>
+
+          {/* Features */}
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
+            {features.map((feature) => (
+              <div
+                key={feature.title}
+                className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700"
+              >
+                <feature.icon className="w-8 h-8 text-blue-600 dark:text-blue-400 mb-4" />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                  {feature.title}
+                </h3>
+                <p className="text-slate-600 dark:text-slate-300">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Loading / Error States */}
+          {loading && (
+            <div className="flex justify-center py-12">
+              <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-6 mb-12 border border-red-200 dark:border-red-800">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                <div>
+                  <h3 className="font-semibold text-red-900 dark:text-red-100">
+                    Failed to load releases
+                  </h3>
+                  <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Download Cards */}
+          {!loading && !error && latestRelease && (
+            <div className="grid md:grid-cols-3 gap-8 mb-12">
+              {/* macOS */}
+              {latestRelease.platforms.macos && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-lg border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center">
+                      <Apple className="w-10 h-10 text-slate-700 dark:text-slate-300" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                        macOS
+                      </h2>
+                      <p className="text-slate-500">Apple Silicon & Intel</p>
+                    </div>
+                  </div>
+
+                  <Button
+                    className="w-full mb-4 h-12 text-lg"
+                    onClick={() => window.open(latestRelease.platforms.macos!.url, '_blank')}
+                  >
+                    <Download className="w-5 h-5 mr-2" />
+                    Download v{latestRelease.version}
+                  </Button>
+
+                  <div className="text-sm text-slate-500 space-y-1">
+                    <p>Size: {latestRelease.platforms.macos.size}</p>
+                  </div>
+
+                  <hr className="my-6 border-slate-200 dark:border-slate-700" />
+
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
+                    System Requirements
+                  </h3>
+                  <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
+                    {Object.values(systemRequirements.macos).map((req, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span>{req}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Linux */}
+              {latestRelease.platforms.linux && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-lg border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center">
+                      <Monitor className="w-10 h-10 text-slate-700 dark:text-slate-300" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                        Linux
+                      </h2>
+                      <p className="text-slate-500">AppImage (x86_64)</p>
+                    </div>
+                  </div>
+
+                  <Button
+                    className="w-full mb-4 h-12 text-lg"
+                    onClick={() => window.open(latestRelease.platforms.linux!.url, '_blank')}
+                  >
+                    <Download className="w-5 h-5 mr-2" />
+                    Download v{latestRelease.version}
+                  </Button>
+
+                  <div className="text-sm text-slate-500 space-y-1">
+                    <p>Size: {latestRelease.platforms.linux.size}</p>
+                  </div>
+
+                  <hr className="my-6 border-slate-200 dark:border-slate-700" />
+
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
+                    System Requirements
+                  </h3>
+                  <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
+                    {Object.values(systemRequirements.linux).map((req, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span>{req}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Windows */}
+              {latestRelease.platforms.windows && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-lg border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center">
+                      <Monitor className="w-10 h-10 text-slate-700 dark:text-slate-300" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                        Windows
+                      </h2>
+                      <p className="text-slate-500">NSIS installer (x64)</p>
+                    </div>
+                  </div>
+
+                  <Button
+                    className="w-full mb-4 h-12 text-lg"
+                    onClick={() =>
+                      window.open(latestRelease.platforms.windows!.url, '_blank')
+                    }
+                  >
+                    <Download className="w-5 h-5 mr-2" />
+                    Download v{latestRelease.version}
+                  </Button>
+
+                  <div className="text-sm text-slate-500 space-y-1">
+                    <p>Size: {latestRelease.platforms.windows.size}</p>
+                  </div>
+
+                  <hr className="my-6 border-slate-200 dark:border-slate-700" />
+
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
+                    System Requirements
+                  </h3>
+                  <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
+                    {Object.values(systemRequirements.windows).map((req, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span>{req}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Changelog */}
+          {latestRelease?.changelog && (
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-sm border border-slate-200 dark:border-slate-700 mb-12">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+                What's New in v{latestRelease.version}
+              </h2>
+              <ul className="space-y-2">
+                {latestRelease.changelog.map((item, index) => (
+                  <li
+                    key={index}
+                    className="flex items-start gap-2 text-slate-600 dark:text-slate-300"
+                  >
+                    <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Installation Instructions */}
+          <div className="bg-slate-100 dark:bg-slate-800/50 rounded-xl p-8">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+              Installation
+            </h2>
+            <div className="grid md:grid-cols-3 gap-8">
+              <div>
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                  <Apple className="w-5 h-5" /> macOS
+                </h3>
+                <ol className="text-slate-600 dark:text-slate-300 space-y-2 list-decimal list-inside">
+                  <li>Download the .dmg file</li>
+                  <li>Double-click to open</li>
+                  <li>Drag Aurity to Applications</li>
+                  <li>First run: Right-click → Open (to bypass Gatekeeper)</li>
+                </ol>
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                  <Monitor className="w-5 h-5" /> Linux
+                </h3>
+                <ol className="text-slate-600 dark:text-slate-300 space-y-2 list-decimal list-inside">
+                  <li>Download the .AppImage file</li>
+                  <li>
+                    Make executable:{' '}
+                    <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">
+                      chmod +x Aurity*.AppImage
+                    </code>
+                  </li>
+                  <li>
+                    Run:{' '}
+                    <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">
+                      ./Aurity*.AppImage
+                    </code>
+                  </li>
+                </ol>
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                  <Monitor className="w-5 h-5" /> Windows
+                </h3>
+                <ol className="text-slate-600 dark:text-slate-300 space-y-2 list-decimal list-inside">
+                  <li>Download the .nsis.zip file</li>
+                  <li>Extract the zip</li>
+                  <li>Run the .exe installer</li>
+                  <li>First run: Click "More info" → "Run anyway" (SmartScreen)</li>
+                </ol>
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <p className="text-blue-800 dark:text-blue-200 text-sm">
+                <strong>Note:</strong> Aurity Desktop requires{' '}
+                <a
+                  href="https://ollama.ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline inline-flex items-center gap-1"
+                >
+                  Ollama <ExternalLink className="w-3 h-3" />
+                </a>{' '}
+                for local AI. Install Ollama first, then run{' '}
+                <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">
+                  ollama pull qwen3:8b
+                </code>{' '}
+                to download a model.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </AppTemplate>
+  );
+}
