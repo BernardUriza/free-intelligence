@@ -67,15 +67,18 @@ Section "Install Python 3.14 Runtime" SecPython
       StrCpy $PythonPath "$LOCALAPPDATA\Programs\Python\Python314\python.exe"
 
       # Install fi-monitor dependencies with retry logic
+      # --timeout=60: Increase from default 15s for corporate networks
+      # --retries=3: pip native retry with exponential backoff
+      # --prefer-binary: Use pre-compiled wheels (faster, no build tools needed)
       DetailPrint "Installing fi-monitor dependencies..."
-      nsExec::ExecToLog '"$PythonPath" -m pip install --quiet --no-warn-script-location -r "$TEMP\fi-monitor-requirements.txt"'
+      nsExec::ExecToLog '"$PythonPath" -m pip install --quiet --timeout=60 --retries=3 --prefer-binary --no-warn-script-location -r "$TEMP\fi-monitor-requirements.txt"'
       Pop $0
 
       ${If} $0 != 0
         # Retry once on failure (network issues, etc.)
         DetailPrint "⚠️ Retry: Installing dependencies (attempt 2)..."
         Sleep 2000  # Wait 2 seconds before retry
-        nsExec::ExecToLog '"$PythonPath" -m pip install --quiet --no-warn-script-location -r "$TEMP\fi-monitor-requirements.txt"'
+        nsExec::ExecToLog '"$PythonPath" -m pip install --quiet --timeout=60 --retries=3 --prefer-binary --no-warn-script-location -r "$TEMP\fi-monitor-requirements.txt"'
         Pop $0
       ${EndIf}
 
@@ -91,7 +94,11 @@ Section "Install Python 3.14 Runtime" SecPython
       Delete "$TEMP\fi-monitor-requirements.txt"
     ${Else}
       DetailPrint "❌ Python installation failed (exit code $0)"
-      MessageBox MB_ICONEXCLAMATION|MB_OK "Python installation failed with exit code $0.$\nFI Monitor may not work properly.$\n$\nYou can install Python 3.14+ manually from python.org"
+
+      # Show error dialog only in interactive mode (skip if /S flag used)
+      IfSilent skip_python_error_dialog
+        MessageBox MB_ICONEXCLAMATION|MB_OK "Python installation failed with exit code $0.$\nFI Monitor may not work properly.$\n$\nYou can install Python 3.14+ manually from python.org"
+      skip_python_error_dialog:
 
       # Cleanup on failure
       Delete "$TEMP\python-3.14.0-amd64.exe"
