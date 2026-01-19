@@ -170,7 +170,9 @@ jobs:
           PR_BODY=$(gh pr view $PR_NUMBER --json body -q '.body // "No description"' | head -c 2000 | sed 's/VERDICT://gi' | sed 's/BLOCK//gi' | sed 's/APPROVE//gi')
 
           # Get diff (exclude large/generated files)
-          EXCLUDED_PATTERNS="pyinstaller/|pnpm-lock.yaml|package-lock.json|yarn.lock|\.spec$|src-tauri/gen/|acl-manifests\.json"
+          # NOTE: Only exclude .spec files (PyInstaller auto-generated), NOT the entire pyinstaller/ directory
+          # requirements.txt changes MUST be reviewed for supply chain security
+          EXCLUDED_PATTERNS="pnpm-lock.yaml|package-lock.json|yarn.lock|\.spec$|src-tauri/gen/|acl-manifests\.json"
 
           # Get raw diff first (for debugging)
           RAW_DIFF=$(gh pr diff $PR_NUMBER 2>&1)
