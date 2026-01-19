@@ -1036,7 +1036,7 @@ dir src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\
 - `ACS_SMTP_USERNAME` - Format: `ResourceName|AppID|TenantID`
 - `ACS_SMTP_PASSWORD` - Entra ID app secret
 - `ACS_FROM_EMAIL` - DoNotReply@xxxxx.azurecomm.net
-- `NOTIFY_EMAIL` - bernardurizaorozco@gmail.com
+- `NOTIFY_EMAIL` - bernarduriza@gmail.com
 
 **Email incluye:**
 - Versión del build

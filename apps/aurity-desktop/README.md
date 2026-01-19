@@ -205,7 +205,7 @@ Los siguientes secrets deben estar configurados en GitHub:
 gh secret set ACS_SMTP_USERNAME      # ResourceName|AppID|TenantID
 gh secret set ACS_SMTP_PASSWORD      # Entra ID app secret
 gh secret set ACS_FROM_EMAIL         # DoNotReply@xxxxx.azurecomm.net
-gh secret set NOTIFY_EMAIL           # Destinatario de notificaciones
+gh secret set NOTIFY_EMAIL           # bernarduriza@gmail.com
 ```
 
 ### Trigger manual
