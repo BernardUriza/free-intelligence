@@ -249,7 +249,7 @@ class TestLifecycleOperations:
             f.create_group(f"/sessions/{session_id}")
 
         with patch(
-            "backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle.get_session_h5_path",
+            "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ), patch(
             "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
@@ -301,7 +301,7 @@ class TestLifecycleOperations:
             f.create_group(f"/sessions/{session_id}")
 
         with patch(
-            "backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle.get_session_h5_path",
+            "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
             result = task_exists(session_id, TaskType.TRANSCRIPTION)
