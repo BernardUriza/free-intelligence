@@ -40,9 +40,9 @@ class TestSubscriptionPlan:
         plan = SubscriptionPlan()
         plan.name = "pro"
         plan.max_doctors = 10
-        
+
         repr_str = repr(plan)
-        
+
         assert "SubscriptionPlan" in repr_str
         assert "pro" in repr_str
         assert "10" in repr_str
@@ -52,28 +52,28 @@ class TestSubscriptionPlan:
         plan = SubscriptionPlan()
         plan.name = "enterprise"
         plan.max_doctors = None
-        
+
         repr_str = repr(plan)
-        
+
         assert "∞" in repr_str
 
     def test_is_unlimited_when_none(self):
         """Should return True when max_doctors is None."""
         plan = SubscriptionPlan()
         plan.max_doctors = None
-        
+
         assert plan.is_unlimited is True
 
     def test_is_unlimited_when_limited(self):
         """Should return False when max_doctors has value."""
         plan = SubscriptionPlan()
         plan.max_doctors = 5
-        
+
         assert plan.is_unlimited is False
 
     def test_is_unlimited_when_zero(self):
         """Should return False when max_doctors is 0."""
         plan = SubscriptionPlan()
         plan.max_doctors = 0
-        
+
         assert plan.is_unlimited is False

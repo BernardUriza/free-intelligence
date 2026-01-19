@@ -31,7 +31,7 @@ class TestGenerateUuid:
     def test_generates_valid_uuid_string(self):
         """Should generate valid UUID string."""
         uuid_str = generate_uuid()
-        
+
         assert isinstance(uuid_str, str)
         assert len(uuid_str) == 36  # Standard UUID format
 
@@ -40,7 +40,7 @@ class TestGenerateUuid:
         uuid1 = generate_uuid()
         uuid2 = generate_uuid()
         uuid3 = generate_uuid()
-        
+
         assert uuid1 != uuid2
         assert uuid2 != uuid3
         assert uuid1 != uuid3
@@ -49,7 +49,7 @@ class TestGenerateUuid:
         """Should match UUID format with hyphens."""
         uuid_str = generate_uuid()
         parts = uuid_str.split("-")
-        
+
         assert len(parts) == 5
         assert len(parts[0]) == 8
         assert len(parts[1]) == 4
@@ -64,20 +64,20 @@ class TestGenerateCheckinCode:
     def test_generates_6_digit_code(self):
         """Should generate 6-digit code."""
         code = generate_checkin_code()
-        
+
         assert isinstance(code, str)
         assert len(code) == 6
 
     def test_code_is_numeric(self):
         """Should contain only digits."""
         code = generate_checkin_code()
-        
+
         assert code.isdigit()
 
     def test_generates_different_codes(self):
         """Should generate different codes (probabilistically)."""
         codes = {generate_checkin_code() for _ in range(100)}
-        
+
         # With 1M possible codes, 100 should be mostly unique
         assert len(codes) >= 90
 
@@ -88,7 +88,7 @@ class TestGetCheckinCodeExpiry:
     def test_returns_end_of_today(self):
         """Should return end of today (23:59:59.999999)."""
         expiry = get_checkin_code_expiry()
-        
+
         assert expiry.hour == 23
         assert expiry.minute == 59
         assert expiry.second == 59
@@ -97,14 +97,14 @@ class TestGetCheckinCodeExpiry:
     def test_returns_datetime_with_utc(self):
         """Should return UTC datetime."""
         expiry = get_checkin_code_expiry()
-        
+
         assert expiry.tzinfo is not None
 
     def test_expiry_is_future(self):
         """Should be in the future or same second."""
         now = datetime.now(UTC)
         expiry = get_checkin_code_expiry()
-        
+
         assert expiry >= now.replace(hour=0, minute=0, second=0)
 
 
@@ -116,16 +116,16 @@ class TestGetSessionExpiry:
         before = datetime.now(UTC)
         expiry = get_session_expiry()
         after = datetime.now(UTC)
-        
+
         expected_min = before + timedelta(minutes=15)
         expected_max = after + timedelta(minutes=15)
-        
+
         assert expected_min <= expiry <= expected_max
 
     def test_returns_datetime_with_timezone(self):
         """Should return timezone-aware datetime."""
         expiry = get_session_expiry()
-        
+
         assert expiry.tzinfo is not None
 
 
@@ -137,16 +137,16 @@ class TestGetQrExpiry:
         before = datetime.now(UTC)
         expiry = get_qr_expiry()
         after = datetime.now(UTC)
-        
+
         expected_min = before + timedelta(minutes=5)
         expected_max = after + timedelta(minutes=5)
-        
+
         assert expected_min <= expiry <= expected_max
 
     def test_returns_datetime_with_timezone(self):
         """Should return timezone-aware datetime."""
         expiry = get_qr_expiry()
-        
+
         assert expiry.tzinfo is not None
 
 

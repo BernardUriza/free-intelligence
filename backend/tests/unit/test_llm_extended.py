@@ -24,7 +24,7 @@ class TestPadEmbeddingTo768:
         """Should zero-pad embeddings smaller than 768 dims."""
         emb_384 = np.random.rand(384).astype(np.float32)
         result = pad_embedding_to_768(emb_384)
-        
+
         assert result.shape == (768,)
         # First 384 dims should match original
         np.testing.assert_array_equal(result[:384], emb_384)
@@ -35,7 +35,7 @@ class TestPadEmbeddingTo768:
         """Should return unchanged if already 768 dims."""
         emb_768 = np.random.rand(768).astype(np.float32)
         result = pad_embedding_to_768(emb_768)
-        
+
         assert result.shape == (768,)
         np.testing.assert_array_equal(result, emb_768)
 
@@ -43,7 +43,7 @@ class TestPadEmbeddingTo768:
         """Should truncate embeddings larger than 768 dims."""
         emb_1024 = np.random.rand(1024).astype(np.float32)
         result = pad_embedding_to_768(emb_1024)
-        
+
         assert result.shape == (768,)
         np.testing.assert_array_equal(result, emb_1024[:768])
 
@@ -51,7 +51,7 @@ class TestPadEmbeddingTo768:
         """Should handle very small embeddings."""
         emb_32 = np.random.rand(32).astype(np.float32)
         result = pad_embedding_to_768(emb_32)
-        
+
         assert result.shape == (768,)
         np.testing.assert_array_equal(result[:32], emb_32)
         np.testing.assert_array_equal(result[32:], np.zeros(736))
@@ -60,7 +60,7 @@ class TestPadEmbeddingTo768:
         """Result should be float32."""
         emb = np.random.rand(256).astype(np.float32)
         result = pad_embedding_to_768(emb)
-        
+
         assert result.dtype == np.float32
 
 
@@ -71,7 +71,7 @@ class TestSanitizeErrorMessage:
         """Should redact Anthropic API keys."""
         error = "API key sk-ant-api03-abc123DEF456_789 is invalid"
         result = sanitize_error_message(error)
-        
+
         assert "[REDACTED_API_KEY]" in result
         assert "sk-ant-api03" not in result
 
@@ -79,14 +79,14 @@ class TestSanitizeErrorMessage:
         """Should redact generic API keys."""
         error = 'api_key=abcdefghij1234567890klmnopqrstuv'
         result = sanitize_error_message(error)
-        
+
         assert "[REDACTED]" in result.lower() or "api_key" in result
 
     def test_sanitize_bearer_token(self):
         """Should redact bearer tokens."""
         error = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9 expired"
         result = sanitize_error_message(error)
-        
+
         assert "[REDACTED_TOKEN]" in result
         assert "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" not in result
 
@@ -94,7 +94,7 @@ class TestSanitizeErrorMessage:
         """Should truncate messages longer than max_length."""
         long_error = "A" * 200
         result = sanitize_error_message(long_error, max_length=100)
-        
+
         assert len(result) == 103  # 100 + "..."
         assert result.endswith("...")
 
@@ -102,28 +102,28 @@ class TestSanitizeErrorMessage:
         """Should not truncate when max_length is 0."""
         long_error = "A" * 200
         result = sanitize_error_message(long_error, max_length=0)
-        
+
         assert len(result) == 200
 
     def test_sanitize_short_message_unchanged(self):
         """Short messages without sensitive data should be unchanged."""
         error = "Connection refused"
         result = sanitize_error_message(error)
-        
+
         assert result == error
 
     def test_sanitize_multiple_api_keys(self):
         """Should redact multiple API keys."""
         error = "Key1: sk-ant-api03-abc123 and Key2: sk-ant-api03-def456"
         result = sanitize_error_message(error, max_length=0)
-        
+
         assert result.count("[REDACTED_API_KEY]") == 2
 
     def test_sanitize_case_insensitive_bearer(self):
         """Bearer token redaction should be case insensitive."""
         error = "BEARER abcdefghij1234567890klmnop invalid"
         result = sanitize_error_message(error, max_length=0)
-        
+
         assert "[REDACTED_TOKEN]" in result
 
 
@@ -168,7 +168,7 @@ class TestLLMResponse:
             provider="claude",
             tokens_used=100,
         )
-        
+
         assert response.content == "Hello world"
         assert response.model == "claude-3-5-sonnet"
         assert response.provider == "claude"
@@ -189,7 +189,7 @@ class TestLLMResponse:
             latency_ms=150.5,
             metadata=metadata,
         )
-        
+
         assert response.content == "Generated text"
         assert response.model == "qwen3:1.7b"
         assert response.provider == "ollama"
@@ -206,7 +206,7 @@ class TestLLMResponse:
             provider="test",
             tokens_used=0,
         )
-        
+
         assert response.content == ""
 
     def test_llm_response_slots(self):
@@ -225,7 +225,7 @@ class TestLLMResponse:
             tokens_used=500,
             cost_usd=0.0,  # Local = free
         )
-        
+
         assert response.cost_usd == 0.0
 
     def test_llm_response_high_latency(self):
@@ -237,7 +237,7 @@ class TestLLMResponse:
             tokens_used=100,
             latency_ms=30000.0,  # 30 seconds
         )
-        
+
         assert response.latency_ms == 30000.0
 
     def test_llm_response_complex_metadata(self):
@@ -256,7 +256,7 @@ class TestLLMResponse:
             tokens_used=300,
             metadata=metadata,
         )
-        
+
         assert response.metadata["thinking"]["enabled"] is True
         assert response.metadata["stop_reason"] == "end_turn"
 

@@ -22,7 +22,7 @@ class TestTranscriptionJob:
             session_id="session-123",
             total_chunks=5,
         )
-        
+
         assert job.session_id == "session-123"
         assert job.job_id == "job-123"
         assert job.total_chunks == 5
@@ -31,7 +31,7 @@ class TestTranscriptionJob:
     def test_job_type_is_transcription(self):
         """Should have job_type set to TRANSCRIPTION."""
         from datetime import UTC, datetime
-        
+
         job = TranscriptionJob(
             job_id="test-job-123",
             session_id="session-123",
@@ -40,14 +40,14 @@ class TestTranscriptionJob:
             created_at=datetime.now(UTC).isoformat(),
             total_chunks=3,
         )
-        
+
         # Should be TRANSCRIPTION
         assert job.job_type == JobType.TRANSCRIPTION
 
     def test_transcription_job_chunks_default(self):
         """Should default chunks to empty list."""
         from datetime import UTC, datetime
-        
+
         job = TranscriptionJob(
             job_id="test-job",
             session_id="session",
@@ -56,13 +56,13 @@ class TestTranscriptionJob:
             created_at=datetime.now(UTC).isoformat(),
             total_chunks=0,
         )
-        
+
         assert job.chunks == []
 
     def test_transcription_job_with_chunks(self):
         """Should accept chunks."""
         from datetime import UTC, datetime
-        
+
         chunks = [{"idx": 0, "transcript": "Hello"}]
         job = TranscriptionJob(
             job_id="test-job",
@@ -73,14 +73,14 @@ class TestTranscriptionJob:
             total_chunks=1,
             chunks=chunks,
         )
-        
+
         assert len(job.chunks) == 1
         assert job.chunks[0]["transcript"] == "Hello"
 
     def test_transcription_job_audio_metadata(self):
         """Should store audio metadata."""
         from datetime import UTC, datetime
-        
+
         job = TranscriptionJob(
             job_id="test-job",
             session_id="session",
@@ -92,7 +92,7 @@ class TestTranscriptionJob:
             audio_duration=120.5,
             primary_language="es",
         )
-        
+
         assert job.audio_file_path == "/path/to/audio.webm"
         assert job.audio_duration == 120.5
         assert job.primary_language == "es"

@@ -53,7 +53,7 @@ class TestGetSoapData:
         mock_open_h5.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_open_h5.return_value.__exit__ = MagicMock(return_value=False)
 
-        with pytest.raises(ValueError, match="Task.*not found"):
+        with pytest.raises(ValueError, match=r"Task.*not found"):
             get_soap_data("session-123")
 
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.open_h5_read")

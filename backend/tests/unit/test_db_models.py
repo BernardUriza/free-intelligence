@@ -43,9 +43,9 @@ class TestPatientModel:
         patient.nombre = "Juan"
         patient.apellido = "García"
         patient.patient_id = "test-uuid-123"
-        
+
         repr_str = repr(patient)
-        
+
         assert "Patient" in repr_str
         assert "Juan" in repr_str
         assert "García" in repr_str
@@ -61,9 +61,9 @@ class TestPatientModel:
         patient.curp = "LOPM900515HDFRRL09"
         patient.created_at = datetime(2025, 1, 1, 12, 0, 0)
         patient.updated_at = datetime(2025, 1, 2, 12, 0, 0)
-        
+
         result = patient.to_dict()
-        
+
         assert result["patient_id"] == "test-uuid-456"
         assert result["nombre"] == "María"
         assert result["apellido"] == "López"
@@ -80,9 +80,9 @@ class TestPatientModel:
         patient.curp = None
         patient.created_at = None
         patient.updated_at = None
-        
+
         result = patient.to_dict()
-        
+
         assert result["fecha_nacimiento"] is None
         assert result["created_at"] is None
         assert result["updated_at"] is None
@@ -97,9 +97,9 @@ class TestProviderModel:
         provider.nombre = "Dr. Carlos Martínez"
         provider.especialidad = "Cardiología"
         provider.provider_id = "provider-uuid-123"
-        
+
         repr_str = repr(provider)
-        
+
         assert "Provider" in repr_str
         assert "Dr. Carlos Martínez" in repr_str
         assert "Cardiología" in repr_str
@@ -113,9 +113,9 @@ class TestProviderModel:
         provider.especialidad = "Medicina Interna"
         provider.created_at = datetime(2025, 1, 1, 12, 0, 0)
         provider.updated_at = datetime(2025, 1, 2, 12, 0, 0)
-        
+
         result = provider.to_dict()
-        
+
         assert result["provider_id"] == "provider-uuid-456"
         assert result["nombre"] == "Dra. Ana González"
         assert result["cedula_profesional"] == "12345678"
@@ -130,9 +130,9 @@ class TestProviderModel:
         provider.especialidad = None
         provider.created_at = None
         provider.updated_at = None
-        
+
         result = provider.to_dict()
-        
+
         assert result["created_at"] is None
         assert result["updated_at"] is None
 
@@ -146,9 +146,9 @@ class TestUserPersonaConfig:
         config.user_id = "user-uuid-123"
         config.persona_id = "soap_editor"
         config.is_active = True
-        
+
         repr_str = repr(config)
-        
+
         assert "UserPersonaConfig" in repr_str
         assert "user-uuid-123" in repr_str or "soap_editor" in repr_str
 
@@ -165,9 +165,9 @@ class TestUserPersonaConfig:
         config.is_active = True
         config.created_at = datetime(2025, 1, 1, 12, 0, 0)
         config.updated_at = datetime(2025, 1, 2, 12, 0, 0)
-        
+
         result = config.to_dict()
-        
+
         assert result["user_id"] == "user-uuid-456"
         assert result["persona_id"] == "clinical_advisor"
         assert result["model"] == "gpt-4o"
@@ -187,9 +187,9 @@ class TestUserPersonaConfig:
         config.is_active = False
         config.created_at = None
         config.updated_at = None
-        
+
         result = config.to_dict()
-        
+
         assert result["model"] is None
         assert result["temperature"] is None
         assert result["created_at"] is None

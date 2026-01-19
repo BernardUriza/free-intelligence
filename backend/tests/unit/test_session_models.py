@@ -58,7 +58,7 @@ class TestEncryptionMetadata:
     def test_encryption_metadata_defaults(self):
         """Should create with default values."""
         meta = EncryptionMetadata()
-        
+
         assert meta.algorithm == "AES-GCM-256"
         assert meta.key_id == ""
         assert meta.iv == ""
@@ -74,7 +74,7 @@ class TestEncryptionMetadata:
             encrypted_at="2025-01-01T00:00:00Z",
             encrypted_by="admin",
         )
-        
+
         assert meta.algorithm == "AES-256-CBC"
         assert meta.key_id == "key-123"
         assert meta.iv == "iv-456"
@@ -99,7 +99,7 @@ class TestSession:
             created_at="2025-01-01T00:00:00Z",
             updated_at="2025-01-01T00:00:00Z",
         )
-        
+
         assert session.session_id == "session-123"
         assert session.status == SessionStatus.ACTIVE
         assert session.patient_id is None
@@ -127,7 +127,7 @@ class TestSession:
             reviewed_at="2025-01-01T00:50:00Z",
             completed_at="2025-01-01T01:00:00Z",
         )
-        
+
         assert session.patient_id == "patient-789"
         assert session.provider_id == "provider-101"
         assert session.recording_duration == 300.5
@@ -139,7 +139,7 @@ class TestSession:
         before = datetime.now(UTC)
         session = Session.create_now("new-session-id")
         after = datetime.now(UTC)
-        
+
         assert session.session_id == "new-session-id"
         assert session.status == SessionStatus.ACTIVE
         assert session.created_at is not None
@@ -155,16 +155,16 @@ class TestSession:
             created_at="2025-01-01T00:00:00Z",
             updated_at="2025-01-01T00:00:00Z",
         )
-        
+
         assert session.status == SessionStatus.ACTIVE
 
     def test_session_finalize(self):
         """Should mark session as finalized."""
         session = Session.create_now("finalize-test")
         encryption = EncryptionMetadata(key_id="key-xyz")
-        
+
         session.finalize(encryption)
-        
+
         assert session.status == SessionStatus.FINALIZED
         assert session.encryption_metadata == encryption
         assert session.finalized_at is not None
@@ -173,9 +173,9 @@ class TestSession:
     def test_session_mark_diarized(self):
         """Should mark session as diarized."""
         session = Session.create_now("diarize-test")
-        
+
         session.mark_diarized("job-123")
-        
+
         assert session.status == SessionStatus.DIARIZED
         assert session.diarization_job_id == "job-123"
         assert session.diarized_at is not None
@@ -183,18 +183,18 @@ class TestSession:
     def test_session_mark_reviewed(self):
         """Should mark session as reviewed."""
         session = Session.create_now("review-test")
-        
+
         session.mark_reviewed()
-        
+
         assert session.status == SessionStatus.REVIEWED
         assert session.reviewed_at is not None
 
     def test_session_mark_completed(self):
         """Should mark session as completed."""
         session = Session.create_now("complete-test")
-        
+
         session.mark_completed("/path/to/soap")
-        
+
         assert session.status == SessionStatus.COMPLETED
         assert session.soap_note_path == "/path/to/soap"
         assert session.completed_at is not None
@@ -203,9 +203,9 @@ class TestSession:
         """Should serialize to dictionary."""
         session = Session.create_now("dict-test")
         session.patient_id = "patient-123"
-        
+
         data = session.to_dict()
-        
+
         assert data["session_id"] == "dict-test"
         assert data["status"] == "active"
         assert data["patient_id"] == "patient-123"
@@ -215,9 +215,9 @@ class TestSession:
         """Should serialize encryption metadata."""
         session = Session.create_now("encrypt-dict-test")
         session.finalize(EncryptionMetadata(key_id="key-abc", iv="iv-123"))
-        
+
         data = session.to_dict()
-        
+
         assert data["encryption_metadata"]["key_id"] == "key-abc"
         assert data["encryption_metadata"]["iv"] == "iv-123"
         assert data["encryption_metadata"]["algorithm"] == "AES-GCM-256"
@@ -241,9 +241,9 @@ class TestSession:
             "reviewed_at": None,
             "completed_at": None,
         }
-        
+
         session = Session.from_dict(data)
-        
+
         assert session.session_id == "from-dict-test"
         assert session.status == SessionStatus.DIARIZED
         assert session.patient_id == "patient-xyz"
@@ -264,9 +264,9 @@ class TestSession:
                 "encrypted_by": "system",
             },
         }
-        
+
         session = Session.from_dict(data)
-        
+
         assert session.encryption_metadata is not None
         assert session.encryption_metadata.key_id == "key-restored"
         assert session.encryption_metadata.iv == "iv-restored"
