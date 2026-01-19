@@ -267,25 +267,19 @@ class TestLifecycleOperations:
 
     def test_task_exists_returns_true_when_exists(self, temp_storage):
         """Test task_exists returns True when task exists."""
-        session_id = "test-session-exists"
-        session_file = temp_storage / f"{session_id}.h5"
+        from backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle import (
+            ensure_task_exists,
+            task_exists,
+        )
 
-        # Create structure with task
-        with h5py.File(session_file, "w") as f:
-            task_path = f"/sessions/{session_id}/tasks/{TaskType.TRANSCRIPTION.value}"
-            f.create_group(task_path)
+        session_id = "test-session-exists-nomock"
 
-        # Mock to use our temp file instead of production path
-        with patch(
-            "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
-            return_value=session_file,
-        ):
-            # Import AFTER mock to ensure module uses mocked function
-            from backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle import (
-                task_exists,
-            )
-            result = task_exists(session_id, TaskType.TRANSCRIPTION)
-            assert result is True
+        # Use ensure_task_exists to create task (no mocks needed)
+        ensure_task_exists(session_id, TaskType.TRANSCRIPTION, allow_existing=True)
+
+        # Now check it exists
+        result = task_exists(session_id, TaskType.TRANSCRIPTION)
+        assert result is True
 
     def test_task_exists_returns_false_when_missing(self, temp_storage):
         """Test task_exists returns False when task doesn't exist."""
