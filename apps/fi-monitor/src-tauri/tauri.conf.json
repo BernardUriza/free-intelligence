@@ -54,7 +54,7 @@
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
-      "timestampUrl": "",
+      "timestampUrl": null,
       "nsis": {
         "installerIcon": "icons/icon.ico",
         "installMode": "currentUser",
