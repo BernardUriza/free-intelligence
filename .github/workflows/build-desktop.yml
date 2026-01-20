@@ -90,7 +90,7 @@ jobs:
           rust-target: x86_64-pc-windows-msvc
 
       - name: Pre-build Validation (Rust)
-        working-directory: apps/fi-monitor
+        working-directory: apps/fi-monitor/src-tauri
         shell: bash
         run: |
           echo "::group::Cargo Format Check"
@@ -507,7 +507,7 @@ jobs:
           rust-target: x86_64-pc-windows-msvc
 
       - name: Pre-build Validation (Rust)
-        working-directory: apps/aurity-desktop
+        working-directory: apps/aurity-desktop/src-tauri
         shell: bash
         run: |
           echo "::group::Cargo Format Check"
