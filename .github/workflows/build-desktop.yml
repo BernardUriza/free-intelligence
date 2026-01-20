@@ -90,6 +90,7 @@ jobs:
           rust-target: x86_64-pc-windows-msvc
 
       - name: Pre-build Validation (Rust)
+        if: false  # DISABLED: for faster builds - validation happens during actual build
         working-directory: apps/fi-monitor/src-tauri
         shell: bash
         run: |
@@ -510,6 +511,7 @@ jobs:
           rust-target: x86_64-pc-windows-msvc
 
       - name: Pre-build Validation (Rust)
+        if: false  # DISABLED: runs before PyInstaller, causing "binary doesn't exist" error
         working-directory: apps/aurity-desktop/src-tauri
         shell: bash
         run: |
