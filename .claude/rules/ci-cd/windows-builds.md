@@ -86,7 +86,25 @@ else
     FILE_SIZE=$(powershell -Command "(Get-Item '$FILE').Length")  # Windows fallback
 fi
 ```
-**Commit:** ac4143b  
+**Commit:** ac4143b
+
+### Error #9: NSIS Installer Duplicate HWND_BROADCAST Definition
+**Build:** #21160500828
+**Síntoma:**
+```
+!define: "HWND_BROADCAST" already defined!
+Error in script "...\installer.nsi" on line 9 -- aborting creation process
+failed to bundle project `The system cannot find the file specified. (os error 2)`
+```
+**Root Cause:** Custom NSIS template (`installer-template.nsi` line 9) defines HWND_BROADCAST, but Tauri's bundler already provides this constant
+**Progress:** ✅ PyInstaller, ✅ Rust compilation (10m 54s), ✅ MSI created, ❌ NSIS fails
+**Fix:** Wrap definition with `!ifndef` guard to prevent duplication:
+```nsis
+!ifndef HWND_BROADCAST
+  !define HWND_BROADCAST 0xFFFF
+!endif
+```
+**File:** `apps/aurity-desktop/src-tauri/installer-template.nsi`
 
 ## Build Progression
 
@@ -99,7 +117,7 @@ fi
 | #21159741973 | #1-6 | Pre-build Validation | cargo clippy timeout |
 | #21159966229 | #1-6 | Pre-build Validation | Disabled (fix #6) |
 | #21160148835 | #1-6 | Sign NSIS installer | PowerShell hang (error #7) |
-| #21160500828 | #1-8 | In Progress | Testing final fixes |
+| #21160500828 | #1-8 | Build Tauri app (NSIS) | Duplicate HWND_BROADCAST (error #9) |
 
 ## Key Learnings
 
