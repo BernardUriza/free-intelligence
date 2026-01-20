@@ -14,6 +14,10 @@ on:
           - windows
           - all
 
+concurrency:
+  group: build-desktop-${{ github.ref }}-${{ github.event.inputs.platform }}
+  cancel-in-progress: true
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -75,6 +79,8 @@ jobs:
       needs.detect-changes.outputs.fi_monitor == 'true'
     runs-on: windows-latest
     continue-on-error: true
+    env:
+      CARGO_INCREMENTAL: "1"
     steps:
       - name: Checkout main repo
         uses: actions/checkout@v4
@@ -102,10 +108,9 @@ jobs:
           echo "Run locally: cargo fmt --check && cargo clippy --all-targets"
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: echo "RUSTC_WRAPPER=sccache" >> $env:GITHUB_ENV
+        uses: mozilla-actions/sccache-action@v0.0.9
+        env:
+          SCCACHE_GHA_ENABLED: "true"
 
       - name: Install dependencies
         working-directory: apps/fi-monitor
@@ -243,6 +248,8 @@ jobs:
     # if: github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all'
     needs: [build-frontend]
     runs-on: ubuntu-22.04
+    env:
+      CARGO_INCREMENTAL: "1"
     steps:
       - name: Checkout main repo
         uses: actions/checkout@v4
@@ -264,10 +271,9 @@ jobs:
           rust-target: x86_64-unknown-linux-gnu
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+        uses: mozilla-actions/sccache-action@v0.0.9
+        env:
+          SCCACHE_GHA_ENABLED: "true"
 
       - name: Install system dependencies
         run: |
@@ -289,7 +295,9 @@ jobs:
       - name: Cache PyInstaller build
         uses: actions/cache@v4
         with:
-          path: apps/aurity-desktop/pyinstaller/dist
+          path: |
+            apps/aurity-desktop/pyinstaller/dist
+            apps/aurity-desktop/pyinstaller/build
           key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
           restore-keys: |
             pyinstaller-${{ runner.os }}-
@@ -374,6 +382,8 @@ jobs:
     # if: github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all'
     needs: [build-frontend]
     runs-on: macos-latest
+    env:
+      CARGO_INCREMENTAL: "1"
     steps:
       - name: Checkout main repo
         uses: actions/checkout@v4
@@ -395,10 +405,9 @@ jobs:
           rust-target: aarch64-apple-darwin
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+        uses: mozilla-actions/sccache-action@v0.0.9
+        env:
+          SCCACHE_GHA_ENABLED: "true"
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -409,7 +418,9 @@ jobs:
       - name: Cache PyInstaller build
         uses: actions/cache@v4
         with:
-          path: apps/aurity-desktop/pyinstaller/dist
+          path: |
+            apps/aurity-desktop/pyinstaller/dist
+            apps/aurity-desktop/pyinstaller/build
           key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
           restore-keys: |
             pyinstaller-${{ runner.os }}-
@@ -495,6 +506,8 @@ jobs:
       !cancelled()
     runs-on: windows-latest
     continue-on-error: true
+    env:
+      CARGO_INCREMENTAL: "1"
     steps:
       - name: Checkout main repo
         uses: actions/checkout@v4
@@ -528,10 +541,9 @@ jobs:
           echo "Run locally: cargo fmt --check && cargo clippy --all-targets"
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: echo "RUSTC_WRAPPER=sccache" >> $env:GITHUB_ENV
+        uses: mozilla-actions/sccache-action@v0.0.9
+        env:
+          SCCACHE_GHA_ENABLED: "true"
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -542,7 +554,9 @@ jobs:
       - name: Cache PyInstaller build
         uses: actions/cache@v4
         with:
-          path: apps/aurity-desktop/pyinstaller/dist
+          path: |
+            apps/aurity-desktop/pyinstaller/dist
+            apps/aurity-desktop/pyinstaller/build
           key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
           restore-keys: |
             pyinstaller-${{ runner.os }}-

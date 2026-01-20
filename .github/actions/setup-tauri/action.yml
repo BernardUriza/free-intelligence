@@ -46,16 +46,13 @@ runs:
         targets: ${{ inputs.rust-target }}
         components: rustfmt, clippy
 
-    - name: Cache Cargo
+    - name: Cache Cargo dependencies
       uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/registry/index
           ~/.cargo/registry/cache
           ~/.cargo/git/db
-          apps/fi-monitor/src-tauri/target
-          apps/aurity-desktop/src-tauri/target
-        key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('apps/**/src-tauri/src/**/*.rs') }}
+        key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-
-          cargo-${{ runner.os }}-
+          cargo-deps-${{ runner.os }}-
