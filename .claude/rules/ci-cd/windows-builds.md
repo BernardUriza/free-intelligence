@@ -241,6 +241,120 @@ const artifacts = {
 
 **Lesson:** When tools generate different outputs based on configuration, ALWAYS verify active config before assuming which files exist. Don't trust documentation examples blindly.
 
+### Error #14: Artifact Upload Path Incorrect (Part 2)
+**Build:** #21176219299 (2026-01-20, both build-windows succeeded but artifact missing)
+**Síntoma:**
+```
+gh api "repos/.../artifacts" returns: fi-monitor-windows-nsis
+Missing: aurity-windows-nsis
+```
+**Root Cause:** Error #13 fixed `get-artifact-path.js` to use `.exe`, but build-windows workflow still hardcoded `*.nsis.zip` in upload path. Tauri generated `Aurity_1.0.0_x64-setup.exe` but workflow tried to upload non-existent `*.nsis.zip`.
+**Fix:** Update artifact upload paths (commit 9802fe5):
+```yaml
+# apps/aurity-desktop upload (build-windows job)
+# BEFORE:
+path: apps/aurity-desktop/.../nsis/*.nsis.zip
+
+# AFTER:
+path: apps/aurity-desktop/.../nsis/*.exe
+```
+**Files Changed:**
+- `.github/workflows/build-desktop.yml` lines 791, 798
+- `scripts/download-windows-build.sh` (buscar .exe no .nsis.zip)
+
+**Related:** Error #13 (same root cause - Tauri 2.0 output format)
+**Lesson:** When fixing file paths in one place (get-artifact-path.js), grep for ALL references to that filename pattern and update consistently.
+
+### Error #15: Email Notification Silent Failures
+**Build:** #21175698415, #21176219299 (both reported email SUCCESS but user never received)
+**Síntoma:** Email step completes in 1 second with "success" conclusion, but email never arrives
+**Root Cause:** `continue-on-error: true` on email step masks SMTP failures (auth errors, server rejects, etc.). Action fails immediately but GitHub marks step as success.
+**Evidence:**
+```
+Email step: started 15:04:53Z, completed 15:04:54Z (1 second)
+Conclusion: success
+User report: "el email sigue sin llegarme"
+```
+**Fix:** Remove `continue-on-error` from email step (commit bc1716f):
+```yaml
+# BEFORE:
+- name: Send build success email notification
+  continue-on-error: true  # Masks failures
+
+# AFTER:
+- name: Send build success email notification
+  # REMOVED continue-on-error - want to see failures
+```
+**Next Steps:** Trigger build #21176985799 with fix to see actual SMTP error
+**Likely Issues:**
+- Azure Communication Services credentials expired/invalid
+- SMTP server rejecting connection (port 587 blocked?)
+- Destination email address incorrect in secrets
+
+**Lesson:** NEVER use `continue-on-error` on notification/alert steps. Notifications failing silently defeats their purpose. Fail loudly so you know there's a problem.
+
+### Error #16: Email Notification SSL Failure
+**Build:** #21176985799
+**Step:** Send build success email notification (step 22)
+**Duration:** 2 segundos (failure inmediato)
+**Conclusion:** FAILURE
+
+**Síntoma:**
+```
+Error: F0230000:error:0A00010B:SSL routines:ssl3_get_record:wrong version number:c:\ws\deps\openssl\openssl\ssl\record\ssl3_record.c:355:
+```
+
+**Root Cause:** Incompatibilidad entre puerto SMTP y modo de cifrado:
+
+| Configuración | Valor Actual | Problema |
+|---------------|--------------|----------|
+| `server_port` | 587 | Puerto STARTTLS (no SSL directo) |
+| `secure` | true | Fuerza SSL inmediato |
+
+**Qué pasó:**
+1. Action intenta SSL handshake inmediato (porque `secure: true`)
+2. Servidor Azure SMTP en puerto 587 responde en texto plano (STARTTLS requiere EHLO primero)
+3. Cliente OpenSSL recibe texto plano cuando esperaba SSL binary → "wrong version number"
+
+**Protocolo SMTP Correcto:**
+
+| Puerto | Protocolo | Configuración Correcta |
+|--------|-----------|------------------------|
+| 587 | STARTTLS | `secure: false` + action soporta auto-upgrade |
+| 465 | SSL/TLS | `secure: true` |
+
+Azure Communication Services usa puerto 587 (STARTTLS).
+
+**Fix (commit PENDING):** Cambiar `secure: true` → `secure: false` en workflow línea 689:
+```yaml
+# ANTES (INCORRECTO):
+- name: Send build success email notification
+  uses: dawidd6/action-send-mail@v3
+  with:
+    server_address: smtp.azurecomm.net
+    server_port: 587
+    secure: true  # ← ERROR
+
+# DESPUÉS (CORRECTO):
+- name: Send build success email notification
+  uses: dawidd6/action-send-mail@v3
+  with:
+    server_address: smtp.azurecomm.net
+    server_port: 587
+    secure: false  # ← STARTTLS mode (auto-upgrade a TLS)
+```
+
+**Alternat fix:** Cambiar puerto a 465 y mantener `secure: true`, pero Azure recomienda 587.
+
+**Verificación:** Después de aplicar fix:
+1. Email step debería completar en ~5-10s (vs 2s failure)
+2. Logs mostrarán conexión SMTP exitosa
+3. Email llegará a `${{ secrets.NOTIFY_EMAIL }}`
+
+**Lesson Learned:** `secure: true` NO es "más seguro" - significa "SSL desde el inicio" (puerto 465). Puerto 587 requiere `secure: false` para STARTTLS (igual de seguro, diferente handshake).
+
+**Remover `continue-on-error` fue crítico** - sin eso, este error hubiera permanecido invisible.
+
 ## Build Progression
 
 | Build | Errors Fixed | Farthest Step Reached | Outcome |
@@ -256,10 +370,14 @@ const artifacts = {
 | #21160908609 | #1-9 | Build Tauri app (NSIS) | HWND_BROADCAST duplicate (error #10) |
 | #21174027116 | #1-10 | Build Tauri app (NSIS) | Template include errors (error #11) |
 | #21174027116 | #1-12 | Upload NSIS artifact | Artifact not found (error #13) |
+| #21176219299 | #1-14 | Upload NSIS artifact | Path mismatch .nsis.zip vs .exe (error #14) |
+| #21176985799 | #1-15 | Email notification | SSL/STARTTLS mismatch (error #16) - SUCCESS* |
+
+*Build completó con ejecutable generado, solo email falló
 
 **Journey Summary (2 Days):**
 - **Day 1 (Errors #1-10):** PyInstaller → Rust → Pre-build → Signing → NSIS template
-- **Day 2 (Errors #11-13):** Template includes → Path escaping → Artifact filename
+- **Day 2 (Errors #11-16):** Template includes → Path escaping → Artifact filename → Email SMTP
 
 ## Key Learnings
 

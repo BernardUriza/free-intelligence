@@ -686,7 +686,7 @@ jobs:
           # Azure Communication Services SMTP configuration
           server_address: smtp.azurecomm.net
           server_port: 587
-          secure: true
+          secure: false  # STARTTLS mode for port 587 (equally secure, different handshake)
           username: ${{ secrets.ACS_SMTP_USERNAME }}
           password: ${{ secrets.ACS_SMTP_PASSWORD }}
 
