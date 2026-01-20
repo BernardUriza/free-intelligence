@@ -788,14 +788,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aurity-windows-nsis
-          path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip
+          path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
           retention-days: 7
 
       - name: Upload NSIS signature artifact
         uses: actions/upload-artifact@v4
         with:
           name: aurity-windows-nsis-sig
-          path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig
+          path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.sig
           retention-days: 7
 
       - name: Create GitHub Release
