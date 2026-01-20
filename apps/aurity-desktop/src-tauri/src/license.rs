@@ -56,7 +56,9 @@ impl LicensePayload {
             Ok(expires) => Utc::now() > expires,
             Err(_) => {
                 // Try ISO 8601 format with timezone
-                if let Ok(expires) = DateTime::parse_from_str(&self.expires_at, "%Y-%m-%dT%H:%M:%S%.f%:z") {
+                if let Ok(expires) =
+                    DateTime::parse_from_str(&self.expires_at, "%Y-%m-%dT%H:%M:%S%.f%:z")
+                {
                     Utc::now() > expires
                 } else {
                     true // Invalid date = expired
@@ -135,8 +137,7 @@ pub struct StoredLicense {
 
 /// Get the license storage path
 fn get_license_path() -> Result<PathBuf, String> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| "Could not find home directory".to_string())?;
+    let home = dirs::home_dir().ok_or_else(|| "Could not find home directory".to_string())?;
     Ok(home.join(".aurity").join("storage").join("license.json"))
 }
 
@@ -149,8 +150,8 @@ fn load_public_key() -> Result<VerifyingKey, String> {
         .decode(LICENSE_PUBLIC_KEY_B64)
         .map_err(|e| format!("Failed to decode public key base64: {}", e))?;
 
-    let pem_str = String::from_utf8(pem_bytes)
-        .map_err(|e| format!("Invalid PEM encoding: {}", e))?;
+    let pem_str =
+        String::from_utf8(pem_bytes).map_err(|e| format!("Invalid PEM encoding: {}", e))?;
 
     // Parse PEM to get raw key bytes
     // PEM format: -----BEGIN PUBLIC KEY-----\nBase64Data\n-----END PUBLIC KEY-----
@@ -186,7 +187,7 @@ fn load_public_key() -> Result<VerifyingKey, String> {
 /// Decoded license data (payload, original payload bytes, signature bytes)
 pub struct DecodedLicense {
     pub payload: LicensePayload,
-    pub payload_bytes: Vec<u8>,  // Original bytes for signature verification
+    pub payload_bytes: Vec<u8>, // Original bytes for signature verification
     pub signature_bytes: Vec<u8>,
 }
 
@@ -196,7 +197,10 @@ pub fn decode_license_key(license_key: &str) -> Result<DecodedLicense, String> {
     let key = license_key.to_uppercase().replace('-', "");
 
     if !key.starts_with(LICENSE_PREFIX) {
-        return Err(format!("Invalid license key: must start with {}", LICENSE_PREFIX));
+        return Err(format!(
+            "Invalid license key: must start with {}",
+            LICENSE_PREFIX
+        ));
     }
 
     let encoded = &key[LICENSE_PREFIX.len()..];
@@ -211,7 +215,8 @@ pub fn decode_license_key(license_key: &str) -> Result<DecodedLicense, String> {
         return Err("Invalid license key: too short".to_string());
     }
 
-    let payload_len = u32::from_be_bytes([combined[0], combined[1], combined[2], combined[3]]) as usize;
+    let payload_len =
+        u32::from_be_bytes([combined[0], combined[1], combined[2], combined[3]]) as usize;
 
     // Extract payload and signature
     if combined.len() < 4 + payload_len + 64 {
@@ -243,7 +248,8 @@ pub fn verify_license_signature(license_key: &str) -> Result<LicensePayload, Str
     let public_key = load_public_key()?;
 
     // Create signature from bytes (ed25519-dalek 2.x: from_bytes takes &[u8; 64] and returns Signature directly)
-    let sig_array: [u8; 64] = decoded.signature_bytes
+    let sig_array: [u8; 64] = decoded
+        .signature_bytes
         .as_slice()
         .try_into()
         .map_err(|_| "Invalid signature length: expected 64 bytes")?;
@@ -328,8 +334,7 @@ pub fn activate_license(license_key: &str) -> Result<LicensePayload, String> {
     let json = serde_json::to_string_pretty(&stored)
         .map_err(|e| format!("Failed to serialize license: {}", e))?;
 
-    fs::write(&license_path, json)
-        .map_err(|e| format!("Failed to write license file: {}", e))?;
+    fs::write(&license_path, json).map_err(|e| format!("Failed to write license file: {}", e))?;
 
     println!("[Aurity] License activated: {}", payload.license_id);
 
@@ -453,7 +458,8 @@ pub fn get_license_auth0_config() -> Result<Auth0Config, String> {
 #[tauri::command]
 pub fn check_feature_enabled(feature: String) -> bool {
     let status = get_license_status();
-    status.payload
+    status
+        .payload
         .map(|p| p.has_feature(&feature))
         .unwrap_or(false)
 }
@@ -543,14 +549,18 @@ pub fn check_renewal_status() -> RenewalStatus {
     let warning_message = if days < 0 {
         Some("Your license has expired. Please renew to continue using Aurity.".to_string())
     } else if days <= 7 {
-        Some(format!("Your license expires in {} days. Please renew soon.", days))
+        Some(format!(
+            "Your license expires in {} days. Please renew soon.",
+            days
+        ))
     } else if days <= 30 {
         Some(format!("Your license expires in {} days.", days))
     } else {
         None
     };
 
-    let license_id = status.payload
+    let license_id = status
+        .payload
         .as_ref()
         .map(|p| p.license_id.clone())
         .unwrap_or_default();
@@ -559,7 +569,10 @@ pub fn check_renewal_status() -> RenewalStatus {
         needs_renewal: days <= 30,
         days_until_expiry: status.days_remaining,
         renewal_url: if days <= 30 {
-            Some(format!("https://app.aurity.io/renew?license={}", license_id))
+            Some(format!(
+                "https://app.aurity.io/renew?license={}",
+                license_id
+            ))
         } else {
             None
         },

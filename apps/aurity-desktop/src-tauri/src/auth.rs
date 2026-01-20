@@ -227,9 +227,7 @@ pub async fn handle_auth_callback(
             .config
             .lock()
             .map_err(|e| format!("Failed to acquire config lock: {}", e))?;
-        let config = config_lock
-            .clone()
-            .ok_or("Auth0 not configured")?;
+        let config = config_lock.clone().ok_or("Auth0 not configured")?;
 
         (pkce_state.verifier.clone(), config)
     };
@@ -286,10 +284,7 @@ async fn exchange_code_for_tokens(
         let status = response.status();
         // Consume body but don't log it (might contain sensitive info)
         let _error_body = response.text().await.unwrap_or_default();
-        return Err(format!(
-            "Token exchange failed with status {}",
-            status
-        ));
+        return Err(format!("Token exchange failed with status {}", status));
     }
 
     #[derive(Deserialize)]

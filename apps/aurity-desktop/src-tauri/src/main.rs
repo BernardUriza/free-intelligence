@@ -139,9 +139,11 @@ async fn ensure_edge_infrastructure(app: tauri::AppHandle) -> Result<String, Str
 
         let output = Command::new("powershell")
             .args([
-                "-ExecutionPolicy", "Bypass",
-                "-File", &script_path.to_string_lossy(),
-                "start"
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                &script_path.to_string_lossy(),
+                "start",
             ])
             .current_dir(&scripts_dir)
             .output()
@@ -213,18 +215,20 @@ const AUTOSTART_KEY: &str = "AurityDesktop";
 fn setup_windows_autostart_internal() -> Result<bool, String> {
     use std::process::Command;
 
-    let exe_path = std::env::current_exe()
-        .map_err(|e| format!("Failed to get exe path: {}", e))?;
+    let exe_path = std::env::current_exe().map_err(|e| format!("Failed to get exe path: {}", e))?;
 
     // Add to HKCU\Software\Microsoft\Windows\CurrentVersion\Run
     let output = Command::new("reg")
         .args([
             "add",
             r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
-            "/v", AUTOSTART_KEY,
-            "/t", "REG_SZ",
-            "/d", &exe_path.to_string_lossy(),
-            "/f"  // Force overwrite
+            "/v",
+            AUTOSTART_KEY,
+            "/t",
+            "REG_SZ",
+            "/d",
+            &exe_path.to_string_lossy(),
+            "/f", // Force overwrite
         ])
         .output()
         .map_err(|e| format!("Failed to execute reg: {}", e))?;
@@ -266,8 +270,9 @@ fn remove_windows_autostart() -> Result<bool, String> {
             .args([
                 "delete",
                 r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
-                "/v", AUTOSTART_KEY,
-                "/f"
+                "/v",
+                AUTOSTART_KEY,
+                "/f",
             ])
             .output()
             .map_err(|e| format!("Failed to execute reg: {}", e))?;
@@ -298,7 +303,8 @@ fn check_windows_autostart() -> Result<bool, String> {
             .args([
                 "query",
                 r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
-                "/v", AUTOSTART_KEY
+                "/v",
+                AUTOSTART_KEY,
             ])
             .output()
             .map_err(|e| format!("Failed to execute reg: {}", e))?;
@@ -327,9 +333,7 @@ async fn check_python_installation() -> Result<PythonStatus, String> {
     use std::process::Command;
 
     // Check python --version
-    let version_output = Command::new("python")
-        .arg("--version")
-        .output();
+    let version_output = Command::new("python").arg("--version").output();
 
     let (installed, version) = match version_output {
         Ok(output) if output.status.success() => {
@@ -356,7 +360,10 @@ async fn check_python_installation() -> Result<PythonStatus, String> {
 
     // Check fi-monitor deps (fastapi, uvicorn, httpx, sentence_transformers)
     let deps_check = Command::new("python")
-        .args(["-c", "import fastapi, uvicorn, httpx, sentence_transformers"])
+        .args([
+            "-c",
+            "import fastapi, uvicorn, httpx, sentence_transformers",
+        ])
         .output();
     let fi_monitor_deps_installed = deps_check.map(|o| o.status.success()).unwrap_or(false);
 
@@ -453,11 +460,15 @@ fn bootstrap_config(app: &tauri::AppHandle) -> Result<bool, String> {
         return Ok(false); // Not first run
     }
 
-    println!("[Aurity] First run detected - bootstrapping config to {:?}", data_dir);
+    println!(
+        "[Aurity] First run detected - bootstrapping config to {:?}",
+        data_dir
+    );
 
     // Create directories (these are idempotent operations)
     fs::create_dir_all(&config_dir).map_err(|e| format!("Failed to create config dir: {}", e))?;
-    fs::create_dir_all(&personas_dir).map_err(|e| format!("Failed to create personas dir: {}", e))?;
+    fs::create_dir_all(&personas_dir)
+        .map_err(|e| format!("Failed to create personas dir: {}", e))?;
     fs::create_dir_all(&storage_dir).map_err(|e| format!("Failed to create storage dir: {}", e))?;
 
     // Verify directories are not symlinks (security check)
@@ -469,7 +480,10 @@ fn bootstrap_config(app: &tauri::AppHandle) -> Result<bool, String> {
     for (filename, content) in templates::PERSONAS {
         // Validate filename to prevent path traversal
         if !is_safe_filename(filename) {
-            return Err(format!("Security: invalid filename in templates: {}", filename));
+            return Err(format!(
+                "Security: invalid filename in templates: {}",
+                filename
+            ));
         }
         let persona_path = personas_dir.join(filename);
         atomic_write(&persona_path, content.as_bytes())?;
@@ -614,9 +628,14 @@ fn main() {
                                         }
                                     }
                                     tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
-                                        eprintln!("[backend-err] {}", String::from_utf8_lossy(&line));
+                                        eprintln!(
+                                            "[backend-err] {}",
+                                            String::from_utf8_lossy(&line)
+                                        );
                                     }
-                                    tauri_plugin_shell::process::CommandEvent::Terminated(status) => {
+                                    tauri_plugin_shell::process::CommandEvent::Terminated(
+                                        status,
+                                    ) => {
                                         println!("[Aurity] Backend terminated: {:?}", status);
                                         break;
                                     }
@@ -677,10 +696,8 @@ fn main() {
                                 let _ = main_window.eval(&js);
 
                                 // Also inject license status
-                                let license_js = format!(
-                                    "window.__AURITY_HAS_LICENSE__ = {};",
-                                    has_license
-                                );
+                                let license_js =
+                                    format!("window.__AURITY_HAS_LICENSE__ = {};", has_license);
                                 let _ = main_window.eval(&license_js);
 
                                 // Show main window
@@ -694,10 +711,13 @@ fn main() {
                             }
 
                             // Emit ready event (includes license status)
-                            let _ = app_handle.emit("backend-ready", serde_json::json!({
-                                "port": port,
-                                "has_license": has_license
-                            }));
+                            let _ = app_handle.emit(
+                                "backend-ready",
+                                serde_json::json!({
+                                    "port": port,
+                                    "has_license": has_license
+                                }),
+                            );
                         } else {
                             emit_status(&app_handle, "Error: Backend no responde");
                             eprintln!(
