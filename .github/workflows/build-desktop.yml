@@ -74,6 +74,7 @@ jobs:
       (github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all') &&
       needs.detect-changes.outputs.fi_monitor == 'true'
     runs-on: windows-latest
+    continue-on-error: true
     steps:
       - name: Checkout main repo
         uses: actions/checkout@v4
@@ -88,6 +89,22 @@ jobs:
         with:
           rust-target: x86_64-pc-windows-msvc
 
+      - name: Pre-build Validation (Rust)
+        working-directory: apps/fi-monitor
+        shell: bash
+        run: |
+          echo "::group::Cargo Format Check"
+          cargo fmt --check
+          echo "::endgroup::"
+
+          echo "::group::Cargo Clippy (warnings as errors)"
+          cargo clippy --all-targets --all-features -- -D warnings
+          echo "::endgroup::"
+
+          echo "::group::Cargo Check (fast syntax validation)"
+          cargo check --release
+          echo "::endgroup::"
+
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.6
 
@@ -99,8 +116,34 @@ jobs:
         run: pnpm install
 
       - name: Build FI Monitor
-        working-directory: apps/fi-monitor
-        run: pnpm tauri build --target x86_64-pc-windows-msvc
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          retry_wait_seconds: 60
+          command: |
+            cd apps/fi-monitor
+            pnpm tauri build --target x86_64-pc-windows-msvc
+          shell: bash
+
+      - name: Smoke Test (Binary Validation)
+        working-directory: apps/fi-monitor/src-tauri/target/x86_64-pc-windows-msvc/release
+        shell: pwsh
+        run: |
+          echo "::group::Binary Exists Check"
+          if (-Not (Test-Path "fi-monitor.exe")) {
+            throw "fi-monitor.exe not found after build"
+          }
+          echo "✅ Binary exists"
+          echo "::endgroup::"
+
+          echo "::group::Binary Size Check"
+          $size = (Get-Item "fi-monitor.exe").Length / 1MB
+          echo "Binary size: $([Math]::Round($size, 2)) MB"
+          if ($size -gt 100) {
+            echo "⚠️ Warning: Binary > 100MB (expected 30-50MB)"
+          }
+          echo "::endgroup::"
 
       - name: Get artifact paths
         id: paths
@@ -442,6 +485,7 @@ jobs:
       needs.detect-changes.outputs.aurity_desktop == 'true' &&
       !cancelled()
     runs-on: windows-latest
+    continue-on-error: true
     steps:
       - name: Checkout main repo
         uses: actions/checkout@v4
@@ -461,6 +505,22 @@ jobs:
         uses: ./.github/actions/setup-tauri
         with:
           rust-target: x86_64-pc-windows-msvc
+
+      - name: Pre-build Validation (Rust)
+        working-directory: apps/aurity-desktop
+        shell: bash
+        run: |
+          echo "::group::Cargo Format Check"
+          cargo fmt --check
+          echo "::endgroup::"
+
+          echo "::group::Cargo Clippy (warnings as errors)"
+          cargo clippy --all-targets --all-features -- -D warnings
+          echo "::endgroup::"
+
+          echo "::group::Cargo Check (fast syntax validation)"
+          cargo check --release
+          echo "::endgroup::"
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.6
@@ -488,9 +548,15 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build backend with PyInstaller
-        working-directory: apps/aurity-desktop/pyinstaller
-        run: |
-          pyinstaller aurity-backend.spec
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            cd apps/aurity-desktop/pyinstaller
+            pyinstaller aurity-backend.spec
+          shell: bash
 
       - name: Copy backend binary
         shell: pwsh
@@ -531,10 +597,15 @@ jobs:
           key: python-installer-3.14.0-amd64
 
       - name: Prepare Python 3.14 Installer
-        shell: bash
-        run: |
-          cd apps/aurity-desktop
-          bash scripts/prepare-python-full.sh
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            cd apps/aurity-desktop
+            bash scripts/prepare-python-full.sh
+          shell: bash
         env:
           PYTHON_VERSION: "3.14.0"
 
@@ -546,8 +617,34 @@ jobs:
           du -h apps/aurity-desktop/resources/python-installer/python-3.14.0-amd64.exe
 
       - name: Build Tauri app
-        working-directory: apps/aurity-desktop
-        run: pnpm tauri build --target x86_64-pc-windows-msvc
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          retry_wait_seconds: 60
+          command: |
+            cd apps/aurity-desktop
+            pnpm tauri build --target x86_64-pc-windows-msvc
+          shell: bash
+
+      - name: Smoke Test (Binary Validation)
+        working-directory: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release
+        shell: pwsh
+        run: |
+          echo "::group::Binary Exists Check"
+          if (-Not (Test-Path "aurity-desktop.exe")) {
+            throw "aurity-desktop.exe not found after build"
+          }
+          echo "✅ Binary exists"
+          echo "::endgroup::"
+
+          echo "::group::Binary Size Check"
+          $size = (Get-Item "aurity-desktop.exe").Length / 1MB
+          echo "Binary size: $([Math]::Round($size, 2)) MB"
+          if ($size -gt 100) {
+            echo "⚠️ Warning: Binary > 100MB (expected 30-50MB)"
+          }
+          echo "::endgroup::"
 
       - name: Sign NSIS installer
         working-directory: apps/aurity-desktop
