@@ -781,8 +781,7 @@ jobs:
           ignore_cert: false
           convert_markdown: false
 
-        # Don't fail workflow if email fails
-        continue-on-error: true
+        # REMOVED continue-on-error - want to see email failures
         timeout-minutes: 2
 
       - name: Upload NSIS artifact
