@@ -172,6 +172,7 @@ jobs:
 
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.paths.outputs.version }}
@@ -345,6 +346,7 @@ jobs:
 
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
@@ -464,6 +466,7 @@ jobs:
 
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
@@ -783,6 +786,7 @@ jobs:
 
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
