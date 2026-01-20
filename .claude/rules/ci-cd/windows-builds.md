@@ -1,10 +1,14 @@
 # Windows Build Debugging Journey
 
-**Last Updated:** 2026-01-20
+**Last Updated:** 2026-01-20 (Errors #1-13 documented)
 
 ## Context
 
-Windows builds fallaban consistentemente. Proceso de debugging iterativo reveló 8 errores encadenados. Cada build fallaba "un paso más adelante" hasta completar.
+Windows builds fallaban consistentemente. Proceso de debugging iterativo reveló **13 errores encadenados** a través de 2 días. Cada build fallaba "un paso más adelante" hasta completar.
+
+**Timeline:**
+- **Day 1 (2026-01-19):** Errors #1-10 - Infrastructure setup (PyInstaller, Rust, signing, NSIS template)
+- **Day 2 (2026-01-20):** Errors #11-13 - Configuration issues (template includes, path escaping, artifact naming)
 
 ## Errores Encontrados y Fixes Aplicados
 
@@ -160,6 +164,83 @@ failed to bundle project `The system cannot find the file specified. (os error 2
 **File:** `apps/aurity-desktop/src-tauri/installer-template.nsi:8-12`
 **Lesson:** Template processing order matters - Tauri's base definitions come BEFORE custom template inclusion
 
+### Error #11: NSIS Template Include Errors
+**Build:** #21174027116 (2026-01-20, both build-fi-monitor and build-windows failed)
+**Síntoma:**
+```
+Error in script "...\installer.nsi" on line 11 -- aborting creation process
+failed to bundle project `The system cannot find the file specified. (os error 2)`
+```
+**Root Cause:** Custom template `apps/aurity-desktop/src-tauri/installer-template.nsi` used `!include` statements for .nsh files (MUI2.nsh, FileFunc.nsh, LogicLib.nsh) that don't exist in Tauri bundle directory. Tauri bundler doesn't copy these dependencies when processing custom templates.
+**Fix:** Remove custom template entirely, use Tauri default template (commit 756350e):
+```bash
+# Delete custom template
+rm apps/aurity-desktop/src-tauri/installer-template.nsi
+
+# Remove template reference from tauri.conf.json
+# BEFORE:
+"nsis": {
+  "template": "installer-template.nsi",
+  ...
+}
+
+# AFTER:
+"nsis": {
+  ...  # Use Tauri default template
+}
+```
+**Rationale:** Custom template only added Python installation logic (no longer needed). Tauri default template is battle-tested and has zero external dependencies.
+**Lesson:** Prefer Tauri defaults over custom templates unless absolutely necessary. Custom templates add complexity and can break across Tauri versions.
+
+### Error #12: PowerShell Path Escaping with Spaces
+**Build:** #21174027116 (signing step hung with "Terminate batch job (Y/N)?")
+**Síntoma:**
+```
+pnpm tauri signer sign "src-tauri/.../FI Monitor_1.0.1_x64-setup.nsis.zip"
+Signing without password.
+Terminate batch job (Y/N)?
+[timeout after 2 minutes]
+```
+**Root Cause:** `productName: "FI Monitor"` (with space) → path con espacio → PowerShell corrupts path escaping across GitHub Actions shell layers, even with proper quoting. Tauri signer receives malformed path and prompts for interactive confirmation.
+**Fix:** Remove space from productName (commit 7f48435):
+```json
+// apps/fi-monitor/src-tauri/tauri.conf.json
+"productName": "FIMonitor",  // BEFORE: "FI Monitor"
+```
+**Trade-offs:**
+- ✅ Eliminates shell escaping hell
+- ✅ Works across ALL shells (PowerShell, Bash, CMD)
+- ⚠️ Changes installer display name (cosmetic only)
+**Lesson:** NEVER use spaces in file/product names for CI/CD. Shell escaping is unreliable when paths pass through multiple layers (PowerShell → CMD → node → pnpm → Tauri).
+
+### Error #13: NSIS Artifact Filename Wrong
+**Build:** #21174027116 (artifact upload failed: "No files were found")
+**Síntoma:**
+```
+Warning: No files were found with the provided path:
+  apps/fi-monitor/.../FIMonitor_1.0.1_x64-setup.nsis.zip
+```
+**Root Cause:** `get-artifact-path.js` expected `.nsis.zip` but Tauri 2.0 NSIS bundler generates `.exe` directly. The `.nsis.zip` format only exists when updater plugin is active AND has valid pubkey (creates ZIP archives for auto-updates).
+**Evidence from build logs:**
+```
+Tauri generated: FIMonitor_1.0.1_x64-setup.exe
+Workflow expected: FIMonitor_1.0.1_x64-setup.nsis.zip  ← DOESN'T EXIST
+```
+**Fix:** Correct artifact filename (commit 7a98764):
+```javascript
+// apps/aurity-desktop/scripts/get-artifact-path.js
+const artifacts = {
+  nsis: `${productName}_${version}_x64-setup.exe`,  // BEFORE: .nsis.zip
+  dmg: `${productName}_${version}_aarch64.dmg`,
+  appimage: `${productName}_${version}_amd64.AppImage`
+};
+```
+**References:**
+- [Tauri Windows Installer Docs](https://v2.tauri.app/distribute/windows-installer/)
+- [Tauri Updater Plugin](https://v2.tauri.app/plugin/updater/)
+
+**Lesson:** When tools generate different outputs based on configuration, ALWAYS verify active config before assuming which files exist. Don't trust documentation examples blindly.
+
 ## Build Progression
 
 | Build | Errors Fixed | Farthest Step Reached | Outcome |
@@ -172,11 +253,13 @@ failed to bundle project `The system cannot find the file specified. (os error 2
 | #21159966229 | #1-6 | Pre-build Validation | Disabled (fix #6) |
 | #21160148835 | #1-6 | Sign NSIS installer | PowerShell hang (error #7) |
 | #21160500828 | #1-8 | Sign NSIS installer | Timestamp hang (error #9) - Cancelled |
-| #21160908609 | #1-9 | Build Tauri app (NSIS) | HWND_BROADCAST duplicate (error #10) - Success overall* |
+| #21160908609 | #1-9 | Build Tauri app (NSIS) | HWND_BROADCAST duplicate (error #10) |
+| #21174027116 | #1-10 | Build Tauri app (NSIS) | Template include errors (error #11) |
+| #21174027116 | #1-12 | Upload NSIS artifact | Artifact not found (error #13) |
 
-*Build marked as success overall, but both Windows jobs failed:
-- build-fi-monitor: Signing timeout (expected), GitHub Release failed (no .sig file)
-- build-windows: HWND_BROADCAST duplicate on all 3 retry attempts
+**Journey Summary (2 Days):**
+- **Day 1 (Errors #1-10):** PyInstaller → Rust → Pre-build → Signing → NSIS template
+- **Day 2 (Errors #11-13):** Template includes → Path escaping → Artifact filename
 
 ## Key Learnings
 
@@ -200,6 +283,30 @@ Cada build falla "un paso más adelante". No puedes ver errores posteriores hast
 - `cargo clippy` compila TODAS las dependencies (15-20 min con 587 packages)
 - `cargo check` solo valida sintaxis/tipos (2-3 min)
 - Para CI fail-fast, usar `cargo check` es suficiente
+
+### 6. Shell Escaping Hell with Spaces
+- NEVER use spaces in productName, file paths, or artifact names for CI/CD
+- PowerShell path escaping is UNRELIABLE when passing through multiple shell layers
+- GitHub Actions: PowerShell → CMD → node → pnpm → tool (4+ layers)
+- Solution: Use kebab-case or camelCase for all names in automation
+
+### 7. Custom Templates = Maintenance Burden
+- Tauri/framework defaults are battle-tested across versions
+- Custom templates add complexity and external dependencies
+- Only use custom templates when ABSOLUTELY necessary
+- Document WHY custom template is needed (not just WHAT it does)
+
+### 8. Verify Tool Output, Don't Assume
+- Tools generate different files based on configuration
+- Example: Tauri NSIS generates `.exe` OR `.nsis.zip` depending on updater config
+- ALWAYS verify actual output files in logs before fixing "file not found" errors
+- Don't trust documentation examples without verifying against your config
+
+### 9. Two-Day Debugging Journey Pattern
+- **Day 1:** Infrastructure errors (dependencies, toolchain, build order)
+- **Day 2:** Configuration errors (templates, paths, artifact names)
+- First wave of errors blocks second wave from being visible
+- Patience and systematic iteration is required
 
 ## Debugging Commands
 
