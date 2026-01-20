@@ -626,6 +626,7 @@ jobs:
           du -h apps/aurity-desktop/resources/python-installer/python-3.14.0-amd64.exe
 
       - name: Build Tauri app
+        id: build_tauri
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 30
@@ -665,7 +666,7 @@ jobs:
             --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
 
       - name: Send build success email notification
-        if: success()
+        if: always() && steps.build_tauri.conclusion == 'success'
         uses: dawidd6/action-send-mail@v3
         with:
           # Azure Communication Services SMTP configuration
