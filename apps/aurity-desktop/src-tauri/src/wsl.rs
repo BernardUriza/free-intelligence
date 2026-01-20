@@ -27,9 +27,7 @@ pub fn check_wsl_status() -> Result<WslStatus, String> {
     #[cfg(target_os = "windows")]
     {
         // Check if wsl.exe exists and is functional
-        let output = Command::new("wsl")
-            .args(["--status"])
-            .output();
+        let output = Command::new("wsl").args(["--status"]).output();
 
         match output {
             Ok(result) => {
@@ -50,8 +48,9 @@ pub fn check_wsl_status() -> Result<WslStatus, String> {
                 } else {
                     // WSL command exists but no distro installed
                     let stderr = String::from_utf8_lossy(&result.stderr);
-                    if stderr.contains("no installed distributions") || 
-                       stderr.contains("not installed") {
+                    if stderr.contains("no installed distributions")
+                        || stderr.contains("not installed")
+                    {
                         Ok(WslStatus {
                             installed: false,
                             distro: None,
@@ -114,10 +113,7 @@ fn get_default_distro() -> Option<String> {
 /// Get WSL version (1 or 2)
 #[cfg(target_os = "windows")]
 fn get_wsl_version() -> Option<u32> {
-    let output = Command::new("wsl")
-        .args(["--version"])
-        .output()
-        .ok()?;
+    let output = Command::new("wsl").args(["--version"]).output().ok()?;
 
     if output.status.success() {
         // If --version works, it's WSL 2
@@ -132,7 +128,15 @@ fn get_wsl_version() -> Option<u32> {
 #[cfg(target_os = "windows")]
 fn check_backend_installed() -> bool {
     let output = Command::new("wsl")
-        .args(["--", "test", "-d", "/opt/aurity-backend", "&&", "echo", "yes"])
+        .args([
+            "--",
+            "test",
+            "-d",
+            "/opt/aurity-backend",
+            "&&",
+            "echo",
+            "yes",
+        ])
         .output();
 
     match output {
@@ -148,7 +152,16 @@ fn check_backend_installed() -> bool {
 #[cfg(target_os = "windows")]
 fn check_backend_running() -> bool {
     let output = Command::new("wsl")
-        .args(["--", "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "http://localhost:7001/api/health"])
+        .args([
+            "--",
+            "curl",
+            "-s",
+            "-o",
+            "/dev/null",
+            "-w",
+            "%{http_code}",
+            "http://localhost:7001/api/health",
+        ])
         .output();
 
     match output {
@@ -172,9 +185,11 @@ pub fn install_wsl() -> Result<String, String> {
                 "-Command",
                 "Start-Process",
                 "wsl",
-                "-ArgumentList", "'--install', '-d', 'Ubuntu'",
-                "-Verb", "RunAs",
-                "-Wait"
+                "-ArgumentList",
+                "'--install', '-d', 'Ubuntu'",
+                "-Verb",
+                "RunAs",
+                "-Wait",
             ])
             .output()
             .map_err(|e| format!("Failed to start WSL installation: {}", e))?;
@@ -205,7 +220,7 @@ pub fn enable_wsl_feature() -> Result<String, String> {
                 # Check if already enabled
                 $wslFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
                 $vmFeature = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
-                
+
                 if ($wslFeature.State -eq "Enabled" -and $vmFeature.State -eq "Enabled") {
                     $result.message = "WSL features already enabled"
                 } else {
@@ -274,21 +289,43 @@ pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> 
 
         // Install Python and pip
         let python = Command::new("wsl")
-            .args(["--", "sudo", "apt-get", "install", "-y", 
-                   "python3.12", "python3.12-venv", "python3-pip", "curl"])
+            .args([
+                "--",
+                "sudo",
+                "apt-get",
+                "install",
+                "-y",
+                "python3.12",
+                "python3.12-venv",
+                "python3-pip",
+                "curl",
+            ])
             .output()
             .map_err(|e| format!("Failed to install Python: {}", e))?;
 
         if !python.status.success() {
             // Try with software-properties-common for deadsnakes PPA
             emit_progress("Agregando repositorio Python...");
-            
+
             let _ = Command::new("wsl")
-                .args(["--", "sudo", "apt-get", "install", "-y", "software-properties-common"])
+                .args([
+                    "--",
+                    "sudo",
+                    "apt-get",
+                    "install",
+                    "-y",
+                    "software-properties-common",
+                ])
                 .output();
 
             let _ = Command::new("wsl")
-                .args(["--", "sudo", "add-apt-repository", "-y", "ppa:deadsnakes/ppa"])
+                .args([
+                    "--",
+                    "sudo",
+                    "add-apt-repository",
+                    "-y",
+                    "ppa:deadsnakes/ppa",
+                ])
                 .output();
 
             let _ = Command::new("wsl")
@@ -296,8 +333,16 @@ pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> 
                 .output();
 
             let retry = Command::new("wsl")
-                .args(["--", "sudo", "apt-get", "install", "-y",
-                       "python3.12", "python3.12-venv", "python3-pip"])
+                .args([
+                    "--",
+                    "sudo",
+                    "apt-get",
+                    "install",
+                    "-y",
+                    "python3.12",
+                    "python3.12-venv",
+                    "python3-pip",
+                ])
                 .output()
                 .map_err(|e| format!("Failed to install Python (retry): {}", e))?;
 
@@ -314,14 +359,27 @@ pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> 
             .output();
 
         let _ = Command::new("wsl")
-            .args(["--", "sudo", "chown", "-R", "$USER:$USER", "/opt/aurity-backend"])
+            .args([
+                "--",
+                "sudo",
+                "chown",
+                "-R",
+                "$USER:$USER",
+                "/opt/aurity-backend",
+            ])
             .output();
 
         emit_progress("Creando entorno virtual...");
 
         // Create virtual environment
         let venv = Command::new("wsl")
-            .args(["--", "python3.12", "-m", "venv", "/opt/aurity-backend/.venv"])
+            .args([
+                "--",
+                "python3.12",
+                "-m",
+                "venv",
+                "/opt/aurity-backend/.venv",
+            ])
             .output()
             .map_err(|e| format!("Failed to create venv: {}", e))?;
 
@@ -334,9 +392,18 @@ pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> 
 
         // Install minimal dependencies
         let pip_install = Command::new("wsl")
-            .args(["--", "/opt/aurity-backend/.venv/bin/pip", "install", 
-                   "fastapi", "uvicorn[standard]", "httpx", "python-multipart",
-                   "pydantic", "pyjwt", "python-dotenv"])
+            .args([
+                "--",
+                "/opt/aurity-backend/.venv/bin/pip",
+                "install",
+                "fastapi",
+                "uvicorn[standard]",
+                "httpx",
+                "python-multipart",
+                "pydantic",
+                "pyjwt",
+                "python-dotenv",
+            ])
             .output()
             .map_err(|e| format!("Failed to install dependencies: {}", e))?;
 
@@ -352,7 +419,7 @@ pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> 
         if let Some(win_path) = backend_source {
             // Convert Windows path to WSL path
             let wsl_source = windows_to_wsl_path(&win_path);
-            
+
             // Copy backend files
             let copy = Command::new("wsl")
                 .args(["--", "cp", "-r", &wsl_source, "/opt/aurity-backend/src"])
@@ -376,8 +443,8 @@ exec python backend_minimal.py
 
         // Write startup script
         let write_script = Command::new("wsl")
-            .args(["--", "bash", "-c", 
-                   &format!("echo '{}' | sudo tee /opt/aurity-backend/start.sh && sudo chmod +x /opt/aurity-backend/start.sh", 
+            .args(["--", "bash", "-c",
+                   &format!("echo '{}' | sudo tee /opt/aurity-backend/start.sh && sudo chmod +x /opt/aurity-backend/start.sh",
                            startup_script.replace("'", "'\"'\"'"))])
             .output();
 
@@ -402,7 +469,7 @@ fn get_windows_backend_path() -> Option<String> {
     // Try to find backend relative to exe
     let exe = std::env::current_exe().ok()?;
     let mut path = exe.parent()?;
-    
+
     // Go up until we find the backend directory
     for _ in 0..5 {
         let backend = path.join("backend");
@@ -411,20 +478,20 @@ fn get_windows_backend_path() -> Option<String> {
         }
         path = path.parent()?;
     }
-    
+
     // Fallback to common development paths
     let home = dirs::home_dir()?;
     let candidates = vec![
         home.join("free-intelligence/backend"),
         home.join("projects/free-intelligence/backend"),
     ];
-    
+
     for candidate in candidates {
         if candidate.exists() {
             return Some(candidate.to_string_lossy().to_string());
         }
     }
-    
+
     None
 }
 
@@ -448,15 +515,19 @@ pub fn start_wsl_backend() -> Result<String, String> {
     {
         // Start backend in background via WSL
         let output = Command::new("wsl")
-            .args(["--", "bash", "-c", 
-                   "nohup /opt/aurity-backend/start.sh > /opt/aurity-backend/backend.log 2>&1 &"])
+            .args([
+                "--",
+                "bash",
+                "-c",
+                "nohup /opt/aurity-backend/start.sh > /opt/aurity-backend/backend.log 2>&1 &",
+            ])
             .output()
             .map_err(|e| format!("Failed to start backend: {}", e))?;
 
         if output.status.success() {
             // Wait a moment for startup
             std::thread::sleep(Duration::from_secs(2));
-            
+
             // Check if it's running
             if check_backend_running() {
                 Ok("Backend started successfully".to_string())
@@ -524,7 +595,13 @@ pub fn get_wsl_backend_logs(lines: Option<u32>) -> Result<String, String> {
     {
         let n = lines.unwrap_or(50);
         let output = Command::new("wsl")
-            .args(["--", "tail", "-n", &n.to_string(), "/opt/aurity-backend/backend.log"])
+            .args([
+                "--",
+                "tail",
+                "-n",
+                &n.to_string(),
+                "/opt/aurity-backend/backend.log",
+            ])
             .output()
             .map_err(|e| format!("Failed to get logs: {}", e))?;
 

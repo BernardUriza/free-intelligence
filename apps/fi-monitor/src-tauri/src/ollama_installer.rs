@@ -53,7 +53,12 @@ fn find_ollama_path() -> Option<String> {
 
         // Also check user's local AppData
         if let Some(local_app_data) = dirs::data_local_dir() {
-            paths.push(local_app_data.join("Programs").join("Ollama").join("ollama.exe"));
+            paths.push(
+                local_app_data
+                    .join("Programs")
+                    .join("Ollama")
+                    .join("ollama.exe"),
+            );
         }
 
         for path in paths {
@@ -106,7 +111,10 @@ pub async fn install_ollama_silent(app: tauri::AppHandle) -> Result<bool, String
         let installer_path = get_bundled_installer_path()
             .ok_or("Ollama installer not found in bundle".to_string())?;
 
-        println!("[FI Monitor] Found bundled Ollama installer: {:?}", installer_path);
+        println!(
+            "[FI Monitor] Found bundled Ollama installer: {:?}",
+            installer_path
+        );
         let _ = app.emit("ollama-install-status", "Instalando Ollama...");
 
         // Run Ollama installer silently
@@ -158,16 +166,21 @@ pub async fn download_and_install_ollama(app: tauri::AppHandle) -> Result<bool, 
         // Download installer
         println!("[FI Monitor] Downloading Ollama from: {}", download_url);
         let client = reqwest::Client::new();
-        let response = client.get(download_url)
+        let response = client
+            .get(download_url)
             .send()
             .await
             .map_err(|e| format!("Download failed: {}", e))?;
 
         if !response.status().is_success() {
-            return Err(format!("Download failed with status: {}", response.status()));
+            return Err(format!(
+                "Download failed with status: {}",
+                response.status()
+            ));
         }
 
-        let bytes = response.bytes()
+        let bytes = response
+            .bytes()
             .await
             .map_err(|e| format!("Failed to read response: {}", e))?;
 

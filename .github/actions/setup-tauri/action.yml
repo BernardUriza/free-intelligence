@@ -42,7 +42,7 @@ runs:
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: '1.84.0'
+        toolchain: '1.85.0'
         targets: ${{ inputs.rust-target }}
         components: rustfmt, clippy
 

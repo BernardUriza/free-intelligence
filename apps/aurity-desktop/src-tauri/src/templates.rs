@@ -20,20 +20,17 @@ pub const PERSONA_CLINICAL_ADVISOR: &str =
 pub const PERSONA_SOAP_EDITOR: &str = include_str!("../templates/personas/soap_editor.yaml");
 
 /// Honest Limiter - Transparency and limitations focus
-pub const PERSONA_HONEST_LIMITER: &str =
-    include_str!("../templates/personas/honest_limiter.yaml");
+pub const PERSONA_HONEST_LIMITER: &str = include_str!("../templates/personas/honest_limiter.yaml");
 
 /// Onboarding Guide - First-run walkthrough
 pub const PERSONA_ONBOARDING_GUIDE: &str =
     include_str!("../templates/personas/onboarding_guide.yaml");
 
 /// Growth Mirror - Meta-cognitive reflection
-pub const PERSONA_GROWTH_MIRROR: &str =
-    include_str!("../templates/personas/growth_mirror.yaml");
+pub const PERSONA_GROWTH_MIRROR: &str = include_str!("../templates/personas/growth_mirror.yaml");
 
 /// Pattern Weaver - Conversation history analysis
-pub const PERSONA_PATTERN_WEAVER: &str =
-    include_str!("../templates/personas/pattern_weaver.yaml");
+pub const PERSONA_PATTERN_WEAVER: &str = include_str!("../templates/personas/pattern_weaver.yaml");
 
 /// Sovereignty Guide - Data sovereignty education
 pub const PERSONA_SOVEREIGNTY_GUIDE: &str =

@@ -118,9 +118,13 @@ async fn check_ollama() -> bool {
 
 async fn get_ollama_models() -> Vec<String> {
     #[derive(Deserialize)]
-    struct ModelsResponse { models: Vec<Model> }
+    struct ModelsResponse {
+        models: Vec<Model>,
+    }
     #[derive(Deserialize)]
-    struct Model { name: String }
+    struct Model {
+        name: String,
+    }
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
@@ -170,9 +174,15 @@ async fn start_ollama(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, St
 async fn stop_ollama(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
     println!("[FI Monitor] Stopping Ollama...");
     #[cfg(target_os = "windows")]
-    { let _ = Command::new("taskkill").args(["/F", "/IM", "ollama.exe"]).output(); }
+    {
+        let _ = Command::new("taskkill")
+            .args(["/F", "/IM", "ollama.exe"])
+            .output();
+    }
     #[cfg(not(target_os = "windows"))]
-    { let _ = Command::new("pkill").arg("ollama").output(); }
+    {
+        let _ = Command::new("pkill").arg("ollama").output();
+    }
     *state.ollama_running.lock().unwrap() = false;
     Ok(true)
 }
@@ -224,8 +234,8 @@ async fn start_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<boo
     };
 
     // Get the app directory (where gateway/ and rag_service/ are located)
-    let app_dir = std::env::current_dir()
-        .map_err(|e| format!("Failed to get current dir: {}", e))?;
+    let app_dir =
+        std::env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
 
     println!("[FI Monitor] App directory: {:?}", app_dir);
 
@@ -234,18 +244,34 @@ async fn start_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<boo
 
     #[cfg(target_os = "windows")]
     let mut cmd = Command::new(python);
-    cmd.args(["-m", "uvicorn", "rag_service.main:app", "--host", "0.0.0.0", "--port", "11435"])
-        .current_dir(&app_dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .creation_flags(CREATE_NO_WINDOW);
+    cmd.args([
+        "-m",
+        "uvicorn",
+        "rag_service.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "11435",
+    ])
+    .current_dir(&app_dir)
+    .stdout(Stdio::null())
+    .stderr(Stdio::null())
+    .creation_flags(CREATE_NO_WINDOW);
 
     #[cfg(not(target_os = "windows"))]
     let mut cmd = Command::new(python);
-    cmd.args(["-m", "uvicorn", "rag_service.main:app", "--host", "0.0.0.0", "--port", "11435"])
-        .current_dir(&app_dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    cmd.args([
+        "-m",
+        "uvicorn",
+        "rag_service.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "11435",
+    ])
+    .current_dir(&app_dir)
+    .stdout(Stdio::null())
+    .stderr(Stdio::null());
 
     let result = cmd.spawn();
 
@@ -275,9 +301,15 @@ async fn stop_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<bool
 
     if let Some(pid) = state.rag_service_process.lock().unwrap().take() {
         #[cfg(target_os = "windows")]
-        { let _ = Command::new("taskkill").args(["/F", "/PID", &pid.to_string()]).output(); }
+        {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/PID", &pid.to_string()])
+                .output();
+        }
         #[cfg(not(target_os = "windows"))]
-        { let _ = Command::new("kill").arg(pid.to_string()).output(); }
+        {
+            let _ = Command::new("kill").arg(pid.to_string()).output();
+        }
     }
 
     *state.rag_service_running.lock().unwrap() = false;
@@ -301,26 +333,42 @@ async fn start_gateway(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, S
     };
 
     // Get the app directory
-    let app_dir = std::env::current_dir()
-        .map_err(|e| format!("Failed to get current dir: {}", e))?;
+    let app_dir =
+        std::env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
 
     #[cfg(target_os = "windows")]
     const CREATE_NO_WINDOW: u32 = 0x08000000;
 
     #[cfg(target_os = "windows")]
     let mut cmd = Command::new(python);
-    cmd.args(["-m", "uvicorn", "gateway.main:app", "--host", "0.0.0.0", "--port", "11400"])
-        .current_dir(&app_dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .creation_flags(CREATE_NO_WINDOW);
+    cmd.args([
+        "-m",
+        "uvicorn",
+        "gateway.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "11400",
+    ])
+    .current_dir(&app_dir)
+    .stdout(Stdio::null())
+    .stderr(Stdio::null())
+    .creation_flags(CREATE_NO_WINDOW);
 
     #[cfg(not(target_os = "windows"))]
     let mut cmd = Command::new(python);
-    cmd.args(["-m", "uvicorn", "gateway.main:app", "--host", "0.0.0.0", "--port", "11400"])
-        .current_dir(&app_dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    cmd.args([
+        "-m",
+        "uvicorn",
+        "gateway.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "11400",
+    ])
+    .current_dir(&app_dir)
+    .stdout(Stdio::null())
+    .stderr(Stdio::null());
 
     let result = cmd.spawn();
 
@@ -350,9 +398,15 @@ async fn stop_gateway(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, St
 
     if let Some(pid) = state.gateway_process.lock().unwrap().take() {
         #[cfg(target_os = "windows")]
-        { let _ = Command::new("taskkill").args(["/F", "/PID", &pid.to_string()]).output(); }
+        {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/PID", &pid.to_string()])
+                .output();
+        }
         #[cfg(not(target_os = "windows"))]
-        { let _ = Command::new("kill").arg(pid.to_string()).output(); }
+        {
+            let _ = Command::new("kill").arg(pid.to_string()).output();
+        }
     }
 
     *state.gateway_running.lock().unwrap() = false;
@@ -360,7 +414,10 @@ async fn stop_gateway(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, St
 }
 
 #[tauri::command]
-async fn start_tunnel(app: tauri::AppHandle, state: tauri::State<'_, Arc<AppState>>) -> Result<String, String> {
+async fn start_tunnel(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<String, String> {
     start_tunnel_internal(app, Arc::clone(&*state)).await
 }
 
@@ -369,12 +426,22 @@ async fn stop_tunnel(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, Str
     println!("[FI Monitor] Stopping tunnel...");
     if let Some(pid) = state.tunnel_process.lock().unwrap().take() {
         #[cfg(target_os = "windows")]
-        { let _ = Command::new("taskkill").args(["/F", "/PID", &pid.to_string()]).output(); }
+        {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/PID", &pid.to_string()])
+                .output();
+        }
         #[cfg(not(target_os = "windows"))]
-        { let _ = Command::new("kill").arg(pid.to_string()).output(); }
+        {
+            let _ = Command::new("kill").arg(pid.to_string()).output();
+        }
     }
     #[cfg(target_os = "windows")]
-    { let _ = Command::new("taskkill").args(["/F", "/IM", "cloudflared.exe"]).output(); }
+    {
+        let _ = Command::new("taskkill")
+            .args(["/F", "/IM", "cloudflared.exe"])
+            .output();
+    }
     *state.tunnel_running.lock().unwrap() = false;
     *state.tunnel_url.lock().unwrap() = None;
     Ok(true)
@@ -383,17 +450,19 @@ async fn stop_tunnel(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, Str
 /// Upload tunnel URL to Azure Blob Storage with retry logic
 fn upload_tunnel_url_to_azure(url: &str, config: &AppConfig) -> Result<(), String> {
     // Get SAS URL from config (persisted) or environment
-    let azure_sas_url = config.azure_sas_url.clone()
+    let azure_sas_url = config
+        .azure_sas_url
+        .clone()
         .or_else(|| std::env::var("FI_AZURE_TUNNEL_BLOB_SAS").ok())
         .unwrap_or_default();
-    
+
     if azure_sas_url.is_empty() {
         println!("[FI Monitor] No Azure SAS URL configured, skipping upload");
         // Still save locally as backup
         save_tunnel_url_locally(url)?;
         return Ok(());
     }
-    
+
     let hostname = gethostname::gethostname().to_string_lossy().to_string();
     let timestamp = chrono::Utc::now().to_rfc3339();
     let content = serde_json::json!({
@@ -406,26 +475,30 @@ fn upload_tunnel_url_to_azure(url: &str, config: &AppConfig) -> Result<(), Strin
             "rag": format!("{}/rag", url),
             "gateway": format!("{}/gateway/health", url)
         }
-    }).to_string();
-    
+    })
+    .to_string();
+
     // Retry with exponential backoff
     let max_retries = 3;
     let mut last_error = String::new();
-    
+
     for attempt in 0..max_retries {
         if attempt > 0 {
             let delay = Duration::from_millis(500 * 2u64.pow(attempt as u32));
             println!("[FI Monitor] Retry {} in {:?}...", attempt + 1, delay);
             std::thread::sleep(delay);
         }
-        
-        println!("[FI Monitor] Uploading tunnel URL to Azure (attempt {})...", attempt + 1);
-        
+
+        println!(
+            "[FI Monitor] Uploading tunnel URL to Azure (attempt {})...",
+            attempt + 1
+        );
+
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(30))
             .build()
             .map_err(|e| format!("Client error: {}", e))?;
-        
+
         match client
             .put(&azure_sas_url)
             .header("x-ms-blob-type", "BlockBlob")
@@ -440,7 +513,11 @@ fn upload_tunnel_url_to_azure(url: &str, config: &AppConfig) -> Result<(), Strin
                 return Ok(());
             }
             Ok(response) => {
-                last_error = format!("HTTP {}: {}", response.status(), response.status().canonical_reason().unwrap_or("Unknown"));
+                last_error = format!(
+                    "HTTP {}: {}",
+                    response.status(),
+                    response.status().canonical_reason().unwrap_or("Unknown")
+                );
                 println!("[FI Monitor] ⚠️ Azure returned: {}", last_error);
             }
             Err(e) => {
@@ -449,9 +526,12 @@ fn upload_tunnel_url_to_azure(url: &str, config: &AppConfig) -> Result<(), Strin
             }
         }
     }
-    
+
     // All retries failed - save locally as fallback
-    println!("[FI Monitor] ⚠️ Azure upload failed after {} retries, saving locally", max_retries);
+    println!(
+        "[FI Monitor] ⚠️ Azure upload failed after {} retries, saving locally",
+        max_retries
+    );
     save_tunnel_url_locally(url)?;
     Err(last_error)
 }
@@ -462,11 +542,11 @@ fn save_tunnel_url_locally(url: &str) -> Result<(), String> {
         .unwrap_or_else(|| PathBuf::from("."))
         .join("fi-monitor")
         .join("tunnel-url.json");
-    
+
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    
+
     let hostname = gethostname::gethostname().to_string_lossy().to_string();
     let timestamp = chrono::Utc::now().to_rfc3339();
     let content = serde_json::json!({
@@ -474,7 +554,7 @@ fn save_tunnel_url_locally(url: &str) -> Result<(), String> {
         "hostname": hostname,
         "updated_at": timestamp
     });
-    
+
     let json = serde_json::to_string_pretty(&content).map_err(|e| e.to_string())?;
     std::fs::write(&path, json).map_err(|e| e.to_string())?;
     println!("[FI Monitor] 💾 Tunnel URL saved locally: {:?}", path);
@@ -487,7 +567,7 @@ fn start_periodic_upload(url: String, config: AppConfig) {
         loop {
             // Wait 5 minutes
             std::thread::sleep(Duration::from_secs(300));
-            
+
             println!("[FI Monitor] 🔄 Periodic re-upload of tunnel URL...");
             if let Err(e) = upload_tunnel_url_to_azure(&url, &config) {
                 println!("[FI Monitor] ⚠️ Periodic upload failed: {}", e);
@@ -539,7 +619,10 @@ fn start_tunnel_watchdog(app: tauri::AppHandle, state: Arc<AppState>) {
 
             if let Some(pid) = pid_opt {
                 if !is_process_alive(pid) {
-                    println!("[FI Monitor Watchdog] ⚠️ Tunnel process {} died! Restarting...", pid);
+                    println!(
+                        "[FI Monitor Watchdog] ⚠️ Tunnel process {} died! Restarting...",
+                        pid
+                    );
 
                     // Mark as not running
                     *state.tunnel_running.lock().unwrap() = false;
@@ -559,7 +642,9 @@ fn start_tunnel_watchdog(app: tauri::AppHandle, state: Arc<AppState>) {
                         if check_ollama().await {
                             match start_tunnel_internal(app_clone.clone(), state_clone).await {
                                 Ok(_) => println!("[FI Monitor Watchdog] ✅ Tunnel restarted"),
-                                Err(e) => println!("[FI Monitor Watchdog] ❌ Failed to restart: {}", e),
+                                Err(e) => {
+                                    println!("[FI Monitor Watchdog] ❌ Failed to restart: {}", e)
+                                }
                             }
                         } else {
                             println!("[FI Monitor Watchdog] ❌ Ollama not running, cannot restart tunnel");
@@ -575,7 +660,10 @@ fn start_tunnel_watchdog(app: tauri::AppHandle, state: Arc<AppState>) {
 }
 
 /// Internal function to start tunnel (used by both command and watchdog)
-async fn start_tunnel_internal(app: tauri::AppHandle, state: Arc<AppState>) -> Result<String, String> {
+async fn start_tunnel_internal(
+    app: tauri::AppHandle,
+    state: Arc<AppState>,
+) -> Result<String, String> {
     if !check_ollama().await {
         return Err("Ollama is not running".to_string());
     }
@@ -592,7 +680,7 @@ async fn start_tunnel_internal(app: tauri::AppHandle, state: Arc<AppState>) -> R
 
     #[cfg(target_os = "windows")]
     let mut child = Command::new(&cloudflared)
-        .args(["tunnel", "--url", "http://localhost:11400"])  // Gateway port (routes to Ollama + RAG)
+        .args(["tunnel", "--url", "http://localhost:11400"]) // Gateway port (routes to Ollama + RAG)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .creation_flags(CREATE_NO_WINDOW)
@@ -601,7 +689,7 @@ async fn start_tunnel_internal(app: tauri::AppHandle, state: Arc<AppState>) -> R
 
     #[cfg(not(target_os = "windows"))]
     let mut child = Command::new(&cloudflared)
-        .args(["tunnel", "--url", "http://localhost:11400"])  // Gateway port (routes to Ollama + RAG)
+        .args(["tunnel", "--url", "http://localhost:11400"]) // Gateway port (routes to Ollama + RAG)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -688,7 +776,11 @@ fn find_cloudflared() -> Result<String, String> {
 #[tauri::command]
 async fn get_status(state: tauri::State<'_, Arc<AppState>>) -> Result<ServiceStatus, String> {
     let ollama_running = check_ollama().await;
-    let models = if ollama_running { get_ollama_models().await } else { vec![] };
+    let models = if ollama_running {
+        get_ollama_models().await
+    } else {
+        vec![]
+    };
     let rag_service_running = check_rag_service().await;
     let gateway_running = check_gateway().await;
 
@@ -717,49 +809,108 @@ async fn test_ollama() -> Result<TestResult, String> {
         return Err("Ollama no está ejecutándose".to_string());
     }
     let questions = vec![
-        ("math", "¿Cuál es la raíz cuadrada de 144? Responde solo el número."),
-        ("anatomy", "Explica brevemente qué es el hígado y su función principal."),
-        ("math", "¿Cuál es la raíz cuadrada de 256? Responde solo el número."),
-        ("anatomy", "Explica brevemente qué es el corazón y su función principal."),
-        ("math", "¿Cuál es la raíz cuadrada de 625? Responde solo el número."),
-        ("anatomy", "Explica brevemente qué son los pulmones y su función."),
+        (
+            "math",
+            "¿Cuál es la raíz cuadrada de 144? Responde solo el número.",
+        ),
+        (
+            "anatomy",
+            "Explica brevemente qué es el hígado y su función principal.",
+        ),
+        (
+            "math",
+            "¿Cuál es la raíz cuadrada de 256? Responde solo el número.",
+        ),
+        (
+            "anatomy",
+            "Explica brevemente qué es el corazón y su función principal.",
+        ),
+        (
+            "math",
+            "¿Cuál es la raíz cuadrada de 625? Responde solo el número.",
+        ),
+        (
+            "anatomy",
+            "Explica brevemente qué son los pulmones y su función.",
+        ),
     ];
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     let idx = (now % questions.len() as u64) as usize;
     let (category, prompt) = questions[idx];
     println!("[FI Monitor] Testing: {}", prompt);
     let start = Instant::now();
-    let client = reqwest::Client::builder().timeout(Duration::from_secs(60)).build().unwrap();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .unwrap();
     #[derive(Serialize)]
-    struct Req { model: String, prompt: String, stream: bool }
+    struct Req {
+        model: String,
+        prompt: String,
+        stream: bool,
+    }
     #[derive(Deserialize)]
-    struct Res { response: String }
-    let request = Req { model: "qwen3:1.7b".to_string(), prompt: prompt.to_string(), stream: false };
-    let response = client.post("http://localhost:11434/api/generate").json(&request).send().await
+    struct Res {
+        response: String,
+    }
+    let request = Req {
+        model: "qwen3:1.7b".to_string(),
+        prompt: prompt.to_string(),
+        stream: false,
+    };
+    let response = client
+        .post("http://localhost:11434/api/generate")
+        .json(&request)
+        .send()
+        .await
         .map_err(|e| format!("Error: {}", e))?;
-    let res: Res = response.json().await.map_err(|e| format!("Parse error: {}", e))?;
+    let res: Res = response
+        .json()
+        .await
+        .map_err(|e| format!("Parse error: {}", e))?;
     let elapsed_ms = start.elapsed().as_millis() as u64;
     println!("[FI Monitor] Response in {}ms", elapsed_ms);
-    Ok(TestResult { category: category.to_string(), question: prompt.to_string(), answer: res.response.trim().to_string(), elapsed_ms, timestamp: chrono::Utc::now().to_rfc3339() })
+    Ok(TestResult {
+        category: category.to_string(),
+        question: prompt.to_string(),
+        answer: res.response.trim().to_string(),
+        elapsed_ms,
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    })
 }
 
 #[derive(Serialize, Clone)]
-struct TestResult { category: String, question: String, answer: String, elapsed_ms: u64, timestamp: String }
+struct TestResult {
+    category: String,
+    question: String,
+    answer: String,
+    elapsed_ms: u64,
+    timestamp: String,
+}
 
 #[tauri::command]
 async fn is_autostart_enabled(app: tauri::AppHandle) -> Result<bool, String> {
-    app.autolaunch().is_enabled().map_err(|e: tauri_plugin_autostart::Error| e.to_string())
+    app.autolaunch()
+        .is_enabled()
+        .map_err(|e: tauri_plugin_autostart::Error| e.to_string())
 }
 
 #[tauri::command]
 async fn enable_autostart(app: tauri::AppHandle) -> Result<bool, String> {
-    app.autolaunch().enable().map_err(|e: tauri_plugin_autostart::Error| e.to_string())?;
+    app.autolaunch()
+        .enable()
+        .map_err(|e: tauri_plugin_autostart::Error| e.to_string())?;
     Ok(true)
 }
 
 #[tauri::command]
 async fn disable_autostart(app: tauri::AppHandle) -> Result<bool, String> {
-    app.autolaunch().disable().map_err(|e: tauri_plugin_autostart::Error| e.to_string())?;
+    app.autolaunch()
+        .disable()
+        .map_err(|e: tauri_plugin_autostart::Error| e.to_string())?;
     Ok(true)
 }
 
@@ -768,7 +919,10 @@ async fn disable_autostart(app: tauri::AppHandle) -> Result<bool, String> {
 // ============================================================================
 
 #[tauri::command]
-async fn set_azure_sas_url(state: tauri::State<'_, Arc<AppState>>, sas_url: String) -> Result<bool, String> {
+async fn set_azure_sas_url(
+    state: tauri::State<'_, Arc<AppState>>,
+    sas_url: String,
+) -> Result<bool, String> {
     let mut config = state.config.lock().unwrap();
     config.azure_sas_url = Some(sas_url);
     save_config(&config)?;
@@ -777,13 +931,17 @@ async fn set_azure_sas_url(state: tauri::State<'_, Arc<AppState>>, sas_url: Stri
 }
 
 #[tauri::command]
-async fn get_azure_sas_url(state: tauri::State<'_, Arc<AppState>>) -> Result<Option<String>, String> {
+async fn get_azure_sas_url(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Option<String>, String> {
     let config = state.config.lock().unwrap();
     Ok(config.azure_sas_url.clone())
 }
 
 #[tauri::command]
-async fn get_last_tunnel_url(state: tauri::State<'_, Arc<AppState>>) -> Result<Option<String>, String> {
+async fn get_last_tunnel_url(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Option<String>, String> {
     let config = state.config.lock().unwrap();
     Ok(config.last_tunnel_url.clone())
 }
@@ -798,12 +956,12 @@ fn main() {
     if let Some(ref url) = config.last_tunnel_url {
         println!("[FI Monitor] Last tunnel URL: {}", url);
     }
-    
+
     let state = Arc::new(AppState {
         config: Mutex::new(config),
         ..Default::default()
     });
-    
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
@@ -832,7 +990,7 @@ fn main() {
                     }
                 })
                 .build(app)?;
-            
+
             // Intercept close to minimize to tray instead of quitting
             if let Some(window) = app.get_webview_window("main") {
                 let window_clone = window.clone();
@@ -844,7 +1002,7 @@ fn main() {
                     }
                 });
             }
-            
+
             // Check for updates in background
             let app_for_update = app_handle.clone();
             tauri::async_runtime::spawn(async move {
