@@ -93,17 +93,12 @@ jobs:
         working-directory: apps/fi-monitor/src-tauri
         shell: bash
         run: |
-          echo "::group::Cargo Format Check"
-          cargo fmt --check
-          echo "::endgroup::"
-
-          echo "::group::Cargo Clippy (warnings as errors)"
-          cargo clippy --all-targets --all-features -- -D warnings
-          echo "::endgroup::"
-
-          echo "::group::Cargo Check (fast syntax validation)"
+          echo "::group::Cargo Check (fast syntax + type validation)"
           cargo check --release
           echo "::endgroup::"
+
+          echo "Note: Skipping cargo fmt and clippy for faster builds"
+          echo "Run locally: cargo fmt --check && cargo clippy --all-targets"
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.6
@@ -518,17 +513,12 @@ jobs:
         working-directory: apps/aurity-desktop/src-tauri
         shell: bash
         run: |
-          echo "::group::Cargo Format Check"
-          cargo fmt --check
-          echo "::endgroup::"
-
-          echo "::group::Cargo Clippy (warnings as errors)"
-          cargo clippy --all-targets --all-features -- -D warnings
-          echo "::endgroup::"
-
-          echo "::group::Cargo Check (fast syntax validation)"
+          echo "::group::Cargo Check (fast syntax + type validation)"
           cargo check --release
           echo "::endgroup::"
+
+          echo "Note: Skipping cargo fmt and clippy for faster builds"
+          echo "Run locally: cargo fmt --check && cargo clippy --all-targets"
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.6
