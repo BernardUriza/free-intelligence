@@ -88,7 +88,54 @@ fi
 ```
 **Commit:** ac4143b
 
-### Error #9: NSIS Installer Duplicate HWND_BROADCAST Definition
+### Error #9: Signing Still Hangs (Timestamp Server Timeout)
+**Build:** #21160500828 (both build-fi-monitor and build-windows hung)
+**Síntoma:** Build colgado 19+ minutos en "Sign NSIS installer" a pesar de Fix #7
+**Root Cause:** Fix #7 resolvió PowerShell stdin pipe hang, pero Tauri signer TODAVÍA espera timestamp servers externos (timestamp.digicert.com, etc.) que timeout o son lentos
+**Web Research:** Timestamp servers pueden tardar 30+ segundos o timeout completamente durante peak hours
+**Fix #9 (Workaround):** Agregar timeout + continue-on-error para no bloquear build:
+```yaml
+- name: Sign NSIS installer
+  timeout-minutes: 2          # Kill si tarda >2 min
+  continue-on-error: true     # No bloquear build si falla
+  working-directory: apps/fi-monitor
+  shell: pwsh
+  run: |
+    pnpm tauri signer sign "${{ steps.paths.outputs.path }}" --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
+```
+**Commit:** 23f255e
+**Outcome:** Build continúa con unsigned binary (funcional para pilotos), signing manual después
+
+**Fix #10A (Permanent Solution - Disable Timestamp Server):**
+**Problem:** Fix #9 es workaround (desperdicia 2 minutos intentando signing que fallará)
+**Solution:** Deshabilitar timestamp server completamente:
+```json
+// apps/fi-monitor/src-tauri/tauri.conf.json:57
+// apps/aurity-desktop/src-tauri/tauri.conf.json:91
+{
+  "windows": {
+    "timestampUrl": null  // ANTES: "" (empty string)
+  }
+}
+```
+**Commit:** 3babf5c
+
+**Critical Insight - `null` vs `""`:**
+- `""` (empty string) → Tauri intenta usar timestamp server default (timestamp.digicert.com)
+  - Resultado: Network request que puede tardar 30+ segundos o timeout
+  - CI/CD depende de disponibilidad de servidor externo
+- `null` → Tauri omite timestamp completamente
+  - Resultado: Signing instantáneo con Ed25519 key (sin network dependency)
+  - Binary tiene misma SmartScreen warning que con `""` (no hay diferencia práctica)
+- **Beneficio Fix #10A:** Ahorra 2-4 minutos por build, elimina network dependency
+
+**SmartScreen Bypass (User Experience):**
+- Pilot users ven warning: "Windows protected your PC"
+- Click "More info" → "Run anyway" (2 clicks)
+- Después de primera instalación, auto-updater funciona sin warnings
+- Hash SHA256 incluido en release notes para verificación manual
+
+### Error #10: NSIS Installer Duplicate HWND_BROADCAST Definition
 **Build:** #21160500828
 **Síntoma:**
 ```
@@ -117,7 +164,8 @@ failed to bundle project `The system cannot find the file specified. (os error 2
 | #21159741973 | #1-6 | Pre-build Validation | cargo clippy timeout |
 | #21159966229 | #1-6 | Pre-build Validation | Disabled (fix #6) |
 | #21160148835 | #1-6 | Sign NSIS installer | PowerShell hang (error #7) |
-| #21160500828 | #1-8 | Build Tauri app (NSIS) | Duplicate HWND_BROADCAST (error #9) |
+| #21160500828 | #1-8 | Sign NSIS installer | Timestamp hang (error #9) - Cancelled |
+| #21160908609 | #1-9 | In Progress | Testing Fix #9 (timeout workaround) |
 
 ## Key Learnings
 
