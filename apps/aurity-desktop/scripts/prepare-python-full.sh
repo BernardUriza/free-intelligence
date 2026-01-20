@@ -26,8 +26,17 @@ else
     fi
 fi
 
-# Get file size in a cross-platform way (wc -c works on Linux, macOS, Windows Git Bash)
-FILE_SIZE=$(wc -c < "$OUTPUT_DIR/python-${PYTHON_VERSION}-amd64.exe" | tr -d ' ')
+# Get file size in a cross-platform way
+if command -v stat &> /dev/null && stat --version &> /dev/null 2>&1; then
+    # Linux (GNU stat)
+    FILE_SIZE=$(stat -c%s "$OUTPUT_DIR/python-${PYTHON_VERSION}-amd64.exe")
+elif command -v stat &> /dev/null; then
+    # macOS (BSD stat)
+    FILE_SIZE=$(stat -f%z "$OUTPUT_DIR/python-${PYTHON_VERSION}-amd64.exe")
+else
+    # Windows PowerShell fallback
+    FILE_SIZE=$(powershell -Command "(Get-Item '$OUTPUT_DIR/python-${PYTHON_VERSION}-amd64.exe').Length")
+fi
 FILE_SIZE_MB=$((FILE_SIZE / 1024 / 1024))
 echo "Downloaded: ${FILE_SIZE_MB} MB"
 
