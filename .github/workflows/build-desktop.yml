@@ -151,6 +151,8 @@ jobs:
           "file=$($INFO.file)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Sign NSIS installer
+        timeout-minutes: 2
+        continue-on-error: true
         working-directory: apps/fi-monitor
         shell: pwsh
         run: |
@@ -651,6 +653,8 @@ jobs:
           echo "::endgroup::"
 
       - name: Sign NSIS installer
+        timeout-minutes: 2
+        continue-on-error: true
         working-directory: apps/aurity-desktop
         run: |
           pnpm tauri signer sign `
