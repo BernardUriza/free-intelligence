@@ -6,10 +6,8 @@
 !include "LogicLib.nsh"
 
 # Windows API Constants
-# Note: HWND_BROADCAST is provided by Tauri's default template
-!ifndef HWND_BROADCAST
-  !define HWND_BROADCAST 0xFFFF
-!endif
+# Note: HWND_BROADCAST (0xFFFF) is provided by Tauri's bundler
+# We only define WM_SETTINGCHANGE which is not in Tauri's defaults
 !define WM_SETTINGCHANGE 0x1A
 
 # Variables
