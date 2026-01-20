@@ -798,28 +798,48 @@ jobs:
           path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.sig
           retention-days: 7
 
-      - name: Create GitHub Release
+      - name: Create or Update GitHub Release
         if: github.event_name == 'workflow_dispatch'
-        continue-on-error: true
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
-          name: Release v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          tag_name: v${{ steps.metadata.outputs.version }}
+          name: Aurity Desktop v${{ steps.metadata.outputs.version }}
           body: |
-            ## Aurity Desktop v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+            ## Aurity Desktop v${{ steps.metadata.outputs.version }}
 
-            ### Downloads
-            - Windows: NSIS installer
+            **Build:** #${{ github.run_id }}
+            **Commit:** ${{ steps.metadata.outputs.commit_short }}
+            **Fecha:** ${{ steps.metadata.outputs.timestamp }}
+
+            ### 📦 Descargas
+
+            | Plataforma | Arquitectura | Archivo |
+            |------------|--------------|---------|
+            | Windows | x86_64 | `Aurity_${{ steps.metadata.outputs.version }}_x64-setup.exe` |
+
+            ### 🔐 Verificación
+
+            Todos los instaladores están firmados con Ed25519. Para verificar:
+            ```bash
+            # Descargar .exe y .sig
+            tauri signer verify <archivo.exe> --public-key <tu-public-key>
+            ```
+
+            ### 📋 Requisitos
+
+            - **Windows:** 10/11 (x86_64)
+            - **RAM:** 4GB mínimo
+            - **Licencia:** Válida de Aurity
 
             ---
-            🤖 Auto-generated release
+            🤖 Generated with [Claude Code](https://claude.com/claude-code)
           files: |
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.AppImage
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.nsis.zip
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
+            apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.sig
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
