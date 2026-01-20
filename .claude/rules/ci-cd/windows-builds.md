@@ -136,22 +136,29 @@ fi
 - Hash SHA256 incluido en release notes para verificación manual
 
 ### Error #10: NSIS Installer Duplicate HWND_BROADCAST Definition
-**Build:** #21160500828
+**Build:** #21160908609 (3 retry attempts all failed)
 **Síntoma:**
 ```
 !define: "HWND_BROADCAST" already defined!
 Error in script "...\installer.nsi" on line 9 -- aborting creation process
 failed to bundle project `The system cannot find the file specified. (os error 2)`
 ```
-**Root Cause:** Custom NSIS template (`installer-template.nsi` line 9) defines HWND_BROADCAST, but Tauri's bundler already provides this constant
-**Progress:** ✅ PyInstaller, ✅ Rust compilation (10m 54s), ✅ MSI created, ❌ NSIS fails
-**Fix:** Wrap definition with `!ifndef` guard to prevent duplication:
+**Root Cause:** Tauri bundler defines HWND_BROADCAST in base NSIS script FIRST, then includes custom template. The `!ifndef` guard doesn't work because definition already exists at template processing time.
+**Progress:** ✅ PyInstaller, ✅ Rust compilation (11m 46s attempt 1, 2m 25s attempt 2, 0.88s attempt 3), ✅ MSI created, ❌ NSIS fails on all 3 attempts
+**Failed Fix:** Tried `!ifndef HWND_BROADCAST` guard - didn't work because Tauri defines it before processing template
+**Real Fix (commit f2d783c):** Remove HWND_BROADCAST definition completely from template - Tauri already provides it:
 ```nsis
+# BEFORE (caused error):
 !ifndef HWND_BROADCAST
   !define HWND_BROADCAST 0xFFFF
 !endif
+
+# AFTER (fix):
+# Note: HWND_BROADCAST (0xFFFF) is provided by Tauri's bundler
+# (definition removed - only keep WM_SETTINGCHANGE)
 ```
-**File:** `apps/aurity-desktop/src-tauri/installer-template.nsi`
+**File:** `apps/aurity-desktop/src-tauri/installer-template.nsi:8-12`
+**Lesson:** Template processing order matters - Tauri's base definitions come BEFORE custom template inclusion
 
 ## Build Progression
 
@@ -165,7 +172,11 @@ failed to bundle project `The system cannot find the file specified. (os error 2
 | #21159966229 | #1-6 | Pre-build Validation | Disabled (fix #6) |
 | #21160148835 | #1-6 | Sign NSIS installer | PowerShell hang (error #7) |
 | #21160500828 | #1-8 | Sign NSIS installer | Timestamp hang (error #9) - Cancelled |
-| #21160908609 | #1-9 | In Progress | Testing Fix #9 (timeout workaround) |
+| #21160908609 | #1-9 | Build Tauri app (NSIS) | HWND_BROADCAST duplicate (error #10) - Success overall* |
+
+*Build marked as success overall, but both Windows jobs failed:
+- build-fi-monitor: Signing timeout (expected), GitHub Release failed (no .sig file)
+- build-windows: HWND_BROADCAST duplicate on all 3 retry attempts
 
 ## Key Learnings
 
