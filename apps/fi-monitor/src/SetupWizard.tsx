@@ -119,7 +119,6 @@ interface InstallingScreenProps {
 }
 
 function InstallingScreen({ progress }: InstallingScreenProps) {
-  const latestProgress = progress[progress.length - 1] || 'Iniciando...';
   const progressPercent = Math.min(100, (progress.length / 5) * 100);
 
   return (
