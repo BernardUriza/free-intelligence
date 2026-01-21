@@ -84,7 +84,7 @@ if (!version || !productName) {
 
 // Mapeo de tipos de artifact a nombres de archivo
 const artifacts = {
-  nsis: `${productName}_${version}_x64-setup.nsis.zip`,
+  nsis: `${productName}_${version}_x64-setup.exe`,
   dmg: `${productName}_${version}_aarch64.dmg`,
   appimage: `${productName}_${version}_amd64.AppImage`
 };

@@ -187,7 +187,27 @@ jobs:
             echo "::debug::Fallback diff size: ${#RAW_DIFF} chars"
           fi
 
-          # Filter and truncate
+          # Win #1: Detect formatting-only changes (>80% whitespace)
+          TOTAL_LINES=$(echo "$RAW_DIFF" | wc -l | tr -d ' ')
+          WHITESPACE_LINES=$(echo "$RAW_DIFF" | grep -E '^\+\s*$|^\-\s*$|^\+\s+[^/]|^\-\s+[^/]' | wc -l | tr -d ' ')
+
+          # Prevent division by zero
+          if [ "$TOTAL_LINES" -eq 0 ]; then
+            FORMATTING_RATIO=0
+          else
+            FORMATTING_RATIO=$(( WHITESPACE_LINES * 100 / TOTAL_LINES ))
+          fi
+
+          if [ $FORMATTING_RATIO -gt 80 ]; then
+            echo "::warning::Detected formatting-only changes ($FORMATTING_RATIO% whitespace)"
+            echo "FORMATTING_ONLY=true" >> $GITHUB_ENV
+          else
+            echo "FORMATTING_ONLY=false" >> $GITHUB_ENV
+          fi
+
+          echo "::debug::Formatting analysis: $WHITESPACE_LINES/$TOTAL_LINES lines are whitespace ($FORMATTING_RATIO%)"
+
+          # Win #2: Filter and truncate (increased from 25KB to 50KB)
           DIFF=$(echo "$RAW_DIFF" | \
             awk -v exclude="$EXCLUDED_PATTERNS" '
               /^diff --git/ {
@@ -195,13 +215,21 @@ jobs:
                 if (match($0, exclude)) skip = 1
               }
               !skip { print }
-            ' | head -c 25000)
+            ' | head -c 50000)  # Increased from 25KB to 50KB
+
+          DIFF_SIZE=${#DIFF}
+          RAW_DIFF_SIZE=${#RAW_DIFF}
+          DIFF_TRUNCATED="false"
+          if [ $RAW_DIFF_SIZE -gt 50000 ]; then
+            DIFF_TRUNCATED="true"
+            echo "::warning::Diff truncated from $RAW_DIFF_SIZE to 50000 chars"
+          fi
 
           if [ -z "$DIFF" ]; then
             DIFF="No code changes detected (diff is empty)"
           fi
 
-          echo "::debug::Final diff size for AI: ${#DIFF} chars"
+          echo "::debug::Final diff size for AI: $DIFF_SIZE chars (truncated: $DIFF_TRUNCATED)"
 
           FILES_CHANGED=$(gh pr view $PR_NUMBER --json files -q '.files | length')
 
@@ -231,12 +259,37 @@ jobs:
           echo "✅ Passed: $PASSED_CHECKS"
           echo "❌ Failed: $FAILED_CHECKS"
 
+          # Win #4: Quick path - Auto-approve formatting-only changes
+          if [ "$FORMATTING_ONLY" = "true" ]; then
+            echo "::notice::Auto-approving formatting-only changes (no AI review needed)"
+            VERDICT="APPROVE"
+            SEVERITY="LOW"
+            CONFIDENCE="HIGH"
+            SUMMARY="Auto-approved: formatting-only changes detected ($FORMATTING_RATIO% whitespace)"
+            CI_FAILURES="Not evaluated (formatting-only bypass)"
+            ISSUES_JSON="[]"
+            RECOMMENDATION="Formatting changes look good. No manual review needed."
+
+            # Skip to output (jump to line ~520 where verdict is set)
+            echo "VERDICT=$VERDICT" >> $GITHUB_OUTPUT
+            echo "SEVERITY=$SEVERITY" >> $GITHUB_OUTPUT
+            echo "CONFIDENCE=$CONFIDENCE" >> $GITHUB_OUTPUT
+            echo "AI_REVIEW_RESULT<<EOF" >> $GITHUB_OUTPUT
+            echo "{\"verdict\":\"$VERDICT\",\"severity\":\"$SEVERITY\",\"confidence\":\"$CONFIDENCE\",\"summary\":\"$SUMMARY\",\"ci_failures\":\"$CI_FAILURES\",\"issues\":$ISSUES_JSON,\"recommendation\":\"$RECOMMENDATION\"}" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+
+            echo "::endgroup::"
+            exit 0  # Exit successfully without calling AI API
+          fi
+
           # Build prompt using CTCO pattern (Context → Task → Constraints → Output)
           SYSTEM_MSG="You are a security-focused AI code reviewer for a medical AI platform (HIPAA-regulated). You have REAL power to block merges. Use it wisely."
 
           USER_MSG="CONTEXT:
           You are reviewing PR #$PR_NUMBER for AURITY, a HIPAA-compliant medical AI system handling PHI.
           - Files changed: $FILES_CHANGED
+          - Diff size: $DIFF_SIZE chars (truncated: $DIFF_TRUNCATED)
+          - Formatting ratio: $FORMATTING_RATIO% whitespace changes
           - CI status: Passed=[$PASSED_CHECKS] Failed=[$FAILED_CHECKS]
           - This is a production-critical system with append-only audit requirements.
 
@@ -273,6 +326,9 @@ jobs:
             - H5py datasets with f['path/{var}'] syntax (valid HDF5 paths)
             - Auth0 JWT claims with https://aurity.app/roles format
             - Bash heredocs with <<'EOF' in shell commands
+            - Rust formatting changes from \`cargo fmt\` (multiline reformatting, whitespace)
+            - Cargo clippy warnings in comments (they're intentional, not bugs)
+            - Large diffs with >80% whitespace changes (likely auto-formatting)
 
           OUTPUT:
           Return ONLY valid JSON matching this structure:

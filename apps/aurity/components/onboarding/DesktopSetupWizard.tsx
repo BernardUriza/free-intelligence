@@ -7,12 +7,14 @@
  * Only shows in desktop mode.
  *
  * Flow:
- * 1. Check WSL status (Windows only) - Required for backend
- * 2. Check backend health (via WSL on Windows)
- * 3. Check Ollama connection (localhost:11434)
- * 4. Check if required model exists (qwen3:1.7b)
- * 5. Check FI Monitor for cloud connectivity (optional)
+ * 1. Install FI Monitor - REQUIRED (cloud connectivity)
+ * 2. Check WSL status (Windows only) - Required for backend
+ * 3. Check backend health (via WSL on Windows)
+ * 4. Check Ollama connection (localhost:11434)
+ * 5. Check if required model exists (qwen3:1.7b)
  * 6. Mark setup complete in localStorage
+ *
+ * Note: License check happens AFTER wizard completion, when user attempts login.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -448,7 +450,7 @@ export function DesktopSetupWizard() {
   // Don't render if not in desktop mode or setup is complete
   if (!showWizard) return null;
 
-  const allReady = status.ollamaRunning && status.modelAvailable && 
+  const allReady = status.fiMonitorInstalled && status.ollamaRunning && status.modelAvailable &&
     (!isWindows || status.backendRunning);
 
   return (
@@ -467,7 +469,74 @@ export function DesktopSetupWizard() {
 
         {/* Status Checks */}
         <div className="space-y-3">
-          
+
+          {/* FI Monitor Status - Cloud Connectivity (REQUIRED - STEP 1) */}
+          <div className="flex items-center justify-between p-3 bg-cyan-900/20 rounded-lg border-2 border-cyan-600">
+            <div className="flex items-center gap-3">
+              {status.checking ? (
+                <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+              ) : status.fiMonitorInstalled && status.fiMonitorRunning ? (
+                <Cloud className="w-5 h-5 text-cyan-500" />
+              ) : status.fiMonitorInstalled ? (
+                <CloudOff className="w-5 h-5 text-amber-500" />
+              ) : (
+                <CloudOff className="w-5 h-5 text-slate-500" />
+              )}
+              <div>
+                <p className="text-white font-medium">
+                  FI Monitor
+                  <span className="ml-2 text-xs text-cyan-400 font-bold">PASO 1 - Requerido</span>
+                </p>
+                <p className="text-slate-300 text-xs">
+                  {status.fiMonitorRunning
+                    ? '✅ Conectividad cloud activa'
+                    : status.fiMonitorInstalled
+                      ? '⚠️ Instalado pero no corriendo'
+                      : 'Conexión remota a tu IA local'}
+                </p>
+              </div>
+            </div>
+            {!status.checking && (
+              <>
+                {!status.fiMonitorInstalled && (
+                  <Button
+                    onClick={installFiMonitor}
+                    disabled={installingFiMonitor}
+                    size="sm"
+                    className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold"
+                  >
+                    {installingFiMonitor ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                    ) : (
+                      <Download className="w-4 h-4 mr-1" />
+                    )}
+                    Instalar Ahora
+                  </Button>
+                )}
+                {status.fiMonitorInstalled && !status.fiMonitorRunning && (
+                  <Button
+                    onClick={launchFiMonitor}
+                    size="sm"
+                    className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs"
+                  >
+                    <Cloud className="w-4 h-4 mr-1" />
+                    Iniciar
+                  </Button>
+                )}
+                {status.fiMonitorInstalled && status.fiMonitorRunning && (
+                  <CheckCircle className="w-5 h-5 text-cyan-500" />
+                )}
+              </>
+            )}
+          </div>
+
+          {/* FI Monitor Install Progress */}
+          {installingFiMonitor && (
+            <div className="p-3 bg-cyan-900/20 rounded-lg border border-cyan-800">
+              <p className="text-sm text-cyan-300 font-mono">{fiMonitorProgress}</p>
+            </div>
+          )}
+
           {/* WSL Status (Windows only) */}
           {isWindows && (
             <>
@@ -660,74 +729,6 @@ export function DesktopSetupWizard() {
                 ✅ {pythonStatus.version || 'Python installed'}
                 {pythonStatus.fi_monitor_deps_installed && ' (fi-monitor dependencies ready)'}
               </p>
-            </div>
-          )}
-
-          {/* FI Monitor Status - Cloud Connectivity (Optional) */}
-          <div className="flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-dashed border-slate-600">
-            <div className="flex items-center gap-3">
-              {status.checking ? (
-                <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
-              ) : status.fiMonitorInstalled && status.fiMonitorRunning ? (
-                <Cloud className="w-5 h-5 text-cyan-500" />
-              ) : status.fiMonitorInstalled ? (
-                <CloudOff className="w-5 h-5 text-amber-500" />
-              ) : (
-                <CloudOff className="w-5 h-5 text-slate-500" />
-              )}
-              <div>
-                <p className="text-white font-medium">
-                  FI Monitor
-                  <span className="ml-2 text-xs text-slate-500 font-normal">(opcional)</span>
-                </p>
-                <p className="text-slate-400 text-xs">
-                  {status.fiMonitorRunning 
-                    ? 'Conectividad cloud activa' 
-                    : status.fiMonitorInstalled 
-                      ? 'Instalado pero no corriendo'
-                      : 'Conexión remota a tu IA local'}
-                </p>
-              </div>
-            </div>
-            {!status.checking && (
-              <>
-                {!status.fiMonitorInstalled && (
-                  <Button
-                    onClick={installFiMonitor}
-                    disabled={installingFiMonitor}
-                    size="sm"
-                    variant="outline"
-                    className="border-cyan-600 text-cyan-400 hover:bg-cyan-900/30 text-xs"
-                  >
-                    {installingFiMonitor ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                    ) : (
-                      <Download className="w-4 h-4 mr-1" />
-                    )}
-                    Instalar
-                  </Button>
-                )}
-                {status.fiMonitorInstalled && !status.fiMonitorRunning && (
-                  <Button
-                    onClick={launchFiMonitor}
-                    size="sm"
-                    className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs"
-                  >
-                    <Cloud className="w-4 h-4 mr-1" />
-                    Iniciar
-                  </Button>
-                )}
-                {status.fiMonitorInstalled && status.fiMonitorRunning && (
-                  <CheckCircle className="w-5 h-5 text-cyan-500" />
-                )}
-              </>
-            )}
-          </div>
-
-          {/* FI Monitor Install Progress */}
-          {installingFiMonitor && (
-            <div className="p-3 bg-cyan-900/20 rounded-lg border border-cyan-800">
-              <p className="text-sm text-cyan-300 font-mono">{fiMonitorProgress}</p>
             </div>
           )}
         </div>

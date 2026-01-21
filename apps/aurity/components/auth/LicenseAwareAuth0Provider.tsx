@@ -3,11 +3,14 @@
 /**
  * LicenseAwareAuth0Provider - Combined License + Auth0 Provider for Desktop
  *
+ * NEW FLOW (2026-01-21):
  * This provider:
- * 1. First checks for valid license
- * 2. Shows LicenseActivationWizard if needed
- * 3. Gets Auth0 config from license
- * 4. Initializes DesktopAuth0Provider with license config
+ * 1. Renders DesktopAuth0Provider immediately (NO license check on mount)
+ * 2. License check happens when user attempts to login (in loginWithRedirect)
+ * 3. Shows LicenseActivationWizard if needed WHEN user tries to login
+ * 4. Gets Auth0 config from license after activation
+ *
+ * This allows users to see DesktopSetupWizard (dependencies) BEFORE needing a license.
  *
  * Usage:
  * ```tsx
@@ -32,89 +35,32 @@ function isTauriRuntime(): boolean {
 }
 
 export function LicenseAwareAuth0Provider({ children }: LicenseAwareAuth0ProviderProps) {
-  // Wait for hydration before doing anything Tauri-related
+  // NEW FLOW: Simply render DesktopAuth0Provider without checking license upfront
+  // License check happens inside DesktopAuth0Provider.loginWithRedirect()
+
+  // Still need to wait for hydration to avoid SSR mismatch
   const [isHydrated, setIsHydrated] = useState(false);
-  const [isTauri, setIsTauri] = useState(false);
 
   useEffect(() => {
-    setIsTauri(isTauriRuntime());
     setIsHydrated(true);
   }, []);
 
-  // Use license hook (it handles non-Tauri case internally)
-  const { isLoading, isValid, getAuth0Config } = useLicense();
-
-  const [auth0Config, setAuth0Config] = useState<Auth0Config | null>(null);
-  const [configLoading, setConfigLoading] = useState(true);
-  const [showWizard, setShowWizard] = useState(false);
-
-  // Check license and load Auth0 config AFTER hydration
-  useEffect(() => {
-    // Don't do anything until hydrated and we know we're in Tauri
-    if (!isHydrated) return;
-
-    const load = async () => {
-      // If not in Tauri, skip license check (shouldn't happen, but safety)
-      if (!isTauri) {
-        console.log('[LicenseAwareAuth0] Not in Tauri, skipping license check');
-        setConfigLoading(false);
-        return;
-      }
-
-      if (isLoading) return;
-
-      if (!isValid) {
-        console.log('[LicenseAwareAuth0] License not valid, showing wizard');
-        setShowWizard(true);
-        setConfigLoading(false);
-        return;
-      }
-
-      try {
-        const config = await getAuth0Config();
-        console.log('[LicenseAwareAuth0] Loaded Auth0 config from license:', {
-          domain: config.domain,
-          audience: config.audience,
-        });
-        setAuth0Config(config);
-        setShowWizard(false);
-      } catch (err) {
-        console.error('[LicenseAwareAuth0] Failed to get Auth0 config:', err);
-        setShowWizard(true);
-      } finally {
-        setConfigLoading(false);
-      }
-    };
-
-    load();
-  }, [isHydrated, isTauri, isLoading, isValid, getAuth0Config]);
-
-  // Handle license activation
-  const handleActivated = () => {
-    // Reload to reinitialize with new license
-    window.location.reload();
-  };
-
-  // Show loading during hydration or license check
-  if (!isHydrated || isLoading || configLoading) {
+  // Show loading during hydration only
+  if (!isHydrated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="text-center">
           <div className="w-12 h-12 mx-auto mb-4 border-3 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
-          <p className="text-slate-400">Verificando licencia...</p>
+          <p className="text-slate-400">Cargando...</p>
         </div>
       </div>
     );
   }
 
-  // Show wizard if license not valid
-  if (showWizard) {
-    return <LicenseActivationWizard onActivated={handleActivated} />;
-  }
-
-  // License valid - render DesktopAuth0Provider with license config
+  // Render DesktopAuth0Provider immediately
+  // It will handle license check when user attempts login
   return (
-    <DesktopAuth0Provider auth0Config={auth0Config ?? undefined}>
+    <DesktopAuth0Provider>
       {children}
     </DesktopAuth0Provider>
   );

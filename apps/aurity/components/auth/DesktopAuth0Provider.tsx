@@ -29,6 +29,8 @@ import {
   useRef,
   ReactNode,
 } from 'react';
+import { useLicense } from '@/hooks/useLicense';
+import { LicenseActivationWizard } from '@/components/license/LicenseActivationWizard';
 
 // Tauri APIs are imported dynamically to avoid SSR issues
 // Type imports only (don't affect runtime)
@@ -165,6 +167,10 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [error, setError] = useState<Error | undefined>();
   const [isConfigured, setIsConfigured] = useState(false);
+  const [showLicenseWizard, setShowLicenseWizard] = useState(false);
+
+  // License hook for checking validity
+  const { isLoading: licenseLoading, isValid: licenseValid, getAuth0Config } = useLicense();
 
   // Configure Auth0 on mount (uses license config if provided, otherwise env vars)
   useEffect(() => {
@@ -344,16 +350,49 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
 
   const loginWithRedirect = useCallback(
     async (_options?: { appState?: { returnTo?: string } }) => {
-      if (!isConfigured || !isTauri) {
-        throw new Error('Auth0 not configured or not in Tauri');
+      if (!isTauri) {
+        throw new Error('Not in Tauri environment');
       }
 
       setIsLoading(true);
       setError(undefined);
 
       try {
+        // STEP 1: Check license validity FIRST
+        if (licenseLoading) {
+          console.log('[DesktopAuth] Waiting for license check...');
+          setIsLoading(false);
+          return; // Wait for license to load
+        }
+
+        if (!licenseValid) {
+          console.log('[DesktopAuth] License not valid, showing wizard');
+          setShowLicenseWizard(true);
+          setIsLoading(false);
+          return; // Show wizard, user must activate license
+        }
+
+        // STEP 2: Get Auth0 config from license if not already configured
+        if (!isConfigured) {
+          console.log('[DesktopAuth] Getting Auth0 config from license...');
+          const config = await getAuth0Config();
+
+          const invoke = await getInvoke();
+          await invoke('configure_auth0', {
+            domain: config.domain,
+            clientId: config.client_id,
+            audience: config.audience,
+          });
+
+          setIsConfigured(true);
+          console.log('[DesktopAuth] Auth0 configured from license:', {
+            domain: config.domain,
+            audience: config.audience,
+          });
+        }
+
+        // STEP 3: Start OAuth flow (opens browser)
         const invoke = await getInvoke();
-        // This opens the browser - the callback will be handled by deep link listener
         await invoke('start_auth_flow', {});
         console.log('[DesktopAuth] Auth flow started, browser opened');
         // Note: isLoading stays true until callback is received
@@ -363,7 +402,7 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
         setIsLoading(false);
       }
     },
-    [isConfigured]
+    [isTauri, licenseLoading, licenseValid, isConfigured, getAuth0Config]
   );
 
   const logout = useCallback(
@@ -449,6 +488,17 @@ export function DesktopAuth0Provider({ children, auth0Config }: DesktopAuth0Prov
       getIdTokenClaims,
     ]
   );
+
+  // Handle license activation
+  const handleLicenseActivated = () => {
+    // Reload page to reinitialize with new license
+    window.location.reload();
+  };
+
+  // Show license wizard if needed
+  if (showLicenseWizard) {
+    return <LicenseActivationWizard onActivated={handleLicenseActivated} />;
+  }
 
   return (
     <DesktopAuth0Context.Provider value={contextValue}>

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "FI Monitor",
+  "productName": "FIMonitor",
   "version": "1.0.1",
   "identifier": "io.aurity.fi-monitor",
   "build": {
@@ -54,7 +54,7 @@
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
-      "timestampUrl": "",
+      "timestampUrl": null,
       "nsis": {
         "installerIcon": "icons/icon.ico",
         "installMode": "currentUser",

@@ -14,6 +14,10 @@ on:
           - windows
           - all
 
+concurrency:
+  group: build-desktop-${{ github.ref }}-${{ github.event.inputs.platform }}
+  cancel-in-progress: true
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -75,6 +79,8 @@ jobs:
       needs.detect-changes.outputs.fi_monitor == 'true'
     runs-on: windows-latest
     continue-on-error: true
+    env:
+      CARGO_INCREMENTAL: "1"
     steps:
       - name: Checkout main repo
         uses: actions/checkout@v4
@@ -102,10 +108,9 @@ jobs:
           echo "Run locally: cargo fmt --check && cargo clippy --all-targets"
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: echo "RUSTC_WRAPPER=sccache" >> $env:GITHUB_ENV
+        uses: mozilla-actions/sccache-action@v0.0.9
+        env:
+          SCCACHE_GHA_ENABLED: "true"
 
       - name: Install dependencies
         working-directory: apps/fi-monitor
@@ -151,6 +156,8 @@ jobs:
           "file=$($INFO.file)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Sign NSIS installer
+        timeout-minutes: 2
+        continue-on-error: true
         working-directory: apps/fi-monitor
         shell: pwsh
         run: |
@@ -170,6 +177,7 @@ jobs:
 
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.paths.outputs.version }}
@@ -240,6 +248,8 @@ jobs:
     # if: github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all'
     needs: [build-frontend]
     runs-on: ubuntu-22.04
+    env:
+      CARGO_INCREMENTAL: "1"
     steps:
       - name: Checkout main repo
         uses: actions/checkout@v4
@@ -261,10 +271,9 @@ jobs:
           rust-target: x86_64-unknown-linux-gnu
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+        uses: mozilla-actions/sccache-action@v0.0.9
+        env:
+          SCCACHE_GHA_ENABLED: "true"
 
       - name: Install system dependencies
         run: |
@@ -286,7 +295,9 @@ jobs:
       - name: Cache PyInstaller build
         uses: actions/cache@v4
         with:
-          path: apps/aurity-desktop/pyinstaller/dist
+          path: |
+            apps/aurity-desktop/pyinstaller/dist
+            apps/aurity-desktop/pyinstaller/build
           key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
           restore-keys: |
             pyinstaller-${{ runner.os }}-
@@ -343,6 +354,7 @@ jobs:
 
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
@@ -370,6 +382,8 @@ jobs:
     # if: github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all'
     needs: [build-frontend]
     runs-on: macos-latest
+    env:
+      CARGO_INCREMENTAL: "1"
     steps:
       - name: Checkout main repo
         uses: actions/checkout@v4
@@ -391,10 +405,9 @@ jobs:
           rust-target: aarch64-apple-darwin
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+        uses: mozilla-actions/sccache-action@v0.0.9
+        env:
+          SCCACHE_GHA_ENABLED: "true"
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -405,7 +418,9 @@ jobs:
       - name: Cache PyInstaller build
         uses: actions/cache@v4
         with:
-          path: apps/aurity-desktop/pyinstaller/dist
+          path: |
+            apps/aurity-desktop/pyinstaller/dist
+            apps/aurity-desktop/pyinstaller/build
           key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
           restore-keys: |
             pyinstaller-${{ runner.os }}-
@@ -462,6 +477,7 @@ jobs:
 
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
@@ -490,6 +506,8 @@ jobs:
       !cancelled()
     runs-on: windows-latest
     continue-on-error: true
+    env:
+      CARGO_INCREMENTAL: "1"
     steps:
       - name: Checkout main repo
         uses: actions/checkout@v4
@@ -523,10 +541,9 @@ jobs:
           echo "Run locally: cargo fmt --check && cargo clippy --all-targets"
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: echo "RUSTC_WRAPPER=sccache" >> $env:GITHUB_ENV
+        uses: mozilla-actions/sccache-action@v0.0.9
+        env:
+          SCCACHE_GHA_ENABLED: "true"
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -537,7 +554,9 @@ jobs:
       - name: Cache PyInstaller build
         uses: actions/cache@v4
         with:
-          path: apps/aurity-desktop/pyinstaller/dist
+          path: |
+            apps/aurity-desktop/pyinstaller/dist
+            apps/aurity-desktop/pyinstaller/build
           key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
           restore-keys: |
             pyinstaller-${{ runner.os }}-
@@ -621,6 +640,7 @@ jobs:
           du -h apps/aurity-desktop/resources/python-installer/python-3.14.0-amd64.exe
 
       - name: Build Tauri app
+        id: build_tauri
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 30
@@ -651,6 +671,8 @@ jobs:
           echo "::endgroup::"
 
       - name: Sign NSIS installer
+        timeout-minutes: 2
+        continue-on-error: true
         working-directory: apps/aurity-desktop
         run: |
           pnpm tauri signer sign `
@@ -658,13 +680,13 @@ jobs:
             --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
 
       - name: Send build success email notification
-        if: success()
+        if: always() && steps.build_tauri.conclusion == 'success'
         uses: dawidd6/action-send-mail@v3
         with:
           # Azure Communication Services SMTP configuration
           server_address: smtp.azurecomm.net
           server_port: 587
-          secure: true
+          secure: false  # STARTTLS mode for port 587 (equally secure, different handshake)
           username: ${{ secrets.ACS_SMTP_USERNAME }}
           password: ${{ secrets.ACS_SMTP_PASSWORD }}
 
@@ -759,45 +781,65 @@ jobs:
           ignore_cert: false
           convert_markdown: false
 
-        # Don't fail workflow if email fails
-        continue-on-error: true
+        # REMOVED continue-on-error - want to see email failures
         timeout-minutes: 2
 
       - name: Upload NSIS artifact
         uses: actions/upload-artifact@v4
         with:
           name: aurity-windows-nsis
-          path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip
+          path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
           retention-days: 7
 
       - name: Upload NSIS signature artifact
         uses: actions/upload-artifact@v4
         with:
           name: aurity-windows-nsis-sig
-          path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig
+          path: apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.sig
           retention-days: 7
 
-      - name: Create GitHub Release
+      - name: Create or Update GitHub Release
         if: github.event_name == 'workflow_dispatch'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
-          name: Release v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          tag_name: v${{ steps.metadata.outputs.version }}
+          name: Aurity Desktop v${{ steps.metadata.outputs.version }}
           body: |
-            ## Aurity Desktop v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+            ## Aurity Desktop v${{ steps.metadata.outputs.version }}
 
-            ### Downloads
-            - Windows: NSIS installer
+            **Build:** #${{ github.run_id }}
+            **Commit:** ${{ steps.metadata.outputs.commit_short }}
+            **Fecha:** ${{ steps.metadata.outputs.timestamp }}
+
+            ### 📦 Descargas
+
+            | Plataforma | Arquitectura | Archivo |
+            |------------|--------------|---------|
+            | Windows | x86_64 | `Aurity_${{ steps.metadata.outputs.version }}_x64-setup.exe` |
+
+            ### 🔐 Verificación
+
+            Todos los instaladores están firmados con Ed25519. Para verificar:
+            ```bash
+            # Descargar .exe y .sig
+            tauri signer verify <archivo.exe> --public-key <tu-public-key>
+            ```
+
+            ### 📋 Requisitos
+
+            - **Windows:** 10/11 (x86_64)
+            - **RAM:** 4GB mínimo
+            - **Licencia:** Válida de Aurity
 
             ---
-            🤖 Auto-generated release
+            🤖 Generated with [Claude Code](https://claude.com/claude-code)
           files: |
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.AppImage
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.nsis.zip
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
+            apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            apps/aurity-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.sig
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

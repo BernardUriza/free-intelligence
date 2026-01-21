@@ -28,9 +28,25 @@ Session schema:
 }
 """
 
-import fcntl
 import json
 import random
+
+# Cross-platform file locking (works on Unix + Windows)
+try:
+    import portalocker
+    # Create fcntl-compatible module with portalocker
+    class fcntl:
+        LOCK_SH = portalocker.LOCK_SH
+        LOCK_EX = portalocker.LOCK_EX
+        LOCK_UN = portalocker.LOCK_UN
+
+        @staticmethod
+        def flock(fd, operation):
+            return portalocker.lock(fd, operation)
+
+except ImportError:
+    # Fallback to fcntl on Unix systems (if portalocker not installed)
+    import fcntl  # type: ignore[no-redef]
 
 # ULID generation (simple implementation)
 import time
