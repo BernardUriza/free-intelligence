@@ -90,14 +90,14 @@
       "digestAlgorithm": "sha256",
       "timestampUrl": null,
       "wix": null,
+      "webview2InstallMode": "downloadBootstrapper",
       "nsis": {
         "installerIcon": "icons/icon.ico",
         "headerImage": null,
         "sidebarImage": null,
         "installMode": "currentUser",
         "languages": ["English", "Spanish"],
-        "displayLanguageSelector": true,
-        "webview2InstallMode": "downloadBootstrapper"
+        "displayLanguageSelector": true
       }
     }
   },
