@@ -48,8 +48,8 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/OllamaSetup.exe",
-      "binaries/python-3.14.0-amd64.exe"
+      "binaries/OllamaSetup",
+      "binaries/python-3.14.0-amd64"
     ],
     "category": "DeveloperTool",
     "shortDescription": "Ollama Tunnel Manager for Aurity",

@@ -164,6 +164,13 @@ jobs:
           $pythonHash = (Get-FileHash $pythonOutput -Algorithm SHA256).Hash
           Write-Host "Python SHA256: $pythonHash"
 
+          # Rename files to include target triple (Tauri requirement)
+          $target = "x86_64-pc-windows-msvc"
+          Move-Item -Path "binaries/OllamaSetup.exe" -Destination "binaries/OllamaSetup-$target.exe" -Force
+          Move-Item -Path "binaries/python-3.14.0-amd64.exe" -Destination "binaries/python-3.14.0-amd64-$target.exe" -Force
+
+          Write-Host "✅ Renamed installers with target triple suffix"
+
       - name: Build FI Monitor
         uses: nick-fields/retry@v3
         with:
