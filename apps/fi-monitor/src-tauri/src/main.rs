@@ -2,6 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod ollama_installer;
+mod python_installer;
+mod setup_store;
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -1168,6 +1170,13 @@ fn main() {
             ollama_installer::check_ollama_installed,
             ollama_installer::install_ollama_silent,
             ollama_installer::download_and_install_ollama,
+            python_installer::check_python_installed,
+            python_installer::install_python_silent,
+            python_installer::download_and_install_python,
+            setup_store::get_setup_state,
+            setup_store::update_setup_state,
+            setup_store::mark_setup_completed,
+            setup_store::mark_setup_skipped,
         ])
         .run(tauri::generate_context!())
         .expect("error running FI Monitor");

@@ -116,6 +116,54 @@ jobs:
         working-directory: apps/fi-monitor
         run: pnpm install
 
+      - name: Download Ollama and Python Installers
+        working-directory: apps/fi-monitor/src-tauri
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path binaries
+
+          # Download Ollama
+          $ollamaUrl = "https://ollama.com/download/OllamaSetup.exe"
+          $ollamaOutput = "binaries/OllamaSetup.exe"
+
+          Write-Host "Descargando OllamaSetup.exe..."
+          Invoke-WebRequest -Uri $ollamaUrl -OutFile $ollamaOutput -UseBasicParsing
+
+          if (-Not (Test-Path $ollamaOutput)) {
+            throw "Ollama download failed"
+          }
+
+          $ollamaSize = (Get-Item $ollamaOutput).Length / 1MB
+          Write-Host "Ollama Downloaded: $([Math]::Round($ollamaSize, 2)) MB"
+
+          if ($ollamaSize -lt 50) {
+            throw "Ollama file too small, possibly corrupted"
+          }
+
+          $ollamaHash = (Get-FileHash $ollamaOutput -Algorithm SHA256).Hash
+          Write-Host "Ollama SHA256: $ollamaHash"
+
+          # Download Python 3.14
+          $pythonUrl = "https://www.python.org/ftp/python/3.14.0/python-3.14.0-amd64.exe"
+          $pythonOutput = "binaries/python-3.14.0-amd64.exe"
+
+          Write-Host "Descargando python-3.14.0-amd64.exe..."
+          Invoke-WebRequest -Uri $pythonUrl -OutFile $pythonOutput -UseBasicParsing
+
+          if (-Not (Test-Path $pythonOutput)) {
+            throw "Python download failed"
+          }
+
+          $pythonSize = (Get-Item $pythonOutput).Length / 1MB
+          Write-Host "Python Downloaded: $([Math]::Round($pythonSize, 2)) MB"
+
+          if ($pythonSize -lt 20) {
+            throw "Python file too small, possibly corrupted"
+          }
+
+          $pythonHash = (Get-FileHash $pythonOutput -Algorithm SHA256).Hash
+          Write-Host "Python SHA256: $pythonHash"
+
       - name: Build FI Monitor
         uses: nick-fields/retry@v3
         with:
