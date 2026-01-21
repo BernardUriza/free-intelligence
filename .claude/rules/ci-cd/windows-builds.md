@@ -1,14 +1,15 @@
 # Windows Build Debugging Journey
 
-**Last Updated:** 2026-01-20 (Errors #1-13 documented)
+**Last Updated:** 2026-01-21 (Errors #1-17 documented)
 
 ## Context
 
-Windows builds fallaban consistentemente. Proceso de debugging iterativo reveló **13 errores encadenados** a través de 2 días. Cada build fallaba "un paso más adelante" hasta completar.
+Windows builds fallaban consistentemente. Proceso de debugging iterativo reveló **17 errores encadenados** a través de 3 días. Cada build fallaba "un paso más adelante" hasta completar.
 
 **Timeline:**
 - **Day 1 (2026-01-19):** Errors #1-10 - Infrastructure setup (PyInstaller, Rust, signing, NSIS template)
-- **Day 2 (2026-01-20):** Errors #11-13 - Configuration issues (template includes, path escaping, artifact naming)
+- **Day 2 (2026-01-20):** Errors #11-16 - Configuration issues (template includes, path escaping, artifact naming, email SMTP)
+- **Day 3 (2026-01-21):** Error #17 - Cross-platform compatibility (fcntl → portalocker)
 
 ## Errores Encontrados y Fixes Aplicados
 
@@ -355,6 +356,117 @@ Azure Communication Services usa puerto 587 (STARTTLS).
 
 **Remover `continue-on-error` fue crítico** - sin eso, este error hubiera permanecido invisible.
 
+### Error #17: fcntl Unix-only Module (Critical Cross-Platform Issue)
+**Build:** #21194089591 (2026-01-21)
+**Step:** Install backend dependencies
+**Duration:** 2 minutos (failure durante PyInstaller import check)
+**Conclusion:** FAILURE
+
+**Síntoma:**
+```
+ModuleNotFoundError: No module named 'fcntl'
+File: backend/src/fi_storage/infrastructure/hdf5/sessions_store.py, line 49
+```
+
+**Root Cause:** `fcntl` module es Unix-only (Linux/macOS), NO existe en Windows. El código lo importaba directamente:
+```python
+import fcntl  # ❌ Unix-only - falla en Windows
+```
+
+**Contexto del código:**
+`sessions_store.py` usa file locking extensivamente en 6+ métodos:
+- `_read_index()` - LOCK_SH (shared lock)
+- `_write_index()` - LOCK_EX (exclusive lock)
+- `create()` - LOCK_EX durante append
+- `get()` - LOCK_SH durante read
+- `update()` - LOCK_EX durante append
+- `list()`, `count()` - LOCK_SH durante reads
+
+Sin file locking, operations serían non-atomic → race conditions → data corruption en manifest.jsonl.
+
+**Fix:** Reemplazar `fcntl` con `portalocker` (cross-platform alternative). Commit 2e7d845:
+
+```python
+# backend/src/fi_storage/infrastructure/hdf5/sessions_store.py (líneas 31-49)
+
+import json
+import random
+
+# Cross-platform file locking (works on Unix + Windows)
+try:
+    import portalocker
+    # Create fcntl-compatible module with portalocker
+    class fcntl:
+        LOCK_SH = portalocker.LOCK_SH
+        LOCK_EX = portalocker.LOCK_EX
+        LOCK_UN = portalocker.LOCK_UN
+
+        @staticmethod
+        def flock(fd, operation):
+            return portalocker.lock(fd, operation)
+
+except ImportError:
+    # Fallback to fcntl on Unix systems (if portalocker not installed)
+    import fcntl  # type: ignore[no-redef]
+```
+
+**Dependency added (backend/requirements-prod.txt línea 21):**
+```
+portalocker>=2.8.2  # Cross-platform file locking (fcntl replacement for Windows)
+```
+
+**Why wrapper class instead of direct portalocker calls:**
+- ✅ Mantiene código existente sin cambios (60+ llamadas a `fcntl.flock()`)
+- ✅ Compatible con Unix systems sin portalocker (fallback a fcntl nativo)
+- ✅ API idéntica (`fcntl.LOCK_EX`, `fcntl.flock(fd, operation)`)
+- ⚠️ Type checker warning `type: ignore[no-redef]` necesario para fallback
+
+**Testing verification (Build #21194089591):**
+1. ✅ portalocker instalado correctamente:
+   ```
+   Collecting portalocker>=2.8.2 (from -r backend/requirements-prod.txt (line 21))
+   Downloading portalocker-3.2.0-py3-none-any.whl (22 kB)
+   Collecting pywin32>=226 (from portalocker>=2.8.2...)
+   Successfully installed portalocker-3.2.0 pywin32-311
+   ```
+2. ✅ PyInstaller build SUCCESS (backend exe compilado sin errors)
+3. ✅ Tauri build SUCCESS (Aurity_1.0.0_x64-setup.exe generado)
+
+**Artifact output:**
+- `aurity-windows-nsis`: 100 MB
+- SHA256: `6b0d435f2d35d1e9f01554173eb459dfbda6ee841963e1cfa008dab483365970`
+- Location: `downloads/Aurity_1.0.0_x64-setup.exe`
+
+**Key Learnings:**
+1. **Unix-only modules are a common cross-platform trap:**
+   - `fcntl` - file locking (Unix only)
+   - `pwd`, `grp` - user/group info (Unix only)
+   - `termios` - terminal I/O (Unix only)
+   - `pty` - pseudo-terminal (Unix only)
+
+2. **Cross-platform alternatives exist:**
+   - fcntl → `portalocker` (file locking)
+   - pwd/grp → `getpass` (user info)
+   - os.fork() → `multiprocessing` (process spawning)
+
+3. **Wrapper pattern for backward compatibility:**
+   - When replacing a module, create a compatibility layer
+   - Maintains existing API → minimal code changes
+   - Supports both old (fcntl) and new (portalocker) implementations
+
+4. **Dependencies matter on Windows:**
+   - portalocker requires `pywin32>=226` on Windows
+   - PyInstaller must bundle both portalocker + pywin32
+   - Verify in logs that dependencies install correctly
+
+5. **Why this wasn't caught earlier:**
+   - macOS/Linux development → fcntl works fine
+   - No Windows testing in local dev
+   - CI/CD caught it during first Windows build
+   - **Solution:** Cross-platform testing BEFORE CI/CD
+
+**Related to Error #8:** Both are cross-platform issues (wc/tr vs fcntl). Pattern: Unix tools/modules don't exist on Windows. Always use cross-platform alternatives in shared code.
+
 ## Build Progression
 
 | Build | Errors Fixed | Farthest Step Reached | Outcome |
@@ -372,12 +484,15 @@ Azure Communication Services usa puerto 587 (STARTTLS).
 | #21174027116 | #1-12 | Upload NSIS artifact | Artifact not found (error #13) |
 | #21176219299 | #1-14 | Upload NSIS artifact | Path mismatch .nsis.zip vs .exe (error #14) |
 | #21176985799 | #1-15 | Email notification | SSL/STARTTLS mismatch (error #16) - SUCCESS* |
+| #21194089591 | #1-17 | Upload artifacts | **SUCCESS** - Exe generado (100 MB) |
 
-*Build completó con ejecutable generado, solo email falló
+*Build #21176985799 completó con ejecutable generado, solo email falló
+**Build #21194089591 fue el PRIMER build completamente exitoso
 
-**Journey Summary (2 Days):**
+**Journey Summary (3 Days):**
 - **Day 1 (Errors #1-10):** PyInstaller → Rust → Pre-build → Signing → NSIS template
 - **Day 2 (Errors #11-16):** Template includes → Path escaping → Artifact filename → Email SMTP
+- **Day 3 (Error #17):** fcntl cross-platform compatibility → **SUCCESS**
 
 ## Key Learnings
 
@@ -425,6 +540,22 @@ Cada build falla "un paso más adelante". No puedes ver errores posteriores hast
 - **Day 2:** Configuration errors (templates, paths, artifact names)
 - First wave of errors blocks second wave from being visible
 - Patience and systematic iteration is required
+
+### 10. Cross-Platform Module Compatibility
+- **Common trap:** Unix-only modules (`fcntl`, `pwd`, `grp`, `termios`, `pty`)
+- **Detection:** Code works on macOS/Linux but fails on Windows CI/CD
+- **Solution pattern:** Wrapper classes for backward compatibility
+  ```python
+  try:
+      import cross_platform_lib
+      class unix_module:  # Wrapper
+          API = cross_platform_lib.API
+  except ImportError:
+      import unix_module  # Fallback
+  ```
+- **Best practice:** Test on ALL target platforms BEFORE CI/CD
+- **Quick check:** `grep -r "import fcntl\|import pwd\|import grp" backend/` → flag for review
+- **Related errors:** Error #8 (wc/tr), Error #17 (fcntl) - same root cause
 
 ## Debugging Commands
 
