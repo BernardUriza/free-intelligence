@@ -90,7 +90,6 @@
       "digestAlgorithm": "sha256",
       "timestampUrl": null,
       "wix": null,
-      "webview2InstallMode": "downloadBootstrapper",
       "nsis": {
         "installerIcon": "icons/icon.ico",
         "headerImage": null,
