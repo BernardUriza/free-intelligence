@@ -96,7 +96,8 @@
         "sidebarImage": null,
         "installMode": "currentUser",
         "languages": ["English", "Spanish"],
-        "displayLanguageSelector": true
+        "displayLanguageSelector": true,
+        "webview2InstallMode": "downloadBootstrapper"
       }
     }
   },
