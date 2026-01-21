@@ -644,8 +644,30 @@ fn main() {
                             }
                         });
 
-                        // Step 3: Wait for backend to be ready (health check)
-                        emit_status(&app_handle, "Esperando que el backend responda...");
+                        // Step 3: Show main window IMMEDIATELY (don't wait for health checks)
+                        // Frontend will show loading/setup wizard while backend starts
+                        println!("[Aurity] Showing main window (backend starting in background)");
+
+                        // Inject backend URL into main window
+                        if let Some(main_window) = app_handle.get_webview_window("main") {
+                            let js = format!(
+                                "window.__AURITY_BACKEND_URL__ = 'http://127.0.0.1:{}';",
+                                port
+                            );
+                            let _ = main_window.eval(&js);
+
+                            // Show main window immediately
+                            let _ = main_window.show();
+                            let _ = main_window.set_focus();
+                        }
+
+                        // Close splashscreen (main window is now visible)
+                        if let Some(splash) = app_handle.get_webview_window("splashscreen") {
+                            let _ = splash.close();
+                        }
+
+                        // Step 4: Health check in BACKGROUND (non-blocking)
+                        emit_status(&app_handle, "Verificando backend...");
 
                         let mut attempts = 0;
                         let max_attempts = 60; // 30 seconds total (500ms * 60)
@@ -654,6 +676,14 @@ fn main() {
                             if check_backend_health(port).await {
                                 state.is_ready.store(true, Ordering::SeqCst);
                                 println!("[Aurity] Backend is healthy on port {}", port);
+
+                                // Emit ready event (frontend can use this to hide loading states)
+                                let _ = app_handle.emit(
+                                    "backend-ready",
+                                    serde_json::json!({
+                                        "port": port
+                                    }),
+                                );
                                 break;
                             }
 
@@ -664,72 +694,18 @@ fn main() {
                             if attempts % 4 == 0 {
                                 emit_status(
                                     &app_handle,
-                                    &format!("Iniciando... {}s", attempts / 2),
+                                    &format!("Iniciando backend... {}s", attempts / 2),
                                 );
                             }
                         }
 
-                        // Step 4: Show main window or report error
-                        if state.is_ready.load(Ordering::SeqCst) {
-                            // Step 4.1: Check for valid license BEFORE showing main window
-                            let has_license = license::has_valid_license();
-
-                            if !has_license {
-                                emit_status(&app_handle, "Licencia requerida...");
-                                println!("[Aurity] No valid license found - prompting for import");
-
-                                // Emit event so frontend can show license import dialog
-                                let _ = app_handle.emit("license-required", ());
-                            } else {
-                                emit_status(&app_handle, "Licencia válida!");
-                                println!("[Aurity] Valid license found");
-                            }
-
-                            emit_status(&app_handle, "Listo!");
-
-                            // Inject backend URL into main window
-                            if let Some(main_window) = app_handle.get_webview_window("main") {
-                                let js = format!(
-                                    "window.__AURITY_BACKEND_URL__ = 'http://127.0.0.1:{}';",
-                                    port
-                                );
-                                let _ = main_window.eval(&js);
-
-                                // Also inject license status
-                                let license_js =
-                                    format!("window.__AURITY_HAS_LICENSE__ = {};", has_license);
-                                let _ = main_window.eval(&license_js);
-
-                                // Show main window
-                                let _ = main_window.show();
-                                let _ = main_window.set_focus();
-                            }
-
-                            // Close splashscreen
-                            if let Some(splash) = app_handle.get_webview_window("splashscreen") {
-                                let _ = splash.close();
-                            }
-
-                            // Emit ready event (includes license status)
-                            let _ = app_handle.emit(
-                                "backend-ready",
-                                serde_json::json!({
-                                    "port": port,
-                                    "has_license": has_license
-                                }),
-                            );
-                        } else {
+                        // Report error if health check failed (but main window is already visible)
+                        if !state.is_ready.load(Ordering::SeqCst) {
                             emit_status(&app_handle, "Error: Backend no responde");
                             eprintln!(
                                 "[Aurity] ERROR: Backend failed to respond after {} attempts",
                                 max_attempts
                             );
-
-                            // Show error in main window anyway
-                            if let Some(main_window) = app_handle.get_webview_window("main") {
-                                let _ = main_window.show();
-                            }
-
                             let _ = app_handle.emit("backend-error", "Backend failed to start");
                         }
                     }
