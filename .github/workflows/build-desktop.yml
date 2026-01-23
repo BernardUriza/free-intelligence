@@ -938,6 +938,102 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # Generate releases.json for /downloads page
+  update-releases-json:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Generate releases.json
+        id: generate
+        run: |
+          # Get version from tauri.conf.json
+          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          DATE=$(date -u +"%Y-%m-%d")
+          GENERATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          echo "Version: $VERSION"
+          echo "Date: $DATE"
+
+          # Calculate SHA256 for Windows artifact
+          WINDOWS_SHA256="pending"
+          if [ -d "artifacts/aurity-windows-nsis" ]; then
+            WINDOWS_FILE=$(find artifacts/aurity-windows-nsis -name "*.exe" -type f | head -1)
+            if [ -n "$WINDOWS_FILE" ]; then
+              WINDOWS_SHA256=$(sha256sum "$WINDOWS_FILE" | cut -d' ' -f1)
+              WINDOWS_SIZE=$(du -h "$WINDOWS_FILE" | cut -f1)
+              echo "Windows SHA256: $WINDOWS_SHA256"
+              echo "Windows Size: $WINDOWS_SIZE"
+            fi
+          fi
+
+          # Generate releases.json
+          cat > apps/aurity/public/releases.json << EOF
+          {
+            "releases": [
+              {
+                "version": "$VERSION",
+                "date": "$DATE",
+                "platforms": {
+                  "windows": {
+                    "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_x64-setup.exe",
+                    "size": "${WINDOWS_SIZE:-~100 MB}",
+                    "sha256": "$WINDOWS_SHA256"
+                  }
+                },
+                "changelog": [
+                  "Aurity Desktop v$VERSION",
+                  "Auth0 OAuth 2.0 + PKCE authentication",
+                  "Offline AI medical assistant powered by Ollama",
+                  "Local LLM integration (Qwen3, Llama, etc.)",
+                  "Encrypted local storage in ~/.aurity",
+                  "Secure token storage in OS Keychain"
+                ]
+              }
+            ],
+            "generatedAt": "$GENERATED_AT",
+            "source": "ci-cd"
+          }
+          EOF
+
+          echo "Generated releases.json:"
+          cat apps/aurity/public/releases.json | jq '.'
+
+          # Output version for commit message
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Commit and push releases.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add apps/aurity/public/releases.json
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to releases.json"
+          else
+            git commit -m "chore: update releases.json for v${{ steps.generate.outputs.version }} [skip ci]"
+            git push origin ${{ github.ref_name }}
+            echo "Successfully pushed releases.json update"
+          fi
+
   generate-manifest:
     if: github.event_name == 'workflow_dispatch'
     needs: [build-linux, build-macos, build-windows]

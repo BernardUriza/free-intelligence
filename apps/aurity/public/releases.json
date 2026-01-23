@@ -1,0 +1,25 @@
+{
+  "releases": [
+    {
+      "version": "1.0.0",
+      "date": "2026-01-21",
+      "platforms": {
+        "windows": {
+          "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.0/Aurity_1.0.0_x64-setup.exe",
+          "size": "~100 MB",
+          "sha256": "pending"
+        }
+      },
+      "changelog": [
+        "Initial release of Aurity Desktop",
+        "Auth0 OAuth 2.0 + PKCE authentication",
+        "Offline AI medical assistant powered by Ollama",
+        "Local LLM integration (Qwen3, Llama, etc.)",
+        "Encrypted local storage in ~/.aurity",
+        "Secure token storage in OS Keychain"
+      ]
+    }
+  ],
+  "generatedAt": "2026-01-23T00:00:00Z",
+  "source": "manual"
+}
