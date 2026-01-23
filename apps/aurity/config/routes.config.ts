@@ -66,6 +66,11 @@ export const ROUTE_CONFIG: RouteConfig[] = [
     access: 'public',
     description: 'Basic chat - available to all users (authenticated or not)',
   },
+  {
+    path: '/downloads',
+    access: 'public',
+    description: 'Desktop app downloads - public access for anyone to download',
+  },
 
   // ============================================================================
   // AUTHENTICATED ROUTES - Any logged-in user (including random users)
