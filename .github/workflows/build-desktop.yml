@@ -18,6 +18,9 @@ concurrency:
   group: build-desktop-${{ github.ref }}-${{ github.event.inputs.platform }}
   cancel-in-progress: true
 
+permissions:
+  contents: write  # Required for creating releases and tags
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
