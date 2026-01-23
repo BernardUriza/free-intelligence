@@ -21,6 +21,7 @@ import { AudioPlayerProvider } from '@/components/chat/AudioPlayerContext';
 import { AudioConsentBanner } from '@/components/audio/AudioConsentBanner';
 import { VersionBadge } from '@/components/dev/VersionBadge';
 import { DesktopSetupWizard } from '@/components/onboarding/DesktopSetupWizard';
+import { DesktopReadySignal } from '@/components/desktop/DesktopReadySignal';
 
 export const metadata: Metadata = {
   title: 'Free Intelligence · AURITY',
@@ -81,6 +82,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-slate-900 antialiased">
         <MockBootstrap />
+        <DesktopReadySignal />
         <Auth0Provider>
           <ThemeProvider>
             <AudioPlayerProvider>

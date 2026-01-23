@@ -17,14 +17,14 @@ mod templates;
 mod wsl;
 
 use auth::AuthState;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Listener, Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_shell::ShellExt;
 use tokio::time::sleep;
@@ -407,6 +407,100 @@ async fn check_first_run_status(app: tauri::AppHandle) -> Result<FirstRunStatus,
     })
 }
 
+// =============================================================================
+// WIZARD STATE PERSISTENCE
+// =============================================================================
+
+/// Wizard state persisted to filesystem (~/.aurity/config/wizard-state.json)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct WizardState {
+    pub version: u32,
+    pub desktop_setup_completed: bool,
+    pub desktop_setup_completed_at: Option<String>,
+    pub fi_monitor_installed: Option<bool>,
+}
+
+/// Get the path to wizard state file
+fn get_wizard_state_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let data_dir = get_data_dir(app)?;
+    Ok(data_dir.join("config").join("wizard-state.json"))
+}
+
+/// Get wizard state from filesystem
+#[tauri::command]
+fn get_wizard_state(app: tauri::AppHandle) -> Result<WizardState, String> {
+    let state_path = get_wizard_state_path(&app)?;
+
+    if !state_path.exists() {
+        // File doesn't exist - return default state (wizard not completed)
+        return Ok(WizardState::default());
+    }
+
+    // Verify it's a regular file, not a symlink (security check)
+    if state_path.is_symlink() {
+        return Err("Security: wizard state file is a symlink, refusing to read".to_string());
+    }
+
+    let content = fs::read_to_string(&state_path)
+        .map_err(|e| format!("Failed to read wizard state: {}", e))?;
+
+    serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse wizard state: {}", e))
+}
+
+/// Mark desktop setup as complete
+#[tauri::command]
+fn mark_desktop_setup_complete(
+    app: tauri::AppHandle,
+    fi_monitor_installed: bool,
+) -> Result<WizardState, String> {
+    let state_path = get_wizard_state_path(&app)?;
+
+    // Ensure parent directory exists
+    if let Some(parent) = state_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create config directory: {}", e))?;
+    }
+
+    // Create new state
+    let state = WizardState {
+        version: 1,
+        desktop_setup_completed: true,
+        desktop_setup_completed_at: Some(chrono::Utc::now().to_rfc3339()),
+        fi_monitor_installed: Some(fi_monitor_installed),
+    };
+
+    // Serialize to JSON
+    let content = serde_json::to_string_pretty(&state)
+        .map_err(|e| format!("Failed to serialize wizard state: {}", e))?;
+
+    // Write atomically
+    atomic_write(&state_path, content.as_bytes())?;
+
+    println!(
+        "[Aurity] Wizard state saved: desktop_setup_completed=true, fi_monitor_installed={}",
+        fi_monitor_installed
+    );
+
+    Ok(state)
+}
+
+/// Reset wizard state (for development/testing)
+#[tauri::command]
+fn reset_wizard_state(app: tauri::AppHandle) -> Result<bool, String> {
+    let state_path = get_wizard_state_path(&app)?;
+
+    if state_path.exists() {
+        fs::remove_file(&state_path)
+            .map_err(|e| format!("Failed to delete wizard state: {}", e))?;
+        println!("[Aurity] Wizard state reset (file deleted)");
+        Ok(true)
+    } else {
+        println!("[Aurity] Wizard state reset (file didn't exist)");
+        Ok(false)
+    }
+}
+
 /// Get the user data directory for Aurity
 fn get_data_dir(_app: &tauri::AppHandle) -> Result<PathBuf, String> {
     // Use ~/.aurity for consistency with backend expectations
@@ -659,11 +753,25 @@ fn main() {
                             // Show main window immediately
                             let _ = main_window.show();
                             let _ = main_window.set_focus();
-                        }
 
-                        // Close splashscreen (main window is now visible)
-                        if let Some(splash) = app_handle.get_webview_window("splashscreen") {
-                            let _ = splash.close();
+                            // Wait for frontend ready signal before closing splash
+                            let splash_handle = app_handle.clone();
+                            main_window.listen("frontend-ready", move |_| {
+                                println!("[Aurity] Frontend ready - closing splash");
+                                if let Some(splash) = splash_handle.get_webview_window("splashscreen") {
+                                    let _ = splash.close();
+                                }
+                            });
+
+                            // Fallback: close splash after 5s if frontend doesn't respond
+                            let splash_fallback = app_handle.clone();
+                            tauri::async_runtime::spawn(async move {
+                                tokio::time::sleep(Duration::from_secs(5)).await;
+                                if let Some(splash) = splash_fallback.get_webview_window("splashscreen") {
+                                    println!("[Aurity] Fallback: closing splash after timeout");
+                                    let _ = splash.close();
+                                }
+                            });
                         }
 
                         // Step 4: Health check in BACKGROUND (non-blocking)
@@ -749,6 +857,10 @@ fn main() {
             check_ollama_status,
             ensure_edge_infrastructure,
             check_first_run_status,
+            // Wizard state persistence
+            get_wizard_state,
+            mark_desktop_setup_complete,
+            reset_wizard_state,
             // Windows autostart
             setup_windows_autostart,
             remove_windows_autostart,
