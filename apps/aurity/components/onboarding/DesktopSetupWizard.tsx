@@ -54,6 +54,23 @@ export function DesktopSetupWizard() {
   const [screen, setScreen] = useState<Screen>('CHECKING');
   const [progress, setProgress] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+
+  // Get app version from Tauri
+  useEffect(() => {
+    async function fetchVersion() {
+      if (isDesktop() && typeof window !== 'undefined' && '__TAURI__' in window) {
+        try {
+          const { getVersion } = await import('@tauri-apps/api/app');
+          const version = await getVersion();
+          setAppVersion(version);
+        } catch (e) {
+          console.warn('[DesktopWizard] Could not get version:', e);
+        }
+      }
+    }
+    fetchVersion();
+  }, []);
 
   // Use the wizard state hook for persistent storage
   const { isLoading: isLoadingState, isCompleted, markComplete } = useWizardState();
@@ -189,6 +206,7 @@ export function DesktopSetupWizard() {
             <span className="text-3xl">🏥</span>
           </div>
           <h1 className="text-2xl font-bold text-white">Bienvenido a Aurity Desktop</h1>
+          <p className="text-cyan-400 text-sm font-mono">v{appVersion || '1.0.2'}</p>
           <p className="text-slate-400 text-sm">
             Configuremos tu asistente médico 100% offline
           </p>
