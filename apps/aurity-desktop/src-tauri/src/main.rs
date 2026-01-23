@@ -750,26 +750,68 @@ fn main() {
                             );
                             let _ = main_window.eval(&js);
 
-                            // Show main window immediately
-                            let _ = main_window.show();
-                            let _ = main_window.set_focus();
+                            // DON'T show main window yet - wait for frontend-ready signal
+                            // This prevents the flash of empty/loading content
 
-                            // Wait for frontend ready signal before closing splash
-                            let splash_handle = app_handle.clone();
+                            // Wait for frontend ready signal before showing main window
+                            // Minimum 15 seconds splash for branding animation
+                            let splash_start = std::time::Instant::now();
+                            let ready_handle = app_handle.clone();
                             main_window.listen("frontend-ready", move |_| {
-                                println!("[Aurity] Frontend ready - closing splash");
-                                if let Some(splash) = splash_handle.get_webview_window("splashscreen") {
-                                    let _ = splash.close();
+                                let elapsed = splash_start.elapsed();
+                                let min_splash_duration = Duration::from_secs(15);
+
+                                if elapsed < min_splash_duration {
+                                    // Wait remaining time before showing main window
+                                    let remaining = min_splash_duration - elapsed;
+                                    println!("[Aurity] Frontend ready - waiting {:.1}s more for splash animation", remaining.as_secs_f32());
+                                    let handle = ready_handle.clone();
+                                    tauri::async_runtime::spawn(async move {
+                                        tokio::time::sleep(remaining).await;
+                                        println!("[Aurity] Splash animation complete - showing main window");
+                                        if let Some(main) = handle.get_webview_window("main") {
+                                            let _ = main.show();
+                                            let _ = main.set_focus();
+                                        }
+                                        if let Some(splash) = handle.get_webview_window("splashscreen") {
+                                            let _ = splash.close();
+                                            // Notify React to hide its overlay
+                                            let _ = handle.emit("splash-closed", ());
+                                        }
+                                    });
+                                } else {
+                                    // Already waited enough, show immediately
+                                    println!("[Aurity] Frontend ready - showing main window and closing splash");
+                                    if let Some(main) = ready_handle.get_webview_window("main") {
+                                        let _ = main.show();
+                                        let _ = main.set_focus();
+                                    }
+                                    if let Some(splash) = ready_handle.get_webview_window("splashscreen") {
+                                        let _ = splash.close();
+                                        // Notify React to hide its overlay
+                                        let _ = ready_handle.emit("splash-closed", ());
+                                    }
                                 }
                             });
 
-                            // Fallback: close splash after 5s if frontend doesn't respond
-                            let splash_fallback = app_handle.clone();
+                            // Fallback: show main and close splash after 20s if frontend doesn't respond
+                            // (must be > 15s minimum splash duration)
+                            let fallback_handle = app_handle.clone();
                             tauri::async_runtime::spawn(async move {
-                                tokio::time::sleep(Duration::from_secs(5)).await;
-                                if let Some(splash) = splash_fallback.get_webview_window("splashscreen") {
+                                tokio::time::sleep(Duration::from_secs(20)).await;
+                                // Check if main window is still hidden (frontend-ready didn't fire)
+                                if let Some(main) = fallback_handle.get_webview_window("main") {
+                                    if !main.is_visible().unwrap_or(true) {
+                                        println!("[Aurity] Fallback: showing main window after timeout");
+                                        let _ = main.show();
+                                        let _ = main.set_focus();
+                                    }
+                                }
+                                if let Some(splash) = fallback_handle.get_webview_window("splashscreen") {
                                     println!("[Aurity] Fallback: closing splash after timeout");
                                     let _ = splash.close();
+                                    // Notify React to hide its overlay
+                                    let _ = fallback_handle.emit("splash-closed", ());
                                 }
                             });
                         }

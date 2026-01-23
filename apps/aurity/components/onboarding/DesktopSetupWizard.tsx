@@ -17,14 +17,10 @@ import { useState, useEffect } from 'react';
 import { isDesktop } from '@/lib/config/deployment';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, Download, Cloud } from 'lucide-react';
-
-const STORAGE_KEY = 'aurity_desktop_setup_complete';
+import { useWizardState, resetWizardState } from './hooks/useWizardState';
 
 // Export function to reset wizard (for use in settings/menu)
-export function resetDesktopSetupWizard() {
-  localStorage.removeItem(STORAGE_KEY);
-  window.location.reload();
-}
+export { resetWizardState as resetDesktopSetupWizard };
 
 // Tauri invoke helper - only available in desktop mode
 const invokeTauri = async <T,>(cmd: string, args?: Record<string, unknown>): Promise<T | null> => {
@@ -59,15 +55,22 @@ export function DesktopSetupWizard() {
   const [progress, setProgress] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Use the wizard state hook for persistent storage
+  const { isLoading: isLoadingState, isCompleted, markComplete } = useWizardState();
+
   // Check if setup already completed
   useEffect(() => {
+    // Wait for state to load
+    if (isLoadingState) {
+      return;
+    }
+
     if (!isDesktop()) {
       setShowWizard(false);
       return;
     }
 
-    const setupComplete = localStorage.getItem(STORAGE_KEY);
-    if (setupComplete === 'true') {
+    if (isCompleted) {
       setShowWizard(false);
       return;
     }
@@ -75,7 +78,7 @@ export function DesktopSetupWizard() {
     // Setup not complete - show wizard and check FI Monitor
     setShowWizard(true);
     checkFiMonitor();
-  }, []);
+  }, [isLoadingState, isCompleted]);
 
   // Check if FI Monitor is installed
   const checkFiMonitor = async () => {
@@ -153,12 +156,6 @@ export function DesktopSetupWizard() {
     }
   };
 
-  // Skip installation (degraded mode)
-  const skipInstallation = () => {
-    markSetupComplete();
-    setShowWizard(false);
-  };
-
   // Retry installation
   const retryInstallation = () => {
     setError(null);
@@ -166,9 +163,15 @@ export function DesktopSetupWizard() {
     checkFiMonitor();
   };
 
-  // Mark setup as complete in localStorage
-  const markSetupComplete = () => {
-    localStorage.setItem(STORAGE_KEY, 'true');
+  // Mark setup as complete using the hook (persists to filesystem on desktop)
+  const markSetupComplete = async (fiMonitorInstalled: boolean = true) => {
+    console.log('[DesktopWizard] Marking setup complete, fiMonitorInstalled:', fiMonitorInstalled);
+    try {
+      await markComplete(fiMonitorInstalled);
+      console.log('[DesktopWizard] Setup marked complete successfully');
+    } catch (err) {
+      console.error('[DesktopWizard] Failed to mark setup complete:', err);
+    }
     setTimeout(() => setShowWizard(false), 2000);
   };
 
@@ -193,10 +196,10 @@ export function DesktopSetupWizard() {
 
         {/* Content by screen */}
         {screen === 'CHECKING' && <CheckingScreen />}
-        {screen === 'NOT_INSTALLED' && <NotInstalledScreen onInstall={installFiMonitor} onSkip={skipInstallation} />}
+        {screen === 'NOT_INSTALLED' && <NotInstalledScreen onInstall={installFiMonitor} />}
         {screen === 'INSTALLING' && <InstallingScreen progress={progress} />}
         {screen === 'READY' && <ReadyScreen />}
-        {screen === 'ERROR' && <ErrorScreen error={error} onRetry={retryInstallation} onSkip={skipInstallation} />}
+        {screen === 'ERROR' && <ErrorScreen error={error} onRetry={retryInstallation} />}
 
       </div>
     </div>
@@ -221,10 +224,9 @@ function CheckingScreen() {
 // NOT_INSTALLED - Offer to install FI Monitor
 interface NotInstalledScreenProps {
   onInstall: () => void;
-  onSkip: () => void;
 }
 
-function NotInstalledScreen({ onInstall, onSkip }: NotInstalledScreenProps) {
+function NotInstalledScreen({ onInstall }: NotInstalledScreenProps) {
   return (
     <div className="space-y-4">
       <div className="p-4 bg-cyan-900/20 rounded-lg border border-cyan-700">
@@ -254,17 +256,10 @@ function NotInstalledScreen({ onInstall, onSkip }: NotInstalledScreenProps) {
           <Download className="w-4 h-4 mr-2" />
           Instalar Ahora
         </Button>
-        <Button
-          onClick={onSkip}
-          variant="outline"
-          className="border-slate-600 text-slate-300 hover:bg-slate-800"
-        >
-          Omitir
-        </Button>
       </div>
 
       <p className="text-xs text-slate-500 text-center">
-        ⚠️ Sin FI Monitor, algunas funciones estarán deshabilitadas
+        FI Monitor es necesario para el funcionamiento de Aurity
       </p>
     </div>
   );
@@ -352,10 +347,9 @@ function ReadyScreen() {
 interface ErrorScreenProps {
   error: string | null;
   onRetry: () => void;
-  onSkip: () => void;
 }
 
-function ErrorScreen({ error, onRetry, onSkip }: ErrorScreenProps) {
+function ErrorScreen({ error, onRetry }: ErrorScreenProps) {
   return (
     <div className="space-y-4">
       <div className="p-4 bg-red-900/20 rounded-lg border border-red-700">
@@ -385,13 +379,6 @@ function ErrorScreen({ error, onRetry, onSkip }: ErrorScreenProps) {
           className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white"
         >
           Reintentar
-        </Button>
-        <Button
-          onClick={onSkip}
-          variant="outline"
-          className="border-slate-600 text-slate-300 hover:bg-slate-800"
-        >
-          Omitir
         </Button>
       </div>
 
