@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { getVersion } from '@tauri-apps/api/app'
 
 interface ServiceStatus {
   ollama_running: boolean
@@ -39,6 +40,12 @@ export default function App({ setupState }: AppProps) {
   const [autoTest, setAutoTest] = useState(false)
   const [nextTestIn, setNextTestIn] = useState(60)
   const [copiedUrl, setCopiedUrl] = useState(false)
+  const [appVersion, setAppVersion] = useState('1.0.0')
+
+  // Get app version from Tauri
+  useEffect(() => {
+    getVersion().then(v => setAppVersion(v)).catch(() => {})
+  }, [])
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -233,7 +240,7 @@ export default function App({ setupState }: AppProps) {
         <span className={`dot ${ollamaOn ? 'green' : 'gray'}`} />
         <span className={`dot ${tunnelOn ? 'blue' : 'gray'}`} />
         <span className="status-text">{ollamaOn && tunnelOn ? 'Listo' : ollamaOn ? 'Tunnel pendiente' : 'Detenido'}</span>
-        <span className="version">v1.0.1</span>
+        <span className="version">v{appVersion}</span>
       </footer>
     </div>
   )
