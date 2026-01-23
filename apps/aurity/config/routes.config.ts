@@ -184,15 +184,20 @@ export function getRouteConfig(path: string): RouteConfig | undefined {
  * Check if a path matches a route pattern
  */
 function matchRoute(pattern: string, path: string): boolean {
-  // Exact match
-  if (pattern === path) {
+  // Normalize: remove trailing slash for comparison (except for root "/")
+  const normalize = (p: string) => (p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p);
+  const normalizedPattern = normalize(pattern);
+  const normalizedPath = normalize(path);
+
+  // Exact match (with normalized paths)
+  if (normalizedPattern === normalizedPath) {
     return true;
   }
 
   // Wildcard match
   if (pattern.endsWith('/*')) {
     const base = pattern.slice(0, -2);
-    return path === base || path.startsWith(base + '/');
+    return normalizedPath === base || path.startsWith(base + '/');
   }
 
   return false;
