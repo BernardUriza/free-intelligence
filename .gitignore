@@ -87,6 +87,7 @@ target/
 apps/aurity-desktop/src-tauri/target/
 apps/aurity-desktop/src-tauri/binaries/
 apps/aurity-desktop/src-tauri/resources/ollama/
+apps/fi-monitor/src-tauri/binaries/
 Cargo.lock
 
 # Tauri signing keys (CRITICAL: Never commit private keys)

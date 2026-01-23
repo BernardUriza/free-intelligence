@@ -18,7 +18,19 @@ interface TestResult {
   timestamp: string
 }
 
-export default function App() {
+interface SetupState {
+  completed: boolean
+  ollamaInstalled: boolean
+  pythonInstalled: boolean
+  lastCheck: string | null
+  skipped: boolean
+}
+
+interface AppProps {
+  setupState: SetupState
+}
+
+export default function App({ setupState }: AppProps) {
   const [status, setStatus] = useState<ServiceStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -128,6 +140,15 @@ export default function App() {
       </header>
 
       {error && <div className="toast error" onClick={() => setError(null)}>⚠️ {error}</div>}
+
+      {setupState.skipped && (!setupState.ollamaInstalled || !setupState.pythonInstalled) && (
+        <div className="toast warning" style={{ cursor: 'default' }}>
+          {!setupState.pythonInstalled && !setupState.ollamaInstalled && '🐍🦙 Python 3.14 y Ollama no detectados'}
+          {!setupState.pythonInstalled && setupState.ollamaInstalled && '🐍 Python 3.14 no detectado'}
+          {setupState.pythonInstalled && !setupState.ollamaInstalled && '🦙 Ollama no detectado'}
+          . Instala manualmente para funcionalidad completa
+        </div>
+      )}
 
       <div className="services-grid">
         <div className={`service-card ${ollamaOn ? 'active' : ''}`}>

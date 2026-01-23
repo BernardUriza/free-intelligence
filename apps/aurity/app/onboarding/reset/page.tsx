@@ -13,15 +13,16 @@ import { AppTemplate } from '@/components/layout/AppTemplate';
 import { Button } from '@/components/ui/button';
 import { toastError, showInfo } from '@/lib/swal';
 import { Trash2, BarChart2, ArrowLeft } from 'lucide-react';
+import { isDesktop } from '@/lib/config/deployment';
 
 export default function OnboardingResetPage() {
   const router = useRouter();
   const [status, setStatus] = useState<'idle' | 'resetting' | 'done'>('idle');
 
   /**
-   * Reset all onboarding LocalStorage data
+   * Reset all onboarding data (localStorage + filesystem on desktop)
    */
-  const handleReset = () => {
+  const handleReset = async () => {
     setStatus('resetting');
 
     try {
@@ -30,6 +31,20 @@ export default function OnboardingResetPage() {
       localStorage.removeItem('fi_onboarding_conversation');
       localStorage.removeItem('aurity_onboarding_completed');
       localStorage.removeItem('fi_onboarding_survey');
+      // Desktop wizard state (localStorage fallback)
+      localStorage.removeItem('aurity_desktop_setup_complete');
+      localStorage.removeItem('aurity_fi_monitor_installed');
+
+      // On desktop, also reset the wizard state file
+      if (isDesktop() && typeof window !== 'undefined' && '__TAURI__' in window) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          await invoke('reset_wizard_state');
+          console.log('✅ Desktop wizard state reset (filesystem)');
+        } catch (tauriErr) {
+          console.warn('Could not reset Tauri wizard state:', tauriErr);
+        }
+      }
 
       console.log('✅ Onboarding data cleared from LocalStorage');
 
@@ -161,13 +176,16 @@ export default function OnboardingResetPage() {
           {/* Info Box */}
           <div className="mt-8 p-4 bg-slate-800/50 rounded-lg text-left">
             <h3 className="text-sm font-semibold fi-text mb-2">
-              🗂️ LocalStorage Keys Afectados:
+              🗂️ Datos Afectados:
             </h3>
             <ul className="fi-text-xs space-y-1 font-mono">
               <li>• fi_onboarding_progress</li>
               <li>• fi_onboarding_conversation</li>
               <li>• aurity_onboarding_completed</li>
               <li>• fi_onboarding_survey</li>
+              <li>• aurity_desktop_setup_complete</li>
+              <li>• aurity_fi_monitor_installed</li>
+              <li className="text-cyan-400">• ~/.aurity/config/wizard-state.json (desktop)</li>
             </ul>
           </div>
         </div>

@@ -17,14 +17,14 @@ mod templates;
 mod wsl;
 
 use auth::AuthState;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Listener, Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_shell::ShellExt;
 use tokio::time::sleep;
@@ -407,6 +407,100 @@ async fn check_first_run_status(app: tauri::AppHandle) -> Result<FirstRunStatus,
     })
 }
 
+// =============================================================================
+// WIZARD STATE PERSISTENCE
+// =============================================================================
+
+/// Wizard state persisted to filesystem (~/.aurity/config/wizard-state.json)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct WizardState {
+    pub version: u32,
+    pub desktop_setup_completed: bool,
+    pub desktop_setup_completed_at: Option<String>,
+    pub fi_monitor_installed: Option<bool>,
+}
+
+/// Get the path to wizard state file
+fn get_wizard_state_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let data_dir = get_data_dir(app)?;
+    Ok(data_dir.join("config").join("wizard-state.json"))
+}
+
+/// Get wizard state from filesystem
+#[tauri::command]
+fn get_wizard_state(app: tauri::AppHandle) -> Result<WizardState, String> {
+    let state_path = get_wizard_state_path(&app)?;
+
+    if !state_path.exists() {
+        // File doesn't exist - return default state (wizard not completed)
+        return Ok(WizardState::default());
+    }
+
+    // Verify it's a regular file, not a symlink (security check)
+    if state_path.is_symlink() {
+        return Err("Security: wizard state file is a symlink, refusing to read".to_string());
+    }
+
+    let content = fs::read_to_string(&state_path)
+        .map_err(|e| format!("Failed to read wizard state: {}", e))?;
+
+    serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse wizard state: {}", e))
+}
+
+/// Mark desktop setup as complete
+#[tauri::command]
+fn mark_desktop_setup_complete(
+    app: tauri::AppHandle,
+    fi_monitor_installed: bool,
+) -> Result<WizardState, String> {
+    let state_path = get_wizard_state_path(&app)?;
+
+    // Ensure parent directory exists
+    if let Some(parent) = state_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create config directory: {}", e))?;
+    }
+
+    // Create new state
+    let state = WizardState {
+        version: 1,
+        desktop_setup_completed: true,
+        desktop_setup_completed_at: Some(chrono::Utc::now().to_rfc3339()),
+        fi_monitor_installed: Some(fi_monitor_installed),
+    };
+
+    // Serialize to JSON
+    let content = serde_json::to_string_pretty(&state)
+        .map_err(|e| format!("Failed to serialize wizard state: {}", e))?;
+
+    // Write atomically
+    atomic_write(&state_path, content.as_bytes())?;
+
+    println!(
+        "[Aurity] Wizard state saved: desktop_setup_completed=true, fi_monitor_installed={}",
+        fi_monitor_installed
+    );
+
+    Ok(state)
+}
+
+/// Reset wizard state (for development/testing)
+#[tauri::command]
+fn reset_wizard_state(app: tauri::AppHandle) -> Result<bool, String> {
+    let state_path = get_wizard_state_path(&app)?;
+
+    if state_path.exists() {
+        fs::remove_file(&state_path)
+            .map_err(|e| format!("Failed to delete wizard state: {}", e))?;
+        println!("[Aurity] Wizard state reset (file deleted)");
+        Ok(true)
+    } else {
+        println!("[Aurity] Wizard state reset (file didn't exist)");
+        Ok(false)
+    }
+}
+
 /// Get the user data directory for Aurity
 fn get_data_dir(_app: &tauri::AppHandle) -> Result<PathBuf, String> {
     // Use ~/.aurity for consistency with backend expectations
@@ -644,8 +738,86 @@ fn main() {
                             }
                         });
 
-                        // Step 3: Wait for backend to be ready (health check)
-                        emit_status(&app_handle, "Esperando que el backend responda...");
+                        // Step 3: Show main window IMMEDIATELY (don't wait for health checks)
+                        // Frontend will show loading/setup wizard while backend starts
+                        println!("[Aurity] Showing main window (backend starting in background)");
+
+                        // Inject backend URL into main window
+                        if let Some(main_window) = app_handle.get_webview_window("main") {
+                            let js = format!(
+                                "window.__AURITY_BACKEND_URL__ = 'http://127.0.0.1:{}';",
+                                port
+                            );
+                            let _ = main_window.eval(&js);
+
+                            // DON'T show main window yet - wait for frontend-ready signal
+                            // This prevents the flash of empty/loading content
+
+                            // Wait for frontend ready signal before showing main window
+                            // Minimum 15 seconds splash for branding animation
+                            let splash_start = std::time::Instant::now();
+                            let ready_handle = app_handle.clone();
+                            main_window.listen("frontend-ready", move |_| {
+                                let elapsed = splash_start.elapsed();
+                                let min_splash_duration = Duration::from_secs(15);
+
+                                if elapsed < min_splash_duration {
+                                    // Wait remaining time before showing main window
+                                    let remaining = min_splash_duration - elapsed;
+                                    println!("[Aurity] Frontend ready - waiting {:.1}s more for splash animation", remaining.as_secs_f32());
+                                    let handle = ready_handle.clone();
+                                    tauri::async_runtime::spawn(async move {
+                                        tokio::time::sleep(remaining).await;
+                                        println!("[Aurity] Splash animation complete - showing main window");
+                                        if let Some(main) = handle.get_webview_window("main") {
+                                            let _ = main.show();
+                                            let _ = main.set_focus();
+                                        }
+                                        if let Some(splash) = handle.get_webview_window("splashscreen") {
+                                            let _ = splash.close();
+                                            // Notify React to hide its overlay
+                                            let _ = handle.emit("splash-closed", ());
+                                        }
+                                    });
+                                } else {
+                                    // Already waited enough, show immediately
+                                    println!("[Aurity] Frontend ready - showing main window and closing splash");
+                                    if let Some(main) = ready_handle.get_webview_window("main") {
+                                        let _ = main.show();
+                                        let _ = main.set_focus();
+                                    }
+                                    if let Some(splash) = ready_handle.get_webview_window("splashscreen") {
+                                        let _ = splash.close();
+                                        // Notify React to hide its overlay
+                                        let _ = ready_handle.emit("splash-closed", ());
+                                    }
+                                }
+                            });
+
+                            // Fallback: show main and close splash after 20s if frontend doesn't respond
+                            // (must be > 15s minimum splash duration)
+                            let fallback_handle = app_handle.clone();
+                            tauri::async_runtime::spawn(async move {
+                                tokio::time::sleep(Duration::from_secs(20)).await;
+                                // Check if main window is still hidden (frontend-ready didn't fire)
+                                if let Some(main) = fallback_handle.get_webview_window("main") {
+                                    if !main.is_visible().unwrap_or(true) {
+                                        println!("[Aurity] Fallback: showing main window after timeout");
+                                        let _ = main.show();
+                                        let _ = main.set_focus();
+                                    }
+                                }
+                                if let Some(splash) = fallback_handle.get_webview_window("splashscreen") {
+                                    println!("[Aurity] Fallback: closing splash after timeout");
+                                    let _ = splash.close();
+                                    // Notify React to hide its overlay
+                                    let _ = fallback_handle.emit("splash-closed", ());
+                                }
+                            });
+                        }
+
+                        // Step 4: Health check in BACKGROUND (non-blocking)
+                        emit_status(&app_handle, "Verificando backend...");
 
                         let mut attempts = 0;
                         let max_attempts = 60; // 30 seconds total (500ms * 60)
@@ -654,6 +826,14 @@ fn main() {
                             if check_backend_health(port).await {
                                 state.is_ready.store(true, Ordering::SeqCst);
                                 println!("[Aurity] Backend is healthy on port {}", port);
+
+                                // Emit ready event (frontend can use this to hide loading states)
+                                let _ = app_handle.emit(
+                                    "backend-ready",
+                                    serde_json::json!({
+                                        "port": port
+                                    }),
+                                );
                                 break;
                             }
 
@@ -664,72 +844,18 @@ fn main() {
                             if attempts % 4 == 0 {
                                 emit_status(
                                     &app_handle,
-                                    &format!("Iniciando... {}s", attempts / 2),
+                                    &format!("Iniciando backend... {}s", attempts / 2),
                                 );
                             }
                         }
 
-                        // Step 4: Show main window or report error
-                        if state.is_ready.load(Ordering::SeqCst) {
-                            // Step 4.1: Check for valid license BEFORE showing main window
-                            let has_license = license::has_valid_license();
-
-                            if !has_license {
-                                emit_status(&app_handle, "Licencia requerida...");
-                                println!("[Aurity] No valid license found - prompting for import");
-
-                                // Emit event so frontend can show license import dialog
-                                let _ = app_handle.emit("license-required", ());
-                            } else {
-                                emit_status(&app_handle, "Licencia válida!");
-                                println!("[Aurity] Valid license found");
-                            }
-
-                            emit_status(&app_handle, "Listo!");
-
-                            // Inject backend URL into main window
-                            if let Some(main_window) = app_handle.get_webview_window("main") {
-                                let js = format!(
-                                    "window.__AURITY_BACKEND_URL__ = 'http://127.0.0.1:{}';",
-                                    port
-                                );
-                                let _ = main_window.eval(&js);
-
-                                // Also inject license status
-                                let license_js =
-                                    format!("window.__AURITY_HAS_LICENSE__ = {};", has_license);
-                                let _ = main_window.eval(&license_js);
-
-                                // Show main window
-                                let _ = main_window.show();
-                                let _ = main_window.set_focus();
-                            }
-
-                            // Close splashscreen
-                            if let Some(splash) = app_handle.get_webview_window("splashscreen") {
-                                let _ = splash.close();
-                            }
-
-                            // Emit ready event (includes license status)
-                            let _ = app_handle.emit(
-                                "backend-ready",
-                                serde_json::json!({
-                                    "port": port,
-                                    "has_license": has_license
-                                }),
-                            );
-                        } else {
+                        // Report error if health check failed (but main window is already visible)
+                        if !state.is_ready.load(Ordering::SeqCst) {
                             emit_status(&app_handle, "Error: Backend no responde");
                             eprintln!(
                                 "[Aurity] ERROR: Backend failed to respond after {} attempts",
                                 max_attempts
                             );
-
-                            // Show error in main window anyway
-                            if let Some(main_window) = app_handle.get_webview_window("main") {
-                                let _ = main_window.show();
-                            }
-
                             let _ = app_handle.emit("backend-error", "Backend failed to start");
                         }
                     }
@@ -773,6 +899,10 @@ fn main() {
             check_ollama_status,
             ensure_edge_infrastructure,
             check_first_run_status,
+            // Wizard state persistence
+            get_wizard_state,
+            mark_desktop_setup_complete,
+            reset_wizard_state,
             // Windows autostart
             setup_windows_autostart,
             remove_windows_autostart,
