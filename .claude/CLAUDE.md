@@ -117,6 +117,22 @@ Detailed documentation is organized in `.claude/rules/`:
 - **PRs:** Require AI Gatekeeper (GPT-5) approval
 - **Docs:** Keep CLAUDE.md brief, details in `.claude/rules/`
 
+## 📸 Verificación Visual Obligatoria
+
+**REGLA:** Cuando Claude declare que algo "funciona" o "está arreglado", DEBE:
+
+1. Tomar screenshot usando CDP:
+   ```bash
+   node scripts/screenshot-cdp.mjs <URL> <output.png>
+   ```
+
+2. Abrir el screenshot con el visualizador de Windows:
+   ```powershell
+   Start-Process <output.png>
+   ```
+
+**NO celebrar fixes sin evidencia visual.** Screenshots > palabras.
+
 ---
 
 **Este kernel context existe para que cualquier persona (humana o máquina) entienda cómo se mueve el sistema en 2 minutos: entradas, límites, garantías y rutas de escape.**

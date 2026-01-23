@@ -4,10 +4,13 @@
  */
 
 @layer base {
-  /* Prevent scroll flash during hydration */
-  html, body {
-    overflow: hidden;
+  /* Allow scrolling - overflow managed per-page via AppTemplate */
+  html {
     height: 100%;
+  }
+
+  body {
+    min-height: 100%;
   }
 
   /* Smooth scrolling */
