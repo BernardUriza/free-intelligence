@@ -955,6 +955,12 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Pull latest changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull origin ${{ github.ref_name }} --rebase
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -1020,12 +1026,6 @@ jobs:
 
       - name: Commit and push releases.json
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Pull latest changes (version bump from build-windows)
-          git pull origin ${{ github.ref_name }} --rebase
-
           git add apps/aurity/public/releases.json
 
           # Check if there are changes to commit
