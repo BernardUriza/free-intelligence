@@ -18,9 +18,11 @@
   background: var(--surface);
   border: 1px solid var(--border-bright);
   border-radius: 12px;
-  padding: 40px;
-  width: 480px;
+  padding: 24px;
+  width: 380px;
   max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   text-align: center;
 }
@@ -30,36 +32,36 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 32px;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .setup-icon {
-  font-size: 48px;
+  font-size: 40px;
   line-height: 1;
 }
 
 .setup-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text);
 }
 
 .setup-subtitle {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-dim);
-  max-width: 360px;
+  max-width: 320px;
 }
 
 /* Body */
 .setup-body {
-  margin-bottom: 32px;
-  min-height: 140px;
+  margin-bottom: 16px;
+  min-height: 100px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 /* Spinner */
@@ -77,7 +79,7 @@
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
   width: 100%;
   text-align: left;
 }
@@ -86,9 +88,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-dim);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .setup-info-item:last-child {

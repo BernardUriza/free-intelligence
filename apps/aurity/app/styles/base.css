@@ -4,6 +4,12 @@
  */
 
 @layer base {
+  /* Prevent scroll flash during hydration */
+  html, body {
+    overflow: hidden;
+    height: 100%;
+  }
+
   /* Smooth scrolling */
   html {
     scroll-behavior: smooth;
