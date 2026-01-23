@@ -63,11 +63,11 @@ export function AppTemplate({
   };
 
   // Container classes based on fullHeight mode
-  // Note: overflow-hidden only for fullHeight mode (chat, etc.)
-  // Normal pages need overflow-y-auto to scroll
+  // fullHeight: fixed viewport with internal scroll (chat, etc.)
+  // Normal pages: natural document scroll (body handles overflow)
   const containerClasses = fullHeight
     ? `h-screen h-[100dvh] flex flex-col ${backgroundClasses[backgroundGradient]} relative overflow-hidden`
-    : `min-h-screen ${backgroundClasses[backgroundGradient]} relative overflow-y-auto`;
+    : `min-h-screen ${backgroundClasses[backgroundGradient]} relative`;
 
   // Main content classes based on fullHeight mode
   const mainClasses = fullHeight
