@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSetup } from './useSetup';
+import { getVersion } from '@tauri-apps/api/app';
 import './SetupWizard.css';
 
 export function SetupWizard() {
@@ -13,6 +14,12 @@ export function SetupWizard() {
     retryInstall,
     proceedToApp,
   } = useSetup();
+
+  const [appVersion, setAppVersion] = useState('1.0.0');
+
+  useEffect(() => {
+    getVersion().then(v => setAppVersion(v)).catch(() => {});
+  }, []);
 
   // Auto-proceed to app after 2 seconds on READY screen
   useEffect(() => {
@@ -34,6 +41,7 @@ export function SetupWizard() {
         {screen === 'ERROR' && <ErrorScreen error={error} onRetry={retryInstall} onSkip={skipSetup} />}
         {screen === 'SKIPPED' && <SkippedScreen onProceed={proceedToApp} />}
       </div>
+      <div className="setup-version">v{appVersion}</div>
     </div>
   );
 }
