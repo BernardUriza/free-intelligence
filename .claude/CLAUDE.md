@@ -126,12 +126,49 @@ Detailed documentation is organized in `.claude/rules/`:
    node scripts/screenshot-cdp.mjs <URL> <output.png>
    ```
 
-2. Abrir el screenshot con el visualizador de Windows:
+2. **ABRIR el screenshot para que el USUARIO lo vea** (no solo leerlo con Read):
    ```powershell
    Start-Process <output.png>
    ```
 
+**IMPORTANTE:**
+- `Read(archivo.png)` → Solo Claude ve la imagen (el usuario NO la ve)
+- `Start-Process archivo.png` → Abre el visor de Windows (el usuario SÍ la ve)
+
+**Claude DEBE usar Start-Process para que Bernard vea los screenshots.**
+
 **NO celebrar fixes sin evidencia visual.** Screenshots > palabras.
+
+## 🚨 Cuadro Rojo de Next.js = ALARMA
+
+**DESPUÉS de cada cambio de código, Claude DEBE verificar errores automáticamente:**
+
+```bash
+# 1. Verificar errores de consola (OBLIGATORIO)
+node scripts/check-console-errors.mjs http://localhost:9000/<ruta>
+
+# 2. Si hay errores críticos → ARREGLAR antes de continuar
+# 3. Si no hay errores → Tomar screenshot y abrirlo para el usuario
+node scripts/screenshot-cdp.mjs <URL> <output.png>
+powershell -Command "Start-Process '<output.png>'"
+```
+
+**Errores críticos (DEBEN arreglarse):**
+- `Maximum update depth exceeded` → Loop infinito en useEffect
+- `Hydration mismatch` → Server/client rendering diferente
+- `Cannot read property` → Null reference
+- `TypeError` / `ReferenceError` → Bug de código
+
+**Errores ignorables:**
+- `ERR_CONNECTION_REFUSED` → Backend no corriendo (normal en dev frontend-only)
+
+**Claude NO debe:**
+- Preguntarle al usuario si hay errores (Claude debe verificar solo)
+- Ignorar el cuadro rojo
+- Commitear código con errores
+- Declarar "funciona" sin verificar consola
+
+**Claude DEBE:** Verificar errores automáticamente, arreglarlos, y solo entonces mostrar screenshot.
 
 ---
 

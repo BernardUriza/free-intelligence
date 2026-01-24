@@ -1,25 +1,25 @@
 /**
- * Deployment target configuration for FI-Cloud vs FI-Edge (Desktop).
+ * Deployment Configuration
  *
- * This module provides a single source of truth for deployment-specific
- * configuration in the frontend. The same codebase runs on both targets,
- * differentiated only by the NEXT_PUBLIC_DEPLOYMENT_TARGET environment variable.
- *
- * Usage:
- *   import { isDesktop, getBackendUrl } from '@/lib/config/deployment';
- *
- *   if (isDesktop()) {
- *     // Desktop-specific logic
- *   }
- *
- * Environment Variables:
- *   NEXT_PUBLIC_DEPLOYMENT_TARGET: "cloud" | "desktop" (default: "desktop")
- *   NEXT_PUBLIC_BACKEND_URL: Override backend endpoint (optional)
+ * Backend URLs and deployment-specific settings.
+ * For environment detection (web vs desktop), use @/lib/environment instead.
  *
  * @module lib/config/deployment
+ * @see lib/environment for runtime detection
  */
 
-export type DeploymentTarget = 'cloud' | 'desktop';
+import {
+  detectTauri,
+  isBrowser,
+  getDeploymentTarget,
+  // Re-export for backward compatibility
+  isDesktop,
+  isCloud,
+} from '@/lib/environment';
+
+// Re-export types and functions for backward compatibility
+export type { DeploymentTarget } from '@/lib/environment';
+export { isDesktop, isCloud, getDeploymentTarget as getTarget };
 
 /**
  * Default backend URLs for each deployment target
@@ -29,37 +29,10 @@ export type DeploymentTarget = 'cloud' | 'desktop';
  *   - Desktop dev:   7051 (backend), 9050 (frontend)
  *   - Desktop prod:  7052+ dynamic (backend), bundled (frontend)
  */
-const DEFAULT_BACKEND_URLS: Record<DeploymentTarget, string> = {
+const DEFAULT_BACKEND_URLS = {
   cloud: 'https://app.aurity.io',
-  desktop: 'http://localhost:7051', // Desktop dev uses 7051 to avoid conflict with cloud (7001-7050)
-};
-
-/**
- * Get current deployment target from NEXT_PUBLIC_DEPLOYMENT_TARGET env var.
- *
- * @returns 'cloud' for production server, 'desktop' for local app
- */
-export function getTarget(): DeploymentTarget {
-  const target = process.env.NEXT_PUBLIC_DEPLOYMENT_TARGET;
-  if (target === 'cloud') {
-    return 'cloud';
-  }
-  return 'desktop'; // Default to desktop for development
-}
-
-/**
- * Check if running in cloud/production mode.
- */
-export function isCloud(): boolean {
-  return getTarget() === 'cloud';
-}
-
-/**
- * Check if running in desktop/local mode.
- */
-export function isDesktop(): boolean {
-  return getTarget() === 'desktop';
-}
+  desktop: 'http://localhost:7051',
+} as const;
 
 /**
  * Get the backend URL based on deployment target.
@@ -67,15 +40,16 @@ export function isDesktop(): boolean {
  * Priority:
  *   1. Tauri injected URL (window.__AURITY_BACKEND_URL__) - dynamic port
  *   2. Explicit NEXT_PUBLIC_BACKEND_URL (always wins)
- *   3. Empty string for same-origin relative paths (cloud production)
- *   4. Default based on target (desktop: localhost:7001)
+ *   3. Empty string for same-origin relative paths (cloud/web)
+ *   4. Default based on Tauri detection (desktop: localhost:7051)
  *
  * @returns Backend API base URL or empty string for same-origin
  */
 export function getBackendUrl(): string {
   // In browser, check for Tauri-injected URL first (dynamic port)
-  if (typeof window !== 'undefined') {
-    const tauriUrl = (window as Window & { __AURITY_BACKEND_URL__?: string }).__AURITY_BACKEND_URL__;
+  if (isBrowser()) {
+    const tauriUrl = (window as Window & { __AURITY_BACKEND_URL__?: string })
+      .__AURITY_BACKEND_URL__;
     if (tauriUrl) {
       return tauriUrl;
     }
@@ -87,13 +61,14 @@ export function getBackendUrl(): string {
     return explicit;
   }
 
-  // In cloud production, prefer same-origin (empty string) to avoid CORS/mixed-content
-  if (isCloud()) {
-    return ''; // Same-origin relative paths work when frontend and backend share domain
+  // Check if actually running in Tauri (not just build target)
+  if (isBrowser() && detectTauri()) {
+    return DEFAULT_BACKEND_URLS.desktop;
   }
 
-  // Desktop uses localhost (fallback if Tauri hasn't injected yet)
-  return DEFAULT_BACKEND_URLS.desktop;
+  // Web: prefer same-origin (empty string) to avoid CORS/mixed-content
+  // This works because frontend and backend share domain in cloud
+  return '';
 }
 
 /**
@@ -103,8 +78,9 @@ export function getBackendUrl(): string {
  */
 export function getAbsoluteBackendUrl(): string {
   // In browser, check for Tauri-injected URL first (dynamic port)
-  if (typeof window !== 'undefined') {
-    const tauriUrl = (window as Window & { __AURITY_BACKEND_URL__?: string }).__AURITY_BACKEND_URL__;
+  if (isBrowser()) {
+    const tauriUrl = (window as Window & { __AURITY_BACKEND_URL__?: string })
+      .__AURITY_BACKEND_URL__;
     if (tauriUrl) {
       return tauriUrl;
     }
@@ -115,12 +91,18 @@ export function getAbsoluteBackendUrl(): string {
     return explicit;
   }
 
-  return DEFAULT_BACKEND_URLS[getTarget()];
+  // Check if actually running in Tauri
+  if (isBrowser() && detectTauri()) {
+    return DEFAULT_BACKEND_URLS.desktop;
+  }
+
+  return DEFAULT_BACKEND_URLS.cloud;
 }
 
 /**
  * Check if the app should show desktop-specific UI elements.
- * Useful for conditionally rendering desktop features like system tray hints.
+ *
+ * @deprecated Use useTauriDesktop() hook from @/lib/environment instead.
  */
 export function shouldShowDesktopUI(): boolean {
   return isDesktop();
@@ -128,7 +110,6 @@ export function shouldShowDesktopUI(): boolean {
 
 /**
  * Get the default Ollama host for frontend display/configuration.
- * The actual Ollama connection is handled by the backend.
  */
 export function getDefaultOllamaHost(): string {
   return 'http://localhost:11434';
@@ -136,7 +117,6 @@ export function getDefaultOllamaHost(): string {
 
 /**
  * Get the backend port number (for display purposes).
- * Returns the dynamic port if available, otherwise the default.
  */
 export function getBackendPort(): number | null {
   const url = getBackendUrl();
@@ -146,7 +126,6 @@ export function getBackendPort(): number | null {
     const parsed = new URL(url);
     return parseInt(parsed.port) || (parsed.protocol === 'https:' ? 443 : 80);
   } catch {
-    // Try to extract port from localhost URL
     const match = url.match(/:(\d+)/);
     return match ? parseInt(match[1]) : null;
   }
@@ -154,16 +133,16 @@ export function getBackendPort(): number | null {
 
 /**
  * Log deployment configuration (for debugging).
- * Only logs in development or when explicitly requested.
  */
 export function logDeploymentConfig(): void {
-  if (typeof window === 'undefined') return;
+  if (!isBrowser()) return;
 
   const isDev = process.env.NODE_ENV === 'development';
   if (!isDev) return;
 
   console.log('[Deployment Config]', {
-    target: getTarget(),
+    target: getDeploymentTarget(),
+    isTauri: detectTauri(),
     backendUrl: getBackendUrl(),
     absoluteBackendUrl: getAbsoluteBackendUrl(),
     isCloud: isCloud(),

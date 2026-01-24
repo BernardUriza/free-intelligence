@@ -13,8 +13,8 @@
  * 4. READY → Launch FI Monitor (which shows its own Python/Ollama wizard)
  */
 
-import { useState, useEffect } from 'react';
-import { isDesktop } from '@/lib/config/deployment';
+import { useState, useEffect, useRef } from 'react';
+import { detectTauri, isBrowser } from '@/lib/environment';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, Download, Cloud } from 'lucide-react';
 import { useWizardState, resetWizardState } from './hooks/useWizardState';
@@ -56,10 +56,16 @@ export function DesktopSetupWizard() {
   const [error, setError] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
 
-  // Get app version from Tauri
+  // Use ref to track if we've already checked (prevents double-run)
+  const hasChecked = useRef(false);
+
+  // Direct Tauri detection (no context dependency to avoid loops)
+  const isTauri = isBrowser() && detectTauri();
+
+  // Get app version from Tauri (only once)
   useEffect(() => {
     async function fetchVersion() {
-      if (isDesktop() && typeof window !== 'undefined' && '__TAURI__' in window) {
+      if (isTauri) {
         try {
           const { getVersion } = await import('@tauri-apps/api/app');
           const version = await getVersion();
@@ -70,19 +76,24 @@ export function DesktopSetupWizard() {
       }
     }
     fetchVersion();
-  }, []);
+  }, [isTauri]);
 
   // Use the wizard state hook for persistent storage
   const { isLoading: isLoadingState, isCompleted, markComplete } = useWizardState();
 
-  // Check if setup already completed
+  // Check if setup already completed (run only once)
   useEffect(() => {
-    // Wait for state to load
-    if (isLoadingState) {
-      return;
-    }
+    // Prevent double-execution
+    if (hasChecked.current) return;
 
-    if (!isDesktop()) {
+    // Wait for state to load
+    if (isLoadingState) return;
+
+    // Mark as checked
+    hasChecked.current = true;
+
+    // CRITICAL: Only show wizard if ACTUALLY running in Tauri
+    if (!isTauri) {
       setShowWizard(false);
       return;
     }
@@ -95,7 +106,7 @@ export function DesktopSetupWizard() {
     // Setup not complete - show wizard and check FI Monitor
     setShowWizard(true);
     checkFiMonitor();
-  }, [isLoadingState, isCompleted]);
+  }, [isTauri, isLoadingState, isCompleted]);
 
   // Check if FI Monitor is installed
   const checkFiMonitor = async () => {

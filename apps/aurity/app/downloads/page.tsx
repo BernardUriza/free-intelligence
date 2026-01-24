@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { AppTemplate } from '@/components/layout/AppTemplate';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { detectTauri, isBrowser } from '@/lib/environment';
 import {
   Download,
   Apple,
@@ -33,17 +34,15 @@ import {
   Gift,
   WifiOff,
   Stethoscope,
+  Mic,
+  FileText,
+  Brain,
+  ClipboardCheck,
+  ArrowRight,
+  Heart,
+  Users,
+  Globe,
 } from 'lucide-react';
-
-// Check if running in desktop mode
-const isDesktop = () => {
-  if (typeof window === 'undefined') return false;
-  // Check Tauri
-  if ('__TAURI__' in window) return true;
-  // Check env var
-  if (process.env.NEXT_PUBLIC_DEPLOYMENT_TARGET === 'desktop') return true;
-  return false;
-};
 
 interface Release {
   version: string;
@@ -164,23 +163,232 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
   );
 }
 
+// Demo steps for the Medical AI pipeline
+const demoSteps = [
+  {
+    id: 'dictation',
+    icon: Mic,
+    label: 'Dictado',
+    duration: '2s',
+    description: 'El médico habla naturalmente'
+  },
+  {
+    id: 'transcription',
+    icon: FileText,
+    label: 'Transcripción',
+    duration: '1.5s',
+    description: 'Voz a texto en tiempo real'
+  },
+  {
+    id: 'analysis',
+    icon: Brain,
+    label: 'Análisis IA',
+    duration: '3s',
+    description: 'Extracción de datos clínicos'
+  },
+  {
+    id: 'soap',
+    icon: ClipboardCheck,
+    label: 'Nota SOAP',
+    duration: '✓',
+    description: 'Nota estructurada lista'
+  },
+];
+
+// Medical AI Demo Component - Animated Timeline
+function MedicalAIDemo() {
+  const [activeStep, setActiveStep] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
+
+  useEffect(() => {
+    // Timings for each step (in ms)
+    const stepDurations = [2000, 1500, 3000, 1500];
+    // Track all timeouts for cleanup
+    const timeoutIds: NodeJS.Timeout[] = [];
+    let isCleanedUp = false;
+
+    const runAnimation = () => {
+      if (isCleanedUp) return; // Don't run if cleanup has occurred
+
+      setActiveStep(0);
+      setIsComplete(false);
+
+      let totalDelay = 0;
+
+      stepDurations.forEach((duration, index) => {
+        const stepTimeout = setTimeout(() => {
+          if (isCleanedUp) return;
+          setActiveStep(index);
+          if (index === stepDurations.length - 1) {
+            const completeTimeout = setTimeout(() => {
+              if (isCleanedUp) return;
+              setIsComplete(true);
+            }, duration - 500);
+            timeoutIds.push(completeTimeout);
+          }
+        }, totalDelay);
+        timeoutIds.push(stepTimeout);
+        totalDelay += duration;
+      });
+
+      // Reset and loop after completion
+      const loopTimeout = setTimeout(() => {
+        if (!isCleanedUp) {
+          runAnimation();
+        }
+      }, totalDelay + 2000);
+      timeoutIds.push(loopTimeout);
+    };
+
+    runAnimation();
+
+    // Cleanup: cancel all pending timeouts
+    return () => {
+      isCleanedUp = true;
+      timeoutIds.forEach(id => clearTimeout(id));
+    };
+  }, []);
+
+  return (
+    <div className="bg-slate-800/80 rounded-2xl border border-slate-700 p-4 sm:p-6 md:p-8 shadow-2xl">
+      {/* Header */}
+      <div className="text-center mb-6 sm:mb-8">
+        <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">
+          Así funciona Aurity
+        </h3>
+        <p className="text-slate-400 text-sm sm:text-base">
+          De tu voz a una nota SOAP en segundos
+        </p>
+      </div>
+
+      {/* Timeline */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-0">
+        {demoSteps.map((step, index) => {
+          const Icon = step.icon;
+          const isActive = index === activeStep;
+          const isPast = index < activeStep || isComplete;
+
+          return (
+            <div key={step.id} className="flex items-center">
+              {/* Step */}
+              <div className={`
+                flex flex-col items-center transition-all duration-500
+                ${isActive ? 'scale-110' : 'scale-100'}
+              `}>
+                {/* Icon Circle */}
+                <div className={`
+                  w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center
+                  transition-all duration-500 relative
+                  ${isActive
+                    ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50'
+                    : isPast
+                      ? 'bg-emerald-600/80'
+                      : 'bg-slate-700'
+                  }
+                `}>
+                  <Icon className={`
+                    w-6 h-6 sm:w-7 sm:h-7 transition-colors duration-300
+                    ${isActive || isPast ? 'text-white' : 'text-slate-400'}
+                  `} />
+
+                  {/* Pulse animation for active step */}
+                  {isActive && (
+                    <div className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-30" />
+                  )}
+                </div>
+
+                {/* Label */}
+                <span className={`
+                  mt-2 text-xs sm:text-sm font-medium transition-colors duration-300
+                  ${isActive ? 'text-emerald-400' : isPast ? 'text-emerald-500/70' : 'text-slate-500'}
+                `}>
+                  {step.label}
+                </span>
+
+                {/* Duration badge */}
+                <span className={`
+                  mt-1 text-[10px] sm:text-xs px-2 py-0.5 rounded-full transition-all duration-300
+                  ${isActive
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : isPast
+                      ? 'bg-slate-700/50 text-slate-400'
+                      : 'bg-slate-800 text-slate-600'
+                  }
+                `}>
+                  {step.duration}
+                </span>
+              </div>
+
+              {/* Arrow connector (not after last item) */}
+              {index < demoSteps.length - 1 && (
+                <div className="hidden sm:flex items-center mx-2 sm:mx-4">
+                  <div className={`
+                    w-8 sm:w-12 h-0.5 transition-all duration-500
+                    ${isPast ? 'bg-emerald-500' : 'bg-slate-700'}
+                  `} />
+                  <ArrowRight className={`
+                    w-4 h-4 -ml-1 transition-colors duration-300
+                    ${isPast ? 'text-emerald-500' : 'text-slate-700'}
+                  `} />
+                </div>
+              )}
+
+              {/* Mobile arrow (vertical) */}
+              {index < demoSteps.length - 1 && (
+                <div className="flex sm:hidden items-center justify-center my-1">
+                  <div className={`
+                    w-0.5 h-4 transition-all duration-500
+                    ${isPast ? 'bg-emerald-500' : 'bg-slate-700'}
+                  `} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Current step description */}
+      <div className="mt-6 sm:mt-8 text-center">
+        <div className={`
+          inline-flex items-center gap-2 px-4 py-2 rounded-full
+          transition-all duration-500
+          ${isComplete
+            ? 'bg-emerald-500/20 text-emerald-300'
+            : 'bg-slate-700/50 text-slate-300'
+          }
+        `}>
+          {isComplete ? (
+            <>
+              <CheckCircle2 className="w-4 h-4" />
+              <span className="text-sm">Nota SOAP lista para revisión</span>
+            </>
+          ) : (
+            <span className="text-sm">{demoSteps[activeStep]?.description}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DownloadsPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [releases, setReleases] = useState<Release[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDesktopMode, setIsDesktopMode] = useState(false);
+
+  // Direct Tauri detection (stable, no context dependency)
+  const isTauri = isBrowser() && detectTauri();
 
   useEffect(() => {
-    // Check if running in desktop mode
-    if (isDesktop()) {
-      setIsDesktopMode(true);
-    } else {
-      // Fetch latest release from GitHub API
+    // Only fetch releases if NOT in Tauri (web mode)
+    if (!isTauri) {
       fetchLatestRelease();
+    } else {
+      setLoading(false);
     }
-  }, []);
+  }, [isTauri]);
 
   const fetchLatestRelease = async () => {
     setLoading(true);
@@ -208,8 +416,8 @@ export default function DownloadsPage() {
     }
   };
 
-  // Show "already installed" message in desktop mode
-  if (isDesktopMode) {
+  // Show "already installed" message in desktop mode (Tauri)
+  if (isTauri) {
     return (
       <AppTemplate backgroundGradient="none" maxWidth="none">
         <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
@@ -236,7 +444,7 @@ export default function DownloadsPage() {
   // For unauthenticated users: show optimized landing page
   if (!authLoading && !isAuthenticated) {
     return (
-      <AppTemplate backgroundGradient="none" maxWidth="none">
+      <AppTemplate backgroundGradient="none" maxWidth="none" padding="0">
         <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
           {/* ============================================
               HERO SECTION (Above the Fold)
@@ -321,23 +529,83 @@ export default function DownloadsPage() {
           </section>
 
           {/* ============================================
-              SCREENSHOT / DEMO VISUAL SECTION
+              DEMO VISUAL SECTION - Animated Timeline
               ============================================ */}
           <section className="px-4 pb-12 sm:pb-16">
             <div className="max-w-4xl mx-auto">
-              <div className="bg-slate-800/80 rounded-2xl border border-slate-700 p-4 sm:p-6 shadow-2xl">
-                {/* Placeholder para screenshot del producto */}
-                <div className="aspect-video bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg flex items-center justify-center">
-                  <div className="text-center px-4">
-                    <Stethoscope className="w-12 h-12 sm:w-16 sm:h-16 text-emerald-500 mx-auto mb-4" />
-                    <p className="text-slate-300 text-sm sm:text-base">
-                      Interfaz intuitiva para generar notas SOAP
-                    </p>
-                    <p className="text-slate-500 text-xs sm:text-sm mt-2">
-                      Dicta o escribe, la IA hace el resto
-                    </p>
-                  </div>
+              <MedicalAIDemo />
+            </div>
+          </section>
+
+          {/* ============================================
+              FREE INTELLIGENCE PHILOSOPHY SECTION
+              ============================================ */}
+          <section className="bg-gradient-to-b from-slate-800/50 to-slate-900/50 py-12 sm:py-16 md:py-20 px-4">
+            <div className="max-w-4xl mx-auto">
+              {/* Section Header */}
+              <div className="text-center mb-10 sm:mb-14">
+                <div className="inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
+                  <Heart className="w-4 h-4" />
+                  Nuestra Filosofía
                 </div>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
+                  Free Intelligence
+                </h2>
+                <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
+                  Creemos que la inteligencia artificial médica debe ser libre, privada y accesible para todos.
+                </p>
+              </div>
+
+              {/* Philosophy Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+                {/* Soberanía de Datos */}
+                <div className="bg-slate-800/60 rounded-xl p-6 border border-slate-700 hover:border-emerald-500/30 transition-colors">
+                  <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4">
+                    <Lock className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    Soberanía de Datos
+                  </h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">
+                    Tus datos clínicos son tuyos. No los vendemos, no los analizamos, no los compartimos.
+                    Corren en <strong className="text-slate-300">tu hardware</strong>, bajo <strong className="text-slate-300">tu control</strong>.
+                  </p>
+                </div>
+
+                {/* IA para Todos */}
+                <div className="bg-slate-800/60 rounded-xl p-6 border border-slate-700 hover:border-emerald-500/30 transition-colors">
+                  <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4">
+                    <Users className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    IA para Todos
+                  </h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">
+                    La tecnología médica avanzada no debería ser exclusiva de grandes hospitales.
+                    Cualquier consultorio merece herramientas de <strong className="text-slate-300">clase mundial</strong>.
+                  </p>
+                </div>
+
+                {/* Sin Dependencias */}
+                <div className="bg-slate-800/60 rounded-xl p-6 border border-slate-700 hover:border-emerald-500/30 transition-colors">
+                  <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4">
+                    <Globe className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    Sin Dependencias
+                  </h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">
+                    Sin internet, sin servidores externos, sin suscripciones mensuales.
+                    Aurity funciona donde tú trabajes, <strong className="text-slate-300">siempre disponible</strong>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Bottom Statement */}
+              <div className="mt-10 sm:mt-14 text-center">
+                <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto italic">
+                  &ldquo;La privacidad del paciente no es una feature premium. Es un derecho fundamental.&rdquo;
+                </p>
               </div>
             </div>
           </section>
