@@ -18,8 +18,8 @@ interface AppTemplateProps {
   children: ReactNode;
   /** Optional gradient background (default: slate) */
   backgroundGradient?: 'slate' | 'emerald' | 'purple' | 'none';
-  /** Optional max-width container (default: 7xl) */
-  maxWidth?: 'full' | '7xl' | '5xl' | '3xl';
+  /** Optional max-width container (default: 7xl, 'none' for no max-width) */
+  maxWidth?: 'none' | 'full' | '7xl' | '5xl' | '3xl';
   /** Optional padding (default: 6) */
   padding?: '0' | '4' | '6' | '8';
   /** Show logo watermark background (default: false) */
@@ -49,6 +49,7 @@ export function AppTemplate({
   };
 
   const maxWidthClasses = {
+    none: '',
     full: 'w-full',
     '7xl': 'max-w-7xl',
     '5xl': 'max-w-5xl',

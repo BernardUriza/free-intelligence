@@ -211,7 +211,7 @@ export default function DownloadsPage() {
   // Show "already installed" message in desktop mode
   if (isDesktopMode) {
     return (
-      <AppTemplate backgroundGradient="none">
+      <AppTemplate backgroundGradient="none" maxWidth="none">
         <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
           <div className="text-center p-8 max-w-md">
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -236,7 +236,7 @@ export default function DownloadsPage() {
   // For unauthenticated users: show optimized landing page
   if (!authLoading && !isAuthenticated) {
     return (
-      <AppTemplate backgroundGradient="none">
+      <AppTemplate backgroundGradient="none" maxWidth="none">
         <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
           {/* ============================================
               HERO SECTION (Above the Fold)
@@ -583,7 +583,7 @@ export default function DownloadsPage() {
   // For authenticated users: show full downloads page with details
   // ============================================
   return (
-    <AppTemplate backgroundGradient="none">
+    <AppTemplate backgroundGradient="none" maxWidth="none">
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
         {/* Hero Section */}
         <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8 md:py-12">
