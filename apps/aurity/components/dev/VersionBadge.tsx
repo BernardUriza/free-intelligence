@@ -3,7 +3,8 @@
 /**
  * VersionBadge - Floating version indicator for E2E testing
  *
- * Displays current version in corner, fetches from backend /api/version endpoint.
+ * Displays current version in corner. Version number comes from /releases.json
+ * (source of truth for UI), while environment/build info comes from backend /api/version.
  * Used by CI/CD to verify frontend-backend connectivity.
  *
  * @example
@@ -31,6 +32,19 @@ export function VersionBadge() {
   useEffect(() => {
     const fetchVersion = async () => {
       try {
+        // Fetch release version from releases.json (source of truth for UI version)
+        let releaseVersion: string | null = null;
+        try {
+          const releasesRes = await fetch('/releases.json');
+          if (releasesRes.ok) {
+            const releasesData = await releasesRes.json();
+            releaseVersion = releasesData.releases?.[0]?.version || null;
+          }
+        } catch {
+          console.debug('VersionBadge: Could not fetch releases.json');
+        }
+
+        // Fetch backend info (environment, build_timestamp, etc.)
         const backendUrl = getBackendUrl();
         const res = await fetch(`${backendUrl}/api/version`, {
           headers: { 'Accept': 'application/json' },
@@ -39,7 +53,12 @@ export function VersionBadge() {
           const data = await res.json();
           // Get port from deployment config (handles dynamic Tauri port)
           const backendPort = getBackendPort() ?? undefined;
-          setVersion({ ...data, backend_port: backendPort });
+          setVersion({
+            ...data,
+            // releases.json version takes priority over backend version
+            version: releaseVersion || data.version,
+            backend_port: backendPort,
+          });
         }
       } catch (err) {
         // Silently fail - version badge is non-critical
