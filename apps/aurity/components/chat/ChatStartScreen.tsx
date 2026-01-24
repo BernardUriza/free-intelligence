@@ -7,7 +7,8 @@
  * Prevents accidental LLM calls and shows login prompt for unauthenticated users.
  */
 
-import { LogIn, MessageSquareText, Shield, Sparkles } from 'lucide-react';
+import { Download, MessageSquareText, Monitor, Shield, Sparkles } from 'lucide-react';
+import Link from 'next/link';
 
 export interface ChatStartScreenProps {
   /** Whether the user is authenticated */
@@ -29,32 +30,32 @@ export function ChatStartScreen({
   onLogin,
   isLoading = false,
 }: ChatStartScreenProps) {
-  // NOT AUTHENTICATED - Show login prompt
+  // NOT AUTHENTICATED - Promote desktop app
   if (!isAuthenticated) {
     return (
       <div className="chat-start-screen">
         <div className="chat-start-container">
           <div className="flex justify-center">
             <div className="chat-start-icon">
-              <Shield className="fi-icon-xl text-slate-400" />
+              <Monitor className="fi-icon-xl text-purple-400" />
             </div>
           </div>
 
           <div className="fi-stack-sm">
-            <h3 className="chat-start-title">Inicia sesión para continuar</h3>
+            <h3 className="chat-start-title">¡Pruébalo en tu escritorio!</h3>
             <p className="chat-start-subtitle">
-              Para proteger tu privacidad y guardar tu historial de conversaciones,
-              necesitas iniciar sesión.
+              IA offline para tu desarrollo profesional. Licencias piloto gratuitas
+              disponibles. ¡Descarga la tuya!
             </p>
           </div>
 
-          <button onClick={onLogin} className="chat-start-btn-login">
-            <LogIn className="fi-icon-md" />
-            Iniciar sesión
-          </button>
+          <Link href="/downloads" className="chat-start-btn-login">
+            <Download className="fi-icon-md" />
+            Ir a Descargas
+          </Link>
 
           <p className="chat-start-hint">
-            Tus datos están protegidos con encriptación AES-256
+            100% privado, funciona sin internet
           </p>
         </div>
       </div>
