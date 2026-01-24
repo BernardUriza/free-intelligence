@@ -182,35 +182,35 @@ export default function DownloadsPage() {
       <AppTemplate backgroundGradient="none">
         <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
           {/* Hero Section */}
-          <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
-            <div className="text-center max-w-3xl mx-auto">
-              <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
+          <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:py-12">
+            <div className="text-center max-w-3xl mx-auto w-full">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6">
                 Aurity Desktop
               </h1>
-              <p className="text-xl md:text-2xl text-slate-300 mb-8">
+              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-slate-300 mb-6 sm:mb-8 px-2">
                 Asistente médico con IA que corre 100% en tu dispositivo.
-                <br />
-                <span className="text-emerald-400">Sin nube. Sin compartir datos. Privacidad total.</span>
+                <br className="hidden sm:block" />
+                <span className="text-emerald-400"> Sin nube. Sin compartir datos. Privacidad total.</span>
               </p>
 
               {/* Giant Download Button */}
               {loading ? (
-                <div className="flex justify-center py-8">
-                  <RefreshCw className="w-8 h-8 animate-spin text-emerald-500" />
+                <div className="flex justify-center py-6 sm:py-8">
+                  <RefreshCw className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-emerald-500" />
                 </div>
               ) : error ? (
-                <div className="flex flex-col items-center py-8">
-                  <p className="text-red-400 mb-4">{error}</p>
+                <div className="flex flex-col items-center py-6 sm:py-8">
+                  <p className="text-red-400 mb-4 text-sm sm:text-base">{error}</p>
                   <Button onClick={fetchLatestRelease} variant="outline" className="border-slate-600 text-slate-300">
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Reintentar
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4 px-2">
                   <Button
                     size="lg"
-                    className="h-20 px-12 text-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xl shadow-emerald-500/30"
+                    className="w-full sm:w-auto h-14 sm:h-16 md:h-20 px-6 sm:px-8 md:px-12 text-lg sm:text-xl md:text-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xl shadow-emerald-500/30"
                     onClick={() => {
                       // Detect OS and download appropriate version
                       const ua = navigator.userAgent.toLowerCase();
@@ -227,27 +227,27 @@ export default function DownloadsPage() {
                       }
                     }}
                   >
-                    <Download className="w-8 h-8 mr-3" />
+                    <Download className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 mr-2 sm:mr-3" />
                     Descargar Gratis
                   </Button>
                   {latestRelease && (
-                    <p className="text-slate-400 text-sm">
-                      Versión {latestRelease.version} · Disponible para macOS, Windows y Linux
+                    <p className="text-slate-400 text-xs sm:text-sm">
+                      Versión {latestRelease.version} · macOS, Windows y Linux
                     </p>
                   )}
                 </div>
               )}
 
               {/* CTA to Chat */}
-              <div className="mt-12 pt-8 border-t border-slate-700">
-                <p className="text-slate-400 mb-4">¿Prefieres la versión en la nube?</p>
+              <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-slate-700 px-2">
+                <p className="text-slate-400 mb-3 sm:mb-4 text-sm sm:text-base">¿Prefieres la versión en la nube?</p>
                 <Button
                   variant="outline"
                   size="lg"
-                  className="border-slate-600 text-slate-300 hover:bg-slate-800"
+                  className="w-full sm:w-auto border-slate-600 text-slate-300 hover:bg-slate-800"
                   onClick={() => router.push('/chat')}
                 >
-                  <MessageSquare className="w-5 h-5 mr-2" />
+                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Ir al Chat Web
                 </Button>
               </div>
@@ -255,19 +255,19 @@ export default function DownloadsPage() {
           </div>
 
           {/* Features */}
-          <div className="bg-slate-800/50 py-16 px-4">
+          <div className="bg-slate-800/50 py-8 sm:py-12 md:py-16 px-4">
             <div className="max-w-5xl mx-auto">
-              <div className="grid md:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
                 {features.map((feature) => (
                   <div
                     key={feature.title}
-                    className="bg-slate-800 rounded-xl p-6 border border-slate-700"
+                    className="bg-slate-800 rounded-xl p-4 sm:p-6 border border-slate-700"
                   >
-                    <feature.icon className="w-10 h-10 text-emerald-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-white mb-2">
+                    <feature.icon className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-400 mb-3 sm:mb-4" />
+                    <h3 className="text-base sm:text-lg font-semibold text-white mb-2">
                       {feature.title}
                     </h3>
-                    <p className="text-slate-400">
+                    <p className="text-slate-400 text-sm sm:text-base">
                       {feature.description}
                     </p>
                   </div>
@@ -285,29 +285,29 @@ export default function DownloadsPage() {
     <AppTemplate backgroundGradient="none">
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
         {/* Hero Section */}
-        <div className="max-w-6xl mx-auto px-4 py-12">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">
+        <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8 md:py-12">
+          <div className="text-center mb-6 sm:mb-8 md:mb-12">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4">
               Aurity Desktop
             </h1>
-            <p className="text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto px-2">
               Asistente médico con IA que corre 100% en tu dispositivo.
               Sin nube. Sin compartir datos. Privacidad total.
             </p>
           </div>
 
           {/* Features */}
-          <div className="grid md:grid-cols-3 gap-6 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 md:mb-12">
             {features.map((feature) => (
               <div
                 key={feature.title}
-                className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700"
+                className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700"
               >
-                <feature.icon className="w-8 h-8 text-blue-600 dark:text-blue-400 mb-4" />
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                <feature.icon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white mb-2">
                   {feature.title}
                 </h3>
-                <p className="text-slate-600 dark:text-slate-300">
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300">
                   {feature.description}
                 </p>
               </div>
@@ -316,37 +316,37 @@ export default function DownloadsPage() {
 
           {/* Download Cards */}
           {loading ? (
-            <div className="flex justify-center py-12">
-              <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+            <div className="flex justify-center py-8 sm:py-12">
+              <RefreshCw className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-blue-600" />
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <p className="text-red-500 mb-4">{error}</p>
+            <div className="flex flex-col items-center justify-center py-8 sm:py-12">
+              <p className="text-red-500 mb-4 text-sm sm:text-base">{error}</p>
               <Button onClick={fetchLatestRelease} variant="outline">
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Reintentar
               </Button>
             </div>
           ) : (
-            <div className="grid md:grid-cols-3 gap-6 mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 md:mb-12">
               {/* macOS Download */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-lg border border-slate-200 dark:border-slate-700">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center">
-                    <Apple className="w-10 h-10 text-slate-700 dark:text-slate-300" />
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8 shadow-lg border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-slate-100 dark:bg-slate-700 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0">
+                    <Apple className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 text-slate-700 dark:text-slate-300" />
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  <div className="min-w-0">
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
                       macOS
                     </h2>
-                    <p className="text-slate-500">Apple Silicon e Intel</p>
+                    <p className="text-slate-500 text-sm sm:text-base truncate">Apple Silicon e Intel</p>
                   </div>
                 </div>
 
                 {latestRelease?.platforms.macos ? (
                   <>
                     <Button
-                      className="w-full mb-4 h-12 text-lg"
+                      className="w-full mb-3 sm:mb-4 h-10 sm:h-12 text-base sm:text-lg"
                       onClick={() => {
                         if (latestRelease.platforms.macos?.url !== '#coming-soon') {
                           window.open(latestRelease.platforms.macos?.url, '_blank');
@@ -354,31 +354,31 @@ export default function DownloadsPage() {
                       }}
                       disabled={latestRelease.platforms.macos.url === '#coming-soon'}
                     >
-                      <Download className="w-5 h-5 mr-2" />
+                      <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                       {latestRelease.platforms.macos.url === '#coming-soon'
                         ? 'Próximamente'
                         : `Descargar v${latestRelease.version}`}
                     </Button>
-                    <div className="text-sm text-slate-500 space-y-1">
+                    <div className="text-xs sm:text-sm text-slate-500 space-y-1">
                       <p>Tamaño: {latestRelease.platforms.macos.size}</p>
-                      <p className="font-mono text-xs truncate">
+                      <p className="font-mono text-[10px] sm:text-xs truncate">
                         SHA256: {latestRelease.platforms.macos.sha256}
                       </p>
                     </div>
                   </>
                 ) : (
-                  <p className="text-slate-500">Aún no disponible</p>
+                  <p className="text-slate-500 text-sm">Aún no disponible</p>
                 )}
 
-                <hr className="my-6 border-slate-200 dark:border-slate-700" />
+                <hr className="my-4 sm:my-6 border-slate-200 dark:border-slate-700" />
 
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 sm:mb-3 text-sm sm:text-base">
                   Requisitos del Sistema
                 </h3>
-                <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
+                <ul className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 space-y-1.5 sm:space-y-2">
                   {Object.entries(systemRequirements.macos).map(([key, value]) => (
                     <li key={key} className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 mt-0.5 flex-shrink-0" />
                       <span>{value}</span>
                     </li>
                   ))}
@@ -386,23 +386,23 @@ export default function DownloadsPage() {
               </div>
 
               {/* Windows Download */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-lg border border-slate-200 dark:border-slate-700">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center">
-                    <Monitor className="w-10 h-10 text-slate-700 dark:text-slate-300" />
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8 shadow-lg border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-slate-100 dark:bg-slate-700 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0">
+                    <Monitor className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 text-slate-700 dark:text-slate-300" />
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  <div className="min-w-0">
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
                       Windows
                     </h2>
-                    <p className="text-slate-500">Instalador (x64)</p>
+                    <p className="text-slate-500 text-sm sm:text-base truncate">Instalador (x64)</p>
                   </div>
                 </div>
 
                 {latestRelease?.platforms.windows ? (
                   <>
                     <Button
-                      className="w-full mb-4 h-12 text-lg"
+                      className="w-full mb-3 sm:mb-4 h-10 sm:h-12 text-base sm:text-lg"
                       onClick={() => {
                         if (latestRelease.platforms.windows?.url !== '#coming-soon') {
                           window.open(latestRelease.platforms.windows?.url, '_blank');
@@ -410,31 +410,31 @@ export default function DownloadsPage() {
                       }}
                       disabled={latestRelease.platforms.windows.url === '#coming-soon'}
                     >
-                      <Download className="w-5 h-5 mr-2" />
+                      <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                       {latestRelease.platforms.windows.url === '#coming-soon'
                         ? 'Próximamente'
                         : `Descargar v${latestRelease.version}`}
                     </Button>
-                    <div className="text-sm text-slate-500 space-y-1">
+                    <div className="text-xs sm:text-sm text-slate-500 space-y-1">
                       <p>Tamaño: {latestRelease.platforms.windows.size}</p>
-                      <p className="font-mono text-xs truncate">
+                      <p className="font-mono text-[10px] sm:text-xs truncate">
                         SHA256: {latestRelease.platforms.windows.sha256}
                       </p>
                     </div>
                   </>
                 ) : (
-                  <p className="text-slate-500">Aún no disponible</p>
+                  <p className="text-slate-500 text-sm">Aún no disponible</p>
                 )}
 
-                <hr className="my-6 border-slate-200 dark:border-slate-700" />
+                <hr className="my-4 sm:my-6 border-slate-200 dark:border-slate-700" />
 
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 sm:mb-3 text-sm sm:text-base">
                   Requisitos del Sistema
                 </h3>
-                <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
+                <ul className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 space-y-1.5 sm:space-y-2">
                   {Object.entries(systemRequirements.windows).map(([key, value]) => (
                     <li key={key} className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 mt-0.5 flex-shrink-0" />
                       <span>{value}</span>
                     </li>
                   ))}
@@ -442,23 +442,23 @@ export default function DownloadsPage() {
               </div>
 
               {/* Linux Download */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-lg border border-slate-200 dark:border-slate-700">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center">
-                    <Monitor className="w-10 h-10 text-slate-700 dark:text-slate-300" />
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8 shadow-lg border border-slate-200 dark:border-slate-700 sm:col-span-2 lg:col-span-1">
+                <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-slate-100 dark:bg-slate-700 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0">
+                    <Monitor className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 text-slate-700 dark:text-slate-300" />
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  <div className="min-w-0">
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
                       Linux
                     </h2>
-                    <p className="text-slate-500">AppImage (x86_64)</p>
+                    <p className="text-slate-500 text-sm sm:text-base truncate">AppImage (x86_64)</p>
                   </div>
                 </div>
 
                 {latestRelease?.platforms.linux ? (
                   <>
                     <Button
-                      className="w-full mb-4 h-12 text-lg"
+                      className="w-full mb-3 sm:mb-4 h-10 sm:h-12 text-base sm:text-lg"
                       onClick={() => {
                         if (latestRelease.platforms.linux?.url !== '#coming-soon') {
                           window.open(latestRelease.platforms.linux?.url, '_blank');
@@ -466,31 +466,31 @@ export default function DownloadsPage() {
                       }}
                       disabled={latestRelease.platforms.linux.url === '#coming-soon'}
                     >
-                      <Download className="w-5 h-5 mr-2" />
+                      <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                       {latestRelease.platforms.linux.url === '#coming-soon'
                         ? 'Próximamente'
                         : `Descargar v${latestRelease.version}`}
                     </Button>
-                    <div className="text-sm text-slate-500 space-y-1">
+                    <div className="text-xs sm:text-sm text-slate-500 space-y-1">
                       <p>Tamaño: {latestRelease.platforms.linux.size}</p>
-                      <p className="font-mono text-xs truncate">
+                      <p className="font-mono text-[10px] sm:text-xs truncate">
                         SHA256: {latestRelease.platforms.linux.sha256}
                       </p>
                     </div>
                   </>
                 ) : (
-                  <p className="text-slate-500">Aún no disponible</p>
+                  <p className="text-slate-500 text-sm">Aún no disponible</p>
                 )}
 
-                <hr className="my-6 border-slate-200 dark:border-slate-700" />
+                <hr className="my-4 sm:my-6 border-slate-200 dark:border-slate-700" />
 
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 sm:mb-3 text-sm sm:text-base">
                   Requisitos del Sistema
                 </h3>
-                <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
+                <ul className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 space-y-1.5 sm:space-y-2">
                   {Object.entries(systemRequirements.linux).map(([key, value]) => (
                     <li key={key} className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 mt-0.5 flex-shrink-0" />
                       <span>{value}</span>
                     </li>
                   ))}
@@ -501,17 +501,17 @@ export default function DownloadsPage() {
 
           {/* Changelog */}
           {latestRelease?.changelog && (
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-sm border border-slate-200 dark:border-slate-700 mb-12">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-700 mb-6 sm:mb-8 md:mb-12">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4">
                 Novedades en v{latestRelease.version}
               </h2>
-              <ul className="space-y-2">
+              <ul className="space-y-1.5 sm:space-y-2">
                 {latestRelease.changelog.map((item, index) => (
                   <li
                     key={index}
-                    className="flex items-start gap-2 text-slate-600 dark:text-slate-300"
+                    className="flex items-start gap-2 text-sm sm:text-base text-slate-600 dark:text-slate-300"
                   >
-                    <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 mt-0.5 flex-shrink-0" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -520,47 +520,47 @@ export default function DownloadsPage() {
           )}
 
           {/* Installation Instructions */}
-          <div className="bg-slate-100 dark:bg-slate-800/50 rounded-xl p-8">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+          <div className="bg-slate-100 dark:bg-slate-800/50 rounded-xl p-4 sm:p-6 md:p-8">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4">
               Instalación
             </h2>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
               <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                  <Apple className="w-5 h-5" /> macOS
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
+                  <Apple className="w-4 h-4 sm:w-5 sm:h-5" /> macOS
                 </h3>
-                <ol className="text-slate-600 dark:text-slate-300 space-y-2 list-decimal list-inside">
+                <ol className="text-slate-600 dark:text-slate-300 space-y-1.5 sm:space-y-2 list-decimal list-inside text-xs sm:text-sm">
                   <li>Descarga el archivo .dmg</li>
                   <li>Haz doble clic para abrir</li>
                   <li>Arrastra Aurity a Aplicaciones</li>
-                  <li>Primera vez: Clic derecho → Abrir (para pasar Gatekeeper)</li>
+                  <li>Primera vez: Clic derecho → Abrir</li>
                 </ol>
               </div>
               <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                  <Monitor className="w-5 h-5" /> Windows
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
+                  <Monitor className="w-4 h-4 sm:w-5 sm:h-5" /> Windows
                 </h3>
-                <ol className="text-slate-600 dark:text-slate-300 space-y-2 list-decimal list-inside">
+                <ol className="text-slate-600 dark:text-slate-300 space-y-1.5 sm:space-y-2 list-decimal list-inside text-xs sm:text-sm">
                   <li>Descarga el instalador .exe</li>
                   <li>Ejecuta el instalador</li>
-                  <li>Primera vez: Clic en &quot;Más información&quot; → &quot;Ejecutar de todas formas&quot; (SmartScreen)</li>
-                  <li>Sigue el asistente de instalación</li>
+                  <li>Clic en &quot;Más información&quot; → &quot;Ejecutar&quot;</li>
+                  <li>Sigue el asistente</li>
                 </ol>
               </div>
-              <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                  <Monitor className="w-5 h-5" /> Linux
+              <div className="sm:col-span-2 md:col-span-1">
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
+                  <Monitor className="w-4 h-4 sm:w-5 sm:h-5" /> Linux
                 </h3>
-                <ol className="text-slate-600 dark:text-slate-300 space-y-2 list-decimal list-inside">
+                <ol className="text-slate-600 dark:text-slate-300 space-y-1.5 sm:space-y-2 list-decimal list-inside text-xs sm:text-sm">
                   <li>Descarga el archivo .AppImage</li>
-                  <li>Hazlo ejecutable: <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">chmod +x Aurity*.AppImage</code></li>
-                  <li>Ejecuta: <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">./Aurity*.AppImage</code></li>
+                  <li className="break-all">Hazlo ejecutable: <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded text-[10px] sm:text-xs">chmod +x Aurity*.AppImage</code></li>
+                  <li className="break-all">Ejecuta: <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded text-[10px] sm:text-xs">./Aurity*.AppImage</code></li>
                 </ol>
               </div>
             </div>
 
-            <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p className="text-blue-800 dark:text-blue-200 text-sm">
+            <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <p className="text-blue-800 dark:text-blue-200 text-xs sm:text-sm">
                 <strong>Nota:</strong> Aurity Desktop requiere{' '}
                 <a
                   href="https://ollama.ai"
@@ -571,7 +571,7 @@ export default function DownloadsPage() {
                   Ollama <ExternalLink className="w-3 h-3" />
                 </a>{' '}
                 para IA local. Instala Ollama primero, luego ejecuta{' '}
-                <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">ollama pull qwen3:8b</code>{' '}
+                <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded text-[10px] sm:text-xs">ollama pull qwen3:8b</code>{' '}
                 para descargar un modelo.
               </p>
             </div>
