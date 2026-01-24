@@ -1,8 +1,11 @@
 /**
- * Downloads Page
+ * Downloads Page - Landing Page Optimizada
  *
- * Displays available Aurity Desktop releases for download.
- * Fetches release information from /releases.json endpoint.
+ * Diseño basado en mejores prácticas 2025-2026 de SaaS landing pages:
+ * - Headline con beneficio claro (+300% conversión)
+ * - UN solo CTA principal (múltiples CTAs = -266% conversión)
+ * - Social proof con stats de características
+ * - FAQ para responder objeciones
  *
  * NOTE: This page is hidden in desktop mode (you're already running the app!)
  */
@@ -19,13 +22,17 @@ import {
   Apple,
   Monitor,
   Shield,
-  Cpu,
-  HardDrive,
+  Zap,
+  Lock,
   RefreshCw,
   CheckCircle,
   ExternalLink,
   CheckCircle2,
-  MessageSquare,
+  ChevronDown,
+  ChevronUp,
+  Gift,
+  WifiOff,
+  Stethoscope,
 } from 'lucide-react';
 
 // Check if running in desktop mode
@@ -61,21 +68,45 @@ interface Release {
   changelog?: string[];
 }
 
-const features = [
+// Benefits reescritos con enfoque en valor, no características
+const benefits = [
+  {
+    icon: Lock,
+    title: 'Privacidad Total',
+    description: 'Tus pacientes nunca tocan internet. Cada consulta queda en tu computadora.',
+    stat: '0 datos en la nube',
+  },
+  {
+    icon: Zap,
+    title: 'Rapidez Extrema',
+    description: 'Genera notas SOAP completas en segundos, no en minutos de dictado.',
+    stat: 'Notas en segundos',
+  },
   {
     icon: Shield,
-    title: '100% Offline',
-    description: 'Todo el procesamiento de IA ocurre en tu dispositivo. Ningún dato sale de tu computadora.',
+    title: 'Control Absoluto',
+    description: 'IA potente sin pagar $20/mes. Cumple HIPAA sin esfuerzo extra.',
+    stat: 'Sin suscripciones',
+  },
+];
+
+// FAQ para responder objeciones comunes
+const faqs = [
+  {
+    question: '¿Necesito internet para usarlo?',
+    answer: 'No. Aurity Desktop funciona 100% offline. La IA corre en tu computadora usando Ollama. Puedes usarlo en consultorios sin conexión.',
   },
   {
-    icon: Cpu,
-    title: 'LLM Local',
-    description: 'Potenciado por Ollama con Qwen3, Llama, o tu modelo preferido.',
+    question: '¿Mis datos de pacientes están seguros?',
+    answer: 'Absolutamente. Ningún dato sale de tu computadora. No hay servidores externos, no hay nube, no hay transmisión. Todo se almacena localmente con encriptación.',
   },
   {
-    icon: HardDrive,
-    title: 'Tus Datos',
-    description: 'Expedientes médicos almacenados localmente en ~/.aurity con encriptación completa.',
+    question: '¿Cuánto cuesta?',
+    answer: 'El programa piloto es gratuito. Estamos buscando médicos que nos den feedback. Después del piloto, será una licencia única (sin suscripción mensual).',
+  },
+  {
+    question: '¿Funciona con mi especialidad médica?',
+    answer: 'Sí. Aurity se adapta a cualquier especialidad: medicina general, pediatría, ginecología, cardiología, etc. El modelo de IA entiende terminología médica en español.',
   },
 ];
 
@@ -105,6 +136,32 @@ interface ReleasesData {
   releases: Release[];
   generatedAt: string;
   source: string;
+}
+
+// FAQ Accordion Item Component
+function FAQItem({ question, answer }: { question: string; answer: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="border-b border-slate-700 last:border-b-0">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full py-4 sm:py-5 flex items-center justify-between text-left hover:text-emerald-400 transition-colors"
+      >
+        <span className="text-base sm:text-lg font-medium text-white pr-4">{question}</span>
+        {isOpen ? (
+          <ChevronUp className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-slate-400 flex-shrink-0" />
+        )}
+      </button>
+      {isOpen && (
+        <div className="pb-4 sm:pb-5 text-slate-300 text-sm sm:text-base leading-relaxed">
+          {answer}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function DownloadsPage() {
@@ -176,24 +233,47 @@ export default function DownloadsPage() {
 
   const latestRelease = releases[0];
 
-  // For unauthenticated users: show landing page with giant download button
+  // For unauthenticated users: show optimized landing page
   if (!authLoading && !isAuthenticated) {
     return (
       <AppTemplate backgroundGradient="none">
         <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
-          {/* Hero Section */}
-          <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:py-12">
-            <div className="text-center max-w-3xl mx-auto w-full">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6">
-                Aurity Desktop
+          {/* ============================================
+              HERO SECTION (Above the Fold)
+              ============================================ */}
+          <section className="flex-1 flex flex-col items-center justify-center px-4 py-12 sm:py-16 md:py-20">
+            <div className="text-center max-w-4xl mx-auto w-full">
+              {/* Headline principal - beneficio claro */}
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight">
+                El Copiloto Médico que Vive en Tu Computadora
               </h1>
-              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-slate-300 mb-6 sm:mb-8 px-2">
-                Asistente médico con IA que corre 100% en tu dispositivo.
+
+              {/* Subheadline con propuesta de valor */}
+              <p className="text-lg sm:text-xl md:text-2xl text-slate-300 mb-6 sm:mb-8 px-2 max-w-3xl mx-auto">
+                Genera notas SOAP en segundos. 100% offline.
                 <br className="hidden sm:block" />
-                <span className="text-emerald-400"> Sin nube. Sin compartir datos. Privacidad total.</span>
+                <span className="text-emerald-400 font-medium">
+                  Ningún paciente en la nube. Ninguna suscripción mensual.
+                </span>
               </p>
 
-              {/* Giant Download Button */}
+              {/* Trust badges (checkmarks) */}
+              <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mb-8 sm:mb-10 text-sm sm:text-base">
+                <div className="flex items-center gap-2 text-slate-300">
+                  <WifiOff className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+                  <span>Funciona sin internet</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+                  <span>Tus datos nunca salen de tu PC</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  <Gift className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+                  <span>Licencias piloto gratuitas</span>
+                </div>
+              </div>
+
+              {/* CTA Principal - UN SOLO BOTÓN */}
               {loading ? (
                 <div className="flex justify-center py-6 sm:py-8">
                   <RefreshCw className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-emerald-500" />
@@ -210,7 +290,7 @@ export default function DownloadsPage() {
                 <div className="space-y-3 sm:space-y-4 px-2">
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto h-14 sm:h-16 md:h-20 px-6 sm:px-8 md:px-12 text-lg sm:text-xl md:text-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xl shadow-emerald-500/30"
+                    className="w-full sm:w-auto h-14 sm:h-16 md:h-20 px-8 sm:px-10 md:px-14 text-lg sm:text-xl md:text-2xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl shadow-emerald-500/30 transition-all hover:shadow-emerald-500/40 hover:scale-[1.02]"
                     onClick={() => {
                       // Detect OS and download appropriate version
                       const ua = navigator.userAgent.toLowerCase();
@@ -237,50 +317,271 @@ export default function DownloadsPage() {
                   )}
                 </div>
               )}
+            </div>
+          </section>
 
-              {/* CTA to Chat */}
-              <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-slate-700 px-2">
-                <p className="text-slate-400 mb-3 sm:mb-4 text-sm sm:text-base">¿Prefieres la versión en la nube?</p>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full sm:w-auto border-slate-600 text-slate-300 hover:bg-slate-800"
-                  onClick={() => router.push('/chat')}
-                >
-                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                  Ir al Chat Web
-                </Button>
+          {/* ============================================
+              SCREENSHOT / DEMO VISUAL SECTION
+              ============================================ */}
+          <section className="px-4 pb-12 sm:pb-16">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-slate-800/80 rounded-2xl border border-slate-700 p-4 sm:p-6 shadow-2xl">
+                {/* Placeholder para screenshot del producto */}
+                <div className="aspect-video bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg flex items-center justify-center">
+                  <div className="text-center px-4">
+                    <Stethoscope className="w-12 h-12 sm:w-16 sm:h-16 text-emerald-500 mx-auto mb-4" />
+                    <p className="text-slate-300 text-sm sm:text-base">
+                      Interfaz intuitiva para generar notas SOAP
+                    </p>
+                    <p className="text-slate-500 text-xs sm:text-sm mt-2">
+                      Dicta o escribe, la IA hace el resto
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Features */}
-          <div className="bg-slate-800/50 py-8 sm:py-12 md:py-16 px-4">
+          {/* ============================================
+              BENEFITS SECTION (3 cards)
+              ============================================ */}
+          <section className="bg-slate-800/50 py-12 sm:py-16 md:py-20 px-4">
             <div className="max-w-5xl mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">
+                Por qué los médicos eligen Aurity
+              </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
-                {features.map((feature) => (
+                {benefits.map((benefit) => (
                   <div
-                    key={feature.title}
-                    className="bg-slate-800 rounded-xl p-4 sm:p-6 border border-slate-700"
+                    key={benefit.title}
+                    className="bg-slate-800 rounded-xl p-5 sm:p-6 border border-slate-700 hover:border-emerald-500/50 transition-colors"
                   >
-                    <feature.icon className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-400 mb-3 sm:mb-4" />
-                    <h3 className="text-base sm:text-lg font-semibold text-white mb-2">
-                      {feature.title}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                        <benefit.icon className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
+                      </div>
+                      <span className="text-emerald-400 text-xs sm:text-sm font-medium">
+                        {benefit.stat}
+                      </span>
+                    </div>
+                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">
+                      {benefit.title}
                     </h3>
                     <p className="text-slate-400 text-sm sm:text-base">
-                      {feature.description}
+                      {benefit.description}
                     </p>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
+          </section>
+
+          {/* ============================================
+              DOWNLOAD CARDS SECTION
+              ============================================ */}
+          <section className="py-12 sm:py-16 px-4">
+            <div className="max-w-5xl mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-3">
+                Disponible para tu plataforma
+              </h2>
+              <p className="text-slate-400 text-center mb-8 sm:mb-12">
+                Instalación simple, sin configuración complicada
+              </p>
+
+              {!loading && !error && latestRelease && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {/* macOS */}
+                  <div className="bg-slate-800 rounded-xl p-5 sm:p-6 border border-slate-700 hover:border-slate-600 transition-colors">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center">
+                        <Apple className="w-7 h-7 text-slate-300" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">macOS</h3>
+                        <p className="text-slate-500 text-sm">Apple Silicon e Intel</p>
+                      </div>
+                    </div>
+                    {latestRelease.platforms.macos ? (
+                      <Button
+                        className="w-full h-11 bg-slate-700 hover:bg-slate-600 text-white"
+                        onClick={() => {
+                          if (latestRelease.platforms.macos?.url !== '#coming-soon') {
+                            window.open(latestRelease.platforms.macos?.url, '_blank');
+                          }
+                        }}
+                        disabled={latestRelease.platforms.macos.url === '#coming-soon'}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        {latestRelease.platforms.macos.url === '#coming-soon'
+                          ? 'Próximamente'
+                          : `Descargar DMG`}
+                      </Button>
+                    ) : (
+                      <p className="text-slate-500 text-sm">Aún no disponible</p>
+                    )}
+                  </div>
+
+                  {/* Windows */}
+                  <div className="bg-slate-800 rounded-xl p-5 sm:p-6 border border-slate-700 hover:border-slate-600 transition-colors">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center">
+                        <Monitor className="w-7 h-7 text-slate-300" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">Windows</h3>
+                        <p className="text-slate-500 text-sm">Windows 10/11 (64-bit)</p>
+                      </div>
+                    </div>
+                    {latestRelease.platforms.windows ? (
+                      <Button
+                        className="w-full h-11 bg-slate-700 hover:bg-slate-600 text-white"
+                        onClick={() => {
+                          if (latestRelease.platforms.windows?.url !== '#coming-soon') {
+                            window.open(latestRelease.platforms.windows?.url, '_blank');
+                          }
+                        }}
+                        disabled={latestRelease.platforms.windows.url === '#coming-soon'}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        {latestRelease.platforms.windows.url === '#coming-soon'
+                          ? 'Próximamente'
+                          : `Descargar EXE`}
+                      </Button>
+                    ) : (
+                      <p className="text-slate-500 text-sm">Aún no disponible</p>
+                    )}
+                  </div>
+
+                  {/* Linux */}
+                  <div className="bg-slate-800 rounded-xl p-5 sm:p-6 border border-slate-700 hover:border-slate-600 transition-colors sm:col-span-2 lg:col-span-1">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center">
+                        <Monitor className="w-7 h-7 text-slate-300" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">Linux</h3>
+                        <p className="text-slate-500 text-sm">AppImage (x86_64)</p>
+                      </div>
+                    </div>
+                    {latestRelease.platforms.linux ? (
+                      <Button
+                        className="w-full h-11 bg-slate-700 hover:bg-slate-600 text-white"
+                        onClick={() => {
+                          if (latestRelease.platforms.linux?.url !== '#coming-soon') {
+                            window.open(latestRelease.platforms.linux?.url, '_blank');
+                          }
+                        }}
+                        disabled={latestRelease.platforms.linux.url === '#coming-soon'}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        {latestRelease.platforms.linux.url === '#coming-soon'
+                          ? 'Próximamente'
+                          : `Descargar AppImage`}
+                      </Button>
+                    ) : (
+                      <p className="text-slate-500 text-sm">Aún no disponible</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ============================================
+              FAQ SECTION
+              ============================================ */}
+          <section className="bg-slate-800/30 py-12 sm:py-16 md:py-20 px-4">
+            <div className="max-w-3xl mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">
+                Preguntas Frecuentes
+              </h2>
+              <div className="bg-slate-800/50 rounded-xl border border-slate-700 px-4 sm:px-6">
+                {faqs.map((faq, index) => (
+                  <FAQItem key={index} question={faq.question} answer={faq.answer} />
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* ============================================
+              FINAL CTA SECTION (Urgencia/Escasez)
+              ============================================ */}
+          <section className="py-12 sm:py-16 md:py-20 px-4">
+            <div className="max-w-3xl mx-auto text-center">
+              {/* Badge de urgencia */}
+              <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-full text-sm font-medium mb-6">
+                <Gift className="w-4 h-4" />
+                Licencias Piloto Limitadas
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
+                Sé parte de los primeros en usarlo
+              </h2>
+              <p className="text-slate-300 text-base sm:text-lg mb-8 max-w-2xl mx-auto">
+                Estamos aceptando médicos para el programa piloto.
+                <br className="hidden sm:block" />
+                Acceso gratuito a cambio de tu feedback.
+              </p>
+
+              {!loading && !error && (
+                <Button
+                  size="lg"
+                  className="h-14 sm:h-16 px-8 sm:px-12 text-lg sm:text-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-500/25 transition-all hover:shadow-emerald-500/35"
+                  onClick={() => {
+                    const ua = navigator.userAgent.toLowerCase();
+                    let downloadUrl = '';
+                    if (ua.includes('mac')) {
+                      downloadUrl = latestRelease?.platforms.macos?.url || '';
+                    } else if (ua.includes('win')) {
+                      downloadUrl = latestRelease?.platforms.windows?.url || '';
+                    } else if (ua.includes('linux')) {
+                      downloadUrl = latestRelease?.platforms.linux?.url || '';
+                    }
+                    if (downloadUrl && downloadUrl !== '#coming-soon') {
+                      window.open(downloadUrl, '_blank');
+                    }
+                  }}
+                >
+                  <Download className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />
+                  Obtener Mi Licencia Piloto
+                </Button>
+              )}
+
+              {/* Ollama requirement note */}
+              <div className="mt-8 p-4 bg-slate-800/50 rounded-lg border border-slate-700 text-left max-w-xl mx-auto">
+                <p className="text-slate-400 text-sm">
+                  <strong className="text-white">Requisito:</strong> Aurity Desktop usa{' '}
+                  <a
+                    href="https://ollama.ai"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-400 hover:underline inline-flex items-center gap-1"
+                  >
+                    Ollama <ExternalLink className="w-3 h-3" />
+                  </a>{' '}
+                  para IA local. Instálalo primero, luego ejecuta{' '}
+                  <code className="bg-slate-700 px-1.5 py-0.5 rounded text-xs text-emerald-300">
+                    ollama pull qwen3:8b
+                  </code>
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Footer minimal */}
+          <footer className="border-t border-slate-800 py-6 px-4">
+            <p className="text-center text-slate-500 text-sm">
+              Aurity Desktop · Privacidad primero, siempre.
+            </p>
+          </footer>
         </div>
       </AppTemplate>
     );
   }
 
-  // For authenticated users: show full downloads page
+  // ============================================
+  // For authenticated users: show full downloads page with details
+  // ============================================
   return (
     <AppTemplate backgroundGradient="none">
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
@@ -291,24 +592,24 @@ export default function DownloadsPage() {
               Aurity Desktop
             </h1>
             <p className="text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto px-2">
-              Asistente médico con IA que corre 100% en tu dispositivo.
+              Tu copiloto médico con IA que corre 100% en tu dispositivo.
               Sin nube. Sin compartir datos. Privacidad total.
             </p>
           </div>
 
           {/* Features */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 md:mb-12">
-            {features.map((feature) => (
+            {benefits.map((benefit) => (
               <div
-                key={feature.title}
+                key={benefit.title}
                 className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700"
               >
-                <feature.icon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 mb-3 sm:mb-4" />
+                <benefit.icon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 mb-3 sm:mb-4" />
                 <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                  {feature.title}
+                  {benefit.title}
                 </h3>
                 <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300">
-                  {feature.description}
+                  {benefit.description}
                 </p>
               </div>
             ))}
