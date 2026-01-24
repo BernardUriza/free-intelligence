@@ -1,13 +1,17 @@
 /**
  * ProviderLogo Component
  *
- * SVG logos for LLM providers. Minimal, distinctive icons.
+ * SVG logos for LLM providers and model sources.
+ * Supports: openai, anthropic, azure, ollama, gpt4all, huggingface
  */
 
 import type { LLMProvider } from '@aurity-standalone/types/llm';
 
+// Extended type to include catalog sources
+type ProviderOrSource = LLMProvider | 'gpt4all' | 'huggingface' | string;
+
 interface ProviderLogoProps {
-  provider: LLMProvider | string;
+  provider: ProviderOrSource;
   size?: number;
   className?: string;
 }
@@ -102,6 +106,80 @@ export function ProviderLogo({ provider, size = 24, className = '' }: ProviderLo
         </svg>
       );
 
+    case 'gpt4all':
+      // GPT4All - Leaf/plant shape (open source, growing)
+      return (
+        <svg {...svgProps}>
+          <path
+            d="M12 22V12"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <path
+            d="M12 12c-4-2-6-6-5-10 4 1 7 4 8 8"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M12 12c4-2 6-6 5-10-4 1-7 4-8 8"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M12 16c-2 0-4 1-5 3"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <path
+            d="M12 16c2 0 4 1 5 3"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+
+    case 'huggingface':
+      // HuggingFace - Smiling face with hug arms
+      return (
+        <svg {...svgProps}>
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            fill="none"
+          />
+          {/* Eyes */}
+          <circle cx="9" cy="10" r="1.5" fill="currentColor" />
+          <circle cx="15" cy="10" r="1.5" fill="currentColor" />
+          {/* Smile */}
+          <path
+            d="M8 14c1 2 3 3 4 3s3-1 4-3"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            fill="none"
+          />
+          {/* Hug arms (simplified) */}
+          <path
+            d="M3 10c0 2 1 4 2 5M21 10c0 2-1 4-2 5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+
     default:
       // Generic AI/Brain icon for unknown providers
       return (
@@ -132,10 +210,14 @@ export function ProviderLogoBox({
   className = ''
 }: ProviderLogoProps) {
   const colorMap: Record<string, string> = {
+    // LLM Providers
     openai: 'bg-emerald-900/50 border-emerald-700/50 fi-text-success',
     anthropic: 'bg-orange-900/50 border-orange-700/50 text-orange-400',
     azure: 'bg-blue-900/50 border-blue-700/50 fi-text-primary',
-    ollama: 'bg-slate-800/50 border-slate-600/50 fi-text',
+    ollama: 'bg-purple-900/50 border-purple-700/50 text-purple-400',
+    // Catalog Sources
+    gpt4all: 'bg-emerald-900/50 border-emerald-700/50 text-emerald-400',
+    huggingface: 'bg-yellow-900/50 border-yellow-700/50 text-yellow-400',
   };
 
   const colorClass = colorMap[provider] || 'bg-slate-800/50 border-slate-600/50 text-slate-400';

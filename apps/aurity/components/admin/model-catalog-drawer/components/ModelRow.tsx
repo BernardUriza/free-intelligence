@@ -2,6 +2,7 @@
 
 import { Check, ChevronRight, Cpu, Download, HardDrive, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ProviderLogo } from '@/components/ui/ProviderLogo';
 import { SOURCE_INFO, QUANT_INFO, formatBytes } from '@/lib/api/catalog';
 import type { ModelRowProps } from '../types';
 
@@ -29,8 +30,8 @@ export function ModelRow({
       } ${isSelected ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-slate-900' : ''}`}
     >
       {/* Source Icon */}
-      <div className="flex-shrink-0 text-2xl" title={sourceInfo.label}>
-        {sourceInfo.icon}
+      <div className="flex-shrink-0" title={sourceInfo.label}>
+        <ProviderLogo provider={model.source} size={24} className="text-slate-300" />
       </div>
 
       {/* Model Info */}
