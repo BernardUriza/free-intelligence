@@ -2,12 +2,13 @@
  * OrderEntry Constants
  */
 
+import { Pill, FlaskConical, ScanSearch, CalendarClock } from 'lucide-react';
 import type { OrderTypeConfig, OrderType } from './types';
 
 export const ORDER_TYPES: Record<OrderType, OrderTypeConfig> = {
   medication: {
     label: 'Medicación',
-    icon: '💊',
+    icon: Pill,
     color: 'emerald',
     gradientClass: 'fi-gradient-emerald-subtle',
     border: 'border-emerald-500/50',
@@ -15,7 +16,7 @@ export const ORDER_TYPES: Record<OrderType, OrderTypeConfig> = {
   },
   lab: {
     label: 'Laboratorio',
-    icon: '🔬',
+    icon: FlaskConical,
     color: 'cyan',
     gradientClass: 'fi-gradient-cyan-subtle',
     border: 'border-cyan-500/50',
@@ -23,7 +24,7 @@ export const ORDER_TYPES: Record<OrderType, OrderTypeConfig> = {
   },
   imaging: {
     label: 'Imagenología',
-    icon: '🔍',
+    icon: ScanSearch,
     color: 'purple',
     gradientClass: 'fi-gradient-purple-subtle',
     border: 'border-purple-500/50',
@@ -31,7 +32,7 @@ export const ORDER_TYPES: Record<OrderType, OrderTypeConfig> = {
   },
   followup: {
     label: 'Seguimiento',
-    icon: '📅',
+    icon: CalendarClock,
     color: 'amber',
     gradientClass: 'fi-gradient-amber-subtle',
     border: 'border-amber-500/50',

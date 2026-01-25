@@ -44,7 +44,7 @@ export function OrdersList({ groupedOrders, onRemove }: OrdersListProps) {
           >
             <div className="flex items-center gap-3 mb-5">
               <div className={`p-2 ${typeConfig.gradientClass} rounded-lg`}>
-                <span className="text-2xl">{typeConfig.icon}</span>
+                <typeConfig.icon className="w-6 h-6" strokeWidth={1.5} />
               </div>
               <div className="flex-1">
                 <h3 className="fi-title">{typeConfig.label}</h3>

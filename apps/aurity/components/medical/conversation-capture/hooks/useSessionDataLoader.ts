@@ -63,7 +63,7 @@ export function useSessionDataLoader({
 
     const loadExistingData = async () => {
       try {
-        addLog('📖 Cargando sesión existente...');
+        addLog('Cargando sesión existente...');
 
         // Load all 3 transcription sources (Triple Vision)
         const sources = await medicalWorkflowApi.getTranscriptionSources(externalSessionId);
@@ -77,7 +77,7 @@ export function useSessionDataLoader({
         // 1. Populate WebSpeech transcripts
         if (sources.webspeech_final.length > 0) {
           setWebSpeechTranscripts(sources.webspeech_final);
-          console.log('[SessionDataLoader] ✅ WebSpeech loaded:', sources.webspeech_final.length);
+          console.log('[SessionDataLoader] [OK] WebSpeech loaded:', sources.webspeech_final.length);
         }
 
         // 2. Populate chunk transcripts (Whisper/Deepgram)
@@ -109,7 +109,7 @@ export function useSessionDataLoader({
             }
           });
 
-          console.log('[SessionDataLoader] ✅ Chunks loaded:', sources.transcription_per_chunks.length);
+          console.log('[SessionDataLoader] [OK] Chunks loaded:', sources.transcription_per_chunks.length);
         }
 
         // Load audio file
@@ -123,12 +123,12 @@ export function useSessionDataLoader({
         );
 
         addLog(
-          `✅ Sesión cargada: ${sources.transcription_per_chunks.length} chunks, ${totalDuration.toFixed(1)}s` +
+          `Sesión cargada: ${sources.transcription_per_chunks.length} chunks, ${totalDuration.toFixed(1)}s` +
           (sources.webspeech_final.length > 0 ? `, ${sources.webspeech_final.length} webspeech` : '')
         );
       } catch (err) {
         console.error('[SessionDataLoader] Failed to load session:', err);
-        addLog(`❌ Error cargando sesión: ${err}`);
+        addLog(`Error cargando sesión: ${err}`);
       }
     };
 

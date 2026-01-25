@@ -55,7 +55,7 @@ export default function ConfigPage() {
       localStorage.removeItem('aurity_onboarding_completed');
       localStorage.removeItem('fi_onboarding_survey');
 
-      console.log('✅ Onboarding reset successfully');
+      console.log('[OK] Onboarding reset successfully');
 
       await showSuccess('Onboarding reiniciado', 'Redirigiendo...');
       setResettingOnboarding(false);
@@ -147,7 +147,7 @@ export default function ConfigPage() {
                   loading={resettingOnboarding}
                   className="bg-orange-600 hover:bg-orange-700"
                 >
-                  {resettingOnboarding ? 'Reseteando...' : '🔄 Resetear'}
+                  {resettingOnboarding ? 'Reseteando...' : 'Resetear'}
                 </Button>
               </div>
             </div>
@@ -344,44 +344,44 @@ export default function ConfigPage() {
                     <tbody>
                       <tr className="border-b border-slate-800">
                         <td className="py-2 px-2 fi-text">Gestionar Sistema</td>
-                        <td className="text-center">✅</td>
+                        <td className="text-center">Si</td>
                         <td className="text-center text-slate-600">—</td>
                         <td className="text-center text-slate-600">—</td>
                       </tr>
                       <tr className="border-b border-slate-800">
                         <td className="py-2 px-2 fi-text">Ver Logs</td>
-                        <td className="text-center">✅</td>
-                        <td className="text-center">✅</td>
+                        <td className="text-center">Si</td>
+                        <td className="text-center">Si</td>
                         <td className="text-center text-slate-600">—</td>
                       </tr>
                       <tr className="border-b border-slate-800">
                         <td className="py-2 px-2 fi-text">Gestionar Usuarios</td>
-                        <td className="text-center">✅</td>
+                        <td className="text-center">Si</td>
                         <td className="text-center text-slate-600">—</td>
                         <td className="text-center text-slate-600">—</td>
                       </tr>
                       <tr className="border-b border-slate-800">
                         <td className="py-2 px-2 fi-text">Crear Sesión</td>
-                        <td className="text-center">✅</td>
-                        <td className="text-center">✅</td>
-                        <td className="text-center">✅</td>
+                        <td className="text-center">Si</td>
+                        <td className="text-center">Si</td>
+                        <td className="text-center">Si</td>
                       </tr>
                       <tr className="border-b border-slate-800">
                         <td className="py-2 px-2 fi-text">Ver Sesión</td>
-                        <td className="text-center">✅</td>
-                        <td className="text-center">✅</td>
-                        <td className="text-center">✅</td>
+                        <td className="text-center">Si</td>
+                        <td className="text-center">Si</td>
+                        <td className="text-center">Si</td>
                       </tr>
                       <tr className="border-b border-slate-800">
                         <td className="py-2 px-2 fi-text">Exportar Datos</td>
-                        <td className="text-center">✅</td>
-                        <td className="text-center">✅</td>
-                        <td className="text-center">✅</td>
+                        <td className="text-center">Si</td>
+                        <td className="text-center">Si</td>
+                        <td className="text-center">Si</td>
                       </tr>
                       <tr>
                         <td className="py-2 px-2 fi-text">Eliminar Sesión</td>
-                        <td className="text-center">✅</td>
-                        <td className="text-center">✅</td>
+                        <td className="text-center">Si</td>
+                        <td className="text-center">Si</td>
                         <td className="text-center text-slate-600">—</td>
                       </tr>
                     </tbody>
@@ -404,14 +404,14 @@ export default function ConfigPage() {
                   </code>
                 </div>
                 <p className="fi-text-xs-muted mt-2">
-                  ⚠️ Cambios requieren rebuild del frontend (pnpm build)
+                  Nota: Cambios requieren rebuild del frontend (pnpm build)
                 </p>
               </div>
 
               {/* Auth0 Integration Note */}
               <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-blue-300 mb-2">
-                  🔗 Integración Auth0
+                   Integración Auth0
                 </h3>
                 <p className="text-xs fi-text-primary/80 mb-2">
                   Los roles se configuran en Auth0 Dashboard y se incluyen en el JWT token bajo el namespace:
@@ -420,7 +420,7 @@ export default function ConfigPage() {
                   https://aurity.app/roles
                 </code>
                 <p className="fi-text-xs-muted mt-2">
-                  📚 Documentación: <a href="https://auth0.com/docs/manage-users/access-control/rbac" className="fi-text-primary hover:underline" target="_blank" rel="noopener noreferrer">Auth0 RBAC Guide</a>
+                   Documentación: <a href="https://auth0.com/docs/manage-users/access-control/rbac" className="fi-text-primary hover:underline" target="_blank" rel="noopener noreferrer">Auth0 RBAC Guide</a>
                 </p>
               </div>
             </div>
@@ -444,7 +444,7 @@ export default function ConfigPage() {
             </div>
             <div className="p-6 space-y-4">
               <div className="bg-purple-900/20 border border-purple-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-purple-300 mb-2">🔧 Configuración en Auth0</h3>
+                <h3 className="text-sm font-semibold text-purple-300 mb-2"> Configuración en Auth0</h3>
                 <ol className="text-xs fi-text space-y-3 list-decimal list-inside">
                   <li>
                     <strong className="text-white">Crear Roles</strong>
@@ -507,7 +507,7 @@ export default function ConfigPage() {
               </div>
 
               <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-blue-300 mb-2">📚 Referencias</h3>
+                <h3 className="text-sm font-semibold text-blue-300 mb-2"> Referencias</h3>
                 <ul className="text-xs fi-text-primary/80 space-y-1">
                   <li>→ <a href="https://auth0.com/docs/manage-users/access-control/rbac" target="_blank" rel="noopener noreferrer" className="hover:underline">Auth0 RBAC Documentation</a></li>
                   <li>→ <a href="https://auth0.com/docs/customize/actions" target="_blank" rel="noopener noreferrer" className="hover:underline">Auth0 Actions Guide</a></li>
@@ -546,7 +546,7 @@ export default function ConfigPage() {
             </div>
             <div className="p-6 space-y-4">
               <div className="bg-emerald-900/20 border border-emerald-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-emerald-300 mb-2">✅ Backend Audit Trail Activo</h3>
+                <h3 className="text-sm font-semibold text-emerald-300 mb-2">Si Backend Audit Trail Activo</h3>
                 <p className="text-xs fi-text mb-3">
                   El backend ya registra todas las operaciones en HDF5:
                 </p>
@@ -582,7 +582,7 @@ export default function ConfigPage() {
               </div>
 
               <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-yellow-300 mb-2">🚧 UI de Auditoría - En Desarrollo</h3>
+                <h3 className="text-sm font-semibold text-yellow-300 mb-2"> UI de Auditoría - En Desarrollo</h3>
                 <p className="text-xs text-yellow-400/80 mb-2">
                   Próximamente: Interfaz para visualizar y filtrar logs de auditoría
                 </p>
@@ -596,7 +596,7 @@ export default function ConfigPage() {
               </div>
 
               <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-blue-300 mb-2">🔍 Inspección Manual</h3>
+                <h3 className="text-sm font-semibold text-blue-300 mb-2"> Inspección Manual</h3>
                 <p className="text-xs fi-text mb-2">
                   Puedes inspeccionar los logs manualmente usando:
                 </p>

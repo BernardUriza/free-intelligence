@@ -2,6 +2,7 @@
  * ModelCatalogDrawer Types
  */
 
+import type { LucideIcon } from 'lucide-react';
 import type { CatalogModel, CatalogSource, SourcesStatus, InstallProgress } from '@/lib/api/catalog';
 
 export interface ModelCatalogDrawerProps {
@@ -23,7 +24,8 @@ export interface SourceState {
 export interface FilterTab {
   key: SourceFilter;
   label: string;
-  icon: string;
+  /** Lucide icon for general tabs, or 'provider' to use ProviderLogo with key as source */
+  icon: LucideIcon | 'provider';
   count?: number;
 }
 

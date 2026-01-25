@@ -21,7 +21,7 @@ import {
 } from '@/components/bryntum/utils/config-builders';
 import type { UnifiedEvent } from '@/components/bryntum/types/scheduler.types';
 import type { Doctor, Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
-import { Calendar, Users, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
+import { Calendar, Users, RefreshCw, CheckCircle2, XCircle, FlaskConical, Search } from 'lucide-react';
 
 // ============================================================================
 // Demo Data - Timeline Events
@@ -360,8 +360,9 @@ export default function BryntumDemoPage() {
       <div className="p-6">
         {/* Info Card */}
         <div className="mb-4 p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
-          <h3 className="text-sm font-medium fi-text-info mb-2">
-            🧪 Página de Demostración
+          <h3 className="text-sm font-medium fi-text-info mb-2 flex items-center gap-2">
+            <FlaskConical className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
+            Página de Demostración
           </h3>
           <p className="text-xs fi-text leading-relaxed">
             Esta página usa <strong>datos hardcodeados</strong> para validar que Bryntum SchedulerPro renderiza correctamente.
@@ -465,7 +466,10 @@ export default function BryntumDemoPage() {
 
         {/* Debug Console */}
         <div className="mt-4 p-4 bg-slate-900/50 border border-slate-700/50 rounded-lg">
-          <h4 className="fi-text-xs-medium text-slate-400 mb-2">🔍 Debug Console</h4>
+          <h4 className="fi-text-xs-medium text-slate-400 mb-2 flex items-center gap-1.5">
+            <Search className="w-3.5 h-3.5" strokeWidth={1.5} aria-hidden="true" />
+            Debug Console
+          </h4>
           <div className="space-y-1 text-xs font-mono text-slate-500">
             <div>Mode: <span className="fi-text-info">{mode}</span></div>
             <div>View: <span className="fi-text-success">{viewMode}</span></div>

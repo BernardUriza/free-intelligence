@@ -51,7 +51,7 @@ export function useChunkHandler({
       const currentIsSilent = isSilentRef.current;
 
       if (currentIsSilent) {
-        console.log(`[CHUNK ${chunkNumber}] ⏭️ Skipped (silence)`);
+        console.log(`[CHUNK ${chunkNumber}] [SKIP] Silence detected`);
         return;
       }
 
@@ -61,7 +61,7 @@ export function useChunkHandler({
       // Deduplication
       const key = `${sessionIdRef.current}:${chunkNumber}`;
       if (inflightRef.current.has(key)) {
-        console.warn(`[CHUNK ${chunkNumber}] ⚠️ Already processing, skipping duplicate`);
+        console.warn(`[CHUNK ${chunkNumber}] [WARN] Already processing, skipping duplicate`);
         return;
       }
       inflightRef.current.add(key);
@@ -71,7 +71,7 @@ export function useChunkHandler({
         const timestampStart = chunkNumber * (timeSlice / 1000);
         const timestampEnd = timestampStart + timeSlice / 1000;
 
-        console.log(`[CHUNK ${chunkNumber}] 📤 Uploading ${(blob.size / 1024).toFixed(1)}KB`);
+        console.log(`[CHUNK ${chunkNumber}] [UPLOAD] ${(blob.size / 1024).toFixed(1)}KB`);
 
         // Track chunk as uploading
         setChunkStatuses((prev) => [
@@ -82,7 +82,7 @@ export function useChunkHandler({
             startTime: Date.now(),
           },
         ]);
-        addLog(`📤 Enviando chunk ${chunkNumber} (${(blob.size / 1024).toFixed(1)}KB)`);
+        addLog(`Enviando chunk ${chunkNumber} (${(blob.size / 1024).toFixed(1)}KB)`);
 
         const result = await medicalWorkflowApi.uploadChunk(
           sessionIdRef.current,
@@ -107,10 +107,10 @@ export function useChunkHandler({
             addTranscriptionChunk(transcript);
           }
         } else {
-          console.warn(`[CHUNK ${chunkNumber}] ⚠️ Unexpected response format:`, result);
+          console.warn(`[CHUNK ${chunkNumber}] [WARN] Unexpected response format:`, result);
         }
       } catch (err) {
-        console.error(`[CHUNK ${chunkNumber}] ❌ Processing failed:`, err);
+        console.error(`[CHUNK ${chunkNumber}] [ERROR] Processing failed:`, err);
       } finally {
         inflightRef.current.delete(key);
       }

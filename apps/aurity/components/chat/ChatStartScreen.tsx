@@ -74,7 +74,7 @@ export function ChatStartScreen({
 
         <div className="fi-stack-sm">
           <h3 className="chat-start-title-large">
-            Hola, {userName?.split(' ')[0] || 'Doctor'} 👋
+            Hola, {userName?.split(' ')[0] || 'Doctor'}
           </h3>
           <p className="chat-start-subtitle">
             Soy tu asistente de Free Intelligence. Estoy listo para ayudarte con

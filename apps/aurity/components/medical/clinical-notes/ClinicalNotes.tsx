@@ -30,6 +30,9 @@ import {
   BookOpen,
   Zap,
   Edit3,
+  MessageSquare,
+  BarChart3,
+  ClipboardList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -257,7 +260,7 @@ export function ClinicalNotes({
 
         {/* Subjective Section */}
         <section className="fi-card-xl" aria-labelledby="subjective-heading">
-          <SectionHeader emoji="🗣️" title="Subjetivo" />
+          <SectionHeader icon={MessageSquare} title="Subjetivo" iconColor="text-blue-400" />
           <h4 id="subjective-heading" className="sr-only">Sección Subjetivo</h4>
 
           <div className="mb-4">
@@ -326,7 +329,7 @@ export function ClinicalNotes({
 
         {/* Objective Section */}
         <section className="fi-card-xl" aria-labelledby="objective-heading">
-          <SectionHeader emoji="📊" title="Objetivo" />
+          <SectionHeader icon={BarChart3} title="Objetivo" iconColor="text-cyan-400" />
           <h4 id="objective-heading" className="sr-only">Sección Objetivo</h4>
 
           <div className="mb-4">
@@ -357,7 +360,7 @@ export function ClinicalNotes({
 
         {/* Assessment Section */}
         <section className="fi-card-xl" aria-labelledby="assessment-heading">
-          <SectionHeader emoji="🔍" title="Evaluación" />
+          <SectionHeader icon={Search} title="Evaluación" iconColor="text-purple-400" />
           <h4 id="assessment-heading" className="sr-only">Sección Evaluación</h4>
 
           <div className="mb-4">
@@ -425,7 +428,7 @@ export function ClinicalNotes({
 
         {/* Plan Section */}
         <section className="fi-card-xl" aria-labelledby="plan-heading">
-          <SectionHeader emoji="📋" title="Plan" action={<Button onClick={() => setShowChatbot((prev) => !prev)} variant={showChatbot ? 'success' : 'secondary'} size="sm" icon={Zap}>Asistente IA</Button>} />
+          <SectionHeader icon={ClipboardList} title="Plan" iconColor="text-emerald-400" action={<Button onClick={() => setShowChatbot((prev) => !prev)} variant={showChatbot ? 'success' : 'secondary'} size="sm" icon={Zap}>Asistente IA</Button>} />
           <h4 id="plan-heading" className="sr-only">Sección Plan</h4>
 
           <div className="mb-4">

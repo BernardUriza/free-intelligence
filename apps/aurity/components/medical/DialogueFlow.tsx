@@ -23,6 +23,7 @@ import {
   AlertCircle,
   MessageSquare,
   User,
+  Lightbulb,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { medicalWorkflowApi, type DiarizationSegment } from '@aurity-standalone/api-client/medical-workflow';
@@ -369,8 +370,9 @@ export function DialogueFlow({
           >
             Tu navegador no soporta reproducción de audio.
           </audio>
-          <p className="fi-text-xs-muted mt-2">
-            💡 Haz clic en los timestamps para navegar al momento exacto
+          <p className="fi-text-xs-muted mt-2 flex items-center gap-1">
+            <Lightbulb className="w-3.5 h-3.5" aria-hidden="true" />
+            Haz clic en los timestamps para navegar al momento exacto
           </p>
         </div>
       )}

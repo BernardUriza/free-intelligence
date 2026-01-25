@@ -23,7 +23,7 @@ export interface VoiceGroup {
 
 export const VOICE_GROUPS: VoiceGroup[] = [
   {
-    label: '🎯 OpenAI Steerable (Acento Mexicano)',
+    label: 'OpenAI Steerable (Acento Mexicano)',
     description: 'Voces con control de acento - Mejor para español',
     voices: [
       {
@@ -51,7 +51,7 @@ export const VOICE_GROUPS: VoiceGroup[] = [
     ],
   },
   {
-    label: '🎙️ OpenAI Standard (Inglés/General)',
+    label: 'OpenAI Standard (Ingles/General)',
     description: 'Voces naturales sin control de acento',
     voices: [
       {

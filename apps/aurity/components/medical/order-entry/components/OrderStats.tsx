@@ -26,7 +26,7 @@ export function OrderStats({ orders }: OrderStatsProps) {
             className={`${typeConfig.gradientClass} backdrop-blur-sm rounded-xl p-4 border ${typeConfig.border} transition-all hover:scale-105`}
           >
             <div className="fi-flex-gap-md">
-              <span className="text-3xl">{typeConfig.icon}</span>
+              <typeConfig.icon className="w-8 h-8" strokeWidth={1.5} />
               <div className="flex-1">
                 <p className="fi-text-xs uppercase tracking-wide">{typeConfig.label}</p>
                 <p className={`text-2xl font-bold ${typeConfig.text}`}>{count}</p>

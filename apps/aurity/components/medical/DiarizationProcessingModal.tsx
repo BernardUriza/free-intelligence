@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { XCircle } from 'lucide-react';
+import { XCircle, Mic, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface DiarizationProcessingModalProps {
@@ -238,17 +238,19 @@ export function DiarizationProcessingModal({
         {/* Info */}
         {status === 'waiting_for_chunks' && (
           <div className="mt-6 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-            <p className="fi-text-xs text-center">
-              🎙️ <strong>Transcripción en progreso:</strong> Procesando chunks de audio
-              con Whisper AI (13 segundos por chunk).
+            <p className="fi-text-xs text-center flex items-center justify-center gap-2">
+              <Mic className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
+              <span><strong>Transcripción en progreso:</strong> Procesando chunks de audio
+              con Whisper AI (13 segundos por chunk).</span>
             </p>
           </div>
         )}
         {status === 'in_progress' && (
           <div className="mt-6 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-            <p className="fi-text-xs text-center">
-              💡 <strong>Triple Vision:</strong> Analizando 3 fuentes de transcripción
-              simultáneamente para máxima precisión.
+            <p className="fi-text-xs text-center flex items-center justify-center gap-2">
+              <Lightbulb className="w-4 h-4 flex-shrink-0 text-yellow-400" strokeWidth={1.5} aria-hidden="true" />
+              <span><strong>Triple Vision:</strong> Analizando 3 fuentes de transcripción
+              simultáneamente para máxima precisión.</span>
             </p>
           </div>
         )}

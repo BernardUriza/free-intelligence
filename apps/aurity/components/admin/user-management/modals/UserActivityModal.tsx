@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { Construction } from 'lucide-react';
 import type { User } from '../types';
 
 interface UserActivityModalProps {
@@ -46,8 +47,9 @@ export function UserActivityModal({ user, onClose }: UserActivityModalProps) {
           </div>
 
           <div className="mt-6 bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
-            <p className="text-xs text-yellow-400/80">
-              🚧 Logs completos de actividad se integrarán con el sistema de auditoría (HDF5:/audit_logs)
+            <p className="text-xs text-yellow-400/80 flex items-start gap-2">
+              <Construction className="w-4 h-4 flex-shrink-0 mt-0.5" strokeWidth={1.5} aria-hidden="true" />
+              Logs completos de actividad se integrarán con el sistema de auditoría (HDF5:/audit_logs)
             </p>
           </div>
         </div>

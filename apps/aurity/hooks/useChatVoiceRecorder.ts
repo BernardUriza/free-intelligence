@@ -146,12 +146,12 @@ export function useChatVoiceRecorder(
           });
         } else {
           console.warn(`[Chat Voice] Chunk ${chunkNumber} returned empty transcript`);
-          addLog(`⚠️ Chunk ${chunkNumber} sin transcripción`);
+          addLog(`[WARN] Chunk ${chunkNumber} sin transcripción`);
         }
       } catch (err) {
         await reportAudioError(err, 'ChatVoiceRecorder', { chunk_number: chunkNumber });
         const errorMsg = err instanceof Error ? err.message : 'Error procesando audio';
-        addLog(`❌ Chunk ${chunkNumber}: ${errorMsg}`);
+        addLog(`[ERROR] Chunk ${chunkNumber}: ${errorMsg}`);
         if (onError) {
           onError(errorMsg);
         }

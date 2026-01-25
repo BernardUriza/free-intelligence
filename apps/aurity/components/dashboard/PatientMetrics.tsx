@@ -8,15 +8,18 @@
 
 'use client';
 
+import { Users, Clock, ClipboardList } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+
 interface MetricCardProps {
-  icon: string;
+  icon: LucideIcon;
   label: string;
   value: string;
   sublabel?: string;
   color: 'emerald' | 'blue' | 'purple' | 'orange';
 }
 
-function MetricCard({ icon, label, value, sublabel, color }: MetricCardProps) {
+function MetricCard({ icon: Icon, label, value, sublabel, color }: MetricCardProps) {
   const colorClasses = {
     emerald: {
       border: 'border-emerald-600/40',
@@ -64,7 +67,9 @@ function MetricCard({ icon, label, value, sublabel, color }: MetricCardProps) {
     >
       {/* Icon + Label */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="text-4xl">{icon}</div>
+        <div className={theme.text}>
+          <Icon className="w-10 h-10" strokeWidth={1.5} />
+        </div>
         <div className="flex-1">
           <p className="fi-subtitle font-medium">{label}</p>
         </div>
@@ -117,7 +122,7 @@ export function PatientMetrics({
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {/* Patients Waiting */}
       <MetricCard
-        icon="👥"
+        icon={Users}
         label="En Sala de Espera"
         value={waitingCount.toString()}
         sublabel={waitingCount === 1 ? 'paciente' : 'pacientes'}
@@ -126,7 +131,7 @@ export function PatientMetrics({
 
       {/* Average Wait Time */}
       <MetricCard
-        icon="⏱️"
+        icon={Clock}
         label="Tiempo de Espera"
         value={formatWaitTime(avgWaitTime)}
         sublabel="promedio aproximado"
@@ -135,7 +140,7 @@ export function PatientMetrics({
 
       {/* Patients Today */}
       <MetricCard
-        icon="📋"
+        icon={ClipboardList}
         label="Consultas Hoy"
         value={patientsToday.toString()}
         sublabel="pacientes atendidos"
@@ -144,7 +149,7 @@ export function PatientMetrics({
 
       {/* Next Appointment */}
       <MetricCard
-        icon="🕐"
+        icon={Clock}
         label="Próxima Cita"
         value={nextAppointment || '--:--'}
         sublabel={nextAppointment ? 'hora estimada' : 'sin citas pendientes'}

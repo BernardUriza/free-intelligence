@@ -8,6 +8,8 @@
  */
 
 import { motion, AnimatePresence } from "framer-motion";
+import { Clock, Zap, CheckCircle, XCircle, BarChart3 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { ASCII_ART } from "@/lib/simulation-data";
 
 export type TaskType = 'TRANSCRIPTION' | 'DIARIZATION' | 'SOAP_GENERATION' | 'ENCRYPTION';
@@ -62,16 +64,16 @@ const getStatusBg = (status: TaskStatus): string => {
 /**
  * Get status icon
  */
-const getStatusIcon = (status: TaskStatus): string => {
+const getStatusIcon = (status: TaskStatus): LucideIcon => {
   switch (status) {
     case 'pending':
-      return '⏳';
+      return Clock;
     case 'in_progress':
-      return '⚡';
+      return Zap;
     case 'completed':
-      return '✅';
+      return CheckCircle;
     case 'error':
-      return '❌';
+      return XCircle;
   }
 };
 
@@ -117,8 +119,9 @@ export function ProgressMonitor({ tasks, currentMessage }: ProgressMonitorProps)
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between fi-border-bottom/50 pb-3">
-        <h3 className="text-lg font-semibold text-slate-200 font-mono">
-          📊 Progress Monitor
+        <h3 className="text-lg font-semibold text-slate-200 font-mono flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-cyan-400" />
+          Progress Monitor
         </h3>
         <div className="flex items-center gap-2 fi-text-xs">
           <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
@@ -138,7 +141,7 @@ export function ProgressMonitor({ tasks, currentMessage }: ProgressMonitorProps)
             className="p-3 bg-cyan-950/20 border border-cyan-700/30 rounded-lg"
           >
             <p className="text-sm text-cyan-300 font-mono flex items-center gap-2">
-              <span className="text-lg">⚡</span>
+              <Zap className="w-5 h-5 text-yellow-400" />
               {currentMessage}
             </p>
           </motion.div>
@@ -158,7 +161,13 @@ export function ProgressMonitor({ tasks, currentMessage }: ProgressMonitorProps)
             {/* Task Header */}
             <div className="flex items-center justify-between mb-3">
               <div className="fi-flex-gap-md">
-                <span className="text-2xl">{getStatusIcon(task.status)}</span>
+                {(() => {
+                  const StatusIcon = getStatusIcon(task.status);
+                  const iconColor = task.status === 'pending' ? 'text-slate-400' :
+                                   task.status === 'in_progress' ? 'text-yellow-400' :
+                                   task.status === 'completed' ? 'text-emerald-400' : 'text-red-400';
+                  return <StatusIcon className={`w-6 h-6 ${iconColor}`} />;
+                })()}
                 <div>
                   <p className={`font-semibold text-sm ${getTaskColor(task.type)}`}>
                     {task.type.replace(/_/g, ' ')}

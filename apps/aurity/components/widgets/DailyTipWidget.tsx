@@ -1,14 +1,26 @@
 'use client';
 
+import { Salad, Dumbbell, Brain, Shield } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+
 interface DailyTipWidgetProps {
   tip: string;
   category: 'nutrition' | 'exercise' | 'mental_health' | 'prevention';
   generatedBy?: 'FI' | 'static';
 }
 
-const categoryConfig = {
+interface CategoryConfig {
+  icon: LucideIcon;
+  label: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  accentBg: string;
+}
+
+const categoryConfig: Record<DailyTipWidgetProps['category'], CategoryConfig> = {
   nutrition: {
-    icon: '🥗',
+    icon: Salad,
     label: 'Nutrición',
     color: 'text-green-300',
     bgColor: 'bg-gradient-to-br from-green-950/60 to-emerald-950/40',
@@ -16,7 +28,7 @@ const categoryConfig = {
     accentBg: 'bg-green-500/10',
   },
   exercise: {
-    icon: '🏃',
+    icon: Dumbbell,
     label: 'Actividad Física',
     color: 'text-blue-300',
     bgColor: 'bg-gradient-to-br from-blue-950/60 to-cyan-950/40',
@@ -24,7 +36,7 @@ const categoryConfig = {
     accentBg: 'bg-blue-500/10',
   },
   mental_health: {
-    icon: '🧠',
+    icon: Brain,
     label: 'Salud Mental',
     color: 'text-purple-300',
     bgColor: 'bg-gradient-to-br from-purple-950/60 to-violet-950/40',
@@ -32,7 +44,7 @@ const categoryConfig = {
     accentBg: 'bg-purple-500/10',
   },
   prevention: {
-    icon: '🛡️',
+    icon: Shield,
     label: 'Prevención',
     color: 'text-orange-300',
     bgColor: 'bg-gradient-to-br from-orange-950/60 to-amber-950/40',
@@ -48,8 +60,8 @@ export function DailyTipWidget({ tip, category, generatedBy = 'static' }: DailyT
     <div className={`h-full flex flex-col ${config.bgColor} border ${config.borderColor} rounded-xl backdrop-blur-sm p-4 sm:p-6 lg:p-8`}>
       <div className="fi-flex-between mb-4 sm:mb-6 flex-shrink-0">
         <div className="flex items-center gap-3 sm:gap-4">
-          <div className={`${config.accentBg} rounded-full p-3 sm:p-4`} style={{ fontSize: 'clamp(2rem, 4vw, 4rem)' }}>
-            {config.icon}
+          <div className={`${config.accentBg} rounded-full p-3 sm:p-4 ${config.color}`}>
+            <config.icon style={{ width: 'clamp(2rem, 4vw, 3.5rem)', height: 'clamp(2rem, 4vw, 3.5rem)' }} strokeWidth={1.5} />
           </div>
           <div>
             <h3 className={`font-bold ${config.color}`} style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2.5rem)' }}>

@@ -1,5 +1,7 @@
 'use client';
 
+import { Sparkles } from 'lucide-react';
+
 interface PromotionBannerWidgetProps {
   title: string;
   subtitle?: string;
@@ -53,9 +55,7 @@ export function PromotionBannerWidget({
       )}
 
       <div className="absolute top-4 right-4 sm:top-8 sm:right-8 opacity-20">
-        <div className="text-white" style={{ fontSize: 'clamp(4rem, 10vw, 10rem)' }}>
-          ✨
-        </div>
+        <Sparkles className="text-white w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40" strokeWidth={1} aria-hidden="true" />
       </div>
     </div>
   );

@@ -486,7 +486,7 @@ export const assistantApi = {
           requestBody.response_mode = request.context.response_mode;
         }
 
-        console.log('[assistantApi.chatStream] 📤 Sending request to backend:', {
+        console.log('[assistantApi.chatStream] [REQUEST] Sending request to backend:', {
           url: `${backendUrl}/api/workflows/aurity/assistant/chat/stream`,
           persona: requestBody.persona,
           messages: messages.length,
@@ -507,7 +507,7 @@ export const assistantApi = {
         );
 
         if (!response.ok) {
-          console.error('[assistantApi.chatStream] ❌ Response not OK:', {
+          console.error('[assistantApi.chatStream] [ERROR] Response not OK:', {
             status: response.status,
             statusText: response.statusText,
           });
@@ -518,7 +518,7 @@ export const assistantApi = {
           throw new Error('Response body is null');
         }
 
-        console.log('[assistantApi.chatStream] ✅ Response OK, starting to read stream...');
+        console.log('[assistantApi.chatStream] [OK] Response OK, starting to read stream...');
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -529,7 +529,7 @@ export const assistantApi = {
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
-            console.log('[assistantApi.chatStream] 🏁 Stream reading done');
+            console.log('[assistantApi.chatStream] [DONE] Stream reading done');
             break;
           }
 
@@ -543,20 +543,20 @@ export const assistantApi = {
             if (!line.trim()) continue;
 
             // DEBUG: Log every non-empty line received
-            console.log('[assistantApi.chatStream] 📜 RAW LINE:', line.substring(0, 80));
+            console.log('[assistantApi.chatStream] [RAW] RAW LINE:', line.substring(0, 80));
 
             if (line.startsWith('event:')) {
               currentEvent = line.slice(6).trim();
-              console.log('[assistantApi.chatStream] 📌 Event type SET TO:', currentEvent);
+              console.log('[assistantApi.chatStream] [EVENT] Event type SET TO:', currentEvent);
               continue;
             }
 
             if (line.startsWith('data:')) {
-              console.log('[assistantApi.chatStream] 📦 Processing data line, currentEvent=', currentEvent);
+              console.log('[assistantApi.chatStream] [DATA] Processing data line, currentEvent=', currentEvent);
               dataLineCount++;
               const data = line.slice(5).trim();
               if (data === '[DONE]') {
-                console.log('[assistantApi.chatStream] ✨ Received [DONE]');
+                console.log('[assistantApi.chatStream] [COMPLETE] Received [DONE]');
                 continue;
               }
 
@@ -566,17 +566,17 @@ export const assistantApi = {
                 // Capture model if present (sent by backend in metadata)
                 if (jsonData.model) {
                   model = jsonData.model;
-                  console.log('[assistantApi.chatStream] 🤖 Model:', model);
+                  console.log('[assistantApi.chatStream] [MODEL] Model:', model);
                 }
 
                 if (currentEvent === 'meta' && jsonData.thinking) {
                   thinking += jsonData.thinking;
-                  console.log('[assistantApi.chatStream] 💭 Thinking chunk:', jsonData.thinking.substring(0, 30) + '...');
+                  console.log('[assistantApi.chatStream] [THINK] Thinking chunk:', jsonData.thinking.substring(0, 30) + '...');
                   onThinking?.(thinking);
                 } else if (jsonData.choices?.[0]?.delta?.content) {
                   const deltaContent = jsonData.choices[0].delta.content;
                   content += deltaContent;
-                  console.log('[assistantApi.chatStream] 📝 Content delta:', deltaContent, '| Total length:', content.length);
+                  console.log('[assistantApi.chatStream] [CONTENT] Content delta:', deltaContent, '| Total length:', content.length);
                   // Call onContent immediately, then yield to ensure React commits this update
                   // before processing the next chunk (prevents React 18+ batching)
                   onContent?.(sanitizeMessagePreview(content, 10_000));
@@ -585,7 +585,7 @@ export const assistantApi = {
 
                 currentEvent = 'message';
               } catch {
-                console.warn('[assistantApi.chatStream] ⚠️ Failed to parse JSON:', data.substring(0, 50));
+                console.warn('[assistantApi.chatStream] [WARN] Failed to parse JSON:', data.substring(0, 50));
                 // Non-JSON data
                 if (currentEvent === 'meta') {
                   thinking += data;
@@ -599,7 +599,7 @@ export const assistantApi = {
           }
         }
 
-        console.log('[assistantApi.chatStream] 📊 Stream complete:', {
+        console.log('[assistantApi.chatStream] [STATS] Stream complete:', {
           totalChunks: chunkCount,
           dataLines: dataLineCount,
           contentLength: content.length,
@@ -615,9 +615,9 @@ export const assistantApi = {
           thinking: sanitizeMessagePreview(thinking, 10_000) || undefined,
         });
       } catch (error) {
-        console.error('[assistantApi.chatStream] 💥 Stream error:', error);
+        console.error('[assistantApi.chatStream] [FATAL] Stream error:', error);
         if (error instanceof Error && error.name === 'AbortError') {
-          console.log('[assistantApi.chatStream] 🛑 Stream aborted');
+          console.log('[assistantApi.chatStream] [ABORT] Stream aborted');
           onAbort?.();
           return;
         }

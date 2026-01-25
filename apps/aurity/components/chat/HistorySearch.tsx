@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { Search, Clock, TrendingUp, X } from 'lucide-react';
+import { Search, Clock, TrendingUp, X, Lightbulb } from 'lucide-react';
 import { useAuth } from '@aurity-standalone/hooks/useAuth';
 
 export interface InteractionResult {
@@ -147,8 +147,9 @@ export function HistorySearch({ onSelectResult, mode = 'panel', onClose }: Histo
               {loading ? 'Buscando...' : 'Buscar'}
             </button>
           </div>
-          <p className="chat-history-hint">
-            💡 Búsqueda semántica: encuentra conversaciones por tema, no solo palabras exactas
+          <p className="chat-history-hint flex items-center gap-1">
+            <Lightbulb className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
+            Búsqueda semántica: encuentra conversaciones por tema, no solo palabras exactas
           </p>
         </div>
 

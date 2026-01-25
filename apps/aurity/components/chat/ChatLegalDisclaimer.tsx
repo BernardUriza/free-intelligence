@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { ShieldCheck } from 'lucide-react';
 import { legalDisclaimerConfig, a11yLabels } from '@/config/chat-messages.config';
 
 export interface ChatLegalDisclaimerProps {
@@ -45,7 +46,9 @@ export function ChatLegalDisclaimer({ shouldShow }: ChatLegalDisclaimerProps) {
       <div className="chat-disclaimer-content">
         <div className="chat-disclaimer-inner">
           <div className="chat-disclaimer-header">
-            <span className="text-base" aria-hidden="true">{legalDisclaimerConfig.emoji}</span>
+            <span aria-hidden="true">
+              <ShieldCheck className="w-4 h-4" strokeWidth={1.5} />
+            </span>
             <p className="chat-disclaimer-title">{legalDisclaimerConfig.title}</p>
           </div>
           <p className="chat-disclaimer-text">{legalDisclaimerConfig.mainContent}</p>

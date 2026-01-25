@@ -74,7 +74,7 @@ export function CopyButton({ content, size = 'sm' }: { content: string; size?: '
     >
       {copied ? <Check className={sizeClasses[size]} /> : <Copy className={sizeClasses[size]} />}
       <span className="chat-action-tooltip group-copy-hover:opacity-100">
-        {copied ? '✓ ¡Copiado!' : 'Copiar mensaje'}
+        {copied ? '¡Copiado!' : 'Copiar mensaje'}
       </span>
     </Button>
   );

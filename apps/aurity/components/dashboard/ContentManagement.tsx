@@ -14,7 +14,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Sparkles } from 'lucide-react';
+import { Plus, Edit, Trash2, Sparkles, Home, Brain, Activity, Lightbulb } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TriviaEditor } from './TriviaEditor';
 import { getTriviaQuestions, type TriviaQuestion } from '@/lib/api/widget-configs';
@@ -72,11 +73,11 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
     }
   };
 
-  const tabs = [
-    { id: 'seeds' as ContentTab, label: 'Contenido FI', icon: '🏠', count: 13 },
-    { id: 'trivias' as ContentTab, label: 'Trivias', icon: '🧠', count: trivias.length },
-    { id: 'exercises' as ContentTab, label: 'Ejercicios', icon: '🧘', count: 3 },
-    { id: 'tips' as ContentTab, label: 'Tips', icon: '💡', count: 12 },
+  const tabs: { id: ContentTab; label: string; icon: LucideIcon; count: number }[] = [
+    { id: 'seeds', label: 'Contenido FI', icon: Home, count: 13 },
+    { id: 'trivias', label: 'Trivias', icon: Brain, count: trivias.length },
+    { id: 'exercises', label: 'Ejercicios', icon: Activity, count: 3 },
+    { id: 'tips', label: 'Tips', icon: Lightbulb, count: 12 },
   ];
 
   return (
@@ -92,7 +93,7 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
             size="sm"
             type="button"
           >
-            <span className="text-xl">{tab.icon}</span>
+            <tab.icon className="w-5 h-5" />
             <span>{tab.label}</span>
             <span
               className={`fi-count-badge ${activeTab === tab.id ? 'bg-white/20' : 'bg-slate-700/50'}`}
@@ -260,7 +261,7 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
         {/* Exercises Tab */}
         {activeTab === 'exercises' && (
           <div className="fi-empty-state">
-            <div className="text-6xl mb-4">🧘</div>
+            <Activity className="w-16 h-16 fi-text-purple mx-auto mb-4" />
             <h3 className="fi-title-xl mb-2">Ejercicios de Respiración</h3>
             <p className="text-slate-400 mb-6">3 ejercicios configurados (Box, 4-7-8, Coherent)</p>
             <p className="fi-text-muted">Editor de ejercicios disponible próximamente</p>
@@ -270,7 +271,7 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
         {/* Tips Tab */}
         {activeTab === 'tips' && (
           <div className="fi-empty-state">
-            <div className="text-6xl mb-4">💡</div>
+            <Lightbulb className="w-16 h-16 fi-text-purple mx-auto mb-4" />
             <h3 className="fi-title-xl mb-2">Tips de Salud</h3>
             <p className="text-slate-400 mb-6">
               12 tips en 4 categorías (nutrición, ejercicio, salud mental, prevención)

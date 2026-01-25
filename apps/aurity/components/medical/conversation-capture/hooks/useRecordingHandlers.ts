@@ -244,7 +244,7 @@ export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHand
   // Perform finalization
   const performFinalization = useCallback(async () => {
     try {
-      console.log('[Session End] 🚀 Starting finalization process...');
+      console.log('[Session End] [START] Finalization process');
 
       session.setShowDiarizationModal(false);
 
@@ -267,25 +267,25 @@ export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHand
             finalAudioBlob,
             webSpeechTranscripts
           );
-          console.log('[Session End] ✅ Full audio + webspeech saved:', result);
-          console.log('[Session End] 📋 WebSpeech transcripts sent:', webSpeechTranscripts.length);
+          console.log('[Session End] [OK] Full audio + webspeech saved:', result);
+          console.log('[Session End] [INFO] WebSpeech transcripts sent:', webSpeechTranscripts.length);
 
           try {
             const diarizationJobId = await orchestrator.startDiarization();
 
             if (diarizationJobId) {
-              console.log('[DIARIZATION] 🎙️ Starting diarization job:', diarizationJobId);
+              console.log('[DIARIZATION] [START] Diarization job:', diarizationJobId);
               session.setIsWaitingForChunks(false);
               session.setShowDiarizationModal(true);
-              metrics.addLog(`🎙️ Iniciando diarización (Job: ${diarizationJobId.slice(0, 8)}...)`);
+              metrics.addLog(`Iniciando diarización (Job: ${diarizationJobId.slice(0, 8)}...)`);
             }
           } catch (diarizationErr) {
-            console.error('[Session End] ❌ Diarization error:', diarizationErr);
-            metrics.addLog(`❌ Error de diarización: ${diarizationErr}`);
+            console.error('[Session End] [ERROR] Diarization error:', diarizationErr);
+            metrics.addLog(`Error de diarización: ${diarizationErr}`);
             session.setShowDiarizationModal(false);
           }
         } catch (err) {
-          console.warn('[Session End] ⚠️ Upload skipped (streaming mode):', err);
+          console.warn('[Session End] [WARN] Upload skipped (streaming mode):', err);
         }
       }
 
@@ -317,7 +317,7 @@ export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHand
     session.setShouldFinalize(true);
     session.finalizationStartTimeRef.current = Date.now();
 
-    metrics.addLog('🔄 Finalizando sesión - esperando chunks pendientes...');
+    metrics.addLog('Finalizando sesión - esperando chunks pendientes...');
   }, [session, metrics]);
 
   // Effect: Trigger finalization when chunks are ready

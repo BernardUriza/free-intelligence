@@ -342,7 +342,7 @@ export function SchedulerCore({
       {isError && (
         <div className="fi-overlay bg-red-900/20">
           <div className="text-center p-6 bg-slate-800 rounded-lg border border-red-500/30 max-w-md">
-            <div className="text-red-400 text-4xl mb-3">⚠️</div>
+            <div className="text-red-400 text-4xl mb-3">!</div>
             <h3 className="text-red-400 font-semibold mb-2">
               Error al cargar el calendario
             </h3>

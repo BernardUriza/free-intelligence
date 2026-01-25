@@ -9,20 +9,19 @@
  * Empty State Configuration
  */
 export const emptyStateConfig = {
-  emoji: '💬',
-  welcomeTitle: (userName?: string) => `Hola ${userName || 'Doctor'} 👋`,
+  welcomeTitle: (userName?: string) => `Hola ${userName || 'Doctor'}`,
   welcomeSubtitle: 'Soy tu asistente de Free Intelligence. Puedo ayudarte con:',
   features: [
     {
-      icon: '✓',
+      iconKey: 'check',
       text: 'Consultas sobre pacientes y expedientes',
     },
     {
-      icon: '✓',
+      iconKey: 'check',
       text: 'Generación de notas clínicas (SOAP)',
     },
     {
-      icon: '✓',
+      iconKey: 'check',
       text: 'Análisis de datos médicos',
     },
   ],
@@ -46,7 +45,6 @@ export const loadingStateConfig = {
  * Legal Disclaimer Configuration
  */
 export const legalDisclaimerConfig = {
-  emoji: '⚕️',
   title: 'Aviso Legal y Protección de Datos',
   mainContent: `Esta aplicación cumple con estándares de protección de información de salud (HIPAA). Tus datos están encriptados y protegidos en nuestros servidores seguros. Como asistente de IA, no tengo acceso directo a PHI sin tu autorización explícita.`,
   footerNote: 'Opción self-hosted disponible para instituciones que requieran control total de infraestructura.',
@@ -105,25 +103,24 @@ export const spacing = {
  * For patient check-in flow after QR scan
  */
 export const receptionistEmptyStateConfig = {
-  emoji: '🏥',
   welcomeTitle: (patientName?: string) =>
-    patientName ? `¡Hola ${patientName}! 👋` : '¡Bienvenido! 👋',
+    patientName ? `¡Hola ${patientName}!` : '¡Bienvenido!',
   welcomeSubtitle: 'Soy el asistente virtual de la clínica. Puedo ayudarte con:',
   features: [
     {
-      icon: '✓',
+      iconKey: 'check',
       text: 'Check-in para tu cita programada',
     },
     {
-      icon: '✓',
+      iconKey: 'check',
       text: 'Información sobre tiempos de espera',
     },
     {
-      icon: '✓',
+      iconKey: 'check',
       text: 'Pagos y documentos pendientes',
     },
     {
-      icon: '✓',
+      iconKey: 'check',
       text: 'Preguntas sobre preparación para tu cita',
     },
   ],
@@ -138,25 +135,25 @@ export const receptionistQuickActions = [
   {
     id: 'checkin',
     label: 'Hacer check-in',
-    icon: '✅',
+    iconKey: 'checkCircle',
     message: 'Quiero hacer check-in para mi cita',
   },
   {
     id: 'wait_time',
     label: '¿Cuánto tiempo de espera?',
-    icon: '⏱️',
+    iconKey: 'clock',
     message: '¿Cuánto tiempo tengo que esperar?',
   },
   {
     id: 'pay_copay',
     label: 'Pagar copago',
-    icon: '💳',
+    iconKey: 'creditCard',
     message: 'Quiero pagar mi copago',
   },
   {
     id: 'reschedule',
     label: 'Reagendar cita',
-    icon: '📅',
+    iconKey: 'calendar',
     message: 'Necesito reagendar mi cita',
   },
 ];

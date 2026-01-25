@@ -10,7 +10,7 @@
  */
 
 import React, { useState } from 'react';
-import { X, User, Calendar, FileText, AlertCircle } from 'lucide-react';
+import { X, User, Calendar, FileText, AlertCircle, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface PatientInfoModalProps {
@@ -195,9 +195,10 @@ export function PatientInfoModal({ isOpen, onClose, onSubmit }: PatientInfoModal
         {/* Footer Note */}
         <div className="px-6 pb-6">
           <div className="fi-note">
-            <p className="fi-text-xs">
-              💡 Esta información se guarda de forma segura en el expediente electrónico y
-              facilita la identificación de la consulta.
+            <p className="fi-text-xs flex items-start gap-2">
+              <Lightbulb className="w-4 h-4 flex-shrink-0 mt-0.5 text-yellow-400" strokeWidth={1.5} aria-hidden="true" />
+              <span>Esta información se guarda de forma segura en el expediente electrónico y
+              facilita la identificación de la consulta.</span>
             </p>
           </div>
         </div>

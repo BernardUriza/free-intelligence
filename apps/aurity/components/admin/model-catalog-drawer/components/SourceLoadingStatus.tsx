@@ -2,6 +2,7 @@
 
 import { Loader2, AlertCircle } from 'lucide-react';
 import { SOURCE_INFO, type CatalogSource } from '@/lib/api/catalog';
+import { ProviderLogo } from '@/components/ui/ProviderLogo';
 import type { SourceState } from '../types';
 import { SOURCES } from '../constants';
 
@@ -41,7 +42,7 @@ export function SourceLoadingStatus({ sourceStates }: SourceLoadingStatusProps) 
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full fi-text-xs-medium border transition-all ${statusColor}`}
           >
             {statusIndicator}
-            <span>{info.icon}</span>
+            <ProviderLogo provider={source} size={14} />
             <span>{info.label}</span>
             {statusText && (
               <span className="px-1.5 py-0.5 text-[10px] bg-black/30 rounded-full">

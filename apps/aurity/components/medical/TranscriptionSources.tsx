@@ -12,7 +12,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Clock, RefreshCw, AlertTriangle, Music, Volume2 } from 'lucide-react';
+import { Clock, RefreshCw, AlertTriangle, Music, Volume2, Check, Zap, Square, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ChunkMetrics {
@@ -104,7 +104,9 @@ export function TranscriptionSources({
             <Volume2 className="h-5 w-5 fi-text-purple" />
             <span className="text-sm font-medium fi-text-purple">Audio de la Consulta</span>
             {audioLoaded && (
-              <span className="text-xs fi-text-green ml-auto">✓ Cargado</span>
+              <span className="text-xs fi-text-green ml-auto flex items-center gap-1">
+                <Check className="w-3 h-3" aria-hidden="true" /> Cargado
+              </span>
             )}
           </div>
 
@@ -122,17 +124,21 @@ export function TranscriptionSources({
           </audio>
 
           {audioError && (
-            <div className="mt-2 fi-alert-compact-danger">
-              ⚠️ {audioError}
-              <div className="mt-1 fi-text-error/60">
-                URL: {audioUrl}
+            <div className="mt-2 fi-alert-compact-danger flex items-start gap-1">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <div>
+                {audioError}
+                <div className="mt-1 fi-text-error/60">
+                  URL: {audioUrl}
+                </div>
               </div>
             </div>
           )}
 
           {!audioError && (
-            <p className="fi-text-xs-muted mt-2">
-              💡 Escucha la grabación completa de la consulta médica
+            <p className="fi-text-xs-muted mt-2 flex items-center gap-1">
+              <Lightbulb className="w-3.5 h-3.5" aria-hidden="true" />
+              Escucha la grabación completa de la consulta médica
             </p>
           )}
         </div>
@@ -228,8 +234,10 @@ export function TranscriptionSources({
                       <span className="fi-label-mono-green">
                         [Chunk {chunk.chunk_number}]
                       </span>
-                      <span className={providerBadge}>
-                        {provider === 'deepgram' ? '⚡ Deepgram' : provider === 'azure_whisper' ? '🔷 Azure (deprecated)' : provider}
+                      <span className={`${providerBadge} flex items-center gap-1`}>
+                        {provider === 'deepgram' && <Zap className="w-3 h-3" aria-hidden="true" />}
+                        {provider === 'azure_whisper' && <Square className="w-3 h-3" aria-hidden="true" />}
+                        {provider === 'deepgram' ? 'Deepgram' : provider === 'azure_whisper' ? 'Azure (deprecated)' : provider}
                       </span>
                       {confidence > 0 && (
                         <span className="fi-text-xs">
@@ -290,8 +298,9 @@ export function TranscriptionSources({
       </div>
 
       {/* Info badge */}
-      <div className="mt-3 fi-text-xs">
-        💡 Las 3 fuentes se almacenan por separado en HDF5 para análisis del LLM durante
+      <div className="mt-3 fi-text-xs flex items-start gap-1">
+        <Lightbulb className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" aria-hidden="true" />
+        Las 3 fuentes se almacenan por separado en HDF5 para análisis del LLM durante
         diarización
       </div>
     </div>

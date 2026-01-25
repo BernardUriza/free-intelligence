@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Sun, MapPin } from 'lucide-react';
 
 interface WeatherWidgetProps {
   city?: string;
@@ -18,7 +19,6 @@ export function WeatherWidget({ city = 'Ciudad de México' }: WeatherWidgetProps
   const weather = {
     temp: 22,
     condition: 'Soleado',
-    icon: '☀️',
     humidity: 45,
   };
 
@@ -48,7 +48,9 @@ export function WeatherWidget({ city = 'Ciudad de México' }: WeatherWidgetProps
         </div>
 
         <div className="text-right">
-          <div className="text-6xl mb-2">{weather.icon}</div>
+          <div className="mb-2 text-yellow-400">
+            <Sun className="w-14 h-14 ml-auto" strokeWidth={1.5} />
+          </div>
           <div className="text-3xl font-bold text-white">{weather.temp}°C</div>
           <div className="text-sm text-blue-300">{weather.condition}</div>
           <div className="text-xs fi-text-primary/60 mt-1">
@@ -59,9 +61,7 @@ export function WeatherWidget({ city = 'Ciudad de México' }: WeatherWidgetProps
 
       <div className="mt-4 pt-4 border-t border-blue-700/30">
         <div className="fi-flex-gap text-blue-300 text-sm">
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-          </svg>
+          <MapPin className="w-4 h-4" strokeWidth={1.5} />
           <span>{city}</span>
         </div>
       </div>

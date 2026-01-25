@@ -12,7 +12,8 @@
  * Extracted from ConversationCapture (Phase 7)
  */
 
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload, Mic, Users, ClipboardList, Check, X } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 interface WorkflowStatus {
   job_id: string;
@@ -35,11 +36,11 @@ interface WorkflowProgressProps {
 }
 
 export function WorkflowProgress({ workflowStatus }: WorkflowProgressProps) {
-  const stageLabels: Record<string, string> = {
-    upload: '📤 Upload',
-    transcribe: '🎤 Whisper',
-    diarize: '👥 Speakers',
-    soap: '📋 SOAP'
+  const stageConfig: Record<string, { icon: LucideIcon; label: string }> = {
+    upload: { icon: Upload, label: 'Upload' },
+    transcribe: { icon: Mic, label: 'Whisper' },
+    diarize: { icon: Users, label: 'Speakers' },
+    soap: { icon: ClipboardList, label: 'SOAP' },
   };
 
   return (
@@ -69,6 +70,8 @@ export function WorkflowProgress({ workflowStatus }: WorkflowProgressProps) {
           const isActive = status === 'in_progress';
           const isComplete = status === 'completed';
           const isFailed = status === 'failed';
+          const config = stageConfig[stage];
+          const StageIcon = config?.icon;
 
           return (
             <div
@@ -81,12 +84,13 @@ export function WorkflowProgress({ workflowStatus }: WorkflowProgressProps) {
               }
             >
               <div className="fi-flex-between">
-                <span className="fi-title-sm-medium">
-                  {stageLabels[stage] || stage}
+                <span className="fi-title-sm-medium flex items-center gap-1.5">
+                  {StageIcon && <StageIcon className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />}
+                  {config?.label || stage}
                 </span>
-                {isComplete && <span className="fi-text-green">✓</span>}
+                {isComplete && <Check className="h-4 w-4 fi-text-green" aria-hidden="true" />}
                 {isActive && <Loader2 className="h-4 w-4 fi-text-info animate-spin" />}
-                {isFailed && <span className="fi-text-error">✗</span>}
+                {isFailed && <X className="h-4 w-4 fi-text-error" aria-hidden="true" />}
               </div>
               <div className={`
                 text-xs mt-1

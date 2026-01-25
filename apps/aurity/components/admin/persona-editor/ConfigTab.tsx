@@ -12,7 +12,7 @@ import { LLM_MODELS } from '@aurity-standalone/types/persona';
 import type { LLMModel } from '@aurity-standalone/types/llm';
 import { fetchLLMModels } from '@aurity-standalone/api-client/llm-models';
 import { VOICE_GROUPS, getVoiceInfo } from '@aurity-standalone/types/voices';
-import { Mic, Loader2, Cpu } from 'lucide-react';
+import { Mic, Loader2, Cpu, Target, Globe, Mic2, Star } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -165,18 +165,18 @@ export function ConfigTab({ persona, onChange }: ConfigTabProps) {
                 <div className="fi-title-sm-medium">
                   {currentVoice.label}
                 </div>
-                <div className="fi-text-xs">
+                <div className="fi-text-xs flex items-center gap-1">
                   {currentVoice.provider === 'openai-steerable'
-                    ? '🎯 OpenAI Steerable (Acento Mexicano)'
+                    ? <><Target className="w-3 h-3 inline" aria-hidden="true" /> OpenAI Steerable (Acento Mexicano)</>
                     : currentVoice.provider === 'azure-openai'
-                    ? '🌍 Azure OpenAI (Nativa Mexicana)'
-                    : '🎙️ OpenAI Standard'}
+                    ? <><Globe className="w-3 h-3 inline" aria-hidden="true" /> Azure OpenAI (Nativa Mexicana)</>
+                    : <><Mic2 className="w-3 h-3 inline" aria-hidden="true" /> OpenAI Standard</>}
                   {currentVoice.description && ` · ${currentVoice.description}`}
                 </div>
               </div>
               {currentVoice.recommended && (
-                <span className="px-2 py-1 bg-purple-600 text-white text-xs rounded-md">
-                  ⭐ Recomendada
+                <span className="px-2 py-1 bg-purple-600 text-white text-xs rounded-md flex items-center gap-1">
+                  <Star className="w-3 h-3" strokeWidth={1.5} aria-hidden="true" /> Recomendada
                 </span>
               )}
             </div>
@@ -196,7 +196,7 @@ export function ConfigTab({ persona, onChange }: ConfigTabProps) {
                 {group.voices.map((voice) => (
                   <SelectItem key={`${voice.provider}-${voice.value}`} value={voice.value}>
                     {voice.label}
-                    {voice.recommended ? ' ⭐' : ''}
+                    {voice.recommended && <Star className="w-3 h-3 inline ml-1 text-yellow-400" strokeWidth={1.5} aria-hidden="true" />}
                     {voice.description ? ` · ${voice.description}` : ''}
                   </SelectItem>
                 ))}
@@ -204,9 +204,10 @@ export function ConfigTab({ persona, onChange }: ConfigTabProps) {
             ))}
           </SelectContent>
         </Select>
-        <p className="fi-text-xs-muted mt-2">
-          🎯 Steerable: Acento mexicano natural | 🌍 Azure: Voces nativas | 🎙️
-          Standard: Inglés/General
+        <p className="fi-text-xs-muted mt-2 flex items-center gap-1 flex-wrap">
+          <Target className="w-3 h-3 inline" aria-hidden="true" /> Steerable: Acento mexicano natural |
+          <Globe className="w-3 h-3 inline ml-1" aria-hidden="true" /> Azure: Voces nativas |
+          <Mic2 className="w-3 h-3 inline ml-1" aria-hidden="true" /> Standard: Inglés/General
         </p>
       </div>
 

@@ -27,7 +27,7 @@ export function concatenateAudioBlobs(blobs: Blob[]): ConcatenationResult | null
   const sizeMB = concatenatedBlob.size / 1024 / 1024;
 
   console.log(
-    `[AudioConcat] ✅ Concatenated ${blobs.length} segments: ${sizeMB.toFixed(2)} MB`
+    `[AudioConcat] [OK] Concatenated ${blobs.length} segments: ${sizeMB.toFixed(2)} MB`
   );
 
   return {

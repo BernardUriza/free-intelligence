@@ -12,7 +12,7 @@
  * Created: Phase 7 Enhancement (2025-11-13)
  */
 
-import { StopCircle, Play } from 'lucide-react';
+import { StopCircle, Play, Headphones, AlertTriangle, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface PausedAudioPreviewProps {
@@ -45,8 +45,9 @@ export function PausedAudioPreview({
       {/* Audio Player - Only if audio available */}
       {audioUrl ? (
         <div className="fi-card-yellow mb-4">
-          <p className="text-sm text-white font-semibold mb-3">
-            🎧 Audio grabado ({segmentCount} segmento{segmentCount !== 1 ? 's' : ''})
+          <p className="text-sm text-white font-semibold mb-3 flex items-center gap-2">
+            <Headphones className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
+            Audio grabado ({segmentCount} segmento{segmentCount !== 1 ? 's' : ''})
           </p>
           <audio
             controls
@@ -62,8 +63,9 @@ export function PausedAudioPreview({
         </div>
       ) : (
         <div className="fi-card-red mb-4">
-          <p className="text-sm fi-text-error">
-            ⚠️ Audio no disponible (audioUrl: {audioUrl === null ? 'null' : 'undefined'})
+          <p className="text-sm fi-text-error flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
+            Audio no disponible (audioUrl: {audioUrl === null ? 'null' : 'undefined'})
           </p>
         </div>
       )}
@@ -94,7 +96,8 @@ export function PausedAudioPreview({
       </div>
 
       <div className="mt-3 flex items-center gap-2 text-xs text-yellow-400">
-        <span>⏸️ Puedes escuchar el audio grabado o continuar grabando</span>
+        <Pause className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
+        <span>Puedes escuchar el audio grabado o continuar grabando</span>
       </div>
     </div>
   );

@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react";
-import { Server, Laptop, CheckCircle2 } from "lucide-react";
+import { Server, Laptop, CheckCircle2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,23 +64,23 @@ export default function NASInstallerPage() {
 
                 <ul className="space-y-2 mb-4">
                   <li className="flex items-start gap-2 text-sm fi-text">
-                    <span className="fi-text-success mt-0.5">✓</span>
+                    <Check className="w-4 h-4 fi-text-success mt-0.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
                     <span><strong className="text-slate-200">Cero configuración</strong> – Funciona inmediatamente</span>
                   </li>
                   <li className="flex items-start gap-2 text-sm fi-text">
-                    <span className="fi-text-success mt-0.5">✓</span>
+                    <Check className="w-4 h-4 fi-text-success mt-0.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
                     <span><strong className="text-slate-200">Datos encriptados</strong> – AES-256 en reposo</span>
                   </li>
                   <li className="flex items-start gap-2 text-sm fi-text">
-                    <span className="fi-text-success mt-0.5">✓</span>
+                    <Check className="w-4 h-4 fi-text-success mt-0.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
                     <span><strong className="text-slate-200">Actualizaciones automáticas</strong> – Nuevas features cada semana</span>
                   </li>
                   <li className="flex items-start gap-2 text-sm fi-text">
-                    <span className="fi-text-success mt-0.5">✓</span>
+                    <Check className="w-4 h-4 fi-text-success mt-0.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
                     <span><strong className="text-slate-200">Cumple HIPAA</strong> – Infraestructura certificada</span>
                   </li>
                   <li className="flex items-start gap-2 text-sm fi-text">
-                    <span className="fi-text-success mt-0.5">✓</span>
+                    <Check className="w-4 h-4 fi-text-success mt-0.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
                     <span><strong className="text-slate-200">Soporte incluido</strong> – Chat en vivo + email</span>
                   </li>
                 </ul>
@@ -119,23 +119,23 @@ export default function NASInstallerPage() {
 
                 <ul className="space-y-2 mb-4">
                   <li className="flex items-start gap-2 text-sm fi-text">
-                    <span className="fi-text-success mt-0.5">✓</span>
+                    <Check className="w-4 h-4 fi-text-success mt-0.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
                     <span><strong className="text-slate-200">100% on-premise</strong> – Datos nunca salen de tu red</span>
                   </li>
                   <li className="flex items-start gap-2 text-sm fi-text">
-                    <span className="fi-text-success mt-0.5">✓</span>
+                    <Check className="w-4 h-4 fi-text-success mt-0.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
                     <span><strong className="text-slate-200">Air-gapped compatible</strong> – Funciona sin internet</span>
                   </li>
                   <li className="flex items-start gap-2 text-sm fi-text">
-                    <span className="fi-text-success mt-0.5">✓</span>
+                    <Check className="w-4 h-4 fi-text-success mt-0.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
                     <span><strong className="text-slate-200">White-label</strong> – Personaliza marca y dominio</span>
                   </li>
                   <li className="flex items-start gap-2 text-sm fi-text">
-                    <span className="fi-text-success mt-0.5">✓</span>
+                    <Check className="w-4 h-4 fi-text-success mt-0.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
                     <span><strong className="text-slate-200">Cumplimiento regulatorio</strong> – Datos bajo tu jurisdicción</span>
                   </li>
                   <li className="flex items-start gap-2 text-sm fi-text">
-                    <span className="fi-text-success mt-0.5">✓</span>
+                    <Check className="w-4 h-4 fi-text-success mt-0.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
                     <span><strong className="text-slate-200">Sin límites</strong> – Usuarios/pacientes ilimitados</span>
                   </li>
                 </ul>

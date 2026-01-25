@@ -5,6 +5,20 @@
  * HTTP client for patient self-service check-in system
  */
 
+import {
+  Smartphone,
+  Building2,
+  PenLine,
+  Lock,
+  CreditCard,
+  Coins,
+  TestTube,
+  FileX,
+  ClipboardList,
+  IdCard,
+  FileText,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type {
   CheckinSession,
   GenerateQRResponse,
@@ -463,20 +477,20 @@ export function formatWaitTime(minutes: number): string {
 }
 
 /**
- * Get action icon by type
+ * Get action icon by type (returns Lucide icon component)
  */
-export function getActionIcon(actionType: string): string {
-  const icons: Record<string, string> = {
-    update_contact: '📱',
-    update_insurance: '🏥',
-    sign_consent: '✍️',
-    sign_privacy: '🔒',
-    pay_copay: '💳',
-    pay_balance: '💰',
-    upload_labs: '🧪',
-    upload_imaging: '🩻',
-    fill_questionnaire: '📋',
-    verify_identity: '🪪',
+export function getActionIcon(actionType: string): LucideIcon {
+  const icons: Record<string, LucideIcon> = {
+    update_contact: Smartphone,
+    update_insurance: Building2,
+    sign_consent: PenLine,
+    sign_privacy: Lock,
+    pay_copay: CreditCard,
+    pay_balance: Coins,
+    upload_labs: TestTube,
+    upload_imaging: FileX,
+    fill_questionnaire: ClipboardList,
+    verify_identity: IdCard,
   };
-  return icons[actionType] || '📝';
+  return icons[actionType] || FileText;
 }

@@ -12,7 +12,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Trash2, Lock, Layers, Clock, CheckCircle2, EyeOff } from 'lucide-react';
+import {
+  Trash2,
+  Lock,
+  Layers,
+  Clock,
+  CheckCircle2,
+  EyeOff,
+  Camera,
+  Video,
+  MessageCircle,
+  CloudSun,
+  Brain,
+  Activity,
+  Lightbulb,
+  Leaf,
+  Hand,
+  Home,
+  Pill,
+  Megaphone,
+  FileText,
+  RefreshCw,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ContentItem } from './waiting-room-host';
 import { confirmDelete, toastError, toastSuccess } from '@/lib/swal';
@@ -129,21 +151,21 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
   void slides.filter(s => !s.is_active);
 
   // Helper function to get icon/label for content type
-  const getContentInfo = (item: ContentItem, index: number): { icon: string; label: string; editable: boolean } => {
+  const getContentInfo = (item: ContentItem, index: number): { icon: LucideIcon; label: string; editable: boolean } => {
     const title = typeof item.widgetData?.title === 'string' ? item.widgetData.title : undefined;
-    if (item.widgetType === 'clinic_image') return { icon: '📷', label: title || 'Imagen', editable: true };
-    if (item.widgetType === 'clinic_video') return { icon: '🎬', label: title || 'Video', editable: true };
-    if (item.widgetType === 'clinic_message') return { icon: '💬', label: title || 'Mensaje', editable: true };
-    if (item.widgetType === 'weather') return { icon: '🌤️', label: 'Clima y Hora', editable: false };
-    if (item.widgetType === 'trivia') return { icon: '🧠', label: 'Trivia de Salud', editable: false };
-    if (item.widgetType === 'breathing') return { icon: '🫁', label: 'Ejercicio de Respiración', editable: false };
-    if (item.widgetType === 'daily_tip') return { icon: '💡', label: 'Tip del Día', editable: false };
-    if (item.widgetType === 'calming') return { icon: '🌿', label: 'Naturaleza Relajante', editable: false };
-    if (item.type === 'welcome') return { icon: '👋', label: 'Bienvenida FI', editable: false };
-    if (item.type === 'philosophy') return { icon: '🏠', label: 'Filosofía FI', editable: false };
-    if (item.type === 'tip') return { icon: '💊', label: 'Tip de Salud FI', editable: false };
-    if (item.type === 'doctor_message') return { icon: '📢', label: 'Mensaje del Doctor', editable: false };
-    return { icon: '📄', label: `Slide ${index + 1}`, editable: false };
+    if (item.widgetType === 'clinic_image') return { icon: Camera, label: title || 'Imagen', editable: true };
+    if (item.widgetType === 'clinic_video') return { icon: Video, label: title || 'Video', editable: true };
+    if (item.widgetType === 'clinic_message') return { icon: MessageCircle, label: title || 'Mensaje', editable: true };
+    if (item.widgetType === 'weather') return { icon: CloudSun, label: 'Clima y Hora', editable: false };
+    if (item.widgetType === 'trivia') return { icon: Brain, label: 'Trivia de Salud', editable: false };
+    if (item.widgetType === 'breathing') return { icon: Activity, label: 'Ejercicio de Respiración', editable: false };
+    if (item.widgetType === 'daily_tip') return { icon: Lightbulb, label: 'Tip del Día', editable: false };
+    if (item.widgetType === 'calming') return { icon: Leaf, label: 'Naturaleza Relajante', editable: false };
+    if (item.type === 'welcome') return { icon: Hand, label: 'Bienvenida FI', editable: false };
+    if (item.type === 'philosophy') return { icon: Home, label: 'Filosofía FI', editable: false };
+    if (item.type === 'tip') return { icon: Pill, label: 'Tip de Salud FI', editable: false };
+    if (item.type === 'doctor_message') return { icon: Megaphone, label: 'Mensaje del Doctor', editable: false };
+    return { icon: FileText, label: `Slide ${index + 1}`, editable: false };
   };
 
   return (
@@ -158,11 +180,12 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
           <Button
             type="button"
             onClick={fetchSlides}
-            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded-lg transition-colors"
+            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded-lg transition-colors flex items-center gap-1.5"
             variant="ghost"
             size="sm"
           >
-            🔄 Actualizar
+            <RefreshCw className="w-3.5 h-3.5" />
+            Actualizar
           </Button>
         </div>
         {carouselContent.length === 0 ? (
@@ -184,8 +207,8 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
                 >
                   {/* Content info */}
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-12 h-12 rounded-lg bg-slate-700/50 flex items-center justify-center text-2xl">
-                      {info.icon}
+                    <div className="w-12 h-12 rounded-lg bg-slate-700/50 flex items-center justify-center text-slate-300">
+                      <info.icon className="w-6 h-6" strokeWidth={1.5} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">

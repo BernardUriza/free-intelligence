@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { ArrowUp, Pause, ArrowDown, Heart } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 export function BreathingExerciseWidget() {
   const [phase, setPhase] = useState<'inhale' | 'hold' | 'exhale'>('inhale');
@@ -29,14 +31,21 @@ export function BreathingExerciseWidget() {
     return () => clearInterval(timer);
   }, []);
 
-  const phaseConfig = {
+  const phaseConfig: Record<'inhale' | 'hold' | 'exhale', {
+    label: string;
+    color: string;
+    bgColor: string;
+    borderColor: string;
+    glowColor: string;
+    icon: LucideIcon;
+  }> = {
     inhale: {
       label: 'Inhala profundamente',
       color: 'text-cyan-300',
       bgColor: 'bg-cyan-500/20',
       borderColor: 'border-cyan-500',
       glowColor: 'shadow-cyan-500/30',
-      icon: '↑',
+      icon: ArrowUp,
     },
     hold: {
       label: 'Sostén la respiración',
@@ -44,7 +53,7 @@ export function BreathingExerciseWidget() {
       bgColor: 'bg-purple-500/20',
       borderColor: 'border-purple-500',
       glowColor: 'shadow-purple-500/30',
-      icon: '⏸',
+      icon: Pause,
     },
     exhale: {
       label: 'Exhala lentamente',
@@ -52,7 +61,7 @@ export function BreathingExerciseWidget() {
       bgColor: 'bg-orange-500/20',
       borderColor: 'border-orange-500',
       glowColor: 'shadow-orange-500/30',
-      icon: '↓',
+      icon: ArrowDown,
     },
   };
 
@@ -61,7 +70,9 @@ export function BreathingExerciseWidget() {
   return (
     <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-950/80 to-slate-900/80 border border-slate-700 rounded-xl backdrop-blur-sm p-4 sm:p-6 lg:p-8">
       <div className="text-center mb-4 sm:mb-6 lg:mb-8 flex-shrink-0">
-        <div className="text-4xl sm:text-5xl lg:text-6xl mb-2">🧘</div>
+        <div className="text-purple-400 mb-2">
+          <Heart className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 mx-auto" strokeWidth={1.5} />
+        </div>
         <h3 className="font-bold text-white" style={{ fontSize: 'clamp(1.5rem, 3vw, 3rem)' }}>
           Ejercicio de Respiración
         </h3>
@@ -86,8 +97,8 @@ export function BreathingExerciseWidget() {
             <div className={`font-bold ${config.color} leading-none`} style={{ fontSize: 'clamp(4rem, 15vw, 12rem)' }}>
               {count}
             </div>
-            <div className={`${config.color} mt-2`} style={{ fontSize: 'clamp(2rem, 6vw, 5rem)' }}>
-              {config.icon}
+            <div className={`${config.color} mt-2 flex justify-center`}>
+              <config.icon style={{ width: 'clamp(2rem, 6vw, 5rem)', height: 'clamp(2rem, 6vw, 5rem)' }} strokeWidth={2} />
             </div>
           </div>
         </div>

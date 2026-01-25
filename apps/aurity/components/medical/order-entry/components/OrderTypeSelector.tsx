@@ -31,8 +31,8 @@ export function OrderTypeSelector({ selectedType, onSelect }: OrderTypeSelectorP
             size="sm"
             type="button"
           >
-            <div className="text-3xl mb-2 transform group-hover:scale-110 transition-transform">
-              {typeConfig.icon}
+            <div className="mb-2 transform group-hover:scale-110 transition-transform">
+              <typeConfig.icon className="w-8 h-8" strokeWidth={1.5} />
             </div>
             <div className={`text-sm font-medium ${isSelected ? typeConfig.text : 'fi-text'}`}>
               {typeConfig.label}

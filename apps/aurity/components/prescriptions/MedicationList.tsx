@@ -15,7 +15,7 @@ import {
   FREQUENCY_LABELS,
   ROUTE_LABELS,
 } from "@/lib/api/prescriptions";
-import { Pill, Edit2, Trash2, GripVertical } from "lucide-react";
+import { Pill, Edit2, Trash2, GripVertical, AlertTriangle } from "lucide-react";
 
 interface MedicationListProps {
   medications: Medication[];
@@ -141,8 +141,9 @@ function MedicationCard({
         )}
 
         {medication.warnings && (
-          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-            ⚠️ {medication.warnings}
+          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" strokeWidth={1.5} aria-hidden="true" />
+            {medication.warnings}
           </p>
         )}
       </div>

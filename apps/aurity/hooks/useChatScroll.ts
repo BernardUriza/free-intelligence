@@ -313,7 +313,7 @@ export function useChatScroll({
     if (isInitialRenderRef.current && newMessagesCount > 0) {
       isInitialRenderRef.current = false;
       prevMessagesCountRef.current = newMessagesCount;
-      console.log('[useChatScroll] 🚀 Initial render: scrolling to bottom');
+      console.log('[useChatScroll] [INIT] Initial render: scrolling to bottom');
       scrollToBottom('instant');
       return;
     }
@@ -321,7 +321,7 @@ export function useChatScroll({
     // New messages arrived (not from loading older)
     if (messagesDelta > 0) {
       prevMessagesCountRef.current = newMessagesCount;
-      console.log('[useChatScroll] 📝 New messages detected:', {
+      console.log('[useChatScroll] [MSG] New messages detected:', {
         delta: messagesDelta,
         total: newMessagesCount,
         isAtBottom,
@@ -338,11 +338,11 @@ export function useChatScroll({
 
       if (isAtBottom && !isScrollingUp && !isReadingHistory) {
         // User at bottom and not reading history: auto-scroll smoothly
-        console.log('[useChatScroll] ✅ Auto-scrolling to bottom (smooth)');
+        console.log('[useChatScroll] [OK] Auto-scrolling to bottom (smooth)');
         scrollToBottom('smooth');
       } else if (trackUnread) {
         // User scrolled up or is reading: increment unread counter
-        console.log('[useChatScroll] 📌 Not at bottom, incrementing unread counter');
+        console.log('[useChatScroll] [PIN] Not at bottom, incrementing unread counter');
         setUnreadCount(prev => prev + messagesDelta);
       }
     }

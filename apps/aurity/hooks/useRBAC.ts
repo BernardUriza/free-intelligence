@@ -125,7 +125,7 @@ const getSuperAdminEmails = (): string[] => {
   }
 
   // No fallback - env var is required for security
-  console.warn('⚠️ NEXT_PUBLIC_SUPERADMIN_EMAILS not set. No superadmins configured.');
+  console.warn('[WARN] NEXT_PUBLIC_SUPERADMIN_EMAILS not set. No superadmins configured.');
   return [];
 };
 

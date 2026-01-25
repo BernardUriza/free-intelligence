@@ -16,6 +16,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  AlertTriangle,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -256,8 +258,9 @@ export function SafetyAlerts({
             {/* Action Guidance */}
             {!safetyCheck.can_proceed && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-700 font-medium">
-                  ⚠️ No se puede proceder con la receta
+                <p className="text-sm text-red-700 font-medium flex items-center gap-1">
+                  <AlertTriangle className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
+                  No se puede proceder con la receta
                 </p>
                 <p className="text-xs text-red-600 mt-1">
                   Existen alertas críticas que requieren atención. Revise las
@@ -268,8 +271,9 @@ export function SafetyAlerts({
 
             {safetyCheck.can_proceed && totalAlerts > 0 && (
               <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-700 font-medium">
-                  ⚡ Proceder con precaución
+                <p className="text-sm text-yellow-700 font-medium flex items-center gap-1">
+                  <Zap className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
+                  Proceder con precaución
                 </p>
                 <p className="text-xs text-yellow-600 mt-1">
                   Hay alertas que deben revisarse antes de continuar. La receta

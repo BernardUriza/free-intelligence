@@ -127,9 +127,9 @@ export function Auth0Provider({ children }: Auth0ProviderProps): ReactElement {
  * - Cloud (Web): Uses Auth0 SDK
  *
  * USAGE:
- * ✅ import { useAuth0 } from '@/components/auth/Auth0Provider';
- * ✅ import { useAuth } from '@/hooks/useAuth';
- * ❌ import { useAuth0 } from '@auth0/auth0-react';  // WRONG!
+ * CORRECT: import { useAuth0 } from '@/components/auth/Auth0Provider';
+ * CORRECT: import { useAuth } from '@/hooks/useAuth';
+ * WRONG:   import { useAuth0 } from '@auth0/auth0-react';
  */
 export function useAuth0() {
   // Desktop mode with Tauri runtime

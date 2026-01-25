@@ -9,6 +9,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from '@/components/ui/button';
+import { User, AlertTriangle, CheckCircle2, Timer, UserRound } from 'lucide-react';
 
 export interface PatientFormData {
   nombre: string;
@@ -107,9 +108,10 @@ export function PatientSetupForm({ onDataChange, onSkipDemo }: PatientSetupFormP
     <div className="space-y-6">
       {/* Form Title */}
       <div className="p-4 bg-emerald-950/20 border border-emerald-700/30 rounded-xl">
-        <p className="text-sm text-emerald-300">
-          👤 <strong>Paciente Demo:</strong> Estos datos se guardarán localmente (LocalStorage) solo para esta demo.
-          No se envían a ningún servidor.
+        <p className="text-sm text-emerald-300 flex items-start gap-2">
+          <User className="w-4 h-4 flex-shrink-0 mt-0.5" strokeWidth={1.5} aria-hidden="true" />
+          <span><strong>Paciente Demo:</strong> Estos datos se guardarán localmente (LocalStorage) solo para esta demo.
+          No se envían a ningún servidor.</span>
         </p>
       </div>
 
@@ -131,13 +133,13 @@ export function PatientSetupForm({ onDataChange, onSkipDemo }: PatientSetupFormP
         />
         {touched.nombre && errors.nombre && (
           <p className="text-xs fi-text-error flex items-center gap-1">
-            <span>⚠️</span>
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
             {errors.nombre}
           </p>
         )}
         {formData.nombre.length > 0 && !errors.nombre && (
           <p className="text-xs fi-text-success flex items-center gap-1">
-            <span>✅</span>
+            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
             Nombre válido
           </p>
         )}
@@ -165,13 +167,13 @@ export function PatientSetupForm({ onDataChange, onSkipDemo }: PatientSetupFormP
         />
         {touched.edad && errors.edad && (
           <p className="text-xs fi-text-error flex items-center gap-1">
-            <span>⚠️</span>
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
             {errors.edad}
           </p>
         )}
         {formData.edad !== '' && !errors.edad && (
           <p className="text-xs fi-text-success flex items-center gap-1">
-            <span>✅</span>
+            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
             Edad válida
           </p>
         )}
@@ -184,9 +186,9 @@ export function PatientSetupForm({ onDataChange, onSkipDemo }: PatientSetupFormP
         </label>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { value: 'masculino', label: 'Masculino', icon: '👨' },
-            { value: 'femenino', label: 'Femenino', icon: '👩' },
-            { value: 'otro', label: 'Otro', icon: '🧑' },
+            { value: 'masculino', label: 'Masculino' },
+            { value: 'femenino', label: 'Femenino' },
+            { value: 'otro', label: 'Otro' },
           ].map((option) => (
             <Button
               key={option.value}
@@ -200,14 +202,14 @@ export function PatientSetupForm({ onDataChange, onSkipDemo }: PatientSetupFormP
               size="sm"
               title={option.label}
             >
-              <div className="text-2xl mb-1">{option.icon}</div>
+              <div className="mb-1"><UserRound className="w-6 h-6 mx-auto" strokeWidth={1.5} aria-hidden="true" /></div>
               <div className="fi-text-xs-medium text-slate-200">{option.label}</div>
             </Button>
           ))}
         </div>
         {touched.genero && errors.genero && (
           <p className="text-xs fi-text-error flex items-center gap-1">
-            <span>⚠️</span>
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
             {errors.genero}
           </p>
         )}
@@ -238,7 +240,7 @@ export function PatientSetupForm({ onDataChange, onSkipDemo }: PatientSetupFormP
           : 'border-yellow-600/50 bg-yellow-950/20'
       }`}>
         <div className="fi-flex-gap-md">
-          <span className="text-2xl">{isFormValid() ? '✅' : '⏳'}</span>
+          <span className="text-2xl">{isFormValid() ? <CheckCircle2 className="w-6 h-6 text-emerald-400" strokeWidth={1.5} aria-hidden="true" /> : <Timer className="w-6 h-6 text-yellow-400" strokeWidth={1.5} aria-hidden="true" />}</span>
           <div>
             <p className={`text-sm font-semibold ${isFormValid() ? 'text-emerald-300' : 'text-yellow-300'}`}>
               {isFormValid() ? 'Formulario completo' : 'Completa los campos requeridos'}

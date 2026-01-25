@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aurity</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      opacity: 0.8;
+      margin-bottom: 30px;
+    }
+
+    .loader {
+      width: 200px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .loader-bar {
+      width: 30%;
+      height: 100%;
+      background: white;
+      border-radius: 2px;
+      animation: loading 1.5s ease-in-out infinite;
+    }
+
+    @keyframes loading {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(400%); }
+    }
+
+    .status {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    .version {
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0.9;
+      background: rgba(0,0,0,0.3);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <img class="logo" src="icons/icon-128x128.png" alt="Aurity">
+  <h1>Aurity</h1>
+  <p class="subtitle">Medical AI Assistant</p>
+  <div class="loader">
+    <div class="loader-bar"></div>
+  </div>
+  <p class="status" id="status">Iniciando...</p>
+  <p class="version" id="version">v1.0.2</p>
+
+  <script>
+    // Listen for status updates from Tauri
+    const { listen } = window.__TAURI__.event;
+
+    listen('loading-status', (event) => {
+      document.getElementById('status').textContent = event.payload;
+    });
+
+    // Show app version (Tauri 2.0 API)
+    async function showVersion() {
+      try {
+        // Tauri 2.0: APIs are under window.__TAURI__
+        if (window.__TAURI__ && window.__TAURI__.app) {
+          const version = await window.__TAURI__.app.getVersion();
+          document.getElementById('version').textContent = 'v' + version;
+        } else {
+          // Fallback: try to get from Tauri core
+          const { getVersion } = await import('@tauri-apps/api/app');
+          const version = await getVersion();
+          document.getElementById('version').textContent = 'v' + version;
+        }
+      } catch (e) {
+        console.error('Could not get version:', e);
+        document.getElementById('version').textContent = 'v1.0.2';
+      }
+    }
+    showVersion();
+  </script>
+</body>
+</html>

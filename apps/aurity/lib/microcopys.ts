@@ -52,7 +52,7 @@ export const MICROCOPYS = {
     empty: "No sessions yet.\n\nCreate your first session to start tracking thoughts.",
     loading: "Loading sessions...",
     sessionCard: {
-      pinned: "⭐ Pinned",
+      pinned: "Pinned",
       lastUpdated: (hours: number) => `Last updated ${hours} hours ago`,
       interactions: (count: number) => `${count} interaction${count !== 1 ? "s" : ""}`,
     },
@@ -70,11 +70,11 @@ export const MICROCOPYS = {
 
   /** Success messages */
   success: {
-    pinned: "⭐ Pinned\n\nInteraction pinned to top of Timeline.",
-    tagged: (tags: string[]) => `🏷️ Tagged: ${tags.join(", ")}\n\nTags help filter Timeline.`,
-    copied: "📋 Copied to clipboard\n\nInteraction content copied.",
+    pinned: "Pinned\n\nInteraction pinned to top of Timeline.",
+    tagged: (tags: string[]) => `Tagged: ${tags.join(", ")}\n\nTags help filter Timeline.`,
+    copied: "Copied to clipboard\n\nInteraction content copied.",
     sessionDeleted: (sessionId: string) =>
-      `🗑️ Session deleted\n\n${sessionId} removed from corpus.\n\nUndo not available (append-only policy).`,
+      `Session deleted\n\n${sessionId} removed from corpus.\n\nUndo not available (append-only policy).`,
   },
 
   /** Export flow */
@@ -90,7 +90,7 @@ export const MICROCOPYS = {
       eta: (seconds: number) => `ETA: ${seconds} seconds`,
     },
     success: {
-      title: "✅ Exported!",
+      title: "Exported!",
       message: (path: string, hash: string) =>
         `Saved to: ${path}\nHash: ${hash.slice(0, 12)}...`,
       ctaPrimary: "View in Finder",
@@ -101,18 +101,18 @@ export const MICROCOPYS = {
   /** Verify flow */
   verify: {
     success: {
-      title: "✅ Session verified!",
+      title: "Session verified!",
       badges: {
-        hashVerified: "✅ Verified",
-        policyCompliant: "✅ Compliant",
-        auditLogged: "✅ Logged",
+        hashVerified: "Verified",
+        policyCompliant: "Compliant",
+        auditLogged: "Logged",
         redactionNA: "N/A",
       },
       message: "No tampering detected.",
       cta: "View in Timeline",
     },
     failed: {
-      title: "❌ Verification failed",
+      title: "Verification failed",
       hashMismatch: (expected: string, actual: string) =>
         `Expected hash: ${expected.slice(0, 12)}...\nActual hash:   ${actual.slice(0, 12)}...\n\nThis indicates tampering or corruption.`,
       ctaPrimary: "View Details",
@@ -123,40 +123,40 @@ export const MICROCOPYS = {
   /** Error messages */
   errors: {
     networkTimeout: {
-      title: "⚠️ Network timeout",
+      title: "Network timeout",
       message: "Request took >5 seconds.",
       causes: ["LLM API slow", "Large corpus file", "Network congestion"],
       ctaPrimary: "Retry",
       ctaSecondary: "Increase Timeout",
     },
     diskFull: {
-      title: "⚠️ Export failed",
+      title: "Export failed",
       message: (used: number, total: number) => `Disk ${used}% full (${used}GB / ${total}GB used).`,
       action: "Free up 2GB space, or change export location.",
       ctaPrimary: "Free Space",
       ctaSecondary: "Change Location",
     },
     sessionNotFound: {
-      title: "❌ Session not found",
+      title: "Session not found",
       message: (sessionId: string) => `${sessionId} doesn't exist in corpus.`,
       causes: ["Typo in session ID", "Session was deleted", "Corpus file corrupted"],
       ctaPrimary: "Go to Timeline",
       ctaSecondary: "Create New Session",
     },
     corpusLocked: {
-      title: "⚠️ Corpus locked",
+      title: "Corpus locked",
       message: "Another process is writing to corpus.h5.\n\nWait for operation to complete (~30s).",
       ctaPrimary: "Retry",
       ctaSecondary: "Force Unlock (Risky)",
     },
     llmRateLimit: {
-      title: "⚠️ LLM request failed",
+      title: "LLM request failed",
       message: (model: string) => `Model: ${model}\nError: 429 Too Many Requests\n\nRate limit exceeded. Retry in 60 seconds.`,
       ctaPrimary: "Retry Now",
       ctaSecondary: "Wait 60s",
     },
     policyViolation: {
-      title: "❌ Policy violation",
+      title: "Policy violation",
       message: (rule: string, reason: string) =>
         `Action blocked by mutation_policy.yml:\n\nRule: ${rule}\n${reason}\n\nOverride requires admin approval.`,
       ctaPrimary: "Cancel",
@@ -166,7 +166,7 @@ export const MICROCOPYS = {
 
   /** Delete confirmation */
   deleteConfirmation: {
-    title: "⚠️ Delete Session?",
+    title: "Delete Session?",
     message: (sessionId: string, interactionCount: number) =>
       `This will permanently delete:\n• ${sessionId}\n• ${interactionCount} interactions\n• All metadata\n\nThis cannot be undone.`,
     ctaCancel: "Cancel",
@@ -176,7 +176,7 @@ export const MICROCOPYS = {
   /** Friday Review */
   fridayReview: {
     notification: {
-      title: "📅 Friday Review",
+      title: "Friday Review",
       message: (sessions: number, interactions: number, exports: number) =>
         `It's Friday 4pm. Time to reflect.\n\nThis week you:\n• Created ${sessions} sessions\n• Wrote ${interactions} interactions\n• Exported ${exports} times\n\nWant to do a quick review?`,
       ctaPrimary: "Start Review",
@@ -184,7 +184,7 @@ export const MICROCOPYS = {
       ctaTertiary: "Remind Me at 5pm",
     },
     form: {
-      title: "📅 Friday Review",
+      title: "Friday Review",
       topSessions: "Most active sessions this week:",
       questions: {
         wentWell: "What went well this week?",
@@ -195,7 +195,7 @@ export const MICROCOPYS = {
       ctaSkip: "Skip",
     },
     saved: {
-      title: "✅ Reflection saved",
+      title: "Reflection saved",
       message: (interactionId: string) => `Your Friday review is saved as:\n${interactionId}\n\nTagged with: friday-review`,
       ctaPrimary: "View in Timeline",
       ctaSecondary: "Done",
@@ -214,18 +214,18 @@ export const MICROCOPYS = {
   /** Settings */
   settings: {
     identityChanged: {
-      title: "✅ Identity updated",
+      title: "Identity updated",
       message: (newIdentity: string) =>
         `New identity: ${newIdentity}\n\nThis affects future sessions.\nExisting sessions unchanged.`,
       cta: "OK",
     },
     exportLocationChanged: {
-      title: "✅ Export location updated",
+      title: "Export location updated",
       message: (newLocation: string) => `New location: ${newLocation}\n\nFuture exports will save here.`,
       cta: "OK",
     },
     policyUpdated: {
-      title: "✅ Policy updated",
+      title: "Policy updated",
       message: (rules: string[]) =>
         `mutation_policy.yml changes applied.\n\nAffected rules:\n${rules.map((r) => `• ${r}`).join("\n")}`,
       ctaPrimary: "View Policy",

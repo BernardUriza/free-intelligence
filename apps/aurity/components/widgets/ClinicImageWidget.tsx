@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Camera } from 'lucide-react';
 
 interface ClinicImageWidgetProps {
   imageUrl: string;
@@ -15,7 +16,7 @@ export function ClinicImageWidget({ imageUrl, title, description }: ClinicImageW
     return (
       <div className="bg-gradient-to-br from-slate-950/80 to-slate-900/80 border border-slate-700 rounded-xl overflow-hidden backdrop-blur-sm h-80 flex items-center justify-center">
         <div className="text-center p-6">
-          <div className="text-5xl mb-4">📷</div>
+          <Camera className="w-12 h-12 text-slate-400 mx-auto mb-4" strokeWidth={1.5} aria-hidden="true" />
           <p className="text-slate-400">Imagen no disponible</p>
           {title && <p className="text-slate-500 text-sm mt-2">{title}</p>}
         </div>

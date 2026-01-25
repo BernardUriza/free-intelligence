@@ -2,6 +2,7 @@
  * OrderEntry Types
  */
 
+import type { LucideIcon } from 'lucide-react';
 import type { MedicalOrder } from '@aurity-standalone/api-client/medical-workflow';
 
 export interface OrderEntryProps {
@@ -18,7 +19,7 @@ export interface ChatMessage {
 
 export interface OrderTypeConfig {
   label: string;
-  icon: string;
+  icon: LucideIcon;
   color: string;
   gradientClass: string;
   border: string;

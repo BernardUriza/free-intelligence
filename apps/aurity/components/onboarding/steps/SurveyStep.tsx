@@ -5,33 +5,55 @@
  */
 
 import { useState } from "react";
+import {
+  UserRound,
+  Stethoscope,
+  Syringe,
+  ClipboardList,
+  Building2,
+  Landmark,
+  RefreshCw,
+  Circle,
+  Sprout,
+  TreeDeciduous,
+  TreePine,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { StepProps, SurveyData, UserRole, ClinicType, AIExperience, ConsultasPerDay } from "../types";
 
-const userRoleOptions = [
-  { value: 'medico_general' as UserRole, label: 'Médico General', icon: '👨‍⚕️', desc: 'Atención primaria' },
-  { value: 'especialista' as UserRole, label: 'Especialista', icon: '🩺', desc: 'Área especializada' },
-  { value: 'enfermera' as UserRole, label: 'Enfermera/o', icon: '💉', desc: 'Cuidado directo' },
-  { value: 'administrador' as UserRole, label: 'Administrador', icon: '📋', desc: 'Gestión clínica' },
+interface OptionWithIcon<T> {
+  value: T;
+  label: string;
+  icon: LucideIcon;
+  desc?: string;
+  color?: string;
+}
+
+const userRoleOptions: OptionWithIcon<UserRole>[] = [
+  { value: 'medico_general', label: 'Médico General', icon: UserRound, desc: 'Atención primaria' },
+  { value: 'especialista', label: 'Especialista', icon: Stethoscope, desc: 'Área especializada' },
+  { value: 'enfermera', label: 'Enfermera/o', icon: Syringe, desc: 'Cuidado directo' },
+  { value: 'administrador', label: 'Administrador', icon: ClipboardList, desc: 'Gestión clínica' },
 ];
 
-const clinicTypeOptions = [
-  { value: 'privada' as ClinicType, label: 'Privada', icon: '🏥' },
-  { value: 'publica' as ClinicType, label: 'Pública', icon: '🏛️' },
-  { value: 'mixta' as ClinicType, label: 'Mixta', icon: '🔄' },
+const clinicTypeOptions: OptionWithIcon<ClinicType>[] = [
+  { value: 'privada', label: 'Privada', icon: Building2 },
+  { value: 'publica', label: 'Pública', icon: Landmark },
+  { value: 'mixta', label: 'Mixta', icon: RefreshCw },
 ];
 
-const consultasOptions = [
-  { value: '1-5' as ConsultasPerDay, label: '1-5', icon: '🔵' },
-  { value: '6-15' as ConsultasPerDay, label: '6-15', icon: '🟢' },
-  { value: '16-30' as ConsultasPerDay, label: '16-30', icon: '🟡' },
-  { value: '31+' as ConsultasPerDay, label: '31+', icon: '🔴' },
+const consultasOptions: OptionWithIcon<ConsultasPerDay>[] = [
+  { value: '1-5', label: '1-5', icon: Circle, color: 'text-blue-400' },
+  { value: '6-15', label: '6-15', icon: Circle, color: 'text-green-400' },
+  { value: '16-30', label: '16-30', icon: Circle, color: 'text-yellow-400' },
+  { value: '31+', label: '31+', icon: Circle, color: 'text-red-400' },
 ];
 
-const aiExperienceOptions = [
-  { value: 'ninguna' as AIExperience, label: 'Ninguna', icon: '🌱', desc: 'Primera vez' },
-  { value: 'basica' as AIExperience, label: 'Básica', icon: '🌿', desc: 'He probado algunas herramientas' },
-  { value: 'avanzada' as AIExperience, label: 'Avanzada', icon: '🌳', desc: 'Uso frecuente' },
+const aiExperienceOptions: OptionWithIcon<AIExperience>[] = [
+  { value: 'ninguna', label: 'Ninguna', icon: Sprout, desc: 'Primera vez' },
+  { value: 'basica', label: 'Básica', icon: TreeDeciduous, desc: 'He probado algunas herramientas' },
+  { value: 'avanzada', label: 'Avanzada', icon: TreePine, desc: 'Uso frecuente' },
 ];
 
 export function SurveyStep({ context, callbacks, status }: StepProps) {
@@ -78,7 +100,7 @@ export function SurveyStep({ context, callbacks, status }: StepProps) {
               title={option.label}
             >
               <div className="flex items-center gap-3 mb-2">
-                <span className="text-2xl">{option.icon}</span>
+                <option.icon className="w-6 h-6 text-emerald-400" strokeWidth={1.5} />
                 <span className="font-semibold text-slate-200">{option.label}</span>
               </div>
               <p className="fi-text-xs">{option.desc}</p>
@@ -103,7 +125,9 @@ export function SurveyStep({ context, callbacks, status }: StepProps) {
                 size="sm"
                 title={option.label}
               >
-                <div className="text-2xl mb-2">{option.icon}</div>
+                <div className="mb-2 text-emerald-400">
+                  <option.icon className="w-6 h-6" strokeWidth={1.5} />
+                </div>
                 <div className="font-semibold text-slate-200">{option.label}</div>
               </Button>
             ))}
@@ -127,7 +151,9 @@ export function SurveyStep({ context, callbacks, status }: StepProps) {
                 size="sm"
                 title={option.label}
               >
-                <div className="text-2xl mb-2">{option.icon}</div>
+                <div className={`mb-2 ${option.color || 'text-emerald-400'}`}>
+                  <option.icon className="w-6 h-6" strokeWidth={1.5} fill="currentColor" />
+                </div>
                 <div className="font-semibold text-slate-200">{option.label}</div>
               </Button>
             ))}
@@ -151,7 +177,9 @@ export function SurveyStep({ context, callbacks, status }: StepProps) {
                 size="sm"
                 title={option.label}
               >
-                <div className="text-2xl mb-2">{option.icon}</div>
+                <div className="mb-2 text-emerald-400">
+                  <option.icon className="w-6 h-6" strokeWidth={1.5} />
+                </div>
                 <div className="font-semibold text-slate-200 mb-1">{option.label}</div>
                 <p className="fi-text-xs">{option.desc}</p>
               </Button>

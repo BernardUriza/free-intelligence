@@ -106,7 +106,7 @@ export function LANOnlyBanner() {
                   <strong className="fi-text-primary">Tailscale/WireGuard</strong> para conectarte a tu red local.
                 </p>
                 <p className="text-sm text-yellow-400 mt-2">
-                  ⚠️ <strong>Nunca</strong> expongas Free Intelligence directamente a internet.
+                  <strong>Nunca</strong> expongas Free Intelligence directamente a internet.
                 </p>
               </div>
 

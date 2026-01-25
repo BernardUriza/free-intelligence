@@ -190,7 +190,7 @@ const demoSteps = [
     id: 'soap',
     icon: ClipboardCheck,
     label: 'Nota SOAP',
-    duration: '✓',
+    duration: 'Listo',
     description: 'Nota estructurada lista'
   },
 ];

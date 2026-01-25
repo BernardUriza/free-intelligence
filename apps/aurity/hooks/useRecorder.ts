@@ -90,7 +90,7 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
         stream = externalStream;
       } else {
         console.log('[Recorder] Requesting microphone access...');
-        console.log('[Recorder] ⚠️ If this hangs, check macOS System Preferences → Privacy & Security → Microphone → Enable for your browser');
+        console.log('[Recorder] [WARN] If this hangs, check macOS System Preferences → Privacy & Security → Microphone → Enable for your browser');
 
         try {
           // Add timeout - getUserMedia can hang forever if user ignores prompt or macOS blocks
@@ -112,9 +112,9 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
             navigator.mediaDevices.getUserMedia({ audio: audioConstraints }),
             timeoutPromise
           ]);
-          console.log('[Recorder] ✅ Microphone access granted', stream.getTracks());
+          console.log('[Recorder] [OK] Microphone access granted', stream.getTracks());
         } catch (micError) {
-          console.error('[Recorder] ❌ Microphone access FAILED:', micError);
+          console.error('[Recorder] [ERROR] Microphone access FAILED:', micError);
           throw micError;
         }
       }
@@ -131,7 +131,7 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
         async (blob: Blob) => {
           // Capture chunk number and increment IMMEDIATELY (atomic operation)
           const chunkNumber = chunkNumberRef.current++;
-          console.log(`[Recorder] 📦 Chunk ${chunkNumber} received: ${blob.size} bytes`);
+          console.log(`[Recorder] [CHUNK] ${chunkNumber} received: ${blob.size} bytes`);
 
           // Call user-provided chunk handler
           await onChunk(blob, chunkNumber);
@@ -144,9 +144,9 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
       );
 
       recorderRef.current = chunkedRecorder;
-      console.log(`[Recorder] ✅ Using ${chunkedRecorder.kind} mode (chunked)`);
+      console.log(`[Recorder] [OK] Using ${chunkedRecorder.kind} mode (chunked)`);
       chunkedRecorder.start();
-      console.log('[Recorder] 🎙️ Recording started!');
+      console.log('[Recorder] [START] Recording started!');
 
       // ========================================================================
       // CONTINUOUS RECORDER: For full audio without chunks
@@ -277,7 +277,7 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
         recorderRef.current = null;
       }
 
-      console.log('[Recorder] ✅ Recording stopped, microphone released');
+      console.log('[Recorder] [OK] Recording stopped, microphone released');
 
       return fullBlob;
     } catch (err) {

@@ -250,7 +250,7 @@ export function useChatActions({
       if (err instanceof BackendUnavailableError || isConnectionError(err)) {
         const offlineMsg: FIMessage = {
           role: 'assistant',
-          content: '⚠️ No se pudo conectar al servidor. Tu mensaje se guardó localmente.',
+          content: 'No se pudo conectar al servidor. Tu mensaje se guardó localmente.',
           timestamp: new Date().toISOString(),
           metadata: { tone: 'neutral' as FITone, phase, id: generateMessageId('offline') },
         };
@@ -264,7 +264,7 @@ export function useChatActions({
 
       const errorMsg: FIMessage = {
         role: 'assistant',
-        content: `❌ Error: ${errorMessage}. Click "Retry" to try again.`,
+        content: `Error: ${errorMessage}. Click "Retry" to try again.`,
         timestamp: new Date().toISOString(),
         metadata: { tone: 'neutral' as FITone, phase, id: generateMessageId('error') },
       };
@@ -315,13 +315,13 @@ export function useChatActions({
       let finalContent = '';
       let finalThinking = '';
 
-      console.log('[useChatActions.sendMessageStream] 🚀 Starting stream with context:', {
+      console.log('[useChatActions.sendMessageStream] Starting stream with context:', {
         persona: context?.persona,
         phase,
         messages: messages.length,
       });
 
-      console.log('[useChatActions] 🚀 Starting stream with sendMessageStream');
+      console.log('[useChatActions] Starting stream with sendMessageStream');
 
       streamControllerRef.current = assistantApi.chatStream(
         {
@@ -336,7 +336,7 @@ export function useChatActions({
         },
         {
           onThinking: (thinking) => {
-            console.log('[useChatActions] 💭 onThinking callback called:', thinking.substring(0, 50));
+            console.log('[useChatActions] [THINK] onThinking callback called:', thinking.substring(0, 50));
             finalThinking = thinking;
             setStreamUpdateCounter(c => c + 1);  // Increment to ensure re-render
             setStreaming(prev => {
@@ -346,12 +346,12 @@ export function useChatActions({
                 thinking,
                 isStreaming: true,
               };
-              console.log('[useChatActions] 💭 Updated streaming state:', { isStreaming: updated.isStreaming, thinkingLength: updated.thinking.length });
+              console.log('[useChatActions] [THINK] Updated streaming state:', { isStreaming: updated.isStreaming, thinkingLength: updated.thinking.length });
               return updated;
             });
           },
           onContent: (content) => {
-            console.log('[useChatActions] 📝 onContent callback called:', content.substring(0, 50), '| Length:', content.length);
+            console.log('[useChatActions] [CONTENT] onContent callback called:', content.substring(0, 50), '| Length:', content.length);
             finalContent = content;
             setStreamUpdateCounter(c => c + 1);  // Increment to ensure re-render (fixes React batching)
             setStreaming(prev => {
@@ -361,12 +361,12 @@ export function useChatActions({
                 content,
                 isStreaming: true,
               };
-              console.log('[useChatActions] 📝 Updated streaming state:', { isStreaming: updated.isStreaming, contentLength: updated.content.length });
+              console.log('[useChatActions] [CONTENT] Updated streaming state:', { isStreaming: updated.isStreaming, contentLength: updated.content.length });
               return updated;
             });
           },
           onComplete: (response) => {
-            console.log('[useChatActions] ✅ onComplete callback called:', {
+            console.log('[useChatActions] [OK] onComplete callback called:', {
               messageLength: response.message.length,
               hasThinking: !!response.thinking,
               model: (response as any).model,
@@ -424,7 +424,7 @@ export function useChatActions({
 
             const errorMsg: FIMessage = {
               role: 'assistant',
-              content: `❌ Error: ${errorMessage}. Click "Retry" to try again.`,
+              content: `Error: ${errorMessage}. Click "Retry" to try again.`,
               timestamp: new Date().toISOString(),
               metadata: { tone: 'neutral' as FITone, phase, id: generateMessageId('error') },
             };
