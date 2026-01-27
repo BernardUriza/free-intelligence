@@ -214,8 +214,9 @@ export function useSetup() {
   }
 
   function proceedToApp() {
-    // Screen will be hidden by parent component checking setupState.completed
-    console.log('[Setup] Proceeding to app');
+    // Reload to pick up updated setup state from backend
+    console.log('[Setup] Proceeding to app - reloading window');
+    window.location.reload();
   }
 
   return {

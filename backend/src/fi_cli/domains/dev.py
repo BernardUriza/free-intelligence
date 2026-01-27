@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+import subprocess
+import time
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 import typer
@@ -41,6 +45,72 @@ def _cleanup_processes(repo_root: Path) -> None:
     shell_cmd("pgrep -f 'python3.*uvicorn' | xargs kill -9 2>/dev/null || true", cwd=repo_root)
 
 
+def _cleanup_fi_monitor(repo_root: Path) -> None:
+    """Kill fi-monitor and cloudflared processes (best-effort)."""
+    shell_cmd("pgrep -f 'fi-monitor' | xargs kill -9 2>/dev/null || true", cwd=repo_root)
+    shell_cmd("pgrep -f 'cloudflared' | xargs kill -9 2>/dev/null || true", cwd=repo_root)
+    shell_cmd("pgrep -f 'tauri.*dev.*fi-monitor' | xargs kill -9 2>/dev/null || true", cwd=repo_root)
+
+
+def start_fi_monitor(repo_root: Path, logs_dir: Path) -> subprocess.Popen[bytes]:
+    """
+    Start fi-monitor Tauri app (cloudflared tunnel manager).
+
+    Returns process handle (no HTTP check - fi-monitor has no endpoint).
+    """
+    fi_monitor_root = repo_root / "apps" / "fi-monitor"
+    if not fi_monitor_root.exists():
+        typer.echo("❌ fi-monitor app not found at apps/fi-monitor/")
+        raise typer.Exit(ExitCode.ERROR)
+
+    typer.echo("[1/5] Starting fi-monitor (cloudflared tunnel)...")
+    return popen_cmd(
+        ["pnpm", "tauri:dev"],
+        cwd=fi_monitor_root,
+        stdout_path=logs_dir / "fi-monitor-dev.log",
+    )
+
+
+def wait_for_tunnel_ready(timeout_s: int = 45, interval_s: float = 2.0) -> str | None:
+    """
+    Poll for tunnel URL from local file written by fi-monitor.
+
+    Returns tunnel URL if found and fresh (< 10 min), None if timeout.
+    """
+    tunnel_file = Path.home() / ".config" / "fi-monitor" / "tunnel-url.json"
+    typer.echo("[2/5] Waiting for tunnel URL (cloudflared starting)...")
+
+    start_time = time.time()
+    deadline = start_time + timeout_s
+
+    while time.time() < deadline:
+        if tunnel_file.exists():
+            try:
+                data = json.loads(tunnel_file.read_text())
+                tunnel_url = data.get("tunnel_url")
+                updated_at_str = data.get("updated_at")
+
+                # Validate freshness (< 10 minutes, matching TunnelURLProvider)
+                if tunnel_url and updated_at_str:
+                    updated_at = datetime.fromisoformat(updated_at_str.replace("Z", "+00:00"))
+                    age = datetime.now(UTC) - updated_at
+                    if age < timedelta(minutes=10):
+                        typer.echo(f"  ✅ Tunnel ready: {tunnel_url}")
+                        return tunnel_url
+            except (json.JSONDecodeError, ValueError, KeyError):
+                pass  # Retry on corrupt file
+
+        # Progress update every 10s
+        elapsed = int(time.time() - start_time)
+        if elapsed > 0 and elapsed % 10 == 0:
+            typer.echo(f"  Still waiting... ({elapsed}s elapsed)")
+
+        time.sleep(interval_s)
+
+    typer.echo("  ⚠️  Tunnel timeout (45s), falling back to localhost")
+    return None
+
+
 @app.command("kill-all")
 def kill_all(
     base_path: BasePathOpt = None,
@@ -50,11 +120,136 @@ def kill_all(
     _cleanup_processes(repo_root)
 
 
+@app.command("all-cloud")
+def dev_all_cloud(
+    base_path: BasePathOpt = None,
+) -> None:
+    """
+    Start all services with cloud-dev workflow (tunnel + backend + frontend).
+
+    Replicates production architecture locally:
+    - fi-monitor (cloudflared tunnel)
+    - Backend (TunnelURLProvider polls tunnel from local file)
+    - Frontend (connects to local backend)
+    """
+    repo_root = resolve_repo_root(base_path)
+    paths = build_paths(repo_root)
+
+    # [0/5] Cleanup
+    typer.echo("[0/5] Cleaning up existing processes...")
+    _cleanup_processes(repo_root)
+    _cleanup_fi_monitor(repo_root)
+
+    # [1/5] Prerequisites
+    typer.echo("[1/5] Checking prerequisites...")
+    run_cmd(["node", "--version"], cwd=repo_root, check=True)
+    run_cmd(["python3.14", "--version"], cwd=repo_root, check=True)
+
+    # Ensure pnpm exists (install if missing)
+    try:
+        run_cmd(["pnpm", "--version"], cwd=repo_root, check=True)
+    except typer.Exit:
+        run_cmd(["npm", "install", "-g", "pnpm@latest"], cwd=repo_root, check=True)
+
+    # Check dependencies
+    if not (repo_root / "node_modules").exists():
+        try:
+            run_cmd(["pnpm", "install", "--frozen-lockfile"], cwd=repo_root, check=True)
+        except typer.Exit:
+            run_cmd(["pnpm", "install"], cwd=repo_root, check=True)
+
+    # Python deps
+    try:
+        run_cmd(["python3.14", "-c", "import fastapi"], cwd=repo_root, check=True)
+    except typer.Exit:
+        run_cmd(
+            ["python3.14", "-m", "pip", "install", "-q", "-r", str(repo_root / "requirements.txt")],
+            cwd=repo_root,
+            check=False,
+        )
+
+    # [2/5] Initialize storage
+    typer.echo("[2/5] Initializing storage...")
+    ensure_dir(paths.logs_dir)
+    ensure_dir(paths.storage_dir)
+
+    corpus_path = paths.storage_dir / "corpus.h5"
+    if not corpus_path.exists():
+        run_cmd(
+            [
+                "python3.14",
+                "-c",
+                (
+                    "import h5py; "
+                    f"p={str(corpus_path)!r}; "
+                    "f=h5py.File(p,'w',libver='latest'); "
+                    "f.create_group('sessions'); f.attrs['version']='1.0'; f.close()"
+                ),
+            ],
+            cwd=repo_root,
+            check=False,
+        )
+
+    # [3/5] Start fi-monitor and wait for tunnel
+    _fi_monitor_proc = start_fi_monitor(repo_root, paths.logs_dir)
+    tunnel_url = wait_for_tunnel_ready(timeout_s=45)
+
+    # [4/5] Start backend with cloud config
+    typer.echo("[3/5] Starting backend...")
+    backend_log = paths.logs_dir / "backend-dev.log"
+    backend_env = {
+        "DEPLOYMENT_TARGET": "cloud",
+        "FI_USE_TUNNEL": "true",
+        "FI_TUNNEL_BLOB_URL": f"file://{Path.home()}/.config/fi-monitor/tunnel-url.json",
+    }
+
+    _backend_proc = popen_cmd(
+        [
+            "python3.14",
+            "-m",
+            "uvicorn",
+            "backend.app.main:app",
+            "--host=0.0.0.0",
+            "--port=7001",
+            "--reload",
+            "--log-level=info",
+        ],
+        cwd=repo_root,
+        env=backend_env,
+        stdout_path=backend_log,
+    )
+
+    if not wait_for_http_ok("http://localhost:7001/health", timeout_s=30):
+        raise typer.Exit(code=int(ExitCode.ERROR))
+
+    # [5/5] Start frontend
+    typer.echo("[4/5] Starting frontend...")
+    frontend_log = paths.logs_dir / "frontend-aurity-dev.log"
+
+    _frontend_proc = popen_cmd(
+        ["pnpm", "dev"],
+        cwd=paths.frontend_root,
+        env={"PORT": "9000"},
+        stdout_path=frontend_log,
+    )
+
+    if not wait_for_http_ok("http://localhost:9000", timeout_s=30):
+        raise typer.Exit(code=int(ExitCode.ERROR))
+
+    # Summary
+    typer.echo("")
+    typer.echo("✅ All Services Running (Cloud-Dev Mode)")
+    typer.echo("  • FI Monitor (tunnel): Running (logs/fi-monitor-dev.log)")
+    typer.echo(f"  • Cloudflared Tunnel: {tunnel_url or 'localhost fallback'}")
+    typer.echo("  • Backend API: http://localhost:7001")
+    typer.echo("  • AURITY Frontend: http://localhost:9000")
+
+
 @app.command("all")
 def dev_all(
     base_path: BasePathOpt = None,
 ) -> None:
-    """Start backend + frontend for local development (migrated from scripts/dev-all.sh)."""
+    """Start backend + frontend for local development (local-only, no tunnel)."""
     repo_root = resolve_repo_root(base_path)
     paths = build_paths(repo_root)
     ensure_dir(paths.logs_dir)
@@ -141,7 +336,7 @@ def dev_all(
     )
     wait_for_http_ok("http://localhost:9000", timeout_s=30)
 
-    typer.echo("✅ All Services Running")
+    typer.echo("✅ All Services Running (Local-Only Mode)")
     typer.echo("  • Backend API: http://localhost:7001")
     typer.echo("  • AURITY Frontend: http://localhost:9000")
 

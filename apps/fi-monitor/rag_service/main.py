@@ -4,8 +4,8 @@ Provides fast embedding generation using sentence-transformers with GPU support.
 Exposes /rag/embed endpoint for FI Cloud to offload embeddings from CPU.
 
 Architecture:
-- GPU detection (CUDA/MPS) for acceleration
-- Fallback to CPU if no GPU available
+- GPU detection (CUDA/MPS) - MANDATORY by default
+- Fail-hard on startup if no GPU available (override: RAG_REQUIRE_GPU=false)
 - API key authentication for security
 - Batch embedding support
 - Health check endpoint
@@ -18,6 +18,7 @@ Card: FI-API-FEAT-020 (Phase 3)
 from __future__ import annotations
 
 import os
+import sys
 from contextlib import asynccontextmanager
 
 import torch
@@ -37,18 +38,57 @@ EMBEDDING_DIM = 384
 # Security: API key for authentication
 RAG_API_KEY = os.getenv("RAG_API_KEY", "change-me-in-production")
 
+# GPU Requirement: Fail-hard if no GPU (override: RAG_REQUIRE_GPU=false)
+RAG_REQUIRE_GPU = os.getenv("RAG_REQUIRE_GPU", "true").lower() in ("true", "1", "yes")
+
 # GPU Detection
 def _detect_device() -> str:
-    """Detect best available device (cuda > mps > cpu)."""
+    """Detect best available device (cuda > mps > cpu).
+
+    Exits with error if no GPU found and RAG_REQUIRE_GPU=true (default).
+    """
     if torch.cuda.is_available():
-        print(f"[RAG Service] 🚀 GPU detected: {torch.cuda.get_device_name(0)}")
+        gpu_name = torch.cuda.get_device_name(0)
+        vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+        print(f"[RAG Service] 🚀 GPU detected: {gpu_name}")
+        print(f"[RAG Service] 💾 VRAM: {vram_gb:.2f} GB")
         return "cuda"
     elif torch.backends.mps.is_available():
         print("[RAG Service] 🚀 Apple Silicon GPU detected (MPS)")
         return "mps"
     else:
-        print("[RAG Service] ⚠️ No GPU detected, using CPU")
-        return "cpu"
+        if RAG_REQUIRE_GPU:
+            # Fail-hard: GPU is mandatory by default
+            print("\n" + "="*80)
+            print("❌ ERROR: No GPU detected - RAG Service requires GPU acceleration")
+            print("="*80)
+            print("\n📋 DIAGNOSIS:")
+            print("   • CUDA available: No")
+            print("   • MPS available: No")
+            print("   • CPU-only mode: Not supported (performance <20ms required)")
+            print("\n🔧 SOLUTIONS:")
+            print("\n   Windows (NVIDIA):")
+            print("   1. Install GPU drivers: https://www.nvidia.com/Download/index.aspx")
+            print("   2. Install CUDA Toolkit 12.1+: https://developer.nvidia.com/cuda-downloads")
+            print("   3. Verify: nvidia-smi (should show GPU)")
+            print("   4. Reinstall PyTorch with CUDA: pip install torch --index-url https://download.pytorch.org/whl/cu121")
+            print("\n   macOS (Apple Silicon):")
+            print("   1. Upgrade to macOS 13+ (Ventura or newer)")
+            print("   2. Reinstall PyTorch: pip install --upgrade torch")
+            print("   3. Verify: python -c \"import torch; print(torch.backends.mps.is_available())\"")
+            print("\n   Linux (NVIDIA):")
+            print("   1. Install GPU drivers: sudo apt install nvidia-driver-535")
+            print("   2. Install CUDA: sudo apt install nvidia-cuda-toolkit")
+            print("   3. Verify: nvidia-smi")
+            print("\n🔓 OVERRIDE (Dev/Testing ONLY):")
+            print("   export RAG_REQUIRE_GPU=false  # Allow CPU mode (degraded performance)")
+            print("\n" + "="*80 + "\n")
+            sys.exit(1)
+        else:
+            # Override active - allow CPU with warning
+            print("[RAG Service] ⚠️ No GPU detected - RAG_REQUIRE_GPU=false override active")
+            print("[RAG Service] ⚠️ Performance will be degraded (100-300ms vs 20-50ms on GPU)")
+            return "cpu"
 
 
 DEVICE = _detect_device()
@@ -64,8 +104,30 @@ _model: SentenceTransformer | None = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load model on startup, cleanup on shutdown."""
+    """Load model on startup, cleanup on shutdown.
+
+    Performs GPU allocation test before loading model to catch issues early.
+    """
     global _model
+
+    # GPU Allocation Test (catch driver issues, VRAM exhaustion)
+    if DEVICE in ("cuda", "mps"):
+        try:
+            print("[RAG Service] Testing GPU memory allocation...")
+            test_tensor = torch.zeros(100, 100, device=DEVICE)
+            del test_tensor
+            print("[RAG Service] ✅ GPU memory allocation test passed")
+        except Exception as e:
+            print(f"\n❌ ERROR: GPU detected but allocation failed: {e}")
+            print("Possible causes:")
+            print("  • GPU driver crashed")
+            print("  • VRAM exhausted by another process")
+            print("  • GPU in use by another application")
+            print("\nTroubleshooting:")
+            print("  • Restart GPU drivers")
+            print("  • Close other GPU-intensive apps (games, video editing, etc.)")
+            print("  • Check GPU usage: nvidia-smi (CUDA) or Activity Monitor (MPS)")
+            sys.exit(1)
 
     print(f"[RAG Service] Loading model: {EMBEDDING_MODEL}")
     print(f"[RAG Service] Device: {DEVICE}")
@@ -75,12 +137,21 @@ async def lifespan(app: FastAPI):
     # Warm-up inference (first run is slow due to model loading)
     print("[RAG Service] Warming up model...")
     _ = _model.encode(["warm-up query"], convert_to_numpy=True, show_progress_bar=False)
-    print("[RAG Service] ✅ Model ready")
+    print(f"[RAG Service] ✅ Model ready on {DEVICE}")
+
+    # Log GPU memory usage (CUDA only - MPS doesn't expose VRAM)
+    if DEVICE == "cuda":
+        allocated_mb = torch.cuda.memory_allocated(0) / (1024**2)
+        reserved_mb = torch.cuda.memory_reserved(0) / (1024**2)
+        print(f"[RAG Service] 💾 GPU Memory: {allocated_mb:.0f}MB allocated, {reserved_mb:.0f}MB reserved")
 
     yield
 
     # Cleanup
     print("[RAG Service] Shutting down...")
+    if DEVICE == "cuda":
+        torch.cuda.empty_cache()
+        print("[RAG Service] ✅ GPU memory cleared")
 
 
 # ============================================================================
@@ -121,6 +192,7 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="Service status")
     device: str = Field(..., description="Device being used")
     gpu_name: str | None = Field(None, description="GPU name if available")
+    gpu_memory_mb: float | None = Field(None, description="GPU memory allocated (MB) - CUDA only, MPS returns -1")
     model: str = Field(..., description="Model loaded")
 
 
@@ -192,17 +264,23 @@ async def health_check() -> HealthResponse:
     """Health check with GPU info.
 
     Public endpoint (no auth required).
+    Returns GPU name and memory usage for validation.
     """
     gpu_name = None
+    gpu_memory_mb = None
+
     if DEVICE == "cuda":
         gpu_name = torch.cuda.get_device_name(0)
+        gpu_memory_mb = torch.cuda.memory_allocated(0) / (1024**2)
     elif DEVICE == "mps":
         gpu_name = "Apple Silicon (MPS)"
+        gpu_memory_mb = -1.0  # Sentinel value - MPS doesn't expose VRAM
 
     return HealthResponse(
         status="ok",
         device=DEVICE,
         gpu_name=gpu_name,
+        gpu_memory_mb=gpu_memory_mb,
         model=EMBEDDING_MODEL,
     )
 

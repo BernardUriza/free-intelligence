@@ -128,7 +128,19 @@
       "Bash(az vm user update:*)",
       "Bash(az group:*)",
       "Bash(shasum:*)",
-      "Bash(gh run download:*)"
+      "Bash(gh run download:*)",
+      "Bash(python3.14 -m py_compile:*)",
+      "Bash(pnpm tauri:dev:*)",
+      "Bash(make:*)",
+      "Bash(PYTHONPATH=backend/src python3.14:*)",
+      "Bash(pkill:*)",
+      "Bash(node scripts/screenshot-cdp.mjs:*)",
+      "Bash(node -e:*)",
+      "Bash(node scripts/check-console-errors.mjs:*)",
+      "Bash(pnpm tauri build:*)",
+      "Bash(pgrep:*)",
+      "Bash(screencapture:*)",
+      "Bash(pnpm run check-types:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

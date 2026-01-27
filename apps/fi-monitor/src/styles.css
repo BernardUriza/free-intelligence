@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --bg: #0a0e14;
   --bg-gradient: linear-gradient(135deg, #0a0e14 0%, #0d1117 100%);
@@ -40,6 +44,26 @@ body {
 .app.loading {
   align-items: center;
   justify-content: center;
+}
+
+/* Tab content container */
+.app > div:has(.services-grid),
+.app > div:has(.test-section),
+.app > div:has(.benchmark-section) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Ensure benchmark section fits in tab */
+.benchmark-section {
+  margin: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
 .spinner {
@@ -331,6 +355,11 @@ body {
   box-shadow: 0 0 8px rgba(88, 166, 255, 0.3);
   animation: pulse-blue 2s ease-in-out infinite 0.5s;
 }
+.dot.yellow {
+  background: var(--warning);
+  box-shadow: 0 0 8px rgba(210, 153, 34, 0.3);
+  animation: pulse-yellow 2s ease-in-out infinite 0.25s;
+}
 .dot.gray { background: var(--text-dim); }
 .status-text { font-size: 11px; color: var(--text-dim); flex: 1; }
 
@@ -355,14 +384,159 @@ body {
   50% { box-shadow: 0 0 12px rgba(88, 166, 255, 0.5); }
 }
 
+@keyframes pulse-yellow {
+  0%, 100% { box-shadow: 0 0 4px rgba(210, 153, 34, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(210, 153, 34, 0.5); }
+}
+
 @media (max-height: 400px) {
   .app { padding: 8px; gap: 6px; }
   .topbar, .statusbar { padding: 6px 10px; }
   .service-card { padding: 8px; gap: 8px; }
   .service-icon { width: 28px; height: 28px; font-size: 18px; }
   .test-section { padding: 10px; }
+
+  /* Reduce tab height */
+  .flex.-mb-px button {
+    padding: 6px 10px !important;
+  }
 }
 
 @media (max-width: 400px) {
   .services-grid { grid-template-columns: 1fr; }
+
+  /* Stack tabs on very small screens */
+  .flex.-mb-px {
+    flex-wrap: wrap;
+  }
+
+  /* Reduce tab padding on mobile */
+  .flex.-mb-px button {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* ============================================================================
+   Benchmark Section
+   ============================================================================ */
+
+.benchmark-section {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px;
+  border: 1px solid var(--border);
+}
+
+.benchmark-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.benchmark-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.benchmark-title .icon {
+  font-size: 16px;
+}
+
+.benchmark-btn {
+  padding: 6px 12px;
+  background: var(--accent);
+  color: var(--text);
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.benchmark-btn:hover:not(:disabled) {
+  background: var(--accent-bright);
+  transform: translateY(-1px);
+}
+
+.benchmark-btn:disabled {
+  background: var(--border);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.benchmark-progress {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 12px;
+  background: var(--bg);
+  border-radius: 6px;
+  border: 1px dashed var(--border-bright);
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.results-table thead {
+  background: var(--bg);
+}
+
+.results-table th {
+  padding: 8px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-dim);
+  border-bottom: 2px solid var(--border-bright);
+}
+
+.results-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.results-table tbody tr:hover {
+  background: var(--surface-hover);
+}
+
+.results-table td:nth-child(1) {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.results-table td:nth-child(4) {
+  text-align: center;
+  font-size: 14px;
+}
+
+.benchmark-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.benchmark-placeholder {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 12px;
+  background: var(--bg);
+  border-radius: 6px;
+  border: 1px dashed var(--border-bright);
 }

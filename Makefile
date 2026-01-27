@@ -23,7 +23,6 @@ export PIP_DISABLE_PIP_VERSION_CHECK=1
 # ============================================================================
 PY ?= python3.14
 BACKEND_PORT ?= 7001
-STRIDE_PORT ?= 9050
 FRONTEND_PORT ?= 9000
 CORPUS_EMAIL ?= $(USER)@example.com
 TRELLO_CLI ?= trello
@@ -61,8 +60,7 @@ OBS_ALERTS_SERVICE ?= public_api
 .PHONY: clean clean-all
 .PHONY: health-check corpus-stats audit-logs trello-status info
 .PHONY: observability-metrics observability-traces observability-health observability-alerts
-.PHONY: dev-all dev-kill dev-restart
-.PHONY: stride-dev stride-build stride-preview stride-lint stride-type-check
+.PHONY: dev-all dev-all-local dev-kill dev-restart
 .PHONY: turbo-build turbo-lint turbo-clean
 .PHONY: llm-dev llm-test llm-call
 .PHONY: policy-test policy-report policy-verify policy-all
@@ -374,53 +372,27 @@ info: ## Show project information
 	@echo "  - Backend API:     port $(BACKEND_PORT) (Python/FastAPI)"
 	@echo "  - AURITY Gateway:  port $(GATEWAY_PORT) (Python/FastAPI)"
 	@echo "  - AURITY Frontend: port $(FRONTEND_PORT) (Next.js)"
-	@echo "  - FI-Stride:       port $(STRIDE_PORT) (Vite + React)"
 	@echo ""
 	@echo "Quick Start:"
 	@echo "  make setup      # Initialize monorepo"
-	@echo "  make dev-all    # Start all services (Backend + AURITY + FI-Stride)"
+	@echo "  make dev-all    # Start all services (Backend + AURITY)"
 	@echo "  make run        # Start Backend API only"
-	@echo "  make stride-dev # Start FI-Stride only"
 	@echo "  make test       # Run tests"
 
 # ============================================================================
 # Dev Commands (Active)
 # ============================================================================
 
-dev-all: ## Start all services (Python 3.14 Native + Frontend in single terminal)
+dev-all: ## Start all services with cloud-dev (tunnel + backend + frontend)
+	@PYTHONPATH=backend/src $(PY) -m fi_cli dev all-cloud
+
+dev-all-local: ## Start all services without tunnel (local-only dev, faster)
 	@PYTHONPATH=backend/src $(PY) -m fi_cli dev all
 
 dev-kill: ## Nuclear cleanup - kill ALL FI processes
 	@PYTHONPATH=backend/src $(PY) -m fi_cli dev kill-all
 
 dev-restart: dev-kill dev-all ## Restart everything (kill + start)
-
-# ============================================================================
-# FI-Stride Commands
-# ============================================================================
-
-stride-dev: ## Start FI-Stride dev server (default: 9050)
-	@echo "🚀 Starting FI-Stride dev server on http://localhost:$(STRIDE_PORT)"
-	@echo "   Press Ctrl+C to stop"
-	@echo ""
-	@cd apps/fi-stride && PORT=$(STRIDE_PORT) pnpm dev
-
-stride-build: ## Build FI-Stride for production
-	@echo "🏗️  Building FI-Stride..."
-	@cd apps/fi-stride && pnpm build
-	@echo "✅ Build complete: apps/fi-stride/dist/"
-
-stride-preview: ## Preview FI-Stride production build
-	@echo "👀 Previewing FI-Stride build..."
-	@cd apps/fi-stride && pnpm preview
-
-stride-lint: ## Lint FI-Stride code
-	@echo "🔍 Linting FI-Stride..."
-	@cd apps/fi-stride && pnpm lint
-
-stride-type-check: ## Type check FI-Stride
-	@echo "📋 Type checking FI-Stride..."
-	@cd apps/fi-stride && pnpm type-check
 
 # ============================================================================
 # Turborepo Commands

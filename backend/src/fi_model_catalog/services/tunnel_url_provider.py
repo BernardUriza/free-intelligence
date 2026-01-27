@@ -14,7 +14,9 @@ Features:
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import UTC, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -222,7 +224,24 @@ class TunnelURLProvider:
         self._circuit_open_until = None
 
     async def _fetch_tunnel_data(self) -> dict[str, Any] | None:
-        """Fetch tunnel data from Azure blob with retry."""
+        """Fetch tunnel data from blob URL or local file."""
+
+        # Check if blob_url is a local file path
+        if self._blob_url.startswith("file://"):
+            file_path = Path(self._blob_url.replace("file://", "").replace("~", str(Path.home())))
+            if file_path.exists():
+                try:
+                    data = json.loads(file_path.read_text())
+                    logger.info("tunnel_url_loaded_from_local_file", path=str(file_path))
+                    return data
+                except Exception as e:
+                    logger.warning("local_file_read_error", path=str(file_path), error=str(e))
+                    return None
+            else:
+                logger.warning("local_file_not_found", path=str(file_path))
+                return None
+
+        # Existing HTTP fetch logic for Azure blob
         max_retries = 2
 
         for attempt in range(max_retries):

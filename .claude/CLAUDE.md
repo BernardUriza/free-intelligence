@@ -13,9 +13,14 @@
 
 ```bash
 # Development
-make dev-all              # Backend (7001) + Frontend (9000)
+make dev-all              # Cloud-dev (tunnel + backend + frontend, ~60s startup)
+make dev-all-local        # Local-only (no tunnel, ~30s startup, faster iterations)
+make dev-kill             # Kill all dev processes
 make test                 # pytest
 pnpm dev                  # Next.js only
+
+# Cloud-dev replicates production architecture:
+# fi-monitor → cloudflared tunnel → backend (TunnelURLProvider) → frontend
 
 # Production Deploy
 git push origin dev       # → PR to main → CI/CD auto-deploy
