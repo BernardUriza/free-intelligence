@@ -1,8 +1,49 @@
-# Backups
-backups/
-*.bundle
-*.sha256
+# =============================================================================
+# SECURITY - Credentials & Secrets (ZERO TOLERANCE)
+# =============================================================================
+.env
+.env.*
+!.env.example
+apps/aurity-desktop/.env.desktop
+**/credentials.json
+gha-creds-*.json
+*.pem
+*.key
+!*.key.pub
+.tauri/
+.npmrc
 
+# =============================================================================
+# OS & Editor
+# =============================================================================
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+.fleet/
+.atom/
+
+# =============================================================================
+# Language Runtimes
+# =============================================================================
 # Python
 __pycache__/
 *.py[cod]
@@ -12,44 +53,17 @@ __pycache__/
 env/
 venv/
 .venv
+*.egg-info/
+.eggs/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
 
-# IDE
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-logs/
-
-# Local config
-.env
-.env.local
-apps/aurity-desktop/.env.desktop
-
-# Qwen Code (AI agent cache)
-.qwen/
-gha-creds-*.json
-
-# Storage (audio, HDF5, data)
-storage/
-!storage/.gitkeep
-
-# Exports (data files)
-exports/*
-!exports/.gitkeep
-# But NOT the Python module
-!backend/src/fi_common/api/internal/exports/
-
-# Node.js (for AURITY submodule)
+# Node.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -57,24 +71,94 @@ yarn-error.log*
 pnpm-debug.log*
 .pnpm-store/
 
-# Build artifacts
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# =============================================================================
+# Build Artifacts & Distribution
+# =============================================================================
+# Generic
 build/
 dist/
-*.egg-info/
-.eggs/
+out/
+*.bundle
+*.sha256
 
-# Coverage
-htmlcov/
-.coverage
+# Next.js (apps/aurity)
+.next/
+.turbo/
+.turbopack/
+.swc/
+.vercel/
+
+# Tauri Desktop Apps
+apps/aurity-desktop/src-tauri/target/
+apps/aurity-desktop/src-tauri/binaries/
+apps/aurity-desktop/src-tauri/resources/ollama/
+apps/fi-monitor/src-tauri/target/
+apps/fi-monitor/src-tauri/binaries/
+
+# Installers (DO NOT commit binaries)
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+*.msi
+*.pkg
+*.sig
+
+# PyInstaller (aurity-desktop backend)
+apps/aurity-desktop/pyinstaller/dist/
+apps/aurity-desktop/pyinstaller/build/
+apps/aurity-desktop/pyinstaller/.venv-build/
+*.spec.bak
+
+# =============================================================================
+# Testing & QA
+# =============================================================================
 .pytest_cache/
+.coverage
+htmlcov/
+playwright-report/
+.playwright/
+test-results/
+coverage/
 
-# MyPy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+# =============================================================================
+# Application Data & Storage
+# =============================================================================
+# HDF5, audio files, clinical data
+storage/
+!storage/.gitkeep
 
-# Ruff
-.ruff_cache/
+# Exports (data files, NOT Python module)
+exports/*
+!exports/.gitkeep
+!backend/src/fi_common/api/internal/exports/
+
+# Runtime data
+data/
+backups/
+backend/static/*.mp3
+backend/migration-manifest.json
+
+# Downloads (artifacts from CI/CD)
+downloads/
+
+# =============================================================================
+# Development Tools & Caches
+# =============================================================================
+# Logs
+*.log
+logs/
+
+# AI Assistants
+.qwen/
+.aider*
+.cursor/
 
 # Claude Code
 .claude/auth0_actions.env
@@ -82,37 +166,11 @@ dmypy.json
 .claude/plans/
 .claude/commands/
 
-# Rust / Tauri
-target/
-apps/aurity-desktop/src-tauri/target/
-apps/aurity-desktop/src-tauri/binaries/
-apps/aurity-desktop/src-tauri/resources/ollama/
-apps/fi-monitor/src-tauri/binaries/
-Cargo.lock
+# Temporary files
+tmp/
+temp/
+.cache/
+.temp/
 
-# Tauri signing keys (CRITICAL: Never commit private keys)
-.tauri/
-*.key
-!*.key.pub
-
-# PyInstaller
-apps/aurity-desktop/pyinstaller/dist/
-apps/aurity-desktop/pyinstaller/build/
-apps/aurity-desktop/pyinstaller/.venv-build/
-*.spec.bak
-
-# Playwright
-playwright-report/
-.playwright/
-test-results/
-
-# Runtime data and backups
-data/
-backups/
-# exports/ - moved to line 46-49 with Python module exception
-backend/static/*.mp3
+# Documentation artifacts
 docs/13 Startups de Salud Digital Revolucionando el Sector.pdf
-.turbo/
-backend/migration-manifest.json
-.aider*
-downloads/
