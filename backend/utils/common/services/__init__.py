@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from backend.api.audit.services.audit_service import AuditService
 from backend.utils.common.services.export_service import ExportService
-from backend.core.infrastructure.storage.services.corpus_service import CorpusService
+from infrastructure.storage.services.corpus_service import CorpusService
 
 # from backend.core.domain.session.services.session_service import SessionService  # Temporarily commented due to import issues
 from backend.core.services.transcription.services.transcription_service import TranscriptionService

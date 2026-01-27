@@ -25,11 +25,11 @@ from backend.schemas.llm.audit_policy import require_audit_log
 from backend.core.services.assistant.api.public.assistant_websocket import broadcast_new_message
 from backend.api.audit.services.audit_service import AuditService
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.events import DomainEvent, EventType, get_event_bus
+from infrastructure.events import DomainEvent, EventType, get_event_bus
 from backend.core.services.llm.services.conversation_memory import get_memory_manager
 from backend.core.services.llm.services.persona_manager import PersonaManager
 from backend.core.infrastructure.observability.hooks import log_llm_call, log_llm_error
-from backend.core.infrastructure.storage.services.trace_store import get_trace_store
+from infrastructure.storage.services.trace_store import get_trace_store
 from fastapi import APIRouter, HTTPException, Request, status
 
 from .schemas import ChatRequest, ChatResponse

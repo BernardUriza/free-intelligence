@@ -3,7 +3,7 @@
 from typing import Any, Dict, List
 
 from backend.utils.common.interfaces.itask_repository import ITaskRepository
-from backend.core.infrastructure.storage.infrastructure.hdf5 import task_repository as tr
+from infrastructure.storage.infrastructure.hdf5 import task_repository as tr
 
 
 class TaskRepositoryAdapter(ITaskRepository):

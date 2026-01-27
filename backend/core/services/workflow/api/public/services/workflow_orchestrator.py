@@ -17,7 +17,7 @@ from typing import Any
 
 from backend.models.task_type import TaskType
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+from infrastructure.storage.infrastructure.hdf5.task_repository import (
     ensure_task_exists,
 )
 from backend.core.infrastructure.workers.executor_pool import spawn_worker

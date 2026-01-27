@@ -47,7 +47,7 @@ from backend.models import EncryptionMetadata, Session
 from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.session_repository import SessionRepository
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+from infrastructure.storage.infrastructure.hdf5.task_repository import (
     add_full_audio,
     add_full_transcription,
     add_webspeech_transcripts,
@@ -260,7 +260,7 @@ async def finalize_session(
 
         # 2. Initialize ENCRYPTION task (metadata only - actual encryption happens after SOAP)
         # This creates the task entry in HDF5 for tracking
-        from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+        from infrastructure.storage.infrastructure.hdf5.task_repository import (
             ensure_task_exists,
         )
 
@@ -485,7 +485,7 @@ async def finalize_session(
         # 4. Enqueue encryption worker asynchronously (NON-BLOCKING)
         # Fire-and-forget pattern: session returns 202 immediately
         # Encryption executes in background ThreadPoolExecutor
-        from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+        from infrastructure.storage.infrastructure.hdf5.task_repository import (
             CORPUS_PATH,
         )
 

@@ -27,7 +27,7 @@ from backend.utils.common.logging.logger import get_logger
 
 # Storage layer (frequently used)
 # Note: Path is ugly (infrastructure/storage/infrastructure/hdf5) - pending refactor
-from backend.core.infrastructure.storage.infrastructure.hdf5.sessions_store import SessionsStore
+from infrastructure.storage.infrastructure.hdf5.sessions_store import SessionsStore
 
 # Domain entities (clean imports)
 # Note: Full domain extraction pending (see .claude/rules/architecture/backend-refactor-analysis.md)

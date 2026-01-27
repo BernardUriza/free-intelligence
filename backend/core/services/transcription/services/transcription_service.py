@@ -15,13 +15,13 @@ from __future__ import annotations
 
 from backend.models.task_type import TaskType
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.events.application.event_bus import get_event_bus
-from backend.core.infrastructure.events.domain.events import (
+from infrastructure.events.application.event_bus import get_event_bus
+from infrastructure.events.domain.events import (
     TranscriptionChunkEvent,
     TranscriptionEndedEvent,
     TranscriptionStartedEvent,
 )
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+from infrastructure.storage.infrastructure.hdf5.task_repository import (
     ensure_task_exists,
     get_task_chunks,
     get_task_metadata,
@@ -147,7 +147,7 @@ class TranscriptionService:
         import hashlib
 
         from backend.models.task_type import CHUNK_DURATION_SECONDS
-        from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+        from infrastructure.storage.infrastructure.hdf5.task_repository import (
             add_audio_to_chunk,
             append_chunk_to_task,
             update_task_metadata,
@@ -366,7 +366,7 @@ class TranscriptionService:
         Raises:
             ValueError: If session not found
         """
-        from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+        from infrastructure.storage.infrastructure.hdf5.task_repository import (
             task_exists,
         )
 

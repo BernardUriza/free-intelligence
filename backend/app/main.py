@@ -51,8 +51,8 @@ async def lifespan(app: FastAPI):
 
     # Configure Event Bus with HDF5 store
     try:
-        from backend.core.infrastructure.events.application.event_bus import configure_event_bus
-        from backend.core.infrastructure.events.infrastructure.hdf5_store import HDF5EventStore
+        from infrastructure.events.application.event_bus import configure_event_bus
+        from infrastructure.events.infrastructure.hdf5_store import HDF5EventStore
 
         event_store = HDF5EventStore()
         configure_event_bus(event_store)

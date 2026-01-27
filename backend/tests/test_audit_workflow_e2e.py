@@ -20,7 +20,7 @@ import pytest
 pytestmark = pytest.mark.skip(
     reason="E2E test requiring full infrastructure - run locally with make dev-all"
 )
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+from infrastructure.storage.infrastructure.hdf5.task_repository import (
     get_session_metadata,
     get_soap_data,
 )

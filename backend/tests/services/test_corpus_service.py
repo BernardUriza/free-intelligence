@@ -15,7 +15,7 @@ pytestmark = pytest.mark.skip(
 )
 
 if TYPE_CHECKING:
-    from backend.core.infrastructure.storage.services.corpus_service import CorpusService
+    from infrastructure.storage.services.corpus_service import CorpusService
 
 
 class TestCorpusService:

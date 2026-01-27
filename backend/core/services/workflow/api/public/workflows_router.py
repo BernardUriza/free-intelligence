@@ -40,7 +40,7 @@ from backend.core.domain.clinic.api.public import clinic_media
 from backend.utils.common.logging.logger import get_logger
 from backend.services.content.api.public import tv_content_seeds
 from backend.services.document.api.public import documents
-from backend.core.infrastructure.events.api.public import events
+from infrastructure.events.api.public import events
 from backend.services.evidence.api.public import evidence
 from backend.services.kpi.api.public import kpis
 from backend.core.services.memory.api.public import longitudinal_memory

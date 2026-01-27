@@ -12,7 +12,7 @@ from typing import Any
 
 import h5py
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.storage.infrastructure.hdf5 import task_repository
+from infrastructure.storage.infrastructure.hdf5 import task_repository
 from fastapi import APIRouter, Query
 from pathlib import Path
 from pydantic import BaseModel, Field

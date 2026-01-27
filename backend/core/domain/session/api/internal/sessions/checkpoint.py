@@ -33,7 +33,7 @@ from backend.utils.common.services.checkpoint import (
     TooManyChunksError,
     create_checkpoint_service,
 )
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import get_task_metadata
+from infrastructure.storage.infrastructure.hdf5.task_repository import get_task_metadata
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 

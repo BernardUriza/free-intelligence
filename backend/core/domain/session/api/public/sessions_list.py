@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import h5py
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import CORPUS_PATH
+from infrastructure.storage.infrastructure.hdf5.task_repository import CORPUS_PATH
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 

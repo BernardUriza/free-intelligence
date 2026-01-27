@@ -7,7 +7,7 @@ Validation logic for:
 
 from __future__ import annotations
 
-from backend.core.infrastructure.storage.infrastructure.hdf5.audio_storage import (
+from infrastructure.storage.infrastructure.hdf5.audio_storage import (
     validate_session_id as storage_validate_session_id,
 )
 from pathlib import Path

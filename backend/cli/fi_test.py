@@ -36,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.providers.llm import llm_generate
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.storage.infrastructure.hdf5.corpus_ops import append_interaction
+from infrastructure.storage.infrastructure.hdf5.corpus_ops import append_interaction
 
 logger = get_logger(__name__)
 

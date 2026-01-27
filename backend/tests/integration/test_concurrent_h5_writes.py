@@ -12,11 +12,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from backend.models.task_type import TaskType
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.storage.infrastructure.hdf5.session_h5_manager import (
+from infrastructure.storage.infrastructure.hdf5.session_h5_manager import (
     get_session_h5_path,
     get_storage_stats,
 )
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+from infrastructure.storage.infrastructure.hdf5.task_repository import (
     add_full_audio,
     add_full_transcription,
     add_webspeech_transcripts,

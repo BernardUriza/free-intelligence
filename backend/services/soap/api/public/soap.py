@@ -114,7 +114,7 @@ async def get_soap_workflow(session_id: str) -> dict:
     # Validate session ID first
     validate_session_id(session_id)
 
-    from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import get_soap_data
+    from infrastructure.storage.infrastructure.hdf5.task_repository import get_soap_data
 
     try:
         logger.info("SOAP_GET_STARTED", session_id=session_id)
@@ -132,7 +132,7 @@ async def get_soap_workflow(session_id: str) -> dict:
             logger.info("SOAP_NOT_FOUND_GENERATING", session_id=session_id)
 
             from backend.models.task_type import TaskType
-            from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+            from infrastructure.storage.infrastructure.hdf5.task_repository import (
                 ensure_task_exists,
             )
             from backend.core.infrastructure.workers.tasks.soap_worker import generate_soap_worker
@@ -195,7 +195,7 @@ async def update_soap_workflow(
     # Validate session ID first
     validate_session_id(session_id)
 
-    from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+    from infrastructure.storage.infrastructure.hdf5.task_repository import (
         create_order,
         get_orders,
         save_soap_data,

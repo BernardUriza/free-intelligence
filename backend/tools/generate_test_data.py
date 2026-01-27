@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.utils.common.config.config_loader import load_config
 from backend.utils.common.logging.logger import init_logger_from_config
-from backend.core.infrastructure.storage.infrastructure.hdf5.corpus_ops import (
+from infrastructure.storage.infrastructure.hdf5.corpus_ops import (
     append_embedding,
     append_interaction,
     get_corpus_stats,

@@ -30,8 +30,8 @@ from typing import Any
 from backend.models.task_type import TaskType
 from backend.utils.common.logging.logger import get_logger
 from backend.utils.common.services.chunk_handler import ChunkHandler
-from backend.core.infrastructure.storage.infrastructure.hdf5.session_locks import locked_session_h5
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+from infrastructure.storage.infrastructure.hdf5.session_locks import locked_session_h5
+from infrastructure.storage.infrastructure.hdf5.task_repository import (
     append_chunk_to_task,
     ensure_task_exists,
     get_task_chunks,

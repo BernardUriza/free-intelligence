@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 
 from backend.models.task_type import TaskStatus, TaskType
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+from infrastructure.storage.infrastructure.hdf5.task_repository import (
     get_task_metadata,
     task_exists,
 )

@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 from backend.core.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.storage.infrastructure.hdf5.document_repository import (
+from infrastructure.storage.infrastructure.hdf5.document_repository import (
     Document,
     DocumentOrigin,
     DocumentStatus,
@@ -482,7 +482,7 @@ async def search_documents(
 
     Returns chunks of text that are most relevant to the query.
     """
-    from backend.core.infrastructure.storage.infrastructure.hdf5.document_repository import (
+    from infrastructure.storage.infrastructure.hdf5.document_repository import (
         search_documents_by_embedding,
     )
 
@@ -543,7 +543,7 @@ def _process_document(doc_id: str) -> None:
 
     This runs in a thread pool worker.
     """
-    from backend.core.infrastructure.storage.infrastructure.hdf5.document_repository import (
+    from infrastructure.storage.infrastructure.hdf5.document_repository import (
         DocumentChunk,
         save_document_chunks,
         save_document_text,
@@ -659,7 +659,7 @@ def _process_document(doc_id: str) -> None:
             if questions_text:
                 from datetime import UTC, datetime
 
-                from backend.core.infrastructure.storage.infrastructure.hdf5.document_repository import (
+                from infrastructure.storage.infrastructure.hdf5.document_repository import (
                     DocumentQuestion,
                     save_document_questions,
                 )
@@ -694,7 +694,7 @@ def _process_document(doc_id: str) -> None:
 
 def _extract_text(doc: Document) -> str | None:
     """Extract text from document based on type."""
-    from backend.core.infrastructure.storage.infrastructure.hdf5.document_repository import (
+    from infrastructure.storage.infrastructure.hdf5.document_repository import (
         DocumentType,
     )
 
@@ -957,7 +957,7 @@ def _generate_initial_questions_via_rag(doc_id: str) -> list[str]:
     """
     import json
 
-    from backend.core.infrastructure.storage.infrastructure.hdf5.document_repository import (
+    from infrastructure.storage.infrastructure.hdf5.document_repository import (
         search_documents_by_embedding,
     )
 
@@ -1118,7 +1118,7 @@ async def get_document_questions_endpoint(doc_id: str) -> list[DocumentQuestionR
     - LLM initial generation (source="llm_initial") - created during indexing
     - User queries via RAG (source="user_query") - accumulated during usage
     """
-    from backend.core.infrastructure.storage.infrastructure.hdf5.document_repository import (
+    from infrastructure.storage.infrastructure.hdf5.document_repository import (
         get_document_questions,
     )
 

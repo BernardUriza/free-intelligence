@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 async def get_transcription_sources_workflow(session_id: str) -> TranscriptionSourcesModel:
     """Get all 3 transcription sources for a saved session (PUBLIC endpoint)."""
     from backend.models.task_type import TaskType
-    from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+    from infrastructure.storage.infrastructure.hdf5.task_repository import (
         CORPUS_PATH,
         get_task_chunks,
     )

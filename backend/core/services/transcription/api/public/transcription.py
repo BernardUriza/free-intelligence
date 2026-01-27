@@ -441,7 +441,7 @@ async def end_session(
         )
 
         # 2. Get session info from HDF5
-        from backend.core.infrastructure.storage.infrastructure.hdf5.session_chunks_schema import (
+        from infrastructure.storage.infrastructure.hdf5.session_chunks_schema import (
             get_session_chunks,
             save_full_audio_metadata,
         )
@@ -462,7 +462,7 @@ async def end_session(
         # 4. Save webspeech_final to HDF5 (Triple Vision source)
         if webspeech_final:
             from backend.models.task_type import TaskType
-            from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
+            from infrastructure.storage.infrastructure.hdf5.task_repository import (
                 CORPUS_PATH,
             )
 
