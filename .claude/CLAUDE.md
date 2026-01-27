@@ -29,6 +29,28 @@ git push origin dev       # → PR to main → CI/CD auto-deploy
 gh workflow run build-desktop.yml -f platform=windows
 ```
 
+## ⚙️ Version Management
+
+**Single Source of Truth:** `apps/*/src-tauri/tauri.conf.json`
+
+```bash
+# Check version consistency (CI/CD runs this automatically)
+pnpm version:check
+
+# Synchronize package.json + Cargo.toml to match tauri.conf.json
+pnpm version:sync
+
+# Install pre-commit hook (one-time setup, optional)
+pnpm version:install-hook
+```
+
+**Rules:**
+- ONLY update version in `tauri.conf.json`
+- Run `pnpm version:sync` after changing version
+- CI/CD validates consistency (blocks builds if mismatched)
+
+**See:** `.claude/rules/development/version-management.md` for details
+
 ## 📂 Project Structure
 
 ```
