@@ -515,6 +515,8 @@ jobs:
         run: pnpm tauri build --target aarch64-apple-darwin
 
       - name: Sign DMG
+        timeout-minutes: 2
+        continue-on-error: true
         working-directory: apps/aurity-desktop
         run: |
           pnpm tauri signer sign \
