@@ -25,7 +25,7 @@ from infrastructure.storage.infrastructure.hdf5.audio_storage import (
     save_audio_file,
     validate_session_id,
 )
-from backend.core.services.transcription.services.whisper import (
+from backend.services.transcription.services.whisper import (
     CPU_THREADS,
     NUM_WORKERS,
     WHISPER_BEAM_SIZE,

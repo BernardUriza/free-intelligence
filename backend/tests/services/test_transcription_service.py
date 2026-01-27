@@ -24,7 +24,7 @@ import pytest
 pytestmark = pytest.mark.skip(
     reason="TranscriptionService tests - service initialization failures in CI environment"
 )
-from backend.core.services.transcription.services.transcription_service import TranscriptionService
+from backend.services.transcription.services.transcription_service import TranscriptionService
 from pathlib import Path
 
 

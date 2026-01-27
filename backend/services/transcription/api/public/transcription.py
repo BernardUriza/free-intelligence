@@ -20,8 +20,8 @@ import json
 import h5py
 from backend.utils.common.infrastructure.dependencies import get_transcription_service
 from backend.utils.common.logging.logger import get_logger
-from backend.core.services.transcription.services.transcription_service import TranscriptionService
-from backend.core.services.transcription.services.validators import (
+from backend.services.transcription.services.transcription_service import TranscriptionService
+from backend.services.transcription.services.validators import (
     AudioFileValidator,
     ValidationError,
 )

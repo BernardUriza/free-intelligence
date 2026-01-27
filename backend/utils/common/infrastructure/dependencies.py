@@ -18,7 +18,7 @@ def get_transcription_service():
 
     Direct import to avoid stub-fallback in container when backend.services is missing.
     """
-    from backend.core.services.transcription.services.transcription_service import (
+    from backend.services.transcription.services.transcription_service import (
         TranscriptionService,
     )
 

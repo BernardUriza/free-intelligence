@@ -85,12 +85,12 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.utils.system.api.public import system_resources
 
     # Timeline
-    from backend.core.services.timeline.api.internal.timeline import router as timeline_internal_router
-    from backend.core.services.timeline.api.public import timeline
+    from backend.services.timeline.api.internal.timeline import router as timeline_internal_router
+    from backend.services.timeline.api.public import timeline
 
     # Transcription & Diarization
-    from backend.core.services.transcription.api.internal.diarization import router as diarization_router
-    from backend.core.services.transcription.api.internal.transcribe import router as transcribe_router
+    from backend.services.transcription.api.internal.diarization import router as diarization_router
+    from backend.services.transcription.api.internal.transcribe import router as transcribe_router
 
     # TTS
     from backend.services.tts.api.public import tts

@@ -41,11 +41,11 @@ if TYPE_CHECKING:
     from backend.core.domain.session.services.session_service import SessionService
     from backend.core.infrastructure.storage.services.corpus_service import CorpusService
     from backend.utils.system.services.system_health_service import SystemHealthService
-    from backend.core.services.transcription.services.diarization_service import (
+    from backend.services.transcription.services.diarization_service import (
         DiarizationJobService,
         DiarizationService,
     )
-    from backend.core.services.transcription.services.transcription_service import TranscriptionService
+    from backend.services.transcription.services.transcription_service import TranscriptionService
 else:
     # Runtime imports - accessed via __getattr__ on services module
     def _import_service(name: str) -> Any:
@@ -82,7 +82,7 @@ else:
         SessionService as DISessionService,
     )
     from backend.utils.system.services.di_system_health_service import DISystemHealthService
-    from backend.core.services.transcription.services.di_transcription_service import (
+    from backend.services.transcription.services.di_transcription_service import (
         DITranscriptionService,
     )
 

@@ -20,7 +20,7 @@ async def get_diarization_status_workflow(job_id: str) -> dict[str, Any]:
 
     Calls INTERNAL diarization status function directly and returns combined status.
     """
-    from backend.core.services.transcription.api.internal.diarization.status import get_diarization_status
+    from backend.services.transcription.api.internal.diarization.status import get_diarization_status
 
     try:
         result = await get_diarization_status(job_id)

@@ -43,18 +43,18 @@ from backend.services.document.api.public import documents
 from infrastructure.events.api.public import events
 from backend.services.evidence.api.public import evidence
 from backend.services.kpi.api.public import kpis
-from backend.core.services.memory.api.public import longitudinal_memory
+from backend.services.memory.api.public import longitudinal_memory
 from backend.core.domain.order.api.public import orders
 from backend.core.domain.prescription.api.public import prescriptions
 from backend.core.domain.session.api.public import sessions_list
 from backend.core.domain.session.api.public import sessions_pkg as sessions
 from backend.services.soap.api.public import soap
 from backend.utils.system.api.public import system
-from backend.core.services.timeline.api.public import timeline
+from backend.services.timeline.api.public import timeline
 
 # Import sub-routers (modular architecture following SOLIS pattern)
 # Note: After migration, imports point to the new module locations
-from backend.core.services.transcription.api.public import transcription
+from backend.services.transcription.api.public import transcription
 from backend.api.widget.api.public import widget_configs
 from backend.core.services.workflow.api.public import waiting_room
 from fastapi import APIRouter
