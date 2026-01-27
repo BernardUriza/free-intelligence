@@ -98,6 +98,9 @@ jobs:
         with:
           rust-target: x86_64-pc-windows-msvc
 
+      - name: Validate version consistency
+        run: pnpm version:check
+
       - name: Pre-build Validation (Rust)
         if: false  # DISABLED: for faster builds - validation happens during actual build
         working-directory: apps/fi-monitor/src-tauri
@@ -328,6 +331,9 @@ jobs:
         with:
           rust-target: x86_64-unknown-linux-gnu
 
+      - name: Validate version consistency
+        run: pnpm version:check
+
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
         env:
@@ -463,6 +469,9 @@ jobs:
         uses: ./.github/actions/setup-tauri
         with:
           rust-target: aarch64-apple-darwin
+
+      - name: Validate version consistency
+        run: pnpm version:check
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
@@ -627,6 +636,9 @@ jobs:
         with:
           rust-target: x86_64-pc-windows-msvc
 
+      - name: Validate version consistency
+        run: pnpm version:check
+
       - name: Pre-build Validation (Rust)
         if: false  # DISABLED: runs before PyInstaller, causing "binary doesn't exist" error
         working-directory: apps/aurity-desktop/src-tauri
@@ -778,111 +790,6 @@ jobs:
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip `
             --private-key "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
 
-      - name: Send build success email notification
-        if: always() && steps.build_tauri.conclusion == 'success'
-        uses: dawidd6/action-send-mail@v3
-        with:
-          # Azure Communication Services SMTP configuration
-          server_address: smtp.azurecomm.net
-          server_port: 587
-          secure: false  # STARTTLS mode for port 587 (equally secure, different handshake)
-          username: ${{ secrets.ACS_SMTP_USERNAME }}
-          password: ${{ secrets.ACS_SMTP_PASSWORD }}
-
-          # Email metadata
-          subject: "✅ Windows Build Complete - Aurity Desktop v${{ steps.metadata.outputs.version }} (${{ steps.metadata.outputs.commit_short }})"
-          to: ${{ secrets.NOTIFY_EMAIL }}
-          from: "Aurity CI/CD <${{ secrets.ACS_FROM_EMAIL }}>"
-          reply_to: ${{ secrets.NOTIFY_EMAIL }}
-          priority: normal
-
-          # Email body (HTML)
-          html_body: |
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            </head>
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-
-              <!-- Header -->
-              <div style="background: linear-gradient(135deg, #0078D4 0%, #00BCF2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-                <h1 style="margin: 0; font-size: 28px; font-weight: 600;">✅ Build Exitoso</h1>
-                <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Aurity Desktop para Windows</p>
-              </div>
-
-              <!-- Content -->
-              <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
-
-                <!-- Version Info -->
-                <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #22c55e;">
-                  <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                      <td style="padding: 8px 0; font-weight: 600; color: #666; width: 120px;">Versión:</td>
-                      <td style="padding: 8px 0; color: #333; font-size: 18px; font-weight: 600;">${{ steps.metadata.outputs.version }}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 8px 0; font-weight: 600; color: #666;">Plataforma:</td>
-                      <td style="padding: 8px 0;">Windows x86_64 (NSIS)</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 8px 0; font-weight: 600; color: #666;">Commit:</td>
-                      <td style="padding: 8px 0; font-family: 'Courier New', monospace; font-size: 14px; color: #0078D4;">${{ steps.metadata.outputs.commit_short }}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 8px 0; font-weight: 600; color: #666;">Fecha:</td>
-                      <td style="padding: 8px 0;">${{ steps.metadata.outputs.timestamp }}</td>
-                    </tr>
-                  </table>
-                </div>
-
-                <!-- Download Section -->
-                <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                  <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📦 Descarga</h3>
-                  <p style="margin: 0 0 15px 0; color: #666;">El instalador está disponible en GitHub Releases:</p>
-                  <a href="https://github.com/${{ github.repository }}/releases/tag/v${{ steps.metadata.outputs.version }}"
-                     style="display: inline-block; background: #0078D4; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,120,212,0.2);">
-                    Ver Release en GitHub →
-                  </a>
-                </div>
-
-                <!-- Artifacts -->
-                <div style="background: white; padding: 20px; border-radius: 8px;">
-                  <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Archivos generados</h3>
-                  <ul style="margin: 0; padding-left: 20px; color: #666;">
-                    <li style="margin: 8px 0;">Aurity_${{ steps.metadata.outputs.version }}_x64-setup.nsis.zip</li>
-                    <li style="margin: 8px 0;">Signature file (.sig)</li>
-                    <li style="margin: 8px 0;">Updater manifest (JSON)</li>
-                  </ul>
-                </div>
-
-              </div>
-
-              <!-- Footer -->
-              <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; text-align: center;">
-                <p style="margin: 0 0 10px 0; color: #9ca3af; font-size: 14px;">
-                  <strong>Workflow Run:</strong>
-                  <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                     style="color: #0078D4; text-decoration: none;">
-                    #${{ github.run_id }}
-                  </a>
-                </p>
-                <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                  Enviado automáticamente por Aurity CI/CD · Powered by Azure Communication Services
-                </p>
-              </div>
-
-            </body>
-            </html>
-
-          # Error handling
-          ignore_cert: false
-          convert_markdown: false
-
-        # REMOVED continue-on-error - want to see email failures
-        timeout-minutes: 2
-
       - name: Upload NSIS artifact
         uses: actions/upload-artifact@v4
         with:
@@ -944,8 +851,12 @@ jobs:
 
   # Generate releases.json for /downloads page
   update-releases-json:
-    if: github.event_name == 'workflow_dispatch'
-    needs: [build-windows]
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      (needs.build-windows.result == 'success' ||
+       needs.build-macos.result == 'success' ||
+       needs.build-linux.result == 'success')
+    needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -965,15 +876,31 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git pull origin ${{ github.ref_name }} --rebase
 
-      - name: Download artifacts
+      - name: Download Windows artifacts
+        if: needs.build-windows.result == 'success'
         uses: actions/download-artifact@v4
         with:
+          pattern: aurity-windows-*
+          path: artifacts/
+
+      - name: Download macOS artifacts
+        if: needs.build-macos.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: aurity-macos-*
+          path: artifacts/
+
+      - name: Download Linux artifacts
+        if: needs.build-linux.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: aurity-linux-*
           path: artifacts/
 
       - name: Generate releases.json
         id: generate
         run: |
-          # Get version from tauri.conf.json
+          # Get version
           VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
           DATE=$(date -u +"%Y-%m-%d")
           GENERATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -981,17 +908,65 @@ jobs:
           echo "Version: $VERSION"
           echo "Date: $DATE"
 
-          # Calculate SHA256 for Windows artifact
-          WINDOWS_SHA256="pending"
+          # Initialize platforms JSON
+          PLATFORMS_JSON='{'
+          PLATFORM_COUNT=0
+
+          # Windows platform
           if [ -d "artifacts/aurity-windows-nsis" ]; then
+            echo "✅ Processing Windows artifacts"
             WINDOWS_FILE=$(find artifacts/aurity-windows-nsis -name "*.exe" -type f | head -1)
             if [ -n "$WINDOWS_FILE" ]; then
               WINDOWS_SHA256=$(sha256sum "$WINDOWS_FILE" | cut -d' ' -f1)
               WINDOWS_SIZE=$(du -h "$WINDOWS_FILE" | cut -f1)
-              echo "Windows SHA256: $WINDOWS_SHA256"
-              echo "Windows Size: $WINDOWS_SIZE"
+              echo "  Windows SHA256: $WINDOWS_SHA256"
+              echo "  Windows Size: $WINDOWS_SIZE"
+
+              if [ $PLATFORM_COUNT -gt 0 ]; then PLATFORMS_JSON+=','; fi
+              PLATFORMS_JSON+="\"windows\": {\"url\": \"https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_x64-setup.exe\", \"size\": \"$WINDOWS_SIZE\", \"sha256\": \"$WINDOWS_SHA256\"}"
+              PLATFORM_COUNT=$((PLATFORM_COUNT + 1))
             fi
+          else
+            echo "⏭️  Skipping Windows (no artifacts)"
           fi
+
+          # macOS platform
+          if [ -d "artifacts/aurity-macos-dmg" ]; then
+            echo "✅ Processing macOS artifacts"
+            MACOS_FILE=$(find artifacts/aurity-macos-dmg -name "*.dmg" -type f | head -1)
+            if [ -n "$MACOS_FILE" ]; then
+              MACOS_SHA256=$(sha256sum "$MACOS_FILE" | cut -d' ' -f1)
+              MACOS_SIZE=$(du -h "$MACOS_FILE" | cut -f1)
+              echo "  macOS SHA256: $MACOS_SHA256"
+              echo "  macOS Size: $MACOS_SIZE"
+
+              if [ $PLATFORM_COUNT -gt 0 ]; then PLATFORMS_JSON+=','; fi
+              PLATFORMS_JSON+="\"macos\": {\"url\": \"https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_aarch64.dmg\", \"size\": \"$MACOS_SIZE\", \"sha256\": \"$MACOS_SHA256\"}"
+              PLATFORM_COUNT=$((PLATFORM_COUNT + 1))
+            fi
+          else
+            echo "⏭️  Skipping macOS (no artifacts)"
+          fi
+
+          # Linux platform
+          if [ -d "artifacts/aurity-linux-appimage" ]; then
+            echo "✅ Processing Linux artifacts"
+            LINUX_FILE=$(find artifacts/aurity-linux-appimage -name "*.AppImage" -type f | head -1)
+            if [ -n "$LINUX_FILE" ]; then
+              LINUX_SHA256=$(sha256sum "$LINUX_FILE" | cut -d' ' -f1)
+              LINUX_SIZE=$(du -h "$LINUX_FILE" | cut -f1)
+              echo "  Linux SHA256: $LINUX_SHA256"
+              echo "  Linux Size: $LINUX_SIZE"
+
+              if [ $PLATFORM_COUNT -gt 0 ]; then PLATFORMS_JSON+=','; fi
+              PLATFORMS_JSON+="\"linux\": {\"url\": \"https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_amd64.AppImage\", \"size\": \"$LINUX_SIZE\", \"sha256\": \"$LINUX_SHA256\"}"
+              PLATFORM_COUNT=$((PLATFORM_COUNT + 1))
+            fi
+          else
+            echo "⏭️  Skipping Linux (no artifacts)"
+          fi
+
+          PLATFORMS_JSON+='}'
 
           # Generate releases.json
           cat > apps/aurity/public/releases.json << EOF
@@ -1000,13 +975,7 @@ jobs:
               {
                 "version": "$VERSION",
                 "date": "$DATE",
-                "platforms": {
-                  "windows": {
-                    "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_x64-setup.exe",
-                    "size": "${WINDOWS_SIZE:-~100 MB}",
-                    "sha256": "$WINDOWS_SHA256"
-                  }
-                },
+                "platforms": $PLATFORMS_JSON,
                 "changelog": [
                   "Aurity Desktop v$VERSION",
                   "Auth0 OAuth 2.0 + PKCE authentication",
@@ -1018,15 +987,20 @@ jobs:
               }
             ],
             "generatedAt": "$GENERATED_AT",
-            "source": "ci-cd"
+            "source": "ci-cd",
+            "platforms_built": $PLATFORM_COUNT
           }
           EOF
 
-          echo "Generated releases.json:"
-          cat apps/aurity/public/releases.json | jq '.'
+          echo "Generated releases.json with $PLATFORM_COUNT platform(s):"
+          if command -v jq &> /dev/null; then
+            cat apps/aurity/public/releases.json | jq '.'
+          else
+            cat apps/aurity/public/releases.json
+          fi
 
-          # Output version for commit message
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "platforms_built=$PLATFORM_COUNT" >> $GITHUB_OUTPUT
 
       - name: Commit and push releases.json
         run: |
@@ -1041,8 +1015,141 @@ jobs:
             echo "Successfully pushed releases.json update"
           fi
 
+  send-build-notification:
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      (needs.build-windows.result == 'success' ||
+       needs.build-macos.result == 'success' ||
+       needs.build-linux.result == 'success')
+    needs: [build-windows, build-macos, build-linux, update-releases-json]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine platforms built
+        id: platforms
+        run: |
+          PLATFORMS=""
+          PLATFORM_BADGES=""
+
+          if [ "${{ needs.build-windows.result }}" == "success" ]; then
+            PLATFORMS+="Windows x86_64, "
+            PLATFORM_BADGES+="<span style='display: inline-block; background: #0078D4; color: white; padding: 4px 12px; border-radius: 4px; font-size: 14px; margin-right: 8px;'>Windows</span>"
+          fi
+
+          if [ "${{ needs.build-macos.result }}" == "success" ]; then
+            PLATFORMS+="macOS ARM64, "
+            PLATFORM_BADGES+="<span style='display: inline-block; background: #000000; color: white; padding: 4px 12px; border-radius: 4px; font-size: 14px; margin-right: 8px;'>macOS</span>"
+          fi
+
+          if [ "${{ needs.build-linux.result }}" == "success" ]; then
+            PLATFORMS+="Linux x86_64, "
+            PLATFORM_BADGES+="<span style='display: inline-block; background: #FCC624; color: black; padding: 4px 12px; border-radius: 4px; font-size: 14px; margin-right: 8px;'>Linux</span>"
+          fi
+
+          PLATFORMS=${PLATFORMS%, }
+
+          echo "platforms=$PLATFORMS" >> $GITHUB_OUTPUT
+          echo "platform_badges=$PLATFORM_BADGES" >> $GITHUB_OUTPUT
+
+      - name: Extract build metadata
+        id: metadata
+        run: |
+          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA=${SHORT_SHA:0:7}
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "commit_short=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+
+      - name: Send consolidated build notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.azurecomm.net
+          server_port: 587
+          secure: false
+          username: ${{ secrets.ACS_SMTP_USERNAME }}
+          password: ${{ secrets.ACS_SMTP_PASSWORD }}
+
+          subject: "✅ Multi-Platform Build Complete - Aurity Desktop v${{ steps.metadata.outputs.version }} (${{ steps.metadata.outputs.commit_short }})"
+          to: ${{ secrets.NOTIFY_EMAIL }}
+          from: "Aurity CI/CD <${{ secrets.ACS_FROM_EMAIL }}>"
+          reply_to: ${{ secrets.NOTIFY_EMAIL }}
+          priority: normal
+
+          html_body: |
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #0078D4 0%, #00BCF2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                <h1 style="margin: 0; font-size: 28px; font-weight: 600;">✅ Build Exitoso</h1>
+                <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Aurity Desktop - Multi-Platform</p>
+              </div>
+              <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+                <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #22c55e;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 8px 0; font-weight: 600; color: #666; width: 120px;">Versión:</td>
+                      <td style="padding: 8px 0; color: #333; font-size: 18px; font-weight: 600;">${{ steps.metadata.outputs.version }}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; font-weight: 600; color: #666;">Plataformas:</td>
+                      <td style="padding: 8px 0;">${{ steps.platforms.outputs.platform_badges }}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; font-weight: 600; color: #666;">Commit:</td>
+                      <td style="padding: 8px 0; font-family: 'Courier New', monospace; font-size: 14px; color: #0078D4;">${{ steps.metadata.outputs.commit_short }}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; font-weight: 600; color: #666;">Fecha:</td>
+                      <td style="padding: 8px 0;">${{ steps.metadata.outputs.timestamp }}</td>
+                    </tr>
+                  </table>
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                  <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📦 Descarga</h3>
+                  <p style="margin: 0 0 15px 0; color: #666;">Los instaladores están disponibles en GitHub Releases:</p>
+                  <a href="https://github.com/${{ github.repository }}/releases/tag/v${{ steps.metadata.outputs.version }}" style="display: inline-block; background: #0078D4; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,120,212,0.2);">
+                    Ver Release en GitHub →
+                  </a>
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 8px;">
+                  <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">🎯 Plataformas Construidas</h3>
+                  <p style="margin: 0; color: #666; font-size: 16px;">${{ steps.platforms.outputs.platforms }}</p>
+                </div>
+              </div>
+              <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; text-align: center;">
+                <p style="margin: 0 0 10px 0; color: #9ca3af; font-size: 14px;">
+                  <strong>Workflow Run:</strong>
+                  <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="color: #0078D4; text-decoration: none;">
+                    #${{ github.run_id }}
+                  </a>
+                </p>
+                <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                  Enviado automáticamente por Aurity CI/CD · Powered by Azure Communication Services
+                </p>
+              </div>
+            </body>
+            </html>
+
+          ignore_cert: false
+          convert_markdown: false
+
+        timeout-minutes: 2
+
   generate-manifest:
-    if: github.event_name == 'workflow_dispatch'
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      (needs.build-windows.result == 'success' ||
+       needs.build-macos.result == 'success' ||
+       needs.build-linux.result == 'success')
     needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
