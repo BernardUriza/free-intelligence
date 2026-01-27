@@ -164,7 +164,8 @@
       "Bash(PYTHONPATH=backend/src:backend pydeps:*)",
       "Bash(dot:*)",
       "Bash(for:*)",
-      "Bash(do git mv \"$file\" ../../../../../services/soap/services/)"
+      "Bash(do git mv \"$file\" ../../../../../services/soap/services/)",
+      "Bash(/tmp/extract_services_batch.sh)"
     ]
   },
   "enableAllProjectMcpServers": true,

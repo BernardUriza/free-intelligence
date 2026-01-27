@@ -885,7 +885,7 @@ async def start_conversation(
 
     Returns initial greeting and begins the guided check-in flow.
     """
-    from backend.core.services.checkin.services.checkin_conversation import checkin_conversation_service
+    from backend.services.checkin.services.checkin_conversation import checkin_conversation_service
 
     # Get clinic name if not provided
     clinic_name = request.clinic_name
@@ -929,7 +929,7 @@ async def send_conversation_message(
 
     Processes user input and returns next step in guided flow.
     """
-    from backend.core.services.checkin.services.checkin_conversation import checkin_conversation_service
+    from backend.services.checkin.services.checkin_conversation import checkin_conversation_service
 
     response = await checkin_conversation_service.process_message(
         session_id=session_id,
@@ -953,7 +953,7 @@ async def get_conversation_context(session_id: str) -> dict:
 
     Useful for resuming conversations or debugging.
     """
-    from backend.core.services.checkin.services.checkin_conversation import checkin_conversation_service
+    from backend.services.checkin.services.checkin_conversation import checkin_conversation_service
 
     context = checkin_conversation_service.get_context(session_id)
     if not context:
@@ -976,7 +976,7 @@ async def get_conversation_context(session_id: str) -> dict:
 @router.delete("/conversation/{session_id}")
 async def end_conversation(session_id: str) -> dict:
     """End and clean up a conversation session."""
-    from backend.core.services.checkin.services.checkin_conversation import checkin_conversation_service
+    from backend.services.checkin.services.checkin_conversation import checkin_conversation_service
 
     checkin_conversation_service.end_conversation(session_id)
 

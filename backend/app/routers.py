@@ -40,7 +40,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.core.infrastructure.auth.adapters.fastapi_adapter import auth_router
 
     # Check-in & Payments
-    from backend.core.services.checkin.api.public import checkin
+    from backend.services.checkin.api.public import checkin
     from backend.core.domain.clinic.api.public import clinics
 
     # Coder

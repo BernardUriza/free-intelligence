@@ -76,8 +76,8 @@ else:
 
     # Import DI services
     from backend.api.audit.services.di_audit_service import DIAuditService
-    from backend.core.services.evidence.services.evidence_service import DIEvidenceService
-    from backend.core.services.export.services.export_service import DIExportService
+    from backend.services.evidence.services.evidence_service import DIEvidenceService
+    from backend.services.export.services.export_service import DIExportService
     from backend.core.domain.session.services.di_session_service import (
         SessionService as DISessionService,
     )
