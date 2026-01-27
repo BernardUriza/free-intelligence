@@ -1,6 +1,6 @@
 [package]
 name = "fi-monitor"
-version = "1.0.2"
+version = "1.0.6"
 description = "FI Edge Monitor - Ollama Tunnel Manager"
 authors = ["AURITY"]
 edition = "2021"

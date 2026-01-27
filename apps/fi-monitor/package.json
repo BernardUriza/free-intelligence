@@ -1,6 +1,6 @@
 {
   "name": "fi-monitor",
-  "version": "1.0.0",
+  "version": "1.0.6",
   "description": "FI Monitor - Ollama Tunnel Manager",
   "type": "module",
   "scripts": {
