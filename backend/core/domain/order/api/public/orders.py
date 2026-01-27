@@ -69,7 +69,8 @@ async def get_orders_workflow(session_id: str) -> dict:
     Raises:
         500: Failed to load orders
     """
-    from infrastructure.storage.infrastructure.hdf5.task_repository import get_orders
+    # FIXME: Broken import - use DI container instead
+    # from infrastructure.storage.infrastructure.hdf5.task_repository import get_orders
 
     try:
         logger.info("ORDERS_GET_STARTED", session_id=session_id)
@@ -118,7 +119,8 @@ async def create_order_workflow(
         400: Invalid order data
         500: Failed to create order
     """
-    from infrastructure.storage.infrastructure.hdf5.task_repository import create_order
+    # FIXME: Broken import - use DI container instead
+    # from infrastructure.storage.infrastructure.hdf5.task_repository import create_order
 
     try:
         logger.info(
@@ -185,7 +187,8 @@ async def update_order_workflow(
         404: Order not found
         500: Failed to update order
     """
-    from infrastructure.storage.infrastructure.hdf5.task_repository import update_order
+    # FIXME: Broken import - use DI container instead
+    # from infrastructure.storage.infrastructure.hdf5.task_repository import update_order
 
     try:
         logger.info(
@@ -257,7 +260,8 @@ async def delete_order_workflow(
         404: Order not found
         500: Failed to delete order
     """
-    from infrastructure.storage.infrastructure.hdf5.task_repository import delete_order
+    # FIXME: Broken import - use DI container instead
+    # from infrastructure.storage.infrastructure.hdf5.task_repository import delete_order
 
     try:
         logger.info(

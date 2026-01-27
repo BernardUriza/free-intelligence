@@ -15,7 +15,8 @@ logger = get_logger(__name__)
 async def monitor_session_progress(session_id: str, request: Request) -> dict:
     validate_session_id(session_id)
     from backend.models.task_type import TaskType
-    from infrastructure.storage.infrastructure.hdf5.task_repository import (
+    # FIXME: Broken import - use DI container instead
+    # from infrastructure.storage.infrastructure.hdf5.task_repository import (
         count_task_chunks,
         get_task_metadata,
     )

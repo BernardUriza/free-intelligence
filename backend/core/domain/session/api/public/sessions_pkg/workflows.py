@@ -81,7 +81,8 @@ async def analyze_session_intelligent_workflow(
 ) -> dict:
     import h5py
     from backend.models.task_type import TaskStatus, TaskType
-    from infrastructure.storage.infrastructure.hdf5.task_repository import (
+    # FIXME: Broken import - use DI container instead
+    # from infrastructure.storage.infrastructure.hdf5.task_repository import (
         CORPUS_PATH,
         ensure_task_exists,
         get_task_metadata,

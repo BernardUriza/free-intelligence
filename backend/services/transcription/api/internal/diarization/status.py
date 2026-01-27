@@ -20,7 +20,8 @@ from typing import Any
 import os
 from backend.models.task_type import TaskType
 from backend.utils.common.logging.logger import get_logger
-from infrastructure.storage.infrastructure.hdf5.task_repository import get_task_metadata
+# FIXME: Broken import - use DI container instead
+# from infrastructure.storage.infrastructure.hdf5.task_repository import get_task_metadata
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -193,7 +194,8 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
 
             # Try to get transcription sources (triple vision)
             import h5py
-            from infrastructure.storage.infrastructure.hdf5.task_repository import (
+            # FIXME: Broken import - use DI container instead
+            # from infrastructure.storage.infrastructure.hdf5.task_repository import (
                 CORPUS_PATH,
             )
 

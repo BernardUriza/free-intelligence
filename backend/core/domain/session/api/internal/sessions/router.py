@@ -29,8 +29,10 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from backend.container import get_container
+from backend.core.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.core.infrastructure.auth.domain import User
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 logger = get_logger(__name__)
@@ -80,9 +82,8 @@ class SessionsListResponse(BaseModel):
 
 
 class CreateSessionRequest(BaseModel):
-    """Create session request"""
+    """Create session request (owner_hash auto-set from auth)"""
 
-    owner_hash: str = Field(..., min_length=1)
     status: str = Field(default="new", pattern="^(Union[new, active, complete])$")
     thread_id: str | None = None
 
@@ -106,10 +107,15 @@ router = APIRouter()
 async def list_sessions(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    owner_hash: str | None = Query(None),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    List sessions with pagination.
+    List sessions with pagination (TENANT ISOLATED).
+
+    **Security:**
+    - MANDATORY tenant isolation via current_user.id
+    - Users can ONLY see their own sessions
+    - No cross-tenant data leaks
 
     **Clean Code Architecture:**
     - SessionService handles session retrieval and filtering
@@ -118,10 +124,9 @@ async def list_sessions(
     Query params:
     - limit: Max sessions to return (1-100, default 50)
     - offset: Number of sessions to skip (default 0)
-    - owner_hash: Filter by owner_hash (optional)
 
     Returns:
-    - items: List of sessions
+    - items: List of sessions (filtered by current_user)
     - total: Total count (with filters applied)
     - limit: Limit used
     - offset: Offset used
@@ -131,16 +136,17 @@ async def list_sessions(
         session_service = get_container().get_session_service()
         audit_service = get_container().get_audit_service()
 
-        # Delegate to service for listing
-        sessions = session_service.list_sessions(user_id=owner_hash)
+        # CRITICAL: ALWAYS use current_user.id for tenant isolation
+        # Never trust client-provided owner_hash
+        sessions = session_service.list_sessions(user_id=current_user.id)
 
         # Log audit trail
         audit_service.log_action(
             action="sessions_listed",
-            user_id="system",
+            user_id=current_user.id,
             resource="sessions",
             result="success",
-            details={"limit": limit, "owner_hash": owner_hash},
+            details={"limit": limit, "tenant_isolated": True},
         )
 
         return SessionsListResponse(
@@ -156,9 +162,17 @@ async def list_sessions(
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
-async def get_session(session_id: str):
+async def get_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+):
     """
-    Get single session by ID.
+    Get single session by ID (OWNERSHIP VALIDATED).
+
+    **Security:**
+    - Validates that current_user owns the session
+    - Returns 403 if user tries to access another user's session
+    - Prevents unauthorized cross-tenant access
 
     **Clean Code Architecture:**
     - SessionService handles session retrieval
@@ -171,6 +185,7 @@ async def get_session(session_id: str):
     - Session object
 
     Raises:
+    - 403: Access denied (not session owner)
     - 404: Session not found
     """
     try:
@@ -186,10 +201,34 @@ async def get_session(session_id: str):
             logger.warning("SESSION_NOT_FOUND", session_id=session_id)
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
+        # CRITICAL: Validate ownership (tenant isolation)
+        # Session owner_hash must match current_user.id
+        session_owner = session.get("owner_hash") or session.get("id")  # Fallback to session_id if no owner_hash
+
+        if session_owner != current_user.id:
+            logger.warning(
+                "SESSION_ACCESS_DENIED",
+                session_id=session_id,
+                requested_by=current_user.id,
+                owner=session_owner,
+            )
+            # Log security incident
+            audit_service.log_action(
+                action="session_access_denied",
+                user_id=current_user.id,
+                resource=f"session:{session_id}",
+                result="denied",
+                details={"reason": "ownership_mismatch"},
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: You do not own this session"
+            )
+
         # Log audit trail
         audit_service.log_action(
             action="session_retrieved",
-            user_id="system",
+            user_id=current_user.id,
             resource=f"session:{session_id}",
             result="success",
         )
@@ -205,9 +244,17 @@ async def get_session(session_id: str):
 
 
 @router.post("", response_model=SessionResponse, status_code=201)
-async def create_session(request: CreateSessionRequest):
+async def create_session(
+    request: CreateSessionRequest,
+    current_user: User = Depends(get_current_user),
+):
     """
-    Create new session.
+    Create new session (OWNER AUTO-SET).
+
+    **Security:**
+    - owner_hash is AUTOMATICALLY set from current_user.id
+    - Users can ONLY create sessions for themselves
+    - Prevents session creation on behalf of other users
 
     **Clean Code Architecture:**
     - SessionService handles session creation with validation
@@ -215,7 +262,6 @@ async def create_session(request: CreateSessionRequest):
     - AuditService logs all session creations
 
     Body:
-    - owner_hash: SHA256 hash of owner (required)
     - status: Initial status (default: "new")
     - thread_id: Optional thread identifier
 
@@ -228,26 +274,26 @@ async def create_session(request: CreateSessionRequest):
 
     try:
         # Generate unique session ID and delegate to service for creation
+        # CRITICAL: Use current_user.id as owner (NEVER trust client input)
         session_id = f"session_{uuid4().hex[:12]}"
         session = session_service.create_session(
             session_id=session_id,
-            user_id=request.owner_hash,
+            user_id=current_user.id,
         )
 
         # Log audit trail
         audit_service.log_action(
             action="session_created",
-            user_id="system",
+            user_id=current_user.id,
             resource=f"session:{session['session_id']}",
             result="success",
             details={
-                "owner_hash": request.owner_hash,
                 "status": request.status,
             },
         )
 
         logger.info(
-            "SESSION_CREATED", session_id=session["session_id"], owner_hash=request.owner_hash
+            "SESSION_CREATED", session_id=session["session_id"], user_id=current_user.id
         )
 
         # Map service response to API response schema
@@ -260,15 +306,15 @@ async def create_session(request: CreateSessionRequest):
             interaction_count=0,
             status=session.get("status", "active"),
             is_persisted=True,
-            owner_hash=request.owner_hash,
+            owner_hash=current_user.id,
             thread_id=request.thread_id,
         )
 
     except ValueError as e:
-        logger.warning("SESSION_CREATION_VALIDATION_FAILED", error=str(e))
+        logger.warning("SESSION_CREATION_VALIDATION_FAILED", error=str(e), user_id=current_user.id)
         audit_service.log_action(
             action="session_creation_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource="session",
             result="failed",
             details={"error": str(e)},
@@ -280,9 +326,18 @@ async def create_session(request: CreateSessionRequest):
 
 
 @router.patch("/{session_id}", response_model=SessionResponse)
-async def update_session(session_id: str, request: UpdateSessionRequest):
+async def update_session(
+    session_id: str,
+    request: UpdateSessionRequest,
+    current_user: User = Depends(get_current_user),
+):
     """
-    Update existing session (partial update).
+    Update existing session (partial update, OWNERSHIP VALIDATED).
+
+    **Security:**
+    - Validates that current_user owns the session before updating
+    - Returns 403 if user tries to modify another user's session
+    - Prevents unauthorized cross-tenant modifications
 
     **Clean Code Architecture:**
     - SessionService handles session updates with validation
@@ -301,12 +356,42 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
     - Updated session object
 
     Raises:
+    - 403: Access denied (not session owner)
     - 404: Session not found
     """
     try:
         # Get services from DI container
         session_service = get_container().get_session_service()
         audit_service = get_container().get_audit_service()
+
+        # CRITICAL: Validate ownership BEFORE allowing update
+        try:
+            existing_session = await session_service.get_session_info(session_id)
+        except ValueError:
+            # Session not found
+            logger.warning("SESSION_NOT_FOUND_FOR_UPDATE", session_id=session_id)
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+        session_owner = existing_session.get("owner_hash") or existing_session.get("id")
+
+        if session_owner != current_user.id:
+            logger.warning(
+                "SESSION_UPDATE_DENIED",
+                session_id=session_id,
+                requested_by=current_user.id,
+                owner=session_owner,
+            )
+            audit_service.log_action(
+                action="session_update_denied",
+                user_id=current_user.id,
+                resource=f"session:{session_id}",
+                result="denied",
+                details={"reason": "ownership_mismatch"},
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: You do not own this session"
+            )
 
         # Auto-set last_active if not provided
         last_active = request.last_active
@@ -332,7 +417,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
         # Log audit trail
         audit_service.log_action(
             action="session_updated",
-            user_id="system",
+            user_id=current_user.id,
             resource=f"session:{session_id}",
             result="success",
             details={
@@ -341,7 +426,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
             },
         )
 
-        logger.info("SESSION_UPDATED", session_id=session_id)
+        logger.info("SESSION_UPDATED", session_id=session_id, user_id=current_user.id)
 
         return SessionResponse(**session)  # type: ignore[arg-type]
 

@@ -21,7 +21,8 @@ from typing import Any, Dict, List
 
 import os
 from backend.utils.common.logging.logger import get_logger
-from infrastructure.storage.infrastructure.hdf5.audio_storage import (
+# FIXME: Broken import - use DI container instead
+# from infrastructure.storage.infrastructure.hdf5.audio_storage import (
     save_audio_file,
     validate_session_id,
 )
@@ -541,7 +542,8 @@ class TranscriptionService:
         )
 
         # Get absolute path to audio file
-        from infrastructure.storage.infrastructure.hdf5.audio_storage import (
+        # FIXME: Broken import - use DI container instead
+        # from infrastructure.storage.infrastructure.hdf5.audio_storage import (
             AUDIO_STORAGE_DIR,
         )
 

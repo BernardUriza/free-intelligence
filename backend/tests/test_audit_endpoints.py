@@ -17,7 +17,8 @@ pytestmark = pytest.mark.skip(
 def existing_session_id():
     """Get a session ID that has SOAP data."""
     import h5py
-    from infrastructure.storage.infrastructure.hdf5.task_repository import CORPUS_PATH
+    # FIXME: Broken import - use DI container instead
+    # from infrastructure.storage.infrastructure.hdf5.task_repository import CORPUS_PATH
 
     with h5py.File(CORPUS_PATH, "r") as f:
         sessions = list(f["sessions"].keys())

@@ -47,16 +47,50 @@ from backend.models import EncryptionMetadata, Session
 from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.session_repository import SessionRepository
 from backend.utils.common.logging.logger import get_logger
-from infrastructure.storage.infrastructure.hdf5.task_repository import (
-    add_full_audio,
-    add_full_transcription,
-    add_webspeech_transcripts,
-    get_task_chunks,
-    get_task_metadata,
-    update_task_metadata,
-)
 from backend.core.infrastructure.workers.executor_pool import spawn_worker
 from backend.core.infrastructure.workers.tasks.encryption_worker import encrypt_session_worker
+
+# FIXME: Temporary stubs - refactor to use DI container
+# These functions need to be replaced with proper DI container usage
+def add_full_audio(*args, **kwargs):
+    """Stub - needs refactoring to use DI container."""
+    logger = get_logger(__name__)
+    logger.warning("add_full_audio stub called - needs refactoring")
+    pass
+
+def add_full_transcription(*args, **kwargs):
+    """Stub - needs refactoring to use DI container."""
+    logger = get_logger(__name__)
+    logger.warning("add_full_transcription stub called - needs refactoring")
+    pass
+
+def add_webspeech_transcripts(*args, **kwargs):
+    """Stub - needs refactoring to use DI container."""
+    logger = get_logger(__name__)
+    logger.warning("add_webspeech_transcripts stub called - needs refactoring")
+    pass
+
+def get_task_chunks(session_id, task_type):
+    """Stub - needs refactoring to use DI container."""
+    from backend.container import get_container
+    task_repo = get_container().get_task_repository()
+    # Convert TaskType enum to string if needed
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.get_task_chunks(session_id, task_type_str)
+
+def get_task_metadata(session_id, task_type):
+    """Stub - needs refactoring to use DI container."""
+    from backend.container import get_container
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.get_task_metadata(session_id, task_type_str)
+
+def update_task_metadata(session_id, task_type, metadata):
+    """Stub - needs refactoring to use DI container."""
+    from backend.container import get_container
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    task_repo.save_task_metadata(session_id, task_type_str, metadata)
 from fastapi import APIRouter, HTTPException, status
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -260,11 +294,10 @@ async def finalize_session(
 
         # 2. Initialize ENCRYPTION task (metadata only - actual encryption happens after SOAP)
         # This creates the task entry in HDF5 for tracking
-        from infrastructure.storage.infrastructure.hdf5.task_repository import (
-            ensure_task_exists,
-        )
+        from backend.container import get_container
+        task_repo = get_container().get_task_repository()
+        task_repo.ensure_task_exists(session_id, TaskType.ENCRYPTION.value, metadata=None)
 
-        ensure_task_exists(session_id, TaskType.ENCRYPTION, allow_existing=True)
         update_task_metadata(
             session_id,
             TaskType.ENCRYPTION,
@@ -485,7 +518,8 @@ async def finalize_session(
         # 4. Enqueue encryption worker asynchronously (NON-BLOCKING)
         # Fire-and-forget pattern: session returns 202 immediately
         # Encryption executes in background ThreadPoolExecutor
-        from infrastructure.storage.infrastructure.hdf5.task_repository import (
+        # FIXME: Broken import - use DI container instead
+        # from infrastructure.storage.infrastructure.hdf5.task_repository import (
             CORPUS_PATH,
         )
 

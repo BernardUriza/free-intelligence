@@ -7,7 +7,8 @@ Validation logic for:
 
 from __future__ import annotations
 
-from infrastructure.storage.infrastructure.hdf5.audio_storage import (
+# FIXME: Broken import - use DI container instead
+# from infrastructure.storage.infrastructure.hdf5.audio_storage import (
     validate_session_id as storage_validate_session_id,
 )
 from pathlib import Path

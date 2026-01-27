@@ -12,7 +12,8 @@ def test_get_audit_endpoint_direct():
     """Test GET /api/sessions/{id}/audit endpoint directly."""
     import h5py
     from backend.app.main import app
-    from infrastructure.storage.infrastructure.hdf5.task_repository import CORPUS_PATH
+    # FIXME: Broken import - use DI container instead
+    # from infrastructure.storage.infrastructure.hdf5.task_repository import CORPUS_PATH
     from fastapi.testclient import TestClient
 
     client = TestClient(app)

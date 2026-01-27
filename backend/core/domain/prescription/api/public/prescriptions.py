@@ -305,7 +305,8 @@ async def create_prescription_from_soap(
     validate_session_id(request.session_id)
 
     # Get SOAP data from storage
-    from infrastructure.storage.infrastructure.hdf5.task_repository import get_soap_data
+    # FIXME: Broken import - use DI container instead
+    # from infrastructure.storage.infrastructure.hdf5.task_repository import get_soap_data
 
     try:
         soap_data = get_soap_data(request.session_id)

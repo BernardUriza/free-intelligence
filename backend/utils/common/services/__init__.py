@@ -22,7 +22,8 @@ from __future__ import annotations
 
 from backend.api.audit.services.audit_service import AuditService
 from backend.utils.common.services.export_service import ExportService
-from infrastructure.storage.services.corpus_service import CorpusService
+# FIXME: CorpusService doesn't exist - commented out
+# from infrastructure.storage.services.corpus_service import CorpusService
 
 # from backend.core.domain.session.services.session_service import SessionService  # Temporarily commented due to import issues
 from backend.services.transcription.services.transcription_service import TranscriptionService
@@ -30,7 +31,7 @@ from backend.services.workflow.services.triage_service import TriageService
 
 __all__ = [
     "AuditService",
-    "CorpusService",
+    # "CorpusService",  # Commented - doesn't exist
     "ExportService",
     # "SessionService",  # Temporarily commented due to import issues
     "TranscriptionService",

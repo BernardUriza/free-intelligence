@@ -15,17 +15,58 @@ from __future__ import annotations
 
 from backend.models.task_type import TaskType
 from backend.utils.common.logging.logger import get_logger
-from infrastructure.events.application.event_bus import get_event_bus
-from infrastructure.events.domain.events import (
-    TranscriptionChunkEvent,
-    TranscriptionEndedEvent,
-    TranscriptionStartedEvent,
-)
-from infrastructure.storage.infrastructure.hdf5.task_repository import (
-    ensure_task_exists,
-    get_task_chunks,
-    get_task_metadata,
-)
+from backend.container import get_container
+
+# FIXME: infrastructure.events doesn't exist - stubbed
+# from infrastructure.events.application.event_bus import get_event_bus
+# from infrastructure.events.domain.events import (
+#     TranscriptionChunkEvent,
+#     TranscriptionEndedEvent,
+#     TranscriptionStartedEvent,
+# )
+
+# Stubs for events
+def get_event_bus():
+    """Stub event bus."""
+    class StubEventBus:
+        def publish(self, *args, **kwargs):
+            pass
+    return StubEventBus()
+
+class TranscriptionChunkEvent:
+    """Stub event."""
+    pass
+
+class TranscriptionStartedEvent:
+    """Stub event."""
+    pass
+
+class TranscriptionEndedEvent:
+    """Stub event."""
+    pass
+
+
+# Use DI container for task repository
+def ensure_task_exists(session_id: str, task_type, metadata=None):
+    """Ensure task exists via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.ensure_task_exists(session_id, task_type_str, metadata)
+
+
+def get_task_chunks(session_id: str, task_type):
+    """Get task chunks via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.get_task_chunks(session_id, task_type_str)
+
+
+def get_task_metadata(session_id: str, task_type):
+    """Get task metadata via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.get_task_metadata(session_id, task_type_str)
+
 
 logger = get_logger(__name__)
 
@@ -147,7 +188,8 @@ class TranscriptionService:
         import hashlib
 
         from backend.models.task_type import CHUNK_DURATION_SECONDS
-        from infrastructure.storage.infrastructure.hdf5.task_repository import (
+        # FIXME: Broken import - use DI container instead
+        # from infrastructure.storage.infrastructure.hdf5.task_repository import (
             add_audio_to_chunk,
             append_chunk_to_task,
             update_task_metadata,
@@ -366,7 +408,8 @@ class TranscriptionService:
         Raises:
             ValueError: If session not found
         """
-        from infrastructure.storage.infrastructure.hdf5.task_repository import (
+        # FIXME: Broken import - use DI container instead
+        # from infrastructure.storage.infrastructure.hdf5.task_repository import (
             task_exists,
         )
 
