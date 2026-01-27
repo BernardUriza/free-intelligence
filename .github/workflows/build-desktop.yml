@@ -592,7 +592,6 @@ jobs:
           git submodule update --init --recursive --depth 1
 
       - name: Auto-bump patch version
-        if: false  # DISABLED: TODO fix pnpm command execution in PowerShell
         id: bump
         shell: pwsh
         run: |
@@ -609,13 +608,23 @@ jobs:
 
           Write-Host "Version bump: $currentVersion -> $newVersion"
 
-          # Update the JSON file
+          # Update tauri.conf.json
           $config.version = $newVersion
           $config | ConvertTo-Json -Depth 100 | Set-Content $configPath -NoNewline
 
-          # Synchronize package.json and Cargo.toml
-          Write-Host "Synchronizing package.json and Cargo.toml..."
-          & pnpm version:sync
+          # Sync package.json
+          Write-Host "Syncing package.json..."
+          $pkgPath = "apps/aurity-desktop/package.json"
+          $pkg = Get-Content $pkgPath -Raw | ConvertFrom-Json
+          $pkg.version = $newVersion
+          $pkg | ConvertTo-Json -Depth 100 | Set-Content $pkgPath -NoNewline
+
+          # Sync Cargo.toml
+          Write-Host "Syncing Cargo.toml..."
+          $cargoPath = "apps/aurity-desktop/src-tauri/Cargo.toml"
+          $cargoContent = Get-Content $cargoPath -Raw
+          $cargoContent = $cargoContent -replace '^version\s*=\s*"[^"]+"', "version = `"$newVersion`""
+          $cargoContent | Set-Content $cargoPath -NoNewline
 
           # Configure git
           git config user.name "github-actions[bot]"
