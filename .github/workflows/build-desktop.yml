@@ -614,7 +614,7 @@ jobs:
 
           # Synchronize package.json and Cargo.toml
           Write-Host "Synchronizing package.json and Cargo.toml..."
-          pnpm version:sync
+          & pnpm version:sync
 
           # Configure git
           git config user.name "github-actions[bot]"
