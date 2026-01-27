@@ -283,7 +283,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
           variant={activeTab === 'message' ? 'cyan' : 'ghost'}
           size="sm"
         >
-          💬 Mensaje
+          Mensaje
         </Button>
         <Button
           type="button"
@@ -294,7 +294,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
           variant={activeTab === 'image' ? 'cyan' : 'ghost'}
           size="sm"
         >
-          🖼️ Imagen
+          Imagen
         </Button>
         <Button
           type="button"
@@ -305,7 +305,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
           variant={activeTab === 'video' ? 'cyan' : 'ghost'}
           size="sm"
         >
-          🎥 Video
+          Video
         </Button>
       </div>
 
@@ -423,7 +423,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
               />
             </div>
             <p className="fi-text-xs mt-1 text-center">
-              {uploadProgress < 100 ? 'Subiendo...' : '✓ Completado'}
+              {uploadProgress < 100 ? 'Subiendo...' : 'Completado'}
             </p>
           </div>
         )}
@@ -479,7 +479,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
                         item.media_type === 'video' ? 'bg-purple-900/50 text-purple-300' :
                         'bg-green-900/50 text-green-300'
                       }`}>
-                        {item.media_type === 'image' ? '📷 Imagen' : item.media_type === 'video' ? '🎬 Video' : '💬 Mensaje'}
+                        {item.media_type === 'image' ? 'Imagen' : item.media_type === 'video' ? 'Video' : 'Mensaje'}
                       </span>
                       {!item.is_active && (
                         <span className="px-2 py-0.5 fi-text-xs-medium rounded bg-slate-700 text-slate-400">

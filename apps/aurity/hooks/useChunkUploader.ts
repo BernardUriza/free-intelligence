@@ -129,14 +129,14 @@ export function useChunkUploader(
             onUploadComplete(chunkNumber);
           }
 
-          console.log(`[ChunkUploader] ✅ Chunk ${chunkNumber} uploaded successfully`);
+          console.log(`[ChunkUploader] [OK] Chunk ${chunkNumber} uploaded successfully`);
           break; // Success, exit retry loop
         } catch (error) {
           lastError = error as Error;
           attempts++;
 
           console.error(
-            `[ChunkUploader] ❌ Chunk ${chunkNumber} failed (attempt ${attempts}/${maxRetries}):`,
+            `[ChunkUploader] [ERROR] Chunk ${chunkNumber} failed (attempt ${attempts}/${maxRetries}):`,
             error
           );
 
@@ -164,7 +164,7 @@ export function useChunkUploader(
           onUploadError(chunkNumber, lastError.message);
         }
 
-        console.error(`[ChunkUploader] ❌ Chunk ${chunkNumber} failed after ${maxRetries} attempts`);
+        console.error(`[ChunkUploader] [ERROR] Chunk ${chunkNumber} failed after ${maxRetries} attempts`);
       }
 
       // Update uploading state

@@ -23,13 +23,13 @@ type TimelineEventRecord = {
 const typeToIcon = (eventType?: string, source?: string) => {
   const type = (eventType || '').toLowerCase();
 
-  if (type.includes('user')) return '👤';
-  if (type.includes('assistant')) return '🤖';
-  if (type.includes('transcription') || source === 'audio') return '🎙️';
-  if (type.includes('soap') || type.includes('diagnosis')) return '⚕️';
-  if (type.includes('critical')) return '🚨';
+  if (type.includes('user')) return 'U';
+  if (type.includes('assistant')) return 'A';
+  if (type.includes('transcription') || source === 'audio') return 'M';
+  if (type.includes('soap') || type.includes('diagnosis')) return '+';
+  if (type.includes('critical')) return '!';
 
-  return '⚙️'; // System/default
+  return 'S'; // System/default
 };
 
 /**

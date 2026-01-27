@@ -14,7 +14,7 @@ import { AppTemplate } from '@/components/layout/AppTemplate';
 import { profileHeader } from '@/config/page-headers';
 import { gradients } from '@/lib/styles/gradients';
 import { showSuccess, showError } from '@/lib/swal';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Trash2, AlertTriangle } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -277,7 +277,8 @@ export default function ProfilePage() {
             size="sm"
             onClick={() => setShowDeleteModal(true)}
           >
-            🗑️ Borrar toda la memoria longitudinal
+            <Trash2 className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
+            Borrar toda la memoria longitudinal
           </Button>
           <p className="text-slate-500 text-xs mt-2">
             Elimina todas las sesiones HDF5 y mensajes de chat. Configuraciones de personalidades y pacientes se mantienen.
@@ -288,7 +289,10 @@ export default function ProfilePage() {
         {showDeleteModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-slate-800 border border-red-900/50 rounded-lg max-w-md w-full p-6">
-              <h3 className="text-xl font-bold fi-text-error mb-4">⚠️ Confirmar eliminación</h3>
+              <h3 className="text-xl font-bold fi-text-error mb-4 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" strokeWidth={1.5} aria-hidden="true" />
+                Confirmar eliminación
+              </h3>
               <p className="fi-text mb-4">
                 Estás a punto de eliminar <strong>TODA la memoria longitudinal</strong>:
               </p>
@@ -297,8 +301,9 @@ export default function ProfilePage() {
                 <li>Todos los mensajes de chat</li>
                 <li>Historial de conversaciones</li>
               </ul>
-              <p className="text-yellow-400 text-sm mb-6">
-                ✅ Se mantendrán: configuraciones de personalidades y registros de pacientes
+              <p className="text-yellow-400 text-sm mb-6 flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
+                Se mantendrán: configuraciones de personalidades y registros de pacientes
               </p>
               <p className="fi-text-error font-bold mb-6">
                 Esta acción NO se puede deshacer.

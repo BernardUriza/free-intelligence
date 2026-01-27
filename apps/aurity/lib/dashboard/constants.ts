@@ -61,14 +61,14 @@ export const KEYBOARD_SHORTCUTS = {
 // =============================================================================
 
 export const QUICK_MESSAGES = [
-  { id: 'delay', emoji: '⏰', text: 'Retraso de 15 minutos en consultas' },
-  { id: 'silence', emoji: '🚻', text: 'Favor de mantener silencio en sala de espera' },
-  { id: 'water', emoji: '💧', text: 'Agua disponible en el dispensador' },
-  { id: 'documents', emoji: '📋', text: 'Traer estudios previos a consulta' },
-  { id: 'wait', emoji: '🔔', text: 'Esperar llamado por nombre' },
-  { id: 'mask', emoji: '😷', text: 'Uso de cubrebocas obligatorio' },
-  { id: 'sanitizer', emoji: '🧴', text: 'Gel antibacterial disponible en la entrada' },
-  { id: 'phone', emoji: '📱', text: 'Favor de silenciar teléfonos celulares' },
+  { id: 'delay', iconKey: 'clock', text: 'Retraso de 15 minutos en consultas' },
+  { id: 'silence', iconKey: 'users', text: 'Favor de mantener silencio en sala de espera' },
+  { id: 'water', iconKey: 'droplet', text: 'Agua disponible en el dispensador' },
+  { id: 'documents', iconKey: 'clipboardList', text: 'Traer estudios previos a consulta' },
+  { id: 'wait', iconKey: 'bell', text: 'Esperar llamado por nombre' },
+  { id: 'mask', iconKey: 'heartPulse', text: 'Uso de cubrebocas obligatorio' },
+  { id: 'sanitizer', iconKey: 'droplet', text: 'Gel antibacterial disponible en la entrada' },
+  { id: 'phone', iconKey: 'smartphone', text: 'Favor de silenciar teléfonos celulares' },
 ] as const;
 
 // =============================================================================
@@ -139,12 +139,12 @@ export const MOCK_QUEUE_PATIENTS: QueuePatient[] = [
 // =============================================================================
 
 export const AI_CONTENT_CATEGORIES = [
-  { id: 'nutrition', label: 'Nutrición', emoji: '🥗', description: 'Tips de alimentación saludable' },
-  { id: 'exercise', label: 'Ejercicio', emoji: '🏃', description: 'Consejos de actividad física' },
-  { id: 'mental_health', label: 'Salud Mental', emoji: '🧠', description: 'Bienestar emocional' },
-  { id: 'prevention', label: 'Prevención', emoji: '🛡️', description: 'Cuidados preventivos' },
-  { id: 'hydration', label: 'Hidratación', emoji: '💧', description: 'Importancia del agua' },
-  { id: 'sleep', label: 'Sueño', emoji: '😴', description: 'Calidad del descanso' },
+  { id: 'nutrition', label: 'Nutrición', iconKey: 'salad', description: 'Tips de alimentación saludable' },
+  { id: 'exercise', label: 'Ejercicio', iconKey: 'footprints', description: 'Consejos de actividad física' },
+  { id: 'mental_health', label: 'Salud Mental', iconKey: 'brain', description: 'Bienestar emocional' },
+  { id: 'prevention', label: 'Prevención', iconKey: 'shield', description: 'Cuidados preventivos' },
+  { id: 'hydration', label: 'Hidratación', iconKey: 'droplet', description: 'Importancia del agua' },
+  { id: 'sleep', label: 'Sueño', iconKey: 'moon', description: 'Calidad del descanso' },
 ] as const;
 
 export const AI_TRIVIA_DIFFICULTIES = [

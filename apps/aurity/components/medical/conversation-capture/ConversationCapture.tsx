@@ -216,8 +216,8 @@ export function ConversationCapture({
     pollInterval: POLLING_CONFIG.INITIAL_INTERVAL,
     maxInterval: POLLING_CONFIG.MAX_INTERVAL,
     onComplete: async () => {
-      console.log('[Diarization] ✅ Completed');
-      metrics.addLog('✅ Diarización completada');
+      console.log('[Diarization] Completed');
+      metrics.addLog('[OK] Diarización completada');
       session.setIsFinalized(true);
 
       setTimeout(async () => {
@@ -227,26 +227,26 @@ export function ConversationCapture({
         const currentSessionId = session.sessionIdRef.current;
         if (currentSessionId) {
           try {
-            metrics.addLog('📋 Generando notas SOAP...');
+            metrics.addLog('[INFO] Generando notas SOAP...');
             await orchestrator.startSOAPGeneration();
-            metrics.addLog('✅ Generación SOAP iniciada');
+            metrics.addLog('[OK] Generación SOAP iniciada');
           } catch (error) {
-            console.error('[SOAP] ❌ Failed:', error);
-            metrics.addLog('⚠️ Error al generar SOAP');
+            console.error('[SOAP] Failed:', error);
+            metrics.addLog('[WARN] Error al generar SOAP');
           }
         }
 
-        metrics.addLog('✅ Sesión completada');
+        metrics.addLog('[OK] Sesión completada');
         orchestrator.finalizeWorkflow();
       }, 2000);
     },
     onError: (error) => {
-      console.error('[Diarization] ❌ Error:', error);
+      console.error('[Diarization] Error:', error);
       session.setShowDiarizationModal(false);
       session.setDiarizationJobId(null);
       session.sessionIdRef.current = '';
       session.setSessionId('');
-      metrics.addLog(`❌ Error en diarización: ${error}`);
+      metrics.addLog(`[ERROR] Error en diarización: ${error}`);
     },
   });
 
@@ -292,12 +292,12 @@ export function ConversationCapture({
     const completedCount = chunkStatuses.filter((c) => c.status === 'completed').length;
 
     if (pendingChunks.length > 0) {
-      metrics.addLog(`⏳ Transcripción: ${completedCount}/${audioUpload.chunkNumberRef.current} chunks`);
+      metrics.addLog(`[...] Transcripción: ${completedCount}/${audioUpload.chunkNumberRef.current} chunks`);
     }
 
     const elapsed = Date.now() - session.finalizationStartTimeRef.current;
     if (elapsed > 30000 && pendingChunks.length > 0) {
-      metrics.addLog(`⚠️ Timeout: ${pendingChunks.length} chunks pendientes`);
+      metrics.addLog(`[WARN] Timeout: ${pendingChunks.length} chunks pendientes`);
       session.setIsWaitingForChunks(false);
       session.setShouldFinalize(false);
       return;

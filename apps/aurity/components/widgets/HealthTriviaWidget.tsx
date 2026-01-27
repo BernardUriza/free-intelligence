@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Brain, Check } from 'lucide-react';
 
 interface HealthTriviaWidgetProps {
   question: string;
@@ -41,11 +42,8 @@ export function HealthTriviaWidget({
     <div className="h-full flex flex-col bg-gradient-to-br from-emerald-950/60 to-teal-950/40 border border-emerald-600/40 rounded-xl backdrop-blur-sm p-4 sm:p-6 lg:p-8">
       <div className="fi-flex-between mb-4 sm:mb-6 flex-shrink-0">
         <div className="flex items-center gap-3 sm:gap-4">
-          <div
-            className="bg-emerald-500/10 rounded-full p-3 sm:p-4"
-            style={{ fontSize: 'clamp(2rem, 4vw, 4rem)' }}
-          >
-            🧠
+          <div className="bg-emerald-500/10 rounded-full p-3 sm:p-4 flex items-center justify-center">
+            <Brain className="w-10 h-10 sm:w-14 sm:h-14 lg:w-16 lg:h-16 text-emerald-400" strokeWidth={1.5} aria-hidden="true" />
           </div>
           <div>
             <h3
@@ -131,7 +129,7 @@ export function HealthTriviaWidget({
             className="text-emerald-200 leading-relaxed text-center"
             style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}
           >
-            <span className="font-semibold text-emerald-300">✓ </span>
+            <Check className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-300 inline-flex mr-1" strokeWidth={2} aria-hidden="true" />
             {explanation}
           </p>
         </div>

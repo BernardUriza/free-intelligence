@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { AppTemplate } from '@/components/layout/AppTemplate';
 import { Button } from '@/components/ui/button';
 import { toastError, showInfo } from '@/lib/swal';
-import { Trash2, BarChart2, ArrowLeft } from 'lucide-react';
+import { Trash2, BarChart2, ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, FolderOpen, Loader2 } from 'lucide-react';
 import { isDesktop } from '@/lib/config/deployment';
 
 export default function OnboardingResetPage() {
@@ -40,13 +40,13 @@ export default function OnboardingResetPage() {
         try {
           const { invoke } = await import('@tauri-apps/api/core');
           await invoke('reset_wizard_state');
-          console.log('✅ Desktop wizard state reset (filesystem)');
+          console.log('[OK] Desktop wizard state reset (filesystem)');
         } catch (tauriErr) {
           console.warn('Could not reset Tauri wizard state:', tauriErr);
         }
       }
 
-      console.log('✅ Onboarding data cleared from LocalStorage');
+      console.log('[OK] Onboarding data cleared from LocalStorage');
 
       setStatus('done');
 
@@ -70,7 +70,7 @@ export default function OnboardingResetPage() {
     const completed = localStorage.getItem('aurity_onboarding_completed');
     const survey = localStorage.getItem('fi_onboarding_survey');
 
-    console.log('📊 Current Onboarding State:');
+    console.log('[INFO] Current Onboarding State:');
     console.log('- Progress:', progress ? JSON.parse(progress) : 'None');
     console.log('- Conversation:', conversation ? JSON.parse(conversation) : 'None');
     console.log('- Completed:', completed || 'false');
@@ -97,7 +97,9 @@ export default function OnboardingResetPage() {
         <div className="bg-slate-900/50 p-12 rounded-xl border border-slate-800 text-center space-y-8 w-full">
           {/* Header */}
           <div>
-            <div className="text-6xl mb-4">🔄</div>
+            <div className="mb-4">
+              <RefreshCw className="w-16 h-16 text-blue-400 mx-auto" strokeWidth={1.5} aria-hidden="true" />
+            </div>
             <h1 className="text-3xl font-bold text-slate-50 mb-2">
               Reiniciar Onboarding
             </h1>
@@ -110,8 +112,9 @@ export default function OnboardingResetPage() {
           {status === 'idle' && (
             <div className="fi-stack-xl">
               <div className="p-4 bg-yellow-950/30 border border-yellow-700/50 rounded-lg">
-                <p className="text-yellow-200 text-sm">
-                  ⚠️ Esto eliminará todo el progreso de onboarding guardado en LocalStorage
+                <p className="text-yellow-200 text-sm flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
+                  Esto eliminará todo el progreso de onboarding guardado en LocalStorage
                 </p>
               </div>
 
@@ -149,7 +152,7 @@ export default function OnboardingResetPage() {
 
           {status === 'resetting' && (
             <div className="space-y-4">
-              <div className="text-4xl animate-spin">🔄</div>
+              <Loader2 className="w-10 h-10 text-blue-400 mx-auto animate-spin" strokeWidth={1.5} aria-hidden="true" />
               <p className="fi-text font-medium">
                 Limpiando datos de LocalStorage...
               </p>
@@ -158,7 +161,7 @@ export default function OnboardingResetPage() {
 
           {status === 'done' && (
             <div className="space-y-4 animate-fade-in-up">
-              <div className="text-6xl">✅</div>
+              <CheckCircle className="w-16 h-16 text-emerald-400 mx-auto" strokeWidth={1.5} aria-hidden="true" />
               <p className="text-emerald-300 font-semibold text-xl">
                 ¡Onboarding reiniciado!
               </p>
@@ -175,8 +178,9 @@ export default function OnboardingResetPage() {
 
           {/* Info Box */}
           <div className="mt-8 p-4 bg-slate-800/50 rounded-lg text-left">
-            <h3 className="text-sm font-semibold fi-text mb-2">
-              🗂️ Datos Afectados:
+            <h3 className="text-sm font-semibold fi-text mb-2 flex items-center gap-2">
+              <FolderOpen className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
+              Datos Afectados:
             </h3>
             <ul className="fi-text-xs space-y-1 font-mono">
               <li>• fi_onboarding_progress</li>

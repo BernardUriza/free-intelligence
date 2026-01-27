@@ -12,6 +12,7 @@
  * Extracted from ConversationCapture (Phase 7)
  */
 
+import { Circle } from 'lucide-react';
 import { formatTime } from '@/lib/audio/formatting';
 import { AUDIO_CONFIG } from '@/lib/audio/constants';
 
@@ -33,9 +34,16 @@ export function AudioLevelVisualizer({
   const thresholdPercent = Math.round((AUDIO_CONFIG.SILENCE_THRESHOLD / 255) * 100);
 
   const getQualityIndicator = () => {
-    if (audioLevel > AUDIO_CONFIG.SILENCE_THRESHOLD * 3) return '🟢 Excelente';
-    if (audioLevel > AUDIO_CONFIG.SILENCE_THRESHOLD) return '🟡 Buena';
-    return '🔴 Baja';
+    const color = audioLevel > AUDIO_CONFIG.SILENCE_THRESHOLD * 3 ? 'text-emerald-500' :
+                  audioLevel > AUDIO_CONFIG.SILENCE_THRESHOLD ? 'text-yellow-500' : 'text-red-500';
+    const label = audioLevel > AUDIO_CONFIG.SILENCE_THRESHOLD * 3 ? 'Excelente' :
+                  audioLevel > AUDIO_CONFIG.SILENCE_THRESHOLD ? 'Buena' : 'Baja';
+    return (
+      <span className="flex items-center gap-1">
+        <Circle className={`w-2.5 h-2.5 fill-current ${color}`} aria-hidden="true" />
+        {label}
+      </span>
+    );
   };
 
   return (

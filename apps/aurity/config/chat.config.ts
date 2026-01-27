@@ -6,6 +6,17 @@
  */
 
 import type { ReactNode } from 'react';
+import type { LucideIcon } from 'lucide-react';
+import {
+  Home,
+  MessageCircle,
+  BarChart3,
+  FileText,
+  Hand,
+  Building2,
+  Settings,
+  Bot,
+} from 'lucide-react';
 
 // ============================================================================
 // THEME CONFIGURATION
@@ -92,8 +103,8 @@ export interface PersonaStyle {
   /** Shadow glow class */
   glow: string;
 
-  /** Icon emoji or component */
-  icon: string | ReactNode;
+  /** Icon component (Lucide) or ReactNode for custom icons */
+  icon: LucideIcon | ReactNode;
 
   /** Display label */
   label: string;
@@ -115,7 +126,7 @@ export const personaStyles: Record<string, PersonaStyle> = {
     border: 'border-emerald-600/60',
     bg: 'bg-emerald-950/20',
     glow: 'shadow-emerald-500/10',
-    icon: '🏠',
+    icon: Home,
     label: 'FREE-INTELLIGENCE',
     labelColor: 'text-emerald-300',
   },
@@ -125,7 +136,7 @@ export const personaStyles: Record<string, PersonaStyle> = {
     border: 'border-slate-600/60',
     bg: 'bg-slate-900/20',
     glow: 'shadow-slate-500/10',
-    icon: '💬',
+    icon: MessageCircle,
     label: 'FREE-INTELLIGENCE',
     labelColor: 'text-slate-300',
   },
@@ -135,7 +146,7 @@ export const personaStyles: Record<string, PersonaStyle> = {
     border: 'border-blue-600/60',
     bg: 'bg-blue-950/20',
     glow: 'shadow-blue-500/10',
-    icon: '📊',
+    icon: BarChart3,
     label: 'FREE-INTELLIGENCE · CLINICAL',
     labelColor: 'text-blue-300',
   },
@@ -145,7 +156,7 @@ export const personaStyles: Record<string, PersonaStyle> = {
     border: 'border-cyan-600/60',
     bg: 'bg-cyan-950/20',
     glow: 'shadow-cyan-500/10',
-    icon: '📝',
+    icon: FileText,
     label: 'FREE-INTELLIGENCE · SOAP',
     labelColor: 'text-cyan-300',
   },
@@ -155,7 +166,7 @@ export const personaStyles: Record<string, PersonaStyle> = {
     border: 'border-purple-600/60',
     bg: 'bg-purple-950/20',
     glow: 'shadow-purple-500/10',
-    icon: '👋',
+    icon: Hand,
     label: 'FREE-INTELLIGENCE · SALA DE ESPERA',
     labelColor: 'text-purple-300',
   },
@@ -165,7 +176,7 @@ export const personaStyles: Record<string, PersonaStyle> = {
     border: 'border-indigo-600/60',
     bg: 'bg-indigo-950/20',
     glow: 'shadow-indigo-500/10',
-    icon: '🏥',
+    icon: Building2,
     label: 'FI RECEPTIONIST',
     labelColor: 'text-indigo-300',
     badge: {
@@ -180,7 +191,7 @@ export const personaStyles: Record<string, PersonaStyle> = {
     border: 'border-amber-600/60',
     bg: 'bg-amber-950/20',
     glow: 'shadow-amber-500/10',
-    icon: '⚙️',
+    icon: Settings,
     label: 'SYSTEM',
     labelColor: 'text-amber-300',
     badge: {
@@ -195,7 +206,7 @@ export const fallbackPersonaStyle: PersonaStyle = {
   border: 'border-slate-600/60',
   bg: 'bg-slate-900/20',
   glow: 'shadow-slate-500/10',
-  icon: '🤖',
+  icon: Bot,
   label: 'FREE-INTELLIGENCE',
   labelColor: 'text-slate-300',
 };

@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { FileText, Package, Wrench, Globe, Download, Lightbulb, CheckCircle, XCircle } from 'lucide-react';
 import {
   OnboardingEvidence,
   generateMarkdownExport,
@@ -75,8 +76,9 @@ export function ExportReport({ evidence, onComplete }: ExportReportProps) {
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-50 mb-2">
-          📄 Export Onboarding Evidence
+        <h2 className="text-2xl font-bold text-slate-50 mb-2 flex items-center justify-center gap-2">
+          <FileText className="w-7 h-7" strokeWidth={1.5} aria-hidden="true" />
+          Export Onboarding Evidence
         </h2>
         <p className="text-slate-400">
           Phase 7 of 8 · Download completion report
@@ -86,7 +88,7 @@ export function ExportReport({ evidence, onComplete }: ExportReportProps) {
       {/* FI Message */}
       <div className="p-6 bg-slate-900/60 backdrop-blur-xl rounded-xl border border-emerald-700/30">
         <div className="flex items-start gap-4">
-          <span className="text-3xl">📦</span>
+          <Package className="w-8 h-8 text-emerald-400 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
           <div>
             <p className="text-sm font-semibold text-emerald-300 mb-2">
               Free-Intelligence · Tone: Empathetic (Final export)
@@ -120,7 +122,7 @@ export function ExportReport({ evidence, onComplete }: ExportReportProps) {
           size="lg"
           title="Markdown"
         >
-          <div className="text-3xl mb-3">📝</div>
+          <div className="mb-3"><FileText className="w-8 h-8 text-purple-400" strokeWidth={1.5} aria-hidden="true" /></div>
           <h3 className="fi-section-title">Markdown</h3>
           <p className="fi-text-xs mb-3">
             Developer-friendly, readable text format
@@ -143,7 +145,7 @@ export function ExportReport({ evidence, onComplete }: ExportReportProps) {
           size="lg"
           title="JSON"
         >
-          <div className="text-3xl mb-3">🔧</div>
+          <div className="mb-3"><Wrench className="w-8 h-8 text-emerald-400" strokeWidth={1.5} aria-hidden="true" /></div>
           <h3 className="fi-section-title">JSON</h3>
           <p className="fi-text-xs mb-3">
             Machine-readable, structured data
@@ -166,7 +168,7 @@ export function ExportReport({ evidence, onComplete }: ExportReportProps) {
           size="lg"
           title="HTML"
         >
-          <div className="text-3xl mb-3">🌐</div>
+          <div className="mb-3"><Globe className="w-8 h-8 text-yellow-400" strokeWidth={1.5} aria-hidden="true" /></div>
           <h3 className="fi-section-title">HTML</h3>
           <p className="fi-text-xs mb-3">
             Printable, browser-viewable format
@@ -212,33 +214,34 @@ export function ExportReport({ evidence, onComplete }: ExportReportProps) {
         <div className="p-4 bg-blue-950/20 border border-blue-700/30 rounded-xl">
           <p className="text-xs fi-text-primary mb-1">User Profile</p>
           <p className="text-lg font-bold text-slate-200">
-            {evidence.user.role ? '✅' : '❌'}
+            {evidence.user.role ? <CheckCircle className="w-6 h-6 text-emerald-400" strokeWidth={1.5} aria-hidden="true" /> : <XCircle className="w-6 h-6 text-red-400" strokeWidth={1.5} aria-hidden="true" />}
           </p>
         </div>
         <div className="p-4 bg-purple-950/20 border border-purple-700/30 rounded-xl">
           <p className="text-xs fi-text-purple mb-1">Philosophy Quiz</p>
           <p className="text-lg font-bold text-slate-200">
-            {(evidence.philosophy.glitchScore || 0) + (evidence.philosophy.betaScore || 0) + (evidence.philosophy.residenciaScore || 0) > 0 ? '✅' : '❌'}
+            {(evidence.philosophy.glitchScore || 0) + (evidence.philosophy.betaScore || 0) + (evidence.philosophy.residenciaScore || 0) > 0 ? <CheckCircle className="w-6 h-6 text-emerald-400" strokeWidth={1.5} aria-hidden="true" /> : <XCircle className="w-6 h-6 text-red-400" strokeWidth={1.5} aria-hidden="true" />}
           </p>
         </div>
         <div className="p-4 bg-emerald-950/20 border border-emerald-700/30 rounded-xl">
           <p className="text-xs fi-text-success mb-1">Patient Demo</p>
           <p className="text-lg font-bold text-slate-200">
-            {evidence.patient.nombre ? '✅' : '❌'}
+            {evidence.patient.nombre ? <CheckCircle className="w-6 h-6 text-emerald-400" strokeWidth={1.5} aria-hidden="true" /> : <XCircle className="w-6 h-6 text-red-400" strokeWidth={1.5} aria-hidden="true" />}
           </p>
         </div>
         <div className="p-4 bg-cyan-950/20 border border-cyan-700/30 rounded-xl">
           <p className="text-xs fi-text-info mb-1">Consultation</p>
           <p className="text-lg font-bold text-slate-200">
-            {evidence.consultation.mode ? '✅' : '❌'}
+            {evidence.consultation.mode ? <CheckCircle className="w-6 h-6 text-emerald-400" strokeWidth={1.5} aria-hidden="true" /> : <XCircle className="w-6 h-6 text-red-400" strokeWidth={1.5} aria-hidden="true" />}
           </p>
         </div>
       </div>
 
       {/* Actions */}
       <div className="flex items-center justify-center gap-4">
-        <Button onClick={handleExport} size="xl">
-          📥 Download {selectedFormat.toUpperCase()}
+        <Button onClick={handleExport} size="xl" className="flex items-center gap-2">
+          <Download className="w-5 h-5" strokeWidth={1.5} aria-hidden="true" />
+          Download {selectedFormat.toUpperCase()}
         </Button>
         <Button onClick={onComplete} variant="cyan" size="xl">
           Continue to Celebration →
@@ -248,7 +251,7 @@ export function ExportReport({ evidence, onComplete }: ExportReportProps) {
       {/* Note */}
       <div className="p-4 bg-yellow-950/20 border border-yellow-700/30 rounded-xl">
         <p className="text-xs text-yellow-300 flex items-start gap-2">
-          <span className="text-lg">💡</span>
+          <Lightbulb className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
           <span>
             <strong>Tip:</strong> Si seleccionas HTML, puedes abrirlo en tu navegador y usar
             &quot;Imprimir → Guardar como PDF&quot; para generar un PDF oficial del reporte.

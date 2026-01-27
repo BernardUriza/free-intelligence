@@ -463,20 +463,28 @@ export function formatWaitTime(minutes: number): string {
 }
 
 /**
- * Get action icon by type
+ * Get action icon key by type
+ * Returns a key that maps to a Lucide icon (see lib/icons/checkin-icons.ts)
+ */
+export function getActionIconKey(actionType: string): string {
+  const iconKeys: Record<string, string> = {
+    update_contact: 'smartphone',
+    update_insurance: 'building2',
+    sign_consent: 'penLine',
+    sign_privacy: 'lock',
+    pay_copay: 'creditCard',
+    pay_balance: 'coins',
+    upload_labs: 'testTube',
+    upload_imaging: 'fileX',
+    fill_questionnaire: 'clipboardList',
+    verify_identity: 'idCard',
+  };
+  return iconKeys[actionType] || 'fileText';
+}
+
+/**
+ * @deprecated Use getActionIconKey instead - returns icon keys for Lucide icons
  */
 export function getActionIcon(actionType: string): string {
-  const icons: Record<string, string> = {
-    update_contact: '📱',
-    update_insurance: '🏥',
-    sign_consent: '✍️',
-    sign_privacy: '🔒',
-    pay_copay: '💳',
-    pay_balance: '💰',
-    upload_labs: '🧪',
-    upload_imaging: '🩻',
-    fill_questionnaire: '📋',
-    verify_identity: '🪪',
-  };
-  return icons[actionType] || '📝';
+  return getActionIconKey(actionType);
 }

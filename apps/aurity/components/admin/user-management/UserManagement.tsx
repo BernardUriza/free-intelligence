@@ -321,7 +321,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
                                 : 'fi-role-toggle'
                               }
                             >
-                              {hasRole && '✓ '}
+                              {hasRole && <><Check className="w-3 h-3 inline mr-1" strokeWidth={1.5} aria-hidden="true" /></>}
                               {getRoleName(role)}
                             </button>
                           );

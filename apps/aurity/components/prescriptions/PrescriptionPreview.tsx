@@ -10,6 +10,7 @@
 "use client";
 
 import { forwardRef } from "react";
+import { AlertTriangle } from "lucide-react";
 import {
   Prescription,
   FREQUENCY_LABELS,
@@ -176,8 +177,9 @@ export const PrescriptionPreview = forwardRef<
                   </p>
                 )}
                 {med.warnings && (
-                  <p className="ml-4 text-amber-700 text-xs">
-                    ⚠️ {med.warnings}
+                  <p className="ml-4 text-amber-700 text-xs flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" strokeWidth={1.5} aria-hidden="true" />
+                    {med.warnings}
                   </p>
                 )}
               </div>

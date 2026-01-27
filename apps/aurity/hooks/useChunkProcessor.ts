@@ -132,7 +132,7 @@ export function useChunkProcessor(
             // Chunk not yet in job metadata
             if (attempt % 5 === 0 || attempt >= maxAttempts - 2) {
               console.log(
-                `[CHUNK ${chunkNumber}] ⏳ Chunk not found in job yet (attempt ${attempt + 1}/${maxAttempts})`
+                `[CHUNK ${chunkNumber}] [WAIT] Chunk not found in job yet (attempt ${attempt + 1}/${maxAttempts})`
               );
             }
             await new Promise((resolve) => setTimeout(resolve, pollInterval));
@@ -154,7 +154,7 @@ export function useChunkProcessor(
             const latency = endTime - startTime;
 
             console.log(
-              `[CHUNK ${chunkNumber}] ✅ Poll completed (${latency}ms)`,
+              `[CHUNK ${chunkNumber}] [OK] Poll completed (${latency}ms)`,
               targetChunk
             );
             addLog(`Chunk ${chunkNumber} transcrito en ${(latency / 1000).toFixed(1)}s`);
@@ -213,7 +213,7 @@ export function useChunkProcessor(
             console.error(
               `[CHUNK ${chunkNumber}] Chunk failed: ${targetChunk.error_message || 'Unknown error'}`
             );
-            addLog(`❌ Chunk ${chunkNumber} falló: ${targetChunk.error_message || 'Unknown'}`);
+            addLog(`[ERROR] Chunk ${chunkNumber} falló: ${targetChunk.error_message || 'Unknown'}`);
 
             setChunkStatuses((prev) =>
               prev.map((c) =>
@@ -234,7 +234,7 @@ export function useChunkProcessor(
             if (attempt % 5 === 0 || attempt >= maxAttempts - 2) {
               // Log every 5 attempts OR when close to timeout
               console.log(
-                `[CHUNK ${chunkNumber}] ⏳ Polling... (${targetChunk.status}, attempt ${attempt + 1}/${maxAttempts})`
+                `[CHUNK ${chunkNumber}] [WAIT] Polling... (${targetChunk.status}, attempt ${attempt + 1}/${maxAttempts})`
               );
             }
             await new Promise((resolve) => setTimeout(resolve, pollInterval));
@@ -255,9 +255,9 @@ export function useChunkProcessor(
 
       // Timeout after maxAttempts - chunk will be marked as unresolved
       console.warn(
-        `[CHUNK ${chunkNumber}] ⚠️ Timeout after ${maxAttempts} attempts (${(maxAttempts * pollInterval) / 1000}s). Backend may be overloaded or STT service unavailable.`
+        `[CHUNK ${chunkNumber}] [WARN] Timeout after ${maxAttempts} attempts (${(maxAttempts * pollInterval) / 1000}s). Backend may be overloaded or STT service unavailable.`
       );
-      addLog(`⚠️ Chunk ${chunkNumber} timeout después de ${maxAttempts} intentos - transcripción incompleta`);
+      addLog(`[WARN] Chunk ${chunkNumber} timeout después de ${maxAttempts} intentos - transcripción incompleta`);
 
       setChunkStatuses((prev) =>
         prev.map((c) =>

@@ -9,6 +9,7 @@
 
 import { Download, Trash2, Check, HardDrive, Cpu, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ProviderLogo } from '@/components/ui/ProviderLogo';
 import type { CatalogModel } from '@/lib/api/catalog';
 import { SOURCE_INFO, QUANT_INFO, formatBytes } from '@/lib/api/catalog';
 
@@ -50,7 +51,7 @@ export function CatalogModelCard({
       {/* Header */}
       <div className="admin-card-header">
         <div className="admin-card-header-inner">
-          <span className="text-2xl" title={sourceInfo.label}>{sourceInfo.icon}</span>
+          <ProviderLogo provider={model.source} size={28} className="text-slate-300" />
           <div>
             <h3 className="admin-card-title" title={model.name}>{model.name}</h3>
             <div className="flex items-center gap-2 mt-0.5">

@@ -154,25 +154,25 @@ export const timelineEventConfig: TimelineConfig = {
       const severityLabel = errorSeverity ? `[${errorSeverity.toUpperCase()}]` : '';
       statusBadge = (
         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-500/20 fi-text-error border border-red-500/30">
-          ⚠ {errorLabel} {severityLabel}
+          {errorLabel} {severityLabel}
         </span>
       );
     } else if (hasTranscript && hasDuration) {
       statusBadge = (
         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-500/20 fi-text-green border border-green-500/30">
-          ✓ Valid
+          Valid
         </span>
       );
     } else if (hasDuration) {
       statusBadge = (
         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-          ⚠ Empty
+          Empty
         </span>
       );
     } else if (event.type.toLowerCase() === 'transcription') {
       statusBadge = (
         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-500/20 fi-text-error border border-red-500/30">
-          ✗ Invalid
+          Invalid
         </span>
       );
     }
@@ -569,8 +569,8 @@ Total Events: ${events.length}
         const type = event.type.toLowerCase();
         const isChat = type.startsWith('chat_');
         const label = isChat
-          ? (type === 'chat_user' ? '👤 Usuario' : '🤖 Asistente')
-          : `🎙️ ${event.type}`;
+          ? (type === 'chat_user' ? 'Usuario' : 'Asistente')
+          : event.type;
 
         return `## ${label} - ${timestamp}
 ${event.content}

@@ -7,33 +7,43 @@
  */
 
 import { motion } from "framer-motion";
+import { FileText, Zap, Database, BarChart3, RefreshCw } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+interface FlowStep {
+  id: number;
+  icon: LucideIcon;
+  label: string;
+  description: string;
+  color: string;
+}
 
 export function FlowDiagram() {
-  const steps = [
+  const steps: FlowStep[] = [
     {
       id: 1,
-      icon: "📝",
+      icon: FileText,
       label: "Patient Form",
       description: "Datos del paciente",
       color: "bg-blue-600/20 border-blue-600/40 text-blue-300",
     },
     {
       id: 2,
-      icon: "⚡",
+      icon: Zap,
       label: "Validation",
       description: "Validación en tiempo real",
       color: "bg-purple-600/20 border-purple-600/40 text-purple-300",
     },
     {
       id: 3,
-      icon: "🗄️",
+      icon: Database,
       label: "HDF5 Storage",
       description: "/storage/corpus.h5",
       color: "bg-emerald-600/20 border-emerald-600/40 text-emerald-300",
     },
     {
       id: 4,
-      icon: "📊",
+      icon: BarChart3,
       label: "Timeline",
       description: "Visualización de sesión",
       color: "bg-cyan-600/20 border-cyan-600/40 text-cyan-300",
@@ -44,8 +54,8 @@ export function FlowDiagram() {
     <div className="fi-stack-xl">
       {/* Title */}
       <div className="text-center">
-        <h3 className="fi-section-title">
-          🔄 Flujo de Datos
+        <h3 className="fi-section-title flex items-center justify-center gap-2">
+          <RefreshCw className="w-5 h-5" /> Flujo de Datos
         </h3>
         <p className="fi-text-xs">
           Desde el formulario hasta la visualización en timeline
@@ -95,9 +105,9 @@ export function FlowDiagram() {
                         type: "spring",
                         stiffness: 200,
                       }}
-                      className="flex-shrink-0 w-12 h-12 rounded-full bg-slate-900/60 flex items-center justify-center text-2xl"
+                      className="flex-shrink-0 w-12 h-12 rounded-full bg-slate-900/60 flex items-center justify-center"
                     >
-                      {step.icon}
+                      <step.icon className="w-6 h-6" strokeWidth={1.5} />
                     </motion.div>
 
                     {/* Content */}
@@ -133,10 +143,11 @@ export function FlowDiagram() {
         transition={{ duration: 0.5, delay: 1.2 }}
         className="p-4 bg-slate-900/60 border border-slate-700/50 rounded-xl"
       >
-        <p className="text-xs fi-text">
-          <strong className="fi-text-success">⚡ Real-time:</strong> Cada cambio en el formulario
+        <p className="text-xs fi-text flex items-start gap-2">
+          <Zap className="w-4 h-4 fi-text-success flex-shrink-0 mt-0.5" />
+          <span><strong className="fi-text-success">Real-time:</strong> Cada cambio en el formulario
           actualiza inmediatamente el preview HDF5. La estructura se guarda localmente en tu navegador
-          para esta demo.
+          para esta demo.</span>
         </p>
       </motion.div>
     </div>

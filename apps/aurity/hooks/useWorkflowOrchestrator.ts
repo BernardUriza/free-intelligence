@@ -66,13 +66,13 @@ export function useWorkflowOrchestrator(
     async (patientInfo?: any) => {
       if (session.isFinalized) {
         session.setError('La sesión ya ha sido finalizada. No se puede grabar.');
-        metrics.addLog('⚠️ Sesión completada - recarga la página para nueva consulta');
+        metrics.addLog('Sesión completada - recarga la página para nueva consulta');
         return;
       }
 
       // Initialize session
       const sessionId = session.initializeSession(patientInfo);
-      metrics.addLog(`🎙️ Grabación iniciada - Sesión: ${sessionId}`);
+      metrics.addLog(`Grabación iniciada - Sesión: ${sessionId}`);
 
       // Reset counters
       audioUpload.resetChunkCounter();
@@ -92,7 +92,7 @@ export function useWorkflowOrchestrator(
 
   // Stop recording
   const stopRecording = useCallback(async () => {
-    metrics.addLog('⏹️ Deteniendo grabación...');
+    metrics.addLog('Deteniendo grabación...');
 
     // Wait for inflight chunks
     const maxWait = 30; // 30 seconds max
@@ -103,10 +103,10 @@ export function useWorkflowOrchestrator(
     }
 
     if (audioUpload.getInflightCount() > 0) {
-      metrics.addLog(`⚠️ Advertencia: ${audioUpload.getInflightCount()} chunks aún en proceso`);
+      metrics.addLog(`Advertencia: ${audioUpload.getInflightCount()} chunks aún en proceso`);
     }
 
-    metrics.addLog('✅ Grabación detenida');
+    metrics.addLog('Grabación detenida');
 
     if (onRecordingStop) {
       onRecordingStop();
@@ -116,7 +116,7 @@ export function useWorkflowOrchestrator(
   // Pause recording
   const pauseRecording = useCallback(async () => {
     session.setIsPaused(true);
-    metrics.addLog('⏸️ Grabación pausada');
+    metrics.addLog('Grabación pausada');
 
     if (onPause) {
       onPause();
@@ -127,7 +127,7 @@ export function useWorkflowOrchestrator(
   const resumeRecording = useCallback(async () => {
     session.setIsPaused(false);
     session.setPausedAudioUrl(null);
-    metrics.addLog('▶️ Grabación reanudada');
+    metrics.addLog('Grabación reanudada');
 
     if (onResume) {
       onResume();
@@ -147,7 +147,7 @@ export function useWorkflowOrchestrator(
       progress: 0,
     });
 
-    metrics.addLog('📌 Creando checkpoint...');
+    metrics.addLog('Creando checkpoint...');
 
     try {
       const response = await medicalWorkflowApi.createCheckpoint(
@@ -166,7 +166,7 @@ export function useWorkflowOrchestrator(
       });
 
       metrics.addLog(
-        `✅ Checkpoint creado: ${response.chunks_concatenated} chunks, ${(response.full_audio_size / 1024 / 1024).toFixed(2)} MB`
+        `Checkpoint creado: ${response.chunks_concatenated} chunks, ${(response.full_audio_size / 1024 / 1024).toFixed(2)} MB`
       );
 
       // Generate preview URL
@@ -180,7 +180,7 @@ export function useWorkflowOrchestrator(
         progress: 0,
       });
       session.setError(error instanceof Error ? error.message : 'Error al crear checkpoint');
-      metrics.addLog('❌ Error al crear checkpoint');
+      metrics.addLog('Error al crear checkpoint');
     }
   }, [session, audioUpload, metrics]);
 
@@ -191,7 +191,7 @@ export function useWorkflowOrchestrator(
       return null;
     }
 
-    metrics.addLog('🎭 Iniciando diarización (separación de hablantes)...');
+    metrics.addLog('Iniciando diarización (separación de hablantes)...');
 
     try {
       const response = await medicalWorkflowApi.startDiarization(session.sessionId);
@@ -199,7 +199,7 @@ export function useWorkflowOrchestrator(
       session.setDiarizationJobId(response.job_id);
       session.setShowDiarizationModal(true);
 
-      metrics.addLog(`✅ Diarización iniciada - Job: ${response.job_id}`);
+      metrics.addLog(`Diarización iniciada - Job: ${response.job_id}`);
 
       if (onDiarizationStart) {
         onDiarizationStart(response.job_id);
@@ -209,7 +209,7 @@ export function useWorkflowOrchestrator(
     } catch (error) {
       console.error('Diarization start failed:', error);
       session.setError(error instanceof Error ? error.message : 'Error al iniciar diarización');
-      metrics.addLog('❌ Error al iniciar diarización');
+      metrics.addLog('Error al iniciar diarización');
       return null;
     }
   }, [session, metrics, onDiarizationStart]);
@@ -221,12 +221,12 @@ export function useWorkflowOrchestrator(
       return;
     }
 
-    metrics.addLog('📝 Iniciando generación de nota SOAP...');
+    metrics.addLog('Iniciando generación de nota SOAP...');
 
     try {
       const response = await medicalWorkflowApi.startSOAPGeneration(session.sessionId);
 
-      metrics.addLog(`✅ SOAP generation iniciado - Job: ${response.job_id}`);
+      metrics.addLog(`SOAP generation iniciado - Job: ${response.job_id}`);
 
       if (onSOAPStart) {
         onSOAPStart(response.job_id);
@@ -234,14 +234,14 @@ export function useWorkflowOrchestrator(
     } catch (error) {
       console.error('SOAP generation start failed:', error);
       session.setError(error instanceof Error ? error.message : 'Error al generar SOAP');
-      metrics.addLog('❌ Error al generar SOAP');
+      metrics.addLog('Error al generar SOAP');
     }
   }, [session, metrics, onSOAPStart]);
 
   // Finalize workflow
   const finalizeWorkflow = useCallback(async () => {
     session.setIsFinalized(true);
-    metrics.addLog('🏁 Workflow finalizado');
+    metrics.addLog('Workflow finalizado');
 
     if (onWorkflowComplete) {
       onWorkflowComplete();

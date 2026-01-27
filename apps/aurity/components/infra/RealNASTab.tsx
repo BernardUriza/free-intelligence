@@ -88,27 +88,27 @@ chmod +x scripts/nas-setup.sh
             <h4 className="fi-label">What the script does:</h4>
             <ul className="space-y-1 fi-subtitle">
               <li className="flex items-start gap-2">
-                <span className="fi-text-success mt-0.5">✓</span>
+                <span className="fi-text-success mt-0.5">-</span>
                 <span>Checks prerequisites (Node 18+, Python 3.11+)</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="fi-text-success mt-0.5">✓</span>
+                <span className="fi-text-success mt-0.5">-</span>
                 <span>Installs pnpm if not present</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="fi-text-success mt-0.5">✓</span>
+                <span className="fi-text-success mt-0.5">-</span>
                 <span>Creates required directories (storage, logs, backups)</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="fi-text-success mt-0.5">✓</span>
+                <span className="fi-text-success mt-0.5">-</span>
                 <span>Installs Node.js and Python dependencies</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="fi-text-success mt-0.5">✓</span>
+                <span className="fi-text-success mt-0.5">-</span>
                 <span>Builds production assets with Turborepo</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="fi-text-success mt-0.5">✓</span>
+                <span className="fi-text-success mt-0.5">-</span>
                 <span>Generates .env.local template</span>
               </li>
             </ul>

@@ -17,10 +17,11 @@ import { useState, useCallback } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MediaUploader, type UploadedMedia } from './MediaUploader';
 import { AIContentGenerator, type GeneratedContent } from './AIContentGenerator';
-import { MessageSquare, Film, Sparkles, MessageCircle, Send, Video, Info } from 'lucide-react';
+import { MessageSquare, Film, Sparkles, MessageCircle, Send, Video, Info, Lightbulb, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ReceptionistChatWidget } from '@/components/checkin/ReceptionistChatWidget';
 import { QUICK_MESSAGES, MAX_MESSAGE_LENGTH } from '@/lib/dashboard/constants';
+import { getDynamicIcon } from '@/lib/icons';
 
 interface DoctorControlPanelProps {
   /** Callback when message is sent to TV */
@@ -92,11 +93,12 @@ export function DoctorControlPanel({
   const handleAIContentGenerated = useCallback((content: GeneratedContent) => {
     console.log('AI content generated:', content);
     // Send the content as a message to the TV display
+    // Note: TV display uses text-only messages, icons rendered separately
     if (content.type === 'tip') {
-      onMessageSend(`💡 ${content.content}`);
+      onMessageSend(`[TIP] ${content.content}`);
     } else if (content.type === 'trivia') {
       // Format trivia for display
-      const triviaMsg = `❓ ${content.content}`;
+      const triviaMsg = `[TRIVIA] ${content.content}`;
       onMessageSend(triviaMsg);
     }
   }, [onMessageSend]);
@@ -218,22 +220,28 @@ export function DoctorControlPanel({
             Mensajes Rápidos
           </label>
           <div className="grid grid-cols-1 gap-2">
-            {quickMessages.map((msg) => (
-              <Button
-                key={msg.id}
-                type="button"
-                onClick={() => handleQuickMessage(`${msg.emoji} ${msg.text}`)}
-                disabled={isSending}
-                className="px-4 py-2 bg-slate-900/50 hover:bg-slate-800 border border-slate-600 hover:border-purple-500/50 disabled:bg-slate-900 disabled:cursor-not-allowed text-left text-sm fi-text hover:text-white rounded-lg transition-all group"
-                aria-label={`Enviar mensaje: ${msg.text}`}
-                variant="ghost"
-                size="sm"
-              >
-                <span className="group-hover:text-purple-300">
-                  {msg.emoji} {msg.text}
-                </span>
-              </Button>
-            ))}
+            {quickMessages.map((msg) => {
+              const MsgIcon = getDynamicIcon(msg.iconKey);
+              return (
+                <Button
+                  key={msg.id}
+                  type="button"
+                  onClick={() => handleQuickMessage(msg.text)}
+                  disabled={isSending}
+                  className="px-4 py-2 bg-slate-900/50 hover:bg-slate-800 border border-slate-600 hover:border-purple-500/50 disabled:bg-slate-900 disabled:cursor-not-allowed text-left text-sm fi-text hover:text-white rounded-lg transition-all group flex items-center gap-2"
+                  aria-label={`Enviar mensaje: ${msg.text}`}
+                  variant="ghost"
+                  size="sm"
+                >
+                  <span className="text-purple-400 group-hover:text-purple-300" aria-hidden="true">
+                    <MsgIcon className="w-4 h-4" strokeWidth={1.5} />
+                  </span>
+                  <span className="group-hover:text-purple-300">
+                    {msg.text}
+                  </span>
+                </Button>
+              );
+            })}
           </div>
         </div>
 

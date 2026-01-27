@@ -63,7 +63,7 @@ export function useDiarizationPolling(
     status: 'pending',
     progress: 0,
     hasTripleVision: false,
-    statusMessage: '⏳ Esperando en cola...',
+    statusMessage: 'Esperando en cola...',
   });
   const [isPolling, setIsPolling] = useState(false);
   const attemptRef = useRef(0);
@@ -108,17 +108,17 @@ export function useDiarizationPolling(
       // Build detailed status message
       let statusMessage = '';
       if (diarizationStatus === 'pending') {
-        statusMessage = '⏳ Esperando en cola...';
+        statusMessage = 'Esperando en cola...';
       } else if (diarizationStatus === 'in_progress') {
         if (data.segment_count > 0) {
-          statusMessage = `🎙️ Analizando audio... ${data.segment_count} segmentos identificados`;
+          statusMessage = `Analizando audio... ${data.segment_count} segmentos identificados`;
         } else {
-          statusMessage = '🔄 Iniciando análisis...';
+          statusMessage = 'Iniciando análisis...';
         }
       } else if (diarizationStatus === 'completed') {
-        statusMessage = `✅ Análisis completo: ${data.segment_count || 0} segmentos clasificados`;
+        statusMessage = `Análisis completo: ${data.segment_count || 0} segmentos clasificados`;
       } else if (diarizationStatus === 'failed') {
-        statusMessage = `❌ Error: ${data.error || 'Desconocido'}`;
+        statusMessage = `Error: ${data.error || 'Desconocido'}`;
       }
 
       return {

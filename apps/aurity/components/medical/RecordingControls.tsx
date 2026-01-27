@@ -102,7 +102,7 @@ const STATUS_OVERRIDE: Partial<Record<RecordingStateType, string>> = {
   idle: 'Presiona para comenzar a grabar',
   recording: 'Grabando... (Click para pausar)',
   paused: 'Pausado (Click para reanudar)',
-  finalized: '✅ Sesión completada',
+  finalized: 'Sesión completada',
 };
 
 // =============================================================================

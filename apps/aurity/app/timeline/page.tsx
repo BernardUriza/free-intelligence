@@ -446,7 +446,7 @@ export default function TimelinePage() {
           {/* Philosophy Note */}
           <div className="p-4 bg-slate-800/30 border border-slate-700 rounded-xl">
             <p className="fi-text-xs-muted italic text-center">
-              💡 &quot;No existen sesiones. Solo una conversación infinita&quot; — FI-PHIL-DOC-014
+              &quot;No existen sesiones. Solo una conversación infinita&quot; — FI-PHIL-DOC-014
             </p>
           </div>
 

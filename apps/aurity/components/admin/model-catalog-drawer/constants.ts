@@ -2,6 +2,7 @@
  * ModelCatalogDrawer Constants
  */
 
+import { Library, CheckCircle } from 'lucide-react';
 import type { CatalogSource } from '@/lib/api/catalog';
 import type { FilterTab } from './types';
 
@@ -23,11 +24,11 @@ export const INITIAL_SOURCE_STATES = {
 
 export function getFilterTabs(installedCount: number): FilterTab[] {
   return [
-    { key: 'all', label: 'Todos', icon: '📚' },
-    { key: 'installed', label: 'Instalados', icon: '✅', count: installedCount },
-    { key: 'gpt4all', label: 'GPT4All', icon: '🌿' },
-    { key: 'huggingface', label: 'HF', icon: '🤗' },
-    { key: 'ollama', label: 'Ollama', icon: '🦙' },
+    { key: 'all', label: 'Todos', icon: Library },
+    { key: 'installed', label: 'Instalados', icon: CheckCircle, count: installedCount },
+    { key: 'gpt4all', label: 'GPT4All', icon: 'provider' },
+    { key: 'huggingface', label: 'HF', icon: 'provider' },
+    { key: 'ollama', label: 'Ollama', icon: 'provider' },
   ];
 }
 

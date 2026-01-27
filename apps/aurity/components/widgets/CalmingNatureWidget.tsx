@@ -1,14 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Waves, TreePine, Mountain, Sunset, Flower2, Star } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
-const scenes = [
-  { emoji: '🌊', label: 'Olas del océano', subtitle: 'Déjate llevar por la calma del mar', color: 'from-blue-600/30 to-cyan-600/20' },
-  { emoji: '🌲', label: 'Bosque tranquilo', subtitle: 'Conecta con la naturaleza', color: 'from-green-600/30 to-emerald-600/20' },
-  { emoji: '🏔️', label: 'Montañas serenas', subtitle: 'Encuentra tu paz interior', color: 'from-slate-600/30 to-blue-600/20' },
-  { emoji: '🌅', label: 'Atardecer dorado', subtitle: 'Un momento de serenidad', color: 'from-orange-600/30 to-pink-600/20' },
-  { emoji: '🌸', label: 'Jardín zen', subtitle: 'Armonía y equilibrio', color: 'from-pink-600/30 to-rose-600/20' },
-  { emoji: '⭐', label: 'Cielo estrellado', subtitle: 'Infinitas posibilidades', color: 'from-indigo-600/30 to-purple-600/20' },
+interface Scene {
+  icon: LucideIcon;
+  label: string;
+  subtitle: string;
+  color: string;
+}
+
+const scenes: Scene[] = [
+  { icon: Waves, label: 'Olas del océano', subtitle: 'Déjate llevar por la calma del mar', color: 'from-blue-600/30 to-cyan-600/20' },
+  { icon: TreePine, label: 'Bosque tranquilo', subtitle: 'Conecta con la naturaleza', color: 'from-green-600/30 to-emerald-600/20' },
+  { icon: Mountain, label: 'Montañas serenas', subtitle: 'Encuentra tu paz interior', color: 'from-slate-600/30 to-blue-600/20' },
+  { icon: Sunset, label: 'Atardecer dorado', subtitle: 'Un momento de serenidad', color: 'from-orange-600/30 to-pink-600/20' },
+  { icon: Flower2, label: 'Jardín zen', subtitle: 'Armonía y equilibrio', color: 'from-pink-600/30 to-rose-600/20' },
+  { icon: Star, label: 'Cielo estrellado', subtitle: 'Infinitas posibilidades', color: 'from-indigo-600/30 to-purple-600/20' },
 ];
 
 export function CalmingNatureWidget() {
@@ -30,8 +39,8 @@ export function CalmingNatureWidget() {
 
   return (
     <div className={`h-full flex flex-col items-center justify-center bg-gradient-to-br ${scene.color} border border-slate-700/50 rounded-xl backdrop-blur-sm text-center transition-all duration-1000 p-4 sm:p-6 lg:p-8`}>
-      <div className="animate-pulse mb-4 sm:mb-6 lg:mb-8" style={{ fontSize: 'clamp(6rem, 20vw, 16rem)' }}>
-        {scene.emoji}
+      <div className="animate-pulse mb-4 sm:mb-6 lg:mb-8 text-white/80">
+        <scene.icon style={{ width: 'clamp(6rem, 20vw, 16rem)', height: 'clamp(6rem, 20vw, 16rem)' }} strokeWidth={1} />
       </div>
 
       <h3 className="font-semibold text-white mb-2 sm:mb-3" style={{ fontSize: 'clamp(1.5rem, 4vw, 4rem)' }}>

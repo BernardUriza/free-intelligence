@@ -157,9 +157,9 @@ export function H5DebugModal({ h5Data, isOpen, onClose }: H5DebugModalProps) {
                 <div className="fi-text-xs mb-1">Audio Completo</div>
                 <div className="text-lg font-semibold">
                   {h5Data.full_audio_available ? (
-                    <span className="fi-text-success">✅ Disponible</span>
+                    <span className="fi-text-success">Disponible</span>
                   ) : (
-                    <span className="text-slate-500">❌ No disponible</span>
+                    <span className="text-slate-500">No disponible</span>
                   )}
                 </div>
               </div>

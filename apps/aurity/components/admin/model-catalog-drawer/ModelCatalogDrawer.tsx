@@ -15,6 +15,8 @@ import {
   Keyboard,
   DatabaseZap,
   AlertCircle,
+  Library,
+  Inbox,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,7 +96,7 @@ export function ModelCatalogDrawer({
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="fi-title-xl flex items-center gap-2">
-                <span className="text-2xl">📚</span>
+                <Library className="w-7 h-7 text-purple-400" strokeWidth={1.5} />
                 Catálogo de Modelos
               </h2>
               <p className="fi-subtitle mt-0.5">
@@ -249,8 +251,12 @@ export function ModelCatalogDrawer({
           {/* Empty State */}
           {!loading && allLoaded && models.length === 0 && !allErrors && (
             <div className="fi-empty-state py-16">
-              <div className="text-5xl mb-3">
-                {sourceFilter === 'installed' ? '📭' : '🔍'}
+              <div className="mb-3">
+                {sourceFilter === 'installed' ? (
+                  <Inbox className="w-12 h-12 text-slate-500" strokeWidth={1.5} />
+                ) : (
+                  <Search className="w-12 h-12 text-slate-500" strokeWidth={1.5} />
+                )}
               </div>
               <h3 className="text-lg font-medium text-slate-400 mb-1">
                 {sourceFilter === 'installed' ? 'No hay modelos instalados' : 'Sin resultados'}

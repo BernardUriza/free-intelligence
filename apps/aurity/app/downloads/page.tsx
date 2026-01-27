@@ -12,11 +12,11 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppTemplate } from '@/components/layout/AppTemplate';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
+import { detectTauri, isBrowser } from '@/lib/environment';
 import {
   Download,
   Apple,
@@ -33,17 +33,15 @@ import {
   Gift,
   WifiOff,
   Stethoscope,
+  Mic,
+  FileText,
+  Brain,
+  ClipboardCheck,
+  ArrowRight,
+  Heart,
+  Users,
+  Globe,
 } from 'lucide-react';
-
-// Check if running in desktop mode
-const isDesktop = () => {
-  if (typeof window === 'undefined') return false;
-  // Check Tauri
-  if ('__TAURI__' in window) return true;
-  // Check env var
-  if (process.env.NEXT_PUBLIC_DEPLOYMENT_TARGET === 'desktop') return true;
-  return false;
-};
 
 interface Release {
   version: string;
@@ -164,23 +162,232 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
   );
 }
 
+// Demo steps for the Medical AI pipeline
+const demoSteps = [
+  {
+    id: 'dictation',
+    icon: Mic,
+    label: 'Dictado',
+    duration: '2s',
+    description: 'El médico habla naturalmente'
+  },
+  {
+    id: 'transcription',
+    icon: FileText,
+    label: 'Transcripción',
+    duration: '1.5s',
+    description: 'Voz a texto en tiempo real'
+  },
+  {
+    id: 'analysis',
+    icon: Brain,
+    label: 'Análisis IA',
+    duration: '3s',
+    description: 'Extracción de datos clínicos'
+  },
+  {
+    id: 'soap',
+    icon: ClipboardCheck,
+    label: 'Nota SOAP',
+    duration: 'Listo',
+    description: 'Nota estructurada lista'
+  },
+];
+
+// Medical AI Demo Component - Animated Timeline
+function MedicalAIDemo() {
+  const [activeStep, setActiveStep] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
+  const isCleanedUpRef = useRef(false);
+
+  useEffect(() => {
+    // Timings for each step (in ms)
+    const stepDurations = [2000, 1500, 3000, 1500];
+    // Track all timeouts for cleanup
+    const timeoutIds: NodeJS.Timeout[] = [];
+
+    const runAnimation = () => {
+      if (isCleanedUpRef.current) return; // Don't run if cleanup has occurred
+
+      isCleanedUpRef.current = false; // Reset for new animation cycle
+      setActiveStep(0);
+      setIsComplete(false);
+
+      let totalDelay = 0;
+
+      stepDurations.forEach((duration, index) => {
+        const stepTimeout = setTimeout(() => {
+          if (isCleanedUpRef.current) return;
+          setActiveStep(index);
+          if (index === stepDurations.length - 1) {
+            const completeTimeout = setTimeout(() => {
+              if (isCleanedUpRef.current) return;
+              setIsComplete(true);
+            }, duration - 500);
+            timeoutIds.push(completeTimeout);
+          }
+        }, totalDelay);
+        timeoutIds.push(stepTimeout);
+        totalDelay += duration;
+      });
+
+      // Reset and loop after completion
+      const loopTimeout = setTimeout(() => {
+        if (!isCleanedUpRef.current) {
+          runAnimation();
+        }
+      }, totalDelay + 2000);
+      timeoutIds.push(loopTimeout);
+    };
+
+    runAnimation();
+
+    // Cleanup: cancel all pending timeouts
+    return () => {
+      isCleanedUpRef.current = true;
+      timeoutIds.forEach(id => clearTimeout(id));
+    };
+  }, []);
+
+  return (
+    <div className="bg-slate-800/80 rounded-2xl border border-slate-700 p-4 sm:p-6 md:p-8 shadow-2xl">
+      {/* Header */}
+      <div className="text-center mb-6 sm:mb-8">
+        <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">
+          Así funciona Aurity
+        </h3>
+        <p className="text-slate-400 text-sm sm:text-base">
+          De tu voz a una nota SOAP en segundos
+        </p>
+      </div>
+
+      {/* Timeline */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-0">
+        {demoSteps.map((step, index) => {
+          const Icon = step.icon;
+          const isActive = index === activeStep;
+          const isPast = index < activeStep || isComplete;
+
+          return (
+            <div key={step.id} className="flex items-center">
+              {/* Step */}
+              <div className={`
+                flex flex-col items-center transition-all duration-500
+                ${isActive ? 'scale-110' : 'scale-100'}
+              `}>
+                {/* Icon Circle */}
+                <div className={`
+                  w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center
+                  transition-all duration-500 relative
+                  ${isActive
+                    ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50'
+                    : isPast
+                      ? 'bg-emerald-600/80'
+                      : 'bg-slate-700'
+                  }
+                `}>
+                  <Icon className={`
+                    w-6 h-6 sm:w-7 sm:h-7 transition-colors duration-300
+                    ${isActive || isPast ? 'text-white' : 'text-slate-400'}
+                  `} />
+
+                  {/* Pulse animation for active step */}
+                  {isActive && (
+                    <div className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-30" />
+                  )}
+                </div>
+
+                {/* Label */}
+                <span className={`
+                  mt-2 text-xs sm:text-sm font-medium transition-colors duration-300
+                  ${isActive ? 'text-emerald-400' : isPast ? 'text-emerald-500/70' : 'text-slate-500'}
+                `}>
+                  {step.label}
+                </span>
+
+                {/* Duration badge */}
+                <span className={`
+                  mt-1 text-[10px] sm:text-xs px-2 py-0.5 rounded-full transition-all duration-300
+                  ${isActive
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : isPast
+                      ? 'bg-slate-700/50 text-slate-400'
+                      : 'bg-slate-800 text-slate-600'
+                  }
+                `}>
+                  {step.duration}
+                </span>
+              </div>
+
+              {/* Arrow connector (not after last item) */}
+              {index < demoSteps.length - 1 && (
+                <div className="hidden sm:flex items-center mx-2 sm:mx-4">
+                  <div className={`
+                    w-8 sm:w-12 h-0.5 transition-all duration-500
+                    ${isPast ? 'bg-emerald-500' : 'bg-slate-700'}
+                  `} />
+                  <ArrowRight className={`
+                    w-4 h-4 -ml-1 transition-colors duration-300
+                    ${isPast ? 'text-emerald-500' : 'text-slate-700'}
+                  `} />
+                </div>
+              )}
+
+              {/* Mobile arrow (vertical) */}
+              {index < demoSteps.length - 1 && (
+                <div className="flex sm:hidden items-center justify-center my-1">
+                  <div className={`
+                    w-0.5 h-4 transition-all duration-500
+                    ${isPast ? 'bg-emerald-500' : 'bg-slate-700'}
+                  `} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Current step description */}
+      <div className="mt-6 sm:mt-8 text-center">
+        <div className={`
+          inline-flex items-center gap-2 px-4 py-2 rounded-full
+          transition-all duration-500
+          ${isComplete
+            ? 'bg-emerald-500/20 text-emerald-300'
+            : 'bg-slate-700/50 text-slate-300'
+          }
+        `}>
+          {isComplete ? (
+            <>
+              <CheckCircle2 className="w-4 h-4" />
+              <span className="text-sm">Nota SOAP lista para revisión</span>
+            </>
+          ) : (
+            <span className="text-sm">{demoSteps[activeStep]?.description}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DownloadsPage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [releases, setReleases] = useState<Release[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDesktopMode, setIsDesktopMode] = useState(false);
+
+  // Direct Tauri detection (stable, no context dependency)
+  const isTauri = isBrowser() && detectTauri();
 
   useEffect(() => {
-    // Check if running in desktop mode
-    if (isDesktop()) {
-      setIsDesktopMode(true);
-    } else {
-      // Fetch latest release from GitHub API
+    // Only fetch releases if NOT in Tauri (web mode)
+    if (!isTauri) {
       fetchLatestRelease();
+    } else {
+      setLoading(false);
     }
-  }, []);
+  }, [isTauri]);
 
   const fetchLatestRelease = async () => {
     setLoading(true);
@@ -208,8 +415,8 @@ export default function DownloadsPage() {
     }
   };
 
-  // Show "already installed" message in desktop mode
-  if (isDesktopMode) {
+  // Show "already installed" message in desktop mode (Tauri)
+  if (isTauri) {
     return (
       <AppTemplate backgroundGradient="none" maxWidth="none">
         <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
@@ -233,10 +440,9 @@ export default function DownloadsPage() {
 
   const latestRelease = releases[0];
 
-  // For unauthenticated users: show optimized landing page
-  if (!authLoading && !isAuthenticated) {
-    return (
-      <AppTemplate backgroundGradient="none" maxWidth="none">
+  // Show optimized landing page for ALL users
+  return (
+      <AppTemplate backgroundGradient="none" maxWidth="none" padding="0">
         <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
           {/* ============================================
               HERO SECTION (Above the Fold)
@@ -321,23 +527,83 @@ export default function DownloadsPage() {
           </section>
 
           {/* ============================================
-              SCREENSHOT / DEMO VISUAL SECTION
+              DEMO VISUAL SECTION - Animated Timeline
               ============================================ */}
           <section className="px-4 pb-12 sm:pb-16">
             <div className="max-w-4xl mx-auto">
-              <div className="bg-slate-800/80 rounded-2xl border border-slate-700 p-4 sm:p-6 shadow-2xl">
-                {/* Placeholder para screenshot del producto */}
-                <div className="aspect-video bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg flex items-center justify-center">
-                  <div className="text-center px-4">
-                    <Stethoscope className="w-12 h-12 sm:w-16 sm:h-16 text-emerald-500 mx-auto mb-4" />
-                    <p className="text-slate-300 text-sm sm:text-base">
-                      Interfaz intuitiva para generar notas SOAP
-                    </p>
-                    <p className="text-slate-500 text-xs sm:text-sm mt-2">
-                      Dicta o escribe, la IA hace el resto
-                    </p>
-                  </div>
+              <MedicalAIDemo />
+            </div>
+          </section>
+
+          {/* ============================================
+              FREE INTELLIGENCE PHILOSOPHY SECTION
+              ============================================ */}
+          <section className="bg-gradient-to-b from-slate-800/50 to-slate-900/50 py-12 sm:py-16 md:py-20 px-4">
+            <div className="max-w-4xl mx-auto">
+              {/* Section Header */}
+              <div className="text-center mb-10 sm:mb-14">
+                <div className="inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
+                  <Heart className="w-4 h-4" />
+                  Nuestra Filosofía
                 </div>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
+                  Free Intelligence
+                </h2>
+                <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
+                  Creemos que la inteligencia artificial médica debe ser libre, privada y accesible para todos.
+                </p>
+              </div>
+
+              {/* Philosophy Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+                {/* Soberanía de Datos */}
+                <div className="bg-slate-800/60 rounded-xl p-6 border border-slate-700 hover:border-emerald-500/30 transition-colors">
+                  <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4">
+                    <Lock className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    Soberanía de Datos
+                  </h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">
+                    Tus datos clínicos son tuyos. No los vendemos, no los analizamos, no los compartimos.
+                    Corren en <strong className="text-slate-300">tu hardware</strong>, bajo <strong className="text-slate-300">tu control</strong>.
+                  </p>
+                </div>
+
+                {/* IA para Todos */}
+                <div className="bg-slate-800/60 rounded-xl p-6 border border-slate-700 hover:border-emerald-500/30 transition-colors">
+                  <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4">
+                    <Users className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    IA para Todos
+                  </h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">
+                    La tecnología médica avanzada no debería ser exclusiva de grandes hospitales.
+                    Cualquier consultorio merece herramientas de <strong className="text-slate-300">clase mundial</strong>.
+                  </p>
+                </div>
+
+                {/* Sin Dependencias */}
+                <div className="bg-slate-800/60 rounded-xl p-6 border border-slate-700 hover:border-emerald-500/30 transition-colors">
+                  <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4">
+                    <Globe className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    Sin Dependencias
+                  </h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">
+                    Sin internet, sin servidores externos, sin suscripciones mensuales.
+                    Aurity funciona donde tú trabajes, <strong className="text-slate-300">siempre disponible</strong>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Bottom Statement */}
+              <div className="mt-10 sm:mt-14 text-center">
+                <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto italic">
+                  &ldquo;La privacidad del paciente no es una feature premium. Es un derecho fundamental.&rdquo;
+                </p>
               </div>
             </div>
           </section>
@@ -577,308 +843,4 @@ export default function DownloadsPage() {
         </div>
       </AppTemplate>
     );
-  }
-
-  // ============================================
-  // For authenticated users: show full downloads page with details
-  // ============================================
-  return (
-    <AppTemplate backgroundGradient="none" maxWidth="none">
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
-        {/* Hero Section */}
-        <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8 md:py-12">
-          <div className="text-center mb-6 sm:mb-8 md:mb-12">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4">
-              Aurity Desktop
-            </h1>
-            <p className="text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto px-2">
-              Tu copiloto médico con IA que corre 100% en tu dispositivo.
-              Sin nube. Sin compartir datos. Privacidad total.
-            </p>
-          </div>
-
-          {/* Features */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 md:mb-12">
-            {benefits.map((benefit) => (
-              <div
-                key={benefit.title}
-                className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700"
-              >
-                <benefit.icon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 mb-3 sm:mb-4" />
-                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                  {benefit.title}
-                </h3>
-                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300">
-                  {benefit.description}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Download Cards */}
-          {loading ? (
-            <div className="flex justify-center py-8 sm:py-12">
-              <RefreshCw className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-blue-600" />
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center py-8 sm:py-12">
-              <p className="text-red-500 mb-4 text-sm sm:text-base">{error}</p>
-              <Button onClick={fetchLatestRelease} variant="outline">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Reintentar
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 md:mb-12">
-              {/* macOS Download */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8 shadow-lg border border-slate-200 dark:border-slate-700">
-                <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-slate-100 dark:bg-slate-700 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0">
-                    <Apple className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 text-slate-700 dark:text-slate-300" />
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                      macOS
-                    </h2>
-                    <p className="text-slate-500 text-sm sm:text-base truncate">Apple Silicon e Intel</p>
-                  </div>
-                </div>
-
-                {latestRelease?.platforms.macos ? (
-                  <>
-                    <Button
-                      className="w-full mb-3 sm:mb-4 h-10 sm:h-12 text-base sm:text-lg"
-                      onClick={() => {
-                        if (latestRelease.platforms.macos?.url !== '#coming-soon') {
-                          window.open(latestRelease.platforms.macos?.url, '_blank');
-                        }
-                      }}
-                      disabled={latestRelease.platforms.macos.url === '#coming-soon'}
-                    >
-                      <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                      {latestRelease.platforms.macos.url === '#coming-soon'
-                        ? 'Próximamente'
-                        : `Descargar v${latestRelease.version}`}
-                    </Button>
-                    <div className="text-xs sm:text-sm text-slate-500 space-y-1">
-                      <p>Tamaño: {latestRelease.platforms.macos.size}</p>
-                      <p className="font-mono text-[10px] sm:text-xs truncate">
-                        SHA256: {latestRelease.platforms.macos.sha256}
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-slate-500 text-sm">Aún no disponible</p>
-                )}
-
-                <hr className="my-4 sm:my-6 border-slate-200 dark:border-slate-700" />
-
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 sm:mb-3 text-sm sm:text-base">
-                  Requisitos del Sistema
-                </h3>
-                <ul className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 space-y-1.5 sm:space-y-2">
-                  {Object.entries(systemRequirements.macos).map(([key, value]) => (
-                    <li key={key} className="flex items-start gap-2">
-                      <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span>{value}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Windows Download */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8 shadow-lg border border-slate-200 dark:border-slate-700">
-                <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-slate-100 dark:bg-slate-700 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0">
-                    <Monitor className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 text-slate-700 dark:text-slate-300" />
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                      Windows
-                    </h2>
-                    <p className="text-slate-500 text-sm sm:text-base truncate">Instalador (x64)</p>
-                  </div>
-                </div>
-
-                {latestRelease?.platforms.windows ? (
-                  <>
-                    <Button
-                      className="w-full mb-3 sm:mb-4 h-10 sm:h-12 text-base sm:text-lg"
-                      onClick={() => {
-                        if (latestRelease.platforms.windows?.url !== '#coming-soon') {
-                          window.open(latestRelease.platforms.windows?.url, '_blank');
-                        }
-                      }}
-                      disabled={latestRelease.platforms.windows.url === '#coming-soon'}
-                    >
-                      <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                      {latestRelease.platforms.windows.url === '#coming-soon'
-                        ? 'Próximamente'
-                        : `Descargar v${latestRelease.version}`}
-                    </Button>
-                    <div className="text-xs sm:text-sm text-slate-500 space-y-1">
-                      <p>Tamaño: {latestRelease.platforms.windows.size}</p>
-                      <p className="font-mono text-[10px] sm:text-xs truncate">
-                        SHA256: {latestRelease.platforms.windows.sha256}
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-slate-500 text-sm">Aún no disponible</p>
-                )}
-
-                <hr className="my-4 sm:my-6 border-slate-200 dark:border-slate-700" />
-
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 sm:mb-3 text-sm sm:text-base">
-                  Requisitos del Sistema
-                </h3>
-                <ul className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 space-y-1.5 sm:space-y-2">
-                  {Object.entries(systemRequirements.windows).map(([key, value]) => (
-                    <li key={key} className="flex items-start gap-2">
-                      <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span>{value}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Linux Download */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8 shadow-lg border border-slate-200 dark:border-slate-700 sm:col-span-2 lg:col-span-1">
-                <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-slate-100 dark:bg-slate-700 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0">
-                    <Monitor className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 text-slate-700 dark:text-slate-300" />
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                      Linux
-                    </h2>
-                    <p className="text-slate-500 text-sm sm:text-base truncate">AppImage (x86_64)</p>
-                  </div>
-                </div>
-
-                {latestRelease?.platforms.linux ? (
-                  <>
-                    <Button
-                      className="w-full mb-3 sm:mb-4 h-10 sm:h-12 text-base sm:text-lg"
-                      onClick={() => {
-                        if (latestRelease.platforms.linux?.url !== '#coming-soon') {
-                          window.open(latestRelease.platforms.linux?.url, '_blank');
-                        }
-                      }}
-                      disabled={latestRelease.platforms.linux.url === '#coming-soon'}
-                    >
-                      <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                      {latestRelease.platforms.linux.url === '#coming-soon'
-                        ? 'Próximamente'
-                        : `Descargar v${latestRelease.version}`}
-                    </Button>
-                    <div className="text-xs sm:text-sm text-slate-500 space-y-1">
-                      <p>Tamaño: {latestRelease.platforms.linux.size}</p>
-                      <p className="font-mono text-[10px] sm:text-xs truncate">
-                        SHA256: {latestRelease.platforms.linux.sha256}
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-slate-500 text-sm">Aún no disponible</p>
-                )}
-
-                <hr className="my-4 sm:my-6 border-slate-200 dark:border-slate-700" />
-
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 sm:mb-3 text-sm sm:text-base">
-                  Requisitos del Sistema
-                </h3>
-                <ul className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 space-y-1.5 sm:space-y-2">
-                  {Object.entries(systemRequirements.linux).map(([key, value]) => (
-                    <li key={key} className="flex items-start gap-2">
-                      <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span>{value}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-
-          {/* Changelog */}
-          {latestRelease?.changelog && (
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-700 mb-6 sm:mb-8 md:mb-12">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4">
-                Novedades en v{latestRelease.version}
-              </h2>
-              <ul className="space-y-1.5 sm:space-y-2">
-                {latestRelease.changelog.map((item, index) => (
-                  <li
-                    key={index}
-                    className="flex items-start gap-2 text-sm sm:text-base text-slate-600 dark:text-slate-300"
-                  >
-                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Installation Instructions */}
-          <div className="bg-slate-100 dark:bg-slate-800/50 rounded-xl p-4 sm:p-6 md:p-8">
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4">
-              Instalación
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-              <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
-                  <Apple className="w-4 h-4 sm:w-5 sm:h-5" /> macOS
-                </h3>
-                <ol className="text-slate-600 dark:text-slate-300 space-y-1.5 sm:space-y-2 list-decimal list-inside text-xs sm:text-sm">
-                  <li>Descarga el archivo .dmg</li>
-                  <li>Haz doble clic para abrir</li>
-                  <li>Arrastra Aurity a Aplicaciones</li>
-                  <li>Primera vez: Clic derecho → Abrir</li>
-                </ol>
-              </div>
-              <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
-                  <Monitor className="w-4 h-4 sm:w-5 sm:h-5" /> Windows
-                </h3>
-                <ol className="text-slate-600 dark:text-slate-300 space-y-1.5 sm:space-y-2 list-decimal list-inside text-xs sm:text-sm">
-                  <li>Descarga el instalador .exe</li>
-                  <li>Ejecuta el instalador</li>
-                  <li>Clic en &quot;Más información&quot; → &quot;Ejecutar&quot;</li>
-                  <li>Sigue el asistente</li>
-                </ol>
-              </div>
-              <div className="sm:col-span-2 md:col-span-1">
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
-                  <Monitor className="w-4 h-4 sm:w-5 sm:h-5" /> Linux
-                </h3>
-                <ol className="text-slate-600 dark:text-slate-300 space-y-1.5 sm:space-y-2 list-decimal list-inside text-xs sm:text-sm">
-                  <li>Descarga el archivo .AppImage</li>
-                  <li className="break-all">Hazlo ejecutable: <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded text-[10px] sm:text-xs">chmod +x Aurity*.AppImage</code></li>
-                  <li className="break-all">Ejecuta: <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded text-[10px] sm:text-xs">./Aurity*.AppImage</code></li>
-                </ol>
-              </div>
-            </div>
-
-            <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p className="text-blue-800 dark:text-blue-200 text-xs sm:text-sm">
-                <strong>Nota:</strong> Aurity Desktop requiere{' '}
-                <a
-                  href="https://ollama.ai"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline inline-flex items-center gap-1"
-                >
-                  Ollama <ExternalLink className="w-3 h-3" />
-                </a>{' '}
-                para IA local. Instala Ollama primero, luego ejecuta{' '}
-                <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded text-[10px] sm:text-xs">ollama pull qwen3:8b</code>{' '}
-                para descargar un modelo.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </AppTemplate>
-  );
 }

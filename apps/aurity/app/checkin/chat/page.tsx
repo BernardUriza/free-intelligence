@@ -14,7 +14,7 @@
 
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { AlertCircle, QrCode, ArrowLeft } from 'lucide-react';
+import { AlertCircle, QrCode, ArrowLeft, Building2 } from 'lucide-react';
 import Link from 'next/link';
 import { ReceptionistChatWidget } from '@/components/checkin/ReceptionistChatWidget';
 
@@ -143,7 +143,7 @@ export default function ChatCheckinPage() {
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
           <div className="text-center">
             <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-indigo-600/20 flex items-center justify-center animate-pulse">
-              <span className="text-2xl">🏥</span>
+              <Building2 className="w-6 h-6 text-indigo-400" strokeWidth={1.5} aria-hidden="true" />
             </div>
             <p className="text-slate-400 animate-pulse">Iniciando asistente de check-in...</p>
           </div>

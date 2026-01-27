@@ -12,7 +12,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { X, Plus, Trash2, Save, AlertCircle } from 'lucide-react';
+import { X, Plus, Trash2, Save, AlertCircle, Brain } from 'lucide-react';
 
 interface TriviaQuestion {
   id: string;
@@ -142,7 +142,7 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
         <div className="sticky top-0 bg-gradient-to-r from-emerald-900/90 to-cyan-900/90 backdrop-blur-sm border-b border-emerald-600/40 p-6">
           <div className="fi-flex-between">
             <div className="fi-flex-gap-md">
-              <span className="text-3xl">🧠</span>
+              <Brain className="w-8 h-8 text-emerald-400" strokeWidth={1.5} aria-hidden="true" />
               <h2 className="fi-title-2xl">
                 {question ? 'Editar Trivia' : 'Nueva Trivia'}
               </h2>

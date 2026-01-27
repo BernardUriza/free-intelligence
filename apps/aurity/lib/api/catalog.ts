@@ -230,11 +230,12 @@ export function formatBytes(bytes: number): string {
 
 /**
  * Información visual por fuente.
+ * Note: Icons are now handled by ProviderLogo component using source key
  */
-export const SOURCE_INFO: Record<CatalogSource, { label: string; color: string; icon: string }> = {
-  gpt4all: { label: 'GPT4All', color: 'bg-emerald-500', icon: '🌿' },
-  huggingface: { label: 'HuggingFace', color: 'bg-yellow-500', icon: '🤗' },
-  ollama: { label: 'Ollama', color: 'bg-purple-500', icon: '🦙' },
+export const SOURCE_INFO: Record<CatalogSource, { label: string; color: string }> = {
+  gpt4all: { label: 'GPT4All', color: 'bg-emerald-500' },
+  huggingface: { label: 'HuggingFace', color: 'bg-yellow-500' },
+  ollama: { label: 'Ollama', color: 'bg-purple-500' },
 };
 
 /**

@@ -259,7 +259,7 @@ export function useChatActions({
       if (err instanceof BackendUnavailableError || isConnectionError(err)) {
         const offlineMsg: FIMessage = {
           role: 'assistant',
-          content: '⚠️ No se pudo conectar al servidor. Tu mensaje se guardó localmente.',
+          content: '[Warning] No se pudo conectar al servidor. Tu mensaje se guardó localmente.',
           timestamp: new Date().toISOString(),
           metadata: { tone: 'neutral' as FITone, phase, id: generateMessageId('offline') },
         };
@@ -273,7 +273,7 @@ export function useChatActions({
 
       const errorMsg: FIMessage = {
         role: 'assistant',
-        content: `❌ Error: ${errorMessage}. Click "Retry" to try again.`,
+        content: `[Error] ${errorMessage}. Click "Retry" to try again.`,
         timestamp: new Date().toISOString(),
         metadata: { tone: 'neutral' as FITone, phase, id: generateMessageId('error') },
       };
@@ -406,7 +406,7 @@ export function useChatActions({
 
             const errorMsg: FIMessage = {
               role: 'assistant',
-              content: `❌ Error: ${errorMessage}. Click "Retry" to try again.`,
+              content: `[Error] ${errorMessage}. Click "Retry" to try again.`,
               timestamp: new Date().toISOString(),
               metadata: { tone: 'neutral' as FITone, phase, id: generateMessageId('error') },
             };

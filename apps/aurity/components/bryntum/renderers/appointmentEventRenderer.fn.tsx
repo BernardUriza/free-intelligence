@@ -29,10 +29,10 @@ const statusToBarClass = (status?: string) => {
 
 const typeToIcon = (type?: string) => {
   const t = (type || '').toLowerCase()
-  if (t.includes('check') || t.includes('general')) return '🩺'
-  if (t.includes('follow')) return '🔁'
-  if (t.includes('vaccine') || t.includes('shot')) return '💉'
-  return '📅'
+  if (t.includes('check') || t.includes('general')) return 'C' // Consulta
+  if (t.includes('follow')) return 'S' // Seguimiento
+  if (t.includes('vaccine') || t.includes('shot')) return 'V' // Vacuna
+  return 'A' // Cita (Appointment)
 }
 
 const formatTime = (d?: Date | string) => {

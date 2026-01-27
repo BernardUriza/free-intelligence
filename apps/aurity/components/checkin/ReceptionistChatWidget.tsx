@@ -13,6 +13,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Building2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChatWidget } from '@/components/chat/ChatWidget';
 import { useCheckinConversation } from '@aurity-standalone/hooks/useCheckinConversation';
@@ -21,6 +22,7 @@ import {
   receptionistEmptyStateConfig,
   receptionistQuickActions,
 } from '@/config/chat-messages.config';
+import { getDynamicIcon } from '@/lib/icons';
 import type { ChatHook } from '@aurity-standalone/types/chat';
 
 // =============================================================================
@@ -63,8 +65,8 @@ interface QuickRepliesProps {
 
 const ReceptionistEmptyState = ({ onQuickAction, patientName, loading }: EmptyStateProps) => (
   <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 text-center">
-    <span className="text-5xl mb-4 block">
-      {receptionistEmptyStateConfig.emoji}
+    <span className="mb-4 block" aria-hidden="true">
+      <Building2 className="w-12 h-12 text-indigo-400" strokeWidth={1.5} />
     </span>
     <h2 className="fi-title-2xl mb-2">
       {receptionistEmptyStateConfig.welcomeTitle(patientName)}
@@ -78,7 +80,9 @@ const ReceptionistEmptyState = ({ onQuickAction, patientName, loading }: EmptySt
           key={idx}
           className="flex items-center gap-3 px-4 py-2 bg-slate-800/50 rounded-lg"
         >
-          <span className="text-indigo-400">{feature.icon}</span>
+          <span className="text-indigo-400" aria-hidden="true">
+            <Check className="w-4 h-4" strokeWidth={2} />
+          </span>
           <span className="text-sm fi-text">{feature.text}</span>
         </div>
       ))}
@@ -88,23 +92,28 @@ const ReceptionistEmptyState = ({ onQuickAction, patientName, loading }: EmptySt
         Selecciona una opción o escribe tu mensaje
       </p>
       <div className="grid grid-cols-2 gap-3">
-        {receptionistQuickActions.map((action) => (
-          <Button
-            key={action.id}
-            onClick={() => onQuickAction(action.message)}
-            disabled={loading}
-            className="flex flex-col items-center gap-2 px-4 py-4 bg-indigo-950/30 hover:bg-indigo-950/50 border border-indigo-600/30 hover:border-indigo-600/50 rounded-xl transition-all disabled:opacity-50"
-            variant="ghost"
-            size="lg"
-            type="button"
-            title={action.label}
-          >
-            <span className="text-2xl">{action.icon}</span>
-            <span className="text-sm fi-text text-center">
-              {action.label}
-            </span>
-          </Button>
-        ))}
+        {receptionistQuickActions.map((action) => {
+          const ActionIcon = getDynamicIcon(action.iconKey);
+          return (
+            <Button
+              key={action.id}
+              onClick={() => onQuickAction(action.message)}
+              disabled={loading}
+              className="flex flex-col items-center gap-2 px-4 py-4 bg-indigo-950/30 hover:bg-indigo-950/50 border border-indigo-600/30 hover:border-indigo-600/50 rounded-xl transition-all disabled:opacity-50"
+              variant="ghost"
+              size="lg"
+              type="button"
+              title={action.label}
+            >
+              <span aria-hidden="true">
+                <ActionIcon className="w-6 h-6" strokeWidth={1.5} />
+              </span>
+              <span className="text-sm fi-text text-center">
+                {action.label}
+              </span>
+            </Button>
+          );
+        })}
       </div>
     </div>
   </div>

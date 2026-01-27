@@ -22,6 +22,7 @@ import { AudioConsentBanner } from '@/components/audio/AudioConsentBanner';
 import { VersionBadge } from '@/components/dev/VersionBadge';
 import { DesktopSetupWizard } from '@/components/onboarding/DesktopSetupWizard';
 import { DesktopReadySignal } from '@/components/desktop/DesktopReadySignal';
+import { EnvironmentProvider } from '@/lib/environment';
 
 export const metadata: Metadata = {
   title: 'Free Intelligence · AURITY',
@@ -83,24 +84,26 @@ export default function RootLayout({
       <body className="min-h-screen bg-slate-900 antialiased">
         <MockBootstrap />
         <DesktopReadySignal />
-        <Auth0Provider>
-          <ThemeProvider>
-            <AudioPlayerProvider>
-              {/* DesktopSetupWizard must be OUTSIDE ProtectedLayout to show without auth */}
-              <DesktopSetupWizard />
-              <ProtectedLayout>
-                <GlobalPolicyBanner />
-                {children}
-                {/* Suspense required for useSearchParams in ConditionalChatWidget */}
-                <Suspense fallback={null}>
-                  <ConditionalChatWidget />
-                </Suspense>
-                <AudioConsentBanner />
-                <VersionBadge />
-              </ProtectedLayout>
-            </AudioPlayerProvider>
-          </ThemeProvider>
-        </Auth0Provider>
+        <EnvironmentProvider>
+          <Auth0Provider>
+            <ThemeProvider>
+              <AudioPlayerProvider>
+                {/* DesktopSetupWizard must be OUTSIDE ProtectedLayout to show without auth */}
+                <DesktopSetupWizard />
+                <ProtectedLayout>
+                  <GlobalPolicyBanner />
+                  {children}
+                  {/* Suspense required for useSearchParams in ConditionalChatWidget */}
+                  <Suspense fallback={null}>
+                    <ConditionalChatWidget />
+                  </Suspense>
+                  <AudioConsentBanner />
+                  <VersionBadge />
+                </ProtectedLayout>
+              </AudioPlayerProvider>
+            </ThemeProvider>
+          </Auth0Provider>
+        </EnvironmentProvider>
       </body>
     </html>
   );

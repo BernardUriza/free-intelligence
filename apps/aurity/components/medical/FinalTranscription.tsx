@@ -12,7 +12,7 @@
  * Extracted from ConversationCapture (Phase 7)
  */
 
-import { CheckCircle, Bell } from 'lucide-react';
+import { CheckCircle, Bell, AlertTriangle, Lightbulb } from 'lucide-react';
 import type { TranscriptionData } from '@aurity-standalone/hooks/useTranscription';
 import { Button } from '@/components/ui/button';
 
@@ -44,7 +44,9 @@ export function FinalTranscription({
           <p className="fi-text-pre">{transcriptionData.text}</p>
         ) : (
           <div className="text-center py-6">
-            <p className="text-slate-500 mb-2">⚠️ No se generó transcripción</p>
+            <p className="text-slate-500 mb-2 flex items-center justify-center gap-1">
+              <AlertTriangle className="w-4 h-4" aria-hidden="true" /> No se generó transcripción
+            </p>
             <p className="text-xs text-slate-600">
               Posibles causas: audio muy bajo, silencio detectado, o problema con el micrófono
             </p>
@@ -70,8 +72,9 @@ export function FinalTranscription({
           >
             Tu navegador no soporta reproducción de audio.
           </audio>
-          <div className="mt-2 fi-text-xs">
-            💡 Puedes reproducir el audio completo de la consulta
+          <div className="mt-2 fi-text-xs flex items-center gap-1">
+            <Lightbulb className="w-3.5 h-3.5" aria-hidden="true" />
+            Puedes reproducir el audio completo de la consulta
           </div>
         </div>
       )}

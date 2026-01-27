@@ -149,7 +149,7 @@ export function useWaitingRoomContent(
 
     const doctorContent: ContentItem = {
       type: 'doctor_message',
-      content: `📢 **Mensaje del Doctor**: ${doctorMessage}`,
+      content: `**Mensaje del Doctor**: ${doctorMessage}`,
       duration: 20000, // Doctor messages stay longer
     };
 

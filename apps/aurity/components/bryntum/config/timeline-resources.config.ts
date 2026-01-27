@@ -18,42 +18,42 @@ export const TIMELINE_RESOURCES: BryntumResource[] = [
   // User interactions
   {
     id: 'user',
-    name: '👤 Usuario',
+    name: 'Usuario',
     eventColor: '#0ea5e9', // sky-500
   },
-  
+
   // AI/Assistant responses
   {
     id: 'assistant',
-    name: '🤖 Asistente',
+    name: 'Asistente',
     eventColor: '#8b5cf6', // violet-500
   },
-  
+
   // Medical/Clinical actions
   {
     id: 'medical',
-    name: '⚕️ Clínico',
+    name: 'Clínico',
     eventColor: '#06b6d4', // cyan-500
   },
-  
+
   // System/Extraction processes
   {
     id: 'system',
-    name: '⚙️ Sistema',
+    name: 'Sistema',
     eventColor: '#64748b', // slate-500
   },
-  
+
   // Critical alerts
   {
     id: 'critical',
-    name: '🚨 Crítico',
+    name: 'Crítico',
     eventColor: '#ef4444', // red-500
   },
-  
+
   // Audio/Transcription
   {
     id: 'audio',
-    name: '🎙️ Audio',
+    name: 'Audio',
     eventColor: '#10b981', // emerald-500
   },
 ];

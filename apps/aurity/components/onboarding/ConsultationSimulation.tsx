@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { Video, PlayCircle, Compass, Gamepad2, Lightbulb, CheckCircle, Play, Pause, RefreshCw, FileText, PartyPopper } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ProgressMonitor, TaskProgress } from "./ProgressMonitor";
 import {
@@ -93,7 +94,7 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
       );
     }
 
-    setCurrentMessage('All chunks uploaded successfully ✅');
+    setCurrentMessage('All chunks uploaded successfully');
     await new Promise(resolve => setTimeout(resolve, 500));
     setCurrentStep('checkpoint');
   }, [chunks.length, isPaused]);
@@ -104,7 +105,7 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
   const simulateCheckpoint = useCallback(async () => {
     setCurrentMessage('Concatenating audio chunks...');
     await new Promise(resolve => setTimeout(resolve, LATENCY.checkpoint));
-    setCurrentMessage('Audio checkpoint created ✅');
+    setCurrentMessage('Audio checkpoint created');
     await new Promise(resolve => setTimeout(resolve, 500));
     setCurrentStep('transcription');
   }, []);
@@ -138,7 +139,7 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
     }
 
     updateTask('TRANSCRIPTION', { status: 'completed', progress: 100 });
-    setCurrentMessage('Transcription completed ✅');
+    setCurrentMessage('Transcription completed');
     await new Promise(resolve => setTimeout(resolve, 500));
     setCurrentStep('diarization');
   }, [isPaused, updateTask]);
@@ -161,7 +162,7 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
       progress: 100,
       message: `${SIMULATED_DIARIZATION.length} segments identified (Médico/Paciente)`,
     });
-    setCurrentMessage('Diarization completed ✅');
+    setCurrentMessage('Diarization completed');
     await new Promise(resolve => setTimeout(resolve, 500));
     setCurrentStep('soap');
   }, [updateTask]);
@@ -184,7 +185,7 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
       progress: 100,
       message: `SOAP notes generated (${SIMULATED_SOAP.completeness}% completeness)`,
     });
-    setCurrentMessage('SOAP generation completed ✅');
+    setCurrentMessage('SOAP generation completed');
     setShowSOAPNotes(true);
     await new Promise(resolve => setTimeout(resolve, 500));
     setCurrentStep('export');
@@ -221,7 +222,7 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
           // In auto mode, automatically mark encryption as completed and finish
           if (mode === 'auto') {
             updateTask('ENCRYPTION', { status: 'completed', progress: 100 });
-            setCurrentMessage('Encryption completed ✅');
+            setCurrentMessage('Encryption completed');
             await new Promise(resolve => setTimeout(resolve, 1000));
             setCurrentStep('complete');
           }
@@ -271,8 +272,9 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
     return (
       <div className="space-y-6 max-w-4xl mx-auto">
         <div className="text-center mb-8">
-          <h3 className="text-2xl font-bold text-slate-50 mb-2">
-            🎬 Selecciona el modo de simulación
+          <h3 className="text-2xl font-bold text-slate-50 mb-2 flex items-center justify-center gap-2">
+            <Video className="w-7 h-7" strokeWidth={1.5} aria-hidden="true" />
+            Selecciona el modo de simulación
           </h3>
           <p className="text-slate-400">
             Experimenta el flujo completo de AURITY sin audio real
@@ -289,7 +291,7 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
             size="lg"
             title="Auto-play"
           >
-            <div className="text-4xl mb-4">⏯️</div>
+            <PlayCircle className="w-10 h-10 text-cyan-400 mb-4 mx-auto" strokeWidth={1.5} aria-hidden="true" />
             <h4 className="fi-section-title">Auto-play</h4>
             <p className="fi-subtitle mb-4">
               Observa el flujo completo sin interacción
@@ -308,7 +310,7 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
             size="lg"
             title="Guided"
           >
-            <div className="text-4xl mb-4">🧭</div>
+            <Compass className="w-10 h-10 text-purple-400 mb-4 mx-auto" strokeWidth={1.5} aria-hidden="true" />
             <h4 className="fi-section-title">Guided</h4>
             <p className="fi-subtitle mb-4">
               FI te guía paso a paso con explicaciones
@@ -327,7 +329,7 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
             size="lg"
             title="Hands-on"
           >
-            <div className="text-4xl mb-4">🎮</div>
+            <Gamepad2 className="w-10 h-10 text-emerald-400 mb-4 mx-auto" strokeWidth={1.5} aria-hidden="true" />
             <h4 className="fi-section-title">Hands-on</h4>
             <p className="fi-subtitle mb-4">
               Ejecuta cada paso manualmente con total control
@@ -342,7 +344,7 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
         {/* Info Box */}
         <div className="p-6 bg-blue-950/20 border border-blue-700/30 rounded-xl">
           <p className="text-sm text-blue-300 flex items-start gap-3">
-            <span className="text-2xl">💡</span>
+            <Lightbulb className="w-6 h-6 flex-shrink-0 mt-0.5" strokeWidth={1.5} aria-hidden="true" />
             <span>
               <strong>Nota:</strong> Esta simulación usa datos precargados y no requiere conexión al backend.
               Los tiempos y resultados son ficticios para fines educativos.
@@ -380,7 +382,7 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
               size="sm"
               title={isPaused ? 'Resume' : 'Pause'}
             >
-              {isPaused ? '▶️ Resume' : '⏸️ Pause'}
+              {isPaused ? <><Play className="w-4 h-4" aria-hidden="true" /> Resume</> : <><Pause className="w-4 h-4" aria-hidden="true" /> Pause</>}
             </Button>
           )}
           <Button
@@ -389,12 +391,12 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
               setCurrentStep('intro');
               setIsPaused(false);
             }}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors flex items-center gap-2"
             variant="ghost"
             size="sm"
             title="Change Mode"
           >
-            🔄 Change Mode
+            <RefreshCw className="w-4 h-4" aria-hidden="true" /> Change Mode
           </Button>
         </div>
       </div>
@@ -408,8 +410,8 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
 
         {/* Right: Results Panel */}
         <div className="bg-slate-900/50 p-6 rounded-xl border border-slate-700/50 space-y-4">
-          <h4 className="text-lg font-semibold text-slate-200 fi-border-bottom/50 pb-2">
-            📄 Results
+          <h4 className="text-lg font-semibold text-slate-200 fi-border-bottom/50 pb-2 flex items-center gap-2">
+            <FileText className="w-5 h-5" strokeWidth={1.5} aria-hidden="true" /> Results
           </h4>
 
           {/* Transcription Results */}
@@ -475,7 +477,7 @@ export function ConsultationSimulation({ onComplete }: ConsultationSimulationPro
       {/* Completion */}
       {currentStep === 'complete' && (
         <div className="text-center space-y-4">
-          <div className="text-6xl">🎉</div>
+          <PartyPopper className="w-16 h-16 text-yellow-400 mx-auto" strokeWidth={1.5} aria-hidden="true" />
           <h3 className="text-2xl font-bold fi-text-success">Simulación Completada</h3>
           <p className="fi-text">
             Has experimentado el flujo completo de AURITY: Upload → Transcription → Diarization → SOAP → Export

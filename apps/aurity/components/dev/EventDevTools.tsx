@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import {
   Activity,
   Filter,
+  Heart,
   Pause,
   Play,
   RefreshCw,
@@ -287,7 +288,7 @@ export function EventDevTools({
               )}
             </div>
             <div className="fi-flex-gap-sm">
-              <span className="text-gray-500">♥ {heartbeats}</span>
+              <span className="text-gray-500 flex items-center gap-1"><Heart className="w-3 h-3" strokeWidth={1.5} aria-hidden="true" />{heartbeats}</span>
               <Button onClick={() => setIsPaused(!isPaused)} className="p-1 hover:bg-gray-700 rounded" title={isPaused ? "Resume" : "Pause"} variant="ghost" size="sm" type="button">
                 {isPaused ? <Play className="fi-icon-xs" /> : <Pause className="fi-icon-xs" />}
               </Button>

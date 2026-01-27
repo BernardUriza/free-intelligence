@@ -62,9 +62,9 @@ export function useH5DebugTools(sessionId: string | null) {
       const data = await response.json();
       setH5Data(data);
       setIsOpen(true);
-      console.log('[H5Debug] ✅ H5 data loaded successfully');
+      console.log('[H5Debug] [OK] H5 data loaded successfully');
     } catch (error) {
-      console.error('[H5Debug] ❌ Error fetching H5 data:', error);
+      console.error('[H5Debug] [ERROR] Error fetching H5 data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +77,7 @@ export function useH5DebugTools(sessionId: string | null) {
     const handleKeyPress = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.shiftKey && event.key === 'H') {
         event.preventDefault();
-        console.log('[H5Debug] 🔑 Hotkey triggered: Ctrl+Shift+H');
+        console.log('[H5Debug] [HOTKEY] Hotkey triggered: Ctrl+Shift+H');
         fetchH5Data();
       }
     };

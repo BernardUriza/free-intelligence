@@ -1,5 +1,7 @@
 'use client';
 
+import { Timer, User, Check } from 'lucide-react';
+
 interface WaitTimeDisplayWidgetProps {
   estimatedMinutes: number;
   patientsAhead?: number;
@@ -23,8 +25,8 @@ export function WaitTimeDisplayWidget({
 
   return (
     <div className={`h-full flex flex-col items-center justify-center bg-gradient-to-br ${getTimeBg()} border border-slate-700/40 rounded-xl backdrop-blur-sm p-4 sm:p-6 lg:p-8 text-center`}>
-      <div className="mb-4 sm:mb-6" style={{ fontSize: 'clamp(4rem, 10vw, 10rem)' }}>
-        ⏱️
+      <div className="mb-4 sm:mb-6">
+        <Timer className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 text-slate-300" strokeWidth={1} aria-hidden="true" />
       </div>
 
       <p className="text-slate-400 mb-2 sm:mb-4" style={{ fontSize: 'clamp(1rem, 2vw, 2rem)' }}>
@@ -42,15 +44,17 @@ export function WaitTimeDisplayWidget({
 
       <div className="fi-flex-gap sm:gap-3 text-slate-400">
         <span
-          className="bg-slate-800/60 px-4 sm:px-6 py-2 sm:py-3 rounded-full"
+          className="bg-slate-800/60 px-4 sm:px-6 py-2 sm:py-3 rounded-full flex items-center gap-2"
           style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.5rem)' }}
         >
-          👤 {patientsAhead} {patientsAhead === 1 ? 'paciente' : 'pacientes'} antes que usted
+          <User className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.5} aria-hidden="true" />
+          {patientsAhead} {patientsAhead === 1 ? 'paciente' : 'pacientes'} antes que usted
         </span>
       </div>
 
-      <p className="fi-text-success/80 mt-6 sm:mt-8" style={{ fontSize: 'clamp(0.75rem, 1.2vw, 1.25rem)' }}>
-        ✓ Le avisaremos cuando sea su turno
+      <p className="fi-text-success/80 mt-6 sm:mt-8 flex items-center justify-center gap-2" style={{ fontSize: 'clamp(0.75rem, 1.2vw, 1.25rem)' }}>
+        <Check className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2} aria-hidden="true" />
+        Le avisaremos cuando sea su turno
       </p>
     </div>
   );

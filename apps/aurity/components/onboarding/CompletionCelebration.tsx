@@ -13,7 +13,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import confetti from "canvas-confetti";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Zap, Brain, Search, PartyPopper, Medal, BarChart3, Bot } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProgressHeatmap } from "./ProgressHeatmap";
 
@@ -73,13 +74,13 @@ export function CompletionCelebration({
   /**
    * Determine achievement tier
    */
-  const getAchievementTier = (): { tier: string; icon: string; color: string } => {
+  const getAchievementTier = (): { tier: string; icon: LucideIcon; color: string } => {
     if (completionTimeMinutes && completionTimeMinutes < 15) {
-      return { tier: 'Speed Runner', icon: '⚡', color: 'text-yellow-400' };
+      return { tier: 'Speed Runner', icon: Zap, color: 'text-yellow-400' };
     } else if (quizScore && quizScore >= 90) {
-      return { tier: 'Philosophy Master', icon: '🧠', color: 'fi-text-purple' };
+      return { tier: 'Philosophy Master', icon: Brain, color: 'fi-text-purple' };
     } else {
-      return { tier: 'Thorough Explorer', icon: '🔍', color: 'fi-text-info' };
+      return { tier: 'Thorough Explorer', icon: Search, color: 'fi-text-info' };
     }
   };
 
@@ -101,7 +102,9 @@ export function CompletionCelebration({
     <div className="space-y-8 max-w-5xl mx-auto">
       {/* Main Celebration */}
       <div className="text-center space-y-6">
-        <div className="text-8xl mb-6 animate-bounce">🎉</div>
+        <div className="mb-6 animate-bounce flex justify-center">
+          <PartyPopper className="w-24 h-24 text-yellow-400" strokeWidth={1.5} />
+        </div>
 
         <h1 className="text-4xl md:text-5xl font-bold fi-text-success mb-4">
           ¡Onboarding Completado!
@@ -121,7 +124,9 @@ export function CompletionCelebration({
             <div className="absolute inset-0 bg-emerald-400/10 blur-xl rounded-2xl" />
 
             <div className="relative text-center space-y-4">
-              <div className="text-6xl mb-4">🏅</div>
+              <div className="mb-4 flex justify-center">
+                <Medal className="w-16 h-16 text-yellow-400" strokeWidth={1.5} />
+              </div>
               <h3 className="text-2xl font-bold text-emerald-300">Badge Unlocked!</h3>
               <div className="p-4 bg-slate-900/60 rounded-xl border border-emerald-700/30">
                 <p className="fi-section-title">
@@ -136,7 +141,7 @@ export function CompletionCelebration({
               <div className="pt-4 fi-border-top/50">
                 <p className="fi-text-xs-muted mb-2">Special Achievement:</p>
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-3xl">{achievement.icon}</span>
+                  <achievement.icon className={`w-8 h-8 ${achievement.color}`} strokeWidth={1.5} />
                   <span className={`text-lg font-semibold ${achievement.color}`}>
                     {achievement.tier}
                   </span>
@@ -149,8 +154,9 @@ export function CompletionCelebration({
 
       {/* Progress Heatmap */}
       <div className="bg-slate-900/50 p-6 rounded-xl border border-slate-700/50">
-        <h3 className="text-lg font-semibold text-slate-200 mb-4 text-center">
-          📊 Your Onboarding Journey
+        <h3 className="text-lg font-semibold text-slate-200 mb-4 text-center flex items-center justify-center gap-2">
+          <BarChart3 className="w-5 h-5 text-cyan-400" />
+          Your Onboarding Journey
         </h3>
         <ProgressHeatmap
           phases={[
@@ -170,7 +176,7 @@ export function CompletionCelebration({
       {showMessage && (
         <div className="p-6 bg-slate-900/60 backdrop-blur-xl rounded-xl border border-purple-700/30 animate-fade-in-up">
           <div className="flex items-start gap-4">
-            <span className="text-4xl">🤖</span>
+            <Bot className="w-10 h-10 text-purple-400 flex-shrink-0" strokeWidth={1.5} />
             <div>
               <p className="text-sm font-semibold text-purple-300 mb-3">
                 Free-Intelligence · Tone: Empathetic + Sharp (Despedida)

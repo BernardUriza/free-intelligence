@@ -6,6 +6,7 @@
  * Real-time JSON preview of how patient data will be structured in HDF5
  */
 
+import { BarChart3, Lightbulb, Key, FolderOpen, Lock, Timer } from 'lucide-react';
 import { PatientFormData } from "./PatientSetupForm";
 
 interface HDF5PreviewProps {
@@ -90,8 +91,9 @@ export function HDF5Preview({ patientData }: HDF5PreviewProps) {
     <div className="space-y-4">
       {/* Header */}
       <div className="fi-flex-between">
-        <h3 className="text-lg font-semibold text-slate-200">
-          📊 Preview: HDF5 Structure
+        <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+          <BarChart3 className="w-5 h-5" strokeWidth={1.5} aria-hidden="true" />
+          Preview: HDF5 Structure
         </h3>
         {isDataComplete && (
           <span className="flex items-center gap-2 text-xs fi-text-success bg-emerald-950/30 px-3 py-1 rounded-full">
@@ -103,9 +105,10 @@ export function HDF5Preview({ patientData }: HDF5PreviewProps) {
 
       {/* Explanation */}
       <div className="p-4 bg-blue-950/20 border border-blue-700/30 rounded-xl">
-        <p className="text-xs text-blue-300">
-          <strong>💡 Tip:</strong> Cada vez que cambies los datos del paciente, verás cómo se estructura
-          en tiempo real dentro del archivo HDF5 (<code className="fi-text-info">/storage/corpus.h5</code>).
+        <p className="text-xs text-blue-300 flex items-start gap-2">
+          <Lightbulb className="w-4 h-4 flex-shrink-0 mt-0.5" strokeWidth={1.5} aria-hidden="true" />
+          <span><strong>Tip:</strong> Cada vez que cambies los datos del paciente, verás cómo se estructura
+          en tiempo real dentro del archivo HDF5 (<code className="fi-text-info">/storage/corpus.h5</code>).</span>
         </p>
       </div>
 
@@ -119,7 +122,7 @@ export function HDF5Preview({ patientData }: HDF5PreviewProps) {
       {/* Session ID Explanation */}
       <div className="p-4 bg-slate-900/60 border border-slate-700/50 rounded-xl space-y-3">
         <div className="flex items-start gap-3">
-          <span className="text-2xl">🔑</span>
+          <Key className="w-6 h-6 text-slate-400 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
           <div>
             <p className="text-sm font-semibold text-slate-200">Session ID Format</p>
             <p className="fi-text-xs mt-1">
@@ -134,7 +137,7 @@ export function HDF5Preview({ patientData }: HDF5PreviewProps) {
         </div>
 
         <div className="flex items-start gap-3">
-          <span className="text-2xl">📁</span>
+          <FolderOpen className="w-6 h-6 text-slate-400 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
           <div>
             <p className="text-sm font-semibold text-slate-200">Append-Only Storage</p>
             <p className="fi-text-xs mt-1">
@@ -145,7 +148,7 @@ export function HDF5Preview({ patientData }: HDF5PreviewProps) {
         </div>
 
         <div className="flex items-start gap-3">
-          <span className="text-2xl">🔐</span>
+          <Lock className="w-6 h-6 text-slate-400 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
           <div>
             <p className="text-sm font-semibold text-slate-200">Task-Based Architecture</p>
             <p className="fi-text-xs mt-1">
@@ -159,7 +162,7 @@ export function HDF5Preview({ patientData }: HDF5PreviewProps) {
       {!isDataComplete && (
         <div className="p-4 bg-yellow-950/20 border border-yellow-700/30 rounded-xl">
           <p className="text-xs text-yellow-300 flex items-center gap-2">
-            <span>⏳</span>
+            <Timer className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
             Completa los campos requeridos para ver la estructura completa
           </p>
         </div>

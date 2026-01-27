@@ -13,10 +13,10 @@
  * 4. READY → Launch FI Monitor (which shows its own Python/Ollama wizard)
  */
 
-import { useState, useEffect } from 'react';
-import { isDesktop } from '@/lib/config/deployment';
+import { useState, useEffect, useRef } from 'react';
+import { detectTauri, isBrowser } from '@/lib/environment';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Loader2, Download, Cloud } from 'lucide-react';
+import { CheckCircle, Loader2, Download, Cloud, Shield, AlertTriangle, Lightbulb, Rocket } from 'lucide-react';
 import { useWizardState, resetWizardState } from './hooks/useWizardState';
 
 // Export function to reset wizard (for use in settings/menu)
@@ -56,10 +56,16 @@ export function DesktopSetupWizard() {
   const [error, setError] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
 
-  // Get app version from Tauri
+  // Use ref to track if we've already checked (prevents double-run)
+  const hasChecked = useRef(false);
+
+  // Direct Tauri detection (no context dependency to avoid loops)
+  const isTauri = isBrowser() && detectTauri();
+
+  // Get app version from Tauri (only once)
   useEffect(() => {
     async function fetchVersion() {
-      if (isDesktop() && typeof window !== 'undefined' && '__TAURI__' in window) {
+      if (isTauri) {
         try {
           const { getVersion } = await import('@tauri-apps/api/app');
           const version = await getVersion();
@@ -70,19 +76,24 @@ export function DesktopSetupWizard() {
       }
     }
     fetchVersion();
-  }, []);
+  }, [isTauri]);
 
   // Use the wizard state hook for persistent storage
   const { isLoading: isLoadingState, isCompleted, markComplete } = useWizardState();
 
-  // Check if setup already completed
+  // Check if setup already completed (run only once)
   useEffect(() => {
-    // Wait for state to load
-    if (isLoadingState) {
-      return;
-    }
+    // Prevent double-execution
+    if (hasChecked.current) return;
 
-    if (!isDesktop()) {
+    // Wait for state to load
+    if (isLoadingState) return;
+
+    // Mark as checked
+    hasChecked.current = true;
+
+    // CRITICAL: Only show wizard if ACTUALLY running in Tauri
+    if (!isTauri) {
       setShowWizard(false);
       return;
     }
@@ -95,7 +106,7 @@ export function DesktopSetupWizard() {
     // Setup not complete - show wizard and check FI Monitor
     setShowWizard(true);
     checkFiMonitor();
-  }, [isLoadingState, isCompleted]);
+  }, [isTauri, isLoadingState, isCompleted]);
 
   // Check if FI Monitor is installed
   const checkFiMonitor = async () => {
@@ -143,7 +154,7 @@ export function DesktopSetupWizard() {
         unlisten();
 
         if (result) {
-          setProgress(prev => [...prev, '✅ FI Monitor instalado correctamente']);
+          setProgress(prev => [...prev, '[OK] FI Monitor instalado correctamente']);
 
           // Launch FI Monitor (it will show its own wizard for Python + Ollama)
           setTimeout(async () => {
@@ -203,7 +214,7 @@ export function DesktopSetupWizard() {
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center">
-            <span className="text-3xl">🏥</span>
+            <Shield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">Bienvenido a Aurity Desktop</h1>
           <p className="text-cyan-400 text-sm font-mono">v{appVersion || '1.0.2'}</p>
@@ -316,7 +327,7 @@ function InstallingScreen({ progress }: InstallingScreenProps) {
             <div
               key={i}
               className={`text-xs font-mono mb-1 ${
-                msg.includes('✅') || msg.includes('✓')
+                msg.includes('[OK]') || msg.includes('correctamente')
                   ? 'text-emerald-400'
                   : 'text-slate-300'
               }`}
@@ -346,8 +357,9 @@ function ReadyScreen() {
       </div>
 
       <div className="p-4 bg-cyan-900/20 rounded-lg border border-cyan-700">
-        <p className="text-sm text-cyan-300">
-          🚀 Abriendo FI Monitor...
+        <p className="text-sm text-cyan-300 flex items-center gap-2">
+          <Rocket className="w-4 h-4" />
+          Abriendo FI Monitor...
         </p>
         <p className="text-xs text-slate-400 mt-2">
           FI Monitor configurará Python y Ollama automáticamente
@@ -373,7 +385,7 @@ function ErrorScreen({ error, onRetry }: ErrorScreenProps) {
       <div className="p-4 bg-red-900/20 rounded-lg border border-red-700">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
-            <span className="text-xl">⚠️</span>
+            <AlertTriangle className="w-5 h-5 text-red-400" />
           </div>
           <div>
             <p className="text-white font-medium">Error de Instalación</p>
@@ -401,8 +413,9 @@ function ErrorScreen({ error, onRetry }: ErrorScreenProps) {
       </div>
 
       <div className="p-3 bg-slate-800 rounded-lg">
-        <p className="text-xs text-slate-400">
-          💡 <span className="font-medium">Instalación manual:</span> Descarga FI Monitor desde{' '}
+        <p className="text-xs text-slate-400 flex items-start gap-2">
+          <Lightbulb className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+          <span><span className="font-medium">Instalación manual:</span> Descarga FI Monitor desde{' '}
           <a
             href="https://github.com/BernardUriza/free-intelligence/releases"
             target="_blank"
@@ -410,7 +423,7 @@ function ErrorScreen({ error, onRetry }: ErrorScreenProps) {
             className="text-cyan-400 hover:underline"
           >
             GitHub Releases
-          </a>
+          </a></span>
         </p>
       </div>
     </div>

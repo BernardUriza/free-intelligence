@@ -19,7 +19,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import React from 'react';
-import { Play, Pause, X, Volume2, ChevronDown, User } from 'lucide-react';
+import { Play, Pause, X, Volume2, ChevronDown, User, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VOICE_GROUPS } from '@aurity-standalone/types/voices';
 import { reportAudioError } from '@/lib/audio/ErrorPolicy';
@@ -116,7 +116,7 @@ function VoiceSelector({
                   >
                     <span>{voiceOption.label}</span>
                     {voiceOption.value === currentVoice && (
-                      <span className="fi-text-purple text-xs">✓</span>
+                      <Check className="w-3 h-3 fi-text-purple" strokeWidth={2} aria-hidden="true" />
                     )}
                   </Button>
                 ))}

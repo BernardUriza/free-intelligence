@@ -14,7 +14,7 @@
  */
 
 import { useState } from 'react';
-import { BarChart3, ChevronDown } from 'lucide-react';
+import { BarChart3, ChevronDown, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface ChunkStatus {
@@ -65,13 +65,17 @@ export function AdvancedMetrics({
           <BarChart3 className="fi-icon-md fi-icon-cyan" />
           <h3 className="fi-title">Métricas Avanzadas</h3>
           {/* Backend Health Badge */}
-          <span className={`px-2 py-0.5 rounded-full fi-text-xs-medium ${
+          <span className={`px-2 py-0.5 rounded-full fi-text-xs-medium flex items-center gap-1 ${
             backendHealth === 'healthy' ? 'bg-emerald-500/20 fi-text-success' :
             backendHealth === 'degraded' ? 'bg-yellow-500/20 text-yellow-400' :
             'bg-red-500/20 fi-text-error'
           }`}>
-            {backendHealth === 'healthy' ? '🟢 Backend OK' :
-             backendHealth === 'degraded' ? '🟡 Degradado' : '🔴 Down'}
+            <Circle className={`w-2 h-2 fill-current ${
+              backendHealth === 'healthy' ? 'text-emerald-500' :
+              backendHealth === 'degraded' ? 'text-yellow-500' : 'text-red-500'
+            }`} aria-hidden="true" />
+            {backendHealth === 'healthy' ? 'Backend OK' :
+             backendHealth === 'degraded' ? 'Degradado' : 'Down'}
           </span>
         </div>
         <ChevronDown className={`fi-icon-md fi-icon-slate transition-transform ${showAdvancedMetrics ? 'rotate-180' : ''}`} />

@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CodeBlock } from "@/components/ui/code-block";
 import { Callout } from "@/components/ui/callout";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Loader2, Play } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Play, Check } from "lucide-react";
 import { SERVICES } from "@/lib/nas-config";
 
 type CheckStatus = "idle" | "running" | "success" | "error";
@@ -254,9 +254,9 @@ cd apps/aurity && pnpm exec tsc --noEmit
           <Callout type="info" title="Expected Behavior">
             When accessing <code>http://localhost:9000</code>, you should see:
             <ul className="mt-2 space-y-1 text-sm">
-              <li>✓ Yellow banner at the top: &quot;LAN-ONLY MODE ACTIVE&quot;</li>
-              <li>✓ No external API calls in browser console</li>
-              <li>✓ All API requests to localhost or LAN IP</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />Yellow banner at the top: &quot;LAN-ONLY MODE ACTIVE&quot;</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />No external API calls in browser console</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />All API requests to localhost or LAN IP</li>
             </ul>
           </Callout>
 

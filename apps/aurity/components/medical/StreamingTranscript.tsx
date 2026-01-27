@@ -14,6 +14,7 @@
  * Updated: Pause state support (2025-11-13)
  */
 
+import { Pause, Lightbulb } from 'lucide-react';
 import type { TranscriptionData } from '@aurity-standalone/hooks/useTranscription';
 
 interface StreamingTranscriptProps {
@@ -59,7 +60,13 @@ export function StreamingTranscript({
       </div>
 
       <div className="mt-3 fi-flex-gap fi-text-xs">
-        <span>{isPaused ? '⏸️ Grabación pausada - texto preservado' : '💡 El texto se actualiza cada 3 segundos mientras hablas'}</span>
+        <span className="flex items-center gap-1">
+          {isPaused ? (
+            <><Pause className="w-3.5 h-3.5" aria-hidden="true" /> Grabación pausada - texto preservado</>
+          ) : (
+            <><Lightbulb className="w-3.5 h-3.5" aria-hidden="true" /> El texto se actualiza cada 3 segundos mientras hablas</>
+          )}
+        </span>
       </div>
     </div>
   );

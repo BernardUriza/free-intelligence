@@ -47,7 +47,7 @@ export function PCSimulationTab() {
             {/* Linux */}
             <AccordionItem value="linux" className="border-slate-700">
               <AccordionTrigger className="fi-text hover:text-slate-100">
-                🐧 Linux (Ubuntu, Debian, Fedora)
+                Linux (Ubuntu, Debian, Fedora)
               </AccordionTrigger>
               <AccordionContent className="fi-stack-lg">
                 <div>
@@ -101,7 +101,7 @@ pm2 startup  # Enable on boot`}
             {/* macOS */}
             <AccordionItem value="macos" className="border-slate-700">
               <AccordionTrigger className="fi-text hover:text-slate-100">
-                🍎 macOS (Homebrew)
+                macOS (Homebrew)
               </AccordionTrigger>
               <AccordionContent className="fi-stack-lg">
                 <div>
@@ -155,7 +155,7 @@ pm2 startup launchd  # Enable on boot (macOS)`}
             {/* Windows WSL2 */}
             <AccordionItem value="windows" className="border-slate-700">
               <AccordionTrigger className="fi-text hover:text-slate-100">
-                🪟 Windows (WSL2 - Recommended)
+                Windows (WSL2 - Recommended)
               </AccordionTrigger>
               <AccordionContent className="fi-stack-lg">
                 <Callout type="warning" title="Why WSL2?">
@@ -337,11 +337,11 @@ pnpm dev
                 language="bash"
               />
               <div className="mt-3 fi-text-xs">
-                ✓ Hot module replacement
+                - Hot module replacement
                 <br />
-                ✓ Source maps and debugging
+                - Source maps and debugging
                 <br />
-                ✗ Not suitable for production
+                - Not suitable for production
               </div>
             </div>
 
@@ -360,11 +360,11 @@ pm2 start ecosystem.config.js
                 language="bash"
               />
               <div className="mt-3 fi-text-xs">
-                ✓ Optimized bundles
+                - Optimized bundles
                 <br />
-                ✓ Process management
+                - Process management
                 <br />
-                ✓ Auto-restart on crash
+                - Auto-restart on crash
               </div>
             </div>
           </div>

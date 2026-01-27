@@ -42,7 +42,7 @@ export function ProtectedRoute({ children, requireRoles }: ProtectedRouteProps) 
 
       // Superadmin bypass (handled by useRBAC hook)
       if (isSuperAdmin) {
-        console.log('[ProtectedRoute] ⭐ SUPERADMIN - Full access granted');
+        console.log('[ProtectedRoute] [SUPERADMIN] Full access granted');
         return;
       }
 
@@ -56,7 +56,7 @@ export function ProtectedRoute({ children, requireRoles }: ProtectedRouteProps) 
           return;
         }
 
-        console.log('[ProtectedRoute] ✅ Access granted');
+        console.log('[ProtectedRoute] [OK] Access granted');
       }
     };
 
