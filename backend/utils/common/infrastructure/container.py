@@ -62,19 +62,23 @@ else:
             # Type information still comes from TYPE_CHECKING imports above
             return type(name, (), {})
 
-    AuditService = _import_service("AuditService")  # type: ignore[assignment]
     CorpusService = _import_service("CorpusService")  # type: ignore[assignment]
     DiagnosticsService = _import_service("DiagnosticsService")  # type: ignore[assignment]
     DiarizationService = _import_service("DiarizationService")  # type: ignore[assignment]
     DiarizationJobService = _import_service("DiarizationJobService")  # type: ignore[assignment]
     EvidenceService = _import_service("EvidenceService")  # type: ignore[assignment]
     ExportService = _import_service("ExportService")  # type: ignore[assignment]
-    SessionService = _import_service("SessionService")  # type: ignore[assignment]
     SystemHealthService = _import_service("SystemHealthService")  # type: ignore[assignment]
     TranscriptionService = _import_service("TranscriptionService")  # type: ignore[assignment]
     TriageService = _import_service("TriageService")  # type: ignore[assignment]
 
+    # Use direct imports for services that accept repositories (not from services module)
+    from backend.core.domain.session.services.session_service import SessionService
+    from backend.api.audit.services.audit_service import AuditService
+
     # Import DI services
+    # NOTE: Some services commented out due to broken infrastructure.* imports
+    # Will be re-enabled after fixing all broken imports
     from backend.api.audit.services.di_audit_service import DIAuditService
     from backend.services.evidence.services.evidence_service import DIEvidenceService
     from backend.services.export.services.export_service import DIExportService
@@ -82,9 +86,12 @@ else:
         SessionService as DISessionService,
     )
     from backend.utils.system.services.di_system_health_service import DISystemHealthService
-    from backend.services.transcription.services.di_transcription_service import (
-        DITranscriptionService,
-    )
+
+    # FIXME: Broken imports - temporarily stubbed
+    # from backend.services.transcription.services.di_transcription_service import (
+    #     DITranscriptionService,
+    # )
+    DITranscriptionService = type("DITranscriptionService", (), {})  # type: ignore[assignment,misc]
 
 
 def _get_logger() -> Any:

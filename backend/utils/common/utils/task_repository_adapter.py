@@ -1,41 +1,51 @@
-"""Adapter that wraps functional task_repository module to implement ITaskRepository interface."""
+"""Adapter that wraps HDF5TaskRepository to implement ITaskRepository interface.
 
+NOTE: This adapter now delegates to the real HDF5TaskRepository implementation
+instead of the broken infrastructure.storage.infrastructure.hdf5.task_repository
+"""
+
+from pathlib import Path
 from typing import Any, Dict, List
 
+from backend.repositories.task_repository import HDF5TaskRepository
 from backend.utils.common.interfaces.itask_repository import ITaskRepository
-from infrastructure.storage.infrastructure.hdf5 import task_repository as tr
 
 
 class TaskRepositoryAdapter(ITaskRepository):
-    """Adapter that delegates to functional task_repository module."""
+    """Adapter that delegates to HDF5TaskRepository.
 
-    def __init__(self, h5_file_path: str | None = None):
-        """Initialize adapter.
+    Provides backward compatibility for code expecting TaskRepositoryAdapter.
+    """
+
+    def __init__(self, h5_file_path: str | Path | None = None):
+        """Initialize adapter with HDF5 file path.
 
         Args:
-            h5_file_path: Not used (functional module uses global CORPUS_PATH)
+            h5_file_path: Path to HDF5 database file (defaults to storage/corpus.h5)
         """
-        # The functional module uses CORPUS_PATH internally, so we don't need to store h5_file_path
-        pass
+        if h5_file_path is None:
+            h5_file_path = Path("storage/corpus.h5")
+
+        self._repository = HDF5TaskRepository(h5_file_path)
 
     def get_task_metadata(self, session_id: str, task_type: str) -> Dict[str, Any] | None:
         """Get task metadata."""
-        return tr.get_task_metadata(session_id, task_type)
+        return self._repository.get_task_metadata(session_id, task_type)
 
     def task_exists(self, session_id: str, task_type: str) -> bool:
         """Check if task exists."""
-        return tr.task_exists(session_id, task_type)
+        return self._repository.task_exists(session_id, task_type)
 
     def ensure_task_exists(
         self, session_id: str, task_type: str, metadata: Dict[str, Any] | None = None
     ) -> str:
         """Ensure task exists, create if not."""
-        return tr.ensure_task_exists(session_id, task_type, metadata or {})
+        return self._repository.ensure_task_exists(session_id, task_type, metadata)
 
     def get_task_chunks(self, session_id: str, task_type: str) -> List[Dict[str, Any]]:
         """Get task chunks."""
-        return tr.get_task_chunks(session_id, task_type)
+        return self._repository.get_task_chunks(session_id, task_type)
 
     def save_task_metadata(self, session_id: str, task_type: str, metadata: Dict[str, Any]) -> None:
         """Save task metadata."""
-        tr.update_task_metadata(session_id, task_type, **metadata)
+        self._repository.save_task_metadata(session_id, task_type, metadata)

@@ -25,14 +25,15 @@ from __future__ import annotations
 # Common utilities (most frequently imported)
 from backend.utils.common.logging.logger import get_logger
 
-# Storage layer (frequently used)
-# Note: Path is ugly (infrastructure/storage/infrastructure/hdf5) - pending refactor
-from infrastructure.storage.infrastructure.hdf5.sessions_store import SessionsStore
+# Repositories (Clean Architecture - Repository Pattern)
+from backend.repositories.session_repository import SessionRepository
+from backend.repositories.task_repository import HDF5TaskRepository
 
 # Domain entities (clean imports)
 # Note: Full domain extraction pending (see .claude/rules/architecture/backend-refactor-analysis.md)
 
 __all__ = [
     "get_logger",
-    "SessionsStore",
+    "HDF5TaskRepository",
+    "SessionRepository",  # Fixed: Use SessionRepository instead of non-existent SessionsStore
 ]

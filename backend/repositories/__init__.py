@@ -14,10 +14,12 @@ from .audit_repository import AuditRepository
 from .base_repository import BaseRepository
 from .corpus_repository import CorpusRepository
 from .session_repository import SessionRepository
+from .task_repository import HDF5TaskRepository
 
 __all__ = [
     "AuditRepository",
     "BaseRepository",
     "CorpusRepository",
+    "HDF5TaskRepository",
     "SessionRepository",
 ]
