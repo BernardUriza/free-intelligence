@@ -612,12 +612,16 @@ jobs:
           $config.version = $newVersion
           $config | ConvertTo-Json -Depth 100 | Set-Content $configPath -NoNewline
 
+          # Synchronize package.json and Cargo.toml
+          Write-Host "Synchronizing package.json and Cargo.toml..."
+          pnpm version:sync
+
           # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Commit and push
-          git add $configPath
+          # Commit and push (now includes all synchronized files)
+          git add .
           git commit -m "chore: bump version to $newVersion [skip ci]"
           git push origin ${{ github.ref_name }}
 
