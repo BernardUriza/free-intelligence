@@ -16,12 +16,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from backend.models.task_type import TaskStatus, TaskType
 from backend.utils.common.logging.logger import get_logger
-from infrastructure.storage.infrastructure.hdf5.task_repository import (
-    get_task_metadata,
-    task_exists,
-)
+
+# NOTE: Removed broken imports from infrastructure.storage.infrastructure.hdf5.task_repository
+# Those functions (get_task_metadata, task_exists) don't exist in the codebase
+# SessionService now relies on repository dependency injection instead
 
 logger = get_logger(__name__)
 
@@ -41,108 +40,181 @@ class SessionService:
         self.repository = repository
 
     async def get_session_info(self, session_id: str) -> dict:
-        """Get complete session information (all tasks).
-
-        Aggregates status from all task types:
-        - TRANSCRIPTION: Audio → text conversion
-        - DIARIZATION: Speaker identification + text improvement
-        - SOAP_GENERATION: Medical notes extraction
-        - EMOTION_ANALYSIS: Patient emotion detection
-        - ENCRYPTION: AES-GCM audio encryption
+        """Get session information from repository.
 
         Args:
             session_id: Session UUID
 
         Returns:
-            dict with:
-                - session_id: Session identifier
-                - created_at: Earliest task creation timestamp
-                - updated_at: Latest task update timestamp
-                - overall_status: Overall session status
-                - tasks: Dict of {task_type: metadata} for all present tasks
-                - task_count: Number of tasks in session
+            dict with session metadata
 
         Raises:
-            ValueError: If session not found (no tasks exist)
+            ValueError: If session not found
         """
-        # Collect all task metadata
-        tasks_metadata: dict[str, dict] = {}
-        earliest_created: datetime | None = None
-        latest_updated: datetime | None = None
+        # Get session from repository
+        if self.repository:
+            session_data = self.repository.read(session_id)
+        else:
+            # Fallback: Direct HDF5 access
+            from backend import SessionRepository
+            from pathlib import Path
 
-        for task_type in TaskType:
-            if task_exists(session_id, task_type):
-                meta = get_task_metadata(session_id, task_type) or {}
-                tasks_metadata[task_type.value] = meta
+            storage_path = Path("storage/corpus.h5")
+            repo = SessionRepository(storage_path)
+            session_data = repo.read(session_id)
 
-                # Track timestamps
-                if "created_at" in meta:
-                    try:
-                        created_dt = datetime.fromisoformat(meta["created_at"])
-                        if earliest_created is None or created_dt < earliest_created:
-                            earliest_created = created_dt
-                    except (ValueError, TypeError):
-                        pass
-
-                if "updated_at" in meta:
-                    try:
-                        updated_dt = datetime.fromisoformat(meta["updated_at"])
-                        if latest_updated is None or updated_dt > latest_updated:
-                            latest_updated = updated_dt
-                    except (ValueError, TypeError):
-                        pass
-
-        # Session must have at least one task
-        if not tasks_metadata:
+        if not session_data:
             raise ValueError(f"Session {session_id} not found")
 
-        # Determine overall status
-        overall_status = self._compute_overall_status(tasks_metadata)
+        # Extract metadata and add missing fields
+        metadata = session_data.get("metadata", {})
+        now = datetime.now(UTC).isoformat()
 
-        # Use timestamps or defaults
-        now = datetime.now(UTC)
-        created_at = earliest_created.isoformat() if earliest_created else now.isoformat()
-        updated_at = latest_updated.isoformat() if latest_updated else now.isoformat()
+        return {
+            "id": session_id,
+            "session_id": session_id,
+            "created_at": metadata.get("created_at", now),
+            "updated_at": metadata.get("updated_at", now),
+            "last_active": metadata.get("last_active", now),
+            "interaction_count": metadata.get("interaction_count", 0),
+            "status": session_data.get("status", "active"),
+            "is_persisted": True,
+            "owner_hash": metadata.get("user_id", ""),
+            "thread_id": metadata.get("thread_id"),
+        }
+
+    def list_sessions(self, user_id: str | None = None) -> list[dict]:
+        """List sessions with MANDATORY tenant isolation.
+
+        SECURITY CRITICAL: This method enforces tenant isolation by filtering
+        sessions by user_id (owner_hash). Calling without user_id returns
+        ALL sessions (multi-tenant data leak).
+
+        Args:
+            user_id: User ID / owner_hash (REQUIRED for tenant isolation)
+
+        Returns:
+            List of session dictionaries with basic metadata
+
+        Raises:
+            ValueError: If user_id is None (tenant isolation violation)
+
+        Example:
+            sessions = service.list_sessions(user_id="sha256:abc123")
+        """
+        if not user_id:
+            logger.error(
+                "TENANT_ISOLATION_VIOLATION",
+                message="list_sessions called without user_id",
+                stack_trace=True,
+            )
+            raise ValueError(
+                "user_id is REQUIRED for tenant isolation. "
+                "Calling list_sessions() without user_id would return ALL sessions across ALL tenants, "
+                "violating HIPAA/GDPR compliance."
+            )
+
+        # Use SessionRepository if available, otherwise fall back to direct HDF5 access
+        if self.repository:
+            sessions = self.repository.list_by_user_id(user_id=user_id, limit=100)
+        else:
+            # Fallback: Direct HDF5 access (for backwards compatibility)
+            from backend import SessionRepository
+            from pathlib import Path
+
+            # TODO: Get storage path from config
+            storage_path = Path("storage/corpus.h5")
+            repo = SessionRepository(storage_path)
+            sessions = repo.list_by_user_id(user_id=user_id, limit=100)
+
+        logger.info(
+            "SESSIONS_LISTED",
+            user_id=user_id,
+            count=len(sessions),
+            filtered_by_owner=True,  # Explicit log for audit
+        )
+
+        return sessions
+
+    def create_session(self, session_id: str, user_id: str, metadata: dict | None = None) -> dict:
+        """Create new session with tenant isolation.
+
+        Args:
+            session_id: Unique session identifier
+            user_id: User ID / owner (for tenant isolation)
+            metadata: Optional session metadata
+
+        Returns:
+            Created session dict
+
+        Raises:
+            ValueError: If session already exists
+        """
+        if self.repository:
+            self.repository.create(
+                entity={
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "metadata": metadata or {},
+                }
+            )
+        else:
+            # Fallback: Direct HDF5 access
+            from backend import SessionRepository
+            from pathlib import Path
+
+            storage_path = Path("storage/corpus.h5")
+            repo = SessionRepository(storage_path)
+            repo.create(
+                entity={
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "metadata": metadata or {},
+                }
+            )
+
+        logger.info("SESSION_CREATED", session_id=session_id, user_id=user_id)
 
         return {
             "session_id": session_id,
-            "created_at": created_at,
-            "updated_at": updated_at,
-            "overall_status": overall_status,
-            "tasks": tasks_metadata,
-            "task_count": len(tasks_metadata),
+            "user_id": user_id,
+            "status": "active",
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
-    def _compute_overall_status(self, tasks_metadata: dict[str, dict]) -> str:
-        """Compute overall session status from task metadata.
-
-        Rules:
-        - If ANY task is FAILED → overall = FAILED
-        - If ALL tasks are COMPLETED → overall = COMPLETED
-        - If ANY task is IN_PROGRESS → overall = IN_PROGRESS
-        - Otherwise → overall = PENDING
+    def update_session(
+        self, session_id: str, status: str | None = None, interaction_count: int | None = None
+    ) -> bool:
+        """Update session metadata.
 
         Args:
-            tasks_metadata: Dict of {task_type: metadata}
+            session_id: Session identifier
+            status: New status (optional)
+            interaction_count: New interaction count (optional)
 
         Returns:
-            Overall status string
+            True if update successful
         """
-        if not tasks_metadata:
-            return TaskStatus.PENDING.name.lower()
+        metadata = {}
+        if status:
+            metadata["status"] = status
+        if interaction_count is not None:
+            metadata["interaction_count"] = interaction_count
 
-        statuses = [
-            meta.get("status", TaskStatus.PENDING.name.lower()) for meta in tasks_metadata.values()
-        ]
+        if self.repository:
+            success = self.repository.update(
+                entity_id=session_id, entity={"metadata": metadata}
+            )
+        else:
+            # Fallback: Direct HDF5 access
+            from backend import SessionRepository
+            from pathlib import Path
 
-        # Priority: FAILED > IN_PROGRESS > COMPLETED > PENDING
-        if TaskStatus.FAILED.name.lower() in statuses:
-            return TaskStatus.FAILED.name.lower()
+            storage_path = Path("storage/corpus.h5")
+            repo = SessionRepository(storage_path)
+            success = repo.update(entity_id=session_id, entity={"metadata": metadata})
 
-        if TaskStatus.IN_PROGRESS.name.lower() in statuses:
-            return TaskStatus.IN_PROGRESS.name.lower()
+        if success:
+            logger.info("SESSION_UPDATED", session_id=session_id)
 
-        if all(s == TaskStatus.COMPLETED.name.lower() for s in statuses):
-            return TaskStatus.COMPLETED.name.lower()
-
-        return TaskStatus.PENDING.name.lower()
+        return success

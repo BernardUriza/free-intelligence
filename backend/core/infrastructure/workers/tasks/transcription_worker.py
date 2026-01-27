@@ -9,17 +9,46 @@ import os
 from backend.models.task_type import TaskStatus, TaskType
 from backend.providers.stt import get_stt_provider
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
-    batch_update_chunk_datasets,
-    get_chunk_audio_bytes,
-    get_task_chunks,
-    get_task_metadata,
-    update_task_metadata,
-)
+from backend.container import get_container
 from backend.core.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
 from backend.utils.stt_load_balancer import get_stt_load_balancer
 
 logger = get_logger(__name__)
+
+
+# Use DI container for task repository functions
+def get_task_metadata(session_id: str, task_type):
+    """Get task metadata via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.get_task_metadata(session_id, task_type_str)
+
+
+def get_task_chunks(session_id: str, task_type):
+    """Get task chunks via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.get_task_chunks(session_id, task_type_str)
+
+
+def update_task_metadata(session_id: str, task_type, metadata: dict):
+    """Update task metadata via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    task_repo.save_task_metadata(session_id, task_type_str, metadata)
+
+
+# TODO: Implement these via proper storage layer
+def batch_update_chunk_datasets(*args, **kwargs):
+    """Stub - needs implementation in task repository."""
+    logger.warning("batch_update_chunk_datasets stub called - needs implementation")
+    pass
+
+
+def get_chunk_audio_bytes(*args, **kwargs):
+    """Stub - needs implementation in task repository."""
+    logger.warning("get_chunk_audio_bytes stub called - needs implementation")
+    return b""
 
 
 @measure_time

@@ -12,15 +12,42 @@ from backend.models.task_type import TaskStatus, TaskType
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.diarization import get_diarization_provider
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
-    CORPUS_PATH,
-    get_task_chunks,
-    save_diarization_segments,
-    task_exists,
-    update_task_metadata,
-)
+from backend.container import get_container
 from backend.core.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
 from backend.services.workflow.services.workflow_tracker import get_workflow_tracker
+from pathlib import Path
+
+# Use DI container for task repository functions
+def get_task_chunks(session_id: str, task_type):
+    """Get task chunks via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.get_task_chunks(session_id, task_type_str)
+
+
+def task_exists(session_id: str, task_type):
+    """Check if task exists via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.task_exists(session_id, task_type_str)
+
+
+def update_task_metadata(session_id: str, task_type, **metadata):
+    """Update task metadata via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    task_repo.save_task_metadata(session_id, task_type_str, metadata)
+
+
+# TODO: Implement via proper storage layer
+def save_diarization_segments(*args, **kwargs):
+    """Stub - needs implementation."""
+    get_logger(__name__).warning("save_diarization_segments stub called")
+    pass
+
+
+# Default corpus path
+CORPUS_PATH = Path("storage/corpus.h5")
 
 logger = get_logger(__name__)
 

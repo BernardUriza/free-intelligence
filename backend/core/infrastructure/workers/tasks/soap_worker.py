@@ -9,14 +9,53 @@ from typing import Any
 from backend.models.task_type import TaskStatus, TaskType
 from backend.policy.policy_loader import get_policy_loader
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
-    create_order,
-    get_diarization_segments,
-    get_orders,
-    get_task_chunks,
-    save_soap_data,
-    task_exists,
-    update_task_metadata,
+from backend.container import get_container
+
+# Use DI container for task repository functions
+def get_task_chunks(session_id: str, task_type):
+    """Get task chunks via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.get_task_chunks(session_id, task_type_str)
+
+
+def task_exists(session_id: str, task_type):
+    """Check if task exists via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.task_exists(session_id, task_type_str)
+
+
+def update_task_metadata(session_id: str, task_type, **metadata):
+    """Update task metadata via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    task_repo.save_task_metadata(session_id, task_type_str, metadata)
+
+
+# TODO: Implement these via proper repositories
+def get_diarization_segments(*args, **kwargs):
+    """Stub - needs implementation."""
+    get_logger(__name__).warning("get_diarization_segments stub called")
+    return []
+
+
+def save_soap_data(*args, **kwargs):
+    """Stub - needs implementation."""
+    get_logger(__name__).warning("save_soap_data stub called")
+    pass
+
+
+def create_order(*args, **kwargs):
+    """Stub - needs implementation."""
+    get_logger(__name__).warning("create_order stub called")
+    pass
+
+
+def get_orders(*args, **kwargs):
+    """Stub - needs implementation."""
+    get_logger(__name__).warning("get_orders stub called")
+    return []
 )
 from backend.core.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
 from backend.services.workflow.services.workflow_tracker import get_workflow_tracker

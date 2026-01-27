@@ -62,9 +62,14 @@ try:
         TaskType,  # type: ignore[assignment]
     )
     from backend.utils.common.logging.logger import get_logger  # type: ignore[assignment]
-    from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
-        update_task_metadata,
-    )
+    from backend.container import get_container  # type: ignore[assignment]
+
+    # Use DI container for task repository
+    def update_task_metadata(session_id: str, task_type: Any, metadata: dict) -> None:
+        """Update task metadata via DI container."""
+        task_repo = get_container().get_task_repository()
+        task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+        task_repo.save_task_metadata(session_id, task_type_str, metadata)
 
     HAS_BACKEND_IMPORTS = True
 except ImportError:
@@ -87,6 +92,7 @@ except ImportError:
         ENCRYPTION = "ENCRYPTION"
 
     def update_task_metadata(session_id: str, task_type: Any, metadata: dict) -> None:  # type: ignore[misc]
+        """Stub for CLI mode."""
         pass
 
     HAS_BACKEND_IMPORTS = False  # type: ignore[assignment]

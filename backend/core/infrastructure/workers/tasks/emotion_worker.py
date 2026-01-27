@@ -11,12 +11,27 @@ import h5py
 from backend.models.task_type import TaskStatus, TaskType
 from backend.schemas.llm.preset_loader import get_preset_loader
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
-    CORPUS_PATH,
-    task_exists,
-    update_task_metadata,
-)
+from backend.container import get_container
 from backend.core.infrastructure.workers.tasks.base_worker import measure_time
+from pathlib import Path
+
+# Use DI container for task repository functions
+def task_exists(session_id: str, task_type):
+    """Check if task exists via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.task_exists(session_id, task_type_str)
+
+
+def update_task_metadata(session_id: str, task_type, **metadata):
+    """Update task metadata via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    task_repo.save_task_metadata(session_id, task_type_str, metadata)
+
+
+# Default corpus path
+CORPUS_PATH = Path("storage/corpus.h5")
 
 logger = get_logger(__name__)
 
