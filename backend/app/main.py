@@ -248,9 +248,6 @@ Requires environment variables:
     # Sub-app: Public API (orchestrators, CORS enabled)
     public_app = FastAPI(title="Public API")
 
-    # P2: Distributed tracing (must be first middleware - outermost layer)
-    public_app.add_middleware(TracingMiddleware)
-
     # CORS configuration: more restrictive in production
     environment = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
 
@@ -286,6 +283,10 @@ Requires environment variables:
             )
         allowed_headers = ["*"]  # More permissive in development
 
+    # Middleware stack (outside-in execution order):
+    # 1. CORS - Fail fast on origin mismatch (outermost)
+    # 2. Tracing - Only trace valid origins
+    # 3. Idempotency - Only check cache for valid routes (innermost)
     public_app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
@@ -293,6 +294,9 @@ Requires environment variables:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=allowed_headers,
     )
+
+    # P2: Distributed tracing (after CORS to avoid tracing preflight noise)
+    public_app.add_middleware(TracingMiddleware)
 
     # P1: Idempotency middleware for workflow orchestration (prevents duplicate POST operations)
     public_app.add_middleware(
@@ -305,11 +309,10 @@ Requires environment variables:
     # Sub-app: Internal API (atomic resources, CORS for dev, localhost-only)
     internal_app = FastAPI(title="Internal API")
 
-    # P2: Distributed tracing (must be first middleware)
-    internal_app.add_middleware(TracingMiddleware)
-
-    # Add CORS for development (showcase testing)
-    # Internal API uses same CORS config as public API
+    # Middleware stack (same order as public_app):
+    # 1. CORS - Fail fast on origin mismatch
+    # 2. Tracing - Only trace valid origins
+    # 3. InternalOnly - Localhost enforcement (innermost)
     internal_app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
@@ -317,6 +320,11 @@ Requires environment variables:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=allowed_headers,
     )
+
+    # P2: Distributed tracing (after CORS)
+    internal_app.add_middleware(TracingMiddleware)
+
+    # P3: Internal-only enforcement (localhost check)
     internal_app.add_middleware(InternalOnlyMiddleware)
 
     # Register all API routers (extracted to routers.py for maintainability)
@@ -397,31 +405,12 @@ Requires environment variables:
     setup_metrics_endpoint(app)
 
     # Mount static files (for demo audio, etc.)
-    # Note: StaticFiles doesn't inherit CORS from parent app, so we wrap it
+    # Note: StaticFiles mounted on main app (not sub-apps) to avoid CORS complexity
     static_dir = Path(__file__).parent.parent / "static"
     if static_dir.exists():
-        static_app = StaticFiles(directory=str(static_dir))
-
-        # Wrap with CORS for frontend access
-        class CORSStaticFiles:
-            def __init__(self, static_files):
-                self.static_files = static_files
-
-            async def __call__(self, scope, receive, send):
-                if scope["type"] == "http":
-
-                    async def send_with_cors(message):
-                        if message["type"] == "http.response.start":
-                            headers = list(message.get("headers", []))
-                            headers.append((b"access-control-allow-origin", b"*"))
-                            message["headers"] = headers
-                        await send(message)
-
-                    await self.static_files(scope, receive, send_with_cors)
-                else:
-                    await self.static_files(scope, receive, send)
-
-        app.mount("/static", CORSStaticFiles(static_app), name="static")
+        # Static files inherit CORS from main app's fallback middleware (development)
+        # In production, static files should be served by Nginx/CDN, not FastAPI
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     return app
 
