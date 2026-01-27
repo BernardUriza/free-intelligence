@@ -51,3 +51,8 @@ lto = true               # Link-time optimization (cross-crate)
 strip = true             # Remove debug symbols (~30% size reduction)
 codegen-units = 1        # Mejor optimización (trade-off: build más lento)
 panic = "abort"          # No unwind tables (reduce size)
+
+# Patch dependencies to fix MSRV issues
+# time@0.3.46 requires Rust 1.88 (not released yet), pin to 0.3.44
+[patch.crates-io]
+time = { version = "=0.3.44" }
