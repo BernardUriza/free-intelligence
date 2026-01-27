@@ -17,6 +17,7 @@ import { AccessTile } from "../dashboard/AccessTile";
 import { AppTemplate } from "@/components/layout/AppTemplate";
 import { useRBAC } from "@aurity-standalone/hooks/useRBAC";
 import { Hospital, Brain, Settings, EyeOff, Lock } from "lucide-react";
+import { NeuralNetworkCanvas } from "@/components/background/NeuralNetworkCanvas";
 
 // Icon mapping for categories
 const CATEGORY_ICONS = {
@@ -70,12 +71,15 @@ export function SlimIndexHub() {
       showWatermark={true}
       showGeometricBg={true}
     >
+      {/* Neural network background animation */}
+      <NeuralNetworkCanvas opacity={0.25} />
+
       <div className="min-h-screen flex flex-col">
         {/* Main Content */}
         <div className="relative flex-1 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-16">
         {/* Onboarding Banner - Neo-minimalist glassmorphism (hidden for superadmins) */}
         {!hasFullAccess && (
-          <div className="mb-8 p-6 bg-blue-950/30 backdrop-blur-xl border border-blue-800/30 rounded-2xl shadow-lg hover:shadow-xl transition-shadow">
+          <div className="mb-8 p-6 bg-blue-950/30 backdrop-blur-md border border-white/10 rounded-2xl shadow-lg hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between gap-6">
               <div>
                 <h3 className="text-xl font-bold text-blue-200 tracking-tight">Welcome to Aurity Framework</h3>
@@ -92,7 +96,7 @@ export function SlimIndexHub() {
         )}
 
         {/* Medical AI Workflow - Neo-minimalist glassmorphism */}
-        <div className={`mb-8 p-6 bg-emerald-950/30 backdrop-blur-xl border border-emerald-800/30 rounded-2xl shadow-lg hover:shadow-xl transition-all relative ${
+        <div className={`mb-8 p-6 bg-emerald-950/30 backdrop-blur-md border border-white/10 hover:border-emerald-500/40 rounded-2xl shadow-lg hover:shadow-xl transition-all relative ${
           !hasFullAccess ? 'opacity-50 pointer-events-none' : ''
         }`}>
           {!hasFullAccess && (
@@ -145,7 +149,7 @@ export function SlimIndexHub() {
       </div>
 
       {/* Minimal Footer - Neo-minimalist glassmorphism */}
-      <footer className="relative fi-border-top/50 bg-slate-900/60 backdrop-blur-xl shadow-lg">
+      <footer className="relative fi-border-top/50 bg-slate-900/60 backdrop-blur-md shadow-lg">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
           <div className="flex items-center justify-center h-14 fi-subtitle/80 font-light tracking-wide">
             <span>Shortcuts: 1-9 to navigate</span>

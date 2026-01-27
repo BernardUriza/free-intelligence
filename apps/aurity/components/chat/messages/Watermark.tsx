@@ -21,7 +21,7 @@ export interface WatermarkProps {
 
 export const Watermark = memo(function Watermark({
   src = '/images/fi.png',
-  opacity = 0.02, // Casi invisible (was 0.06)
+  opacity = 0.08, // Visible for branding/screenshots
   visible,
 }: WatermarkProps) {
   if (!visible) return null;
@@ -41,8 +41,8 @@ export const Watermark = memo(function Watermark({
         backgroundRepeat: 'no-repeat',
         opacity,
         pointerEvents: 'none',
-        zIndex: 0,
-        filter: 'blur(1px)', // Suavizar aún más
+        zIndex: 2, // Above canvas (1), below content - prominent for branding
+        filter: 'blur(0.5px)', // Slightly sharper for screenshots
       }}
     />
   );

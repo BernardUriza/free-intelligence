@@ -38,6 +38,13 @@ struct AppConfig {
     azure_sas_url: Option<String>,
     last_tunnel_url: Option<String>,
     last_upload_success: Option<String>,
+    tunnel_port: Option<u16>,
+}
+
+impl AppConfig {
+    fn get_tunnel_port(&self) -> u16 {
+        self.tunnel_port.unwrap_or(11400)  // Default Gateway
+    }
 }
 
 fn get_config_path() -> PathBuf {
@@ -815,7 +822,15 @@ async fn start_tunnel_internal(
             return Ok(url);
         }
     }
-    println!("[FI Monitor] Starting Cloudflare tunnel...");
+
+    // Leer puerto configurado
+    let tunnel_port = {
+        let config = state.config.lock().unwrap();
+        config.get_tunnel_port()
+    };
+
+    let tunnel_url = format!("http://localhost:{}", tunnel_port);
+    println!("[FI Monitor] Starting Cloudflare tunnel to {}", tunnel_url);
     let cloudflared = find_cloudflared()?;
 
     #[cfg(target_os = "windows")]
@@ -823,7 +838,7 @@ async fn start_tunnel_internal(
 
     #[cfg(target_os = "windows")]
     let mut child = Command::new(&cloudflared)
-        .args(["tunnel", "--url", "http://localhost:11400"]) // Gateway port (routes to Ollama + RAG)
+        .args(["tunnel", "--url", &tunnel_url])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .creation_flags(CREATE_NO_WINDOW)
@@ -832,7 +847,7 @@ async fn start_tunnel_internal(
 
     #[cfg(not(target_os = "windows"))]
     let mut child = Command::new(&cloudflared)
-        .args(["tunnel", "--url", "http://localhost:11400"]) // Gateway port (routes to Ollama + RAG)
+        .args(["tunnel", "--url", &tunnel_url])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -1134,6 +1149,48 @@ async fn get_last_tunnel_url(
 ) -> Result<Option<String>, String> {
     let config = state.config.lock().unwrap();
     Ok(config.last_tunnel_url.clone())
+}
+
+#[tauri::command]
+async fn set_tunnel_port(
+    state: tauri::State<'_, Arc<AppState>>,
+    port: u16,
+) -> Result<(), String> {
+    // Validación
+    if port < 1024 {
+        return Err("Port must be >= 1024 (system ports reserved)".to_string());
+    }
+
+    // Tunnel debe estar detenido
+    if *state.tunnel_running.lock().unwrap() {
+        return Err("Stop tunnel before changing port".to_string());
+    }
+
+    // Verificar puerto no en uso
+    if is_port_in_use(port).await {
+        return Err(format!("Port {} already in use", port));
+    }
+
+    // Guardar config
+    let mut config = state.config.lock().unwrap();
+    config.tunnel_port = Some(port);
+    save_config(&config)?;
+
+    println!("[FI Monitor] Tunnel port updated to {}", port);
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_tunnel_port(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<u16, String> {
+    let config = state.config.lock().unwrap();
+    Ok(config.get_tunnel_port())
+}
+
+async fn is_port_in_use(port: u16) -> bool {
+    use std::net::TcpListener;
+    TcpListener::bind(("127.0.0.1", port)).is_err()
 }
 
 // ============================================================================
@@ -1683,6 +1740,8 @@ fn main() {
             benchmark_all,
             get_benchmark_history,
             get_last_tunnel_url,
+            set_tunnel_port,
+            get_tunnel_port,
             ollama_installer::check_ollama_installed,
             ollama_installer::install_ollama_silent,
             ollama_installer::download_and_install_ollama,

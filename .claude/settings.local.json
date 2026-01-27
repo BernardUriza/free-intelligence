@@ -140,7 +140,15 @@
       "Bash(pnpm tauri build:*)",
       "Bash(pgrep:*)",
       "Bash(screencapture:*)",
-      "Bash(pnpm run check-types:*)"
+      "Bash(pnpm run check-types:*)",
+      "Bash(pnpm tauri:build:*)",
+      "Bash(node -p:*)",
+      "Bash(pnpm version:check:*)",
+      "Bash(hdiutil attach:*)",
+      "Bash(defaults read:*)",
+      "Bash(hdiutil detach:*)",
+      "Bash(pnpm version:sync:*)",
+      "Bash(tee:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { AppTemplate } from '@/components/layout/AppTemplate';
 import { Button } from '@/components/ui/button';
 import { detectTauri, isBrowser } from '@/lib/environment';
+import { NeuralNetworkCanvas } from '@/components/background/NeuralNetworkCanvas';
 import {
   Download,
   Apple,
@@ -250,7 +251,7 @@ function MedicalAIDemo() {
   }, []);
 
   return (
-    <div className="bg-slate-800/80 rounded-2xl border border-slate-700 p-4 sm:p-6 md:p-8 shadow-2xl">
+    <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl border border-white/10 p-4 sm:p-6 md:p-8 shadow-2xl">
       {/* Header */}
       <div className="text-center mb-6 sm:mb-8">
         <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">
@@ -442,7 +443,21 @@ export default function DownloadsPage() {
 
   // Show optimized landing page for ALL users
   return (
-      <AppTemplate backgroundGradient="none" maxWidth="none" padding="0">
+      <AppTemplate
+        headerConfig={{
+          showLogo: true,
+          title: 'Descargas',
+          subtitle: 'Aurity Desktop para tu plataforma',
+          showBackButton: false,
+        }}
+        backgroundGradient="none"
+        maxWidth="none"
+        padding="0"
+        showWatermark={true}
+      >
+        {/* Neural network background animation */}
+        <NeuralNetworkCanvas opacity={0.25} />
+
         <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
           {/* ============================================
               HERO SECTION (Above the Fold)
@@ -496,7 +511,7 @@ export default function DownloadsPage() {
                 <div className="space-y-3 sm:space-y-4 px-2">
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto h-14 sm:h-16 md:h-20 px-8 sm:px-10 md:px-14 text-lg sm:text-xl md:text-2xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl shadow-emerald-500/30 transition-all hover:shadow-emerald-500/40 hover:scale-[1.02]"
+                    className="w-full sm:w-auto h-14 sm:h-16 md:h-20 px-8 sm:px-10 md:px-14 text-lg sm:text-xl md:text-2xl bg-emerald-600/90 backdrop-blur-md border border-emerald-400/30 hover:bg-emerald-500/90 hover:border-emerald-400/50 text-white shadow-2xl shadow-emerald-500/30 transition-all hover:shadow-emerald-500/40 hover:scale-[1.02]"
                     onClick={() => {
                       // Detect OS and download appropriate version
                       const ua = navigator.userAgent.toLowerCase();
@@ -542,7 +557,7 @@ export default function DownloadsPage() {
             <div className="max-w-4xl mx-auto">
               {/* Section Header */}
               <div className="text-center mb-10 sm:mb-14">
-                <div className="inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
+                <div className="inline-flex items-center gap-2 bg-emerald-500/10 backdrop-blur-sm text-emerald-400 px-4 py-1.5 rounded-full text-sm font-medium mb-4 border border-emerald-400/20">
                   <Heart className="w-4 h-4" />
                   Nuestra Filosofía
                 </div>
@@ -557,8 +572,8 @@ export default function DownloadsPage() {
               {/* Philosophy Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
                 {/* Soberanía de Datos */}
-                <div className="bg-slate-800/60 rounded-xl p-6 border border-slate-700 hover:border-emerald-500/30 transition-colors">
-                  <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4">
+                <div className="bg-slate-800/60 backdrop-blur-md rounded-xl p-6 border border-white/10 hover:border-emerald-500/40 transition-colors">
+                  <div className="w-12 h-12 bg-emerald-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-4 border border-emerald-400/10">
                     <Lock className="w-6 h-6 text-emerald-400" />
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">
@@ -571,8 +586,8 @@ export default function DownloadsPage() {
                 </div>
 
                 {/* IA para Todos */}
-                <div className="bg-slate-800/60 rounded-xl p-6 border border-slate-700 hover:border-emerald-500/30 transition-colors">
-                  <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4">
+                <div className="bg-slate-800/60 backdrop-blur-md rounded-xl p-6 border border-white/10 hover:border-emerald-500/40 transition-colors">
+                  <div className="w-12 h-12 bg-emerald-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-4 border border-emerald-400/10">
                     <Users className="w-6 h-6 text-emerald-400" />
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">
@@ -585,8 +600,8 @@ export default function DownloadsPage() {
                 </div>
 
                 {/* Sin Dependencias */}
-                <div className="bg-slate-800/60 rounded-xl p-6 border border-slate-700 hover:border-emerald-500/30 transition-colors">
-                  <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4">
+                <div className="bg-slate-800/60 backdrop-blur-md rounded-xl p-6 border border-white/10 hover:border-emerald-500/40 transition-colors">
+                  <div className="w-12 h-12 bg-emerald-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-4 border border-emerald-400/10">
                     <Globe className="w-6 h-6 text-emerald-400" />
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">
@@ -620,10 +635,10 @@ export default function DownloadsPage() {
                 {benefits.map((benefit) => (
                   <div
                     key={benefit.title}
-                    className="bg-slate-800 rounded-xl p-5 sm:p-6 border border-slate-700 hover:border-emerald-500/50 transition-colors"
+                    className="bg-slate-800/60 backdrop-blur-md rounded-xl p-5 sm:p-6 border border-white/10 hover:border-emerald-500/40 transition-colors"
                   >
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center border border-emerald-400/10">
                         <benefit.icon className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
                       </div>
                       <span className="text-emerald-400 text-xs sm:text-sm font-medium">
@@ -657,9 +672,9 @@ export default function DownloadsPage() {
               {!loading && !error && latestRelease && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {/* macOS */}
-                  <div className="bg-slate-800 rounded-xl p-5 sm:p-6 border border-slate-700 hover:border-slate-600 transition-colors">
+                  <div className="bg-slate-800/60 backdrop-blur-md rounded-xl p-5 sm:p-6 border border-white/10 hover:border-slate-600/80 transition-colors">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center">
+                      <div className="w-12 h-12 bg-slate-700/80 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/5">
                         <Apple className="w-7 h-7 text-slate-300" />
                       </div>
                       <div>
@@ -669,7 +684,7 @@ export default function DownloadsPage() {
                     </div>
                     {latestRelease.platforms.macos ? (
                       <Button
-                        className="w-full h-11 bg-slate-700 hover:bg-slate-600 text-white"
+                        className="w-full h-11 bg-slate-700/80 backdrop-blur-sm hover:bg-slate-600/80 text-white border border-white/5"
                         onClick={() => {
                           if (latestRelease.platforms.macos?.url !== '#coming-soon') {
                             window.open(latestRelease.platforms.macos?.url, '_blank');
@@ -688,9 +703,9 @@ export default function DownloadsPage() {
                   </div>
 
                   {/* Windows */}
-                  <div className="bg-slate-800 rounded-xl p-5 sm:p-6 border border-slate-700 hover:border-slate-600 transition-colors">
+                  <div className="bg-slate-800/60 backdrop-blur-md rounded-xl p-5 sm:p-6 border border-white/10 hover:border-slate-600/80 transition-colors">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center">
+                      <div className="w-12 h-12 bg-slate-700/80 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/5">
                         <Monitor className="w-7 h-7 text-slate-300" />
                       </div>
                       <div>
@@ -700,7 +715,7 @@ export default function DownloadsPage() {
                     </div>
                     {latestRelease.platforms.windows ? (
                       <Button
-                        className="w-full h-11 bg-slate-700 hover:bg-slate-600 text-white"
+                        className="w-full h-11 bg-slate-700/80 backdrop-blur-sm hover:bg-slate-600/80 text-white border border-white/5"
                         onClick={() => {
                           if (latestRelease.platforms.windows?.url !== '#coming-soon') {
                             window.open(latestRelease.platforms.windows?.url, '_blank');
@@ -721,7 +736,7 @@ export default function DownloadsPage() {
                   {/* Linux */}
                   <div className="bg-slate-800 rounded-xl p-5 sm:p-6 border border-slate-700 hover:border-slate-600 transition-colors sm:col-span-2 lg:col-span-1">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center">
+                      <div className="w-12 h-12 bg-slate-700/80 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/5">
                         <Monitor className="w-7 h-7 text-slate-300" />
                       </div>
                       <div>
@@ -731,7 +746,7 @@ export default function DownloadsPage() {
                     </div>
                     {latestRelease.platforms.linux ? (
                       <Button
-                        className="w-full h-11 bg-slate-700 hover:bg-slate-600 text-white"
+                        className="w-full h-11 bg-slate-700/80 backdrop-blur-sm hover:bg-slate-600/80 text-white border border-white/5"
                         onClick={() => {
                           if (latestRelease.platforms.linux?.url !== '#coming-soon') {
                             window.open(latestRelease.platforms.linux?.url, '_blank');
@@ -761,7 +776,7 @@ export default function DownloadsPage() {
               <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">
                 Preguntas Frecuentes
               </h2>
-              <div className="bg-slate-800/50 rounded-xl border border-slate-700 px-4 sm:px-6">
+              <div className="bg-slate-800/50 backdrop-blur-md rounded-xl border border-white/10 px-4 sm:px-6">
                 {faqs.map((faq, index) => (
                   <FAQItem key={index} question={faq.question} answer={faq.answer} />
                 ))}
@@ -775,7 +790,7 @@ export default function DownloadsPage() {
           <section className="py-12 sm:py-16 md:py-20 px-4">
             <div className="max-w-3xl mx-auto text-center">
               {/* Badge de urgencia */}
-              <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-full text-sm font-medium mb-6">
+              <div className="inline-flex items-center gap-2 bg-emerald-500/20 backdrop-blur-sm text-emerald-400 px-4 py-2 rounded-full text-sm font-medium mb-6 border border-emerald-400/20">
                 <Gift className="w-4 h-4" />
                 Licencias Piloto Limitadas
               </div>
@@ -792,7 +807,7 @@ export default function DownloadsPage() {
               {!loading && !error && (
                 <Button
                   size="lg"
-                  className="h-14 sm:h-16 px-8 sm:px-12 text-lg sm:text-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-500/25 transition-all hover:shadow-emerald-500/35"
+                  className="h-14 sm:h-16 px-8 sm:px-12 text-lg sm:text-xl bg-emerald-600/90 backdrop-blur-md border border-emerald-400/30 hover:bg-emerald-500/90 hover:border-emerald-400/50 text-white shadow-xl shadow-emerald-500/25 transition-all hover:shadow-emerald-500/35"
                   onClick={() => {
                     const ua = navigator.userAgent.toLowerCase();
                     let downloadUrl = '';

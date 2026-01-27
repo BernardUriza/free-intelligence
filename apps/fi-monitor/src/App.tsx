@@ -85,7 +85,7 @@ export default function App({ setupState }: AppProps) {
   const [isBenchmarking, setIsBenchmarking] = useState(false)
 
   // Tab state
-  type TabId = 'services' | 'tunnel' | 'testing' | 'benchmarks'
+  type TabId = 'services' | 'tunnel' | 'config' | 'testing' | 'benchmarks'
 
   interface Tab {
     id: TabId
@@ -94,11 +94,23 @@ export default function App({ setupState }: AppProps) {
   }
 
   const [activeTab, setActiveTab] = useState<TabId>('services')
-  const [tunnelPort, setTunnelPort] = useState('11434')
+  const [tunnelPort, setTunnelPort] = useState('11400')  // Default Gateway
+  const [tunnelPortError, setTunnelPortError] = useState<string | null>(null)
+  const [savedTunnelPort, setSavedTunnelPort] = useState('11400')
 
   // Get app version from Tauri
   useEffect(() => {
     getVersion().then(v => setAppVersion(v)).catch(() => {})
+  }, [])
+
+  // Load tunnel port on mount
+  useEffect(() => {
+    invoke<number>('get_tunnel_port')
+      .then(port => {
+        setTunnelPort(String(port))
+        setSavedTunnelPort(String(port))
+      })
+      .catch(err => console.error('[FI Monitor] Failed to load tunnel port:', err))
   }, [])
 
   const fetchStatus = useCallback(async () => {
@@ -218,137 +230,501 @@ export default function App({ setupState }: AppProps) {
   const tabs: Tab[] = [
     { id: 'services', label: 'Services', icon: '🔌' },
     { id: 'tunnel', label: 'Tunnel', icon: '☁️' },
+    { id: 'config', label: 'Config', icon: '⚙️' },
     { id: 'testing', label: 'Testing', icon: '🧪' },
     { id: 'benchmarks', label: 'Benchmarks', icon: '⚡' },
   ]
 
-  // Services section (Ollama only)
-  const renderServicesTab = () => (
-    <div className="services-grid">
-      <div className={`service-card ${ollamaOn ? 'active' : ''}`}>
-        <div className="service-icon">🦙</div>
-        <div className="service-body">
-          <div className="service-name">Ollama</div>
-          <div className={`service-status ${ollamaOn ? 'on' : 'off'}`}>
-            {ollamaOn ? '● Activo' : '○ Inactivo'}
+  // Services section (Topology + Control for all services)
+  const renderServicesTab = () => {
+    const ragOn = status?.rag_service_running ?? false
+    const gatewayOn = status?.gateway_running ?? false
+
+    // Service topology data
+    const services = [
+      {
+        name: 'Ollama',
+        port: 11434,
+        icon: '🦙',
+        running: ollamaOn,
+        description: 'LLM Engine'
+      },
+      {
+        name: 'RAG',
+        port: 11435,
+        icon: '🔍',
+        running: ragOn,
+        description: 'Embeddings'
+      },
+      {
+        name: 'Gateway',
+        port: 11400,
+        icon: '🚪',
+        running: gatewayOn,
+        description: 'Router'
+      }
+    ]
+
+    return (
+      <div className="flex flex-col gap-4 p-4">
+        {/* Services Topology (READ-ONLY) */}
+        <div className="bg-app-surface rounded-lg border border-app-border p-2">
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-xs">🗺️</span>
+            <span className="text-xs font-medium text-app-text">Services Topology</span>
           </div>
-          {ollamaOn && status?.ollama_models && status.ollama_models.length > 0 && (
-            <div className="models">{status.ollama_models.slice(0, 2).join(', ')}</div>
-          )}
+
+          <div className="services-topology">
+            {services.map(service => (
+              <div
+                key={service.port}
+                className={`service-mini ${service.running ? 'active' : 'inactive'}`}
+              >
+                <div className="service-mini-icon">{service.icon}</div>
+                <div className="service-mini-body">
+                  <div className="service-mini-name">{service.name}</div>
+                  <div className="service-mini-port">:{service.port}</div>
+                  <div className="service-mini-desc">{service.description}</div>
+                </div>
+                <div className={`service-mini-status ${service.running ? 'on' : 'off'}`}>
+                  {service.running ? '🟢' : '⚪'}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <button
-          className={`action-btn ${ollamaOn ? 'stop' : 'start'}`}
-          onClick={() => handleAction(ollamaOn ? 'ollama-stop' : 'ollama-start', ollamaOn ? 'stop_ollama' : 'start_ollama')}
-          disabled={!!actionLoading}
-        >
-          {actionLoading?.includes('ollama') ? '...' : ollamaOn ? '■' : '▶'}
-        </button>
+
+        {/* Service Control Cards */}
+        <div className="services-grid">
+          {/* Ollama */}
+          <div className={`service-card ${ollamaOn ? 'active' : ''}`}>
+            <div className="service-icon">🦙</div>
+            <div className="service-body">
+              <div className="service-name">Ollama</div>
+              <div className={`service-status ${ollamaOn ? 'on' : 'off'}`}>
+                {ollamaOn ? '● Activo' : '○ Inactivo'}
+              </div>
+              {ollamaOn && status?.ollama_models && status.ollama_models.length > 0 && (
+                <div className="models">{status.ollama_models.slice(0, 2).join(', ')}</div>
+              )}
+            </div>
+            <button
+              className={`action-btn ${ollamaOn ? 'stop' : 'start'}`}
+              onClick={() => handleAction(ollamaOn ? 'ollama-stop' : 'ollama-start', ollamaOn ? 'stop_ollama' : 'start_ollama')}
+              disabled={!!actionLoading}
+            >
+              {actionLoading?.includes('ollama') ? '...' : ollamaOn ? '■' : '▶'}
+            </button>
+          </div>
+
+          {/* RAG Service */}
+          <div className={`service-card ${ragOn ? 'active' : ''} ${!ollamaOn ? 'disabled' : ''}`}>
+            <div className="service-icon">🔍</div>
+            <div className="service-body">
+              <div className="service-name">RAG Service</div>
+              <div className={`service-status ${ragOn ? 'on' : 'off'}`}>
+                {ragOn ? '● Activo' : '○ Inactivo'}
+              </div>
+              <div className="text-xs text-app-text-dim">GPU Embeddings</div>
+            </div>
+            <button
+              className={`action-btn ${ragOn ? 'stop' : 'start'}`}
+              onClick={() => handleAction(ragOn ? 'rag-stop' : 'rag-start', ragOn ? 'stop_rag_service' : 'start_rag_service')}
+              disabled={!!actionLoading || !ollamaOn}
+            >
+              {actionLoading?.includes('rag') ? '...' : ragOn ? '■' : '▶'}
+            </button>
+          </div>
+
+          {/* Gateway */}
+          <div className={`service-card ${gatewayOn ? 'active' : ''} ${!ollamaOn ? 'disabled' : ''}`}>
+            <div className="service-icon">🚪</div>
+            <div className="service-body">
+              <div className="service-name">Gateway</div>
+              <div className={`service-status ${gatewayOn ? 'on' : 'off'}`}>
+                {gatewayOn ? '● Activo' : '○ Inactivo'}
+              </div>
+              <div className="text-xs text-app-text-dim">HTTP Router</div>
+            </div>
+            <button
+              className={`action-btn ${gatewayOn ? 'stop' : 'start'}`}
+              onClick={() => handleAction(gatewayOn ? 'gateway-stop' : 'gateway-start', gatewayOn ? 'stop_gateway' : 'start_gateway')}
+              disabled={!!actionLoading || !ollamaOn}
+            >
+              {actionLoading?.includes('gateway') ? '...' : gatewayOn ? '■' : '▶'}
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   // Tunnel section
-  const renderTunnelTab = () => (
-    <div className="flex flex-col gap-4 p-4">
-      {/* Tunnel service card */}
-      <div className={`service-card ${tunnelOn ? 'active' : ''} ${!ollamaOn ? 'disabled' : ''}`}>
-        <div className="service-icon">☁️</div>
-        <div className="service-body">
-          <div className="service-name">Cloudflare Tunnel</div>
-          <div className={`service-status ${tunnelOn ? 'on' : 'off'}`}>
-            {tunnelOn ? '● Conectado' : '○ Desconectado'}
+  const handleSaveTunnelPort = async () => {
+    setTunnelPortError(null)
+
+    // Validación client-side
+    const port = parseInt(tunnelPort, 10)
+    if (isNaN(port)) {
+      setTunnelPortError('Port must be a number')
+      return
+    }
+    if (port < 1024 || port > 65535) {
+      setTunnelPortError('Port must be between 1024-65535')
+      return
+    }
+
+    try {
+      await invoke('set_tunnel_port', { port })
+      setSavedTunnelPort(tunnelPort)
+      setTunnelPortError(null)
+    } catch (err) {
+      setTunnelPortError(String(err))
+    }
+  }
+
+  const renderTunnelTab = () => {
+    // Service topology data
+    const services = [
+      {
+        name: 'Ollama',
+        port: 11434,
+        icon: '🦙',
+        running: status?.ollama_running || false,
+        description: 'LLM Engine'
+      },
+      {
+        name: 'RAG',
+        port: 11435,
+        icon: '🔍',
+        running: status?.rag_service_running || false,
+        description: 'Embeddings'
+      },
+      {
+        name: 'Gateway',
+        port: 11400,
+        icon: '🚪',
+        running: status?.gateway_running || false,
+        description: 'Router'
+      }
+    ]
+
+    return (
+      <div className="flex flex-col gap-4 p-4">
+        {/* ===== SECTION 1: Services Topology (READ-ONLY) ===== */}
+        <div className="bg-app-surface rounded-lg border border-app-border p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-base">🗺️</span>
+            <span className="text-sm font-medium text-app-text">Services Topology</span>
           </div>
-          {tunnelOn && status?.tunnel_url && (
-            <div className="tunnel-url-box" onClick={handleCopyUrl} title="Click para copiar">
-              <span className="url-text">{status.tunnel_url.replace('https://', '')}</span>
-              <span className="copy-icon">{copiedUrl ? '✓' : '📋'}</span>
+
+          <div className="services-topology">
+            {services.map(service => (
+              <div
+                key={service.port}
+                className={`service-mini ${service.running ? 'active' : 'inactive'}`}
+              >
+                <div className="service-mini-icon">{service.icon}</div>
+                <div className="service-mini-body">
+                  <div className="service-mini-name">{service.name}</div>
+                  <div className="service-mini-port">:{service.port}</div>
+                  <div className="service-mini-desc">{service.description}</div>
+                </div>
+                <div className={`service-mini-status ${service.running ? 'on' : 'off'}`}>
+                  {service.running ? '🟢' : '⚪'}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-xs text-app-text-dim mt-3">
+            💡 Control services in the <span className="font-semibold text-app-accent">Services</span> tab
+          </div>
+        </div>
+
+        {/* ===== SECTION 2: Tunnel Service Card (CONTROL) ===== */}
+        <div className={`service-card ${tunnelOn ? 'active' : ''} ${!status?.ollama_running ? 'disabled' : ''}`}>
+          <div className="service-icon">☁️</div>
+          <div className="service-body">
+            <div className="service-name">Cloudflare Tunnel</div>
+            <div className={`service-status ${tunnelOn ? 'on' : 'off'}`}>
+              {tunnelOn ? '● Conectado' : '○ Desconectado'}
+            </div>
+            {tunnelOn && status?.tunnel_url && (
+              <div className="tunnel-url-box" onClick={handleCopyUrl} title="Click para copiar">
+                <span className="url-text">{status.tunnel_url.replace('https://', '')}</span>
+                <span className="copy-icon">{copiedUrl ? '✓' : '📋'}</span>
+              </div>
+            )}
+            {tunnelOn && !status?.tunnel_url && (
+              <div className="tunnel-url-pending">⏳ Obteniendo URL...</div>
+            )}
+            {tunnelOn && (
+              <div className="text-xs text-app-text-dim mt-2">
+                Exponiendo puerto: <span className="font-semibold text-app-accent">{savedTunnelPort}</span>
+              </div>
+            )}
+          </div>
+          <button
+            className={`action-btn ${tunnelOn ? 'stop' : 'start'}`}
+            onClick={() => handleAction(tunnelOn ? 'tunnel-stop' : 'tunnel-start', tunnelOn ? 'stop_tunnel' : 'start_tunnel')}
+            disabled={!!actionLoading || !status?.ollama_running}
+          >
+            {actionLoading?.includes('tunnel') ? '...' : tunnelOn ? '■' : '▶'}
+          </button>
+        </div>
+
+        {/* ===== SECTION 3: Port Configuration Reference ===== */}
+        <div className="bg-app-surface rounded-lg border border-app-border p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-base">🔌</span>
+            <span className="text-sm font-medium text-app-text">Port Configuration</span>
+          </div>
+          <div className="text-xs text-app-text-dim leading-relaxed">
+            Configure which port the tunnel exposes in the{' '}
+            <button
+              onClick={() => setActiveTab('config')}
+              className="text-app-accent hover:text-app-accent-bright font-semibold underline"
+            >
+              Config
+            </button>
+            {' '}tab.
+            <div className="mt-2">
+              Current port: <span className="font-semibold text-app-accent">{savedTunnelPort}</span>
+              {savedTunnelPort === '11400' && ' (Gateway - recommended)'}
+            </div>
+          </div>
+        </div>
+
+        {/* Info section */}
+        {!status?.ollama_running && (
+          <div className="bg-app-surface rounded-lg border border-app-warning p-4 text-sm text-app-text-dim">
+            ⚠️ Start Ollama first to enable the tunnel
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Config section - Port Configuration
+  const renderConfigTab = () => {
+    const portChanged = tunnelPort !== savedTunnelPort
+    const portValid = !isNaN(parseInt(tunnelPort, 10)) &&
+                      parseInt(tunnelPort, 10) >= 1024 &&
+                      parseInt(tunnelPort, 10) <= 65535
+
+    // Port occupation detection
+    const isPortOccupied = (port: number): boolean => {
+      if (port === 11434) return status?.ollama_running || false
+      if (port === 11435) return status?.rag_service_running || false
+      if (port === 11400) return status?.gateway_running || false
+      return false
+    }
+
+    // Port selection handler with smart validation
+    const handlePortSelect = (port: number) => {
+      if (tunnelOn) {
+        setTunnelPortError('Stop tunnel first to change port')
+        return
+      }
+      if (isPortOccupied(port)) {
+        setTunnelPortError(`Port ${port} is in use by another service`)
+        return
+      }
+      setTunnelPort(String(port))
+      setTunnelPortError(null)
+    }
+
+    // Port options for selection (with conflict detection)
+    const portOptions = [
+      {
+        port: 11400,
+        label: 'Gateway',
+        description: 'Enruta /api → Ollama, /rag → RAG',
+        recommended: true,
+        occupied: isPortOccupied(11400)
+      },
+      {
+        port: 11434,
+        label: 'Ollama Direct',
+        description: 'Bypass Gateway - Direct LLM access',
+        recommended: false,
+        occupied: isPortOccupied(11434)
+      },
+      {
+        port: 11435,
+        label: 'RAG Direct',
+        description: 'Bypass Gateway - Direct embeddings access',
+        recommended: false,
+        occupied: isPortOccupied(11435)
+      }
+    ]
+
+    return (
+      <div className="grid grid-cols-2 gap-3 p-3">
+        {/* ===== Port Configuration (RADIO CARDS) - Left Column ===== */}
+        <div className="bg-app-surface rounded-lg border border-app-border p-3 flex flex-col">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">🔌</span>
+              <span className="text-xs font-medium text-app-text">Tunnel Port Configuration</span>
+            </div>
+            {portChanged && (
+              <span className="text-xs text-app-warning">● Unsaved</span>
+            )}
+          </div>
+
+          {/* Radio button cards for presets */}
+          <div className="port-options-grid">
+            {portOptions.map(option => {
+              const isSelected = parseInt(tunnelPort) === option.port
+              const isDisabled = tunnelOn || option.occupied
+
+              return (
+                <div
+                  key={option.port}
+                  className={`
+                    port-option
+                    ${isSelected ? 'selected' : ''}
+                    ${isDisabled ? 'disabled' : ''}
+                  `}
+                  onClick={() => !isDisabled && handlePortSelect(option.port)}
+                >
+                  <div className="port-option-header">
+                    <div className="port-option-radio">
+                      {isSelected ? '⦿' : '○'}
+                    </div>
+                    <div className="port-option-title">
+                      {option.label} ({option.port})
+                      {option.recommended && (
+                        <span className="port-option-badge recommended">✓ Recommended</span>
+                      )}
+                      {option.occupied && (
+                        <span className="port-option-badge occupied">⚠️ Occupied</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="port-option-description">
+                    {option.description}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Custom port input */}
+          <div className="port-option custom" style={{ marginTop: '6px' }}>
+            <div className="port-option-header">
+              <div className="port-option-radio">
+                {!portOptions.find(opt => opt.port === parseInt(tunnelPort)) ? '⦿' : '○'}
+              </div>
+              <div className="port-option-title">Custom Port</div>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="number"
+                value={tunnelPort}
+                onChange={(e) => {
+                  setTunnelPort(e.target.value)
+                  setTunnelPortError(null)
+                }}
+                className={`
+                  flex-1 bg-app-bg border rounded px-2 py-1.5 text-xs text-app-text
+                  focus:outline-none focus:border-app-accent
+                  ${tunnelPortError ? 'border-red-500' : 'border-app-border'}
+                `}
+                placeholder="1024-65535"
+                min="1024"
+                max="65535"
+                disabled={tunnelOn}
+              />
+              <button
+                onClick={handleSaveTunnelPort}
+                disabled={!portChanged || !portValid || tunnelOn}
+                className={`
+                  px-3 py-1.5 rounded text-xs font-medium transition-colors
+                  ${portChanged && portValid && !tunnelOn
+                    ? 'bg-app-accent text-white hover:bg-app-accent-bright'
+                    : 'bg-app-surface text-app-text-dim cursor-not-allowed'
+                  }
+                `}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+
+          {tunnelPortError && (
+            <div className="text-xs text-red-500 mt-2 p-1.5 bg-red-500 bg-opacity-10 rounded border border-red-500 border-opacity-30">
+              ⚠️ {tunnelPortError}
             </div>
           )}
-          {tunnelOn && !status?.tunnel_url && (
-            <div className="tunnel-url-pending">⏳ Obteniendo URL...</div>
+
+          {tunnelOn && portChanged && (
+            <div className="text-xs text-app-warning mt-2 p-1.5 bg-app-warning bg-opacity-10 rounded border border-app-warning border-opacity-30">
+              ⚠️ Stop tunnel and restart to apply port changes
+            </div>
           )}
         </div>
-        <button
-          className={`action-btn ${tunnelOn ? 'stop' : 'start'}`}
-          onClick={() => handleAction(tunnelOn ? 'tunnel-stop' : 'tunnel-start', tunnelOn ? 'stop_tunnel' : 'start_tunnel')}
-          disabled={!!actionLoading || !ollamaOn}
-        >
-          {actionLoading?.includes('tunnel') ? '...' : tunnelOn ? '■' : '▶'}
-        </button>
-      </div>
 
-      {/* Port configuration */}
-      <div className="bg-app-surface rounded-lg border border-app-border p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-base">🔌</span>
-            <span className="text-sm font-medium text-app-text">Puerto Local</span>
+        {/* Info section */}
+        <div className="bg-app-surface rounded-lg border border-app-border p-3">
+          <div className="text-xs text-app-text-dim leading-relaxed">
+            <div className="font-semibold text-app-text mb-2">💡 Port Information</div>
+            <div className="space-y-1">
+              <div><span className="text-app-accent">Gateway (11400)</span> - Routes /api to Ollama and /rag to RAG Service</div>
+              <div><span className="text-app-accent">Ollama (11434)</span> - Direct LLM access, bypasses Gateway</div>
+              <div><span className="text-app-accent">RAG (11435)</span> - Direct embeddings access, bypasses Gateway</div>
+            </div>
+            <div className="mt-3 text-app-warning">
+              ⚠️ Changes require tunnel restart to take effect
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <input
-            type="text"
-            value={tunnelPort}
-            onChange={(e) => setTunnelPort(e.target.value)}
-            className="flex-1 bg-app-bg border border-app-border rounded px-3 py-2 text-sm text-app-text focus:outline-none focus:border-app-accent"
-            placeholder="11434"
-            disabled={tunnelOn}
-          />
-          <span className="text-xs text-app-text-dim">
-            {tunnelOn ? '(reinicia tunnel para aplicar)' : 'Puerto para Ollama'}
-          </span>
-        </div>
-        <div className="mt-3 text-xs text-app-text-dim">
-          💡 El tunnel expone este puerto localmente. Ollama usa 11434 por defecto.
-        </div>
       </div>
-
-      {/* Info section */}
-      {!ollamaOn && (
-        <div className="bg-app-surface rounded-lg border border-app-warning p-4 text-sm text-app-text-dim">
-          ⚠️ Inicia Ollama primero para habilitar el tunnel
-        </div>
-      )}
-    </div>
-  )
+    )
+  }
 
   // Testing section
   const renderTestingTab = () => (
-    <div className="test-section">
-      <div className="test-header">
-        <div className="test-title">
-          <span className="icon">🧪</span>
-          <span>Test LLM</span>
-        </div>
-        <div className="test-controls">
-          <label className="auto-toggle" title="Auto-test cada 60s">
-            <input type="checkbox" checked={autoTest} onChange={() => setAutoTest(!autoTest)} disabled={!ollamaOn} />
-            <span className="timer">{autoTest ? `${nextTestIn}s` : 'Auto'}</span>
-          </label>
-          <button className="test-btn" onClick={handleTestOllama} disabled={actionLoading === 'test' || !ollamaOn}>
-            {actionLoading === 'test' ? '⏳' : '▶'}
-          </button>
-        </div>
-      </div>
-
-      {testResult ? (
-        <div className="test-result">
-          <div className="result-header">
-            <span className={`cat ${testResult.category}`}>{testResult.category === 'math' ? '🔢' : '🫀'}</span>
-            <span className="time">{testResult.elapsed_ms}ms</span>
+    <div className="p-4">
+      <div className="test-section">
+        <div className="test-header">
+          <div className="test-title">
+            <span className="icon">🧪</span>
+            <span>Test LLM</span>
           </div>
-          <div className="result-q">{testResult.question}</div>
-          <div className="result-a">{testResult.answer}</div>
+          <div className="test-controls">
+            <label className="auto-toggle" title="Auto-test cada 60s">
+              <input type="checkbox" checked={autoTest} onChange={() => setAutoTest(!autoTest)} disabled={!ollamaOn} />
+              <span className="timer">{autoTest ? `${nextTestIn}s` : 'Auto'}</span>
+            </label>
+            <button className="test-btn" onClick={handleTestOllama} disabled={actionLoading === 'test' || !ollamaOn}>
+              {actionLoading === 'test' ? '⏳' : '▶'}
+            </button>
+          </div>
         </div>
-      ) : (
-        <div className="test-placeholder">{ollamaOn ? 'Presiona ▶ para probar' : 'Inicia Ollama primero'}</div>
-      )}
+
+        {testResult ? (
+          <div className="test-result">
+            <div className="result-header">
+              <span className={`cat ${testResult.category}`}>{testResult.category === 'math' ? '🔢' : '🫀'}</span>
+              <span className="time">{testResult.elapsed_ms}ms</span>
+            </div>
+            <div className="result-q">{testResult.question}</div>
+            <div className="result-a">{testResult.answer}</div>
+          </div>
+        ) : (
+          <div className="test-placeholder">{ollamaOn ? 'Presiona ▶ para probar' : 'Inicia Ollama primero'}</div>
+        )}
+      </div>
     </div>
   )
 
   // Benchmarks section
   const renderBenchmarksTab = () => (
-    <div className="benchmark-section">
+    <div className="p-4">
+      <div className="benchmark-section">
       <div className="benchmark-header">
         <div className="benchmark-title">
           <span className="icon">⚡</span>
@@ -455,6 +831,7 @@ export default function App({ setupState }: AppProps) {
           {status?.rag_service_running ? 'Click "Run Suite" to start benchmarking' : 'Start RAG Service first'}
         </div>
       )}
+      </div>
     </div>
   )
 
@@ -481,38 +858,37 @@ export default function App({ setupState }: AppProps) {
         </div>
       )}
 
-      {/* Tab Navigation */}
-      <div className="border-b border-app-border">
-        <ul className="flex -mb-px">
-          {tabs.map(tab => (
-            <li key={tab.id} className="mr-2">
-              <button
-                onClick={() => setActiveTab(tab.id)}
-                className={`
-                  inline-flex items-center gap-2 px-4 py-3
-                  border-b-2 transition-all duration-200
-                  text-sm font-medium
-                  ${activeTab === tab.id
-                    ? 'border-app-accent text-app-accent'
-                    : 'border-transparent text-app-text-dim hover:text-app-text hover:border-app-border-bright'
-                  }
-                `}
-                aria-current={activeTab === tab.id ? 'page' : undefined}
-              >
-                <span className="text-base">{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* Main Layout: Sidebar + Content */}
+      <div className="flex-1 flex flex-row min-h-0 overflow-hidden">
+        {/* Sidebar Navigation */}
+        <div className="sidebar-nav">
+          <ul className="flex flex-col gap-1">
+            {tabs.map(tab => (
+              <li key={tab.id}>
+                <button
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    sidebar-tab
+                    ${activeTab === tab.id ? 'active' : ''}
+                  `}
+                  aria-current={activeTab === tab.id ? 'page' : undefined}
+                >
+                  <span className="tab-icon">{tab.icon}</span>
+                  <span className="tab-label">{tab.label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-      {/* Tab Content */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {activeTab === 'services' && renderServicesTab()}
-        {activeTab === 'tunnel' && renderTunnelTab()}
-        {activeTab === 'testing' && renderTestingTab()}
-        {activeTab === 'benchmarks' && renderBenchmarksTab()}
+        {/* Tab Content */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+          {activeTab === 'services' && renderServicesTab()}
+          {activeTab === 'tunnel' && renderTunnelTab()}
+          {activeTab === 'config' && renderConfigTab()}
+          {activeTab === 'testing' && renderTestingTab()}
+          {activeTab === 'benchmarks' && renderBenchmarksTab()}
+        </div>
       </div>
 
       <footer className="statusbar">
