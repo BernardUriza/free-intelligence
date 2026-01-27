@@ -117,7 +117,18 @@
       "mcp__github__get_pull_request_comments",
       "mcp__github__get_pull_request_reviews",
       "mcp__github__get_pull_request_status",
-      "Bash(gh repo view:*)"
+      "Bash(gh repo view:*)",
+      "Bash(gh release create:*)",
+      "mcp__chrome-devtools__press_key",
+      "Bash(az vm list-ip-addresses:*)",
+      "Bash(az network nsg rule list:*)",
+      "Bash(az vm list:*)",
+      "Bash(az group show:*)",
+      "Bash(az vm show:*)",
+      "Bash(az vm user update:*)",
+      "Bash(az group:*)",
+      "Bash(shasum:*)",
+      "Bash(gh run download:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
