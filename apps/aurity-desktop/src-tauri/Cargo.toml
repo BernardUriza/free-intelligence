@@ -1,6 +1,6 @@
 [package]
 name = "aurity-desktop"
-version = "1.0.6"
+version = "1.0.7"
 description = "Aurity Desktop - Medical AI Assistant"
 authors = ["Bernard Uriza <bernard@aurity.io>"]
 edition = "2021"
