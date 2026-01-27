@@ -39,9 +39,9 @@ import re
 from typing import Literal
 
 import structlog
-from backend.core.services.tts.services.tts_azure_openai import get_azure_openai_tts_service
-from backend.core.services.tts.services.tts_openai import get_openai_tts_service
-from backend.core.services.tts.services.tts_openai_steerable import get_steerable_tts_service
+from backend.services.tts.services.tts_azure_openai import get_azure_openai_tts_service
+from backend.services.tts.services.tts_openai import get_openai_tts_service
+from backend.services.tts.services.tts_openai_steerable import get_steerable_tts_service
 
 logger = structlog.get_logger(__name__)
 

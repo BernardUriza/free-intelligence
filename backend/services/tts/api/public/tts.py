@@ -16,7 +16,7 @@ Updated: 2025-12-24 (Removed OpenAI direct, Azure-only configuration)
 from typing import Literal
 
 import structlog
-from backend.core.services.tts.services.tts_unified import get_unified_tts_service
+from backend.services.tts.services.tts_unified import get_unified_tts_service
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field

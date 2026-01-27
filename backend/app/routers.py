@@ -93,7 +93,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.core.services.transcription.api.internal.transcribe import router as transcribe_router
 
     # TTS
-    from backend.core.services.tts.api.public import tts
+    from backend.services.tts.api.public import tts
     from backend.core.domain.user.api.public import user_clinic
 
     # Triage
