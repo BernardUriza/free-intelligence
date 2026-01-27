@@ -16,7 +16,7 @@ pytestmark = pytest.mark.smoke
 
 def test_memory_route_registration_check() -> None:
     """Verify longitudinal memory routes are properly registered in router."""
-    from backend.core.services.workflow.api.public.workflows_router import router
+    from backend.services.workflow.api.public.workflows_router import router
 
     routes = [r.path for r in router.routes if hasattr(r, "path")]
 
@@ -92,7 +92,7 @@ def test_memory_stats_response_schema_structure() -> None:
 
 def test_stable_routes_not_deprecated() -> None:
     """Verify stable routes are NOT marked as deprecated."""
-    from backend.core.services.workflow.api.public.workflows_router import router
+    from backend.services.workflow.api.public.workflows_router import router
 
     routes_with_status = [
         (r.path, getattr(r, "deprecated", False)) for r in router.routes if hasattr(r, "path")
@@ -109,7 +109,7 @@ def test_stable_routes_not_deprecated() -> None:
     for path, deprecated in stable_routes:
         assert deprecated is not True, f"Stable route {path} incorrectly marked as deprecated"
     """Verify stable memory routes are NOT marked as deprecated."""
-    from backend.core.services.workflow.api.public.workflows_router import router
+    from backend.services.workflow.api.public.workflows_router import router
 
     routes_with_status = [
         (r.path, getattr(r, "deprecated", False)) for r in router.routes if hasattr(r, "path")

@@ -2,37 +2,37 @@
 PersonaManager - Free Intelligence v2.0
 
 DEPRECATED: This file is maintained for backward compatibility.
-Import from backend.core.services.llm.services.persona instead.
+Import from backend.services.llm.services.persona instead.
 
 Example:
-    from backend.core.services.llm.services.persona import PersonaManager, PersonaConfig, PersonaNotFound
+    from backend.services.llm.services.persona import PersonaManager, PersonaConfig, PersonaNotFound
 """
 
 # Re-export everything from the new modular structure
-from backend.core.services.llm.services.persona.config import (
+from backend.services.llm.services.persona.config import (
     CacheEntry,
     PersonaConfig,
 )
-from backend.core.services.llm.services.persona.constants import (
+from backend.services.llm.services.persona.constants import (
     DEFAULT_CACHE_TTL_S,
     DEFAULT_MAX_RAG_CHARS,
     MODE_MARKERS,
 )
-from backend.core.services.llm.services.persona.exceptions import (
+from backend.services.llm.services.persona.exceptions import (
     PersonaConfigInvalid,
     PersonaError,
     PersonaNotFound,
 )
-from backend.core.services.llm.services.persona.manager import (
+from backend.services.llm.services.persona.manager import (
     PersonaManager,
 )
-from backend.core.services.llm.services.persona.prompt_builder import (
+from backend.services.llm.services.persona.prompt_builder import (
     PromptBuilder,
 )
-from backend.core.services.llm.services.persona.router import (
+from backend.services.llm.services.persona.router import (
     PersonaRouter,
 )
-from backend.core.services.llm.services.persona.schemas import (
+from backend.services.llm.services.persona.schemas import (
     PersonaTemplateModel,
 )
 

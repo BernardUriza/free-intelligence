@@ -8,7 +8,7 @@ from backend.observability import chat_events
 from backend.observability.logging import CTX_REQUEST_ID
 from backend.core.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
 from backend.utils.common.logging.logger import get_logger
-from backend.core.services.llm.services.persona.manager import PersonaManager
+from backend.services.llm.services.persona.manager import PersonaManager
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..assistant_schemas import (

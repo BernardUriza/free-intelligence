@@ -38,7 +38,7 @@ async def assistant_chat_dry_run(
     user_hash = hashlib.sha256((last_message.content or "").encode()).hexdigest()[:8]
 
     try:
-        from backend.core.services.llm.services.persona.manager import PersonaManager
+        from backend.services.llm.services.persona.manager import PersonaManager
 
         pm = PersonaManager()
         persona_cfg = pm.get_effective_persona(request.persona, user_id=request.user)

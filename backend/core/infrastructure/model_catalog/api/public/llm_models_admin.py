@@ -19,7 +19,7 @@ from backend.models.llm_model import (
     LLMModelUpdate,
     LLMProvider,
 )
-from backend.core.services.llm.services.llm_model_service import llm_model_service
+from backend.services.llm.services.llm_model_service import llm_model_service
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 

@@ -35,7 +35,7 @@ Refactored: 2025-11-15 (SOLIS modular architecture)
 
 from __future__ import annotations
 
-from backend.core.services.assistant.api.public import assistant, assistant_history, assistant_websocket
+from backend.services.assistant.api.public import assistant, assistant_history, assistant_websocket
 from backend.core.domain.clinic.api.public import clinic_media
 from backend.utils.common.logging.logger import get_logger
 from backend.services.content.api.public import tv_content_seeds
@@ -56,7 +56,7 @@ from backend.services.timeline.api.public import timeline
 # Note: After migration, imports point to the new module locations
 from backend.services.transcription.api.public import transcription
 from backend.api.widget.api.public import widget_configs
-from backend.core.services.workflow.api.public import waiting_room
+from backend.services.workflow.api.public import waiting_room
 from fastapi import APIRouter
 
 logger = get_logger(__name__)

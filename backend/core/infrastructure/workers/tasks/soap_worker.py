@@ -19,7 +19,7 @@ from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository imp
     update_task_metadata,
 )
 from backend.core.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
-from backend.core.services.workflow.services.workflow_tracker import get_workflow_tracker
+from backend.services.workflow.services.workflow_tracker import get_workflow_tracker
 
 logger = get_logger(__name__)
 

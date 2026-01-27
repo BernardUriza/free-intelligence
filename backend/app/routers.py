@@ -32,7 +32,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.api.admin.api.internal.admin.users import router as users_router
 
     # Assistant & Personas
-    from backend.core.services.assistant.api.public import aurity_personas
+    from backend.services.assistant.api.public import aurity_personas
 
     # Audit
     from backend.api.audit.api.internal.audit import router as internal_audit_router
@@ -58,8 +58,8 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.api.license.api.public import router as licenses_router
 
     # LLM
-    from backend.core.services.llm.api.internal.llm import router as llm_router
-    from backend.core.services.llm.api.public import llm_models_admin
+    from backend.services.llm.api.internal.llm import router as llm_router
+    from backend.services.llm.api.public import llm_models_admin
 
     # Model Catalog
     from backend.core.infrastructure.model_catalog.api.public import catalog_admin
@@ -97,10 +97,10 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.core.domain.user.api.public import user_clinic
 
     # Triage
-    from backend.core.services.workflow.api.internal.triage import router as triage_router
+    from backend.services.workflow.api.internal.triage import router as triage_router
 
     # Workflows
-    from backend.core.services.workflow.api.public.workflows_router import (
+    from backend.services.workflow.api.public.workflows_router import (
         router as public_workflows_router,
     )
 

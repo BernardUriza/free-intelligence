@@ -29,7 +29,7 @@ import yaml
 from backend.database import get_db_dependency
 from backend.core.infrastructure.auth import User, UserRole, get_current_user
 from backend.services.kpi.services.persona_metrics_service import get_persona_metrics_service
-from backend.core.services.llm.services.persona_manager import PersonaManager
+from backend.services.llm.services.persona_manager import PersonaManager
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session

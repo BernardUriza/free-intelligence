@@ -31,7 +31,7 @@ async def _get_rag_context(
     try:
         from datetime import UTC, datetime
 
-        from backend.core.services.assistant.services.monitor_client import get_embedding
+        from backend.services.assistant.services.monitor_client import get_embedding
         from infrastructure.storage.infrastructure.hdf5.document_repository import (
             DocumentQuestion,
             add_document_question,

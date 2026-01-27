@@ -181,7 +181,7 @@ async def check_model_compatibility(model_id: str) -> ModelCompatibility:
     Returns:
         Compatibility assessment with warnings
     """
-    from backend.core.services.llm.services.llm_model_service import llm_model_service
+    from backend.services.llm.services.llm_model_service import llm_model_service
 
     model = llm_model_service.get_model(model_id)
     if not model:

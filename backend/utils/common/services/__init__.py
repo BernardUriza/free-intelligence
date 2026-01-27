@@ -26,7 +26,7 @@ from infrastructure.storage.services.corpus_service import CorpusService
 
 # from backend.core.domain.session.services.session_service import SessionService  # Temporarily commented due to import issues
 from backend.services.transcription.services.transcription_service import TranscriptionService
-from backend.core.services.workflow.services.triage_service import TriageService
+from backend.services.workflow.services.triage_service import TriageService
 
 __all__ = [
     "AuditService",

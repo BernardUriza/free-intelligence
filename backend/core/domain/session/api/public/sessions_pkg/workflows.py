@@ -21,7 +21,7 @@ router = APIRouter()
 @router.post("/sessions/{session_id}/diarization", status_code=status.HTTP_202_ACCEPTED)
 async def diarize_session_workflow(session_id: str) -> dict:
     validate_session_id(session_id)
-    from backend.core.services.workflow.api.public.services import get_workflow_orchestrator
+    from backend.services.workflow.api.public.services import get_workflow_orchestrator
 
     try:
         orchestrator = get_workflow_orchestrator()
@@ -41,7 +41,7 @@ async def diarize_session_workflow(session_id: str) -> dict:
 @router.post("/sessions/{session_id}/soap", status_code=status.HTTP_202_ACCEPTED)
 async def generate_soap_workflow(session_id: str) -> dict:
     validate_session_id(session_id)
-    from backend.core.services.workflow.api.public.services import get_workflow_orchestrator
+    from backend.services.workflow.api.public.services import get_workflow_orchestrator
 
     try:
         orchestrator = get_workflow_orchestrator()
@@ -58,7 +58,7 @@ async def generate_soap_workflow(session_id: str) -> dict:
 
 @router.post("/sessions/{session_id}/emotion", status_code=status.HTTP_202_ACCEPTED)
 async def analyze_emotion_workflow(session_id: str) -> dict:
-    from backend.core.services.workflow.api.public.services import get_workflow_orchestrator
+    from backend.services.workflow.api.public.services import get_workflow_orchestrator
 
     try:
         orchestrator = get_workflow_orchestrator()
@@ -87,7 +87,7 @@ async def analyze_session_intelligent_workflow(
         get_task_metadata,
     )
     from backend.core.infrastructure.workers.executor_pool import spawn_worker
-    from backend.core.services.workflow.services.workflow_router import get_workflow_router
+    from backend.services.workflow.services.workflow_router import get_workflow_router
 
     try:
         logger.info(

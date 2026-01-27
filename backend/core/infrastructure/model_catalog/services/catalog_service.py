@@ -352,7 +352,7 @@ class CatalogService:
         y pueda ser usado por las Personas.
         """
         try:
-            from backend.core.services.llm.services.llm_model_service import LLMModelService
+            from backend.services.llm.services.llm_model_service import LLMModelService
 
             service = LLMModelService()
 

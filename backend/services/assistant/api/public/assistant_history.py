@@ -12,7 +12,7 @@ Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 from __future__ import annotations
 
 from backend.utils.common.logging.logger import get_logger
-from backend.core.services.llm.services.conversation_memory import get_memory_manager
+from backend.services.llm.services.conversation_memory import get_memory_manager
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 

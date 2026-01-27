@@ -452,7 +452,7 @@ class TestModelInstallation:
         WHEN: Lo instalamos exitosamente
         THEN: Debe crear una entrada en el LLM Model CRUD
         """
-        from backend.core.services.llm.services.llm_model_service import LLMModelService
+        from backend.services.llm.services.llm_model_service import LLMModelService
         from backend.core.infrastructure.model_catalog.services.catalog_service import CatalogService
 
         catalog = CatalogService()

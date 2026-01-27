@@ -11,7 +11,7 @@ import pytest
 pytestmark = pytest.mark.skip(
     reason="PersonaManager response_mode tests - assertion logic needs update"
 )
-from backend.core.services.llm.services.persona_manager import PersonaManager
+from backend.services.llm.services.persona_manager import PersonaManager
 from pathlib import Path
 
 
