@@ -67,12 +67,48 @@ async def lifespan(app: FastAPI):
     # Add cleanup code here
 
 
+def validate_critical_env_vars() -> None:
+    """Validate that all critical environment variables are present in production.
+
+    Fails fast with clear error messages to prevent runtime failures.
+
+    Raises:
+        RuntimeError: If any critical env var is missing in production
+    """
+    env = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
+    if env != "production":
+        return  # Skip validation in development
+
+    # Critical env vars that MUST be present in production
+    CRITICAL_ENV_VARS = {
+        "CLAUDE_API_KEY": "AI assistant won't work without Claude API",
+        "DEEPGRAM_API_KEY": "Audio transcription won't work without Deepgram",
+        "DATABASE_URL": "PostgreSQL connection required for patients/providers",
+        "ALLOWED_ORIGINS": "CORS will block frontend without allowed origins",
+    }
+
+    missing = []
+    for var, reason in CRITICAL_ENV_VARS.items():
+        if not os.getenv(var):
+            missing.append(f"  - {var}: {reason}")
+
+    if missing:
+        error_msg = (
+            "❌ PRODUCTION STARTUP FAILED - Missing critical environment variables:\n"
+            + "\n".join(missing)
+            + "\n\nSet these env vars before deploying to production."
+        )
+        raise RuntimeError(error_msg)
+
+
 def create_app() -> FastAPI:
     """Create and configure FastAPI application.
 
     Returns:
         FastAPI: Configured application instance
     """
+    # Validate critical env vars FIRST (fail fast in production)
+    validate_critical_env_vars()
     # Enhanced documentation
     description = """
 ## 🏥 Free Intelligence - Medical AI Platform
@@ -294,11 +330,11 @@ Requires environment variables:
         app.mount("/api", public_app)
         app.mount("/internal", internal_app)
     except (ImportError, AttributeError) as e:
-        # If routers fail to load, log and continue with health check only
         import sys
+        import traceback
 
         # Provide clearer guidance for missing dependencies or import errors
-        print("WARNING: Failed to load API routers during startup.", file=sys.stderr)
+        print("❌ FATAL: Failed to load API routers during startup.", file=sys.stderr)
         print(
             "This usually means a required Python package is missing or an import failed.",
             file=sys.stderr,
@@ -308,9 +344,16 @@ Requires environment variables:
             file=sys.stderr,
         )
         print(f"Error: {e}", file=sys.stderr)
-        import traceback
-
         traceback.print_exc()
+
+        # FAIL FAST in production - don't start app without routers
+        if environment == "production":
+            raise RuntimeError(
+                "Cannot start app in production without API routers. "
+                "This would result in all /api/* endpoints returning 404."
+            ) from e
+        # In development, log warning and continue (allow health check only)
+        print("⚠️  DEV MODE: Continuing without routers (health check only)", file=sys.stderr)
 
     # Development-only debug route: list all mounted routes and methods
     # This helps frontend devs discover available endpoints without opening FastAPI docs.
@@ -352,21 +395,6 @@ Requires environment variables:
     from backend.utils.metrics import setup_metrics_endpoint
 
     setup_metrics_endpoint(app)
-
-    # Startup validation: ensure critical env vars are present in production
-    env_now = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
-    if env_now == "production":
-        # Azure OpenAI TTS is the required TTS provider
-        has_azure_openai = bool(
-            os.getenv("AZURE_OPENAI_TTS_API_KEY") or os.getenv("AZURE_TTS_API_KEY")
-        )
-
-        if not has_azure_openai:
-            # Fail fast in production to avoid confusing 500 errors at runtime
-            raise ValueError(
-                "TTS provider must be configured in production. "
-                "Set AZURE_OPENAI_TTS_API_KEY and AZURE_OPENAI_TTS_ENDPOINT"
-            )
 
     # Mount static files (for demo audio, etc.)
     # Note: StaticFiles doesn't inherit CORS from parent app, so we wrap it
