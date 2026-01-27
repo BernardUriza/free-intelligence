@@ -1,20 +1,21 @@
-"""Public KPIs API Router.
+"""KPIs API Router.
 
-Provides system metrics and performance KPIs for AURITY dashboard.
+KPI aggregation endpoints with summary/chips/timeseries views.
 
-Architecture: PUBLIC → KPIsAggregator service (internal)
-Created: 2025-11-17
+File: backend/api/kpis/router.py
+Reorganized: 2025-11-08 (moved from backend/api/kpis.py)
+Card: FI-API-FEAT-011
 """
 
 from __future__ import annotations
 
 from backend.utils.common.logging.logger import get_logger
-from backend.core.services.kpi.services.kpis_aggregator import get_kpis_aggregator
+from backend.services.kpi.services.kpis_aggregator import get_kpis_aggregator
 from fastapi import APIRouter, HTTPException, Query
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/kpis", tags=["kpis"])
+router = APIRouter()
 
 
 @router.get("")
@@ -25,7 +26,7 @@ async def get_kpis(
     provider: str | None = Query(None, description="Filter by provider (e.g., anthropic)"),
 ):
     """
-    Get KPIs metrics (PUBLIC endpoint for dashboard).
+    Get KPIs metrics.
 
     Args:
         window: Time window (1m, 5m, 15m, 1h, 24h) - default 5m
@@ -37,10 +38,10 @@ async def get_kpis(
         KPIs data in requested format
 
     Examples:
-        GET /api/workflows/aurity/kpis?window=5m&view=summary
-        GET /api/workflows/aurity/kpis?window=5m&view=chips
-        GET /api/workflows/aurity/kpis?window=15m&view=timeseries
-        GET /api/workflows/aurity/kpis?window=5m&provider=anthropic
+        GET /api/kpis?window=5m&view=summary
+        GET /api/kpis?window=5m&view=chips
+        GET /api/kpis?window=15m&view=timeseries
+        GET /api/kpis?window=5m&provider=anthropic
     """
     # Validate window parameter
     valid_windows = {"1m", "5m", "15m", "1h", "24h"}

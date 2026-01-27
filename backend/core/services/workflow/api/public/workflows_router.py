@@ -42,7 +42,7 @@ from backend.core.services.content.api.public import tv_content_seeds
 from backend.core.services.document.api.public import documents
 from backend.core.infrastructure.events.api.public import events
 from backend.core.services.evidence.api.public import evidence
-from backend.core.services.kpi.api.public import kpis
+from backend.services.kpi.api.public import kpis
 from backend.core.services.memory.api.public import longitudinal_memory
 from backend.core.domain.order.api.public import orders
 from backend.core.domain.prescription.api.public import prescriptions

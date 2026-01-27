@@ -14,7 +14,7 @@ import time
 from collections.abc import Callable
 
 from backend.utils.common.logging.logger import get_logger
-from backend.core.services.kpi.services.kpis_aggregator import get_kpis_aggregator
+from backend.services.kpi.services.kpis_aggregator import get_kpis_aggregator
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 

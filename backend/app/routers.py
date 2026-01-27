@@ -51,7 +51,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.utils.common.api.public import notifications
 
     # KPIs
-    from backend.core.services.kpi.api.internal.kpis import router as kpis_router
+    from backend.services.kpi.api.internal.kpis import router as kpis_router
 
     # Licensing
     from backend.api.license.api.internal import router as licenses_admin_router
