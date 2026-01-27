@@ -592,6 +592,7 @@ jobs:
           git submodule update --init --recursive --depth 1
 
       - name: Auto-bump patch version
+        if: false  # DISABLED: TODO fix pnpm command execution in PowerShell
         id: bump
         shell: pwsh
         run: |
