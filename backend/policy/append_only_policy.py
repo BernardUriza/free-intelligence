@@ -170,7 +170,7 @@ def verify_append_only_operation(
 
     """
     del corpus_path  # corpus_path is reserved for future use in more complex validations
-    from backend.src.fi_common.logger import get_logger
+    from backend.utils.common.logging.logger import get_logger
 
     logger = get_logger()
 

@@ -234,7 +234,7 @@ def init_corpus_from_config(
         >>> init_corpus_from_config("bernard@example.com")
         True
     """
-    from src.fi_coder.utils.config_loader import load_config
+    from backend.utils.coder.utils.config_loader import load_config
 
     config = load_config(config_path)
     corpus_path = config["storage"]["corpus_path"]
@@ -265,7 +265,7 @@ def validate_corpus(corpus_path: str | None = None) -> dict[str, Any]:
     logger = get_logger()
 
     if corpus_path is None:
-        from src.fi_coder.utils.config_loader import load_config
+        from backend.utils.coder.utils.config_loader import load_config
 
         config = load_config()
         corpus_path = config["storage"]["corpus_path"]

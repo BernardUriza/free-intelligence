@@ -28,7 +28,7 @@ class TestSoapStorage:
 
     def test_save_soap_data_creates_dataset(self, temp_storage):
         """Test saving SOAP data creates HDF5 dataset."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.soap import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.soap import (
             save_soap_data,
         )
 
@@ -72,7 +72,7 @@ class TestSoapStorage:
 
     def test_save_soap_data_creates_version_history(self, temp_storage):
         """Test SOAP data saves to version history."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.soap import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.soap import (
             save_soap_data,
         )
 
@@ -108,7 +108,7 @@ class TestTranscriptionSourcesStorage:
 
     def test_add_webspeech_transcripts(self, temp_storage):
         """Test adding WebSpeech transcripts."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.transcription_sources import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.transcription_sources import (
             add_webspeech_transcripts,
         )
 
@@ -146,7 +146,7 @@ class TestTranscriptionSourcesStorage:
 
     def test_add_full_transcription(self, temp_storage):
         """Test adding full transcription text."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.transcription_sources import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.transcription_sources import (
             add_full_transcription,
         )
 
@@ -178,7 +178,7 @@ class TestTranscriptionSourcesStorage:
 
     def test_add_full_audio(self, temp_storage):
         """Test adding full audio bytes."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.transcription_sources import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.transcription_sources import (
             add_full_audio,
         )
 
@@ -210,7 +210,7 @@ class TestTranscriptionSourcesStorage:
 
     def test_add_webspeech_requires_existing_task(self, temp_storage):
         """Test that WebSpeech requires existing task."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.transcription_sources import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.transcription_sources import (
             add_webspeech_transcripts,
         )
 
@@ -237,7 +237,7 @@ class TestLifecycleOperations:
 
     def test_ensure_task_exists(self, temp_storage):
         """Test ensuring a task exists (creates if needed)."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.lifecycle import (
             ensure_task_exists,
         )
 
@@ -267,7 +267,7 @@ class TestLifecycleOperations:
 
     def test_task_exists_returns_true_when_exists(self, temp_storage):
         """Test task_exists returns True when task exists."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.lifecycle import (
             ensure_task_exists,
             task_exists,
         )
@@ -283,7 +283,7 @@ class TestLifecycleOperations:
 
     def test_task_exists_returns_false_when_missing(self, temp_storage):
         """Test task_exists returns False when task doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.lifecycle import (
             task_exists,
         )
 
@@ -307,7 +307,7 @@ class TestH5FileAccess:
 
     def test_open_h5_read(self, temp_storage):
         """Test opening HDF5 file for reading."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.h5_file_access import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.h5_file_access import (
             open_h5_read,
         )
 
@@ -336,7 +336,7 @@ class TestChunksStorage:
 
     def test_chunks_module_imports(self):
         """Test that chunks module can be imported."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks import chunks
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks import chunks
 
         # Verify key functions exist
         assert hasattr(chunks, "append_chunk_to_task")
@@ -346,14 +346,14 @@ class TestChunksStorage:
 
     def test_diarization_module_imports(self):
         """Test that diarization module can be imported."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks import diarization
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks import diarization
 
         # Verify module loaded
         assert diarization is not None
 
     def test_orders_module_imports(self):
         """Test that orders module can be imported."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks import orders
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks import orders
 
         # Verify module loaded
         assert orders is not None

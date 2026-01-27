@@ -27,7 +27,7 @@ class TestCreateOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test create_order returns order ID."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import create_order
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import create_order
 
         # Mock CORPUS_PATH
         mock_corpus_path.parent.mkdir = MagicMock()
@@ -71,7 +71,7 @@ class TestGetOrders:
         mock_corpus_path: MagicMock,
     ) -> None:
         """Test get_orders raises when corpus file doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import get_orders
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import get_orders
 
         mock_corpus_path.exists.return_value = False
 
@@ -86,7 +86,7 @@ class TestGetOrders:
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_orders returns empty list when no orders task."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import get_orders
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import get_orders
 
         mock_corpus_path.exists.return_value = True
 
@@ -109,7 +109,7 @@ class TestGetOrders:
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_orders returns empty when no orders group."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import get_orders
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import get_orders
 
         mock_corpus_path.exists.return_value = True
 
@@ -136,7 +136,7 @@ class TestGetOrders:
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_orders returns list of orders."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import get_orders
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import get_orders
 
         mock_corpus_path.exists.return_value = True
 
@@ -187,7 +187,7 @@ class TestUpdateOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test update_order raises when task doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import update_order
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import update_order
 
         # Mock HDF5 file without task
         mock_file = MagicMock()
@@ -211,7 +211,7 @@ class TestUpdateOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test update_order raises when orders group doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import update_order
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import update_order
 
         # Mock task group without orders
         mock_task_group = MagicMock()
@@ -239,7 +239,7 @@ class TestUpdateOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test update_order raises when order doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import update_order
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import update_order
 
         # Mock orders group without the specific order
         mock_orders_group = MagicMock()
@@ -271,7 +271,7 @@ class TestUpdateOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test update_order successfully updates order."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import update_order
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import update_order
 
         # Mock orders group with existing order
         mock_orders_group = MagicMock()
@@ -312,7 +312,7 @@ class TestDeleteOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test delete_order raises when task doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import delete_order
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import delete_order
 
         # Mock HDF5 file without task
         mock_file = MagicMock()
@@ -333,7 +333,7 @@ class TestDeleteOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test delete_order raises when orders group doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import delete_order
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import delete_order
 
         # Mock task group without orders
         mock_task_group = MagicMock()
@@ -358,7 +358,7 @@ class TestDeleteOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test delete_order raises when order doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import delete_order
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import delete_order
 
         # Mock orders group without the specific order
         mock_orders_group = MagicMock()
@@ -387,7 +387,7 @@ class TestDeleteOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test delete_order successfully deletes order."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import delete_order
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.orders import delete_order
 
         # Mock orders group with existing order
         mock_orders_group = MagicMock()

@@ -21,7 +21,7 @@ from typing import Any
 
 import httpx
 import os
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

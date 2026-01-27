@@ -27,7 +27,7 @@ class TestAddAudioToChunk:
         mock_locked: MagicMock,
     ) -> None:
         """Test add_audio_to_chunk raises when chunk doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.chunk_audio import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.chunk_audio import (
             add_audio_to_chunk,
         )
 
@@ -57,7 +57,7 @@ class TestAddAudioToChunk:
         mock_locked: MagicMock,
     ) -> None:
         """Test add_audio_to_chunk creates audio dataset."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.chunk_audio import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.chunk_audio import (
             add_audio_to_chunk,
         )
 
@@ -93,7 +93,7 @@ class TestAddAudioToChunk:
         mock_locked: MagicMock,
     ) -> None:
         """Test add_audio_to_chunk deletes existing audio."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.chunk_audio import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.chunk_audio import (
             add_audio_to_chunk,
         )
 
@@ -131,7 +131,7 @@ class TestAddAudioToChunk:
         mock_locked: MagicMock,
     ) -> None:
         """Test add_audio_to_chunk uses custom filename."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.chunk_audio import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.chunk_audio import (
             add_audio_to_chunk,
         )
 
@@ -176,7 +176,7 @@ class TestGetChunkAudioBytes:
     ) -> None:
         """Test get_chunk_audio_bytes returns None when file doesn't exist."""
         from backend.models.task_type import TaskType
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.chunk_audio import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.chunk_audio import (
             get_chunk_audio_bytes,
         )
 
@@ -204,7 +204,7 @@ class TestGetChunkAudioBytes:
     ) -> None:
         """Test get_chunk_audio_bytes returns None when chunk doesn't exist."""
         from backend.models.task_type import TaskType
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.chunk_audio import (
+        from backend.core.infrastructure.storage.infrastructure.hdf5.tasks.chunk_audio import (
             get_chunk_audio_bytes,
         )
 

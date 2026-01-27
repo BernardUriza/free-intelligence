@@ -19,7 +19,7 @@ import pytest
 pytestmark = pytest.mark.skip(
     reason="Integration tests requiring fi_llm infrastructure - run locally with PYTHONPATH=backend/src"
 )
-from backend.src.fi_llm.services.conversation_memory import ConversationMemoryManager
+from backend.core.services.llm.services.conversation_memory import ConversationMemoryManager
 from pathlib import Path
 
 

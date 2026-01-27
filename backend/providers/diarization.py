@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any
 
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
 from pathlib import Path
 
 logger = get_logger(__name__)

@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 # NOTE: Defer logger import to avoid circular dependency:
-# backend.logger -> backend.src.logger -> backend.src.__init__ -> backend.src.fi_common.infrastructure.container
+# backend.logger -> utils.common.logger -> container
 # Logger is accessed via get_logger() function call below
 from backend.repositories import AuditRepository, CorpusRepository, SessionRepository
 from backend.utils.common.interfaces.ievent_bus import IEventBus

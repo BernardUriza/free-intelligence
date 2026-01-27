@@ -5,6 +5,6 @@ Re-exports from backend.utils.common.infrastructure.container for backward compa
 
 from __future__ import annotations
 
-from ...fi_common.infrastructure.container import get_container
+from backend.utils.common.infrastructure.container import get_container
 
 __all__ = ["get_container"]

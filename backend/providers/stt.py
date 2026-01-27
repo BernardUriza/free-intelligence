@@ -16,7 +16,7 @@ from enum import Enum
 from typing import Any
 
 import os
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
 from dotenv import load_dotenv
 from pathlib import Path
 

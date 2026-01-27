@@ -252,7 +252,7 @@ def get_corpus_identity(corpus_path: str) -> dict | None:
 if __name__ == "__main__":
     # CLI demonstration
     import sys
-    from src.fi_coder.utils.config_loader import load_config
+    from backend.utils.coder.utils.config_loader import load_config
 
     config = load_config()
     corpus_path = config["storage"]["corpus_path"]

@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from typing import Any, Union, cast
 
 import h5py
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
 from backend.type_defs import DiarizationChunkDict
 from pathlib import Path
 

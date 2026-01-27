@@ -26,7 +26,7 @@ import tempfile
 import h5py
 import numpy as np
 import pytest
-from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
+from backend.core.infrastructure.storage.infrastructure.hdf5.document_repository import (
     DocumentChunk,
     DocumentStatus,
     create_document,

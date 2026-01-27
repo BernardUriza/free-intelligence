@@ -28,7 +28,7 @@ from uuid import uuid4
 
 from backend.providers.models import ConsultationEvent, EventMetadata, EventType
 from backend.schemas.domain.event_store import calculate_sha256
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

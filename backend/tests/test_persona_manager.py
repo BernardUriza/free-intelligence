@@ -17,7 +17,7 @@ import time
 
 import pytest
 import yaml
-from backend.src.fi_llm.services.persona_manager import (
+from backend.core.services.llm.services.persona_manager import (
     PersonaManager,
     PersonaNotFound,
     PersonaTemplateModel,
@@ -441,7 +441,7 @@ class TestCLI:
     def test_cli_import(self):
         """CLI code should be importable without errors."""
         # Just verify the module loads without syntax errors
-        from backend.src.fi_llm import services
+        from backend.core.services.llm import services
 
         persona_manager = services.persona_manager
 

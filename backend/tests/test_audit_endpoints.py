@@ -17,7 +17,7 @@ pytestmark = pytest.mark.skip(
 def existing_session_id():
     """Get a session ID that has SOAP data."""
     import h5py
-    from backend.src.fi_storage.infrastructure.hdf5.task_repository import CORPUS_PATH
+    from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import CORPUS_PATH
 
     with h5py.File(CORPUS_PATH, "r") as f:
         sessions = list(f["sessions"].keys())
@@ -181,7 +181,7 @@ class TestAuditEndpoints:
 
     def test_analyze_session_flags(self):
         """Test flag detection heuristics."""
-        from backend.src.fi_session.api.public.sessions import _analyze_session_flags
+        from backend.core.domain.session.api.public.sessions import _analyze_session_flags
 
         # Test low confidence flag
         flags = _analyze_session_flags(

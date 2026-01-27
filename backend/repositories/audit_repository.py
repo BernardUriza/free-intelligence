@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from typing import Any, Dict, Union
 from uuid import uuid4
 
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
 from backend.type_defs import AuditLogDict
 from pathlib import Path
 

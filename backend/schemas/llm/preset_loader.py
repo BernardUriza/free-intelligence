@@ -19,7 +19,7 @@ from typing import Any
 import jsonschema
 import yaml
 from backend.models.llm_model import LLMProvider
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
 from pathlib import Path
 
 # Default model for Ollama provider

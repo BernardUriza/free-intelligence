@@ -20,7 +20,7 @@ import pytest
 pytestmark = pytest.mark.skip(
     reason="E2E test requiring full infrastructure - run locally with make dev-all"
 )
-from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
+from backend.core.infrastructure.storage.infrastructure.hdf5.task_repository import (
     get_session_metadata,
     get_soap_data,
 )
@@ -276,7 +276,7 @@ class TestAuditWorkflowE2E:
 
     def test_analyze_session_flags_heuristics(self):
         """Test flag detection heuristics."""
-        from backend.src.fi_session.api.public.sessions import _analyze_session_flags
+        from backend.core.domain.session.api.public.sessions import _analyze_session_flags
 
         # Test low confidence flag
         flags = _analyze_session_flags(
