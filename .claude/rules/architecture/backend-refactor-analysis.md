@@ -179,31 +179,53 @@ git mv backend/core/infrastructure backend/infrastructure
 
 ## 🚀 Quick Wins (Can Do Today)
 
-### 1. Document Current Architecture (DONE - this file)
+### 1. Document Current Architecture ✅ DONE
+- Created this analysis document
+- Identified 3 critical issues
+- Documented target structure
 
-### 2. Create Import Aliases (15 min)
+### 2. Create Import Aliases ✅ DONE (15 min)
 ```python
 # backend/__init__.py
-from backend.services.timeline import TimelineService as Timeline
-from backend.services.soap import SOAPService as SOAP
-
-# Usage:
-from backend import Timeline  # vs 7-level import
+from backend import get_logger        # vs backend.utils.common.logging.logger
+from backend import SessionsStore     # vs backend.core.infrastructure.storage...
 ```
 
-### 3. Add __all__ to Key Modules (30 min)
+### 3. Add __all__ to Key Modules ✅ DONE (30 min)
 ```python
-# backend/core/services/timeline/__init__.py
-from .service import TimelineService
-
-__all__ = ["TimelineService"]
+# backend/core/services/soap/__init__.py
+from .services.soap_generation_service import SOAPGenerationService
+__all__ = ["SOAPGenerationService"]
 ```
 
-### 4. Dependency Graph Visualization (1 hour)
+**Completed modules:**
+- soap, transcription, llm, workflow, tts, kpi, checkin, evidence, export
+
+**Benefits:**
+- IDE autocomplete shows only public APIs
+- Documents intended API surface
+- Prevents accidental dependencies on internal classes
+
+### 4. Dependency Graph Visualization ✅ DONE (1 hour)
 ```bash
-# Generate graph of who imports who
-pydeps backend --max-bacon=2 -o architecture-graph.svg
+# Graph generated at .claude/rules/architecture/backend-deps-graph.svg
+open .claude/rules/architecture/backend-deps-graph.svg
 ```
+
+**Key findings from graph:**
+- **185 modules** with dependencies
+- **428 total edges** (dependencies)
+- **Top importers:**
+  - `app.routers` → 12 dependencies (orchestration layer)
+  - `utils.common.infrastructure` → 12 dependencies (shared utilities)
+  - `core.infrastructure.workers` → 12 dependencies (background jobs)
+  - `core.services.llm` → 11 dependencies (LLM integrations)
+  - `app.main` → 10 dependencies (FastAPI bootstrap)
+
+**Visual insights:**
+- Color-coded by layer (core=red, api=blue, app=green, utils=yellow)
+- Clear clusters show tight coupling within services
+- Cross-layer dependencies visible (some violations of Clean Architecture)
 
 ---
 
