@@ -48,7 +48,7 @@ from backend.core.domain.order.api.public import orders
 from backend.core.domain.prescription.api.public import prescriptions
 from backend.core.domain.session.api.public import sessions_list
 from backend.core.domain.session.api.public import sessions_pkg as sessions
-from backend.core.services.soap.api.public import soap
+from backend.services.soap.api.public import soap
 from backend.utils.system.api.public import system
 from backend.core.services.timeline.api.public import timeline
 

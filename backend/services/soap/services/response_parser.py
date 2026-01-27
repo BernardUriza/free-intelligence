@@ -11,7 +11,7 @@ import re
 from typing import Any, Dict
 
 from backend.utils.common.logging.logger import get_logger
-from backend.core.services.soap.services.soap_models import SOAPNote
+from backend.services.soap.services.soap_models import SOAPNote
 from pydantic import ValidationError
 
 __all__ = ["OllamaExtractionError", "OllamaResponseParser"]

@@ -18,7 +18,7 @@ from typing import Any
 
 from backend.clients import get_llm_client
 from backend.utils.common.logging.logger import get_logger
-from backend.core.services.soap.services.soap_models import SOAPNote
+from backend.services.soap.services.soap_models import SOAPNote
 from backend.validators import validate_session_id
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, field_validator

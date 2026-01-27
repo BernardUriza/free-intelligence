@@ -94,7 +94,7 @@ class TestSOAPEndpoints:
 
     def test_update_soap_with_valid_data(self, client):
         """Test PUT /api/workflows/aurity/sessions/{session_id}/soap with valid data."""
-        from backend.core.services.soap.services.soap_models import SOAPNote
+        from backend.services.soap.services.soap_models import SOAPNote
 
         # Create valid SOAP data
         valid_soap_data = {

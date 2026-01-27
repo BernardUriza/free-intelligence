@@ -27,7 +27,7 @@ from backend.providers.llm import llm_generate
 from backend.schemas.llm.preset_loader import get_preset_loader
 from backend.utils.common.logging.logger import get_logger
 from backend.core.services.llm.services.persona_manager import PersonaManager
-from backend.core.services.soap.services.complexity_analyzer import (
+from backend.services.soap.services.complexity_analyzer import (
     ComplexityMetrics,
     get_complexity_analyzer,
 )

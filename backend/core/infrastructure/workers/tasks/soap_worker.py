@@ -118,7 +118,7 @@ def generate_soap_worker(
         )
 
         # Generate SOAP note using DecisionalMiddleware (intelligent orchestration)
-        from backend.core.services.soap.services.decisional_middleware import (
+        from backend.services.soap.services.decisional_middleware import (
             get_decisional_middleware,
         )
 

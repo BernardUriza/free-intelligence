@@ -6,7 +6,7 @@ Verifies that complexity analysis correctly categorizes medical cases.
 from __future__ import annotations
 
 import pytest
-from backend.core.services.soap.services.complexity_analyzer import (
+from backend.services.soap.services.complexity_analyzer import (
     ComplexityAnalyzer,
     get_complexity_analyzer,
 )

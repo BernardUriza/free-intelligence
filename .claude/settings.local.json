@@ -155,7 +155,16 @@
       "Bash(git rm:*)",
       "Bash(git mv:*)",
       "Bash(tree:*)",
-      "Bash(python3.14:*)"
+      "Bash(python3.14:*)",
+      "Bash(./backend/fix_imports.sh:*)",
+      "Bash(PYTHONPATH=backend python3.14:*)",
+      "Bash(PYTHONPATH=backend/src:backend python3.14:*)",
+      "Bash(pip3.14 install:*)",
+      "Bash(pydeps:*)",
+      "Bash(PYTHONPATH=backend/src:backend pydeps:*)",
+      "Bash(dot:*)",
+      "Bash(for:*)",
+      "Bash(do git mv \"$file\" ../../../../../services/soap/services/)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -96,7 +96,7 @@ class TestOllamaClient:
 
     def test_system_prompt(self) -> None:
         """Test system prompt generation."""
-        from backend.core.services.soap.services.prompt_builder import OllamaPromptBuilder
+        from backend.services.soap.services.prompt_builder import OllamaPromptBuilder
 
         builder = OllamaPromptBuilder()
         prompt = builder.load_system_prompt()
