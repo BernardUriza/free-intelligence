@@ -30,8 +30,8 @@ from pathlib import Path
 async def lifespan(app: FastAPI):
     """FastAPI lifespan context manager for startup/shutdown events."""
     # Startup
-    # from backend.src.fi_coder.storage.database import init_db  # Removed: storage simplified
-    from backend.src.fi_coder.observability.logger import get_logger
+    # from backend.utils.coder.storage.database import init_db  # Removed: storage simplified
+    from backend.utils.coder.observability.logger import get_logger
 
     # Configure structured JSON logging for chat observability
     try:
@@ -51,8 +51,8 @@ async def lifespan(app: FastAPI):
 
     # Configure Event Bus with HDF5 store
     try:
-        from backend.src.fi_events.application.event_bus import configure_event_bus
-        from backend.src.fi_events.infrastructure.hdf5_store import HDF5EventStore
+        from backend.core.infrastructure.events.application.event_bus import configure_event_bus
+        from backend.core.infrastructure.events.infrastructure.hdf5_store import HDF5EventStore
 
         event_store = HDF5EventStore()
         configure_event_bus(event_store)
