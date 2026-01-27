@@ -148,7 +148,12 @@
       "Bash(defaults read:*)",
       "Bash(hdiutil detach:*)",
       "Bash(pnpm version:sync:*)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(node /Users/bernardurizaorozco/Documents/free-intelligence/scripts/check-console-errors.mjs:*)",
+      "Bash(node /Users/bernardurizaorozco/Documents/free-intelligence/scripts/screenshot-cdp.mjs:*)",
+      "Bash(wc:*)",
+      "Bash(git rm:*)",
+      "Bash(git mv:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

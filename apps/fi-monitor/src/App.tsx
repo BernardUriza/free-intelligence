@@ -384,65 +384,9 @@ export default function App({ setupState }: AppProps) {
   }
 
   const renderTunnelTab = () => {
-    // Service topology data
-    const services = [
-      {
-        name: 'Ollama',
-        port: 11434,
-        icon: '🦙',
-        running: status?.ollama_running || false,
-        description: 'LLM Engine'
-      },
-      {
-        name: 'RAG',
-        port: 11435,
-        icon: '🔍',
-        running: status?.rag_service_running || false,
-        description: 'Embeddings'
-      },
-      {
-        name: 'Gateway',
-        port: 11400,
-        icon: '🚪',
-        running: status?.gateway_running || false,
-        description: 'Router'
-      }
-    ]
-
     return (
       <div className="flex flex-col gap-4 p-4">
-        {/* ===== SECTION 1: Services Topology (READ-ONLY) ===== */}
-        <div className="bg-app-surface rounded-lg border border-app-border p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-base">🗺️</span>
-            <span className="text-sm font-medium text-app-text">Services Topology</span>
-          </div>
-
-          <div className="services-topology">
-            {services.map(service => (
-              <div
-                key={service.port}
-                className={`service-mini ${service.running ? 'active' : 'inactive'}`}
-              >
-                <div className="service-mini-icon">{service.icon}</div>
-                <div className="service-mini-body">
-                  <div className="service-mini-name">{service.name}</div>
-                  <div className="service-mini-port">:{service.port}</div>
-                  <div className="service-mini-desc">{service.description}</div>
-                </div>
-                <div className={`service-mini-status ${service.running ? 'on' : 'off'}`}>
-                  {service.running ? '🟢' : '⚪'}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-xs text-app-text-dim mt-3">
-            💡 Control services in the <span className="font-semibold text-app-accent">Services</span> tab
-          </div>
-        </div>
-
-        {/* ===== SECTION 2: Tunnel Service Card (CONTROL) ===== */}
+        {/* ===== Tunnel Service Card (CONTROL) ===== */}
         <div className={`service-card ${tunnelOn ? 'active' : ''} ${!status?.ollama_running ? 'disabled' : ''}`}>
           <div className="service-icon">☁️</div>
           <div className="service-body">

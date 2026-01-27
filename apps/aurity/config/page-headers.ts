@@ -106,7 +106,7 @@ export const auditHeader: PageHeaderFactory = (data) => ({
  */
 export const medicalAiHeader: PageHeaderFactory = (data) => ({
   showLogo: true,
-  showBackButton: true,
+  showBackButton: false,
   backPath: '/',
   icon: 'stethoscope',
   iconColor: 'text-emerald-400',
@@ -187,7 +187,7 @@ export const configHeader: PageHeaderFactory = (data) => ({
  */
 export const chatHeader: PageHeaderFactory = (data) => ({
   showLogo: true,
-  showBackButton: true,
+  showBackButton: false,
   backPath: '/',
   icon: 'messageCircle',
   iconColor: 'text-indigo-400',
