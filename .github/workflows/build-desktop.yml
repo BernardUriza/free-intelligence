@@ -436,9 +436,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-macos:
-    if: false  # DISABLED - Solo buildear Windows para testing
-    # if: github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all'
-    needs: [build-frontend]
+    needs: [detect-changes, build-frontend]
+    if: |
+      (github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all') &&
+      needs.detect-changes.outputs.aurity_desktop == 'true' &&
+      !cancelled()
     runs-on: macos-latest
     env:
       CARGO_INCREMENTAL: "1"
