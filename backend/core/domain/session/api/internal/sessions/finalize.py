@@ -50,31 +50,33 @@ from backend.utils.common.logging.logger import get_logger
 from backend.core.infrastructure.workers.executor_pool import spawn_worker
 from backend.core.infrastructure.workers.tasks.encryption_worker import encrypt_session_worker
 
-# FIXME: Temporary stubs - refactor to use DI container
-# These functions need to be replaced with proper DI container usage
-def add_full_audio(*args, **kwargs):
-    """Stub - needs refactoring to use DI container."""
-    logger = get_logger(__name__)
-    logger.warning("add_full_audio stub called - needs refactoring")
-    pass
+from backend.container import get_container
 
-def add_full_transcription(*args, **kwargs):
-    """Stub - needs refactoring to use DI container."""
-    logger = get_logger(__name__)
-    logger.warning("add_full_transcription stub called - needs refactoring")
-    pass
 
-def add_webspeech_transcripts(*args, **kwargs):
-    """Stub - needs refactoring to use DI container."""
-    logger = get_logger(__name__)
-    logger.warning("add_webspeech_transcripts stub called - needs refactoring")
-    pass
+def add_full_audio(session_id: str, audio_bytes: bytes, filename: str, task_type) -> None:
+    """Add full audio via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    task_repo.add_full_audio(session_id, audio_bytes, filename, task_type_str)
+
+
+def add_full_transcription(session_id: str, full_text: str, task_type) -> None:
+    """Add full transcription via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    task_repo.add_full_transcription(session_id, full_text, task_type_str)
+
+
+def add_webspeech_transcripts(session_id: str, transcripts: list[str], task_type) -> None:
+    """Add webspeech transcripts via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    task_repo.add_webspeech_transcripts(session_id, transcripts, task_type_str)
+
 
 def get_task_chunks(session_id, task_type):
-    """Stub - needs refactoring to use DI container."""
-    from backend.container import get_container
+    """Get task chunks via DI container."""
     task_repo = get_container().get_task_repository()
-    # Convert TaskType enum to string if needed
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
     return task_repo.get_task_chunks(session_id, task_type_str)
 

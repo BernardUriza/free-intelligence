@@ -606,6 +606,151 @@ class HDF5TaskRepository(ITaskRepository):
             )
             return []
 
+    def add_webspeech_transcripts(
+        self, session_id: str, transcripts: list[str], task_type: str = "TRANSCRIPTION"
+    ) -> None:
+        """Save webspeech transcripts to HDF5.
+
+        Args:
+            session_id: Session identifier
+            transcripts: List of transcript strings from WebSpeech
+            task_type: Task type (default: TRANSCRIPTION)
+        """
+        try:
+            task_path = f"{self.TASKS_GROUP}/{session_id}/{task_type}"
+            webspeech_path = f"{task_path}/webspeech_final"
+
+            transcripts_json = json.dumps(transcripts, ensure_ascii=False, indent=2)
+
+            with h5py.File(self.h5_file_path, "a") as f:
+                # Ensure task group exists
+                tasks_group = f.require_group(self.TASKS_GROUP)
+                session_group = tasks_group.require_group(session_id)
+                task_group = session_group.require_group(task_type)
+
+                # Delete existing webspeech if present
+                if "webspeech_final" in task_group:
+                    del task_group["webspeech_final"]
+
+                # Create new webspeech dataset
+                task_group.create_dataset(
+                    "webspeech_final",
+                    data=transcripts_json.encode("utf-8"),
+                    dtype=h5py.special_dtype(vlen=bytes),
+                )
+
+                logger.info(
+                    "WEBSPEECH_TRANSCRIPTS_SAVED",
+                    session_id=session_id,
+                    count=len(transcripts),
+                    path=webspeech_path,
+                )
+
+        except Exception as e:
+            logger.error(
+                "ADD_WEBSPEECH_TRANSCRIPTS_FAILED",
+                session_id=session_id,
+                error=str(e),
+                exc_info=True,
+            )
+            raise
+
+    def add_full_transcription(
+        self, session_id: str, full_text: str, task_type: str = "TRANSCRIPTION"
+    ) -> None:
+        """Save full concatenated transcription to HDF5.
+
+        Args:
+            session_id: Session identifier
+            full_text: Full concatenated transcript text
+            task_type: Task type (default: TRANSCRIPTION)
+        """
+        try:
+            task_path = f"{self.TASKS_GROUP}/{session_id}/{task_type}"
+            full_text_path = f"{task_path}/full_transcription"
+
+            with h5py.File(self.h5_file_path, "a") as f:
+                # Ensure task group exists
+                tasks_group = f.require_group(self.TASKS_GROUP)
+                session_group = tasks_group.require_group(session_id)
+                task_group = session_group.require_group(task_type)
+
+                # Delete existing full_transcription if present
+                if "full_transcription" in task_group:
+                    del task_group["full_transcription"]
+
+                # Create new full_transcription dataset
+                task_group.create_dataset(
+                    "full_transcription",
+                    data=full_text.encode("utf-8"),
+                    dtype=h5py.special_dtype(vlen=bytes),
+                )
+
+                logger.info(
+                    "FULL_TRANSCRIPTION_SAVED",
+                    session_id=session_id,
+                    length=len(full_text),
+                    path=full_text_path,
+                )
+
+        except Exception as e:
+            logger.error(
+                "ADD_FULL_TRANSCRIPTION_FAILED",
+                session_id=session_id,
+                error=str(e),
+                exc_info=True,
+            )
+            raise
+
+    def add_full_audio(
+        self, session_id: str, audio_bytes: bytes, filename: str = "full_audio.webm",
+        task_type: str = "TRANSCRIPTION"
+    ) -> None:
+        """Save full concatenated audio to HDF5.
+
+        Args:
+            session_id: Session identifier
+            audio_bytes: Full concatenated audio bytes
+            filename: Audio filename (default: full_audio.webm)
+            task_type: Task type (default: TRANSCRIPTION)
+        """
+        try:
+            task_path = f"{self.TASKS_GROUP}/{session_id}/{task_type}"
+            audio_path = f"{task_path}/{filename}"
+
+            with h5py.File(self.h5_file_path, "a") as f:
+                # Ensure task group exists
+                tasks_group = f.require_group(self.TASKS_GROUP)
+                session_group = tasks_group.require_group(session_id)
+                task_group = session_group.require_group(task_type)
+
+                # Delete existing full audio if present
+                if filename in task_group:
+                    del task_group[filename]
+
+                # Create new full audio dataset
+                task_group.create_dataset(
+                    filename,
+                    data=audio_bytes,
+                    dtype=h5py.special_dtype(vlen=bytes),
+                )
+
+                logger.info(
+                    "FULL_AUDIO_SAVED",
+                    session_id=session_id,
+                    audio_size_bytes=len(audio_bytes),
+                    path=audio_path,
+                )
+
+        except Exception as e:
+            logger.error(
+                "ADD_FULL_AUDIO_FAILED",
+                session_id=session_id,
+                error=str(e),
+                exc_info=True,
+            )
+            raise
+
     @staticmethod
     def _serialize_value(value: Any) -> str | int | float | bool:
         """Serialize Python value to HDF5-compatible type."""
