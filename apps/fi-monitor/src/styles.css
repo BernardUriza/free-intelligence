@@ -1686,3 +1686,340 @@ body {
 .log-debug .log-message {
   color: #e0e0e0;
 }
+
+/* ============================================================================
+   Test Suite Library Styles
+   ============================================================================ */
+
+.test-suite-library {
+  padding: 20px;
+}
+
+.test-suite-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.test-suite-header h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+}
+
+.test-suite-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.add-test-btn,
+.bulk-run-btn {
+  background: var(--accent);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.add-test-btn:hover,
+.bulk-run-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,136,255,0.3);
+}
+
+.bulk-run-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.category-filter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.category-filter button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.category-filter button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.category-filter button:hover:not(.active) {
+  background: var(--hover);
+  border-color: var(--accent);
+}
+
+.category-filter .count {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.category-filter button.active .count {
+  color: rgba(255,255,255,0.8);
+}
+
+.add-test-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.add-test-form h4 {
+  margin: 0 0 16px 0;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.add-test-form label {
+  display: block;
+  margin: 12px 0 6px 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.add-test-form textarea,
+.add-test-form input[type="text"],
+.add-test-form select {
+  width: 100%;
+  background: var(--background);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.add-test-form textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.add-test-form textarea:focus,
+.add-test-form input:focus,
+.add-test-form select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.save-btn {
+  background: var(--accent);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.cancel-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.test-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.empty-state button {
+  margin-top: 16px;
+  background: var(--accent);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.test-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid;
+  border-radius: 6px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.test-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.test-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.test-category {
+  font-size: 12px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.test-difficulty {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.test-question {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  min-height: 42px;
+}
+
+.test-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.test-tags .tag {
+  background: rgba(0,136,255,0.1);
+  border: 1px solid rgba(0,136,255,0.3);
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.test-result {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.result-header .passed {
+  color: #4caf50;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.result-header .failed {
+  color: #f44336;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.result-time {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.result-answer {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+  max-height: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.test-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.test-actions .run-btn {
+  flex: 1;
+  background: var(--accent);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.test-actions .run-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.test-actions .action-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.test-actions .action-btn:hover {
+  background: var(--hover);
+  border-color: var(--accent);
+}
+
+.test-actions .action-btn.danger:hover {
+  background: #f44336;
+  border-color: #f44336;
+}

@@ -3,6 +3,7 @@ import { ModelManager } from './components/ModelManager'
 import { BenchmarkCharts } from './components/BenchmarkCharts'
 import { EnvVarEditor } from './components/EnvVarEditor'
 import { LogsViewer } from './components/LogsViewer'
+import { TestSuiteLibrary } from './components/TestSuiteLibrary'
 import { invoke, listen, getVersion } from './lib/tauri-adapter'
 
 interface ServiceStatus {
@@ -749,6 +750,9 @@ export default function App({ setupState }: AppProps) {
           <div className="test-placeholder">{ollamaOn ? 'Presiona ▶ para probar' : 'Inicia Ollama primero'}</div>
         )}
       </div>
+
+      {/* Test Suite Library */}
+      <TestSuiteLibrary />
     </div>
   )
 

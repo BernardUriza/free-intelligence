@@ -246,6 +246,50 @@ export const mockInvoke = async (cmd: string, args?: any): Promise<any> => {
       return mockLogs
     }
 
+    case 'get_test_suite': {
+      // Return sample tests
+      return [
+        {
+          id: '1',
+          question: '¿Cuánto es 2 + 2?',
+          expectedAnswer: '4',
+          category: 'math',
+          difficulty: 'easy',
+          tags: ['arithmetic', 'basic'],
+          createdAt: '2026-01-20T10:00:00Z'
+        },
+        {
+          id: '2',
+          question: '¿Cuáles son los síntomas comunes de la gripe?',
+          expectedAnswer: 'fiebre, tos, dolor de garganta',
+          category: 'medical',
+          difficulty: 'medium',
+          tags: ['symptoms', 'infectious'],
+          createdAt: '2026-01-21T14:30:00Z'
+        },
+        {
+          id: '3',
+          question: 'Explica la fotosíntesis en términos simples',
+          category: 'general',
+          difficulty: 'medium',
+          tags: ['science', 'biology'],
+          createdAt: '2026-01-22T09:15:00Z'
+        }
+      ]
+    }
+
+    case 'save_test': {
+      await new Promise(resolve => setTimeout(resolve, 300))
+      console.log('[Mock] Test saved:', args)
+      return null
+    }
+
+    case 'delete_test': {
+      await new Promise(resolve => setTimeout(resolve, 200))
+      console.log('[Mock] Test deleted:', args)
+      return null
+    }
+
     default:
       console.warn('[Mock Invoke] Unknown command:', cmd)
       return null
