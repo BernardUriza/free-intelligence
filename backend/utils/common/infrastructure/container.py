@@ -360,7 +360,9 @@ class DIContainer:
         """
         if self._transcription_service is None:
             try:
-                self._transcription_service = TranscriptionService()
+                self._transcription_service = TranscriptionService(
+                    task_repository=self.get_task_repository()
+                )
                 _get_logger().info("TranscriptionService initialized")
             except OSError as e:
                 _get_logger().error(f"TRANSCRIPTION_SERVICE_INIT_FAILED: {e!s}")

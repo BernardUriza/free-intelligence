@@ -14,8 +14,8 @@ Card: Clean Architecture Refactor
 from __future__ import annotations
 
 from backend.models.task_type import TaskType
+from backend.repositories.interfaces import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
-from backend.container import get_container
 
 # FIXME: infrastructure.events doesn't exist - stubbed
 # from infrastructure.events.application.event_bus import get_event_bus
@@ -46,28 +46,6 @@ class TranscriptionEndedEvent:
     pass
 
 
-# Use DI container for task repository
-def ensure_task_exists(session_id: str, task_type, metadata=None, allow_existing=False):
-    """Ensure task exists via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.ensure_task_exists(session_id, task_type_str, metadata)
-
-
-def get_task_chunks(session_id: str, task_type):
-    """Get task chunks via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_task_chunks(session_id, task_type_str)
-
-
-def get_task_metadata(session_id: str, task_type):
-    """Get task metadata via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_task_metadata(session_id, task_type_str)
-
-
 logger = get_logger(__name__)
 
 
@@ -93,6 +71,14 @@ class ChunkProcessingResult:
 
 class TranscriptionService:
     """Service for audio transcription business logic."""
+
+    def __init__(self, task_repository: ITaskRepository):
+        """Initialize transcription service with dependencies.
+
+        Args:
+            task_repository: Task repository for session/task management
+        """
+        self.task_repo = task_repository
 
     async def process_chunk(
         self,
@@ -160,7 +146,7 @@ class TranscriptionService:
             "ENSURING_TRANSCRIPTION_TASK",
             session_id=session_id,
         )
-        get_container().get_task_repository().ensure_task_exists(
+        self.task_repo.ensure_task_exists(
             session_id=session_id,
             task_type=TaskType.TRANSCRIPTION.name,
         )
@@ -195,10 +181,8 @@ class TranscriptionService:
         timestamp_end = timestamp_start + CHUNK_DURATION_SECONDS
 
         # Append chunk with placeholder transcript (worker will update later)
-        task_repo = get_container().get_task_repository()
-
         # Ensure task exists first
-        task_repo.ensure_task_exists(session_id, TaskType.TRANSCRIPTION.name)
+        self.task_repo.ensure_task_exists(session_id, TaskType.TRANSCRIPTION.name)
 
         # Create chunk with metadata using batch update
         chunk_updates = {
@@ -211,7 +195,7 @@ class TranscriptionService:
             "confidence": 0.0,
             "audio_quality": 0.9,
         }
-        task_repo.batch_update_chunk_datasets(
+        self.task_repo.batch_update_chunk_datasets(
             session_id=session_id,
             task_type=TaskType.TRANSCRIPTION.name,
             chunk_idx=chunk_number,
@@ -242,11 +226,11 @@ class TranscriptionService:
             logger.warning("EVENT_PUBLISH_FAILED", event="TRANSCRIPTION_CHUNK", error=str(e))
 
         # 4. Update task metadata (track total chunks)
-        metadata = task_repo.get_task_metadata(session_id, TaskType.TRANSCRIPTION.name) or {}
+        metadata = self.task_repo.get_task_metadata(session_id, TaskType.TRANSCRIPTION.name) or {}
         total_chunks = max(metadata.get("total_chunks", 0), chunk_number + 1)
         processed_chunks = metadata.get("processed_chunks", 0)
 
-        task_repo.save_task_metadata(
+        self.task_repo.save_task_metadata(
             session_id,
             TaskType.TRANSCRIPTION.name,
             {
@@ -286,7 +270,7 @@ class TranscriptionService:
         )
 
         # 6. Return result IMMEDIATELY (202 Accepted pattern)
-        metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+        metadata = self.task_repo.get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
         elapsed = time.time() - start_time
         result = ChunkProcessingResult(
             session_id=session_id,
@@ -405,14 +389,14 @@ class TranscriptionService:
         Raises:
             ValueError: If session not found
         """
-        if not get_container().get_task_repository().task_exists(session_id, TaskType.TRANSCRIPTION.name):
+        if not self.task_repo.task_exists(session_id, TaskType.TRANSCRIPTION.name):
             raise ValueError(f"Transcription task not found for session {session_id}")
 
         # Get metadata
-        metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+        metadata = self.task_repo.get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
 
         # Get chunks
-        chunks = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+        chunks = self.task_repo.get_task_chunks(session_id, TaskType.TRANSCRIPTION)
 
         # Calculate stats
         total_chunks = len(chunks)

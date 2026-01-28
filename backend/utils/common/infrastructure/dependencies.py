@@ -18,11 +18,12 @@ def get_transcription_service():
 
     Direct import to avoid stub-fallback in container when backend.services is missing.
     """
+    from backend.container import get_container
     from backend.services.transcription.services.transcription_service import (
         TranscriptionService,
     )
 
-    return TranscriptionService()
+    return TranscriptionService(task_repository=get_container().get_task_repository())
 
 
 def get_policy_enforcer(
