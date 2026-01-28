@@ -194,8 +194,7 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
 
             # Try to get transcription sources (triple vision)
             import h5py
-                CORPUS_PATH,
-            )
+            from backend.core.domain.storage.corpus_manager import CORPUS_PATH
 
             with h5py.File(CORPUS_PATH, "r") as f:
                 trans_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION"

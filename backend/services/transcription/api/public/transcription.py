@@ -443,9 +443,8 @@ async def end_session(
         )
 
         # 2. Get session info from HDF5
-            get_session_chunks,
-            save_full_audio_metadata,
-        )
+        # FIXME: Broken imports - get_session_chunks, save_full_audio_metadata
+        # Use repository methods from DI container
 
         chunks = get_session_chunks(session_id)
         total_duration = sum(c.get("duration", 0.0) for c in chunks)
@@ -463,8 +462,8 @@ async def end_session(
         # 4. Save webspeech_final to HDF5 (Triple Vision source)
         if webspeech_final:
             from backend.models.task_type import TaskType
-                CORPUS_PATH,
-            )
+            # FIXME: Broken import - CORPUS_PATH
+            # Use config or environment variable
 
             try:
                 webspeech_list = json.loads(webspeech_final)

@@ -25,11 +25,13 @@ from backend.schemas.llm.audit_policy import require_audit_log
 from backend.services.assistant.api.public.assistant_websocket import broadcast_new_message
 from backend.api.audit.services.audit_service import AuditService
 from backend.utils.common.logging.logger import get_logger
-from infrastructure.events import DomainEvent, EventType, get_event_bus
+# FIXME: infrastructure.events doesn't exist - stubbed
+# from backend.core.infrastructure.events import DomainEvent, EventType, get_event_bus
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.services.llm.services.persona_manager import PersonaManager
 from backend.core.infrastructure.observability.hooks import log_llm_call, log_llm_error
-from infrastructure.storage.services.trace_store import get_trace_store
+# FIXME: infrastructure.storage doesn't exist - stubbed
+# from backend.core.infrastructure.storage.services.trace_store import get_trace_store
 from fastapi import APIRouter, HTTPException, Request, status
 
 from .schemas import ChatRequest, ChatResponse
@@ -38,7 +40,8 @@ router = APIRouter()
 logger = get_logger(__name__)
 persona_mgr = PersonaManager()
 policy_loader = get_policy_loader()
-trace_store = get_trace_store()
+# FIXME: trace_store stubbed - get_trace_store not implemented
+trace_store = None  # get_trace_store()
 
 # Initialize audit service for persona metrics tracking
 import contextlib
@@ -516,22 +519,23 @@ async def internal_llm_chat_stream(request: ChatRequest):
             )
 
             # Emit event: user message received
-            try:
-                event_bus = get_event_bus()
-                aggregate_id = request.session_id or stream_request_id
-                await event_bus.publish(
-                    DomainEvent(
-                        event_type=EventType.ASSISTANT_MESSAGE_RECEIVED,
-                        aggregate_id=aggregate_id,
-                        payload={
-                            "message_type": "user",
-                            "token_count": len(request.message.split()),
-                            "persona": request.persona,
-                        },
-                    )
-                )
-            except Exception as evt_err:
-                logger.warning("EVENT_EMIT_FAILED", error=str(evt_err))
+            # FIXME: events stubbed - commented out
+            # try:
+            #     event_bus = get_event_bus()
+            #     aggregate_id = request.session_id or stream_request_id
+            #     await event_bus.publish(
+            #         DomainEvent(
+            #             event_type=EventType.ASSISTANT_MESSAGE_RECEIVED,
+            #             aggregate_id=aggregate_id,
+            #             payload={
+            #                 "message_type": "user",
+            #                 "token_count": len(request.message.split()),
+            #                 "persona": request.persona,
+            #             },
+            #         )
+            #     )
+            # except Exception as evt_err:
+            #     logger.warning("EVENT_EMIT_FAILED", error=str(evt_err))
 
             # Get memory context if enabled
             memory_enabled = request.use_memory and request.doctor_id
@@ -788,24 +792,25 @@ async def internal_llm_chat_stream(request: ChatRequest):
             )
 
             # Emit event: assistant response generated
-            try:
-                event_bus = get_event_bus()
-                aggregate_id = request.session_id or stream_request_id
-                await event_bus.publish(
-                    DomainEvent(
-                        event_type=EventType.ASSISTANT_RESPONSE_GENERATED,
-                        aggregate_id=aggregate_id,
-                        payload={
-                            "message_type": "assistant",
-                            "token_count": total_bytes // 4,  # Approximate tokens
-                            "total_chunks": chunk_count,
-                            "latency_ms": total_latency_ms,
-                            "provider": provider_name,
-                        },
-                    )
-                )
-            except Exception as evt_err:
-                logger.warning("EVENT_EMIT_FAILED", error=str(evt_err))
+            # FIXME: events stubbed - commented out
+            # try:
+            #     event_bus = get_event_bus()
+            #     aggregate_id = request.session_id or stream_request_id
+            #     await event_bus.publish(
+            #         DomainEvent(
+            #             event_type=EventType.ASSISTANT_RESPONSE_GENERATED,
+            #             aggregate_id=aggregate_id,
+            #             payload={
+            #                 "message_type": "assistant",
+            #                 "token_count": total_bytes // 4,  # Approximate tokens
+            #                 "total_chunks": chunk_count,
+            #                 "latency_ms": total_latency_ms,
+            #                 "provider": provider_name,
+            #             },
+            #         )
+            #     )
+            # except Exception as evt_err:
+            #     logger.warning("EVENT_EMIT_FAILED", error=str(evt_err))
 
             # Store assistant response in memory AFTER streaming completes
             if memory_enabled and content_buffer:

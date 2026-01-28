@@ -167,7 +167,14 @@
       "Bash(do git mv \"$file\" ../../../../../services/soap/services/)",
       "Bash(/tmp/extract_services_batch.sh)",
       "Bash(PYTHONPATH=backend/src:backend:. python3.14:*)",
-      "Bash(PYTHONPATH=backend/src:backend:infrastructure python3.14:*)"
+      "Bash(PYTHONPATH=backend/src:backend:infrastructure python3.14:*)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(PYTHONPATH=src python3.14 -m pytest:*)",
+      "Bash(timeout 65 tail:*)",
+      "Bash(pnpm add:*)",
+      "Bash(test:*)",
+      "Bash(do)",
+      "Bash(# Kill any existing backend pkill -f \"\"python.*backend.app.main\"\" || true sleep 2 # Start backend PYTHONPATH=src python3.14 -m backend.app.main 2>&1 & BACKEND_PID=$! echo \"\"Backend starting with PID: $BACKEND_PID\"\" sleep 12 # Test health endpoint echo \"\"=== Health Check ===\"\" curl -f http://localhost:7001/health 2>&1 # Check if routers loaded successfully echo \"\"\"\" echo \"\"=== Router Loading Status ===\"\" tail -100 /tmp/backend-test-fix3.log)"
     ]
   },
   "enableAllProjectMcpServers": true,

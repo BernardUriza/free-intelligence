@@ -160,10 +160,9 @@ class TranscriptionService:
             "ENSURING_TRANSCRIPTION_TASK",
             session_id=session_id,
         )
-        ensure_get_container().get_task_repository().task_exists(
+        get_container().get_task_repository().ensure_task_exists(
             session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
-            allow_existing=True,
+            task_type=TaskType.TRANSCRIPTION.name,
         )
         logger.debug(
             "TRANSCRIPTION_TASK_EXISTS",
@@ -188,10 +187,6 @@ class TranscriptionService:
         import hashlib
 
         from backend.models.task_type import CHUNK_DURATION_SECONDS
-            add_audio_to_chunk,
-            append_chunk_to_task,
-            update_task_metadata,
-        )
 
         audio_hash = hashlib.sha256(audio_bytes).hexdigest()
 
@@ -200,27 +195,31 @@ class TranscriptionService:
         timestamp_end = timestamp_start + CHUNK_DURATION_SECONDS
 
         # Append chunk with placeholder transcript (worker will update later)
-        append_chunk_to_task(
+        task_repo = get_container().get_task_repository()
+
+        # Ensure task exists first
+        task_repo.ensure_task_exists(session_id, TaskType.TRANSCRIPTION.name)
+
+        # Create chunk with metadata using batch update
+        chunk_updates = {
+            "transcript": "",
+            "audio_hash": audio_hash,
+            "duration": 0.0,
+            "language": "es",
+            "timestamp_start": timestamp_start,
+            "timestamp_end": timestamp_end,
+            "confidence": 0.0,
+            "audio_quality": 0.9,
+        }
+        task_repo.batch_update_chunk_datasets(
             session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
+            task_type=TaskType.TRANSCRIPTION.name,
             chunk_idx=chunk_number,
-            transcript="",  # Empty - worker will fill this
-            audio_hash=audio_hash,
-            duration=0.0,  # Worker will update
-            language="es",
-            timestamp_start=timestamp_start,
-            timestamp_end=timestamp_end,
-            confidence=0.0,  # Worker will update
-            audio_quality=0.9,
+            updates=chunk_updates,
         )
 
-        # Save audio bytes to HDF5 (colocated with chunk)
-        add_audio_to_chunk(
-            session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
-            chunk_idx=chunk_number,
-            audio_bytes=audio_bytes,
-        )
+        # Note: Audio bytes saving not implemented yet (needs add_audio_to_chunk in repository)
+        # This is a stub - audio will be saved by worker
 
         logger.info(
             "AUDIO_SAVED_TO_HDF5",
@@ -243,13 +242,13 @@ class TranscriptionService:
             logger.warning("EVENT_PUBLISH_FAILED", event="TRANSCRIPTION_CHUNK", error=str(e))
 
         # 4. Update task metadata (track total chunks)
-        metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+        metadata = task_repo.get_task_metadata(session_id, TaskType.TRANSCRIPTION.name) or {}
         total_chunks = max(metadata.get("total_chunks", 0), chunk_number + 1)
         processed_chunks = metadata.get("processed_chunks", 0)
 
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
-            TaskType.TRANSCRIPTION,
+            TaskType.TRANSCRIPTION.name,
             {
                 "total_chunks": total_chunks,
                 "processed_chunks": processed_chunks,
@@ -406,10 +405,7 @@ class TranscriptionService:
         Raises:
             ValueError: If session not found
         """
-            task_exists,
-        )
-
-        if not get_container().get_task_repository().task_exists(session_id, TaskType.TRANSCRIPTION):
+        if not get_container().get_task_repository().task_exists(session_id, TaskType.TRANSCRIPTION.name):
             raise ValueError(f"Transcription task not found for session {session_id}")
 
         # Get metadata

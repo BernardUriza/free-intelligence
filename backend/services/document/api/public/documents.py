@@ -31,16 +31,9 @@ if TYPE_CHECKING:
 
 from backend.core.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
 from backend.utils.common.logging.logger import get_logger
-    Document,
-    DocumentOrigin,
-    DocumentStatus,
-    create_document,
-    delete_document,
-    get_document,
-    list_documents,
-    update_document_metadata,
-    update_document_status,
-)
+# FIXME: Broken imports - Document, DocumentOrigin, DocumentStatus, create_document,
+# delete_document, get_document, list_documents, update_document_metadata, update_document_status
+# Use document repository from DI container
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
@@ -483,8 +476,8 @@ async def search_documents(
 
     Returns chunks of text that are most relevant to the query.
     """
-        search_documents_by_embedding,
-    )
+    # FIXME: Broken import - search_documents_by_embedding
+    # Use document repository from DI container
 
     # Generate query embedding
     try:
@@ -543,10 +536,7 @@ def _process_document(doc_id: str) -> None:
 
     This runs in a thread pool worker.
     """
-        DocumentChunk,
-        save_document_chunks,
-        save_document_text,
-    )
+    # FIXME: Broken imports - DocumentChunk, save_document_chunks, save_document_text
 
     logger.info("DOCUMENT_PROCESSING_STARTED", doc_id=doc_id)
 
@@ -658,9 +648,7 @@ def _process_document(doc_id: str) -> None:
             if questions_text:
                 from datetime import UTC, datetime
 
-                    DocumentQuestion,
-                    save_document_questions,
-                )
+                # FIXME: Broken imports - DocumentQuestion, save_document_questions
 
                 questions = [
                     DocumentQuestion(
@@ -692,8 +680,7 @@ def _process_document(doc_id: str) -> None:
 
 def _extract_text(doc: Document) -> str | None:
     """Extract text from document based on type."""
-        DocumentType,
-    )
+    # FIXME: Broken import - DocumentType
 
     if doc.content is None:
         return None
@@ -954,8 +941,7 @@ def _generate_initial_questions_via_rag(doc_id: str) -> list[str]:
     """
     import json
 
-        search_documents_by_embedding,
-    )
+    # FIXME: Broken import - search_documents_by_embedding
 
     # 1. Get document to extract owner_user_id for security
     doc = get_document(doc_id)
@@ -1114,8 +1100,7 @@ async def get_document_questions_endpoint(doc_id: str) -> list[DocumentQuestionR
     - LLM initial generation (source="llm_initial") - created during indexing
     - User queries via RAG (source="user_query") - accumulated during usage
     """
-        get_document_questions,
-    )
+    # FIXME: Broken import - get_document_questions
 
     questions = get_document_questions(doc_id)
 

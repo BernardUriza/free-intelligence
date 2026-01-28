@@ -132,12 +132,11 @@ async def get_soap_workflow(session_id: str) -> dict:
             logger.info("SOAP_NOT_FOUND_GENERATING", session_id=session_id)
 
             from backend.models.task_type import TaskType
-                ensure_task_exists,
-            )
+            # FIXME: ensure_task_exists import broken - use DI container
             from backend.core.infrastructure.workers.tasks.soap_worker import generate_soap_worker
 
             # Ensure SOAP_GENERATION task exists before calling worker
-            ensure_get_container().get_task_repository().task_exists(session_id, TaskType.SOAP_GENERATION, allow_existing=True)
+            # FIXME: ensure_task_exists(session_id, TaskType.SOAP_GENERATION, allow_existing=True)
 
             # Call worker synchronously (service layer)
             generate_soap_worker(session_id)
@@ -194,10 +193,8 @@ async def update_soap_workflow(
     # Validate session ID first
     validate_session_id(session_id)
 
-        create_order,
-        get_orders,
-        save_soap_data,
-    )
+    # FIXME: Broken imports - create_order, get_orders, save_soap_data
+    # Use repository methods instead
 
     try:
         logger.info("SOAP_UPDATE_STARTED", session_id=session_id)

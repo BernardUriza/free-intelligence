@@ -10,16 +10,17 @@ Created: 2025-11-20
 Pattern: Service Layer + Command Pattern
 """
 
-from backend.container import get_container
 from __future__ import annotations
 
 from datetime import UTC, datetime
+
+from backend.container import get_container
 from typing import Any
 
 from backend.models.task_type import TaskType
 from backend.utils.common.logging.logger import get_logger
-    ensure_task_exists,
-)
+# FIXME: Broken import - ensure_task_exists
+# Use repository method from DI container
 from backend.core.infrastructure.workers.executor_pool import spawn_worker
 
 logger = get_logger(__name__)

@@ -40,7 +40,8 @@ from backend.core.domain.clinic.api.public import clinic_media
 from backend.utils.common.logging.logger import get_logger
 from backend.services.content.api.public import tv_content_seeds
 from backend.services.document.api.public import documents
-from infrastructure.events.api.public import events
+# FIXME: infrastructure.events doesn't exist - stubbed for now
+# from backend.core.infrastructure.events.api.public import events
 from backend.services.evidence.api.public import evidence
 from backend.services.kpi.api.public import kpis
 from backend.services.memory.api.public import longitudinal_memory
@@ -126,7 +127,8 @@ router.include_router(documents.router, tags=["Knowledge Base"])
 router.include_router(system.router, tags=["System"])
 
 # EVENTS: Event sourcing and audit trail (append-only event store)
-router.include_router(events.router, tags=["Events"])
+# FIXME: events router stubbed - infrastructure.events not implemented
+# router.include_router(events.router, tags=["Events"])
 
 logger.info(
     "WORKFLOWS_ROUTER_INITIALIZED",

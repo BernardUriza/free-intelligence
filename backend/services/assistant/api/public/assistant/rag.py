@@ -1,6 +1,6 @@
-from backend.container import get_container
 from __future__ import annotations
 
+from backend.container import get_container
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
@@ -29,15 +29,20 @@ async def _get_rag_context(
     Returns:
         Formatted RAG context or None if no results
     """
-    try:
+    # FIXME: RAG functions stubbed - returning None until document service is implemented
+    return None
+
+    try:  # Dead code - keeping for reference when RAG is implemented
         from datetime import UTC, datetime
 
         from backend.services.assistant.services.monitor_client import get_embedding
-            DocumentQuestion,
-            add_document_question,
-            get_document,
-            search_documents_by_embedding,
-        )
+        # FIXME: These functions don't exist - stubbed
+        # from backend.services.document.api.public.documents import (
+        #     DocumentQuestion,
+        #     add_document_question,
+        #     get_document,
+        #     search_documents_by_embedding,
+        # )
 
         # Get embedding from FI Monitor GPU service
         query_embedding = await get_embedding(query)

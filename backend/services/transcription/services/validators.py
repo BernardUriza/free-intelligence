@@ -8,9 +8,8 @@ Validation logic for:
 from __future__ import annotations
 from backend.container import get_container
 
-
-    validate_session_id as storage_validate_session_id,
-)
+# FIXME: Broken import - validate_session_id (storage_validate_session_id)
+# Use validator from backend.validators
 from pathlib import Path
 
 

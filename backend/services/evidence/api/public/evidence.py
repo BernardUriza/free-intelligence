@@ -108,10 +108,8 @@ async def generate_evidence_pack_from_session(session_id: str) -> dict:
     from datetime import UTC, datetime
 
     from backend.models.task_type import TaskType
-        get_diarization_segments,
-        get_soap_data,
-        task_exists,
-    )
+    # FIXME: Broken imports - get_diarization_segments, get_soap_data, task_exists
+    # Use repository methods from DI container
 
     # Check if SOAP exists (required for evidence pack)
     if not get_container().get_task_repository().task_exists(session_id, TaskType.SOAP_GENERATION):
