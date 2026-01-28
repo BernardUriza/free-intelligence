@@ -181,12 +181,25 @@ fn save_benchmark_result(result: BenchmarkSuite) -> Result<(), String> {
 // App State
 // ============================================================================
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum TunnelMode {
+    Local,       // localhost:11400 directo (0ms latency)
+    Cloudflared, // cloudflared tunnel real (acceso remoto)
+}
+
+impl Default for TunnelMode {
+    fn default() -> Self {
+        TunnelMode::Local
+    }
+}
+
 #[derive(Default)]
 struct AppState {
     ollama_running: Mutex<bool>,
     tunnel_running: Mutex<bool>,
     tunnel_url: Mutex<Option<String>>,
     tunnel_process: Mutex<Option<u32>>,
+    tunnel_mode: Mutex<TunnelMode>, // Track current tunnel type
     config: Mutex<AppConfig>,
     // Phase 3: GPU acceleration services
     rag_service_running: Mutex<bool>,
@@ -834,32 +847,63 @@ async fn start_tunnel(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<String, String> {
-    start_tunnel_internal(app, Arc::clone(&*state)).await
+    // Si hay tunnel local corriendo, detenerlo primero
+    let current_mode = *state.tunnel_mode.lock().unwrap();
+    if current_mode == TunnelMode::Local && *state.tunnel_running.lock().unwrap() {
+        println!("[FI Monitor] Switching from local tunnel to cloudflared...");
+        stop_tunnel_internal(Arc::clone(&*state))?;
+    }
+
+    // Iniciar cloudflared REAL (acceso remoto)
+    start_tunnel_cloudflared_internal(app, Arc::clone(&*state)).await
+}
+
+/// Internal function to stop tunnel without restarting local mode
+fn stop_tunnel_internal(state: Arc<AppState>) -> Result<bool, String> {
+    println!("[FI Monitor] Stopping tunnel...");
+
+    let mode = *state.tunnel_mode.lock().unwrap();
+
+    // Solo matar proceso si es cloudflared
+    if mode == TunnelMode::Cloudflared {
+        if let Some(pid) = state.tunnel_process.lock().unwrap().take() {
+            #[cfg(target_os = "windows")]
+            {
+                let _ = Command::new("taskkill")
+                    .args(["/F", "/PID", &pid.to_string()])
+                    .output();
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                let _ = Command::new("kill").arg(pid.to_string()).output();
+            }
+        }
+        #[cfg(target_os = "windows")]
+        {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/IM", "cloudflared.exe"])
+                .output();
+        }
+    }
+
+    *state.tunnel_running.lock().unwrap() = false;
+    *state.tunnel_url.lock().unwrap() = None;
+    Ok(true)
 }
 
 #[tauri::command]
 async fn stop_tunnel(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
-    println!("[FI Monitor] Stopping tunnel...");
-    if let Some(pid) = state.tunnel_process.lock().unwrap().take() {
-        #[cfg(target_os = "windows")]
-        {
-            let _ = Command::new("taskkill")
-                .args(["/F", "/PID", &pid.to_string()])
-                .output();
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            let _ = Command::new("kill").arg(pid.to_string()).output();
-        }
+    let mode = *state.tunnel_mode.lock().unwrap();
+
+    // Detener tunnel actual
+    stop_tunnel_internal(Arc::clone(&*state))?;
+
+    // Si era cloudflared, volver a modo local automáticamente
+    if mode == TunnelMode::Cloudflared {
+        println!("[FI Monitor] Returning to local tunnel mode...");
+        start_tunnel_local(Arc::clone(&*state))?;
     }
-    #[cfg(target_os = "windows")]
-    {
-        let _ = Command::new("taskkill")
-            .args(["/F", "/IM", "cloudflared.exe"])
-            .output();
-    }
-    *state.tunnel_running.lock().unwrap() = false;
-    *state.tunnel_url.lock().unwrap() = None;
+
     Ok(true)
 }
 
@@ -1091,7 +1135,9 @@ fn start_tunnel_watchdog(app: tauri::AppHandle, state: Arc<AppState>) {
                     tauri::async_runtime::spawn(async move {
                         // Re-check Ollama before restart
                         if check_ollama().await {
-                            match start_tunnel_internal(app_clone.clone(), state_clone).await {
+                            // Watchdog ALWAYS restarts cloudflared tunnel (not local)
+                            // porque solo cloudflared tiene proceso que puede morir
+                            match start_tunnel_cloudflared_internal(app_clone.clone(), state_clone).await {
                                 Ok(_) => println!("[FI Monitor Watchdog] ✅ Tunnel restarted (attempt #{})", attempt),
                                 Err(e) => {
                                     println!("[FI Monitor Watchdog] ❌ Failed to restart (attempt #{}): {}", attempt, e)
@@ -1111,8 +1157,47 @@ fn start_tunnel_watchdog(app: tauri::AppHandle, state: Arc<AppState>) {
     });
 }
 
-/// Internal function to start tunnel (used by both command and watchdog)
-async fn start_tunnel_internal(
+/// Start local tunnel (localhost directo, sin cloudflared)
+/// Usado en auto-start para modo rápido/simple
+fn start_tunnel_local(state: Arc<AppState>) -> Result<String, String> {
+    println!("[FI Monitor] Starting local tunnel (no cloudflared)...");
+
+    // 1. Obtener puerto configurado (default: 11400 = Gateway)
+    let tunnel_port = {
+        let config = state.config.lock().unwrap();
+        config.get_tunnel_port()
+    };
+
+    // 2. TUNNEL FICTICIO: Usar localhost directo (NO cloudflared)
+    let tunnel_url = format!("http://localhost:{}", tunnel_port);
+    println!("[FI Monitor] 🔧 Local tunnel (ficticio): {}", tunnel_url);
+
+    // 3. Guardar al JSON local
+    save_tunnel_url_locally(&tunnel_url)?;
+    println!("[FI Monitor] 💾 Saved to: ~/.config/fi-monitor/tunnel-url.json");
+
+    // 4. Actualizar state
+    *state.tunnel_url.lock().unwrap() = Some(tunnel_url.clone());
+    *state.tunnel_running.lock().unwrap() = true;
+    *state.tunnel_mode.lock().unwrap() = TunnelMode::Local;
+
+    // 5. Actualizar config con last_tunnel_url
+    {
+        let mut cfg = state.config.lock().unwrap();
+        cfg.last_tunnel_url = Some(tunnel_url.clone());
+        let _ = save_config(&cfg);
+    }
+
+    // 6. Re-upload periódico (mantiene timestamp fresco cada 5 min)
+    let config = state.config.lock().unwrap().clone();
+    start_periodic_upload(tunnel_url.clone(), config);
+
+    println!("[FI Monitor] ✅ Local tunnel ready");
+    Ok(tunnel_url)
+}
+
+/// Internal function to start cloudflared tunnel (used by manual command and watchdog)
+async fn start_tunnel_cloudflared_internal(
     app: tauri::AppHandle,
     state: Arc<AppState>,
 ) -> Result<String, String> {
@@ -1158,6 +1243,7 @@ async fn start_tunnel_internal(
     let pid = child.id();
     *state.tunnel_process.lock().unwrap() = Some(pid);
     *state.tunnel_running.lock().unwrap() = true;
+    *state.tunnel_mode.lock().unwrap() = TunnelMode::Cloudflared;
 
     // Capture stderr in separate thread to find tunnel URL
     // IMPORTANT: Must .take() to move ownership to thread, otherwise stderr closes when child drops
@@ -2010,8 +2096,18 @@ fn main() {
 
                         let _ = app_handle.emit("services-checked", ());
 
-                        // Tunnel is NOT auto-started - user must activate manually
-                        println!("[FI Monitor] ℹ️ Tunnel ready (manual activation required)");
+                        // Auto-start LOCAL tunnel (localhost directo, sin cloudflared)
+                        println!("[FI Monitor] Auto-starting local tunnel...");
+                        match start_tunnel_local(state_clone.clone()) {
+                            Ok(url) => {
+                                println!("[FI Monitor] ✅ Local tunnel ready: {}", url);
+                                let _ = app_handle.emit("tunnel-url-found", url.clone());
+                                let _ = app_handle.emit("tunnel-started", ());
+                            }
+                            Err(e) => {
+                                println!("[FI Monitor] ⚠️ Failed to start local tunnel: {}", e);
+                            }
+                        }
                         return;
                     }
                     attempts += 1;
