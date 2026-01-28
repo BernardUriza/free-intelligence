@@ -92,6 +92,38 @@ class UpdateSegmentRequest(BaseModel):
     text: str = Field(..., min_length=1, description="New text content for the segment")
 
 
+class ExternalSpeaker(BaseModel):
+    """Speaker information from external diarization service."""
+
+    speaker_id: str = Field(..., description="Speaker identifier (e.g., 'SPEAKER_01', 'DOCTOR')")
+    name: str | None = Field(default=None, description="Speaker name if known (e.g., 'Dr. Smith')")
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Confidence in speaker assignment")
+
+
+class ExternalDiarizationSegment(BaseModel):
+    """Single diarization segment from external service (e.g., Cue)."""
+
+    start_time: float = Field(..., ge=0.0, description="Segment start time in seconds")
+    end_time: float = Field(..., gt=0.0, description="Segment end time in seconds")
+    speaker: ExternalSpeaker = Field(..., description="Speaker who said this segment")
+    text: str = Field(..., min_length=1, description="Transcribed text for this segment")
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Overall segment confidence")
+
+
+class ImportDiarizationRequest(BaseModel):
+    """Request to import pre-diarized transcript from external service."""
+
+    segments: list[ExternalDiarizationSegment] = Field(
+        ..., min_length=1, description="List of diarization segments (must have at least 1)"
+    )
+    provider: str = Field(
+        default="external", description="Diarization provider name (e.g., 'cue', 'assembly', 'external')"
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Optional metadata about the diarization process"
+    )
+
+
 class SOAPCorrectionModel(BaseModel):
     """Single SOAP correction made by doctor."""
 

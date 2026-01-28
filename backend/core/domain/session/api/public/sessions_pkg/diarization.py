@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from backend.container import get_container
-from backend.utils.common.api.public.models import UpdateSegmentRequest
+from backend.utils.common.api.public.models import ImportDiarizationRequest, UpdateSegmentRequest
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, HTTPException, status
@@ -181,4 +182,128 @@ async def update_diarization_segment_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update segment: {e!s}",
+        ) from e
+
+
+@router.post(
+    "/sessions/{session_id}/diarization/import",
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_external_diarization(
+    session_id: str,
+    request: ImportDiarizationRequest,
+) -> dict[str, Any]:
+    """Import pre-diarized transcript from external service (e.g., Cue, AssemblyAI).
+
+    This endpoint allows importing diarization results from external services that
+    already performed speaker separation, avoiding the need to re-process audio.
+
+    Use cases:
+    - Cue.ai pre-diarized transcripts
+    - AssemblyAI speaker diarization
+    - Manual transcription with speaker labels
+    - Any external service that provides speaker-separated text
+
+    Args:
+        session_id: Session identifier (must be valid UUID)
+        request: Diarization data with segments, speakers, and metadata
+
+    Returns:
+        Success response with segment count and metadata
+    """
+    validate_session_id(session_id)
+
+    from backend.models.task_type import TaskType
+
+    try:
+        logger.info(
+            "EXTERNAL_DIARIZATION_IMPORT_STARTED",
+            session_id=session_id,
+            provider=request.provider,
+            segment_count=len(request.segments),
+        )
+
+        # Convert Pydantic models to dict format expected by repository
+        segments_dict = []
+        speakers_dict = {}
+
+        for segment in request.segments:
+            # Build speaker dict (collect unique speakers)
+            speaker_id = segment.speaker.speaker_id
+            if speaker_id not in speakers_dict:
+                speakers_dict[speaker_id] = {
+                    "speaker_id": speaker_id,
+                    "name": segment.speaker.name,
+                    "confidence": segment.speaker.confidence,
+                }
+
+            # Build segment dict
+            segment_dict = {
+                "start_time": segment.start_time,
+                "end_time": segment.end_time,
+                "duration": segment.end_time - segment.start_time,
+                "speaker": {
+                    "speaker_id": speaker_id,
+                    "name": segment.speaker.name,
+                    "confidence": segment.speaker.confidence,
+                },
+                "text": segment.text,
+                "confidence": segment.confidence,
+            }
+            segments_dict.append(segment_dict)
+
+        # Calculate total duration (last segment end time)
+        total_duration = max(seg.end_time for seg in request.segments) if request.segments else 0.0
+
+        # Save segments via repository
+        task_repo = get_container().get_task_repository()
+        task_repo.save_diarization_segments(session_id, segments_dict)
+
+        # Save task metadata
+        metadata = {
+            "status": "completed",
+            "provider": request.provider,
+            "num_speakers": len(speakers_dict),
+            "segment_count": len(segments_dict),
+            "duration_seconds": total_duration,
+            "import_source": "external",
+            "imported_at": datetime.now(UTC).isoformat(),
+            **request.metadata,  # Merge user-provided metadata
+        }
+        task_repo.save_task_metadata(session_id, TaskType.DIARIZATION.name, metadata)
+
+        logger.info(
+            "EXTERNAL_DIARIZATION_IMPORT_SUCCESS",
+            session_id=session_id,
+            provider=request.provider,
+            segment_count=len(segments_dict),
+            num_speakers=len(speakers_dict),
+            duration_seconds=total_duration,
+        )
+
+        return {
+            "session_id": session_id,
+            "status": "imported",
+            "provider": request.provider,
+            "segments_imported": len(segments_dict),
+            "speakers_identified": len(speakers_dict),
+            "duration_seconds": total_duration,
+            "speakers": list(speakers_dict.values()),
+            "imported_at": metadata["imported_at"],
+            "message": f"Successfully imported {len(segments_dict)} segments from {request.provider}",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "EXTERNAL_DIARIZATION_IMPORT_FAILED",
+            session_id=session_id,
+            provider=request.provider,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to import external diarization: {e!s}",
         ) from e
