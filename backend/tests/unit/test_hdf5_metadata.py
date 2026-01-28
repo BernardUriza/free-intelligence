@@ -3,6 +3,7 @@
 Tests cover task metadata CRUD operations.
 """
 
+from backend.container import get_container
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -24,8 +25,6 @@ class TestUpdateTaskMetadata:
     ) -> None:
         """Test update_task_metadata raises when task doesn't exist."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.metadata import (
             update_task_metadata,
         )
 
@@ -47,8 +46,6 @@ class TestUpdateTaskMetadata:
     ) -> None:
         """Test update_task_metadata creates metadata when none exists."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.metadata import (
             update_task_metadata,
         )
 
@@ -84,8 +81,6 @@ class TestUpdateTaskMetadata:
     ) -> None:
         """Test update_task_metadata merges with existing metadata."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.metadata import (
             update_task_metadata,
         )
 
@@ -129,8 +124,6 @@ class TestUpdateTaskMetadata:
 
     def test_update_metadata_with_string_task_type(self) -> None:
         """Test update_task_metadata accepts string task type."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.metadata import (
             update_task_metadata,
         )
 
@@ -162,14 +155,12 @@ class TestGetTaskMetadata:
     ) -> None:
         """Test get_task_metadata returns None when task doesn't exist."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.metadata import (
             get_task_metadata,
         )
 
         mock_exists.return_value = False
 
-        result = get_task_metadata("session-123", TaskType.TRANSCRIPTION)
+        result = get_container().get_task_repository().get_task_metadata("session-123", TaskType.TRANSCRIPTION)
 
         assert result is None
 
@@ -182,8 +173,6 @@ class TestGetTaskMetadata:
     ) -> None:
         """Test get_task_metadata returns None when no metadata exists."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.metadata import (
             get_task_metadata,
         )
 
@@ -199,7 +188,7 @@ class TestGetTaskMetadata:
         mock_locked.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
-        result = get_task_metadata("session-123", TaskType.TRANSCRIPTION)
+        result = get_container().get_task_repository().get_task_metadata("session-123", TaskType.TRANSCRIPTION)
 
         assert result is None
 
@@ -212,8 +201,6 @@ class TestGetTaskMetadata:
     ) -> None:
         """Test get_task_metadata returns metadata dictionary."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.metadata import (
             get_task_metadata,
         )
 
@@ -236,7 +223,7 @@ class TestGetTaskMetadata:
         mock_locked.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
-        result = get_task_metadata("session-123", TaskType.TRANSCRIPTION)
+        result = get_container().get_task_repository().get_task_metadata("session-123", TaskType.TRANSCRIPTION)
 
         assert result == {"total_chunks": 5, "status": "completed"}
 
@@ -249,8 +236,6 @@ class TestGetTaskMetadata:
     ) -> None:
         """Test get_task_metadata handles bytes from HDF5."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.metadata import (
             get_task_metadata,
         )
 
@@ -273,7 +258,7 @@ class TestGetTaskMetadata:
         mock_locked.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
-        result = get_task_metadata("session-123", TaskType.TRANSCRIPTION)
+        result = get_container().get_task_repository().get_task_metadata("session-123", TaskType.TRANSCRIPTION)
 
         assert result == {"total_chunks": 10}
 
@@ -286,8 +271,6 @@ class TestGetTaskMetadata:
     ) -> None:
         """Test get_task_metadata returns None on exception."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.metadata import (
             get_task_metadata,
         )
 
@@ -297,14 +280,12 @@ class TestGetTaskMetadata:
         mock_locked.return_value.__enter__ = MagicMock(side_effect=Exception("HDF5 error"))
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
-        result = get_task_metadata("session-123", TaskType.TRANSCRIPTION)
+        result = get_container().get_task_repository().get_task_metadata("session-123", TaskType.TRANSCRIPTION)
 
         assert result is None
 
     def test_get_metadata_with_string_task_type(self) -> None:
         """Test get_task_metadata accepts string task type."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.metadata import (
             get_task_metadata,
         )
 
@@ -313,6 +294,6 @@ class TestGetTaskMetadata:
         ) as mock_exists:
             mock_exists.return_value = False
 
-            result = get_task_metadata("session-123", "TRANSCRIPTION")
+            result = get_container().get_task_repository().get_task_metadata("session-123", "TRANSCRIPTION")
 
             assert result is None

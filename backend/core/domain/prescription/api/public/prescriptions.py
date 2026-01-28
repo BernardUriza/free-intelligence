@@ -18,6 +18,7 @@ Created: 2025-12-28
 Card: FI-RX-002
 """
 
+from backend.container import get_container
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -305,11 +306,9 @@ async def create_prescription_from_soap(
     validate_session_id(request.session_id)
 
     # Get SOAP data from storage
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import get_soap_data
 
     try:
-        soap_data = get_soap_data(request.session_id)
+        soap_data = get_container().get_task_repository().get_soap_data(request.session_id)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

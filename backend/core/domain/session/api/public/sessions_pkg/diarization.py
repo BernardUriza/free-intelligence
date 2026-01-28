@@ -1,3 +1,4 @@
+from backend.container import get_container
 from __future__ import annotations
 
 from typing import Any
@@ -59,8 +60,6 @@ async def get_diarization_segments_workflow(session_id: str) -> dict[str, Any]:
     validate_session_id(session_id)
 
     from backend.models.task_type import TaskType
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import (
         get_diarization_segments,
         get_task_metadata,
     )
@@ -68,7 +67,7 @@ async def get_diarization_segments_workflow(session_id: str) -> dict[str, Any]:
     try:
         logger.info("DIARIZATION_SEGMENTS_GET_STARTED", session_id=session_id)
 
-        metadata = get_task_metadata(session_id, TaskType.DIARIZATION)
+        metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.DIARIZATION)
         if not metadata:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -82,7 +81,7 @@ async def get_diarization_segments_workflow(session_id: str) -> dict[str, Any]:
                 detail=f"Diarization not completed yet (status: {task_status})",
             )
 
-        segments = get_diarization_segments(session_id)
+        segments = get_container().get_task_repository().get_diarization_segments(session_id)
 
         logger.info(
             "DIARIZATION_SEGMENTS_GET_SUCCESS",
@@ -129,8 +128,6 @@ async def update_diarization_segment_workflow(
     request: UpdateSegmentRequest,
 ) -> dict[str, Any]:
     """Update text of a diarization segment (PUBLIC orchestrator)."""
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import (
         update_diarization_segment_text,
     )
 

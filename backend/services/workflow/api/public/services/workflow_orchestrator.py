@@ -10,6 +10,7 @@ Created: 2025-11-20
 Pattern: Service Layer + Command Pattern
 """
 
+from backend.container import get_container
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -17,8 +18,6 @@ from typing import Any
 
 from backend.models.task_type import TaskType
 from backend.utils.common.logging.logger import get_logger
-# FIXME: Broken import - use DI container instead
-# from infrastructure.storage.infrastructure.hdf5.task_repository import (
     ensure_task_exists,
 )
 from backend.core.infrastructure.workers.executor_pool import spawn_worker
@@ -63,7 +62,7 @@ class WorkflowOrchestrator:
         )
 
         # 1. Create task
-        ensure_task_exists(
+        ensure_get_container().get_task_repository().task_exists(
             session_id=session_id,
             task_type=TaskType.DIARIZATION,
             allow_existing=True,
@@ -104,7 +103,7 @@ class WorkflowOrchestrator:
         )
 
         # 1. Create task
-        ensure_task_exists(
+        ensure_get_container().get_task_repository().task_exists(
             session_id=session_id,
             task_type=TaskType.SOAP_GENERATION,
             allow_existing=True,
@@ -145,7 +144,7 @@ class WorkflowOrchestrator:
         )
 
         # 1. Create task
-        ensure_task_exists(
+        ensure_get_container().get_task_repository().task_exists(
             session_id=session_id,
             task_type=TaskType.EMOTION_ANALYSIS,
             allow_existing=True,
@@ -186,7 +185,7 @@ class WorkflowOrchestrator:
         )
 
         # 1. Create task
-        ensure_task_exists(
+        ensure_get_container().get_task_repository().task_exists(
             session_id=session_id,
             task_type=TaskType.ENCRYPTION,
             allow_existing=True,

@@ -3,6 +3,7 @@
 Tests cover SOAP note generation data storage.
 """
 
+from backend.container import get_container
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -23,15 +24,13 @@ class TestGetSoapData:
         mock_corpus_path: MagicMock,
     ) -> None:
         """Test get_soap_data raises when corpus doesn't exist."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.soap import (
             get_soap_data,
         )
 
         mock_corpus_path.exists.return_value = False
 
         with pytest.raises(ValueError, match="Corpus file not found"):
-            get_soap_data("session-123")
+            get_container().get_task_repository().get_soap_data("session-123")
 
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.open_h5_read")
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.CORPUS_PATH")
@@ -41,8 +40,6 @@ class TestGetSoapData:
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_soap_data raises when task doesn't exist."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.soap import (
             get_soap_data,
         )
 
@@ -56,7 +53,7 @@ class TestGetSoapData:
         mock_open_h5.return_value.__exit__ = MagicMock(return_value=False)
 
         with pytest.raises(ValueError, match="Task.*not found"):
-            get_soap_data("session-123")
+            get_container().get_task_repository().get_soap_data("session-123")
 
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.open_h5_read")
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.CORPUS_PATH")
@@ -66,8 +63,6 @@ class TestGetSoapData:
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_soap_data raises when no SOAP data."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.soap import (
             get_soap_data,
         )
 
@@ -85,7 +80,7 @@ class TestGetSoapData:
         mock_open_h5.return_value.__exit__ = MagicMock(return_value=False)
 
         with pytest.raises(ValueError, match="No SOAP data found"):
-            get_soap_data("session-123")
+            get_container().get_task_repository().get_soap_data("session-123")
 
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.open_h5_read")
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.CORPUS_PATH")
@@ -95,8 +90,6 @@ class TestGetSoapData:
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_soap_data returns SOAP data from new format."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.soap import (
             get_soap_data,
         )
 
@@ -121,7 +114,7 @@ class TestGetSoapData:
         mock_open_h5.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_open_h5.return_value.__exit__ = MagicMock(return_value=False)
 
-        result = get_soap_data("session-123")
+        result = get_container().get_task_repository().get_soap_data("session-123")
 
         assert result == {"subjective": "Patient reports pain"}
 
@@ -133,8 +126,6 @@ class TestGetSoapData:
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_soap_data returns SOAP data from legacy format."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.soap import (
             get_soap_data,
         )
 
@@ -167,6 +158,6 @@ class TestGetSoapData:
         mock_open_h5.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_open_h5.return_value.__exit__ = MagicMock(return_value=False)
 
-        result = get_soap_data("session-123")
+        result = get_container().get_task_repository().get_soap_data("session-123")
 
         assert result == {"assessment": "Diagnosis"}

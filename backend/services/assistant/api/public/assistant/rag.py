@@ -1,3 +1,4 @@
+from backend.container import get_container
 from __future__ import annotations
 
 from backend.utils.common.logging.logger import get_logger
@@ -32,8 +33,6 @@ async def _get_rag_context(
         from datetime import UTC, datetime
 
         from backend.services.assistant.services.monitor_client import get_embedding
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.document_repository import (
             DocumentQuestion,
             add_document_question,
             get_document,

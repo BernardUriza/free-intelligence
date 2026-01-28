@@ -3,6 +3,7 @@
 Tests cover chunk operations: append, count, get, update.
 """
 
+from backend.container import get_container
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -24,8 +25,6 @@ class TestAppendChunkToTask:
     ) -> None:
         """Test append_chunk_to_task raises when task doesn't exist."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             append_chunk_to_task,
         )
 
@@ -53,8 +52,6 @@ class TestAppendChunkToTask:
     ) -> None:
         """Test append_chunk_to_task creates chunk group."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             append_chunk_to_task,
         )
 
@@ -99,8 +96,6 @@ class TestAppendChunkToTask:
     ) -> None:
         """Test append_chunk_to_task raises when chunk already exists."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             append_chunk_to_task,
         )
 
@@ -135,8 +130,6 @@ class TestAppendChunkToTask:
 
     def test_append_chunk_with_string_task_type(self) -> None:
         """Test append_chunk_to_task accepts string task type."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             append_chunk_to_task,
         )
 
@@ -174,8 +167,6 @@ class TestCountTaskChunks:
     ) -> None:
         """Test count_task_chunks returns (0, 0) when task doesn't exist."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             count_task_chunks,
         )
 
@@ -196,8 +187,6 @@ class TestCountTaskChunks:
     ) -> None:
         """Test count_task_chunks returns expected total from metadata."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             count_task_chunks,
         )
 
@@ -225,8 +214,6 @@ class TestCountTaskChunks:
     ) -> None:
         """Test count_task_chunks counts actual chunks in HDF5."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             count_task_chunks,
         )
 
@@ -273,14 +260,12 @@ class TestGetTaskChunks:
     ) -> None:
         """Test get_task_chunks returns empty list when task doesn't exist."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             get_task_chunks,
         )
 
         mock_exists.return_value = False
 
-        result = get_task_chunks("session-123", TaskType.TRANSCRIPTION)
+        result = get_container().get_task_repository().get_task_chunks("session-123", TaskType.TRANSCRIPTION)
 
         assert result == []
 
@@ -300,8 +285,6 @@ class TestGetTaskTranscript:
     ) -> None:
         """Test get_task_transcript returns empty string when task doesn't exist."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             get_task_transcript,
         )
 
@@ -327,8 +310,6 @@ class TestCreateEmptyChunk:
     ) -> None:
         """Test create_empty_chunk raises when task doesn't exist."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             create_empty_chunk,
         )
 
@@ -357,8 +338,6 @@ class TestUpdateChunkDataset:
     ) -> None:
         """Test update_chunk_dataset returns False when task doesn't exist."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             update_chunk_dataset,
         )
 
@@ -385,8 +364,6 @@ class TestUpdateChunkDataset:
     ) -> None:
         """Test update_chunk_dataset returns False when chunk doesn't exist."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             update_chunk_dataset,
         )
 
@@ -425,14 +402,12 @@ class TestBatchUpdateChunkDatasets:
     ) -> None:
         """Test batch_update_chunk_datasets returns False when task doesn't exist."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             batch_update_chunk_datasets,
         )
 
         mock_exists.return_value = False
 
-        result = batch_update_chunk_datasets(
+        result = get_container().get_task_repository().batch_update_chunk_datasets(
             session_id="session-123",
             task_type=TaskType.TRANSCRIPTION,
             chunk_idx=0,
@@ -452,8 +427,6 @@ class TestBatchUpdateChunkDatasets:
     ) -> None:
         """Test batch_update_chunk_datasets returns False when chunk doesn't exist."""
         from backend.models.task_type import TaskType
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.chunks import (
             batch_update_chunk_datasets,
         )
 
@@ -466,7 +439,7 @@ class TestBatchUpdateChunkDatasets:
         mock_locked.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
-        result = batch_update_chunk_datasets(
+        result = get_container().get_task_repository().batch_update_chunk_datasets(
             session_id="session-123",
             task_type=TaskType.TRANSCRIPTION,
             chunk_idx=0,

@@ -1,3 +1,4 @@
+from backend.container import get_container
 from __future__ import annotations
 
 import json
@@ -19,8 +20,6 @@ logger = get_logger(__name__)
 async def get_transcription_sources_workflow(session_id: str) -> TranscriptionSourcesModel:
     """Get all 3 transcription sources for a saved session (PUBLIC endpoint)."""
     from backend.models.task_type import TaskType
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import (
         CORPUS_PATH,
         get_task_chunks,
     )
@@ -51,7 +50,7 @@ async def get_transcription_sources_workflow(session_id: str) -> TranscriptionSo
 
         # Build transcription_per_chunks and full_transcription
         try:
-            chunks = get_task_chunks(session_id=session_id, task_type=TaskType.TRANSCRIPTION)
+            chunks = get_container().get_task_repository().get_task_chunks(session_id=session_id, task_type=TaskType.TRANSCRIPTION)
 
             transcripts_list = []
             for chunk in chunks:

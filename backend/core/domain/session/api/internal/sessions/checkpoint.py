@@ -22,6 +22,7 @@ Created: 2025-11-14
 Updated: 2025-12-11 - Refactored to Clean Architecture
 """
 
+from backend.container import get_container
 from datetime import UTC, datetime
 
 from backend.models.task_type import TaskType
@@ -33,8 +34,6 @@ from backend.utils.common.services.checkpoint import (
     TooManyChunksError,
     create_checkpoint_service,
 )
-# FIXME: Broken import - use DI container instead
-# from infrastructure.storage.infrastructure.hdf5.task_repository import get_task_metadata
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -106,7 +105,7 @@ async def checkpoint_session(session_id: str, request: CheckpointRequestDTO) -> 
         )
 
         # 1. Get task metadata to find last checkpoint
-        task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
+        task_metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION)
 
         if not task_metadata:
             raise HTTPException(

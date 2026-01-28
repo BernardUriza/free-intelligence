@@ -57,42 +57,42 @@ def add_full_audio(session_id: str, audio_bytes: bytes, filename: str, task_type
     """Add full audio via DI container."""
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.add_full_audio(session_id, audio_bytes, filename, task_type_str)
+    task_repo.get_container().get_task_repository().add_full_audio(session_id, audio_bytes, filename, task_type_str)
 
 
 def add_full_transcription(session_id: str, full_text: str, task_type) -> None:
     """Add full transcription via DI container."""
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.add_full_transcription(session_id, full_text, task_type_str)
+    task_repo.get_container().get_task_repository().add_full_transcription(session_id, full_text, task_type_str)
 
 
 def add_webspeech_transcripts(session_id: str, transcripts: list[str], task_type) -> None:
     """Add webspeech transcripts via DI container."""
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.add_webspeech_transcripts(session_id, transcripts, task_type_str)
+    task_repo.get_container().get_task_repository().add_webspeech_transcripts(session_id, transcripts, task_type_str)
 
 
 def get_task_chunks(session_id, task_type):
     """Get task chunks via DI container."""
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_task_chunks(session_id, task_type_str)
+    return task_repo.get_container().get_task_repository().get_task_chunks(session_id, task_type_str)
 
 def get_task_metadata(session_id, task_type):
     """Stub - needs refactoring to use DI container."""
     from backend.container import get_container
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_task_metadata(session_id, task_type_str)
+    return task_repo.get_container().get_task_repository().get_task_metadata(session_id, task_type_str)
 
 def update_task_metadata(session_id, task_type, metadata):
     """Stub - needs refactoring to use DI container."""
     from backend.container import get_container
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.save_task_metadata(session_id, task_type_str, metadata)
+    task_repo.get_container().get_task_repository().save_task_metadata(session_id, task_type_str, metadata)
 from fastapi import APIRouter, HTTPException, status
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -216,7 +216,7 @@ async def finalize_session(
         logger.info("FINALIZE_SESSION_STARTED", session_id=session_id)
 
         # 1. Verify TRANSCRIPTION task exists and get chunks
-        task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
+        task_metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION)
         if not task_metadata:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -224,7 +224,7 @@ async def finalize_session(
             )
 
         # Get all chunks to verify completion
-        chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+        chunks = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION)
         if not chunks:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -261,7 +261,7 @@ async def finalize_session(
 
         for task_type, description in required_tasks.items():
             try:
-                task_meta = get_task_metadata(session_id, task_type)
+                task_meta = get_container().get_task_repository().get_task_metadata(session_id, task_type)
                 if not task_meta:
                     missing_tasks.append(f"{task_type}: {description}")
                     continue
@@ -298,7 +298,7 @@ async def finalize_session(
         # This creates the task entry in HDF5 for tracking
         from backend.container import get_container
         task_repo = get_container().get_task_repository()
-        task_repo.ensure_task_exists(session_id, TaskType.ENCRYPTION.value, metadata=None)
+        task_repo.ensure_get_container().get_task_repository().task_exists(session_id, TaskType.ENCRYPTION.value, metadata=None)
 
         update_task_metadata(
             session_id,
@@ -365,7 +365,7 @@ async def finalize_session(
         try:
             # 1. WebSpeech instant previews
             if request.transcription_sources.webspeech_final:
-                add_webspeech_transcripts(
+                get_container().get_task_repository().add_webspeech_transcripts(
                     session_id=session_id,
                     transcripts=request.transcription_sources.webspeech_final,
                     task_type=TaskType.TRANSCRIPTION,
@@ -378,7 +378,7 @@ async def finalize_session(
 
             # 2. Full concatenated transcription
             if request.transcription_sources.full_transcription:
-                add_full_transcription(
+                get_container().get_task_repository().add_full_transcription(
                     session_id=session_id,
                     full_text=request.transcription_sources.full_transcription,
                     task_type=TaskType.TRANSCRIPTION,
@@ -396,7 +396,7 @@ async def finalize_session(
                 import h5py
 
                 # Read all chunks with audio from HDF5
-                chunks_with_audio = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+                chunks_with_audio = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION)
 
                 if chunks_with_audio:
                     # Create temp directory for audio extraction
@@ -454,7 +454,7 @@ async def finalize_session(
                         full_audio_bytes = output_file.read_bytes()
 
                         # Save to HDF5
-                        add_full_audio(
+                        get_container().get_task_repository().add_full_audio(
                             session_id=session_id,
                             audio_bytes=full_audio_bytes,
                             filename="full_audio.webm",
@@ -520,8 +520,6 @@ async def finalize_session(
         # 4. Enqueue encryption worker asynchronously (NON-BLOCKING)
         # Fire-and-forget pattern: session returns 202 immediately
         # Encryption executes in background ThreadPoolExecutor
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.task_repository import (
             CORPUS_PATH,
         )
 

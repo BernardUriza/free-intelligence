@@ -1,3 +1,4 @@
+from backend.container import get_container
 from __future__ import annotations
 
 from datetime import datetime
@@ -15,8 +16,6 @@ logger = get_logger(__name__)
 async def monitor_session_progress(session_id: str, request: Request) -> dict:
     validate_session_id(session_id)
     from backend.models.task_type import TaskType
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import (
         count_task_chunks,
         get_task_metadata,
     )
@@ -40,7 +39,7 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
         soap_data = {"status": "not_started"}
 
         try:
-            transcription_meta = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+            transcription_meta = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
             total, processed = count_task_chunks(session_id, TaskType.TRANSCRIPTION)
             progress = int((processed / total) * 100) if total > 0 else 0
             status_val = transcription_meta.get(
@@ -62,7 +61,7 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
             pass
 
         try:
-            diarization_meta = get_task_metadata(session_id, TaskType.DIARIZATION) or {}
+            diarization_meta = get_container().get_task_repository().get_task_metadata(session_id, TaskType.DIARIZATION) or {}
             status_val = diarization_meta.get("status", "pending")
             segment_count = diarization_meta.get("segment_count", 0)
             provider = diarization_meta.get("provider", "unknown")
@@ -94,14 +93,14 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
             pass
 
         try:
-            soap_meta = get_task_metadata(session_id, TaskType.SOAP_GENERATION) or {}
+            soap_meta = get_container().get_task_repository().get_task_metadata(session_id, TaskType.SOAP_GENERATION) or {}
             soap_data = {"status": soap_meta.get("status", "pending")}
         except ValueError:
             pass
 
         encryption_data = {"status": "not_started", "progress": 0}
         try:
-            encryption_meta = get_task_metadata(session_id, TaskType.ENCRYPTION) or {}
+            encryption_meta = get_container().get_task_repository().get_task_metadata(session_id, TaskType.ENCRYPTION) or {}
             encryption_status = encryption_meta.get("status", "pending")
             encryption_progress = encryption_meta.get("progress_percent", 0)
             encryption_data = {

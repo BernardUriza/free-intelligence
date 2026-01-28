@@ -751,6 +751,130 @@ class HDF5TaskRepository(ITaskRepository):
             )
             raise
 
+    def update_order(
+        self, session_id: str, order_id: str, updated_data: dict[str, Any]
+    ) -> None:
+        """Update an existing order.
+
+        Args:
+            session_id: Session identifier
+            order_id: Order ID to update
+            updated_data: Dict with updated fields (type, description, details)
+
+        Raises:
+            ValueError: If order not found
+        """
+        try:
+            orders_path = f"{self.TASKS_GROUP}/{session_id}/orders"
+
+            with h5py.File(self.h5_file_path, "a") as f:
+                if orders_path not in f:
+                    raise ValueError(f"No orders found for session {session_id}")
+
+                orders_data = f[orders_path][()]
+                orders_json = bytes(orders_data).decode("utf-8")
+                orders = json.loads(orders_json)
+
+                # Find and update order
+                order_found = False
+                for order in orders:
+                    if str(order.get("order_id")) == str(order_id):
+                        order.update(updated_data)
+                        order_found = True
+                        break
+
+                if not order_found:
+                    raise ValueError(f"Order {order_id} not found in session {session_id}")
+
+                # Save updated orders list
+                updated_json = json.dumps(orders, ensure_ascii=False, indent=2)
+
+                # Delete and recreate dataset
+                session_group = f[f"{self.TASKS_GROUP}/{session_id}"]
+                del session_group["orders"]
+                session_group.create_dataset(
+                    "orders",
+                    data=updated_json.encode("utf-8"),
+                    dtype=h5py.special_dtype(vlen=bytes),
+                )
+
+                logger.info(
+                    "ORDER_UPDATED",
+                    session_id=session_id,
+                    order_id=order_id,
+                )
+
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(
+                "UPDATE_ORDER_FAILED",
+                session_id=session_id,
+                order_id=order_id,
+                error=str(e),
+                exc_info=True,
+            )
+            raise
+
+    def delete_order(self, session_id: str, order_id: str) -> None:
+        """Delete an order.
+
+        Args:
+            session_id: Session identifier
+            order_id: Order ID to delete
+
+        Raises:
+            ValueError: If order not found
+        """
+        try:
+            orders_path = f"{self.TASKS_GROUP}/{session_id}/orders"
+
+            with h5py.File(self.h5_file_path, "a") as f:
+                if orders_path not in f:
+                    raise ValueError(f"No orders found for session {session_id}")
+
+                orders_data = f[orders_path][()]
+                orders_json = bytes(orders_data).decode("utf-8")
+                orders = json.loads(orders_json)
+
+                # Filter out deleted order
+                original_count = len(orders)
+                orders = [o for o in orders if str(o.get("order_id")) != str(order_id)]
+
+                if len(orders) == original_count:
+                    raise ValueError(f"Order {order_id} not found in session {session_id}")
+
+                # Save updated orders list
+                updated_json = json.dumps(orders, ensure_ascii=False, indent=2)
+
+                # Delete and recreate dataset
+                session_group = f[f"{self.TASKS_GROUP}/{session_id}"]
+                del session_group["orders"]
+                session_group.create_dataset(
+                    "orders",
+                    data=updated_json.encode("utf-8"),
+                    dtype=h5py.special_dtype(vlen=bytes),
+                )
+
+                logger.info(
+                    "ORDER_DELETED",
+                    session_id=session_id,
+                    order_id=order_id,
+                    remaining_orders=len(orders),
+                )
+
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(
+                "DELETE_ORDER_FAILED",
+                session_id=session_id,
+                order_id=order_id,
+                error=str(e),
+                exc_info=True,
+            )
+            raise
+
     @staticmethod
     def _serialize_value(value: Any) -> str | int | float | bool:
         """Serialize Python value to HDF5-compatible type."""

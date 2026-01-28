@@ -3,6 +3,7 @@
 Tests cover diarization segment storage operations.
 """
 
+from backend.container import get_container
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -23,8 +24,6 @@ class TestSaveDiarizationSegments:
         mock_locked: MagicMock,
     ) -> None:
         """Test save_diarization_segments raises when task doesn't exist."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.diarization import (
             save_diarization_segments,
         )
 
@@ -36,7 +35,7 @@ class TestSaveDiarizationSegments:
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
         with pytest.raises(ValueError, match="does not exist"):
-            save_diarization_segments(
+            get_container().get_task_repository().save_diarization_segments(
                 session_id="session-123",
                 segments=[],
             )
@@ -47,8 +46,6 @@ class TestSaveDiarizationSegments:
         mock_locked: MagicMock,
     ) -> None:
         """Test save_diarization_segments creates segments group."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.diarization import (
             save_diarization_segments,
         )
 
@@ -82,7 +79,7 @@ class TestSaveDiarizationSegments:
         mock_locked.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
-        path = save_diarization_segments(
+        path = get_container().get_task_repository().save_diarization_segments(
             session_id="session-123",
             segments=[mock_segment],
         )
@@ -95,8 +92,6 @@ class TestSaveDiarizationSegments:
         mock_locked: MagicMock,
     ) -> None:
         """Test save_diarization_segments deletes existing segments."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.diarization import (
             save_diarization_segments,
         )
 
@@ -116,7 +111,7 @@ class TestSaveDiarizationSegments:
         mock_locked.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
-        save_diarization_segments(
+        get_container().get_task_repository().save_diarization_segments(
             session_id="session-123",
             segments=[],
         )
@@ -139,15 +134,13 @@ class TestGetDiarizationSegments:
         mock_corpus_path: MagicMock,
     ) -> None:
         """Test get_diarization_segments raises when corpus doesn't exist."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.diarization import (
             get_diarization_segments,
         )
 
         mock_corpus_path.exists.return_value = False
 
         with pytest.raises(ValueError, match="Corpus file not found"):
-            get_diarization_segments("session-123")
+            get_container().get_task_repository().get_diarization_segments("session-123")
 
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.diarization.open_h5_read")
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.diarization.CORPUS_PATH")
@@ -157,8 +150,6 @@ class TestGetDiarizationSegments:
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_diarization_segments raises when task doesn't exist."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.diarization import (
             get_diarization_segments,
         )
 
@@ -172,7 +163,7 @@ class TestGetDiarizationSegments:
         mock_open_h5.return_value.__exit__ = MagicMock(return_value=False)
 
         with pytest.raises(ValueError, match="not found"):
-            get_diarization_segments("session-123")
+            get_container().get_task_repository().get_diarization_segments("session-123")
 
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.diarization.open_h5_read")
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.diarization.CORPUS_PATH")
@@ -182,8 +173,6 @@ class TestGetDiarizationSegments:
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_diarization_segments raises when no segments."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.diarization import (
             get_diarization_segments,
         )
 
@@ -201,7 +190,7 @@ class TestGetDiarizationSegments:
         mock_open_h5.return_value.__exit__ = MagicMock(return_value=False)
 
         with pytest.raises(ValueError, match="No segments found"):
-            get_diarization_segments("session-123")
+            get_container().get_task_repository().get_diarization_segments("session-123")
 
 
 # ==============================================================================
@@ -220,8 +209,6 @@ class TestUpdateDiarizationSegmentText:
         mock_get_path: MagicMock,
     ) -> None:
         """Test update_diarization_segment_text raises when file doesn't exist."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.diarization import (
             update_diarization_segment_text,
         )
         from pathlib import Path
@@ -249,8 +236,6 @@ class TestUpdateDiarizationSegmentText:
         mock_locked: MagicMock,
     ) -> None:
         """Test update_diarization_segment_text raises when task doesn't exist."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.diarization import (
             update_diarization_segment_text,
         )
 
@@ -285,8 +270,6 @@ class TestUpdateDiarizationSegmentText:
         mock_locked: MagicMock,
     ) -> None:
         """Test update_diarization_segment_text raises when no segments."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.diarization import (
             update_diarization_segment_text,
         )
 
@@ -325,8 +308,6 @@ class TestUpdateDiarizationSegmentText:
         mock_locked: MagicMock,
     ) -> None:
         """Test update_diarization_segment_text raises when segment not found."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.diarization import (
             update_diarization_segment_text,
         )
 
@@ -369,8 +350,6 @@ class TestUpdateDiarizationSegmentText:
         mock_locked: MagicMock,
     ) -> None:
         """Test update_diarization_segment_text successfully updates."""
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.tasks.diarization import (
             update_diarization_segment_text,
         )
 

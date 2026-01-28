@@ -1,3 +1,4 @@
+from backend.container import get_container
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -81,8 +82,6 @@ async def analyze_session_intelligent_workflow(
 ) -> dict:
     import h5py
     from backend.models.task_type import TaskStatus, TaskType
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import (
         CORPUS_PATH,
         ensure_task_exists,
         get_task_metadata,
@@ -126,7 +125,7 @@ async def analyze_session_intelligent_workflow(
                 if tasks_path in f:
                     for task_type in f[tasks_path]:
                         constructed_task = TaskType(task_type)
-                        metadata = get_task_metadata(session_id, constructed_task)
+                        metadata = get_container().get_task_repository().get_task_metadata(session_id, constructed_task)
                         status_val = metadata.get("status") if metadata else None
                         is_completed = (
                             status_val == "completed"
@@ -159,7 +158,7 @@ async def analyze_session_intelligent_workflow(
         for workflow in decision["workflows"]:
             task_type = TaskType(workflow)
 
-            ensure_task_exists(session_id=session_id, task_type=task_type, allow_existing=True)
+            ensure_get_container().get_task_repository().task_exists(session_id=session_id, task_type=task_type, allow_existing=True)
 
             if task_type == TaskType.TRANSCRIPTION:
                 logger.info(

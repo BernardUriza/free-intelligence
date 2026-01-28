@@ -15,6 +15,7 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
+from backend.container import get_container
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -69,13 +70,11 @@ async def get_orders_workflow(session_id: str) -> dict:
     Raises:
         500: Failed to load orders
     """
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import get_orders
-
     try:
         logger.info("ORDERS_GET_STARTED", session_id=session_id)
 
-        orders = get_orders(session_id)
+        task_repo = get_container().get_task_repository()
+        orders = task_repo.get_orders(session_id)
 
         logger.info("ORDERS_GET_SUCCESS", session_id=session_id, order_count=len(orders))
 
@@ -119,9 +118,6 @@ async def create_order_workflow(
         400: Invalid order data
         500: Failed to create order
     """
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import create_order
-
     try:
         logger.info(
             "ORDER_CREATE_STARTED",
@@ -129,7 +125,8 @@ async def create_order_workflow(
             order_type=request.type,
         )
 
-        order_id = create_order(
+        task_repo = get_container().get_task_repository()
+        task_repo.create_order(
             session_id,
             {
                 "type": request.type,
@@ -138,6 +135,11 @@ async def create_order_workflow(
                 "source": "manual",
             },
         )
+
+        # create_order doesn't return ID - it appends to list
+        # Get all orders and return the last one's ID (if orders have IDs)
+        orders = task_repo.get_orders(session_id)
+        order_id = orders[-1].get("order_id", f"{session_id}_order_{len(orders)}")
 
         logger.info(
             "ORDER_CREATE_SUCCESS",
@@ -187,9 +189,6 @@ async def update_order_workflow(
         404: Order not found
         500: Failed to update order
     """
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import update_order
-
     try:
         logger.info(
             "ORDER_UPDATE_STARTED",
@@ -197,7 +196,8 @@ async def update_order_workflow(
             order_id=order_id,
         )
 
-        update_order(
+        task_repo = get_container().get_task_repository()
+        task_repo.update_order(
             session_id,
             order_id,
             {
@@ -260,9 +260,6 @@ async def delete_order_workflow(
         404: Order not found
         500: Failed to delete order
     """
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import delete_order
-
     try:
         logger.info(
             "ORDER_DELETE_STARTED",
@@ -270,7 +267,8 @@ async def delete_order_workflow(
             order_id=order_id,
         )
 
-        delete_order(session_id, order_id)
+        task_repo = get_container().get_task_repository()
+        task_repo.delete_order(session_id, order_id)
 
         logger.info(
             "ORDER_DELETE_SUCCESS",
