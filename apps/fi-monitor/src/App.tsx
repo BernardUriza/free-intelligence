@@ -448,25 +448,24 @@ export default function App({ setupState }: AppProps) {
         <div className="flex flex-col gap-4 flex-1">
           {/* Tunnel Service Card */}
           <div className={`service-card ${tunnelOn ? 'active' : ''} ${!status?.ollama_running ? 'disabled' : ''}`}>
-            <div className="service-icon">☁️</div>
+            <div className="service-icon">🔗</div>
             <div className="service-body">
-              <div className="service-name">Cloudflare Tunnel</div>
+              <div className="service-name">Tunnel</div>
               <div className={`service-status ${tunnelOn ? 'on' : 'off'}`}>
-                {tunnelOn ? '● Conectado' : '○ Desconectado'}
+                {tunnelOn
+                  ? status?.tunnel_url?.startsWith('https://')
+                    ? '● Cloudflared'
+                    : `● Local (${savedTunnelPort})`
+                  : '○ Desconectado'}
               </div>
-              {tunnelOn && status?.tunnel_url && (
+              {tunnelOn && status?.tunnel_url?.startsWith('https://') && (
                 <div className="tunnel-url-box" onClick={handleCopyUrl} title="Click para copiar">
                   <span className="url-text">{status.tunnel_url.replace('https://', '')}</span>
                   <span className="copy-icon">{copiedUrl ? '✓' : '📋'}</span>
                 </div>
               )}
-              {tunnelOn && !status?.tunnel_url && (
+              {tunnelOn && status?.tunnel_url?.startsWith('https://') && !status.tunnel_url.includes('trycloudflare') && (
                 <div className="tunnel-url-pending">⏳ Obteniendo URL...</div>
-              )}
-              {tunnelOn && (
-                <div className="text-xs text-app-text-dim mt-2">
-                  Exponiendo puerto: <span className="font-semibold text-app-accent">{savedTunnelPort}</span>
-                </div>
               )}
             </div>
             <button
@@ -476,28 +475,6 @@ export default function App({ setupState }: AppProps) {
             >
               {actionLoading?.includes('tunnel') ? '...' : tunnelOn ? '■' : '▶'}
             </button>
-          </div>
-
-          {/* Port Configuration Reference */}
-          <div className="bg-app-surface rounded-lg border border-app-border p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-base">🔌</span>
-              <span className="text-sm font-medium text-app-text">Port Configuration</span>
-            </div>
-            <div className="text-xs text-app-text-dim leading-relaxed">
-              Configure which port the tunnel exposes in the{' '}
-              <button
-                onClick={() => setActiveTab('config')}
-                className="text-app-accent hover:text-app-accent-bright font-semibold underline"
-              >
-                Config
-              </button>
-              {' '}tab.
-              <div className="mt-2">
-                Current port: <span className="font-semibold text-app-accent">{savedTunnelPort}</span>
-                {savedTunnelPort === '11400' && ' (Gateway - recommended)'}
-              </div>
-            </div>
           </div>
 
           {/* Warning section */}
