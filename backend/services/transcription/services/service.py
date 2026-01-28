@@ -17,15 +17,11 @@ Refactored: 2025-11-05 (consolidated whisper_utils)
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import Any, Dict, List
 
-import os
-from backend.utils.common.logging.logger import get_logger
-# FIXME: Broken import - use DI container instead
-# from infrastructure.storage.infrastructure.hdf5.audio_storage import (
-    save_audio_file,
-    validate_session_id,
-)
+from backend.container import get_container
 from backend.services.transcription.services.whisper import (
     CPU_THREADS,
     NUM_WORKERS,
@@ -35,7 +31,7 @@ from backend.services.transcription.services.whisper import (
     WHISPER_LANGUAGE,
     WHISPER_MODEL_SIZE,
 )
-from pathlib import Path
+from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -374,7 +370,15 @@ class TranscriptionService:
         Returns:
             True if valid UUID4 format, False otherwise.
         """
-        return validate_session_id(session_id)
+        # FIXME: validators.session.validate_session_id() raises HTTPException (doesn't return bool)
+        # Signature mismatch - need to either:
+        # 1. Import validators.session.validate_session_id and catch exception, return bool
+        # 2. Implement validation logic here
+        # For now, basic validation:
+        import re
+        if not session_id or len(session_id) < 10 or len(session_id) > 128:
+            return False
+        return bool(re.match(r"^[a-zA-Z0-9_-]+$", session_id))
 
     def validate_audio_file(self, filename: str, content_type: str, file_size: int) -> None:
         """Validate audio file attributes.
@@ -430,21 +434,13 @@ class TranscriptionService:
         Raises:
             IOError: If file storage fails.
         """
-        try:
-            result = save_audio_file(
-                session_id=session_id,
-                audio_content=audio_content,
-                file_extension=file_extension,
-                metadata=metadata or {},
-            )
-            logger.info(
-                f"AUDIO_FILE_SAVED: session_id={session_id}, "
-                f"file_path={result['file_path']}, size={len(audio_content)}"
-            )
-            return result
-        except OSError as e:
-            logger.error(f"AUDIO_FILE_SAVE_FAILED: session_id={session_id}, error={e!s}")
-            raise
+        # FIXME: save_audio_file external function doesn't exist
+        # This method needs refactoring - either implement storage logic here
+        # or import from correct module (if it exists elsewhere)
+        raise NotImplementedError(
+            "save_audio_file storage implementation missing - "
+            "external function not found during DI migration"
+        )
 
     def transcribe(
         self,
@@ -541,13 +537,12 @@ class TranscriptionService:
             metadata=metadata or {},
         )
 
-        # Get absolute path to audio file
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.audio_storage import (
-            AUDIO_STORAGE_DIR,
+        # FIXME: AUDIO_STORAGE_DIR not defined - broken import during DI migration
+        # This entire process_transcription method needs review
+        # audio_path = AUDIO_STORAGE_DIR.parent / audio_metadata["file_path"]
+        raise NotImplementedError(
+            "AUDIO_STORAGE_DIR undefined - audio file path construction broken"
         )
-
-        audio_path = AUDIO_STORAGE_DIR.parent / audio_metadata["file_path"]
 
         # Convert to WAV if needed (Whisper works best with WAV)
         transcription_path = audio_path

@@ -21,16 +21,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from backend.container import get_container
 from backend.models.task_type import TaskStatus, TaskType
 from backend.utils.common.logging.logger import get_logger
-# FIXME: Broken import - use DI container instead
-# from infrastructure.storage.infrastructure.hdf5.task_repository import (
-    ensure_task_exists,
-    get_task_chunks,
-    get_task_metadata,
-    task_exists,
-    update_task_metadata,
-)
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
@@ -118,14 +111,14 @@ async def upload_chunk(
         )
 
         # 1. Ensure TRANSCRIPTION task exists (allow existing)
-        ensure_task_exists(
+        get_container().get_task_repository().ensure_task_exists(
             session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
-            allow_existing=True,
+            task_type=TaskType.TRANSCRIPTION.value,
+            metadata=None,
         )
 
         # 2. Get current metadata
-        metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
+        metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION.value)
         if not metadata:
             metadata = {
                 "job_id": session_id,
@@ -136,12 +129,12 @@ async def upload_chunk(
             }
 
         # 3. Update chunk count if this is a new chunk
-        existing_chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+        existing_chunks = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
         chunk_numbers = [c.get("chunk_number", -1) for c in existing_chunks]
 
         if chunk_number not in chunk_numbers:
             metadata["total_chunks"] = metadata.get("total_chunks", 0) + 1
-            update_task_metadata(session_id, TaskType.TRANSCRIPTION, metadata)
+            get_container().get_task_repository().save_task_metadata(session_id, TaskType.TRANSCRIPTION.value, metadata)
 
         logger.info(
             "TASK_READY_FOR_PROCESSING",
@@ -215,14 +208,14 @@ async def get_transcription_job(session_id: str) -> TranscriptionJobResponse:
     """Get transcription job status with all chunks (task-based)."""
     try:
         # 1. Check if task exists
-        if not task_exists(session_id, TaskType.TRANSCRIPTION):
+        if not get_container().get_task_repository().task_exists(session_id, TaskType.TRANSCRIPTION.value):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Transcription job not found for session {session_id}",
             )
 
         # 2. Get task metadata
-        metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION)
+        metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION.value)
         if not metadata:
             metadata = {}
 
@@ -231,7 +224,7 @@ async def get_transcription_job(session_id: str) -> TranscriptionJobResponse:
             metadata["job_id"] = session_id
 
         # 3. Get all chunks
-        chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+        chunks = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
 
         # 4. Calculate stats from chunks
         total_chunks = len(chunks)
@@ -283,7 +276,7 @@ async def get_chunk_status(session_id: str, chunk_number: int) -> dict:
     """Get status of a specific chunk (task-based)."""
     try:
         # Get all chunks
-        chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+        chunks = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
 
         # Find the specific chunk
         chunk = next((c for c in chunks if c.get("chunk_number") == chunk_number), None)
