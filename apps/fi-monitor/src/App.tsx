@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
-import { getVersion } from '@tauri-apps/api/app'
 import { ModelManager } from './components/ModelManager'
 import { BenchmarkCharts } from './components/BenchmarkCharts'
 import { EnvVarEditor } from './components/EnvVarEditor'
+import { invoke, listen, getVersion } from './lib/tauri-adapter'
 
 interface ServiceStatus {
   ollama_running: boolean

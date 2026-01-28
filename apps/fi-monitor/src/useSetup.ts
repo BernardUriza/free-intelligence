@@ -1,7 +1,6 @@
 // React hook for setup wizard state management (Ollama + Python 3.14)
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { invoke, listen } from './lib/tauri-adapter';
 
 export type SetupScreen =
   | 'CHECKING'

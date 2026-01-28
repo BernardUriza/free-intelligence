@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from './lib/tauri-adapter'
 import App from './App'
 import { SetupWizard } from './SetupWizard'
 import './styles.css'
