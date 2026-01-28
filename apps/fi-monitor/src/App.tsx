@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import { getVersion } from '@tauri-apps/api/app'
 import { ModelManager } from './components/ModelManager'
 import { BenchmarkCharts } from './components/BenchmarkCharts'
+import { EnvVarEditor } from './components/EnvVarEditor'
 
 interface ServiceStatus {
   ollama_running: boolean
@@ -572,6 +573,7 @@ export default function App({ setupState }: AppProps) {
     ]
 
     return (
+      <>
       <div className="grid grid-cols-2 gap-3 p-3">
         {/* ===== Port Configuration (RADIO CARDS) - Left Column ===== */}
         <div className="bg-app-surface rounded-lg border border-app-border p-3 flex flex-col">
@@ -693,6 +695,10 @@ export default function App({ setupState }: AppProps) {
           </div>
         </div>
       </div>
+
+      {/* Environment Variables Editor */}
+      <EnvVarEditor />
+      </>
     )
   }
 
