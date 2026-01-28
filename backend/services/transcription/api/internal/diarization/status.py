@@ -13,16 +13,16 @@ Created: 2025-11-14
 """
 
 from __future__ import annotations
-from backend.container import get_container
-
 
 import json
+import os
 from typing import Any
 
-import os
 from backend.models.task_type import TaskType
+from backend.repositories.interfaces import ITaskRepository
+from backend.services.transcription.dependencies import get_task_repository
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -60,7 +60,10 @@ class DiarizationStatusResponse(BaseModel):
     response_model=DiarizationStatusResponse,
     status_code=status.HTTP_200_OK,
 )
-async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
+async def get_diarization_status(
+    job_id: str,
+    task_repo: ITaskRepository = Depends(get_task_repository),
+) -> DiarizationStatusResponse:
     """Get real-time status of diarization job.
 
     Frontend polls this endpoint every 2s to update progress modal.
@@ -175,7 +178,7 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
         # Fallback: read DIARIZATION task metadata from corpus HDF5
         try:
             # Read DIARIZATION task metadata from HDF5 via task repository
-            diarization_metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.DIARIZATION)
+            diarization_metadata = task_repo.get_task_metadata(session_id, TaskType.DIARIZATION)
 
             if diarization_metadata:
                 # Update status from HDF5
