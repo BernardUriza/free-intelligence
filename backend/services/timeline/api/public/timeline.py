@@ -7,14 +7,14 @@ Created: 2025-11-15
 """
 
 from __future__ import annotations
-from backend.container import get_container
-
 
 from typing import Any
 
 import h5py
+from backend.repositories.interfaces import ITaskRepository
+from backend.services.timeline.dependencies import get_task_repository
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pathlib import Path
 from pydantic import BaseModel, Field
 
@@ -76,10 +76,17 @@ async def list_sessions(
     limit: int = Query(20, ge=1, le=100, description="Maximum number of sessions"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     sort: str = Query("recent", description="Sort order: recent, oldest"),
+    task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> list[SessionSummary]:
     """List sessions with pagination.
 
     Returns session summaries with metadata from HDF5.
+
+    Args:
+        limit: Maximum sessions to return
+        offset: Pagination offset
+        sort: Sort order
+        task_repo: Task repository (injected via Depends)
 
     Performance target: p95 <300ms
     """
@@ -98,14 +105,15 @@ async def list_sessions(
         all_summaries = []
         for session_id in sessions:
             try:
-                # Get transcription metadata
-                metadata = task_repository.get_container().get_task_repository().get_task_metadata(session_id, "TRANSCRIPTION")
+                # Get transcription metadata (INJECTED - was task_repository.get_container()...)
+                metadata = task_repo.get_task_metadata(session_id, "TRANSCRIPTION")
 
                 # Get chunks to calculate real chunk count
                 chunk_count = 0
                 preview = ""
                 try:
-                    chunks = task_repository.get_container().get_task_repository().get_task_chunks(session_id, "TRANSCRIPTION")
+                    # INJECTED - was task_repository.get_container()...
+                    chunks = task_repo.get_task_chunks(session_id, "TRANSCRIPTION")
                     chunk_count = len(chunks) if chunks else 0
 
                     # Get first chunk preview
@@ -123,7 +131,8 @@ async def list_sessions(
                 task_counts: dict[str, int] = {}
                 for task_type_str in ["TRANSCRIPTION", "DIARIZATION", "SOAP_GENERATION"]:
                     try:
-                        if task_repository.get_container().get_task_repository().task_exists(session_id, task_type_str):
+                        # INJECTED - was task_repository.get_container()...
+                        if task_repo.task_exists(session_id, task_type_str):
                             task_counts[task_type_str] = 1
                     except Exception:
                         pass
@@ -176,7 +185,10 @@ async def list_sessions(
 
 
 @router.get("/sessions/{session_id}")
-async def get_session_detail(session_id: str) -> dict[str, Any]:
+async def get_session_detail(
+    session_id: str,
+    task_repo: ITaskRepository = Depends(get_task_repository),
+) -> dict[str, Any]:
     """Get detailed session information.
 
     Returns full session data including all tasks.
@@ -187,7 +199,7 @@ async def get_session_detail(session_id: str) -> dict[str, Any]:
 
     try:
         # Get transcription metadata for base info
-        transcription_metadata = task_repository.get_container().get_task_repository().get_task_metadata(session_id, "TRANSCRIPTION")
+        transcription_metadata = task_repo.get_task_metadata(session_id, "TRANSCRIPTION")
 
         if not transcription_metadata:
             # Session not found
@@ -231,7 +243,7 @@ async def get_session_detail(session_id: str) -> dict[str, Any]:
         chunks = []
         total_chars = 0
         try:
-            chunks = task_repository.get_container().get_task_repository().get_task_chunks(session_id, "TRANSCRIPTION")
+            chunks = task_repo.get_task_chunks(session_id, "TRANSCRIPTION")
             for chunk in chunks:
                 transcript = chunk.get("transcript", "")
                 total_chars += len(transcript)
