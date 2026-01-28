@@ -17,11 +17,12 @@ from __future__ import annotations
 from typing import Any
 
 from backend.clients import get_llm_client
-from backend.container import get_container
+from backend.repositories.interfaces import ITaskRepository
+from backend.services.soap.dependencies import get_task_repository
 from backend.services.soap.services.soap_models import SOAPNote
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
 logger = get_logger(__name__)
@@ -99,11 +100,15 @@ class AssistantResponse(BaseModel):
     "/sessions/{session_id}/soap",
     status_code=status.HTTP_200_OK,
 )
-async def get_soap_workflow(session_id: str) -> dict:
+async def get_soap_workflow(
+    session_id: str,
+    task_repo: ITaskRepository = Depends(get_task_repository),
+) -> dict:
     """Get SOAP note data - generates if not exists (PUBLIC endpoint).
 
     Args:
         session_id: Session UUID
+        task_repo: Task repository (injected via Depends)
 
     Returns:
         SOAP data with subjective, objective, assessment, plan
@@ -119,9 +124,9 @@ async def get_soap_workflow(session_id: str) -> dict:
     try:
         logger.info("SOAP_GET_STARTED", session_id=session_id)
 
-        # Try to get existing SOAP data
+        # Try to get existing SOAP data (INJECTED - was get_container())
         try:
-            soap_data = get_container().get_task_repository().get_soap_data(session_id)
+            soap_data = task_repo.get_soap_data(session_id)
             logger.info("SOAP_GET_SUCCESS", session_id=session_id)
             return {
                 "session_id": session_id,
@@ -141,8 +146,8 @@ async def get_soap_workflow(session_id: str) -> dict:
             # Call worker synchronously (service layer)
             generate_soap_worker(session_id)
 
-            # Get generated SOAP
-            soap_data = get_container().get_task_repository().get_soap_data(session_id)
+            # Get generated SOAP (INJECTED - was get_container())
+            soap_data = task_repo.get_soap_data(session_id)
 
             logger.info("SOAP_GENERATED_SUCCESS", session_id=session_id)
 
@@ -174,6 +179,7 @@ async def get_soap_workflow(session_id: str) -> dict:
 async def update_soap_workflow(
     session_id: str,
     request: SOAPUpdateRequest,
+    task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict:
     """Update SOAP note data (PUBLIC endpoint).
 
@@ -182,6 +188,7 @@ async def update_soap_workflow(
     Args:
         session_id: Session UUID
         request: SOAP data to save
+        task_repo: Task repository (injected via Depends)
 
     Returns:
         Success message with version info
@@ -207,15 +214,15 @@ async def update_soap_workflow(
                 detail=f"Invalid SOAP data: {'; '.join(validation_errors)}",
             )
 
-        # Save SOAP data
-        soap_path = get_container().get_task_repository().save_soap_data(session_id, request.soap)
+        # Save SOAP data (INJECTED - was get_container())
+        soap_path = task_repo.save_soap_data(session_id, request.soap)
 
         # TRIGGER: Create orders from SOAP.plan
         orders_created = 0
         plan = request.soap.plan
 
-        # Get existing orders to avoid duplicates
-        existing_orders = get_container().get_task_repository().get_orders(session_id)
+        # Get existing orders to avoid duplicates (INJECTED - was get_container())
+        existing_orders = task_repo.get_orders(session_id)
         existing_descriptions = {order.get("description") for order in existing_orders}
 
         # Create medication orders
@@ -226,7 +233,8 @@ async def update_soap_workflow(
             # this would need more sophisticated parsing
             med_desc = f"{plan.treatment[:50]}..." if len(plan.treatment) > 50 else plan.treatment
             if med_desc.strip() and med_desc not in existing_descriptions:
-                get_container().get_task_repository().create_order(
+                # INJECTED - was get_container()
+                task_repo.create_order(
                     session_id,
                     {
                         "type": "medication",
@@ -256,7 +264,8 @@ async def update_soap_workflow(
                     else:
                         order_type = "lab"
 
-                    get_container().get_task_repository().create_order(
+                    # INJECTED - was get_container()
+                    task_repo.create_order(
                         session_id,
                         {
                             "type": order_type,
