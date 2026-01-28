@@ -1,8 +1,8 @@
-from backend.container import get_container
 from __future__ import annotations
 
 from typing import Any
 
+from backend.container import get_container
 from backend.core.infrastructure.auth import User, get_current_user
 from backend.utils.common.api.public.models import (
     DoctorFeedbackRequest,
@@ -22,11 +22,6 @@ async def get_session_audit(session_id: str) -> dict[str, Any]:
     validate_session_id(session_id)
 
     from backend.models.task_type import TaskType
-        get_diarization_segments,
-        get_session_metadata,
-        get_soap_data,
-        get_task_metadata,
-    )
 
     try:
         logger.info("SESSION_AUDIT_GET_START", session_id=session_id)
@@ -172,10 +167,6 @@ async def submit_doctor_feedback(
     """Submit doctor's audit feedback for a session."""
     from backend.models.task_type import TaskType
     from backend.utils.common.api.public.models import DoctorFeedbackResponse
-        get_soap_data,
-        save_soap_data,
-        update_session_metadata,
-    )
 
     try:
         logger.info(

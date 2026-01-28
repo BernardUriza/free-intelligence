@@ -1,8 +1,8 @@
-from backend.container import get_container
 from __future__ import annotations
 
 from typing import Any
 
+from backend.container import get_container
 from backend.utils.common.api.public.models import UpdateSegmentRequest
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
@@ -60,9 +60,6 @@ async def get_diarization_segments_workflow(session_id: str) -> dict[str, Any]:
     validate_session_id(session_id)
 
     from backend.models.task_type import TaskType
-        get_diarization_segments,
-        get_task_metadata,
-    )
 
     try:
         logger.info("DIARIZATION_SEGMENTS_GET_STARTED", session_id=session_id)
@@ -128,8 +125,6 @@ async def update_diarization_segment_workflow(
     request: UpdateSegmentRequest,
 ) -> dict[str, Any]:
     """Update text of a diarization segment (PUBLIC orchestrator)."""
-        update_diarization_segment_text,
-    )
 
     try:
         logger.info(
