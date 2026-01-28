@@ -12,6 +12,8 @@ Card: Architecture refactor - task-based HDF5
 """
 
 from __future__ import annotations
+from backend.container import get_container
+
 
 import pytest
 
@@ -25,12 +27,8 @@ import tempfile
 import h5py
 import pytest
 from backend.models.task_type import TaskStatus, TaskType
-# FIXME: Broken import - use DI container instead
-# from infrastructure.storage.infrastructure.hdf5.session_h5_manager import (
     get_session_h5_path,
 )
-# FIXME: Broken import - use DI container instead
-# from infrastructure.storage.infrastructure.hdf5.task_repository import (
     append_chunk_to_task,
     ensure_task_exists,
     get_task_chunks,
@@ -84,13 +82,11 @@ def test_ensure_task_exists_creates_new(_):
     task_type = TaskType.TRANSCRIPTION
 
     # Create task
-    task_path = ensure_task_exists(session_id, task_type, allow_existing=False)
+    task_path = ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=False)
 
     assert task_path == f"/sessions/{session_id}/tasks/{task_type.value}"
 
     # Verify task exists in session HDF5 file
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.session_h5_manager import (
         get_session_h5_path,
     )
 
@@ -105,11 +101,11 @@ def test_ensure_task_exists_rejects_duplicate(temp_session_storage):
     task_type = TaskType.TRANSCRIPTION
 
     # Create first task
-    ensure_task_exists(session_id, task_type, allow_existing=False)
+    ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=False)
 
     # Attempt to create duplicate should raise
     with pytest.raises(ValueError, match="already exists"):
-        ensure_task_exists(session_id, task_type, allow_existing=False)
+        ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=False)
 
 
 def test_ensure_task_exists_allows_existing(temp_session_storage):
@@ -118,8 +114,8 @@ def test_ensure_task_exists_allows_existing(temp_session_storage):
     task_type = TaskType.TRANSCRIPTION
 
     # Create task twice with allow_existing=True
-    path1 = ensure_task_exists(session_id, task_type, allow_existing=True)
-    path2 = ensure_task_exists(session_id, task_type, allow_existing=True)
+    path1 = ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=True)
+    path2 = ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=True)
 
     assert path1 == path2
 
@@ -130,7 +126,7 @@ def test_append_chunk_to_task(temp_session_storage):
     task_type = TaskType.TRANSCRIPTION
 
     # Create task
-    ensure_task_exists(session_id, task_type, allow_existing=False)
+    ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=False)
 
     # Append chunk
     chunk_path = append_chunk_to_task(
@@ -150,8 +146,6 @@ def test_append_chunk_to_task(temp_session_storage):
     assert "chunk_0" in chunk_path
 
     # Verify chunk in session HDF5 file
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.session_h5_manager import (
         get_session_h5_path,
     )
 
@@ -163,14 +157,14 @@ def test_append_chunk_to_task(temp_session_storage):
         assert chunk_group["language"][()] == b"es"
 
 
-def test_get_task_chunks(temp_session_storage):
+def test_get_container().get_task_repository().get_task_chunks(temp_session_storage):
     """Test retrieving chunks from a task."""
 
     session_id = "test_session_005_unique"
     task_type = TaskType.TRANSCRIPTION
 
     # Create task and add chunks
-    ensure_task_exists(session_id, task_type, allow_existing=False)
+    ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=False)
 
     append_chunk_to_task(
         session_id=session_id,
@@ -197,7 +191,7 @@ def test_get_task_chunks(temp_session_storage):
     )
 
     # Retrieve chunks
-    chunks = get_task_chunks(session_id, task_type)
+    chunks = get_container().get_task_repository().get_task_chunks(session_id, task_type)
 
     assert len(chunks) == 2
     assert chunks[0]["chunk_idx"] == 0
@@ -213,7 +207,7 @@ def test_get_task_transcript(temp_session_storage):
     task_type = TaskType.TRANSCRIPTION
 
     # Create task and add chunks
-    ensure_task_exists(session_id, task_type, allow_existing=False)
+    ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=False)
 
     append_chunk_to_task(
         session_id=session_id,
@@ -245,7 +239,7 @@ def test_get_task_transcript(temp_session_storage):
     assert transcript == "Primera frase. Segunda frase."
 
 
-def test_update_and_get_task_metadata(temp_corpus, monkeypatch):
+def test_update_and_get_container().get_task_repository().get_task_metadata(temp_corpus, monkeypatch):
     """Test task metadata operations."""
     monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
 
@@ -258,7 +252,7 @@ def test_update_and_get_task_metadata(temp_corpus, monkeypatch):
         session_file.unlink()
 
     # Create task
-    ensure_task_exists(session_id, task_type, allow_existing=False)
+    ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=False)
 
     # Update metadata
     metadata = {
@@ -272,7 +266,7 @@ def test_update_and_get_task_metadata(temp_corpus, monkeypatch):
     update_task_metadata(session_id, task_type, metadata)
 
     # Retrieve metadata
-    retrieved = get_task_metadata(session_id, task_type)
+    retrieved = get_container().get_task_repository().get_task_metadata(session_id, task_type)
 
     assert retrieved is not None
     assert retrieved["job_id"] == "job_123"
@@ -282,7 +276,7 @@ def test_update_and_get_task_metadata(temp_corpus, monkeypatch):
     assert retrieved["processed_chunks"] == 5
 
 
-def test_task_exists(temp_corpus, monkeypatch):
+def test_get_container().get_task_repository().task_exists(temp_corpus, monkeypatch):
     """Test task existence check."""
     monkeypatch.setattr("backend.storage.task_repository.CORPUS_PATH", temp_corpus)
 
@@ -295,13 +289,13 @@ def test_task_exists(temp_corpus, monkeypatch):
         session_file.unlink()
 
     # Check non-existent task
-    assert not task_exists(session_id, task_type)
+    assert not get_container().get_task_repository().task_exists(session_id, task_type)
 
     # Create task
-    ensure_task_exists(session_id, task_type, allow_existing=False)
+    ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=False)
 
     # Check existing task
-    assert task_exists(session_id, task_type)
+    assert get_container().get_task_repository().task_exists(session_id, task_type)
 
 
 def test_list_session_tasks(temp_session_storage):
@@ -310,9 +304,9 @@ def test_list_session_tasks(temp_session_storage):
     session_id = "test_session_009_unique"
 
     # Create multiple tasks
-    ensure_task_exists(session_id, TaskType.TRANSCRIPTION, allow_existing=False)
-    ensure_task_exists(session_id, TaskType.DIARIZATION, allow_existing=False)
-    ensure_task_exists(session_id, TaskType.ENCRYPTION, allow_existing=False)
+    ensure_get_container().get_task_repository().task_exists(session_id, TaskType.TRANSCRIPTION, allow_existing=False)
+    ensure_get_container().get_task_repository().task_exists(session_id, TaskType.DIARIZATION, allow_existing=False)
+    ensure_get_container().get_task_repository().task_exists(session_id, TaskType.ENCRYPTION, allow_existing=False)
 
     # List tasks
     tasks = list_session_tasks(session_id)
@@ -329,7 +323,7 @@ def test_append_chunk_creates_chunks_group(temp_session_storage):
     task_type = TaskType.TRANSCRIPTION
 
     # Create task (without chunks group)
-    ensure_task_exists(session_id, task_type, allow_existing=False)
+    ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=False)
 
     # Append chunk (should create chunks/ group)
     append_chunk_to_task(
@@ -345,8 +339,6 @@ def test_append_chunk_creates_chunks_group(temp_session_storage):
     )
 
     # Verify chunks group exists
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.session_h5_manager import (
         get_session_h5_path,
     )
 
@@ -362,10 +354,10 @@ def test_get_task_chunks_empty(temp_session_storage):
     task_type = TaskType.TRANSCRIPTION
 
     # Create task without chunks
-    ensure_task_exists(session_id, task_type, allow_existing=False)
+    ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=False)
 
     # Get chunks (should return empty list)
-    chunks = get_task_chunks(session_id, task_type)
+    chunks = get_container().get_task_repository().get_task_chunks(session_id, task_type)
 
     assert chunks == []
 
@@ -377,7 +369,7 @@ def test_get_task_metadata_nonexistent(temp_session_storage):
     task_type = TaskType.TRANSCRIPTION
 
     # Get metadata without creating task
-    metadata = get_task_metadata(session_id, task_type)
+    metadata = get_container().get_task_repository().get_task_metadata(session_id, task_type)
 
     assert metadata is None
 
@@ -388,7 +380,7 @@ def test_chunk_ordering(temp_session_storage):
     session_id = "test_session_013_unique"
     task_type = TaskType.TRANSCRIPTION
 
-    ensure_task_exists(session_id, task_type, allow_existing=False)
+    ensure_get_container().get_task_repository().task_exists(session_id, task_type, allow_existing=False)
 
     # Add chunks out of order
     append_chunk_to_task(
@@ -428,7 +420,7 @@ def test_chunk_ordering(temp_session_storage):
     )
 
     # Retrieve chunks (should be ordered by chunk_idx)
-    chunks = get_task_chunks(session_id, task_type)
+    chunks = get_container().get_task_repository().get_task_chunks(session_id, task_type)
 
     assert len(chunks) == 3
     assert chunks[0]["chunk_idx"] == 0
