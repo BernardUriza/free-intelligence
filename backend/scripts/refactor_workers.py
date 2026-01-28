@@ -26,19 +26,19 @@ IMPORT_REPLACEMENT = """from backend.container import get_container  # type: ign
         \"\"\"Get task metadata via DI container.\"\"\"
         task_repo = get_container().get_task_repository()
         task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-        return task_repo.get_task_metadata(session_id, task_type_str)
+        return task_repo.get_container().get_task_repository().get_task_metadata(session_id, task_type_str)
 
     def update_task_metadata(session_id: str, task_type: Any, metadata: dict) -> None:
         \"\"\"Update task metadata via DI container.\"\"\"
         task_repo = get_container().get_task_repository()
         task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-        task_repo.save_task_metadata(session_id, task_type_str, metadata)
+        task_repo.get_container().get_task_repository().save_task_metadata(session_id, task_type_str, metadata)
 
-    def ensure_task_exists(session_id: str, task_type: Any, metadata: dict | None = None) -> str:
+    def ensure_get_container().get_task_repository().task_exists(session_id: str, task_type: Any, metadata: dict | None = None) -> str:
         \"\"\"Ensure task exists via DI container.\"\"\"
         task_repo = get_container().get_task_repository()
         task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-        return task_repo.ensure_task_exists(session_id, task_type_str, metadata)
+        return task_repo.ensure_get_container().get_task_repository().task_exists(session_id, task_type_str, metadata)
 
     HAS_BACKEND_IMPORTS = True"""
 
@@ -61,7 +61,6 @@ def refactor_worker(file_path: Path) -> bool:
         return False
 
     # Find the try block with backend imports
-    pattern = r"(try:\s+from backend\.(?:models|utils)[^\n]+\n(?:[^\n]+\n)*?)\s*# FIXME: Broken import[^\n]*\n\s*# from backend\.core\.infrastructure\.storage[^\)]+\)\s*\n\s*HAS_BACKEND_IMPORTS = True"
 
     match = re.search(pattern, content)
     if not match:

@@ -10,6 +10,7 @@ Usage:
     python scripts/fix_broken_imports.py [--dry-run]
 """
 
+from backend.container import get_container
 import re
 import subprocess
 from pathlib import Path
@@ -67,7 +68,6 @@ def comment_broken_import(line: str) -> tuple[str, bool]:
             indent = len(line) - len(line.lstrip())
             commented = (
                 " " * indent
-                + "# FIXME: Broken import - use DI container instead\n"
                 + " " * indent
                 + "# "
                 + line.lstrip()
