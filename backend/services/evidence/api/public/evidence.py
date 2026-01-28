@@ -11,11 +11,11 @@ Created: 2025-11-17 (Evidence Pack Auto-Generation)
 """
 
 from __future__ import annotations
-from backend.container import get_container
 
-
+from backend.repositories.interfaces import ITaskRepository
+from backend.services.evidence.dependencies import get_task_repository
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 logger = get_logger(__name__)
 
@@ -26,7 +26,10 @@ router = APIRouter()
     "/sessions/{session_id}/evidence",
     status_code=status.HTTP_200_OK,
 )
-async def get_evidence_pack_workflow(session_id: str) -> dict:
+async def get_evidence_pack_workflow(
+    session_id: str,
+    task_repo: ITaskRepository = Depends(get_task_repository),
+) -> dict:
     """Get evidence pack for session - generates if not exists (PUBLIC endpoint).
 
     Args:
@@ -50,7 +53,7 @@ async def get_evidence_pack_workflow(session_id: str) -> dict:
             logger.info("EVIDENCE_PACK_NOT_FOUND_GENERATING", session_id=session_id)
 
             # Generate evidence pack from session data
-            pack_data = await generate_evidence_pack_from_session(session_id)
+            pack_data = await generate_evidence_pack_from_session(session_id, task_repo)
 
             logger.info("EVIDENCE_PACK_GENERATED_SUCCESS", session_id=session_id)
 
@@ -93,11 +96,15 @@ async def get_evidence_pack_workflow(session_id: str) -> dict:
         ) from e
 
 
-async def generate_evidence_pack_from_session(session_id: str) -> dict:
+async def generate_evidence_pack_from_session(
+    session_id: str,
+    task_repo: ITaskRepository,
+) -> dict:
     """Generate evidence pack from session data (SOAP, diarization, etc).
 
     Args:
         session_id: Session identifier
+        task_repo: Task repository (injected)
 
     Returns:
         Evidence pack dictionary
@@ -112,16 +119,16 @@ async def generate_evidence_pack_from_session(session_id: str) -> dict:
     # Use repository methods from DI container
 
     # Check if SOAP exists (required for evidence pack)
-    if not get_container().get_task_repository().task_exists(session_id, TaskType.SOAP_GENERATION):
+    if not task_repo.task_exists(session_id, TaskType.SOAP_GENERATION):
         raise ValueError(f"SOAP not found for session {session_id}. Generate SOAP first.")
 
     # Get SOAP data
-    soap_data = get_container().get_task_repository().get_soap_data(session_id)
+    soap_data = task_repo.get_soap_data(session_id)
 
     # Get diarization segments if available
     sources = []
-    if get_container().get_task_repository().task_exists(session_id, TaskType.DIARIZATION):
-        segments = get_container().get_task_repository().get_diarization_segments(session_id)
+    if task_repo.task_exists(session_id, TaskType.DIARIZATION):
+        segments = task_repo.get_diarization_segments(session_id)
 
         # Create source from diarization
         sources.append(
