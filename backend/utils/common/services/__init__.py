@@ -21,19 +21,15 @@ Card: Clean Architecture Refactor
 from __future__ import annotations
 
 from backend.api.audit.services.audit_service import AuditService
-from backend.utils.common.services.export_service import ExportService
-# FIXME: CorpusService doesn't exist - commented out
-# from infrastructure.storage.services.corpus_service import CorpusService
-
-# from backend.core.domain.session.services.session_service import SessionService  # Temporarily commented due to import issues
+from backend.core.domain.session.services.session_service import SessionService
 from backend.services.transcription.services.transcription_service import TranscriptionService
 from backend.services.workflow.services.triage_service import TriageService
+from backend.utils.common.services.export_service import ExportService
 
 __all__ = [
     "AuditService",
-    # "CorpusService",  # Commented - doesn't exist
     "ExportService",
-    # "SessionService",  # Temporarily commented due to import issues
+    "SessionService",
     "TranscriptionService",
     "TriageService",
 ]

@@ -78,21 +78,21 @@ def get_task_chunks(session_id, task_type):
     """Get task chunks via DI container."""
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_container().get_task_repository().get_task_chunks(session_id, task_type_str)
+    return task_repo.get_task_chunks(session_id, task_type_str)
+
 
 def get_task_metadata(session_id, task_type):
-    """Stub - needs refactoring to use DI container."""
-    from backend.container import get_container
+    """Get task metadata via DI container."""
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_container().get_task_repository().get_task_metadata(session_id, task_type_str)
+    return task_repo.get_task_metadata(session_id, task_type_str)
+
 
 def update_task_metadata(session_id, task_type, metadata):
-    """Stub - needs refactoring to use DI container."""
-    from backend.container import get_container
+    """Update task metadata via DI container."""
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.get_container().get_task_repository().save_task_metadata(session_id, task_type_str, metadata)
+    task_repo.save_task_metadata(session_id, task_type_str, metadata)
 from fastapi import APIRouter, HTTPException, status
 from pathlib import Path
 from pydantic import BaseModel, Field

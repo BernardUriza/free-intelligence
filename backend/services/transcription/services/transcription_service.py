@@ -47,7 +47,7 @@ class TranscriptionEndedEvent:
 
 
 # Use DI container for task repository
-def ensure_task_exists(session_id: str, task_type, metadata=None):
+def ensure_task_exists(session_id: str, task_type, metadata=None, allow_existing=False):
     """Ensure task exists via DI container."""
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
@@ -160,7 +160,7 @@ class TranscriptionService:
             "ENSURING_TRANSCRIPTION_TASK",
             session_id=session_id,
         )
-        ensure_task_exists(
+        ensure_get_container().get_task_repository().task_exists(
             session_id=session_id,
             task_type=TaskType.TRANSCRIPTION,
             allow_existing=True,
@@ -188,8 +188,6 @@ class TranscriptionService:
         import hashlib
 
         from backend.models.task_type import CHUNK_DURATION_SECONDS
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.task_repository import (
             add_audio_to_chunk,
             append_chunk_to_task,
             update_task_metadata,
@@ -245,7 +243,7 @@ class TranscriptionService:
             logger.warning("EVENT_PUBLISH_FAILED", event="TRANSCRIPTION_CHUNK", error=str(e))
 
         # 4. Update task metadata (track total chunks)
-        metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+        metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
         total_chunks = max(metadata.get("total_chunks", 0), chunk_number + 1)
         processed_chunks = metadata.get("processed_chunks", 0)
 
@@ -289,7 +287,7 @@ class TranscriptionService:
         )
 
         # 6. Return result IMMEDIATELY (202 Accepted pattern)
-        metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+        metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
         elapsed = time.time() - start_time
         result = ChunkProcessingResult(
             session_id=session_id,
@@ -408,19 +406,17 @@ class TranscriptionService:
         Raises:
             ValueError: If session not found
         """
-        # FIXME: Broken import - use DI container instead
-        # from infrastructure.storage.infrastructure.hdf5.task_repository import (
             task_exists,
         )
 
-        if not task_exists(session_id, TaskType.TRANSCRIPTION):
+        if not get_container().get_task_repository().task_exists(session_id, TaskType.TRANSCRIPTION):
             raise ValueError(f"Transcription task not found for session {session_id}")
 
         # Get metadata
-        metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+        metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
 
         # Get chunks
-        chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+        chunks = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION)
 
         # Calculate stats
         total_chunks = len(chunks)
