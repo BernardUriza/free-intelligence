@@ -17,8 +17,9 @@ from __future__ import annotations
 from typing import Any
 
 from backend.clients import get_llm_client
-from backend.utils.common.logging.logger import get_logger
+from backend.container import get_container
 from backend.services.soap.services.soap_models import SOAPNote
+from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
@@ -114,15 +115,13 @@ async def get_soap_workflow(session_id: str) -> dict:
     # Validate session ID first
     validate_session_id(session_id)
 
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import get_soap_data
 
     try:
         logger.info("SOAP_GET_STARTED", session_id=session_id)
 
         # Try to get existing SOAP data
         try:
-            soap_data = get_soap_data(session_id)
+            soap_data = get_container().get_task_repository().get_soap_data(session_id)
             logger.info("SOAP_GET_SUCCESS", session_id=session_id)
             return {
                 "session_id": session_id,
@@ -133,20 +132,18 @@ async def get_soap_workflow(session_id: str) -> dict:
             logger.info("SOAP_NOT_FOUND_GENERATING", session_id=session_id)
 
             from backend.models.task_type import TaskType
-            # FIXME: Broken import - use DI container instead
-            # from infrastructure.storage.infrastructure.hdf5.task_repository import (
                 ensure_task_exists,
             )
             from backend.core.infrastructure.workers.tasks.soap_worker import generate_soap_worker
 
             # Ensure SOAP_GENERATION task exists before calling worker
-            ensure_task_exists(session_id, TaskType.SOAP_GENERATION, allow_existing=True)
+            ensure_get_container().get_task_repository().task_exists(session_id, TaskType.SOAP_GENERATION, allow_existing=True)
 
             # Call worker synchronously (service layer)
             generate_soap_worker(session_id)
 
             # Get generated SOAP
-            soap_data = get_soap_data(session_id)
+            soap_data = get_container().get_task_repository().get_soap_data(session_id)
 
             logger.info("SOAP_GENERATED_SUCCESS", session_id=session_id)
 
@@ -197,8 +194,6 @@ async def update_soap_workflow(
     # Validate session ID first
     validate_session_id(session_id)
 
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import (
         create_order,
         get_orders,
         save_soap_data,
@@ -216,14 +211,14 @@ async def update_soap_workflow(
             )
 
         # Save SOAP data
-        soap_path = save_soap_data(session_id, request.soap)
+        soap_path = get_container().get_task_repository().save_soap_data(session_id, request.soap)
 
         # TRIGGER: Create orders from SOAP.plan
         orders_created = 0
         plan = request.soap.plan
 
         # Get existing orders to avoid duplicates
-        existing_orders = get_orders(session_id)
+        existing_orders = get_container().get_task_repository().get_orders(session_id)
         existing_descriptions = {order.get("description") for order in existing_orders}
 
         # Create medication orders
@@ -234,7 +229,7 @@ async def update_soap_workflow(
             # this would need more sophisticated parsing
             med_desc = f"{plan.treatment[:50]}..." if len(plan.treatment) > 50 else plan.treatment
             if med_desc.strip() and med_desc not in existing_descriptions:
-                create_order(
+                get_container().get_task_repository().create_order(
                     session_id,
                     {
                         "type": "medication",
@@ -264,7 +259,7 @@ async def update_soap_workflow(
                     else:
                         order_type = "lab"
 
-                    create_order(
+                    get_container().get_task_repository().create_order(
                         session_id,
                         {
                             "type": order_type,

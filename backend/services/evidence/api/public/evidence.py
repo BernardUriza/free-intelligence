@@ -11,6 +11,8 @@ Created: 2025-11-17 (Evidence Pack Auto-Generation)
 """
 
 from __future__ import annotations
+from backend.container import get_container
+
 
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, HTTPException, status
@@ -106,24 +108,22 @@ async def generate_evidence_pack_from_session(session_id: str) -> dict:
     from datetime import UTC, datetime
 
     from backend.models.task_type import TaskType
-    # FIXME: Broken import - use DI container instead
-    # from infrastructure.storage.infrastructure.hdf5.task_repository import (
         get_diarization_segments,
         get_soap_data,
         task_exists,
     )
 
     # Check if SOAP exists (required for evidence pack)
-    if not task_exists(session_id, TaskType.SOAP_GENERATION):
+    if not get_container().get_task_repository().task_exists(session_id, TaskType.SOAP_GENERATION):
         raise ValueError(f"SOAP not found for session {session_id}. Generate SOAP first.")
 
     # Get SOAP data
-    soap_data = get_soap_data(session_id)
+    soap_data = get_container().get_task_repository().get_soap_data(session_id)
 
     # Get diarization segments if available
     sources = []
-    if task_exists(session_id, TaskType.DIARIZATION):
-        segments = get_diarization_segments(session_id)
+    if get_container().get_task_repository().task_exists(session_id, TaskType.DIARIZATION):
+        segments = get_container().get_task_repository().get_diarization_segments(session_id)
 
         # Create source from diarization
         sources.append(

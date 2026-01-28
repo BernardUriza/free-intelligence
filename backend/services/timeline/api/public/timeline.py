@@ -7,13 +7,13 @@ Created: 2025-11-15
 """
 
 from __future__ import annotations
+from backend.container import get_container
+
 
 from typing import Any
 
 import h5py
 from backend.utils.common.logging.logger import get_logger
-# FIXME: Broken import - use DI container instead
-# from infrastructure.storage.infrastructure.hdf5 import task_repository
 from fastapi import APIRouter, Query
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -99,13 +99,13 @@ async def list_sessions(
         for session_id in sessions:
             try:
                 # Get transcription metadata
-                metadata = task_repository.get_task_metadata(session_id, "TRANSCRIPTION")
+                metadata = task_repository.get_container().get_task_repository().get_task_metadata(session_id, "TRANSCRIPTION")
 
                 # Get chunks to calculate real chunk count
                 chunk_count = 0
                 preview = ""
                 try:
-                    chunks = task_repository.get_task_chunks(session_id, "TRANSCRIPTION")
+                    chunks = task_repository.get_container().get_task_repository().get_task_chunks(session_id, "TRANSCRIPTION")
                     chunk_count = len(chunks) if chunks else 0
 
                     # Get first chunk preview
@@ -123,7 +123,7 @@ async def list_sessions(
                 task_counts: dict[str, int] = {}
                 for task_type_str in ["TRANSCRIPTION", "DIARIZATION", "SOAP_GENERATION"]:
                     try:
-                        if task_repository.task_exists(session_id, task_type_str):
+                        if task_repository.get_container().get_task_repository().task_exists(session_id, task_type_str):
                             task_counts[task_type_str] = 1
                     except Exception:
                         pass
@@ -187,7 +187,7 @@ async def get_session_detail(session_id: str) -> dict[str, Any]:
 
     try:
         # Get transcription metadata for base info
-        transcription_metadata = task_repository.get_task_metadata(session_id, "TRANSCRIPTION")
+        transcription_metadata = task_repository.get_container().get_task_repository().get_task_metadata(session_id, "TRANSCRIPTION")
 
         if not transcription_metadata:
             # Session not found
@@ -231,7 +231,7 @@ async def get_session_detail(session_id: str) -> dict[str, Any]:
         chunks = []
         total_chars = 0
         try:
-            chunks = task_repository.get_task_chunks(session_id, "TRANSCRIPTION")
+            chunks = task_repository.get_container().get_task_repository().get_task_chunks(session_id, "TRANSCRIPTION")
             for chunk in chunks:
                 transcript = chunk.get("transcript", "")
                 total_chars += len(transcript)

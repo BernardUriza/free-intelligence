@@ -13,6 +13,8 @@ Created: 2025-11-14
 """
 
 from __future__ import annotations
+from backend.container import get_container
+
 
 import json
 from typing import Any
@@ -20,8 +22,6 @@ from typing import Any
 import os
 from backend.models.task_type import TaskType
 from backend.utils.common.logging.logger import get_logger
-# FIXME: Broken import - use DI container instead
-# from infrastructure.storage.infrastructure.hdf5.task_repository import get_task_metadata
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -175,7 +175,7 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
         # Fallback: read DIARIZATION task metadata from corpus HDF5
         try:
             # Read DIARIZATION task metadata from HDF5 via task repository
-            diarization_metadata = get_task_metadata(session_id, TaskType.DIARIZATION)
+            diarization_metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.DIARIZATION)
 
             if diarization_metadata:
                 # Update status from HDF5
@@ -194,8 +194,6 @@ async def get_diarization_status(job_id: str) -> DiarizationStatusResponse:
 
             # Try to get transcription sources (triple vision)
             import h5py
-            # FIXME: Broken import - use DI container instead
-            # from infrastructure.storage.infrastructure.hdf5.task_repository import (
                 CORPUS_PATH,
             )
 
