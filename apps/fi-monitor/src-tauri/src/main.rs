@@ -251,6 +251,195 @@ async fn get_ollama_models() -> Vec<String> {
     }
 }
 
+// ============================================================================
+// Model Management (Ollama API)
+// ============================================================================
+
+#[derive(Serialize, Clone)]
+struct OllamaModelInfo {
+    name: String,
+    size: String,
+    modified: String,
+    digest: String,
+}
+
+fn format_size(bytes: u64) -> String {
+    const GB: u64 = 1_073_741_824;
+    const MB: u64 = 1_048_576;
+    const KB: u64 = 1_024;
+
+    if bytes >= GB {
+        format!("{:.1} GB", bytes as f64 / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.1} MB", bytes as f64 / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.1} KB", bytes as f64 / KB as f64)
+    } else {
+        format!("{} B", bytes)
+    }
+}
+
+fn format_time_ago(modified_at: &str) -> String {
+    // Parse ISO 8601 timestamp and calculate time ago
+    match chrono::DateTime::parse_from_rfc3339(modified_at) {
+        Ok(dt) => {
+            let now = chrono::Utc::now();
+            let duration = now.signed_duration_since(dt);
+
+            let days = duration.num_days();
+            let hours = duration.num_hours();
+            let minutes = duration.num_minutes();
+
+            if days > 0 {
+                if days == 1 {
+                    "1 day ago".to_string()
+                } else {
+                    format!("{} days ago", days)
+                }
+            } else if hours > 0 {
+                if hours == 1 {
+                    "1 hour ago".to_string()
+                } else {
+                    format!("{} hours ago", hours)
+                }
+            } else if minutes > 0 {
+                if minutes == 1 {
+                    "1 minute ago".to_string()
+                } else {
+                    format!("{} minutes ago", minutes)
+                }
+            } else {
+                "Just now".to_string()
+            }
+        }
+        Err(_) => "Unknown".to_string(),
+    }
+}
+
+#[tauri::command]
+async fn list_ollama_models_detailed() -> Result<Vec<OllamaModelInfo>, String> {
+    #[derive(Deserialize)]
+    struct ModelsResponse {
+        models: Vec<ModelDetail>,
+    }
+
+    #[derive(Deserialize)]
+    struct ModelDetail {
+        name: String,
+        size: u64,
+        modified_at: String,
+        digest: String,
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let response = client
+        .get("http://localhost:11434/api/tags")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch models: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Ollama API returned {}", response.status()));
+    }
+
+    let data: ModelsResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    let models: Vec<OllamaModelInfo> = data
+        .models
+        .into_iter()
+        .map(|m| OllamaModelInfo {
+            name: m.name,
+            size: format_size(m.size),
+            modified: format_time_ago(&m.modified_at),
+            digest: m.digest[..12].to_string(), // Short digest
+        })
+        .collect();
+
+    Ok(models)
+}
+
+#[tauri::command]
+async fn pull_ollama_model(model_name: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    println!("[FI Monitor] Pulling model: {}", model_name);
+
+    app_handle
+        .emit("model-pull-started", model_name.clone())
+        .map_err(|e| e.to_string())?;
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(600)) // 10 minutes
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    #[derive(Serialize)]
+    struct PullRequest {
+        name: String,
+        stream: bool,
+    }
+
+    let response = client
+        .post("http://localhost:11434/api/pull")
+        .json(&PullRequest {
+            name: model_name.clone(),
+            stream: false,
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Failed to pull model: {}", e))?;
+
+    if response.status().is_success() {
+        println!("[FI Monitor] ✅ Model pulled successfully: {}", model_name);
+        app_handle
+            .emit("model-pull-completed", model_name)
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        let error_msg = format!("Pull failed with status: {}", response.status());
+        println!("[FI Monitor] ❌ {}", error_msg);
+        app_handle
+            .emit("model-pull-failed", error_msg.clone())
+            .map_err(|e| e.to_string())?;
+        Err(error_msg)
+    }
+}
+
+#[tauri::command]
+async fn delete_ollama_model(model_name: String) -> Result<(), String> {
+    println!("[FI Monitor] Deleting model: {}", model_name);
+
+    let client = reqwest::Client::new();
+
+    #[derive(Serialize)]
+    struct DeleteRequest {
+        name: String,
+    }
+
+    let response = client
+        .delete("http://localhost:11434/api/delete")
+        .json(&DeleteRequest {
+            name: model_name.clone(),
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Failed to delete model: {}", e))?;
+
+    if response.status().is_success() {
+        println!("[FI Monitor] ✅ Model deleted successfully: {}", model_name);
+        Ok(())
+    } else {
+        let error_msg = format!("Delete failed with status: {}", response.status());
+        println!("[FI Monitor] ❌ {}", error_msg);
+        Err(error_msg)
+    }
+}
+
 #[tauri::command]
 async fn start_ollama(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
     if check_ollama().await {
@@ -1786,6 +1975,10 @@ fn main() {
             set_tunnel_port,
             get_tunnel_port,
             read_tunnel_file,
+            // Model Management
+            list_ollama_models_detailed,
+            pull_ollama_model,
+            delete_ollama_model,
             ollama_installer::check_ollama_installed,
             ollama_installer::install_ollama_silent,
             ollama_installer::download_and_install_ollama,

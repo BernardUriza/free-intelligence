@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getVersion } from '@tauri-apps/api/app'
+import { ModelManager } from './components/ModelManager'
+import { BenchmarkCharts } from './components/BenchmarkCharts'
 
 interface ServiceStatus {
   ollama_running: boolean
@@ -83,6 +85,7 @@ export default function App({ setupState }: AppProps) {
   const [appVersion, setAppVersion] = useState('1.0.0')
   const [benchmarkResults, setBenchmarkResults] = useState<BenchmarkSuite | null>(null)
   const [isBenchmarking, setIsBenchmarking] = useState(false)
+  const [showModelManager, setShowModelManager] = useState(false)
 
   // Tab state
   type TabId = 'services' | 'tunnel' | 'config' | 'testing' | 'benchmarks'
@@ -325,6 +328,24 @@ export default function App({ setupState }: AppProps) {
               {ollamaOn && status?.ollama_models && status.ollama_models.length > 0 && (
                 <div className="models">{status.ollama_models.slice(0, 2).join(', ')}</div>
               )}
+              {ollamaOn && (
+                <button
+                  className="models-btn"
+                  onClick={() => setShowModelManager(!showModelManager)}
+                  style={{
+                    marginTop: '8px',
+                    padding: '4px 8px',
+                    fontSize: '11px',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    color: 'var(--text-dim)'
+                  }}
+                >
+                  📦 {showModelManager ? 'Hide' : 'Show'} Models
+                </button>
+              )}
             </div>
             <button
               className={`action-btn ${ollamaOn ? 'stop' : 'start'}`}
@@ -373,6 +394,9 @@ export default function App({ setupState }: AppProps) {
             </button>
           </div>
         </div>
+
+        {/* Model Manager (conditional) */}
+        {showModelManager && ollamaOn && <ModelManager />}
       </div>
     )
   }
@@ -819,6 +843,9 @@ export default function App({ setupState }: AppProps) {
         </div>
       )}
       </div>
+
+      {/* Historical Performance Graphs */}
+      <BenchmarkCharts />
     </div>
   )
 
