@@ -1,9 +1,9 @@
-from backend.container import get_container
 from __future__ import annotations
 
 import json
 
-import h5py
+from backend.container import get_container
+from backend.models.task_type import TaskType
 from backend.utils.common.api.public.models import TranscriptionSourcesModel
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
@@ -19,10 +19,6 @@ logger = get_logger(__name__)
 )
 async def get_transcription_sources_workflow(session_id: str) -> TranscriptionSourcesModel:
     """Get all 3 transcription sources for a saved session (PUBLIC endpoint)."""
-    from backend.models.task_type import TaskType
-        CORPUS_PATH,
-        get_task_chunks,
-    )
 
     validate_session_id(session_id)
 
@@ -33,20 +29,21 @@ async def get_transcription_sources_workflow(session_id: str) -> TranscriptionSo
         transcription_per_chunks: list[dict] = []
         full_transcription: str = ""
 
-        # Load webspeech_final from HDF5 (if exists)
-        with h5py.File(CORPUS_PATH, "r") as f:
-            webspeech_path = f"/sessions/{session_id}/tasks/{TaskType.TRANSCRIPTION.name.lower()}/webspeech_final"
-            if webspeech_path in f:
-                webspeech_data = f[webspeech_path][()]
-                webspeech_json = bytes(webspeech_data).decode("utf-8")
-                webspeech_final = json.loads(webspeech_json)
-                logger.info("WEBSPEECH_LOADED", session_id=session_id, count=len(webspeech_final))
-            else:
-                logger.warning(
-                    "WEBSPEECH_NOT_FOUND",
-                    session_id=session_id,
-                    hint="Session may not have webspeech data (normal for old sessions)",
-                )
+        # Load webspeech_final via corpus repository
+        corpus_repo = get_container().get_corpus_repository()
+        dataset_path = f"tasks/{TaskType.TRANSCRIPTION.name.lower()}/webspeech_final"
+        webspeech_bytes = corpus_repo.get_session_dataset(session_id, dataset_path)
+
+        if webspeech_bytes:
+            webspeech_json = webspeech_bytes.decode("utf-8")
+            webspeech_final = json.loads(webspeech_json)
+            logger.info("WEBSPEECH_LOADED", session_id=session_id, count=len(webspeech_final))
+        else:
+            logger.warning(
+                "WEBSPEECH_NOT_FOUND",
+                session_id=session_id,
+                hint="Session may not have webspeech data (normal for old sessions)",
+            )
 
         # Build transcription_per_chunks and full_transcription
         try:

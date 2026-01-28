@@ -1,10 +1,9 @@
-from backend.container import get_container
 from __future__ import annotations
 
+import os
 import tempfile
 
-import h5py
-import os
+from backend.container import get_container
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, HTTPException, status
@@ -28,29 +27,23 @@ async def get_session_audio_workflow(session_id: str) -> FileResponse:
     try:
         logger.info("SESSION_AUDIO_GET_STARTED", session_id=session_id)
 
-        with h5py.File(CORPUS_PATH, "r") as f:
-            full_audio_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/full_audio.webm"
-            if full_audio_path not in f:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=(
-                        f"Audio not found for session {session_id}. Session may not have been checkpointed yet."
-                    ),
-                )
+        # Use DI container to access corpus repository
+        corpus_repo = get_container().get_corpus_repository()
+        audio_bytes = corpus_repo.get_session_audio(session_id, "tasks/TRANSCRIPTION/full_audio.webm")
 
-            audio_data = f[full_audio_path][()]
-            if hasattr(audio_data, "tobytes"):
-                audio_bytes = audio_data.tobytes()
-            elif isinstance(audio_data, bytes):
-                audio_bytes = audio_data
-            else:
-                audio_bytes = bytes(audio_data)
+        if audio_bytes is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=(
+                    f"Audio not found for session {session_id}. Session may not have been checkpointed yet."
+                ),
+            )
 
-            if len(audio_bytes) == 0:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Audio file is empty for session {session_id}",
-                )
+        if len(audio_bytes) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Audio file is empty for session {session_id}",
+            )
 
         try:
             with tempfile.NamedTemporaryFile(

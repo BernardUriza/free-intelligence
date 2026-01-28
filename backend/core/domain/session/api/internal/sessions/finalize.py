@@ -393,35 +393,29 @@ async def finalize_session(
 
             # 4. Concatenate audio chunks into full_audio.webm (backend concatenation)
             try:
-                import h5py
-
                 # Read all chunks with audio from HDF5
-                chunks_with_audio = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+                task_repo = get_container().get_task_repository()
+                chunks_with_audio = task_repo.get_task_chunks(session_id, TaskType.TRANSCRIPTION)
 
                 if chunks_with_audio:
                     # Create temp directory for audio extraction
                     temp_dir = Path(tempfile.mkdtemp(prefix="audio_concat_"))
                     audio_files = []
 
-                    # Extract audio from each chunk
-                    with h5py.File(
-                        Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5", "r"
-                    ) as f:
-                        for chunk in sorted(chunks_with_audio, key=lambda x: x["chunk_idx"]):
-                            chunk_idx = chunk["chunk_idx"]
-                            chunk_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/chunks/chunk_{chunk_idx}"
+                    # Extract audio from each chunk via repository
+                    for chunk in sorted(chunks_with_audio, key=lambda x: x["chunk_idx"]):
+                        chunk_idx = chunk["chunk_idx"]
+                        audio_bytes = task_repo.get_chunk_audio_bytes(
+                            session_id=session_id,
+                            task_type=TaskType.TRANSCRIPTION.name,
+                            chunk_idx=chunk_idx
+                        )
 
-                            if chunk_path in f:
-                                chunk_group = f[chunk_path]
-
-                                # Check if audio.webm exists
-                                if "audio.webm" in chunk_group:  # type: ignore[operator]
-                                    audio_bytes = chunk_group["audio.webm"][()]
-
-                                    # Save to temp file
-                                    temp_audio = temp_dir / f"chunk_{chunk_idx:03d}.webm"
-                                    temp_audio.write_bytes(audio_bytes)
-                                    audio_files.append(temp_audio)
+                        if audio_bytes:
+                            # Save to temp file
+                            temp_audio = temp_dir / f"chunk_{chunk_idx:03d}.webm"
+                            temp_audio.write_bytes(audio_bytes)
+                            audio_files.append(temp_audio)
 
                     if audio_files:
                         # Create ffmpeg concat file list
@@ -520,8 +514,6 @@ async def finalize_session(
         # 4. Enqueue encryption worker asynchronously (NON-BLOCKING)
         # Fire-and-forget pattern: session returns 202 immediately
         # Encryption executes in background ThreadPoolExecutor
-            CORPUS_PATH,
-        )
 
         h5_path = str(CORPUS_PATH)
 

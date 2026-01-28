@@ -1,8 +1,8 @@
-from backend.container import get_container
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from backend.container import get_container
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, HTTPException, status
@@ -80,12 +80,7 @@ async def analyze_session_intelligent_workflow(
     audio_duration_seconds: float | None = None,
     language: str | None = None,
 ) -> dict:
-    import h5py
     from backend.models.task_type import TaskStatus, TaskType
-        CORPUS_PATH,
-        ensure_task_exists,
-        get_task_metadata,
-    )
     from backend.core.infrastructure.workers.executor_pool import spawn_worker
     from backend.services.workflow.services.workflow_router import get_workflow_router
 
@@ -99,16 +94,17 @@ async def analyze_session_intelligent_workflow(
 
         if audio_duration_seconds is None:
             try:
-                with h5py.File(CORPUS_PATH, "r") as f:
-                    audio_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION/full_audio.webm"
-                    if audio_path in f:
-                        audio_bytes = len(f[audio_path][()])
-                        audio_duration_seconds = audio_bytes / (12 * 1024)
-                        logger.info(
-                            "AUDIO_DURATION_DETECTED",
-                            session_id=session_id,
-                            duration_seconds=audio_duration_seconds,
-                        )
+                corpus_repo = get_container().get_corpus_repository()
+                audio_bytes_data = corpus_repo.get_session_audio(session_id, "tasks/TRANSCRIPTION/full_audio.webm")
+                if audio_bytes_data:
+                    audio_duration_seconds = len(audio_bytes_data) / (12 * 1024)
+                    logger.info(
+                        "AUDIO_DURATION_DETECTED",
+                        session_id=session_id,
+                        duration_seconds=audio_duration_seconds,
+                    )
+                else:
+                    audio_duration_seconds = 60.0
             except Exception as e:
                 logger.warning(
                     "AUDIO_DURATION_DETECTION_FAILED",
@@ -120,20 +116,19 @@ async def analyze_session_intelligent_workflow(
 
         existing_tasks: list[str] = []
         try:
-            with h5py.File(CORPUS_PATH, "r") as f:
-                tasks_path = f"/sessions/{session_id}/tasks"
-                if tasks_path in f:
-                    for task_type in f[tasks_path]:
-                        constructed_task = TaskType(task_type)
-                        metadata = get_container().get_task_repository().get_task_metadata(session_id, constructed_task)
-                        status_val = metadata.get("status") if metadata else None
-                        is_completed = (
-                            status_val == "completed"
-                            or status_val == TaskStatus.COMPLETED.name.lower()
-                            or status_val == TaskStatus.COMPLETED
-                        )
-                        if metadata and is_completed:
-                            existing_tasks.append(task_type)
+            corpus_repo = get_container().get_corpus_repository()
+            task_types = corpus_repo.list_session_tasks(session_id)
+            for task_type in task_types:
+                constructed_task = TaskType(task_type)
+                metadata = get_container().get_task_repository().get_task_metadata(session_id, constructed_task)
+                status_val = metadata.get("status") if metadata else None
+                is_completed = (
+                    status_val == "completed"
+                    or status_val == TaskStatus.COMPLETED.name.lower()
+                    or status_val == TaskStatus.COMPLETED
+                )
+                if metadata and is_completed:
+                    existing_tasks.append(task_type)
         except Exception as e:
             logger.warning("EXISTING_TASKS_DETECTION_FAILED", session_id=session_id, error=str(e))
 
