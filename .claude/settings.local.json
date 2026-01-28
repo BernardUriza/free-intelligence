@@ -174,7 +174,10 @@
       "Bash(pnpm add:*)",
       "Bash(test:*)",
       "Bash(do)",
-      "Bash(# Kill any existing backend pkill -f \"\"python.*backend.app.main\"\" || true sleep 2 # Start backend PYTHONPATH=src python3.14 -m backend.app.main 2>&1 & BACKEND_PID=$! echo \"\"Backend starting with PID: $BACKEND_PID\"\" sleep 12 # Test health endpoint echo \"\"=== Health Check ===\"\" curl -f http://localhost:7001/health 2>&1 # Check if routers loaded successfully echo \"\"\"\" echo \"\"=== Router Loading Status ===\"\" tail -100 /tmp/backend-test-fix3.log)"
+      "Bash(# Kill any existing backend pkill -f \"\"python.*backend.app.main\"\" || true sleep 2 # Start backend PYTHONPATH=src python3.14 -m backend.app.main 2>&1 & BACKEND_PID=$! echo \"\"Backend starting with PID: $BACKEND_PID\"\" sleep 12 # Test health endpoint echo \"\"=== Health Check ===\"\" curl -f http://localhost:7001/health 2>&1 # Check if routers loaded successfully echo \"\"\"\" echo \"\"=== Router Loading Status ===\"\" tail -100 /tmp/backend-test-fix3.log)",
+      "Bash(# Kill any existing backend pkill -f \"\"python.*backend.app.main\"\" || true sleep 2 # Start backend fresh PYTHONPATH=src python3.14 -m backend.app.main 2>&1 & BACKEND_PID=$! echo \"\"Backend PID: $BACKEND_PID\"\" sleep 12 echo \"\"=== Testing Critical Endpoints ===\"\" echo \"\"\"\" # 1. Health check \\(baseline\\) echo \"\"1. Health Check:\"\" curl -s http://localhost:7001/health)",
+      "Bash(# Kill existing backend pkill -f \"\"python.*backend.app.main\"\" || true sleep 2 # Start backend PYTHONPATH=src python3.14 -m backend.app.main 2>&1 & BACKEND_PID=$! echo \"\"Backend PID: $BACKEND_PID\"\" sleep 12 echo \"\"=== Health Check ===\"\" curl -s http://localhost:7001/health echo \"\"\"\" echo \"\"\"\" echo \"\"=== Router Registration Status ===\"\" tail -100 /tmp/backend-final-test.log)",
+      "Bash(__NEW_LINE_5d93c0a9f12493c1__ echo \"\")"
     ]
   },
   "enableAllProjectMcpServers": true,

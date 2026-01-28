@@ -232,13 +232,9 @@ export default function App({ setupState }: AppProps) {
     }
   }
 
-  // Auto-load tunnel file when tunnel is running
+  // Auto-load tunnel file (always try, even when tunnel is OFF)
   useEffect(() => {
-    if (status?.tunnel_running && status?.tunnel_url) {
-      loadTunnelFile()
-    } else {
-      setTunnelFileContent('')
-    }
+    loadTunnelFile()
   }, [status?.tunnel_running, status?.tunnel_url])
 
   if (loading) {
@@ -488,7 +484,7 @@ export default function App({ setupState }: AppProps) {
               />
             ) : (
               <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">
-                {tunnelOn ? '⏳ Loading file...' : 'Start tunnel to view file'}
+                No file yet - start tunnel to create
               </div>
             )}
           </div>
