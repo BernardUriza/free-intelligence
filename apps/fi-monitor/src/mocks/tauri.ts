@@ -191,6 +191,61 @@ export const mockInvoke = async (cmd: string, args?: any): Promise<any> => {
       await new Promise(resolve => setTimeout(resolve, 500))
       return null
 
+    case 'get_service_logs': {
+      // Generate mock logs for the service
+      const { service, lines = 50 } = args || {}
+      const now = new Date()
+      const mockLogs = []
+
+      for (let i = 0; i < lines; i++) {
+        const timestamp = new Date(now.getTime() - (lines - i) * 2000).toISOString()
+        const levels = ['INFO', 'WARN', 'ERROR', 'DEBUG']
+        const level = levels[Math.floor(Math.random() * levels.length)]
+
+        let message = ''
+        switch (service) {
+          case 'ollama':
+            message = level === 'ERROR'
+              ? `Failed to load model: connection timeout`
+              : level === 'WARN'
+              ? `Model cache approaching limit (${80 + Math.floor(Math.random() * 15)}%)`
+              : level === 'DEBUG'
+              ? `Processing request: ${Math.random().toFixed(3)}s elapsed`
+              : `HTTP ${['GET', 'POST'][Math.floor(Math.random() * 2)]} /api/generate - ${Math.floor(Math.random() * 200) + 100}ms`
+            break
+          case 'rag':
+            message = level === 'ERROR'
+              ? `Vector search failed: index not found`
+              : level === 'WARN'
+              ? `Slow query detected: ${Math.floor(Math.random() * 500) + 500}ms`
+              : level === 'DEBUG'
+              ? `Embedding dimension: 384, batch size: ${Math.floor(Math.random() * 32) + 1}`
+              : `Query processed: ${Math.floor(Math.random() * 10) + 1} results, ${Math.floor(Math.random() * 200) + 50}ms`
+            break
+          case 'gateway':
+            message = level === 'ERROR'
+              ? `Upstream service unavailable: connection refused`
+              : level === 'WARN'
+              ? `Rate limit approaching: ${Math.floor(Math.random() * 20) + 80} req/min`
+              : level === 'DEBUG'
+              ? `Route matched: /api/${['ollama', 'rag', 'health'][Math.floor(Math.random() * 3)]}`
+              : `${['GET', 'POST', 'PUT'][Math.floor(Math.random() * 3)]} /api/proxy - ${Math.floor(Math.random() * 100) + 10}ms`
+            break
+          default:
+            message = `Service log entry ${i + 1}`
+        }
+
+        mockLogs.push({
+          timestamp,
+          level,
+          service,
+          message
+        })
+      }
+
+      return mockLogs
+    }
+
     default:
       console.warn('[Mock Invoke] Unknown command:', cmd)
       return null
@@ -200,6 +255,8 @@ export const mockInvoke = async (cmd: string, args?: any): Promise<any> => {
 export const mockListen = (event: string, handler: (e: any) => void) => {
   console.log('[Mock Listen]', event)
 
+  let intervalId: number | null = null
+
   // Simulate some events
   if (event === 'model-pull-completed') {
     setTimeout(() => {
@@ -207,8 +264,49 @@ export const mockListen = (event: string, handler: (e: any) => void) => {
     }, 3000)
   }
 
+  // Simulate real-time log streaming
+  if (event.startsWith('log-')) {
+    const service = event.replace('log-', '')
+    const levels = ['INFO', 'WARN', 'ERROR', 'DEBUG']
+
+    intervalId = window.setInterval(() => {
+      const level = levels[Math.floor(Math.random() * levels.length)]
+      let message = ''
+
+      switch (service) {
+        case 'ollama':
+          message = level === 'ERROR'
+            ? `Connection error: ${['timeout', 'refused', 'reset'][Math.floor(Math.random() * 3)]}`
+            : level === 'WARN'
+            ? `Memory usage: ${Math.floor(Math.random() * 30) + 70}%`
+            : `Request completed in ${Math.floor(Math.random() * 500) + 100}ms`
+          break
+        case 'rag':
+          message = level === 'ERROR'
+            ? `Vector search error: ${['index not found', 'dimension mismatch'][Math.floor(Math.random() * 2)]}`
+            : `Query: ${Math.floor(Math.random() * 10) + 1} results`
+          break
+        case 'gateway':
+          message = `${['GET', 'POST'][Math.floor(Math.random() * 2)]} /api/${['health', 'proxy'][Math.floor(Math.random() * 2)]} - ${Math.floor(Math.random() * 100) + 10}ms`
+          break
+      }
+
+      handler({
+        payload: {
+          timestamp: new Date().toISOString(),
+          level,
+          service,
+          message
+        }
+      })
+    }, 3000) // New log every 3 seconds
+  }
+
   return Promise.resolve(() => {
     console.log('[Mock Unlisten]', event)
+    if (intervalId) {
+      clearInterval(intervalId)
+    }
   })
 }
 

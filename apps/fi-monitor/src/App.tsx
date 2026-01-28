@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ModelManager } from './components/ModelManager'
 import { BenchmarkCharts } from './components/BenchmarkCharts'
 import { EnvVarEditor } from './components/EnvVarEditor'
+import { LogsViewer } from './components/LogsViewer'
 import { invoke, listen, getVersion } from './lib/tauri-adapter'
 
 interface ServiceStatus {
@@ -345,6 +346,11 @@ export default function App({ setupState }: AppProps) {
                   📦 {showModelManager ? 'Hide' : 'Show'} Models
                 </button>
               )}
+
+              {/* Logs Viewer */}
+              {ollamaOn && (
+                <LogsViewer serviceName="ollama" serviceDisplayName="Ollama" />
+              )}
             </div>
             <button
               className={`action-btn ${ollamaOn ? 'stop' : 'start'}`}
@@ -364,6 +370,11 @@ export default function App({ setupState }: AppProps) {
                 {ragOn ? '● Activo' : '○ Inactivo'}
               </div>
               <div className="text-xs text-app-text-dim">GPU Embeddings</div>
+
+              {/* Logs Viewer */}
+              {ragOn && (
+                <LogsViewer serviceName="rag" serviceDisplayName="RAG Service" />
+              )}
             </div>
             <button
               className={`action-btn ${ragOn ? 'stop' : 'start'}`}
@@ -383,6 +394,11 @@ export default function App({ setupState }: AppProps) {
                 {gatewayOn ? '● Activo' : '○ Inactivo'}
               </div>
               <div className="text-xs text-app-text-dim">HTTP Router</div>
+
+              {/* Logs Viewer */}
+              {gatewayOn && (
+                <LogsViewer serviceName="gateway" serviceDisplayName="Gateway" />
+              )}
             </div>
             <button
               className={`action-btn ${gatewayOn ? 'stop' : 'start'}`}
