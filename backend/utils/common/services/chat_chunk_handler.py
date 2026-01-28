@@ -24,18 +24,14 @@ Card: Voice chat integration (chat handler)
 """
 
 from __future__ import annotations
+from backend.container import get_container
+
 
 from typing import Any
 
 from backend.utils.common.logging.logger import get_logger
 from backend.utils.common.services.chunk_handler import ChunkHandler
-# FIXME: Broken import - use DI container instead
-# from infrastructure.storage.infrastructure.hdf5.chat_sessions_store import (
-    add_chat_chunk,
-    clear_chat_session,
-    get_chat_session,
     mark_chat_session_completed,
-)
 
 logger = get_logger(__name__)
 
@@ -77,7 +73,6 @@ class ChatChunkHandler(ChunkHandler):
             "CHAT_SESSION_INITIALIZED",
             session_id=session_id,
             mode="chat",
-        )
 
     async def save_chunk(
         self,
@@ -111,7 +106,6 @@ class ChatChunkHandler(ChunkHandler):
             transcript=transcript,
             provider=metadata.get("provider", "unknown"),
             confidence=metadata.get("confidence", 0.0),
-        )
 
         logger.info(
             "CHAT_CHUNK_SAVED",
@@ -119,7 +113,6 @@ class ChatChunkHandler(ChunkHandler):
             chunk_number=chunk_number,
             provider=metadata.get("provider"),
             audio_discarded=True,  # Audio not persisted
-        )
 
     async def get_session_status(self, session_id: str) -> dict[str, Any]:
         """Read session status from in-memory store.
@@ -200,7 +193,6 @@ class ChatChunkHandler(ChunkHandler):
             "CHAT_SESSION_FINALIZED",
             session_id=session_id,
             post_processing=False,  # No diarization/SOAP
-        )
 
         return {
             "session_id": session_id,

@@ -24,20 +24,14 @@ Card: Voice chat integration (medical handler)
 """
 
 from __future__ import annotations
+from backend.container import get_container
+
 
 from typing import Any
 
 from backend.models.task_type import TaskType
 from backend.utils.common.logging.logger import get_logger
 from backend.utils.common.services.chunk_handler import ChunkHandler
-# FIXME: Broken import - use DI container instead
-# from infrastructure.storage.infrastructure.hdf5.session_locks import locked_session_h5
-# FIXME: Broken import - use DI container instead
-# from infrastructure.storage.infrastructure.hdf5.task_repository import (
-    append_chunk_to_task,
-    ensure_task_exists,
-    get_task_chunks,
-)
 
 logger = get_logger(__name__)
 
@@ -79,11 +73,10 @@ class MedicalChunkHandler(ChunkHandler):
             - Saves patient metadata as session attributes
         """
         # Create TRANSCRIPTION task (first time only)
-        ensure_task_exists(
+        get_container().get_task_repository().ensure_task_exists(
             session_id=session_id,
             task_type=TaskType.TRANSCRIPTION,
             allow_existing=True,  # Allow resuming (pause/resume)
-        )
 
         # Save session metadata (doctor_id + patient info) to HDF5 session attributes
         # SECURITY: doctor_id is ALWAYS saved for session ownership/isolation
@@ -114,13 +107,11 @@ class MedicalChunkHandler(ChunkHandler):
                 session_id=session_id,
                 patient_name=metadata.get("patient_name"),
                 has_patient_metadata=True,
-            )
         else:
             logger.info(
                 "MEDICAL_SESSION_INITIALIZED",
                 session_id=session_id,
                 has_patient_metadata=False,
-            )
 
     async def save_chunk(
         self,
@@ -167,7 +158,6 @@ class MedicalChunkHandler(ChunkHandler):
             polling_attempts=metadata.get("polling_attempts", 0),
             resolution_time_seconds=metadata.get("resolution_time_seconds", 0.0),
             retry_attempts=metadata.get("retry_attempts", 0),
-        )
 
         logger.info(
             "MEDICAL_CHUNK_SAVED",
@@ -176,7 +166,6 @@ class MedicalChunkHandler(ChunkHandler):
             provider=metadata.get("provider"),
             audio_size_bytes=len(audio_bytes),
             audio_persisted=True,  # Audio IS persisted (unlike chat)
-        )
 
     async def get_session_status(self, session_id: str) -> dict[str, Any]:
         """Read session status from HDF5.
@@ -199,7 +188,7 @@ class MedicalChunkHandler(ChunkHandler):
             - Returns 404-like dict if session not found
         """
         try:
-            chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+            chunks = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
 
             if not chunks:
                 return {
@@ -216,7 +205,6 @@ class MedicalChunkHandler(ChunkHandler):
             completed_chunks = sum(1 for c in chunks if c.get("status") == "completed")
             progress_percent = (
                 int((completed_chunks / total_chunks) * 100) if total_chunks > 0 else 0
-            )
 
             # Determine overall status
             if all(c.get("status") == "completed" for c in chunks):
@@ -281,7 +269,6 @@ class MedicalChunkHandler(ChunkHandler):
                 session_id=session_id,
                 diarization_job_id=diarization_result.get("job_id"),
                 post_processing=True,
-            )
 
             return {
                 "session_id": session_id,
@@ -332,4 +319,3 @@ class MedicalChunkHandler(ChunkHandler):
             session_id=session_id,
             chunk_number=chunk_number,
             size_bytes=len(audio_bytes),
-        )

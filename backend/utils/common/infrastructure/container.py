@@ -87,10 +87,6 @@ else:
     )
     from backend.utils.system.services.di_system_health_service import DISystemHealthService
 
-    # FIXME: Broken imports - temporarily stubbed
-    # from backend.services.transcription.services.di_transcription_service import (
-    #     DITranscriptionService,
-    # )
     DITranscriptionService = type("DITranscriptionService", (), {})  # type: ignore[assignment,misc]
 
 
