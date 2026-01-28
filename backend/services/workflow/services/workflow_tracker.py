@@ -413,15 +413,32 @@ class WorkflowTracker:
         def consolidate_in_background():
             """Background consolidation with error handling."""
             try:
-                # FIXME: Broken import - use DI container instead
-                # TODO: Implement consolidate_session_to_corpus via DI container
-                # from infrastructure.storage.infrastructure.hdf5.session_h5_manager import (
-                #     consolidate_session_to_corpus,
-                # )
+                from backend.container import get_container
 
-                # Stub implementation
                 def consolidate_session_to_corpus(session_id, delete_after=False):
-                    self.logger.warning("consolidate_session_to_corpus stub - needs implementation")
+                    """Validate session exists in corpus.h5 (already consolidated in new architecture).
+
+                    Old architecture: session data in storage/sessions/{id}.h5 → consolidate to corpus.h5
+                    New architecture: session data written directly to corpus.h5 → no consolidation needed
+
+                    This function validates the session exists and is ready for long-term storage.
+                    """
+                    task_repo = get_container().get_task_repository()
+
+                    # Validate session has at least TRANSCRIPTION task
+                    if not task_repo.task_exists(session_id, "TRANSCRIPTION"):
+                        self.logger.warning(
+                            "CONSOLIDATION_VALIDATION_FAILED",
+                            session_id=session_id,
+                            reason="TRANSCRIPTION task not found in corpus.h5",
+                        )
+                        return False
+
+                    self.logger.info(
+                        "CONSOLIDATION_VALIDATED",
+                        session_id=session_id,
+                        message="Session data already in corpus.h5 (new DI architecture)",
+                    )
                     return True
 
                 self.logger.info(
