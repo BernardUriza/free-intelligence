@@ -193,6 +193,8 @@ struct AppState {
     rag_service_process: Mutex<Option<u32>>,
     gateway_running: Mutex<bool>,
     gateway_process: Mutex<Option<u32>>,
+    // Watchdog state (prevents duplicate watchdog threads)
+    watchdog_running: Mutex<bool>,
 }
 
 #[derive(Serialize, Clone)]
@@ -711,6 +713,23 @@ fn save_tunnel_url_locally(url: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Read the tunnel URL file content
+#[tauri::command]
+fn read_tunnel_file() -> Result<String, String> {
+    let path = dirs::config_dir()
+        .ok_or("Could not determine config directory")?
+        .join("fi-monitor")
+        .join("tunnel-url.json");
+
+    // Verificar que el archivo existe
+    if !path.exists() {
+        return Err("Tunnel file not found. Start the tunnel to create it.".to_string());
+    }
+
+    // Leer contenido del archivo
+    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
+}
+
 /// Periodically re-upload tunnel URL to keep timestamp fresh
 fn start_periodic_upload(url: String, config: AppConfig) {
     std::thread::spawn(move || {
@@ -752,26 +771,43 @@ fn is_process_alive(pid: u32) -> bool {
 }
 
 /// Watchdog to monitor tunnel process and auto-restart if it dies
+/// NOTE: This watchdog NEVER exits - it runs for the lifetime of the app
 fn start_tunnel_watchdog(app: tauri::AppHandle, state: Arc<AppState>) {
     std::thread::spawn(move || {
+        let mut restart_count = 0u32;
+        let mut check_count = 0u32;
+        println!("[FI Monitor Watchdog] Started (checking every 10s)");
+
         loop {
-            // Check every 30 seconds
-            std::thread::sleep(Duration::from_secs(30));
+            // Check every 10 seconds (faster detection than 30s)
+            std::thread::sleep(Duration::from_secs(10));
+            check_count += 1;
+
+            // Heartbeat log FIRST (every 6 checks = 60s)
+            if check_count % 6 == 0 {
+                println!("[FI Monitor Watchdog] Heartbeat #{}: woke up, checking state...", check_count);
+            }
 
             let pid_opt = state.tunnel_process.lock().unwrap().clone();
             let tunnel_running = *state.tunnel_running.lock().unwrap();
 
+            // Detailed state log after reading locks
+            if check_count % 6 == 0 {
+                println!("[FI Monitor Watchdog] State: tunnel_running={}, pid={:?}", tunnel_running, pid_opt);
+            }
+
             if !tunnel_running {
-                // Tunnel was manually stopped, exit watchdog
-                println!("[FI Monitor Watchdog] Tunnel stopped, exiting watchdog");
-                break;
+                // Tunnel was manually stopped, keep watching for restart
+                // DO NOT exit - watchdog must survive for app lifetime
+                continue;
             }
 
             if let Some(pid) = pid_opt {
                 if !is_process_alive(pid) {
+                    restart_count += 1;
                     println!(
-                        "[FI Monitor Watchdog] ⚠️ Tunnel process {} died! Restarting...",
-                        pid
+                        "[FI Monitor Watchdog] ⚠️ Tunnel process {} died! Restarting (attempt #{})...",
+                        pid, restart_count
                     );
 
                     // Mark as not running
@@ -787,22 +823,24 @@ fn start_tunnel_watchdog(app: tauri::AppHandle, state: Arc<AppState>) {
                     // Trigger restart via command (this is async, so spawn it)
                     let app_clone = app.clone();
                     let state_clone = state.clone();
+                    let attempt = restart_count;
                     tauri::async_runtime::spawn(async move {
                         // Re-check Ollama before restart
                         if check_ollama().await {
                             match start_tunnel_internal(app_clone.clone(), state_clone).await {
-                                Ok(_) => println!("[FI Monitor Watchdog] ✅ Tunnel restarted"),
+                                Ok(_) => println!("[FI Monitor Watchdog] ✅ Tunnel restarted (attempt #{})", attempt),
                                 Err(e) => {
-                                    println!("[FI Monitor Watchdog] ❌ Failed to restart: {}", e)
+                                    println!("[FI Monitor Watchdog] ❌ Failed to restart (attempt #{}): {}", attempt, e)
                                 }
                             }
                         } else {
-                            println!("[FI Monitor Watchdog] ❌ Ollama not running, cannot restart tunnel");
+                            println!("[FI Monitor Watchdog] ❌ Ollama not running, cannot restart tunnel (attempt #{})", attempt);
                         }
                     });
 
-                    // Exit this watchdog, the restart will spawn a new one
-                    break;
+                    // DO NOT exit - continue monitoring
+                    // Watchdog must survive for app lifetime to handle future crashes
+                    continue;
                 }
             }
         }
@@ -904,7 +942,16 @@ async fn start_tunnel_internal(
                 start_periodic_upload(url.clone(), config.clone());
 
                 // Start tunnel watchdog (auto-restart if it dies)
-                start_tunnel_watchdog(app_clone.clone(), state_clone.clone());
+                // Only spawn watchdog ONCE (prevents duplicates on restart)
+                let mut watchdog_lock = state_clone.watchdog_running.lock().unwrap();
+                if !*watchdog_lock {
+                    *watchdog_lock = true;
+                    drop(watchdog_lock); // Release lock before spawning
+                    start_tunnel_watchdog(app_clone.clone(), state_clone.clone());
+                    println!("[FI Monitor] ✅ Tunnel watchdog spawned (will run for app lifetime)");
+                } else {
+                    println!("[FI Monitor] Watchdog already running (skipping duplicate spawn)");
+                }
 
                 break;
             }
@@ -1742,6 +1789,7 @@ fn main() {
             get_last_tunnel_url,
             set_tunnel_port,
             get_tunnel_port,
+            read_tunnel_file,
             ollama_installer::check_ollama_installed,
             ollama_installer::install_ollama_silent,
             ollama_installer::download_and_install_ollama,

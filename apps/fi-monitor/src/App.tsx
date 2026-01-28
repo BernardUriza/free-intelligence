@@ -97,6 +97,7 @@ export default function App({ setupState }: AppProps) {
   const [tunnelPort, setTunnelPort] = useState('11400')  // Default Gateway
   const [tunnelPortError, setTunnelPortError] = useState<string | null>(null)
   const [savedTunnelPort, setSavedTunnelPort] = useState('11400')
+  const [tunnelFileContent, setTunnelFileContent] = useState<string>('')
 
   // Get app version from Tauri
   useEffect(() => {
@@ -218,6 +219,27 @@ export default function App({ setupState }: AppProps) {
       }
     }
   }
+
+  const loadTunnelFile = async () => {
+    try {
+      const content = await invoke<string>('read_tunnel_file')
+      // Format JSON for better readability
+      const parsed = JSON.parse(content)
+      setTunnelFileContent(JSON.stringify(parsed, null, 2))
+    } catch (error) {
+      console.error('Failed to read tunnel file:', error)
+      setTunnelFileContent(`Error: ${String(error)}`)
+    }
+  }
+
+  // Auto-load tunnel file when tunnel is running
+  useEffect(() => {
+    if (status?.tunnel_running && status?.tunnel_url) {
+      loadTunnelFile()
+    } else {
+      setTunnelFileContent('')
+    }
+  }, [status?.tunnel_running, status?.tunnel_url])
 
   if (loading) {
     return <div className="app loading"><div className="spinner" /><span>Conectando...</span></div>
@@ -385,67 +407,92 @@ export default function App({ setupState }: AppProps) {
 
   const renderTunnelTab = () => {
     return (
-      <div className="flex flex-col gap-4 p-4">
-        {/* ===== Tunnel Service Card (CONTROL) ===== */}
-        <div className={`service-card ${tunnelOn ? 'active' : ''} ${!status?.ollama_running ? 'disabled' : ''}`}>
-          <div className="service-icon">☁️</div>
-          <div className="service-body">
-            <div className="service-name">Cloudflare Tunnel</div>
-            <div className={`service-status ${tunnelOn ? 'on' : 'off'}`}>
-              {tunnelOn ? '● Conectado' : '○ Desconectado'}
+      <div className="flex gap-4 p-4 h-full">
+        {/* ===== COLUMN 1: Tunnel Controls ===== */}
+        <div className="flex flex-col gap-4 flex-1">
+          {/* Tunnel Service Card */}
+          <div className={`service-card ${tunnelOn ? 'active' : ''} ${!status?.ollama_running ? 'disabled' : ''}`}>
+            <div className="service-icon">☁️</div>
+            <div className="service-body">
+              <div className="service-name">Cloudflare Tunnel</div>
+              <div className={`service-status ${tunnelOn ? 'on' : 'off'}`}>
+                {tunnelOn ? '● Conectado' : '○ Desconectado'}
+              </div>
+              {tunnelOn && status?.tunnel_url && (
+                <div className="tunnel-url-box" onClick={handleCopyUrl} title="Click para copiar">
+                  <span className="url-text">{status.tunnel_url.replace('https://', '')}</span>
+                  <span className="copy-icon">{copiedUrl ? '✓' : '📋'}</span>
+                </div>
+              )}
+              {tunnelOn && !status?.tunnel_url && (
+                <div className="tunnel-url-pending">⏳ Obteniendo URL...</div>
+              )}
+              {tunnelOn && (
+                <div className="text-xs text-app-text-dim mt-2">
+                  Exponiendo puerto: <span className="font-semibold text-app-accent">{savedTunnelPort}</span>
+                </div>
+              )}
             </div>
-            {tunnelOn && status?.tunnel_url && (
-              <div className="tunnel-url-box" onClick={handleCopyUrl} title="Click para copiar">
-                <span className="url-text">{status.tunnel_url.replace('https://', '')}</span>
-                <span className="copy-icon">{copiedUrl ? '✓' : '📋'}</span>
-              </div>
-            )}
-            {tunnelOn && !status?.tunnel_url && (
-              <div className="tunnel-url-pending">⏳ Obteniendo URL...</div>
-            )}
-            {tunnelOn && (
-              <div className="text-xs text-app-text-dim mt-2">
-                Exponiendo puerto: <span className="font-semibold text-app-accent">{savedTunnelPort}</span>
-              </div>
-            )}
-          </div>
-          <button
-            className={`action-btn ${tunnelOn ? 'stop' : 'start'}`}
-            onClick={() => handleAction(tunnelOn ? 'tunnel-stop' : 'tunnel-start', tunnelOn ? 'stop_tunnel' : 'start_tunnel')}
-            disabled={!!actionLoading || !status?.ollama_running}
-          >
-            {actionLoading?.includes('tunnel') ? '...' : tunnelOn ? '■' : '▶'}
-          </button>
-        </div>
-
-        {/* ===== SECTION 3: Port Configuration Reference ===== */}
-        <div className="bg-app-surface rounded-lg border border-app-border p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-base">🔌</span>
-            <span className="text-sm font-medium text-app-text">Port Configuration</span>
-          </div>
-          <div className="text-xs text-app-text-dim leading-relaxed">
-            Configure which port the tunnel exposes in the{' '}
             <button
-              onClick={() => setActiveTab('config')}
-              className="text-app-accent hover:text-app-accent-bright font-semibold underline"
+              className={`action-btn ${tunnelOn ? 'stop' : 'start'}`}
+              onClick={() => handleAction(tunnelOn ? 'tunnel-stop' : 'tunnel-start', tunnelOn ? 'stop_tunnel' : 'start_tunnel')}
+              disabled={!!actionLoading || !status?.ollama_running}
             >
-              Config
+              {actionLoading?.includes('tunnel') ? '...' : tunnelOn ? '■' : '▶'}
             </button>
-            {' '}tab.
-            <div className="mt-2">
-              Current port: <span className="font-semibold text-app-accent">{savedTunnelPort}</span>
-              {savedTunnelPort === '11400' && ' (Gateway - recommended)'}
+          </div>
+
+          {/* Port Configuration Reference */}
+          <div className="bg-app-surface rounded-lg border border-app-border p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-base">🔌</span>
+              <span className="text-sm font-medium text-app-text">Port Configuration</span>
+            </div>
+            <div className="text-xs text-app-text-dim leading-relaxed">
+              Configure which port the tunnel exposes in the{' '}
+              <button
+                onClick={() => setActiveTab('config')}
+                className="text-app-accent hover:text-app-accent-bright font-semibold underline"
+              >
+                Config
+              </button>
+              {' '}tab.
+              <div className="mt-2">
+                Current port: <span className="font-semibold text-app-accent">{savedTunnelPort}</span>
+                {savedTunnelPort === '11400' && ' (Gateway - recommended)'}
+              </div>
             </div>
           </div>
+
+          {/* Warning section */}
+          {!status?.ollama_running && (
+            <div className="bg-app-surface rounded-lg border border-app-warning p-4 text-sm text-app-text-dim">
+              ⚠️ Start Ollama first to enable the tunnel
+            </div>
+          )}
         </div>
 
-        {/* Info section */}
-        {!status?.ollama_running && (
-          <div className="bg-app-surface rounded-lg border border-app-warning p-4 text-sm text-app-text-dim">
-            ⚠️ Start Ollama first to enable the tunnel
+        {/* ===== COLUMN 2: File Viewer ===== */}
+        <div className="flex flex-col flex-1">
+          <div className="bg-app-surface rounded-lg border border-app-border p-4 h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-base">📄</span>
+              <span className="text-sm font-medium text-app-text">tunnel-url.json</span>
+            </div>
+            {tunnelFileContent ? (
+              <textarea
+                readOnly
+                value={tunnelFileContent}
+                className="flex-1 bg-app-bg text-app-text text-xs font-mono p-3 rounded border border-app-border resize-none focus:outline-none focus:ring-1 focus:ring-app-accent"
+                style={{ minHeight: '200px' }}
+              />
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">
+                {tunnelOn ? '⏳ Loading file...' : 'Start tunnel to view file'}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     )
   }
