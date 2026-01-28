@@ -109,16 +109,14 @@ class WorkflowTracker:
             trigger_consolidation("session-123")
     """
 
-    def __init__(self, task_repository=None):
+    def __init__(self, task_repository):
         """Initialize workflow tracker with dependencies.
 
         Args:
-            task_repository: Task repository for session validation (optional, uses container if not provided)
+            task_repository: Task repository for session validation (required for DI)
         """
-        from backend.container import get_container
-
         self.logger = get_logger(__name__)
-        self.task_repo = task_repository or get_container().get_task_repository()
+        self.task_repo = task_repository
         # session_id → {task_type → TaskExecution}
         self._workflows: dict[str, dict[str, TaskExecution]] = defaultdict(dict)
         self._lock = threading.RLock()
@@ -503,13 +501,21 @@ _tracker_lock = threading.Lock()
 
 
 def get_workflow_tracker() -> WorkflowTracker:
-    """Get or create global workflow tracker (singleton)."""
+    """Get or create global workflow tracker (singleton).
+
+    Note: Singleton initialization still uses get_container() for task_repository.
+    This is acceptable for global state initialization (one-time cost).
+    """
+    from backend.container import get_container
+
     global _tracker
 
     if _tracker is None:
         with _tracker_lock:
             if _tracker is None:
-                _tracker = WorkflowTracker()
+                _tracker = WorkflowTracker(
+                    task_repository=get_container().get_task_repository()
+                )
                 logger.info("WORKFLOW_TRACKER_INITIALIZED")
 
     return _tracker
