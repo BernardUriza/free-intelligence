@@ -1746,12 +1746,8 @@ fn main() {
 
                         let _ = app_handle.emit("services-checked", ());
 
-                        // Auto-start tunnel after all services are ready
-                        println!("[FI Monitor] Auto-starting tunnel...");
-                        match start_tunnel_internal(app_handle.clone(), state_clone.clone()).await {
-                            Ok(_) => println!("[FI Monitor] ✅ Tunnel auto-started"),
-                            Err(e) => println!("[FI Monitor] ⚠️ Failed to auto-start tunnel: {}", e),
-                        }
+                        // Tunnel is NOT auto-started - user must activate manually
+                        println!("[FI Monitor] ℹ️ Tunnel ready (manual activation required)");
                         return;
                     }
                     attempts += 1;
