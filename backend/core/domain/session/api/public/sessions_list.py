@@ -7,10 +7,9 @@ Author: Claude Code
 Created: 2025-11-16
 """
 
-from backend.container import get_container
 from __future__ import annotations
 
-import h5py
+from backend.container import get_container
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
