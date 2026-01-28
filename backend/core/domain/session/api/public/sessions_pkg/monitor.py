@@ -36,8 +36,14 @@ async def monitor_session_progress(session_id: str, request: Request) -> dict:
         soap_data = {"status": "not_started"}
 
         try:
-            transcription_meta = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
-            total, processed = count_task_chunks(session_id, TaskType.TRANSCRIPTION)
+            task_repo = get_container().get_task_repository()
+            transcription_meta = task_repo.get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {}
+
+            # Count chunks using repository
+            chunks = task_repo.get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+            total = len(chunks)
+            processed = sum(1 for chunk in chunks if chunk.get("transcript"))  # Has transcript = processed
+
             progress = int((processed / total) * 100) if total > 0 else 0
             status_val = transcription_meta.get(
                 "status", "in_progress" if processed > 0 else "pending"
