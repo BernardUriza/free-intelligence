@@ -18,10 +18,11 @@ Created: 2025-12-28
 Card: FI-RX-002
 """
 
-from backend.container import get_container
 from __future__ import annotations
 
 from typing import Any, Optional
+
+from backend.container import get_container
 
 from backend.utils.common.logging.logger import get_logger
 from backend.core.domain.prescription.models.medication import Medication
