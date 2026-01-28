@@ -20,12 +20,12 @@ from backend.models.catalog_model import (
     CatalogSource,
     ModelInstallProgress,
 )
-from backend.core.infrastructure.model_catalog.services.sources.base import CatalogSourceBase
-from backend.core.infrastructure.model_catalog.services.sources.gpt4all_source import GPT4AllCatalogSource
-from backend.core.infrastructure.model_catalog.services.sources.huggingface_source import (
+from backend.infrastructure.model_catalog.services.sources.base import CatalogSourceBase
+from backend.infrastructure.model_catalog.services.sources.gpt4all_source import GPT4AllCatalogSource
+from backend.infrastructure.model_catalog.services.sources.huggingface_source import (
     HuggingFaceCatalogSource,
 )
-from backend.core.infrastructure.model_catalog.services.sources.ollama_source import OllamaCatalogSource
+from backend.infrastructure.model_catalog.services.sources.ollama_source import OllamaCatalogSource
 from pathlib import Path
 
 

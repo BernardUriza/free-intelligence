@@ -1,4 +1,6 @@
-"""Workflow Orchestrator Service - Centralized workflow dispatch logic.
+"""Workflow Orchestrator Service - Centralized workflow dispatch logic (REFACTORED with DI).
+
+REFACTORED: Uses constructor injection instead of get_container().
 
 SOLID Principles Applied:
 - Single Responsibility: ONLY orchestrates workflow execution
@@ -7,28 +9,28 @@ SOLID Principles Applied:
 
 File: backend/api/public/workflows/services/workflow_orchestrator.py
 Created: 2025-11-20
+Refactored: 2026-01-28 (Phase 2.3 - DI pattern)
 Pattern: Service Layer + Command Pattern
+Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
-
-from backend.container import get_container
 from typing import Any
 
+from backend.infrastructure.workers.executor_pool import spawn_worker
 from backend.models.task_type import TaskType
+from backend.repositories.interfaces.itask_repository import ITaskRepository
+from backend.utils.common.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
-# FIXME: Broken import - ensure_task_exists
-# Use repository method from DI container
-from backend.core.infrastructure.workers.executor_pool import spawn_worker
 
 logger = get_logger(__name__)
 
 
 class WorkflowOrchestrator:
     """
-    Centralized service for workflow orchestration.
+    Centralized service for workflow orchestration (REFACTORED with DI).
 
     Responsibilities:
     - Dispatch workers for different task types
@@ -40,10 +42,24 @@ class WorkflowOrchestrator:
     - Access HDF5 directly (uses task_repository)
     - Contain business logic (just orchestration)
     - Handle HTTP concerns (that's the router's job)
+
+    Dependencies eliminated from get_container():
+    - ITaskRepository (4 calls) → Constructor injected
     """
 
-    def __init__(self) -> None:
-        self.logger = get_logger(__name__)
+    def __init__(
+        self,
+        task_repository: ITaskRepository,
+        logger: ILogger | None = None,
+    ) -> None:
+        """Initialize workflow orchestrator with dependencies.
+
+        Args:
+            task_repository: Task repository for task creation/checking
+            logger: Logger instance (defaults to module logger)
+        """
+        self.task_repo = task_repository
+        self.logger = logger or get_logger(__name__)
 
     def dispatch_diarization(self, session_id: str) -> dict[str, Any]:
         """
@@ -55,7 +71,7 @@ class WorkflowOrchestrator:
         Returns:
             Job dispatch response with job_id and status
         """
-        from backend.core.infrastructure.workers.tasks.diarization_worker import diarization_worker
+        from backend.infrastructure.workers.tasks.diarization_worker import diarization_worker
 
         self.logger.info(
             "ORCHESTRATOR_DISPATCH_DIARIZATION",
@@ -63,7 +79,7 @@ class WorkflowOrchestrator:
         )
 
         # 1. Create task
-        ensure_get_container().get_task_repository().task_exists(
+        self.task_repo.task_exists(
             session_id=session_id,
             task_type=TaskType.DIARIZATION,
             allow_existing=True,
@@ -96,7 +112,7 @@ class WorkflowOrchestrator:
         Returns:
             Job dispatch response with job_id and status
         """
-        from backend.core.infrastructure.workers.tasks.soap_worker import generate_soap_worker
+        from backend.infrastructure.workers.tasks.soap_worker import generate_soap_worker
 
         self.logger.info(
             "ORCHESTRATOR_DISPATCH_SOAP",
@@ -104,7 +120,7 @@ class WorkflowOrchestrator:
         )
 
         # 1. Create task
-        ensure_get_container().get_task_repository().task_exists(
+        self.task_repo.task_exists(
             session_id=session_id,
             task_type=TaskType.SOAP_GENERATION,
             allow_existing=True,
@@ -137,7 +153,7 @@ class WorkflowOrchestrator:
         Returns:
             Job dispatch response with job_id and status
         """
-        from backend.core.infrastructure.workers.tasks.emotion_worker import analyze_emotion_worker
+        from backend.infrastructure.workers.tasks.emotion_worker import analyze_emotion_worker
 
         self.logger.info(
             "ORCHESTRATOR_DISPATCH_EMOTION",
@@ -145,7 +161,7 @@ class WorkflowOrchestrator:
         )
 
         # 1. Create task
-        ensure_get_container().get_task_repository().task_exists(
+        self.task_repo.task_exists(
             session_id=session_id,
             task_type=TaskType.EMOTION_ANALYSIS,
             allow_existing=True,
@@ -178,7 +194,7 @@ class WorkflowOrchestrator:
         Returns:
             Encryption dispatch response
         """
-        from backend.core.infrastructure.workers.tasks.encryption_worker import encrypt_session_worker
+        from backend.infrastructure.workers.tasks.encryption_worker import encrypt_session_worker
 
         self.logger.info(
             "ORCHESTRATOR_DISPATCH_ENCRYPTION",
@@ -186,7 +202,7 @@ class WorkflowOrchestrator:
         )
 
         # 1. Create task
-        ensure_get_container().get_task_repository().task_exists(
+        self.task_repo.task_exists(
             session_id=session_id,
             task_type=TaskType.ENCRYPTION,
             allow_existing=True,

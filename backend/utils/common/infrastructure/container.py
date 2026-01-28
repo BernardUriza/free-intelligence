@@ -21,7 +21,7 @@ from backend.utils.common.interfaces.ievent_bus import IEventBus
 
 # Import interfaces and implementations for DI
 from backend.utils.common.interfaces.ilogger import ILogger
-from backend.utils.common.interfaces.itask_repository import ITaskRepository
+from backend.repositories.interfaces import ITaskRepository
 
 # NOTE: HDF5TaskRepository was removed during fi_coder refactor
 # Using adapter that wraps functional task_repository module
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from backend.utils.common.services.export_service import ExportService
     from backend.utils.common.services.triage_service import TriageService
     from backend.core.domain.session.services.session_service import SessionService
-    from backend.core.infrastructure.storage.services.corpus_service import CorpusService
+    from backend.infrastructure.storage.services.corpus_service import CorpusService
     from backend.utils.system.services.system_health_service import SystemHealthService
     from backend.services.transcription.services.diarization_service import (
         DiarizationJobService,
@@ -653,6 +653,14 @@ def get_container(
 ) -> DIContainer:
     """Get or create global DI container.
 
+    .. deprecated:: 2026-01-28
+        Service Locator anti-pattern. Use FastAPI Depends() for dependency injection.
+
+        **Migration path:**
+        - New code MUST use Depends() providers in service dependencies.py
+        - Old code can use get_container() until refactored
+        - See: backend/services/transcription/dependencies.py for example
+
     Args:
         h5_file_path: Path to HDF5 database file
 
@@ -663,6 +671,16 @@ def get_container(
         First call sets the h5_file_path. Subsequent calls return the
         same instance with the original h5_file_path.
     """
+    import warnings
+
+    # Emit deprecation warning (once per call site)
+    warnings.warn(
+        "get_container() is deprecated. Use FastAPI Depends() for dependency injection. "
+        "See backend/services/transcription/dependencies.py for migration example.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     global _global_container
 
     if _global_container is None:

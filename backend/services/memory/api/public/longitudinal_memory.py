@@ -1,4 +1,6 @@
-"""Longitudinal Memory API - Memoria Longitudinal.
+"""Longitudinal Memory API - Memoria Longitudinal (THIN ROUTER).
+
+REFACTORED: All business logic delegated to DIMemoryService.
 
 Single endpoint that combines:
 - Chat messages (from conversation memory)
@@ -10,21 +12,19 @@ Philosophy: "No existen sesiones. Solo una conversación infinita."
 
 Author: Claude Code
 Created: 2025-11-22
-Card: FI-PHIL-DOC-014
+Refactored: 2026-01-28 (Phase 2.3 - DI pattern)
+Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
 
 from __future__ import annotations
-from backend.container import get_container
 
-
-from datetime import datetime
 from enum import Enum
 from typing import Literal
 
-import h5py
+from backend.services.memory.dependencies import get_memory_service
+from backend.services.memory.services.di_memory_service import DIMemoryService
 from backend.utils.common.logging.logger import get_logger
-from backend.services.llm.services.conversation_memory import get_memory_manager
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -107,249 +107,11 @@ class MemoryStatsResponse(BaseModel):
 
 
 # ============================================================================
-# Helper Functions
+# Note: Helper functions removed - now in DIMemoryService
+# - _parse_timestamp() → service method
+# - _get_chat_events() → service method
+# - _get_audio_events() → service method
 # ============================================================================
-
-
-def _parse_timestamp(ts: str | int | float) -> int:
-    """Convert various timestamp formats to Unix seconds."""
-    if isinstance(ts, (int, float)):
-        # If it's already a number, check if it's milliseconds or seconds
-        if ts > 1e12:  # Likely milliseconds
-            return int(ts / 1000)
-        return int(ts)
-
-    # ISO string
-    try:
-        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-        return int(dt.timestamp())
-    except (ValueError, AttributeError):
-        return 0
-
-
-def _get_chat_events(
-    doctor_id: str,
-    start_ts: int | None,
-    end_ts: int | None,
-    limit: int,
-    offset: int,
-) -> tuple[list[MemoryEvent], int]:
-    """Fetch chat events from conversation memory."""
-    events: list[MemoryEvent] = []
-
-    try:
-        memory = get_memory_manager(doctor_id)
-        result = memory.get_paginated_history(
-            offset=offset,
-            limit=limit * 2,  # Fetch more to account for time filtering
-            session_id=None,
-        )
-
-        for idx, interaction in enumerate(result["interactions"]):
-            ts = interaction.timestamp
-
-            # Apply time range filter
-            if start_ts and ts < start_ts:
-                continue
-            if end_ts and ts > end_ts:
-                continue
-
-            event_type: Literal["chat_user", "chat_assistant"] = (
-                "chat_user" if interaction.role == "user" else "chat_assistant"
-            )
-
-            events.append(
-                MemoryEvent(
-                    id=f"chat-{ts}-{idx}",
-                    timestamp=ts,
-                    event_type=event_type,
-                    content=interaction.content,
-                    source="chat",
-                    session_id=interaction.session_id,
-                    persona=interaction.persona,
-                )
-            )
-
-        return events[:limit], result["total"]
-
-    except FileNotFoundError:
-        return [], 0
-    except Exception as e:
-        logger.warning("CHAT_EVENTS_FETCH_ERROR", doctor_id=doctor_id, error=str(e))
-        return [], 0
-
-
-def _get_audio_events(
-    doctor_id: str,
-    start_ts: int | None,
-    end_ts: int | None,
-    limit: int,
-    offset: int,
-) -> tuple[list[MemoryEvent], int]:
-    """Fetch audio transcription events from HDF5.
-
-    Security: Filters events by doctor_id to ensure data isolation.
-    Sessions without owner metadata are excluded (legacy data).
-    """
-    events: list[MemoryEvent] = []
-    total_count = 0
-
-    try:
-        with h5py.File(CORPUS_PATH, "r") as f:
-            if "sessions" not in f:
-                return [], 0
-
-            sessions_group = f["sessions"]
-
-            # Collect all chunks with timestamps
-            all_chunks: list[tuple[int, str, dict]] = []  # (timestamp, session_id, chunk_data)
-
-            for session_id in sessions_group:
-                try:
-                    session = sessions_group[session_id]
-
-                    # SECURITY: Check session ownership
-                    # Check for doctor_id/owner_id in session attrs
-                    session_owner = None
-                    if "doctor_id" in session.attrs:
-                        session_owner = session.attrs["doctor_id"]
-                    elif "owner_id" in session.attrs:
-                        session_owner = session.attrs["owner_id"]
-                    elif "user_id" in session.attrs:
-                        session_owner = session.attrs["user_id"]
-
-                    # If session has owner, verify it matches
-                    if session_owner is not None:
-                        if isinstance(session_owner, bytes):
-                            session_owner = session_owner.decode("utf-8")
-                        if session_owner != doctor_id:
-                            continue  # Skip - not owned by this doctor
-                    else:
-                        # Legacy session without owner - log and skip for security
-                        logger.debug(
-                            "AUDIO_SESSION_NO_OWNER",
-                            session_id=session_id,
-                            action="skipped",
-                            reason="No owner metadata - security isolation",
-                        )
-                        continue
-
-                    if "tasks" not in session:  # type: ignore[operator]
-                        continue
-
-                    tasks = session["tasks"]
-                    if "TRANSCRIPTION" not in tasks:  # type: ignore[operator]
-                        continue
-
-                    trans_task = tasks["TRANSCRIPTION"]
-                    if "chunks" not in trans_task:  # type: ignore[operator]
-                        continue
-
-                    chunks_group = trans_task["chunks"]
-
-                    for chunk_name in chunks_group:
-                        chunk = chunks_group[chunk_name]
-
-                        # Get timestamp
-                        created_at = None
-                        if "created_at" in chunk:  # type: ignore[operator]
-                            created_at_ds = chunk["created_at"]
-                            if isinstance(created_at_ds, h5py.Dataset):
-                                created_at = created_at_ds[()].decode("utf-8")
-
-                        if not created_at:
-                            continue
-
-                        ts = _parse_timestamp(created_at)
-
-                        # Apply time range filter early
-                        if start_ts and ts < start_ts:
-                            continue
-                        if end_ts and ts > end_ts:
-                            continue
-
-                        # Read chunk data
-                        chunk_data = {
-                            "session_id": session_id,
-                            "chunk_name": chunk_name,
-                        }
-
-                        # Transcript
-                        if "transcript" in chunk:  # type: ignore[operator]
-                            ds = chunk["transcript"]
-                            if isinstance(ds, h5py.Dataset):
-                                chunk_data["transcript"] = ds[()].decode("utf-8")
-
-                        # Duration
-                        if "duration" in chunk:  # type: ignore[operator]
-                            ds = chunk["duration"]
-                            if isinstance(ds, h5py.Dataset):
-                                chunk_data["duration"] = float(ds[()])
-
-                        # Confidence
-                        if "confidence_score" in chunk:  # type: ignore[operator]
-                            ds = chunk["confidence_score"]
-                            if isinstance(ds, h5py.Dataset):
-                                chunk_data["confidence"] = float(ds[()])
-
-                        # Language
-                        if "language" in chunk:  # type: ignore[operator]
-                            ds = chunk["language"]
-                            if isinstance(ds, h5py.Dataset):
-                                chunk_data["language"] = ds[()].decode("utf-8")
-
-                        # STT Provider
-                        if "stt_provider" in chunk:  # type: ignore[operator]
-                            ds = chunk["stt_provider"]
-                            if isinstance(ds, h5py.Dataset):
-                                chunk_data["stt_provider"] = ds[()].decode("utf-8")
-
-                        # Chunk number (extract from name like "chunk_0")
-                        try:
-                            chunk_data["chunk_number"] = int(chunk_name.split("_")[1])
-                        except (IndexError, ValueError):
-                            chunk_data["chunk_number"] = 0
-
-                        all_chunks.append((ts, session_id, chunk_data))
-
-                except Exception as e:
-                    logger.warning(
-                        "AUDIO_SESSION_READ_ERROR",
-                        session_id=session_id,
-                        error=str(e),
-                    )
-                    continue
-
-            # Sort by timestamp (newest first)
-            all_chunks.sort(key=lambda x: x[0], reverse=True)
-            total_count = len(all_chunks)
-
-            # Apply pagination
-            paginated = all_chunks[offset : offset + limit]
-
-            # Convert to MemoryEvent
-            for ts, session_id, chunk_data in paginated:
-                events.append(
-                    MemoryEvent(
-                        id=f"audio-{session_id}-{chunk_data.get('chunk_number', 0)}",
-                        timestamp=ts,
-                        event_type="transcription",
-                        content=chunk_data.get("transcript", ""),
-                        source="audio",
-                        session_id=session_id,
-                        chunk_number=chunk_data.get("chunk_number"),
-                        duration=chunk_data.get("duration"),
-                        confidence=chunk_data.get("confidence"),
-                        language=chunk_data.get("language"),
-                        stt_provider=chunk_data.get("stt_provider"),
-                    )
-                )
-
-        return events, total_count
-
-    except Exception as e:
-        logger.error("AUDIO_EVENTS_FETCH_ERROR", error=str(e), exc_info=True)
-        return [], 0
 
 
 # ============================================================================
@@ -380,8 +142,9 @@ async def get_longitudinal_memory(
         None,
         description="End time (ISO 8601 or Unix timestamp)",
     ),
+    service: DIMemoryService = Depends(get_memory_service),
 ) -> LongitudinalMemoryResponse:
-    """Get longitudinal memory combining chat messages and audio transcriptions.
+    """Get longitudinal memory combining chat messages and audio transcriptions (THIN ROUTER).
 
     All events are sorted chronologically (newest first) and can be filtered
     by type and time range.
@@ -395,12 +158,13 @@ async def get_longitudinal_memory(
         event_type: Filter by "all", "chat", or "audio"
         start_time: Optional start of time range
         end_time: Optional end of time range
+        service: Memory service (injected by FastAPI Depends)
 
     Returns:
         LongitudinalMemoryResponse with merged, sorted events
     """
-    logger.info(
-        "LONGITUDINAL_MEMORY_REQUEST",
+    # Delegate to service (all business logic)
+    result = await service.get_longitudinal_memory(
         doctor_id=doctor_id,
         offset=offset,
         limit=limit,
@@ -409,86 +173,8 @@ async def get_longitudinal_memory(
         end_time=end_time,
     )
 
-    # Audit log for HIPAA compliance - track who accesses timeline
-    logger.info(
-        "PHI_ACCESS",
-        doctor_id=doctor_id,
-        action="VIEW_TIMELINE",
-        event_type=event_type.value,
-        timestamp=datetime.utcnow().isoformat(),
-    )
-
-    # Parse time range
-    start_ts: int | None = None
-    end_ts: int | None = None
-
-    if start_time:
-        start_ts = _parse_timestamp(start_time)
-    if end_time:
-        end_ts = _parse_timestamp(end_time)
-
-    # Fetch events based on filter
-    chat_events: list[MemoryEvent] = []
-    audio_events: list[MemoryEvent] = []
-    chat_total = 0
-    audio_total = 0
-
-    if event_type in (EventType.ALL, EventType.CHAT):
-        chat_events, chat_total = _get_chat_events(
-            doctor_id=doctor_id,
-            start_ts=start_ts,
-            end_ts=end_ts,
-            limit=limit,
-            offset=0 if event_type == EventType.ALL else offset,
-        )
-
-    if event_type in (EventType.ALL, EventType.AUDIO):
-        audio_events, audio_total = _get_audio_events(
-            doctor_id=doctor_id,
-            start_ts=start_ts,
-            end_ts=end_ts,
-            limit=limit,
-            offset=0 if event_type == EventType.ALL else offset,
-        )
-
-    # Merge and sort
-    all_events = chat_events + audio_events
-    all_events.sort(key=lambda e: e.timestamp, reverse=True)
-
-    # Apply pagination to merged result
-    if event_type == EventType.ALL:
-        all_events = all_events[offset : offset + limit]
-
-    total = (
-        chat_total + audio_total
-        if event_type == EventType.ALL
-        else (chat_total if event_type == EventType.CHAT else audio_total)
-    )
-
-    logger.info(
-        "LONGITUDINAL_MEMORY_SUCCESS",
-        doctor_id=doctor_id,
-        returned=len(all_events),
-        chat_count=len([e for e in all_events if e.source == "chat"]),
-        audio_count=len([e for e in all_events if e.source == "audio"]),
-        total=total,
-    )
-
-    return LongitudinalMemoryResponse(
-        events=all_events,
-        total=total,
-        has_more=(offset + len(all_events)) < total,
-        offset=offset,
-        limit=limit,
-        chat_count=len([e for e in all_events if e.source == "chat"]),
-        audio_count=len([e for e in all_events if e.source == "audio"]),
-        time_range={
-            "start": start_time,
-            "end": end_time,
-            "start_ts": start_ts,
-            "end_ts": end_ts,
-        },
-    )
+    # Map service result to API response
+    return LongitudinalMemoryResponse(**result)
 
 
 @router.get(
@@ -501,154 +187,36 @@ async def search_memory(
     query: str = Query(..., min_length=1, max_length=500, description="Search query"),
     limit: int = Query(50, ge=1, le=TimelineConfig.MAX_LIMIT),
     offset: int = Query(0, ge=0),
+    service: DIMemoryService = Depends(get_memory_service),
 ) -> LongitudinalMemoryResponse:
-    """Search longitudinal memory by text query.
+    """Search longitudinal memory by text query (THIN ROUTER).
 
     Uses case-insensitive substring matching across content.
     Searches both chat messages and audio transcriptions.
 
     Returns results sorted by timestamp (newest first).
     Future enhancement: Semantic search with embeddings.
+
+    Args:
+        doctor_id: Doctor identifier (Auth0 user.sub)
+        query: Search text (1-500 characters)
+        limit: Maximum events to return (max 200)
+        offset: Number of events to skip for pagination
+        service: Memory service (injected by FastAPI Depends)
+
+    Returns:
+        LongitudinalMemoryResponse with search results
     """
-    logger.info(
-        "MEMORY_SEARCH_REQUEST",
+    # Delegate to service (all business logic)
+    result = await service.search_memory(
         doctor_id=doctor_id,
         query=query,
         limit=limit,
         offset=offset,
     )
 
-    # Audit log for HIPAA compliance
-    logger.info(
-        "PHI_ACCESS",
-        doctor_id=doctor_id,
-        action="SEARCH_TIMELINE",
-        query_length=len(query),
-        timestamp=datetime.utcnow().isoformat(),
-    )
-
-    query_lower = query.lower()
-    matching_events: list[MemoryEvent] = []
-
-    # Search chat messages
-    try:
-        memory = get_memory_manager(doctor_id)
-        result = memory.get_paginated_history(
-            offset=0,
-            limit=1000,  # Search larger window
-            session_id=None,
-        )
-
-        for idx, interaction in enumerate(result["interactions"]):
-            # Check if query matches in content (case-insensitive)
-            if query_lower in interaction.content.lower():
-                event_type: Literal["chat_user", "chat_assistant"] = (
-                    "chat_user" if interaction.role == "user" else "chat_assistant"
-                )
-                matching_events.append(
-                    MemoryEvent(
-                        id=f"chat_{interaction.role}_{interaction.timestamp}_{idx}",
-                        timestamp=interaction.timestamp,
-                        event_type=event_type,
-                        content=interaction.content,
-                        source="chat",
-                        session_id=interaction.session_id,
-                        persona=interaction.persona if interaction.role == "assistant" else None,
-                    )
-                )
-    except Exception as e:
-        logger.warning("CHAT_SEARCH_ERROR", error=str(e))
-
-    # Search audio transcriptions
-    try:
-        with h5py.File(CORPUS_PATH, "r") as f:
-            if "sessions" in f:
-                for session_key in f["sessions"]:
-                    session_grp = f["sessions"][session_key]
-
-                    # SECURITY: Check session ownership
-                    session_owner = None
-                    if "doctor_id" in session_grp.attrs:
-                        session_owner = session_grp.attrs["doctor_id"]
-                    elif "owner_id" in session_grp.attrs:
-                        session_owner = session_grp.attrs["owner_id"]
-                    elif "user_id" in session_grp.attrs:
-                        session_owner = session_grp.attrs["user_id"]
-
-                    if session_owner is not None:
-                        if isinstance(session_owner, bytes):
-                            session_owner = session_owner.decode("utf-8")
-                        if session_owner != doctor_id:
-                            continue  # Skip - not owned by this doctor
-                    else:
-                        continue  # Skip legacy sessions without owner
-
-                    if "tasks" not in session_grp:
-                        continue
-
-                    tasks_grp = session_grp["tasks"]
-                    if "TRANSCRIPTION" not in tasks_grp:
-                        continue
-
-                    trans_grp = tasks_grp["TRANSCRIPTION"]
-
-                    for chunk_key in trans_grp:
-                        chunk_ds = trans_grp[chunk_key]
-
-                        if "transcript" not in chunk_ds.attrs:
-                            continue
-
-                        transcript = chunk_ds.attrs["transcript"]
-
-                        # Check if query matches
-                        if query_lower in transcript.lower():
-                            ts = chunk_ds.attrs.get("timestamp", 0)
-
-                            matching_events.append(
-                                MemoryEvent(
-                                    id=f"audio_{session_key}_{chunk_key}",
-                                    timestamp=_parse_timestamp(ts),
-                                    event_type="transcription",
-                                    content=transcript,
-                                    source="audio",
-                                    session_id=session_key,
-                                    chunk_number=int(chunk_key.split("_")[-1])
-                                    if "_" in chunk_key
-                                    else None,
-                                    duration=chunk_ds.attrs.get("duration"),
-                                    confidence=chunk_ds.attrs.get("confidence"),
-                                    language=chunk_ds.attrs.get("language"),
-                                    stt_provider=chunk_ds.attrs.get("stt_provider"),
-                                )
-                            )
-    except Exception as e:
-        logger.warning("AUDIO_SEARCH_ERROR", error=str(e))
-
-    # Sort by timestamp (newest first)
-    matching_events.sort(key=lambda e: e.timestamp, reverse=True)
-
-    # Apply pagination
-    total = len(matching_events)
-    paginated = matching_events[offset : offset + limit]
-
-    logger.info(
-        "MEMORY_SEARCH_SUCCESS",
-        doctor_id=doctor_id,
-        query=query,
-        total_matches=total,
-        returned=len(paginated),
-    )
-
-    return LongitudinalMemoryResponse(
-        events=paginated,
-        total=total,
-        has_more=(offset + len(paginated)) < total,
-        offset=offset,
-        limit=limit,
-        chat_count=len([e for e in paginated if e.source == "chat"]),
-        audio_count=len([e for e in paginated if e.source == "audio"]),
-        time_range={"start": None, "end": None, "start_ts": None, "end_ts": None},
-    )
+    # Map service result to API response
+    return LongitudinalMemoryResponse(**result)
 
 
 @router.get(
@@ -658,88 +226,22 @@ async def search_memory(
 )
 async def get_memory_stats(
     doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
+    service: DIMemoryService = Depends(get_memory_service),
 ) -> MemoryStatsResponse:
-    """Get statistics for the longitudinal memory.
+    """Get statistics for the longitudinal memory (THIN ROUTER).
 
     Provides counts and metadata without fetching full events.
     Useful for UI indicators and pagination info.
+
+    Args:
+        doctor_id: Doctor identifier (Auth0 user.sub)
+        service: Memory service (injected by FastAPI Depends)
+
+    Returns:
+        MemoryStatsResponse with aggregate statistics
     """
-    logger.info("MEMORY_STATS_REQUEST", doctor_id=doctor_id)
+    # Delegate to service (all business logic)
+    result = await service.get_stats(doctor_id=doctor_id)
 
-    chat_count = 0
-    audio_count = 0
-    oldest_ts: int | None = None
-    newest_ts: int | None = None
-    unique_sessions: set[str] = set()
-
-    # Chat stats
-    try:
-        memory = get_memory_manager(doctor_id)
-        stats = memory.get_stats()
-        chat_count = stats.get("total_interactions", 0)
-    except Exception:
-        pass
-
-    # Audio stats (quick scan) - SECURITY: filter by doctor_id
-    all_timestamps: list[int] = []
-    try:
-        with h5py.File(CORPUS_PATH, "r") as f:
-            if "sessions" in f:
-                sessions_group = f["sessions"]
-                for session_id in sessions_group:
-                    try:
-                        session = sessions_group[session_id]
-
-                        # SECURITY: Check session ownership
-                        session_owner = None
-                        if "doctor_id" in session.attrs:
-                            session_owner = session.attrs["doctor_id"]
-                        elif "owner_id" in session.attrs:
-                            session_owner = session.attrs["owner_id"]
-                        elif "user_id" in session.attrs:
-                            session_owner = session.attrs["user_id"]
-
-                        if session_owner is not None:
-                            if isinstance(session_owner, bytes):
-                                session_owner = session_owner.decode("utf-8")
-                            if session_owner != doctor_id:
-                                continue  # Skip - not owned by this doctor
-                        else:
-                            continue  # Skip legacy sessions without owner
-
-                        unique_sessions.add(session_id)
-                        if "tasks" in session:  # type: ignore[operator]
-                            tasks = session["tasks"]
-                            if "TRANSCRIPTION" in tasks:  # type: ignore[operator]
-                                trans = tasks["TRANSCRIPTION"]
-                                if "chunks" in trans:  # type: ignore[operator]
-                                    chunks_grp = trans["chunks"]
-                                    audio_count += len(chunks_grp.keys())
-
-                                    # Collect timestamps for oldest/newest
-                                    for chunk_name in chunks_grp:
-                                        chunk = chunks_grp[chunk_name]
-                                        if "created_at" in chunk:  # type: ignore[operator]
-                                            created_at_ds = chunk["created_at"]
-                                            if isinstance(created_at_ds, h5py.Dataset):
-                                                created_at = created_at_ds[()].decode("utf-8")
-                                                ts = _parse_timestamp(created_at)
-                                                all_timestamps.append(ts)
-                    except Exception:
-                        continue
-    except Exception:
-        pass
-
-    # Calculate oldest/newest from collected timestamps
-    if all_timestamps:
-        oldest_ts = min(all_timestamps)
-        newest_ts = max(all_timestamps)
-
-    return MemoryStatsResponse(
-        total_events=chat_count + audio_count,
-        chat_messages=chat_count,
-        audio_transcriptions=audio_count,
-        oldest_timestamp=oldest_ts,
-        newest_timestamp=newest_ts,
-        unique_sessions=len(unique_sessions),
-    )
+    # Map service result to API response
+    return MemoryStatsResponse(**result)

@@ -29,8 +29,8 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from backend.container import get_container
-from backend.core.infrastructure.auth.adapters.fastapi_adapter import get_current_user
-from backend.core.infrastructure.auth.domain import User
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain import User
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field

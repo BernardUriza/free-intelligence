@@ -9,7 +9,7 @@ from typing import Any
 from backend.utils.coder.execution.executor import execute_qwen_code
 from backend.utils.coder.observability.metrics import MetricsCollector
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
+from backend.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
 from pathlib import Path
 
 logger = get_logger(__name__)

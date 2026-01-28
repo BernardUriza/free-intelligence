@@ -10,8 +10,10 @@ Card: Backend Refactor Phase 2 - True Dependency Injection
 
 from .iaudio_chunk_repository import IAudioChunkRepository
 from .imemory_store import IMemoryStore
+from .itask_repository import ITaskRepository
 
 __all__ = [
     "IAudioChunkRepository",
     "IMemoryStore",
+    "ITaskRepository",
 ]

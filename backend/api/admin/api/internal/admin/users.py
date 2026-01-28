@@ -22,8 +22,8 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from backend.core.infrastructure.auth import User, UserRole, require_roles
-from backend.core.infrastructure.auth.services.auth0_management import get_auth0_service
+from backend.infrastructure.auth import User, UserRole, require_roles
+from backend.infrastructure.auth.services.auth0_management import get_auth0_service
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 

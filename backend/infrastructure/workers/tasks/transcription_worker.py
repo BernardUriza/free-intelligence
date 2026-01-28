@@ -10,7 +10,7 @@ from backend.models.task_type import TaskStatus, TaskType
 from backend.providers.stt import get_stt_provider
 from backend.utils.common.logging.logger import get_logger
 from backend.container import get_container
-from backend.core.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
+from backend.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
 from backend.utils.stt_load_balancer import get_stt_load_balancer
 
 logger = get_logger(__name__)

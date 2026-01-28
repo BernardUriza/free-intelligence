@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from backend.container import get_container
-from backend.core.infrastructure.auth import User, get_current_user
+from backend.infrastructure.auth import User, get_current_user
 from backend.utils.common.api.public.models import (
     DoctorFeedbackRequest,
     DoctorFeedbackResponse,

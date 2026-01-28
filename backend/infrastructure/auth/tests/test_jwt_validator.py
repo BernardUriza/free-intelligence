@@ -5,8 +5,8 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
-from backend.core.infrastructure.auth.domain.entities.user import UserRole
-from backend.core.infrastructure.auth.infrastructure.jwt.jwt_validator import JWTValidator
+from backend.infrastructure.auth.domain.entities.user import UserRole
+from backend.infrastructure.auth.infrastructure.jwt.jwt_validator import JWTValidator
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 

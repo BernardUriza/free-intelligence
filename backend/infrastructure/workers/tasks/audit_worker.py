@@ -6,7 +6,7 @@ from typing import Any
 
 from backend.app.audit.sink import write_audit_event
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.workers.tasks.base_worker import WorkerResult
+from backend.infrastructure.workers.tasks.base_worker import WorkerResult
 
 logger = get_logger(__name__)
 

@@ -56,7 +56,7 @@ def get_orders(session_id: str) -> list[dict]:
     """Get orders via DI container."""
     task_repo = get_container().get_task_repository()
     return task_repo.get_orders(session_id)
-from backend.core.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
+from backend.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
 from backend.services.workflow.services.workflow_tracker import get_workflow_tracker
 
 logger = get_logger(__name__)

@@ -16,7 +16,7 @@ from backend.models.catalog_model import (
     ModelInstallProgress,
     QuantizationType,
 )
-from backend.core.infrastructure.model_catalog.services.sources.base import CatalogSourceBase
+from backend.infrastructure.model_catalog.services.sources.base import CatalogSourceBase
 
 
 def _extract_quantization_from_filename(filename: str) -> QuantizationType:

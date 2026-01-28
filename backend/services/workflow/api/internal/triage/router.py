@@ -1,9 +1,13 @@
-"""Triage API Router.
+"""Triage API Router (REFACTORED with DI).
+
+REFACTORED: Uses FastAPI Depends() instead of inline get_container().
 
 Triage intake flow
 
 File: backend/api/triage/router.py
 Created: 2025-11-08
+Refactored: 2026-01-28 (Phase 2.3 - DI pattern)
+Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
 
 from __future__ import annotations
@@ -11,9 +15,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal, Union
 
-from backend.container import get_container
+from backend.api.audit.services.audit_service import AuditService
+from backend.services.workflow.dependencies import (
+    get_audit_service_dep,
+    get_triage_service_dep,
+)
+from backend.services.workflow.services.triage_service import TriageService
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, constr, field_validator
 
 logger = get_logger(__name__)
@@ -65,18 +74,25 @@ class IntakeAck(BaseModel):
 
 
 @router.post("/intake", response_model=IntakeAck, status_code=status.HTTP_200_OK)
-async def triage_intake(payload: IntakePayload, request: Request) -> IntakeAck:
+async def triage_intake(
+    payload: IntakePayload,
+    request: Request,
+    triage_service: TriageService = Depends(get_triage_service_dep),
+    audit_service: AuditService = Depends(get_audit_service_dep),
+) -> IntakeAck:
     """
-    Receive triage intake and store atomically in buffer directory.
+    Receive triage intake and store atomically in buffer directory (REFACTORED with DI).
 
     **Clean Code Architecture:**
     - TriageService handles buffer creation and storage
-    - Uses DI container for dependency injection
+    - Uses FastAPI Depends() for dependency injection
     - AuditService logs all triage intakes
 
     Args:
         payload: Triage intake data
         request: FastAPI request object (for client IP)
+        triage_service: Triage service (injected by FastAPI)
+        audit_service: Audit service (injected by FastAPI)
 
     Returns:
         IntakeAck with bufferId and manifest URL
@@ -85,9 +101,6 @@ async def triage_intake(payload: IntakePayload, request: Request) -> IntakeAck:
         HTTPException 500: Storage errors
     """
     try:
-        # Get services from DI container
-        triage_service = get_container().get_triage_service()
-        audit_service = get_container().get_audit_service()
 
         # Extract client info
         client_ip = request.client.host if request.client else "unknown"
@@ -134,17 +147,23 @@ async def triage_intake(payload: IntakePayload, request: Request) -> IntakeAck:
 
 
 @router.get("/manifest/{buffer_id}")
-async def get_manifest(buffer_id: str) -> dict[str, Any]:
+async def get_manifest(
+    buffer_id: str,
+    triage_service: TriageService = Depends(get_triage_service_dep),
+    audit_service: AuditService = Depends(get_audit_service_dep),
+) -> dict[str, Any]:
     """
-    Retrieve manifest for a triage buffer.
+    Retrieve manifest for a triage buffer (REFACTORED with DI).
 
     **Clean Code Architecture:**
     - TriageService handles manifest retrieval
-    - Uses DI container for dependency injection
+    - Uses FastAPI Depends() for dependency injection
     - AuditService logs all manifest retrievals
 
     Args:
         buffer_id: Buffer identifier
+        triage_service: Triage service (injected by FastAPI)
+        audit_service: Audit service (injected by FastAPI)
 
     Returns:
         Manifest JSON
@@ -153,9 +172,6 @@ async def get_manifest(buffer_id: str) -> dict[str, Any]:
         HTTPException 404: Buffer not found
     """
     try:
-        # Get services from DI container
-        triage_service = get_container().get_triage_service()
-        audit_service = get_container().get_audit_service()
 
         # Delegate to service
         result = triage_service.get_manifest(buffer_id)

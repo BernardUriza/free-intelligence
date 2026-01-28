@@ -81,7 +81,7 @@ async def analyze_session_intelligent_workflow(
     language: str | None = None,
 ) -> dict:
     from backend.models.task_type import TaskStatus, TaskType
-    from backend.core.infrastructure.workers.executor_pool import spawn_worker
+    from backend.infrastructure.workers.executor_pool import spawn_worker
     from backend.services.workflow.services.workflow_router import get_workflow_router
 
     try:
@@ -163,17 +163,17 @@ async def analyze_session_intelligent_workflow(
                 )
                 continue
             elif task_type == TaskType.DIARIZATION:
-                from backend.core.infrastructure.workers.tasks.diarization_worker import diarization_worker
+                from backend.infrastructure.workers.tasks.diarization_worker import diarization_worker
 
                 spawn_worker(diarization_worker, session_id=session_id)
                 job_ids["DIARIZATION"] = session_id
             elif task_type == TaskType.SOAP_GENERATION:
-                from backend.core.infrastructure.workers.tasks.soap_worker import generate_soap_worker
+                from backend.infrastructure.workers.tasks.soap_worker import generate_soap_worker
 
                 spawn_worker(generate_soap_worker, session_id=session_id)
                 job_ids["SOAP_GENERATION"] = session_id
             elif task_type == TaskType.EMOTION_ANALYSIS:
-                from backend.core.infrastructure.workers.tasks.emotion_worker import analyze_emotion_worker
+                from backend.infrastructure.workers.tasks.emotion_worker import analyze_emotion_worker
 
                 spawn_worker(analyze_emotion_worker, session_id=session_id)
                 job_ids["EMOTION_ANALYSIS"] = session_id

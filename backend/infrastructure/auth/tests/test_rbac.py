@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from backend.core.infrastructure.auth.domain.entities.user import User, UserRole
-from backend.core.infrastructure.auth.infrastructure.middleware.rbac_middleware import (
+from backend.infrastructure.auth.domain.entities.user import User, UserRole
+from backend.infrastructure.auth.infrastructure.middleware.rbac_middleware import (
     require_permission,
     require_roles,
 )

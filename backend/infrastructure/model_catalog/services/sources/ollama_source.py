@@ -22,8 +22,8 @@ from backend.models.catalog_model import (
     CatalogSource,
     ModelInstallProgress,
 )
-from backend.core.infrastructure.model_catalog.services.sources.base import CatalogSourceBase
-from backend.core.infrastructure.model_catalog.services.tunnel_url_provider import get_tunnel_url_provider
+from backend.infrastructure.model_catalog.services.sources.base import CatalogSourceBase
+from backend.infrastructure.model_catalog.services.tunnel_url_provider import get_tunnel_url_provider
 
 
 def _parse_ollama_name(name: str) -> tuple[str, str]:

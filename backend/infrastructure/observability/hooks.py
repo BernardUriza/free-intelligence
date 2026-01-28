@@ -37,7 +37,7 @@ def log_llm_call(
     Returns the call ID if successful, None if logging fails.
 
     Example usage in existing code:
-        from backend.core.infrastructure.observability.hooks import log_llm_call
+        from backend.infrastructure.observability.hooks import log_llm_call
 
         log_llm_call(
             model=model_name,

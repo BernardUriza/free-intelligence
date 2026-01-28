@@ -21,7 +21,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from typing import Optional
 
 import structlog
-from backend.core.infrastructure.auth import User, UserRole, require_roles
+from backend.infrastructure.auth import User, UserRole, require_roles
 from backend.api.license.generator import LicensePayload, generate_license_key
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field

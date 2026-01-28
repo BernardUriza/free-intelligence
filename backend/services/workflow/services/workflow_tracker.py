@@ -109,8 +109,16 @@ class WorkflowTracker:
             trigger_consolidation("session-123")
     """
 
-    def __init__(self):
+    def __init__(self, task_repository=None):
+        """Initialize workflow tracker with dependencies.
+
+        Args:
+            task_repository: Task repository for session validation (optional, uses container if not provided)
+        """
+        from backend.container import get_container
+
         self.logger = get_logger(__name__)
+        self.task_repo = task_repository or get_container().get_task_repository()
         # session_id → {task_type → TaskExecution}
         self._workflows: dict[str, dict[str, TaskExecution]] = defaultdict(dict)
         self._lock = threading.RLock()
@@ -413,7 +421,6 @@ class WorkflowTracker:
         def consolidate_in_background():
             """Background consolidation with error handling."""
             try:
-                from backend.container import get_container
 
                 def consolidate_session_to_corpus(session_id, delete_after=False):
                     """Validate session exists in corpus.h5 (already consolidated in new architecture).
@@ -423,7 +430,8 @@ class WorkflowTracker:
 
                     This function validates the session exists and is ready for long-term storage.
                     """
-                    task_repo = get_container().get_task_repository()
+                    # Use injected task_repo (from WorkflowTracker.__init__)
+                    task_repo = self.task_repo
 
                     # Validate session has at least TRANSCRIPTION task
                     if not task_repo.task_exists(session_id, "TRANSCRIPTION"):

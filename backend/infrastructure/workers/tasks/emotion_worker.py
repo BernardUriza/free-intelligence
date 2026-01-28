@@ -12,7 +12,7 @@ from backend.models.task_type import TaskStatus, TaskType
 from backend.schemas.llm.preset_loader import get_preset_loader
 from backend.utils.common.logging.logger import get_logger
 from backend.container import get_container
-from backend.core.infrastructure.workers.tasks.base_worker import measure_time
+from backend.infrastructure.workers.tasks.base_worker import measure_time
 from pathlib import Path
 
 # Use DI container for task repository functions

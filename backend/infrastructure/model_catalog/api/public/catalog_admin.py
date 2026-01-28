@@ -12,7 +12,7 @@ from backend.models.catalog_model import (
     ModelInstallProgress,
     ModelInstallRequest,
 )
-from backend.core.infrastructure.model_catalog.services.catalog_service import CatalogService
+from backend.infrastructure.model_catalog.services.catalog_service import CatalogService
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -245,7 +245,7 @@ async def delete_installed_model(model_id: str):
         raise HTTPException(status_code=400, detail="El modelo no está instalado")
 
     # Eliminar de Ollama
-    from backend.core.infrastructure.model_catalog.services.sources.ollama_source import OllamaCatalogSource
+    from backend.infrastructure.model_catalog.services.sources.ollama_source import OllamaCatalogSource
 
     ollama = OllamaCatalogSource()
     success = await ollama.delete_model(model.filename)

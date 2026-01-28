@@ -1,4 +1,6 @@
-"""Internal transcription API - Session-based chunk processing.
+"""Internal transcription API - REFACTORED with Dependency Injection.
+
+THIN ROUTER: All business logic delegated to DITranscriptionService.
 
 INTERNAL layer:
 - Creates/updates TranscriptionJob (1 per session)
@@ -11,20 +13,20 @@ Architecture:
 Storage:
   /sessions/{session_id}/tasks/TRANSCRIPTION/  (Task-based HDF5)
 
-Author: Bernard Uriza Orozco
+Author: Bernard Uriza Orozco, Claude Code (refactored)
 Created: 2025-11-14
-Updated: 2025-11-15 (Migrated from Celery to sync workers)
-Card: Architecture unification
+Refactored: 2026-01-28 (Phase 2.3 - DI pattern)
+Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
-from backend.container import get_container
-from backend.models.task_type import TaskStatus, TaskType
+from backend.services.transcription.dependencies import get_transcription_service
+from backend.services.transcription.services.di_transcription_service import (
+    DITranscriptionService,
+)
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -63,7 +65,7 @@ class TranscriptionJobResponse(BaseModel):
 
 
 # ============================================================================
-# Endpoints
+# Endpoints (THIN - business logic in DITranscriptionService)
 # ============================================================================
 
 
@@ -74,11 +76,9 @@ async def upload_chunk(
     audio: UploadFile = File(...),
     timestamp_start: float | None = Form(None),
     timestamp_end: float | None = Form(None),
-    stt_provider: str | None = Form(None),
+    service: DITranscriptionService = Depends(get_transcription_service),
 ) -> ChunkUploadResponse:
-    """Upload audio chunk for transcription.
-
-    Creates or updates TranscriptionJob and dispatches Celery worker.
+    """Upload audio chunk for transcription (THIN router - delegates to service).
 
     Args:
         session_id: Session UUID (also used as job_id)
@@ -86,117 +86,48 @@ async def upload_chunk(
         audio: Audio file (WebM/WAV/MP3)
         timestamp_start: Optional chunk start time
         timestamp_end: Optional chunk end time
-        stt_provider: Optional STT provider ("deepgram" - primary, "azure_whisper" deprecated)
-                      If not provided, uses primary_provider from policy (deepgram)
+        service: Transcription service (injected by FastAPI Depends)
 
     Returns:
-        ChunkUploadResponse with job status
+        ChunkUploadResponse with job status (202 Accepted)
 
-    Flow:
-        1. Load or create TranscriptionJob
-        2. Add ChunkMetadata (status="pending")
-        3. Save to HDF5 (JobRepository)
-        4. Dispatch Celery task with STT provider
-        5. Return 202 Accepted
+    Raises:
+        HTTPException: 400 if validation fails, 500 if processing fails
     """
     try:
+        # Read audio bytes
         audio_bytes = await audio.read()
-        audio_size = len(audio_bytes)
 
-        logger.info(
-            "CHUNK_UPLOAD_RECEIVED",
+        # Delegate to service (all business logic)
+        result = await service.process_chunk(
             session_id=session_id,
             chunk_number=chunk_number,
-            audio_size=audio_size,
+            audio_bytes=audio_bytes,
+            timestamp_start=timestamp_start,
+            timestamp_end=timestamp_end,
         )
 
-        # 1. Ensure TRANSCRIPTION task exists (allow existing)
-        get_container().get_task_repository().ensure_task_exists(
-            session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION.value,
-            metadata=None,
-        )
-
-        # 2. Get current metadata
-        metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION.value)
-        if not metadata:
-            metadata = {
-                "job_id": session_id,
-                "status": TaskStatus.PENDING.name.lower(),
-                "total_chunks": 0,
-                "processed_chunks": 0,
-                "progress_percent": 0,
-            }
-
-        # 3. Update chunk count if this is a new chunk
-        existing_chunks = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
-        chunk_numbers = [c.get("chunk_number", -1) for c in existing_chunks]
-
-        if chunk_number not in chunk_numbers:
-            metadata["total_chunks"] = metadata.get("total_chunks", 0) + 1
-            get_container().get_task_repository().save_task_metadata(session_id, TaskType.TRANSCRIPTION.value, metadata)
-
-        logger.info(
-            "TASK_READY_FOR_PROCESSING",
-            session_id=session_id,
-            chunk_number=chunk_number,
-            total_chunks=metadata["total_chunks"],
-        )
-
-        # 4. Determine STT provider (adaptive if not specified)
-        # If stt_provider is None, the worker will use adaptive load balancing
-        if stt_provider:
-            logger.info(
-                "STT_PROVIDER_EXPLICIT",
-                session_id=session_id,
-                chunk_number=chunk_number,
-                provider=stt_provider,
-            )
-        else:
-            logger.info(
-                "STT_PROVIDER_ADAPTIVE",
-                session_id=session_id,
-                chunk_number=chunk_number,
-                message="Using adaptive load balancing for provider selection",
-            )
-
-        # 5. Dispatch sync worker (worker writes to HDF5)
-        from concurrent.futures import ThreadPoolExecutor
-
-        from backend.core.infrastructure.workers.sync_workers import transcribe_chunk_worker
-
-        # Run transcription in background thread to avoid blocking
-        executor = ThreadPoolExecutor(max_workers=4)
-        _future = executor.submit(  # Intentionally unused - fire and forget
-            transcribe_chunk_worker,
-            session_id=session_id,
-            chunk_number=chunk_number,
-            stt_provider=stt_provider,
-        )
-
-        logger.info(
-            "TRANSCRIBE_TASK_DISPATCHED",
-            session_id=session_id,
-            chunk_number=chunk_number,
-        )
-
-        # 6. Return 202 Accepted
+        # Map service result to API response
         return ChunkUploadResponse(
-            session_id=session_id,
-            job_id=session_id,
-            chunk_number=chunk_number,
-            status="pending",
-            total_chunks=metadata["total_chunks"],
-            processed_chunks=metadata.get("processed_chunks", 0),
+            session_id=result.session_id,
+            job_id=result.task_id,
+            chunk_number=result.chunk_number,
+            status=result.status,
+            total_chunks=result.total_chunks,
+            processed_chunks=result.processed_chunks,
         )
+
+    except ValueError as e:
+        # Business validation error (400)
+        logger.warning("CHUNK_VALIDATION_FAILED", session_id=session_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
 
     except Exception as e:
-        logger.error(
-            "CHUNK_UPLOAD_FAILED",
-            session_id=session_id,
-            chunk_number=chunk_number,
-            error=str(e),
-        )
+        # Unexpected error (500)
+        logger.error("CHUNK_UPLOAD_FAILED", session_id=session_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload chunk: {e!s}",
@@ -204,66 +135,49 @@ async def upload_chunk(
 
 
 @router.get("/jobs/{session_id}", response_model=TranscriptionJobResponse)
-async def get_transcription_job(session_id: str) -> TranscriptionJobResponse:
-    """Get transcription job status with all chunks (task-based)."""
+async def get_transcription_job(
+    session_id: str,
+    service: DITranscriptionService = Depends(get_transcription_service),
+) -> TranscriptionJobResponse:
+    """Get transcription job status (THIN router - delegates to service).
+
+    Args:
+        session_id: Session UUID
+        service: Transcription service (injected by FastAPI Depends)
+
+    Returns:
+        TranscriptionJobResponse with status and chunks
+
+    Raises:
+        HTTPException: 404 if job not found, 500 if read fails
+    """
     try:
-        # 1. Check if task exists
-        if not get_container().get_task_repository().task_exists(session_id, TaskType.TRANSCRIPTION.value):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Transcription job not found for session {session_id}",
-            )
+        # Delegate to service (all business logic)
+        result = await service.get_transcription_status(session_id=session_id)
 
-        # 2. Get task metadata
-        metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION.value)
-        if not metadata:
-            metadata = {}
-
-        # Ensure job_id is set
-        if "job_id" not in metadata or metadata["job_id"] is None:
-            metadata["job_id"] = session_id
-
-        # 3. Get all chunks
-        chunks = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
-
-        # 4. Calculate stats from chunks
-        total_chunks = len(chunks)
-        processed_chunks = sum(1 for c in chunks if c.get("status") == "completed")
-        progress_percent = int(processed_chunks / total_chunks * 100) if total_chunks > 0 else 0
-
-        # Determine overall status
-        if processed_chunks == 0:
-            job_status = TaskStatus.PENDING.name.lower()
-        elif processed_chunks < total_chunks:
-            job_status = TaskStatus.IN_PROGRESS.name.lower()
-        else:
-            job_status = TaskStatus.COMPLETED.name.lower()
-
-        # Update metadata with current stats
-        metadata.update(
-            {
-                "total_chunks": total_chunks,
-                "processed_chunks": processed_chunks,
-                "progress_percent": progress_percent,
-                "status": job_status,
-            }
-        )
-
+        # Map service result to API response
         return TranscriptionJobResponse(
-            session_id=session_id,
-            job_id=metadata.get("job_id", session_id),
-            status=job_status,
-            total_chunks=total_chunks,
-            processed_chunks=processed_chunks,
-            progress_percent=progress_percent,
-            chunks=chunks,  # type: ignore[arg-type]
-            created_at=metadata.get("created_at", datetime.now(UTC).isoformat()),
-            updated_at=metadata.get("updated_at", datetime.now(UTC).isoformat()),
+            session_id=result["session_id"],
+            job_id=result["job_id"],
+            status=result["status"],
+            total_chunks=result["total_chunks"],
+            processed_chunks=result["processed_chunks"],
+            progress_percent=result["progress_percent"],
+            chunks=result["chunks"],
+            created_at=result["created_at"],
+            updated_at=result["updated_at"],
         )
 
-    except HTTPException:
-        raise
+    except ValueError as e:
+        # Job not found (404)
+        logger.warning("TRANSCRIPTION_JOB_NOT_FOUND", session_id=session_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+
     except Exception as e:
+        # Unexpected error (500)
         logger.error("GET_TRANSCRIPTION_JOB_FAILED", session_id=session_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -272,13 +186,30 @@ async def get_transcription_job(session_id: str) -> TranscriptionJobResponse:
 
 
 @router.get("/jobs/{session_id}/chunks/{chunk_number}")
-async def get_chunk_status(session_id: str, chunk_number: int) -> dict:
-    """Get status of a specific chunk (task-based)."""
-    try:
-        # Get all chunks
-        chunks = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
+async def get_chunk_status(
+    session_id: str,
+    chunk_number: int,
+    service: DITranscriptionService = Depends(get_transcription_service),
+) -> dict:
+    """Get status of a specific chunk (THIN router - delegates to service).
 
-        # Find the specific chunk
+    Args:
+        session_id: Session UUID
+        chunk_number: Chunk index
+        service: Transcription service (injected by FastAPI Depends)
+
+    Returns:
+        Chunk metadata dict
+
+    Raises:
+        HTTPException: 404 if chunk not found, 500 if read fails
+    """
+    try:
+        # Get all chunks from service
+        status_result = await service.get_transcription_status(session_id=session_id)
+        chunks = status_result["chunks"]
+
+        # Find specific chunk
         chunk = next((c for c in chunks if c.get("chunk_number") == chunk_number), None)
 
         if not chunk:
@@ -287,6 +218,7 @@ async def get_chunk_status(session_id: str, chunk_number: int) -> dict:
                 detail=f"Chunk {chunk_number} not found for session {session_id}",
             )
 
+        # Return chunk metadata
         return {
             "session_id": session_id,
             "chunk_number": chunk.get("chunk_number"),
@@ -300,8 +232,19 @@ async def get_chunk_status(session_id: str, chunk_number: int) -> dict:
         }
 
     except HTTPException:
+        # Re-raise HTTP exceptions (404)
         raise
+
+    except ValueError as e:
+        # Session not found (404)
+        logger.warning("SESSION_NOT_FOUND", session_id=session_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+
     except Exception as e:
+        # Unexpected error (500)
         logger.error("GET_CHUNK_STATUS_FAILED", session_id=session_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from backend.core.infrastructure.observability.alerts_simulator import main
+from backend.infrastructure.observability.alerts_simulator import main
 from pathlib import Path
 
 from ._fixtures import repo_root, write_policy_json

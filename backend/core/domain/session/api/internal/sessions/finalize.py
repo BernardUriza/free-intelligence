@@ -47,8 +47,8 @@ from backend.models import EncryptionMetadata, Session
 from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.session_repository import SessionRepository
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.workers.executor_pool import spawn_worker
-from backend.core.infrastructure.workers.tasks.encryption_worker import encrypt_session_worker
+from backend.infrastructure.workers.executor_pool import spawn_worker
+from backend.infrastructure.workers.tasks.encryption_worker import encrypt_session_worker
 
 from backend.container import get_container
 

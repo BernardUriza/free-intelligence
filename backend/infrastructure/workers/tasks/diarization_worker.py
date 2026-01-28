@@ -13,7 +13,7 @@ from backend.policy.policy_loader import get_policy_loader
 from backend.providers.diarization import get_diarization_provider
 from backend.utils.common.logging.logger import get_logger
 from backend.container import get_container
-from backend.core.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
+from backend.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
 from backend.services.workflow.services.workflow_tracker import get_workflow_tracker
 from pathlib import Path
 

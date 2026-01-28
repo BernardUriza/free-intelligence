@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 from backend.models.task_type import TaskStatus, TaskType
 from backend.utils.common.interfaces.ievent_bus import IEventBus
 from backend.utils.common.interfaces.ilogger import ILogger
-from backend.utils.common.interfaces.itask_repository import ITaskRepository
+from backend.repositories.interfaces import ITaskRepository
 
 
 class SessionService:

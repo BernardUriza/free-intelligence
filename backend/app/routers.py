@@ -37,7 +37,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     # Audit
     from backend.api.audit.api.internal.audit import router as internal_audit_router
     from backend.api.audit.api.public import audit
-    from backend.core.infrastructure.auth.adapters.fastapi_adapter import auth_router
+    from backend.infrastructure.auth.adapters.fastapi_adapter import auth_router
 
     # Check-in & Payments
     from backend.services.checkin.api.public import checkin
@@ -62,10 +62,10 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.services.llm.api.public import llm_models_admin
 
     # Model Catalog
-    from backend.core.infrastructure.model_catalog.api.public import catalog_admin
+    from backend.infrastructure.model_catalog.api.public import catalog_admin
 
     # Observability
-    from backend.core.infrastructure.observability.api import router as observability_router
+    from backend.infrastructure.observability.api import router as observability_router
 
     # Patients & Providers
     from backend.core.domain.patient.api.public import patients
@@ -160,7 +160,7 @@ def init_observability() -> None:
     Non-critical - logs to structlog if it fails.
     """
     try:
-        from backend.core.infrastructure.observability import init_observability_db
+        from backend.infrastructure.observability import init_observability_db
 
         init_observability_db()
     except Exception:

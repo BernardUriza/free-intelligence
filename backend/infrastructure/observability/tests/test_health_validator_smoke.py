@@ -5,7 +5,7 @@ import socket
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from backend.core.infrastructure.observability.health_validator import main
+from backend.infrastructure.observability.health_validator import main
 from pathlib import Path
 
 from ._fixtures import repo_root, write_policy_json
