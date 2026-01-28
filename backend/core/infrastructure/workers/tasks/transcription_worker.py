@@ -38,17 +38,27 @@ def update_task_metadata(session_id: str, task_type, metadata: dict):
     task_repo.save_task_metadata(session_id, task_type_str, metadata)
 
 
-# TODO: Implement these via proper storage layer
-def batch_update_chunk_datasets(*args, **kwargs):
-    """Stub - needs implementation in task repository."""
-    logger.warning("batch_update_chunk_datasets stub called - needs implementation")
-    pass
+def batch_update_chunk_datasets(
+    session_id: str,
+    task_type,
+    chunk_idx: int,
+    updates: dict,
+    max_retries: int = 5,
+    initial_backoff: float = 0.1,
+) -> bool:
+    """Atomically update chunk datasets via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.batch_update_chunk_datasets(
+        session_id, task_type_str, chunk_idx, updates, max_retries, initial_backoff
+    )
 
 
-def get_chunk_audio_bytes(*args, **kwargs):
-    """Stub - needs implementation in task repository."""
-    logger.warning("get_chunk_audio_bytes stub called - needs implementation")
-    return b""
+def get_chunk_audio_bytes(session_id: str, task_type, chunk_idx: int) -> bytes | None:
+    """Get chunk audio bytes via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    return task_repo.get_chunk_audio_bytes(session_id, task_type_str, chunk_idx)
 
 
 @measure_time

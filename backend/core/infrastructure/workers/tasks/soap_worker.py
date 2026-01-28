@@ -33,30 +33,29 @@ def update_task_metadata(session_id: str, task_type, **metadata):
     task_repo.save_task_metadata(session_id, task_type_str, metadata)
 
 
-# TODO: Implement these via proper repositories
-def get_diarization_segments(*args, **kwargs):
-    """Stub - needs implementation."""
-    get_logger(__name__).warning("get_diarization_segments stub called")
-    return []
+def get_diarization_segments(session_id: str) -> list[dict]:
+    """Get diarization segments via DI container."""
+    task_repo = get_container().get_task_repository()
+    return task_repo.get_diarization_segments(session_id)
 
 
-def save_soap_data(*args, **kwargs):
-    """Stub - needs implementation."""
-    get_logger(__name__).warning("save_soap_data stub called")
-    pass
+def save_soap_data(session_id: str, soap_data: dict, task_type) -> None:
+    """Save SOAP data via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+    task_repo.save_soap_data(session_id, soap_data, task_type_str)
 
 
-def create_order(*args, **kwargs):
-    """Stub - needs implementation."""
-    get_logger(__name__).warning("create_order stub called")
-    pass
+def create_order(session_id: str, order_data: dict) -> None:
+    """Create order via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_repo.create_order(session_id, order_data)
 
 
-def get_orders(*args, **kwargs):
-    """Stub - needs implementation."""
-    get_logger(__name__).warning("get_orders stub called")
-    return []
-)
+def get_orders(session_id: str) -> list[dict]:
+    """Get orders via DI container."""
+    task_repo = get_container().get_task_repository()
+    return task_repo.get_orders(session_id)
 from backend.core.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
 from backend.services.workflow.services.workflow_tracker import get_workflow_tracker
 

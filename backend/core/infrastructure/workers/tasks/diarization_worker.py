@@ -39,11 +39,10 @@ def update_task_metadata(session_id: str, task_type, **metadata):
     task_repo.save_task_metadata(session_id, task_type_str, metadata)
 
 
-# TODO: Implement via proper storage layer
-def save_diarization_segments(*args, **kwargs):
-    """Stub - needs implementation."""
-    get_logger(__name__).warning("save_diarization_segments stub called")
-    pass
+def save_diarization_segments(session_id: str, segments: list[dict]) -> None:
+    """Save diarization segments via DI container."""
+    task_repo = get_container().get_task_repository()
+    task_repo.save_diarization_segments(session_id, segments)
 
 
 # Default corpus path

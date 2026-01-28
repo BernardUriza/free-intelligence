@@ -231,6 +231,381 @@ class HDF5TaskRepository(ITaskRepository):
             )
             raise
 
+    def batch_update_chunk_datasets(
+        self,
+        session_id: str,
+        task_type: str,
+        chunk_idx: int,
+        updates: dict[str, Any],
+        max_retries: int = 5,
+        initial_backoff: float = 0.1,
+    ) -> bool:
+        """Atomically update multiple chunk fields with retry logic.
+
+        Fixes HDF5 SWMR race condition where concurrent readers can block writes.
+
+        Args:
+            session_id: Session identifier
+            task_type: Task type
+            chunk_idx: Chunk index
+            updates: Dict of fields to update (transcript, language, confidence, etc.)
+            max_retries: Maximum retry attempts on lock failure
+            initial_backoff: Initial backoff delay in seconds (exponential backoff)
+
+        Returns:
+            True on success, False on failure (after all retries)
+        """
+        import time
+
+        chunk_path = f"{self.TASKS_GROUP}/{session_id}/{task_type}/chunks/chunk_{chunk_idx}"
+
+        for attempt in range(max_retries):
+            try:
+                with h5py.File(self.h5_file_path, "a") as f:
+                    if chunk_path not in f:
+                        logger.warning(
+                            "BATCH_UPDATE_CHUNK_NOT_FOUND",
+                            session_id=session_id,
+                            task_type=task_type,
+                            chunk_idx=chunk_idx,
+                        )
+                        return False
+
+                    chunk_group = f[chunk_path]
+
+                    # Update all fields atomically
+                    serialized = {
+                        key: self._serialize_value(val) for key, val in updates.items()
+                    }
+                    for key, value in serialized.items():
+                        chunk_group.attrs[key] = value
+
+                    logger.info(
+                        "BATCH_UPDATE_CHUNK_SUCCESS",
+                        session_id=session_id,
+                        task_type=task_type,
+                        chunk_idx=chunk_idx,
+                        fields_updated=list(updates.keys()),
+                        attempt=attempt + 1,
+                    )
+                    return True
+
+            except (OSError, BlockingIOError) as e:
+                if attempt < max_retries - 1:
+                    backoff = initial_backoff * (2**attempt)
+                    logger.warning(
+                        "BATCH_UPDATE_RETRY",
+                        session_id=session_id,
+                        chunk_idx=chunk_idx,
+                        attempt=attempt + 1,
+                        max_retries=max_retries,
+                        backoff_seconds=backoff,
+                        error=str(e),
+                    )
+                    time.sleep(backoff)
+                else:
+                    logger.error(
+                        "BATCH_UPDATE_FAILED_ALL_RETRIES",
+                        session_id=session_id,
+                        chunk_idx=chunk_idx,
+                        attempts=max_retries,
+                        error=str(e),
+                    )
+                    return False
+
+            except Exception as e:
+                logger.error(
+                    "BATCH_UPDATE_UNEXPECTED_ERROR",
+                    session_id=session_id,
+                    chunk_idx=chunk_idx,
+                    error=str(e),
+                    exc_info=True,
+                )
+                return False
+
+        return False
+
+    def get_chunk_audio_bytes(
+        self, session_id: str, task_type: str, chunk_idx: int
+    ) -> bytes | None:
+        """Get audio bytes from chunk.
+
+        Args:
+            session_id: Session identifier
+            task_type: Task type
+            chunk_idx: Chunk index
+
+        Returns:
+            Audio bytes or None if not found
+        """
+        try:
+            chunk_path = f"{self.TASKS_GROUP}/{session_id}/{task_type}/chunks/chunk_{chunk_idx}"
+            audio_dataset_path = f"{chunk_path}/audio.webm"
+
+            with h5py.File(self.h5_file_path, "r") as f:
+                if audio_dataset_path not in f:
+                    logger.warning(
+                        "CHUNK_AUDIO_NOT_FOUND",
+                        session_id=session_id,
+                        task_type=task_type,
+                        chunk_idx=chunk_idx,
+                    )
+                    return None
+
+                audio_dataset = f[audio_dataset_path]
+                audio_bytes = bytes(audio_dataset[()])
+
+                logger.debug(
+                    "CHUNK_AUDIO_READ",
+                    session_id=session_id,
+                    task_type=task_type,
+                    chunk_idx=chunk_idx,
+                    audio_size_bytes=len(audio_bytes),
+                )
+                return audio_bytes
+
+        except Exception as e:
+            logger.error(
+                "GET_CHUNK_AUDIO_FAILED",
+                session_id=session_id,
+                task_type=task_type,
+                chunk_idx=chunk_idx,
+                error=str(e),
+                exc_info=True,
+            )
+            return None
+
+    def save_diarization_segments(
+        self, session_id: str, segments: list[dict[str, Any]]
+    ) -> None:
+        """Save diarization segments to HDF5.
+
+        Args:
+            session_id: Session identifier
+            segments: List of segment dicts with speaker, text, timestamps
+        """
+        try:
+            task_path = f"{self.TASKS_GROUP}/{session_id}/DIARIZATION"
+            segments_dataset_path = f"{task_path}/segments"
+
+            segments_json = json.dumps(segments, ensure_ascii=False, indent=2)
+
+            with h5py.File(self.h5_file_path, "a") as f:
+                # Ensure task group exists
+                tasks_group = f.require_group(self.TASKS_GROUP)
+                session_group = tasks_group.require_group(session_id)
+                task_group = session_group.require_group("DIARIZATION")
+
+                # Delete existing segments if present
+                if "segments" in task_group:
+                    del task_group["segments"]
+
+                # Create new segments dataset
+                task_group.create_dataset(
+                    "segments",
+                    data=segments_json.encode("utf-8"),
+                    dtype=h5py.special_dtype(vlen=bytes),
+                )
+
+                logger.info(
+                    "DIARIZATION_SEGMENTS_SAVED",
+                    session_id=session_id,
+                    segment_count=len(segments),
+                    path=segments_dataset_path,
+                )
+
+        except Exception as e:
+            logger.error(
+                "SAVE_DIARIZATION_SEGMENTS_FAILED",
+                session_id=session_id,
+                error=str(e),
+                exc_info=True,
+            )
+            raise
+
+    def get_diarization_segments(self, session_id: str) -> list[dict[str, Any]]:
+        """Get diarization segments from HDF5.
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            List of segment dicts or empty list if not found
+        """
+        try:
+            segments_path = f"{self.TASKS_GROUP}/{session_id}/DIARIZATION/segments"
+
+            with h5py.File(self.h5_file_path, "r") as f:
+                if segments_path not in f:
+                    logger.warning(
+                        "DIARIZATION_SEGMENTS_NOT_FOUND",
+                        session_id=session_id,
+                    )
+                    return []
+
+                segments_data = f[segments_path][()]
+                segments_json = bytes(segments_data).decode("utf-8")
+                segments = json.loads(segments_json)
+
+                logger.debug(
+                    "DIARIZATION_SEGMENTS_READ",
+                    session_id=session_id,
+                    segment_count=len(segments),
+                )
+                return segments
+
+        except Exception as e:
+            logger.error(
+                "GET_DIARIZATION_SEGMENTS_FAILED",
+                session_id=session_id,
+                error=str(e),
+                exc_info=True,
+            )
+            return []
+
+    def save_soap_data(
+        self, session_id: str, soap_data: dict[str, Any], task_type: str = "SOAP_GENERATION"
+    ) -> None:
+        """Save SOAP note to HDF5.
+
+        Args:
+            session_id: Session identifier
+            soap_data: SOAP note dict (subjective, objective, assessment, plan)
+            task_type: Task type (default: SOAP_GENERATION)
+        """
+        try:
+            task_path = f"{self.TASKS_GROUP}/{session_id}/{task_type}"
+            soap_dataset_path = f"{task_path}/soap_note"
+
+            soap_json = json.dumps(soap_data, ensure_ascii=False, indent=2)
+
+            with h5py.File(self.h5_file_path, "a") as f:
+                # Ensure task group exists
+                tasks_group = f.require_group(self.TASKS_GROUP)
+                session_group = tasks_group.require_group(session_id)
+                task_group = session_group.require_group(task_type)
+
+                # Delete existing SOAP note if present
+                if "soap_note" in task_group:
+                    del task_group["soap_note"]
+
+                # Create new SOAP note dataset
+                task_group.create_dataset(
+                    "soap_note",
+                    data=soap_json.encode("utf-8"),
+                    dtype=h5py.special_dtype(vlen=bytes),
+                )
+
+                logger.info(
+                    "SOAP_NOTE_SAVED",
+                    session_id=session_id,
+                    path=soap_dataset_path,
+                )
+
+        except Exception as e:
+            logger.error(
+                "SAVE_SOAP_DATA_FAILED",
+                session_id=session_id,
+                error=str(e),
+                exc_info=True,
+            )
+            raise
+
+    def create_order(self, session_id: str, order_data: dict[str, Any]) -> None:
+        """Create order for session.
+
+        Args:
+            session_id: Session identifier
+            order_data: Order dict (type, description, details, source)
+        """
+        try:
+            orders_path = f"{self.TASKS_GROUP}/{session_id}/orders"
+
+            with h5py.File(self.h5_file_path, "a") as f:
+                # Ensure session group exists
+                tasks_group = f.require_group(self.TASKS_GROUP)
+                session_group = tasks_group.require_group(session_id)
+
+                # Get or create orders list
+                if "orders" in session_group:
+                    orders_data = session_group["orders"][()]
+                    orders_json = bytes(orders_data).decode("utf-8")
+                    orders = json.loads(orders_json)
+                else:
+                    orders = []
+
+                # Append new order
+                orders.append(order_data)
+
+                # Save updated orders list
+                orders_json = json.dumps(orders, ensure_ascii=False, indent=2)
+
+                if "orders" in session_group:
+                    del session_group["orders"]
+
+                session_group.create_dataset(
+                    "orders",
+                    data=orders_json.encode("utf-8"),
+                    dtype=h5py.special_dtype(vlen=bytes),
+                )
+
+                logger.info(
+                    "ORDER_CREATED",
+                    session_id=session_id,
+                    order_type=order_data.get("type"),
+                    description=order_data.get("description"),
+                    total_orders=len(orders),
+                )
+
+        except Exception as e:
+            logger.error(
+                "CREATE_ORDER_FAILED",
+                session_id=session_id,
+                error=str(e),
+                exc_info=True,
+            )
+            raise
+
+    def get_orders(self, session_id: str) -> list[dict[str, Any]]:
+        """Get orders for session.
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            List of order dicts or empty list if none
+        """
+        try:
+            orders_path = f"{self.TASKS_GROUP}/{session_id}/orders"
+
+            with h5py.File(self.h5_file_path, "r") as f:
+                if orders_path not in f:
+                    logger.debug(
+                        "ORDERS_NOT_FOUND",
+                        session_id=session_id,
+                    )
+                    return []
+
+                orders_data = f[orders_path][()]
+                orders_json = bytes(orders_data).decode("utf-8")
+                orders = json.loads(orders_json)
+
+                logger.debug(
+                    "ORDERS_READ",
+                    session_id=session_id,
+                    order_count=len(orders),
+                )
+                return orders
+
+        except Exception as e:
+            logger.error(
+                "GET_ORDERS_FAILED",
+                session_id=session_id,
+                error=str(e),
+                exc_info=True,
+            )
+            return []
+
     @staticmethod
     def _serialize_value(value: Any) -> str | int | float | bool:
         """Serialize Python value to HDF5-compatible type."""
