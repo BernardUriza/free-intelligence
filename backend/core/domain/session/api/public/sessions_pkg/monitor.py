@@ -1,9 +1,9 @@
-from backend.container import get_container
 from __future__ import annotations
 
 from datetime import datetime
 from typing import cast
 
+from backend.container import get_container
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, HTTPException, Request, status
@@ -16,9 +16,6 @@ logger = get_logger(__name__)
 async def monitor_session_progress(session_id: str, request: Request) -> dict:
     validate_session_id(session_id)
     from backend.models.task_type import TaskType
-        count_task_chunks,
-        get_task_metadata,
-    )
 
     accept_header = request.headers.get("accept", "")
     wants_json = "application/json" in accept_header
