@@ -22,10 +22,11 @@ Created: 2025-11-14
 Updated: 2025-12-11 - Refactored to Clean Architecture
 """
 
-from backend.container import get_container
 from datetime import UTC, datetime
 
+from backend.core.domain.session.dependencies import get_task_repository
 from backend.models.task_type import TaskType
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.utils.common.services.checkpoint import (
     CheckpointError,
@@ -34,7 +35,7 @@ from backend.utils.common.services.checkpoint import (
     TooManyChunksError,
     create_checkpoint_service,
 )
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 # ============================================================================
@@ -73,7 +74,11 @@ router = APIRouter(tags=["internal-sessions"])
     response_model=CheckpointResponse,
     status_code=status.HTTP_200_OK,
 )
-async def checkpoint_session(session_id: str, request: CheckpointRequestDTO) -> CheckpointResponse:
+async def checkpoint_session(
+    session_id: str,
+    request: CheckpointRequestDTO,
+    task_repo: ITaskRepository = Depends(get_task_repository),
+) -> CheckpointResponse:
     """Create checkpoint: concatenate audio chunks incrementally.
 
     Called by frontend on each PAUSE. Concatenates audio chunks since last
@@ -104,8 +109,8 @@ async def checkpoint_session(session_id: str, request: CheckpointRequestDTO) -> 
             last_chunk_idx=request.last_chunk_idx,
         )
 
-        # 1. Get task metadata to find last checkpoint
-        task_metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION)
+        # 1. Get task metadata to find last checkpoint (from injected repo)
+        task_metadata = task_repo.get_task_metadata(session_id, TaskType.TRANSCRIPTION)
 
         if not task_metadata:
             raise HTTPException(

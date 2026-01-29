@@ -9,9 +9,10 @@ Created: 2025-11-16
 
 from __future__ import annotations
 
-from backend.container import get_container
+from backend.core.domain.session.dependencies import get_corpus_repository
+from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -61,6 +62,7 @@ class SessionsListResponse(BaseModel):
 async def list_sessions(
     limit: int = 20,
     offset: int = 0,
+    corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
 ) -> SessionsListResponse:
     """List sessions from HDF5 (lightweight, fast).
 
@@ -77,8 +79,7 @@ async def list_sessions(
     try:
         logger.info("SESSIONS_LIST_STARTED", limit=limit, offset=offset)
 
-        # Get all sessions with metadata via repository (encapsulates all HDF5 logic)
-        corpus_repo = get_container().get_corpus_repository()
+        # Get all sessions with metadata via repository (injected)
         sessions_data, total = corpus_repo.list_all_sessions_with_metadata(limit, offset)
 
         # Convert dicts to Pydantic models

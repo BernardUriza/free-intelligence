@@ -22,8 +22,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from backend.container import get_container
-
+from backend.core.domain.session.dependencies import get_task_repository
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.core.domain.prescription.models.medication import Medication
 from backend.core.domain.prescription.models.prescription import (
@@ -35,7 +35,7 @@ from backend.core.domain.prescription.models.prescription import (
 from backend.core.domain.prescription.models.template import PrescriptionTemplate
 from backend.core.domain.prescription.services.template_engine import get_template_engine
 from backend.validators import validate_session_id
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -287,6 +287,7 @@ async def create_prescription(
 )
 async def create_prescription_from_soap(
     request: CreateFromSOAPRequest,
+    task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> PrescriptionResponse:
     """Create a prescription from SOAP note data.
 
@@ -306,10 +307,10 @@ async def create_prescription_from_soap(
     # Validate session ID
     validate_session_id(request.session_id)
 
-    # Get SOAP data from storage
+    # Get SOAP data from storage (via injected repo)
 
     try:
-        soap_data = get_container().get_task_repository().get_soap_data(request.session_id)
+        soap_data = task_repo.get_soap_data(request.session_id)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
