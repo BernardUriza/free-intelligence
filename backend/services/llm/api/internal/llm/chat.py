@@ -26,12 +26,12 @@ from backend.services.assistant.api.public.assistant_websocket import broadcast_
 from backend.api.audit.services.audit_service import AuditService
 from backend.utils.common.logging.logger import get_logger
 # FIXME: infrastructure.events doesn't exist - stubbed
-# from backend.core.infrastructure.events import DomainEvent, EventType, get_event_bus
+# from backend.infrastructure.events import DomainEvent, EventType, get_event_bus
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.services.llm.services.persona_manager import PersonaManager
-from backend.core.infrastructure.observability.hooks import log_llm_call, log_llm_error
+from backend.infrastructure.observability.hooks import log_llm_call, log_llm_error
 # FIXME: infrastructure.storage doesn't exist - stubbed
-# from backend.core.infrastructure.storage.services.trace_store import get_trace_store
+# from backend.infrastructure.storage.services.trace_store import get_trace_store
 from fastapi import APIRouter, HTTPException, Request, status
 
 from .schemas import ChatRequest, ChatResponse

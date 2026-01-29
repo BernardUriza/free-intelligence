@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.workers.tasks.lint_fix_worker import lint_fix_aurity_worker as lint_fix_worker
+from backend.infrastructure.workers.tasks.lint_fix_worker import lint_fix_aurity_worker as lint_fix_worker
 
 logger = get_logger(__name__)
 

@@ -19,11 +19,12 @@ from backend.type_defs import DiarizationChunkDict
 from pathlib import Path
 
 from .base_repository import BaseRepository
+from .interfaces.icorpus_repository import ICorpusRepository
 
 logger = get_logger(__name__)
 
 
-class CorpusRepository(BaseRepository):
+class CorpusRepository(BaseRepository, ICorpusRepository):
     """Repository for corpus document management in HDF5.
 
     Responsibilities:

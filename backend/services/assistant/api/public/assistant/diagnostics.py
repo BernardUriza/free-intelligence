@@ -7,7 +7,7 @@ import uuid as _uuid
 import ulid
 from backend.utils.common.logging.logger import get_logger
 # FIXME: infrastructure.storage doesn't exist - stubbed
-# from backend.core.infrastructure.storage.services.trace_store import get_trace_store
+# from backend.infrastructure.storage.services.trace_store import get_trace_store
 from backend.utils.redactor import redact_and_hash_once
 from fastapi import APIRouter, HTTPException
 

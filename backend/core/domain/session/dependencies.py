@@ -9,9 +9,9 @@ Card: Backend Refactor Phase 2 - core/domain cleanup
 
 from backend.api.audit.services.audit_service import AuditService
 from backend.container import get_container
+from backend.core.domain.session.services.session_service import SessionService
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
-from backend.repositories.session_service import SessionService
 
 
 def get_task_repository() -> ITaskRepository:

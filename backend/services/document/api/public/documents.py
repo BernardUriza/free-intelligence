@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import numpy as np
 
-from backend.core.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
+from backend.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
 from backend.utils.common.logging.logger import get_logger
 # FIXME: Broken imports - Document, DocumentOrigin, DocumentStatus, create_document,
 # delete_document, get_document, list_documents, update_document_metadata, update_document_status

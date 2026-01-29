@@ -30,9 +30,9 @@ from uuid import uuid4
 
 from backend.api.audit.services.audit_service import AuditService
 from backend.core.domain.session.dependencies import get_audit_service, get_session_service
+from backend.core.domain.session.services.session_service import SessionService
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain import User
-from backend.repositories.session_service import SessionService
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
