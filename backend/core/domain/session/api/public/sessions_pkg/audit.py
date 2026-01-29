@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from backend.container import get_container
+from backend.core.domain.session.dependencies import get_task_repository
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.infrastructure.auth import User, get_current_user
 from backend.utils.common.api.public.models import (
     DoctorFeedbackRequest,
@@ -17,7 +19,10 @@ logger = get_logger(__name__)
 
 
 @router.get("/sessions/{session_id}/audit")
-async def get_session_audit(session_id: str) -> dict[str, Any]:
+async def get_session_audit(
+    session_id: str,
+    task_repo: ITaskRepository = Depends(get_task_repository),
+) -> dict[str, Any]:
     """Get complete audit data for doctor review."""
     validate_session_id(session_id)
 
@@ -32,9 +37,9 @@ async def get_session_audit(session_id: str) -> dict[str, Any]:
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found"
             )
 
-        soap_data = get_container().get_task_repository().get_soap_data(session_id)
-        soap_task_meta = get_container().get_task_repository().get_task_metadata(session_id, TaskType.SOAP_GENERATION)
-        diarization_segments = get_container().get_task_repository().get_diarization_segments(session_id)
+        soap_data = task_repo.get_soap_data(session_id)
+        soap_task_meta = task_repo.get_task_metadata(session_id, TaskType.SOAP_GENERATION)
+        diarization_segments = task_repo.get_diarization_segments(session_id)
 
         flags = _analyze_session_flags(soap_data, soap_task_meta)
         doctor_feedback = session_meta.get("doctor_feedback")
@@ -163,6 +168,7 @@ async def submit_doctor_feedback(
     session_id: str,
     feedback: DoctorFeedbackRequest,
     current_user: User | None = Depends(get_current_user),
+    task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> DoctorFeedbackResponse:
     """Submit doctor's audit feedback for a session."""
     from backend.models.task_type import TaskType
@@ -221,7 +227,7 @@ async def submit_doctor_feedback(
 
         corrections_applied = 0
         if feedback.corrections:
-            soap_data = get_container().get_task_repository().get_soap_data(session_id)
+            soap_data = task_repo.get_soap_data(session_id)
             if soap_data:
                 for correction in feedback.corrections:
                     section = correction.section
@@ -238,7 +244,7 @@ async def submit_doctor_feedback(
                             soap_data[section]["corrections"].append(correction.dict())
                             corrections_applied += 1
 
-                get_container().get_task_repository().save_soap_data(session_id, soap_data, TaskType.SOAP_GENERATION)
+                task_repo.save_soap_data(session_id, soap_data, TaskType.SOAP_GENERATION)
 
         logger.info(
             "DOCTOR_FEEDBACK_SUBMITTED",

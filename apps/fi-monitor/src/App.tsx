@@ -357,7 +357,10 @@ export default function App({ setupState }: AppProps) {
               {ollamaOn && (
                 <button
                   className="models-btn"
-                  onClick={() => setShowModelManager(!showModelManager)}
+                  onClick={() => {
+                    console.log('[FI Monitor] Toggling ModelManager:', !showModelManager, 'ollamaOn:', ollamaOn)
+                    setShowModelManager(!showModelManager)
+                  }}
                   style={{
                     marginBottom: '8px',
                     padding: '4px 8px',
@@ -412,7 +415,12 @@ export default function App({ setupState }: AppProps) {
         </div>
 
         {/* Model Manager (conditional) */}
-        {showModelManager && ollamaOn && <ModelManager />}
+        {showModelManager && ollamaOn && (
+          <>
+            {console.log('[FI Monitor] Rendering ModelManager')}
+            <ModelManager />
+          </>
+        )}
       </div>
     )
   }

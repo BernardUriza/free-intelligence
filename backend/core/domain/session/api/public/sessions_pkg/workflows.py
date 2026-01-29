@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from backend.container import get_container
+from backend.core.domain.session.dependencies import get_task_repository
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 if TYPE_CHECKING:
     from backend.utils.common.api.public.models import (
@@ -79,6 +81,7 @@ async def analyze_session_intelligent_workflow(
     session_id: str,
     audio_duration_seconds: float | None = None,
     language: str | None = None,
+    task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict:
     from backend.models.task_type import TaskStatus, TaskType
     from backend.infrastructure.workers.executor_pool import spawn_worker
@@ -120,7 +123,7 @@ async def analyze_session_intelligent_workflow(
             task_types = corpus_repo.list_session_tasks(session_id)
             for task_type in task_types:
                 constructed_task = TaskType(task_type)
-                metadata = get_container().get_task_repository().get_task_metadata(session_id, constructed_task)
+                metadata = task_repo.get_task_metadata(session_id, constructed_task)
                 status_val = metadata.get("status") if metadata else None
                 is_completed = (
                     status_val == "completed"
@@ -153,7 +156,7 @@ async def analyze_session_intelligent_workflow(
         for workflow in decision["workflows"]:
             task_type = TaskType(workflow)
 
-            ensure_get_container().get_task_repository().task_exists(session_id=session_id, task_type=task_type, allow_existing=True)
+            task_repo.ensure_task_exists(session_id=session_id, task_type=task_type.value, allow_existing=True)
 
             if task_type == TaskType.TRANSCRIPTION:
                 logger.info(
