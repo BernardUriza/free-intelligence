@@ -122,6 +122,8 @@ export default function App({ setupState }: AppProps) {
     try {
       setError(null)
       const result = await invoke<ServiceStatus>('get_status')
+      console.log('[FI Monitor] Status received:', result)
+      console.log('[FI Monitor] Ollama models:', result.ollama_models)
       setStatus(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
