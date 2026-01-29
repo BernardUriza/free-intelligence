@@ -11,39 +11,11 @@ import h5py
 from backend.models.task_type import TaskStatus, TaskType
 from backend.policy.policy_loader import get_policy_loader
 from backend.providers.diarization import get_diarization_provider
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
-from backend.container import get_container
 from backend.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
 from backend.services.workflow.services.workflow_tracker import get_workflow_tracker
 from pathlib import Path
-
-# Use DI container for task repository functions
-def get_task_chunks(session_id: str, task_type):
-    """Get task chunks via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_task_chunks(session_id, task_type_str)
-
-
-def task_exists(session_id: str, task_type):
-    """Check if task exists via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.task_exists(session_id, task_type_str)
-
-
-def update_task_metadata(session_id: str, task_type, **metadata):
-    """Update task metadata via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.save_task_metadata(session_id, task_type_str, metadata)
-
-
-def save_diarization_segments(session_id: str, segments: list[dict]) -> None:
-    """Save diarization segments via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_repo.save_diarization_segments(session_id, segments)
-
 
 # Default corpus path
 CORPUS_PATH = Path("storage/corpus.h5")
@@ -54,6 +26,7 @@ logger = get_logger(__name__)
 @measure_time
 def diarize_session_worker(
     session_id: str,
+    task_repo: ITaskRepository,
     diarization_provider: str | None = None,
 ) -> dict[str, Any]:
     """Synchronous diarization (speaker separation).
@@ -62,6 +35,7 @@ def diarize_session_worker(
 
     Args:
         session_id: Session identifier
+        task_repo: Task repository (injected for thread-safety)
         diarization_provider: Provider (azure_gpt4, ollama, etc)
 
     Returns:
@@ -80,7 +54,7 @@ def diarize_session_worker(
         )
 
         # Check DIARIZATION task exists
-        if not task_exists(session_id, TaskType.DIARIZATION):
+        if not task_repo.task_exists(session_id, TaskType.DIARIZATION.value):
             raise ValueError(f"DIARIZATION task not found for {session_id}. Must finalize first.")
 
         # Get provider
@@ -90,7 +64,7 @@ def diarize_session_worker(
             diarization_provider = diarization_config.get("primary_provider", "azure_gpt4")
 
         # Get transcription sources (Triple Vision: webspeech > full_text > chunks)
-        chunks_data = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+        chunks_data = task_repo.get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
         if not chunks_data:
             raise ValueError(f"No TRANSCRIPTION chunks for {session_id}")
 
@@ -165,7 +139,7 @@ def diarize_session_worker(
         estimated_duration = max(5, int(word_count / 100 * 0.3))  # Min 5 seconds
 
         # Update metadata: IN_PROGRESS with progress 10% (started)
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
             TaskType.DIARIZATION,
             {
@@ -185,7 +159,7 @@ def diarize_session_worker(
         )
 
         # Update progress: 30% (text loaded, calling provider)
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
             TaskType.DIARIZATION,
             {
@@ -206,7 +180,7 @@ def diarize_session_worker(
         )
 
         # Update progress: 80% (diarization complete, processing results)
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
             TaskType.DIARIZATION,
             {"progress_percent": 80, "status_message": "Processing diarization results..."},
@@ -222,7 +196,7 @@ def diarize_session_worker(
         elapsed_time = time.time() - start_time
 
         # Save segments to HDF5 (following task-based pattern)
-        save_diarization_segments(session_id, response.segments)
+        task_repo.save_diarization_segments(session_id, response.segments)
         logger.info(
             "DIARIZATION_SEGMENTS_PERSISTED",
             session_id=session_id,
@@ -230,7 +204,7 @@ def diarize_session_worker(
         )
 
         # Update metadata: COMPLETED with progress 100%
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
             TaskType.DIARIZATION,
             {
@@ -266,7 +240,7 @@ def diarize_session_worker(
 
         # Update metadata with FAILED status
         try:
-            update_task_metadata(
+            task_repo.save_task_metadata(
                 session_id,
                 TaskType.DIARIZATION,
                 {

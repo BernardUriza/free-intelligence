@@ -165,9 +165,9 @@ async def analyze_session_intelligent_workflow(
                 )
                 continue
             elif task_type == TaskType.DIARIZATION:
-                from backend.infrastructure.workers.tasks.diarization_worker import diarization_worker
+                from backend.infrastructure.workers.tasks.diarization_worker import diarize_session_worker
 
-                spawn_worker(diarization_worker, session_id=session_id)
+                spawn_worker(diarize_session_worker, session_id=session_id, task_repo=task_repo)
                 job_ids["DIARIZATION"] = session_id
             elif task_type == TaskType.SOAP_GENERATION:
                 from backend.infrastructure.workers.tasks.soap_worker import generate_soap_worker

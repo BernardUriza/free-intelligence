@@ -1,6 +1,7 @@
 """Workflow services package - Business logic layer."""
 
-from .workflow_orchestrator import WorkflowOrchestrator, get_workflow_orchestrator
+from backend.services.workflow.dependencies import get_workflow_orchestrator
+from .workflow_orchestrator import WorkflowOrchestrator
 
 __all__ = [
     "WorkflowOrchestrator",

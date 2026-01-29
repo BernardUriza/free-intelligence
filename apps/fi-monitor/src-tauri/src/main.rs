@@ -786,7 +786,7 @@ async fn stop_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<bool
 async fn get_rag_stats() -> Result<RagStats, String> {
     let client = reqwest::Client::new();
     let response = client
-        .get("http://localhost:11435/health")
+        .get("http://localhost:11435/rag/health")
         .timeout(Duration::from_secs(5))
         .send()
         .await

@@ -71,7 +71,7 @@ class WorkflowOrchestrator:
         Returns:
             Job dispatch response with job_id and status
         """
-        from backend.infrastructure.workers.tasks.diarization_worker import diarization_worker
+        from backend.infrastructure.workers.tasks.diarization_worker import diarize_session_worker
 
         self.logger.info(
             "ORCHESTRATOR_DISPATCH_DIARIZATION",
@@ -86,7 +86,7 @@ class WorkflowOrchestrator:
         )
 
         # 2. Dispatch worker
-        spawn_worker(diarization_worker, session_id=session_id)
+        spawn_worker(diarize_session_worker, session_id=session_id, task_repo=self.task_repo)
         job_id = session_id
 
         self.logger.info(
@@ -127,7 +127,7 @@ class WorkflowOrchestrator:
         )
 
         # 2. Dispatch worker
-        spawn_worker(generate_soap_worker, session_id=session_id)
+        spawn_worker(generate_soap_worker, session_id=session_id, task_repo=self.task_repo)
         job_id = session_id
 
         self.logger.info(
@@ -251,20 +251,3 @@ class WorkflowOrchestrator:
             raise ValueError(f"Unknown workflow type: {workflow}")
 
         return workflow_map[key](session_id)
-
-
-# ============================================================================
-# GLOBAL ORCHESTRATOR INSTANCE (Singleton)
-# ============================================================================
-
-_orchestrator: WorkflowOrchestrator | None = None
-
-
-def get_workflow_orchestrator() -> WorkflowOrchestrator:
-    """Get or create global workflow orchestrator instance."""
-    global _orchestrator
-
-    if _orchestrator is None:
-        _orchestrator = WorkflowOrchestrator()
-
-    return _orchestrator
