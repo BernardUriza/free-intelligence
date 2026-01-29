@@ -33,12 +33,12 @@ from pathlib import Path
 # Type checking imports - Pylance uses these for type information
 if TYPE_CHECKING:
     from backend.api.audit.services.audit_service import AuditService
-    from backend.utils.coder.services.session_service import SessionService as DISessionService
+    # from backend.utils.coder.services.session_service import SessionService as DISessionService  # REMOVED - Phase 1 cleanup
     from backend.utils.common.services.diagnostics_service import DiagnosticsService
     from backend.utils.common.services.evidence_service import EvidenceService
     from backend.utils.common.services.export_service import ExportService
     from backend.utils.common.services.triage_service import TriageService
-    from backend.core.domain.session.services.session_service import SessionService
+    # from backend.core.domain.session.services.session_service import SessionService  # REMOVED - Phase 1 cleanup
     from backend.infrastructure.storage.services.corpus_service import CorpusService
     from backend.utils.system.services.system_health_service import SystemHealthService
     from backend.services.transcription.services.diarization_service import (
@@ -73,7 +73,7 @@ else:
     TriageService = _import_service("TriageService")  # type: ignore[assignment]
 
     # Use direct imports for services that accept repositories (not from services module)
-    from backend.core.domain.session.services.session_service import SessionService
+    # from backend.core.domain.session.services.session_service import SessionService  # REMOVED - Phase 1 cleanup
     from backend.api.audit.services.audit_service import AuditService
 
     # Import DI services
@@ -82,9 +82,9 @@ else:
     from backend.api.audit.services.di_audit_service import DIAuditService
     from backend.services.evidence.services.evidence_service import DIEvidenceService
     from backend.services.export.services.export_service import DIExportService
-    from backend.core.domain.session.services.di_session_service import (
-        SessionService as DISessionService,
-    )
+    # from backend.core.domain.session.services.di_session_service import (  # REMOVED - Phase 1 cleanup
+    #     SessionService as DISessionService,
+    # )
     from backend.utils.system.services.di_system_health_service import DISystemHealthService
 
     DITranscriptionService = type("DITranscriptionService", (), {})  # type: ignore[assignment,misc]
@@ -133,8 +133,8 @@ class DIContainer:
         self._diagnostics_service: DiagnosticsService | None = None
         self._evidence_service: EvidenceService | None = None
         self._export_service: ExportService | None = None
-        self._session_service: SessionService | None = None
-        self._di_session_service: DISessionService | None = None
+        # self._session_service: SessionService | None = None  # REMOVED - Phase 1 cleanup
+        # self._di_session_service: DISessionService | None = None  # REMOVED - Phase 1 cleanup
         self._di_audit_service: DIAuditService | None = None
         self._di_system_health_service: DISystemHealthService | None = None
         self._di_transcription_service: DITranscriptionService | None = None
@@ -227,25 +227,16 @@ class DIContainer:
 
         return self._corpus_service
 
-    def get_session_service(self) -> SessionService:
-        """Get or create SessionService singleton.
-
-        Returns:
-            SessionService instance
+    def get_session_service(self):  # type: ignore
+        """DEPRECATED: SessionService removed in Phase 1 cleanup.
 
         Raises:
-            IOError: If service initialization fails
+            NotImplementedError: This service is no longer available
         """
-        if self._session_service is None:
-            try:
-                session_repository: SessionRepository = self.get_session_repository()
-                self._session_service = SessionService(session_repository)
-                _get_logger().info("SessionService initialized")
-            except OSError as e:
-                _get_logger().error(f"SESSION_SERVICE_INIT_FAILED: {e!s}")
-                raise OSError(f"Failed to initialize SessionService: {e}") from e
-
-        return self._session_service
+        raise NotImplementedError(
+            "SessionService was removed in Phase 1 cleanup. "
+            "Use DISessionService or session repository directly."
+        )
 
     def get_audit_service(self) -> AuditService:
         """Get or create AuditService singleton.
@@ -487,27 +478,16 @@ class DIContainer:
             _get_logger().info("IEventBus (InMemoryEventBus) initialized")
         return self._event_bus
 
-    def get_di_session_service(self) -> DISessionService:
-        """Get or create DI SessionService singleton with injected dependencies.
-
-        Returns:
-            DISessionService instance with ILogger and ITaskRepository injected
+    def get_di_session_service(self):  # type: ignore
+        """DEPRECATED: DISessionService removed in Phase 1 cleanup.
 
         Raises:
-            IOError: If service initialization fails
+            NotImplementedError: This service is no longer available
         """
-        if self._di_session_service is None:
-            try:
-                logger: ILogger = self.get_logger()
-                task_repository: ITaskRepository = self.get_task_repository()
-                event_bus: IEventBus = self.get_event_bus()
-                self._di_session_service = DISessionService(logger, task_repository, event_bus)
-                _get_logger().info("DISessionService initialized with DI")
-            except OSError as e:
-                _get_logger().error(f"DI_SESSION_SERVICE_INIT_FAILED: {e!s}")
-                raise OSError(f"Failed to initialize DISessionService: {e}") from e
-
-        return self._di_session_service
+        raise NotImplementedError(
+            "DISessionService was removed in Phase 1 cleanup. "
+            "Use session repository directly."
+        )
 
     def get_di_audit_service(self) -> DIAuditService:
         """Get or create DI AuditService singleton with injected dependencies.

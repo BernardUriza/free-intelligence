@@ -35,26 +35,15 @@ def get_transcription_logger() -> ILogger:
     return get_logger("transcription")
 
 
-def get_transcription_service(
-    task_repo: ITaskRepository = None,
-    logger: ILogger = None,
-) -> DITranscriptionService:
+def get_transcription_service() -> DITranscriptionService:
     """Get transcription service with injected dependencies.
 
     FastAPI provider for DITranscriptionService.
 
-    Args:
-        task_repo: Task repository (injected by FastAPI)
-        logger: Logger instance (injected by FastAPI)
-
     Returns:
-        DITranscriptionService instance
+        DITranscriptionService instance with task_repository and logger
     """
-    # Use provided dependencies or get from container (temporary bridge)
-    task_repo = task_repo or get_task_repository()
-    logger = logger or get_transcription_logger()
-
     return DITranscriptionService(
-        task_repository=task_repo,
-        logger=logger,
+        task_repository=get_task_repository(),
+        logger=get_transcription_logger(),
     )

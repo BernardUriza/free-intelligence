@@ -30,25 +30,15 @@ def get_memory_logger() -> ILogger:
     return get_logger("memory")
 
 
-def get_memory_service(
-    corpus_path: str | None = None,
-    logger: ILogger | None = None,
-) -> DIMemoryService:
+def get_memory_service() -> DIMemoryService:
     """Get memory service with injected dependencies.
 
     FastAPI provider for DIMemoryService.
 
-    Args:
-        corpus_path: HDF5 corpus path (optional, uses default)
-        logger: Logger instance (optional, uses default)
-
     Returns:
-        DIMemoryService instance
+        DIMemoryService instance with corpus_path and logger
     """
-    corpus_path = corpus_path or get_corpus_path()
-    logger = logger or get_memory_logger()
-
     return DIMemoryService(
-        corpus_path=corpus_path,
-        logger=logger,
+        corpus_path=get_corpus_path(),
+        logger=get_memory_logger(),
     )
