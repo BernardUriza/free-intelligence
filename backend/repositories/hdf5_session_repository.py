@@ -13,6 +13,7 @@ from pathlib import Path
 import h5py
 
 from backend.domain.session import Session, ISessionRepository, SessionMapper, SessionHDF5Metadata
+from backend.utils.common.interfaces.itask_repository import ITaskRepository
 
 
 class HDF5SessionRepository(ISessionRepository):
@@ -23,13 +24,19 @@ class HDF5SessionRepository(ISessionRepository):
     Structure may change without affecting domain layer.
     """
 
-    def __init__(self, hdf5_path: str | Path):
+    def __init__(
+        self,
+        hdf5_path: str | Path,
+        task_repository: ITaskRepository | None = None,
+    ):
         """Initialize repository with HDF5 file path.
 
         Args:
             hdf5_path: Path to HDF5 corpus file
+            task_repository: Optional task repository for cascade delete (Fix #5)
         """
         self.hdf5_path = Path(hdf5_path)
+        self.task_repository = task_repository
         if not self.hdf5_path.exists():
             raise FileNotFoundError(f"HDF5 file not found: {hdf5_path}")
 
@@ -162,14 +169,23 @@ class HDF5SessionRepository(ISessionRepository):
             session_group.attrs["metadata"] = json.dumps(metadata)
 
     def delete(self, session_id: str) -> bool:
-        """Delete session by ID.
+        """Delete session by ID (Fix #5 - with cascade delete).
 
         Args:
             session_id: Session identifier
 
         Returns:
             True if session was deleted, False if not found
+
+        Side Effects:
+            If task_repository is injected, deletes all associated tasks first
+            to prevent orphaned task data.
         """
+        # CASCADE DELETE: Remove all tasks for this session FIRST
+        if self.task_repository is not None:
+            deleted_tasks = self.task_repository.delete_by_session(session_id)
+            # Note: delete_by_session() logs internally, no need to log here
+
         with h5py.File(self.hdf5_path, "a") as f:
             session_group_path = f"/sessions/{session_id}"
 
@@ -267,3 +283,69 @@ class HDF5SessionRepository(ISessionRepository):
 
         # Persist update
         self.update(session)
+
+    def find_by_owner(
+        self, owner_hash: str, limit: int = 100, offset: int = 0
+    ) -> list[Session]:
+        """Find sessions by owner.
+
+        Args:
+            owner_hash: Owner identifier (hashed user ID)
+            limit: Maximum sessions to return
+            offset: Number of sessions to skip
+
+        Returns:
+            List of Session entities
+        """
+        matching_sessions = []
+
+        with h5py.File(self.hdf5_path, "r") as f:
+            if "sessions" not in f:
+                return []
+
+            sessions_group = f["sessions"]
+
+            for session_id in sessions_group.keys():
+                session_group = sessions_group[session_id]
+                metadata_json = session_group.attrs.get("metadata")
+
+                if metadata_json:
+                    metadata_dict = json.loads(metadata_json)
+                    if metadata_dict.get("owner_hash") == owner_hash:
+                        metadata = SessionHDF5Metadata(**metadata_dict)
+                        session = SessionMapper.from_hdf5(session_id, metadata)
+                        matching_sessions.append(session)
+
+        # Sort by created_at descending (newest first)
+        matching_sessions.sort(key=lambda s: s.created_at, reverse=True)
+
+        # Paginate
+        return matching_sessions[offset : offset + limit]
+
+    def count_by_status(self, status: str) -> int:
+        """Count sessions by status.
+
+        Args:
+            status: Session status to filter (SessionStatus.value or string)
+
+        Returns:
+            Count of sessions with given status
+        """
+        count = 0
+
+        with h5py.File(self.hdf5_path, "r") as f:
+            if "sessions" not in f:
+                return 0
+
+            sessions_group = f["sessions"]
+
+            for session_id in sessions_group.keys():
+                session_group = sessions_group[session_id]
+                metadata_json = session_group.attrs.get("metadata")
+
+                if metadata_json:
+                    metadata_dict = json.loads(metadata_json)
+                    if metadata_dict.get("status") == status:
+                        count += 1
+
+        return count

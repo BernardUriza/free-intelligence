@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Any
 
 import h5py
+from backend.domain.session.repository import ISessionRepository
+from backend.utils.coder.utils.exceptions import SessionNotFoundError
 from backend.utils.common.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 
@@ -34,13 +36,19 @@ class HDF5TaskRepository(ITaskRepository):
 
     TASKS_GROUP = "tasks"
 
-    def __init__(self, h5_file_path: str | Path):
+    def __init__(
+        self,
+        h5_file_path: str | Path,
+        session_repository: ISessionRepository | None = None,
+    ):
         """Initialize task repository.
 
         Args:
             h5_file_path: Path to HDF5 database file
+            session_repository: Optional session repository for referential integrity (Fix #5)
         """
         self.h5_file_path = Path(h5_file_path)
+        self.session_repository = session_repository
         self._ensure_structure()
 
     def _ensure_structure(self) -> None:
@@ -112,7 +120,7 @@ class HDF5TaskRepository(ITaskRepository):
     def ensure_task_exists(
         self, session_id: str, task_type: str, metadata: dict[str, Any] | None = None
     ) -> str:
-        """Ensure task exists, create if not.
+        """Ensure task exists, create if not (Fix #5 - with referential integrity).
 
         Args:
             session_id: Session identifier
@@ -121,7 +129,23 @@ class HDF5TaskRepository(ITaskRepository):
 
         Returns:
             Task identifier (f"{session_id}/{task_type}")
+
+        Raises:
+            SessionNotFoundError: If session_repository is injected and session doesn't exist
         """
+        # REFERENTIAL INTEGRITY: Validate session exists BEFORE creating task
+        if self.session_repository is not None:
+            if not self.session_repository.exists(session_id):
+                logger.error(
+                    "TASK_CREATE_SESSION_NOT_FOUND",
+                    session_id=session_id,
+                    task_type=task_type,
+                    message="Cannot create task for non-existent session",
+                )
+                raise SessionNotFoundError(
+                    f"Session {session_id} not found. Cannot create task {task_type}."
+                )
+
         try:
             with h5py.File(self.h5_file_path, "a") as f:
                 tasks_group = f.require_group(self.TASKS_GROUP)
@@ -869,6 +893,55 @@ class HDF5TaskRepository(ITaskRepository):
                 "DELETE_ORDER_FAILED",
                 session_id=session_id,
                 order_id=order_id,
+                error=str(e),
+                exc_info=True,
+            )
+            raise
+
+    def delete_by_session(self, session_id: str) -> int:
+        """Delete all tasks for a session (Fix #5 - cascade delete).
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            Number of task types deleted
+
+        Purpose:
+            Enables cascade delete when session is removed.
+            Prevents orphaned tasks with invalid session_id references.
+        """
+        try:
+            with h5py.File(self.h5_file_path, "a") as f:
+                session_tasks_path = f"{self.TASKS_GROUP}/{session_id}"
+
+                if session_tasks_path not in f:
+                    logger.debug(
+                        "DELETE_BY_SESSION_NO_TASKS",
+                        session_id=session_id,
+                        message="No tasks found for session (already deleted or never created)",
+                    )
+                    return 0
+
+                # Count task types before deletion
+                session_group = f[session_tasks_path]
+                task_types_count = len(session_group.keys())
+
+                # Delete entire session group (all task types)
+                del f[session_tasks_path]
+
+                logger.info(
+                    "DELETE_BY_SESSION_SUCCESS",
+                    session_id=session_id,
+                    task_types_deleted=task_types_count,
+                )
+
+                return task_types_count
+
+        except Exception as e:
+            logger.error(
+                "DELETE_BY_SESSION_FAILED",
+                session_id=session_id,
                 error=str(e),
                 exc_info=True,
             )

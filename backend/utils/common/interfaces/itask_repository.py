@@ -31,3 +31,19 @@ class ITaskRepository(ABC):
     def save_task_metadata(self, session_id: str, task_type: str, metadata: Dict[str, Any]) -> None:
         """Save task metadata."""
         pass
+
+    @abstractmethod
+    def delete_by_session(self, session_id: str) -> int:
+        """Delete all tasks for a session (Fix #5 - cascade delete).
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            Number of tasks deleted
+
+        Purpose:
+            Enables cascade delete when session is removed.
+            Prevents orphaned tasks with invalid session_id references.
+        """
+        pass
