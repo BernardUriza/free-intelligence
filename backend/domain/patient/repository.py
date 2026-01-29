@@ -1,134 +1,114 @@
-"""Patient Repository Interface - Domain Layer.
+"""Patient repository interface - domain contract.
 
-Pure domain interface with ZERO infrastructure dependencies.
-Defines contract for patient persistence without specifying implementation.
+Defines the contract for patient persistence operations.
+Implementations can use PostgreSQL, MongoDB, HDF5, etc.
+
+This interface is FRAMEWORK-AGNOSTIC - it belongs to the domain layer
+and has ZERO dependencies on infrastructure (SQLAlchemy, FastAPI, etc).
 
 Author: Claude Code
 Created: 2026-01-28
-Card: Backend Refactor Phase 2.4 - Domain Layer (Interfaces)
+Card: Backend Refactor Phase 3B Part 2 - Pure Domain Entities
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from datetime import datetime
 from typing import List
+
+from backend.domain.patient.entity import Patient
 
 
 class IPatientRepository(ABC):
-    """Patient repository interface.
+    """Interface for patient persistence operations.
 
-    Defines contract for patient persistence operations.
-    Implementations can use PostgreSQL, HDF5, or any other storage.
-
-    Note: Current implementation uses SQLAlchemy ORM models.
-    Future: Extract pure Patient entity and map in repository implementation.
+    Implementations:
+    - PostgreSQLPatientRepository (current: SQLAlchemy)
+    - InMemoryPatientRepository (for testing)
+    - HDF5PatientRepository (future: if needed)
     """
 
     @abstractmethod
-    def create(
-        self,
-        nombre: str,
-        apellido: str,
-        fecha_nacimiento: datetime,
-        genero: str | None = None,
-        curp: str | None = None,
-    ) -> str:
-        """Create a new patient.
+    def save(self, patient: Patient) -> str:
+        """Persist patient entity.
 
         Args:
-            nombre: First name(s)
-            apellido: Last name(s)
-            fecha_nacimiento: Date of birth
-            genero: Gender (optional)
-            curp: CURP Mexican ID (optional)
+            patient: Patient entity to save
 
         Returns:
-            patient_id: UUID of created patient
+            patient_id of saved entity
 
         Raises:
-            ValueError: If CURP already exists
+            DuplicatePatientError: If CURP already exists
+            RepositoryError: If persistence fails
         """
         pass
 
     @abstractmethod
-    def get_by_id(self, patient_id: str) -> dict | None:
-        """Get patient by ID.
+    def find_by_id(self, patient_id: str) -> Patient | None:
+        """Find patient by ID.
 
         Args:
             patient_id: Patient UUID
 
         Returns:
-            Patient data dict or None if not found
+            Patient entity if found, None otherwise
         """
         pass
 
     @abstractmethod
-    def get_by_curp(self, curp: str) -> dict | None:
-        """Get patient by CURP.
+    def find_by_curp(self, curp: str) -> Patient | None:
+        """Find patient by CURP (Mexican national ID).
 
         Args:
-            curp: CURP (18 characters)
+            curp: 18-character CURP
 
         Returns:
-            Patient data dict or None if not found
+            Patient entity if found, None otherwise
         """
         pass
 
     @abstractmethod
-    def list_all(
-        self,
-        skip: int = 0,
-        limit: int = 100,
-        search: str | None = None,
-    ) -> List[dict]:
-        """List patients with pagination.
+    def find_all(self, limit: int = 100, offset: int = 0) -> List[Patient]:
+        """List all patients with pagination.
 
         Args:
-            skip: Number of records to skip
-            limit: Maximum records to return
-            search: Optional search term (nombre/apellido/CURP)
+            limit: Maximum number of patients to return
+            offset: Number of patients to skip
 
         Returns:
-            List of patient data dicts
+            List of Patient entities
         """
         pass
 
     @abstractmethod
-    def update(
-        self,
-        patient_id: str,
-        nombre: str | None = None,
-        apellido: str | None = None,
-        fecha_nacimiento: datetime | None = None,
-        genero: str | None = None,
-        curp: str | None = None,
-    ) -> bool:
-        """Update patient data.
+    def update(self, patient: Patient) -> bool:
+        """Update existing patient.
 
         Args:
-            patient_id: Patient UUID
-            nombre: New first name (optional)
-            apellido: New last name (optional)
-            fecha_nacimiento: New birth date (optional)
-            genero: New gender (optional)
-            curp: New CURP (optional)
+            patient: Patient entity with updated data
 
         Returns:
-            True if updated, False if patient not found
+            True if update successful
 
         Raises:
-            ValueError: If CURP already exists for another patient
+            PatientNotFoundError: If patient_id doesn't exist
+            RepositoryError: If update fails
         """
         pass
 
     @abstractmethod
     def delete(self, patient_id: str) -> bool:
-        """Delete patient (soft or hard delete depending on implementation).
+        """Delete patient by ID.
 
         Args:
             patient_id: Patient UUID
 
         Returns:
-            True if deleted, False if patient not found
+            True if deletion successful
+
+        Note:
+            Actual behavior (soft delete vs hard delete) depends on implementation
         """
         pass
 
@@ -145,14 +125,10 @@ class IPatientRepository(ABC):
         pass
 
     @abstractmethod
-    def curp_exists(self, curp: str, exclude_patient_id: str | None = None) -> bool:
-        """Check if CURP already exists.
-
-        Args:
-            curp: CURP to check
-            exclude_patient_id: Optional patient ID to exclude (for updates)
+    def count(self) -> int:
+        """Count total number of patients.
 
         Returns:
-            True if CURP exists for another patient
+            Total patient count
         """
         pass

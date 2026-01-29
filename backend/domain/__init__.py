@@ -1,17 +1,49 @@
-"""Domain Layer - Pure domain interfaces and entities.
+"""Pure domain layer - framework-agnostic business logic.
 
-Zero infrastructure dependencies.
-Defines contracts for persistence without specifying implementation.
+This module contains:
+- Domain entities (Patient, Session, Order, SOAPNote)
+- Repository interfaces (IPatientRepository, ISessionRepository, etc.)
+- Value objects and domain enums
+
+ZERO dependencies on:
+- FastAPI
+- Pydantic (except for validation if needed)
+- SQLAlchemy
+- Any infrastructure framework
 
 Author: Claude Code
 Created: 2026-01-28
-Card: Backend Refactor Phase 2.4 - Domain Layer
+Card: Backend Refactor Phase 3B Part 2 - Pure Domain Entities
 """
 
-from backend.domain.patient import IPatientRepository
-from backend.domain.session import ISessionRepository
+# Patient domain
+from backend.domain.patient import Gender, IPatientRepository, Patient
+
+# Session domain
+from backend.domain.session import ISessionRepository, Session, SessionStatus
+
+# Order domain
+from backend.domain.order import IOrderRepository, Order, OrderStatus, OrderType
+
+# SOAP domain
+from backend.domain.soap import ISOAPRepository, SOAPNote, SOAPStatus
 
 __all__ = [
+    # Patient
+    "Patient",
+    "Gender",
     "IPatientRepository",
+    # Session
+    "Session",
+    "SessionStatus",
     "ISessionRepository",
+    # Order
+    "Order",
+    "OrderType",
+    "OrderStatus",
+    "IOrderRepository",
+    # SOAP
+    "SOAPNote",
+    "SOAPStatus",
+    "ISOAPRepository",
 ]
