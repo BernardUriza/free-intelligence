@@ -8,11 +8,13 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
-from backend.container import get_container
-from fastapi import HTTPException
+from backend.api.audit.services.audit_service import AuditService
+from backend.utils.common.services.export_service import ExportService
+from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from .config import EXPORT_DIR, logger
+from .dependencies import get_audit_service, get_export_service
 from .models import (
     ExportRequest,
     ExportResponse,
@@ -29,16 +31,22 @@ from .utils import (
 )
 
 
-async def create_export(request: ExportRequest) -> ExportResponse:
+async def create_export(
+    request: ExportRequest,
+    export_service: ExportService = Depends(get_export_service),
+    audit_service: AuditService = Depends(get_audit_service),
+) -> ExportResponse:
     """Create export bundle for session.
 
     **Clean Code Architecture:**
     - ExportService handles export creation with manifest generation
-    - Uses DI container for dependency injection
+    - Uses FastAPI Depends() for dependency injection
     - AuditService logs all export creations
 
     Args:
         request: Export request with session ID, formats, and inclusions
+        export_service: Injected export service
+        audit_service: Injected audit service
 
     Returns:
         Export response with artifacts and manifest URL
@@ -47,9 +55,6 @@ async def create_export(request: ExportRequest) -> ExportResponse:
         HTTPException: 400 for validation errors, 500 for server errors
     """
     try:
-        # Get services from DI container
-        export_service = get_container().get_export_service()
-        audit_service = get_container().get_audit_service()
 
         # Generate content for each format
         content_dict = {}
@@ -103,15 +108,21 @@ async def create_export(request: ExportRequest) -> ExportResponse:
         raise HTTPException(status_code=500, detail=f"Failed to create export: {e!s}") from e
 
 
-async def get_export(export_id: str) -> ExportResponse:
+async def get_export(
+    export_id: str,
+    export_service: ExportService = Depends(get_export_service),
+    audit_service: AuditService = Depends(get_audit_service),
+) -> ExportResponse:
     """Get export status and metadata.
 
     **Clean Code Architecture:**
     - ExportService handles metadata retrieval
-    - Uses DI container for dependency injection
+    - Uses FastAPI Depends() for dependency injection
 
     Args:
         export_id: Export identifier
+        export_service: Injected export service
+        audit_service: Injected audit service
 
     Returns:
         Export metadata (same as POST response)
@@ -120,9 +131,6 @@ async def get_export(export_id: str) -> ExportResponse:
         HTTPException: 404 if export not found, 500 for server errors
     """
     try:
-        # Get services from DI container
-        export_service = get_container().get_export_service()
-        audit_service = get_container().get_audit_service()
 
         # Delegate to service for metadata retrieval
         metadata = export_service.get_export_metadata(export_id)
@@ -163,16 +171,23 @@ async def get_export(export_id: str) -> ExportResponse:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve export: {e!s}") from e
 
 
-async def verify_export(export_id: str, request: VerifyRequest) -> VerifyResponse:
+async def verify_export(
+    export_id: str,
+    request: VerifyRequest,
+    export_service: ExportService = Depends(get_export_service),
+    audit_service: AuditService = Depends(get_audit_service),
+) -> VerifyResponse:
     """Verify export file integrity.
 
     **Clean Code Architecture:**
     - ExportService handles verification with hash validation
-    - Uses DI container for dependency injection
+    - Uses FastAPI Depends() for dependency injection
 
     Args:
         export_id: Export identifier
         request: Verify request with target files
+        export_service: Injected export service
+        audit_service: Injected audit service
 
     Returns:
         Verification results with per-target status
@@ -186,9 +201,6 @@ async def verify_export(export_id: str, request: VerifyRequest) -> VerifyRespons
     - If SIGNING_KEY exists, validates JWS signature
     """
     try:
-        # Get services from DI container
-        export_service = get_container().get_export_service()
-        audit_service = get_container().get_audit_service()
 
         # Delegate to service for verification
         verify_result = export_service.verify_export(
