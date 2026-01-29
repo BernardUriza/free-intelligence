@@ -11,9 +11,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any, Dict
 
-from backend.utils.common.infrastructure.container import get_container
+from backend.services.system.system_health_service import DISystemHealthService
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter
+from backend.utils.system.api.public.system.dependencies import get_system_health_service
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 logger = get_logger(__name__)
@@ -31,7 +32,9 @@ class SystemHealthResponse(BaseModel):
 
 
 @router.get("/health", response_model=SystemHealthResponse)
-async def get_system_health() -> SystemHealthResponse:
+async def get_system_health(
+    health_service: DISystemHealthService = Depends(get_system_health_service),
+) -> SystemHealthResponse:
     """
     Unified health check aggregating all services.
 
@@ -50,12 +53,13 @@ async def get_system_health() -> SystemHealthResponse:
       "time": "<ISO8601>"
     }
 
+    Args:
+        health_service: Injected system health service
+
     Returns:
         SystemHealthResponse with ok=True only if critical services are healthy
     """
     try:
-        container = get_container()
-        health_service = container.get_di_system_health_service()
         health_data = health_service.get_system_health()
 
         logger.info("SYSTEM_HEALTH_RETRIEVED", ok=health_data["ok"])
