@@ -237,16 +237,21 @@ class ICorpusRepository(ABC):
 
     @abstractmethod
     def list_all_sessions_with_metadata(
-        self, limit: int = 20, offset: int = 0
+        self, limit: int = 20, offset: int = 0, clinic_id: str | None = None
     ) -> tuple[list[dict[str, Any]], int]:
         """List all sessions with detailed metadata (for sessions list endpoint).
 
         Reads directly from HDF5 task-based schema. Optimized for fast listing
         without Timeline API overhead.
 
+        Multi-Tenancy Support:
+        - If clinic_id provided: Returns ONLY sessions from that clinic
+        - If clinic_id is None: Returns ALL sessions (SUPERADMIN mode)
+
         Args:
             limit: Maximum number of sessions to return (default 20)
             offset: Number of sessions to skip (default 0)
+            clinic_id: Filter sessions by clinic_id (None = all clinics, for SUPERADMIN)
 
         Returns:
             Tuple of (sessions list, total count)

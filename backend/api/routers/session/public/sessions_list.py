@@ -10,6 +10,8 @@ Created: 2025-11-16
 from __future__ import annotations
 
 from backend.core.domain.session.dependencies import get_corpus_repository
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User, UserRole
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -62,25 +64,48 @@ class SessionsListResponse(BaseModel):
 async def list_sessions(
     limit: int = 20,
     offset: int = 0,
+    current_user: User = Depends(get_current_user),
     corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
 ) -> SessionsListResponse:
-    """List sessions from HDF5 (lightweight, fast).
+    """List sessions from HDF5 (lightweight, fast) - FILTERED BY CLINIC_ID.
 
     Direct read from /sessions/{id}/tasks/ structure.
     Much faster than Timeline API for simple listing.
 
+    Security:
+    - Returns ONLY sessions from user's clinic (multi-tenancy isolation)
+    - SUPERADMIN can see sessions from all clinics
+
     Args:
         limit: Maximum number of sessions to return (default 20)
         offset: Number of sessions to skip (default 0)
+        current_user: Authenticated user from Auth0 JWT
 
     Returns:
-        SessionsListResponse with session list
+        SessionsListResponse with session list (filtered by clinic_id)
     """
     try:
-        logger.info("SESSIONS_LIST_STARTED", limit=limit, offset=offset)
+        # Multi-tenancy: Require clinic_id for non-SUPERADMIN users
+        if UserRole.SUPERADMIN not in current_user.roles:
+            if not current_user.clinic_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="User has no clinic assigned. Cannot list sessions."
+                )
 
-        # Get all sessions with metadata via repository (injected)
-        sessions_data, total = corpus_repo.list_all_sessions_with_metadata(limit, offset)
+        logger.info(
+            "SESSIONS_LIST_STARTED",
+            limit=limit,
+            offset=offset,
+            clinic_id=current_user.clinic_id,
+            is_superadmin=UserRole.SUPERADMIN in current_user.roles,
+        )
+
+        # Get sessions filtered by clinic_id (or all if SUPERADMIN)
+        filter_clinic_id = None if UserRole.SUPERADMIN in current_user.roles else current_user.clinic_id
+        sessions_data, total = corpus_repo.list_all_sessions_with_metadata(
+            limit, offset, clinic_id=filter_clinic_id
+        )
 
         # Convert dicts to Pydantic models
         sessions_list = [SessionListItem(**session) for session in sessions_data]

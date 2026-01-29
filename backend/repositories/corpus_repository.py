@@ -575,16 +575,21 @@ class CorpusRepository(BaseRepository, ICorpusRepository):
             return []
 
     def list_all_sessions_with_metadata(
-        self, limit: int = 20, offset: int = 0
+        self, limit: int = 20, offset: int = 0, clinic_id: str | None = None
     ) -> tuple[list[dict[str, Any]], int]:
         """List all sessions with detailed metadata (for sessions list endpoint).
 
         Reads directly from HDF5 task-based schema. Optimized for fast listing
         without Timeline API overhead.
 
+        Multi-Tenancy Support:
+        - If clinic_id provided: Returns ONLY sessions from that clinic
+        - If clinic_id is None: Returns ALL sessions (SUPERADMIN mode)
+
         Args:
             limit: Maximum number of sessions to return (default 20)
             offset: Number of sessions to skip (default 0)
+            clinic_id: Filter sessions by clinic_id (None = all clinics, for SUPERADMIN)
 
         Returns:
             Tuple of (sessions list, total count)
@@ -619,6 +624,17 @@ class CorpusRepository(BaseRepository, ICorpusRepository):
                         session_group = sessions_group[session_id]
                         if "tasks" not in session_group:  # type: ignore[operator]
                             continue
+
+                        # Multi-tenancy: Filter by clinic_id if provided
+                        if clinic_id is not None:
+                            # Check if session has clinic_id attribute
+                            session_clinic_id = None
+                            if hasattr(session_group, "attrs") and "clinic_id" in session_group.attrs:
+                                session_clinic_id = session_group.attrs.get("clinic_id")
+
+                            # Skip if clinic_id doesn't match filter
+                            if session_clinic_id != clinic_id:
+                                continue
 
                         # Get created_at from TRANSCRIPTION task metadata or first chunk
                         tasks = session_group["tasks"]
@@ -778,13 +794,17 @@ class CorpusRepository(BaseRepository, ICorpusRepository):
                         logger.warning("SKIP_SESSION_DETAILS", session_id=session_id, error=str(e))
                         continue
 
+            # Total count = sessions matching clinic_id filter (before pagination)
+            total_count = len(session_metadata_list)
+
             logger.info(
                 "SESSIONS_LIST_SUCCESS",
-                total=len(all_session_ids),
+                total=total_count,
                 returned=len(sessions_list),
+                clinic_id_filter=clinic_id,
             )
 
-            return (sessions_list, len(all_session_ids))
+            return (sessions_list, total_count)
 
         except Exception as e:
             logger.error("LIST_ALL_SESSIONS_FAILED", error=str(e), exc_info=True)

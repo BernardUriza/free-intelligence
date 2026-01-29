@@ -11,10 +11,12 @@ from __future__ import annotations
 from typing import Any
 
 import h5py
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User, UserRole
 from backend.repositories.interfaces import ITaskRepository
 from backend.services.timeline.dependencies import get_task_repository
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pathlib import Path
 from pydantic import BaseModel, Field
 
@@ -76,21 +78,42 @@ async def list_sessions(
     limit: int = Query(20, ge=1, le=100, description="Maximum number of sessions"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     sort: str = Query("recent", description="Sort order: recent, oldest"),
+    current_user: User = Depends(get_current_user),
     task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> list[SessionSummary]:
-    """List sessions with pagination.
+    """List sessions with pagination - FILTERED BY CLINIC_ID.
 
     Returns session summaries with metadata from HDF5.
+
+    Multi-Tenancy Security:
+    - Returns ONLY sessions from user's clinic (prevents horizontal privilege escalation)
+    - SUPERADMIN can see sessions from all clinics
 
     Args:
         limit: Maximum sessions to return
         offset: Pagination offset
         sort: Sort order
+        current_user: Authenticated user from Auth0 JWT
         task_repo: Task repository (injected via Depends)
 
     Performance target: p95 <300ms
     """
-    logger.info("TIMELINE_SESSIONS_LIST", limit=limit, offset=offset, sort=sort)
+    # Multi-tenancy: Require clinic_id for non-SUPERADMIN users
+    if UserRole.SUPERADMIN not in current_user.roles:
+        if not current_user.clinic_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no clinic assigned. Cannot list sessions."
+            )
+
+    logger.info(
+        "TIMELINE_SESSIONS_LIST",
+        limit=limit,
+        offset=offset,
+        sort=sort,
+        clinic_id=current_user.clinic_id,
+        is_superadmin=UserRole.SUPERADMIN in current_user.roles,
+    )
 
     try:
         # Get all sessions from HDF5
@@ -102,9 +125,27 @@ async def list_sessions(
                     sessions = list(f["sessions"].keys())  # type: ignore[union-attr]
 
         # Build summaries for ALL sessions first (need created_at for sorting)
+        # Multi-tenancy: Filter by clinic_id if user is not SUPERADMIN
         all_summaries = []
+        filter_clinic_id = None if UserRole.SUPERADMIN in current_user.roles else current_user.clinic_id
+
         for session_id in sessions:
             try:
+                # Multi-tenancy: Check clinic_id if filtering is active
+                if filter_clinic_id is not None:
+                    # Check session clinic_id attribute in HDF5
+                    session_clinic_id = None
+                    if CORPUS_PATH.exists():
+                        with h5py.File(CORPUS_PATH, "r") as f:
+                            if "sessions" in f and session_id in f["sessions"]:  # type: ignore[operator]
+                                session_group = f["sessions"][session_id]  # type: ignore[index]
+                                if hasattr(session_group, "attrs") and "clinic_id" in session_group.attrs:
+                                    session_clinic_id = session_group.attrs.get("clinic_id")
+
+                    # Skip if clinic_id doesn't match filter
+                    if session_clinic_id != filter_clinic_id:
+                        continue
+
                 # Get transcription metadata (INJECTED - was task_repository.get_container()...)
                 metadata = task_repo.get_task_metadata(session_id, "TRANSCRIPTION")
 
@@ -187,15 +228,58 @@ async def list_sessions(
 @router.get("/sessions/{session_id}")
 async def get_session_detail(
     session_id: str,
+    current_user: User = Depends(get_current_user),
     task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict[str, Any]:
-    """Get detailed session information.
+    """Get detailed session information - VALIDATES CLINIC_ID.
 
     Returns full session data including all tasks.
 
+    Multi-Tenancy Security:
+    - Validates session belongs to user's clinic (prevents horizontal privilege escalation)
+    - SUPERADMIN can access sessions from all clinics
+    - Returns 403 Forbidden if clinic_id mismatch (not 404 to avoid leaking existence)
+
     Frontend expects format with metadata, timespan, size, policy_badges, events.
     """
-    logger.info("TIMELINE_SESSION_DETAIL", session_id=session_id)
+    # Multi-tenancy: Require clinic_id for non-SUPERADMIN users
+    if UserRole.SUPERADMIN not in current_user.roles:
+        if not current_user.clinic_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no clinic assigned. Cannot access sessions."
+            )
+
+    # Multi-tenancy: Validate session belongs to user's clinic
+    if UserRole.SUPERADMIN not in current_user.roles:
+        # Check session clinic_id in HDF5
+        session_clinic_id = None
+        if CORPUS_PATH.exists():
+            with h5py.File(CORPUS_PATH, "r") as f:
+                if "sessions" in f and session_id in f["sessions"]:  # type: ignore[operator]
+                    session_group = f["sessions"][session_id]  # type: ignore[index]
+                    if hasattr(session_group, "attrs") and "clinic_id" in session_group.attrs:
+                        session_clinic_id = session_group.attrs.get("clinic_id")
+
+        # Reject if clinic_id doesn't match (403 instead of 404 to avoid leaking existence)
+        if session_clinic_id != current_user.clinic_id:
+            logger.warning(
+                "TIMELINE_SESSION_ACCESS_DENIED",
+                session_id=session_id,
+                user_clinic=current_user.clinic_id,
+                session_clinic=session_clinic_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied to session '{session_id}'. Session belongs to a different clinic."
+            )
+
+    logger.info(
+        "TIMELINE_SESSION_DETAIL",
+        session_id=session_id,
+        clinic_id=current_user.clinic_id,
+        is_superadmin=UserRole.SUPERADMIN in current_user.roles,
+    )
 
     try:
         # Get transcription metadata for base info
