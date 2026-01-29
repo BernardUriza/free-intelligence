@@ -18,9 +18,9 @@ Provides read-only access to audit logs with filtering and pagination.
 Updated to use clean code architecture with AuditService.
 """
 
-from backend.container import get_container
+from backend.api.audit.dependencies import get_audit_service
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -66,6 +66,7 @@ async def get_logs(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of logs to retrieve"),
     operation: str | None = Query(None, description="Filter by operation name"),
     user: str | None = Query(None, description="Filter by user_id"),
+    audit_service=Depends(get_audit_service),
 ):
     """
     Get audit logs with optional filtering.
@@ -95,9 +96,6 @@ async def get_logs(
     ```
     """
     try:
-        # Get audit service from DI container
-        audit_service = get_container().get_audit_service()
-
         # Delegate to service for log retrieval with filtering
         logs_data = audit_service.list_audit_logs(  # type: ignore[attr-defined]
             limit=limit,
@@ -122,7 +120,9 @@ async def get_logs(
 
 
 @router.get("/stats", response_model=AuditStatsResponse)
-async def get_stats():
+async def get_stats(
+    audit_service=Depends(get_audit_service),
+):
     """
     Get audit log statistics.
 
@@ -138,9 +138,6 @@ async def get_stats():
     ```
     """
     try:
-        # Get audit service from DI container
-        audit_service = get_container().get_audit_service()
-
         # Delegate to service for statistics
         stats_data = audit_service.get_statistics()  # type: ignore[attr-defined]
 

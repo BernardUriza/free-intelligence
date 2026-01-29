@@ -23,9 +23,9 @@ Created: 2025-11-17
 
 from __future__ import annotations
 
-from backend.container import get_container
+from backend.api.audit.dependencies import get_audit_service
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -71,6 +71,7 @@ async def get_audit_logs(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of logs to retrieve"),
     operation: str | None = Query(None, description="Filter by operation name"),
     user: str | None = Query(None, description="Filter by user_id"),
+    audit_service=Depends(get_audit_service),
 ):
     """
     Get audit logs with optional filtering (read-only).
@@ -107,9 +108,6 @@ async def get_audit_logs(
     ```
     """
     try:
-        # Get audit service from DI container
-        audit_service = get_container().get_audit_service()
-
         # Delegate to service for log retrieval with filtering
         # AuditService.get_logs() method signature: get_logs(limit, action, user_id, resource)
         logs_data = audit_service.get_logs(
@@ -165,7 +163,9 @@ async def get_audit_logs(
 
 
 @router.get("/stats", response_model=AuditStatsResponse, tags=["Audit"])
-async def get_audit_stats():
+async def get_audit_stats(
+    audit_service=Depends(get_audit_service),
+):
     """
     Get audit log statistics (read-only).
 
@@ -196,9 +196,6 @@ async def get_audit_stats():
     ```
     """
     try:
-        # Get audit service from DI container
-        audit_service = get_container().get_audit_service()
-
         # Get all logs for aggregation (limit to reasonable number for stats)
         all_logs = audit_service.get_logs(limit=10000)
 
