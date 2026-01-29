@@ -1,6 +1,6 @@
 // Test Suite Library for comprehensive testing
 import { useState, useEffect } from 'react'
-import { invoke } from '../lib/tauri-adapter'
+import { invoke, isTauriContext } from '../lib/tauri-adapter'
 
 interface Test {
   id: string
@@ -28,6 +28,9 @@ export function TestSuiteLibrary() {
   const [ragRunning, setRagRunning] = useState(false)
   const [ragServiceStatus, setRagServiceStatus] = useState<'checking' | 'running' | 'stopped'>('checking')
   const [ragServiceStarting, setRagServiceStarting] = useState(false)
+  const [selectedPDF, setSelectedPDF] = useState<File | null>(null)
+  const [pdfProcessing, setPdfProcessing] = useState(false)
+  const [pdfProcessed, setPdfProcessed] = useState(false)
 
   const [tests, setTests] = useState<Test[]>([])
   const [results, setResults] = useState<Map<string, TestResult>>(new Map())
@@ -59,8 +62,21 @@ export function TestSuiteLibrary() {
   const checkRagServiceStatus = async () => {
     setRagServiceStatus('checking')
     try {
-      await invoke('get_rag_stats')
-      setRagServiceStatus('running')
+      if (isTauriContext()) {
+        // Native mode: use Tauri command
+        await invoke('get_rag_stats')
+        setRagServiceStatus('running')
+      } else {
+        // Browser mode: HTTP fallback
+        const response = await fetch('http://localhost:11435/rag/health', {
+          signal: AbortSignal.timeout(2000)
+        })
+        if (response.ok) {
+          setRagServiceStatus('running')
+        } else {
+          setRagServiceStatus('stopped')
+        }
+      }
     } catch (err) {
       console.error('[RAG] Service not running:', err)
       setRagServiceStatus('stopped')
@@ -80,12 +96,90 @@ export function TestSuiteLibrary() {
     }
   }
 
+  const handlePDFUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file && file.type === 'application/pdf') {
+      setSelectedPDF(file)
+      setPdfProcessed(false)
+    } else if (file) {
+      alert('Please select a PDF file')
+    }
+  }
+
+  const processPDF = async () => {
+    if (!selectedPDF) return
+
+    setPdfProcessing(true)
+    try {
+      // Read PDF file as base64
+      const reader = new FileReader()
+
+      reader.onload = async () => {
+        try {
+          const base64Content = reader.result as string
+
+          // Call RAG service to process PDF
+          const response = await fetch('http://localhost:11435/rag/upload', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-API-Key': 'change-me-in-production'  // Default RAG Service API key
+            },
+            body: JSON.stringify({
+              filename: selectedPDF.name,
+              content: base64Content.split(',')[1] // Remove data:application/pdf;base64, prefix
+            })
+          })
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${await response.text()}`)
+          }
+
+          const result = await response.json()
+          console.log('[RAG] PDF processed:', result)
+          setPdfProcessed(true)
+        } catch (err) {
+          console.error('[RAG] Failed to process PDF:', err)
+          alert(`Failed to process PDF: ${err}`)
+        } finally {
+          setPdfProcessing(false)
+        }
+      }
+
+      reader.onerror = () => {
+        alert('Failed to read PDF file')
+        setPdfProcessing(false)
+      }
+
+      reader.readAsDataURL(selectedPDF)
+    } catch (err) {
+      console.error('[RAG] PDF processing error:', err)
+      alert(`Error: ${err}`)
+      setPdfProcessing(false)
+    }
+  }
+
   const loadTests = async () => {
+    // 🛡️ GUARD: Solo ejecutar en contexto Tauri
+    if (!isTauriContext()) {
+      console.warn('[TestSuiteLibrary] Not in Tauri context, using empty test list')
+      setTests([])
+      return
+    }
+
     try {
       const loadedTests = await invoke<Test[]>('get_test_suite')
       setTests(loadedTests)
     } catch (err) {
-      console.error('[TestSuiteLibrary] Failed to load tests:', err)
+      const errorStr = String(err)
+
+      // 🛡️ Handle gracefully si command no existe
+      if (errorStr.includes('not found') || errorStr.includes('Command get_test_suite')) {
+        console.warn('[TestSuiteLibrary] get_test_suite command not implemented yet, using empty list')
+        setTests([])  // Empty state, NO crash
+      } else {
+        console.error('[TestSuiteLibrary] Failed to load tests:', err)
+      }
     }
   }
 
@@ -469,6 +563,60 @@ export function TestSuiteLibrary() {
             )}
           </div>
 
+          {/* PDF Upload Section */}
+          {ragServiceStatus === 'running' && (
+            <div className="rag-pdf-section">
+              <h3>📄 PDF Document</h3>
+
+              {!selectedPDF ? (
+                <div className="pdf-upload-area">
+                  <input
+                    type="file"
+                    id="pdf-upload"
+                    accept="application/pdf"
+                    onChange={handlePDFUpload}
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="pdf-upload" className="pdf-upload-btn">
+                    📁 Select PDF
+                  </label>
+                  <p className="pdf-hint">Upload a medical document to query</p>
+                </div>
+              ) : (
+                <div className="pdf-selected">
+                  <div className="pdf-info">
+                    <span className="pdf-icon">📄</span>
+                    <div className="pdf-details">
+                      <span className="pdf-name">{selectedPDF.name}</span>
+                      <span className="pdf-size">{(selectedPDF.size / 1024).toFixed(1)} KB</span>
+                    </div>
+                    <button
+                      onClick={() => setSelectedPDF(null)}
+                      className="pdf-remove-btn"
+                      title="Remove PDF"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {!pdfProcessed ? (
+                    <button
+                      onClick={processPDF}
+                      disabled={pdfProcessing}
+                      className="pdf-process-btn"
+                    >
+                      {pdfProcessing ? '⏳ Processing...' : '🚀 Process PDF'}
+                    </button>
+                  ) : (
+                    <div className="pdf-processed-badge">
+                      ✅ Ready for queries
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Question Input */}
           <div className="rag-query-section">
             <label>Ask a question:</label>
@@ -484,11 +632,46 @@ export function TestSuiteLibrary() {
                 if (!ragQuestion.trim()) return
                 setRagRunning(true)
                 try {
-                  const result = await invoke('test_ollama', {
-                    mode: 'rag',
-                    question: ragQuestion
+                  const response = await fetch('http://localhost:11435/rag/query', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-API-Key': 'change-me-in-production'
+                    },
+                    body: JSON.stringify({
+                      query: ragQuestion,
+                      top_k: 3
+                    })
                   })
-                  setRagResult(result)
+
+                  if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+                  }
+
+                  const result = await response.json()
+
+                  // 🛡️ Validar similarity threshold - no mostrar basura irrelevante
+                  const MIN_SIMILARITY = 0.5; // 50% mínimo para considerar relevante
+
+                  if (result.results.length === 0) {
+                    setRagResult({
+                      query: ragQuestion,
+                      results: [],
+                      device: result.device,
+                      error: 'No documents uploaded yet. Upload a PDF first.'
+                    })
+                  } else if (result.results[0].similarity < MIN_SIMILARITY) {
+                    // NO mostrar chunks cuando similarity es muy baja - solo warning
+                    setRagResult({
+                      query: ragQuestion,
+                      results: [], // ← VACÍO - no mostrar basura irrelevante
+                      device: result.device,
+                      warning: `Low relevance detected. Best match is only ${(result.results[0].similarity * 100).toFixed(1)}% similar. The uploaded document "${result.results[0].filename}" does not contain relevant information about "${ragQuestion}". Upload a document related to your question.`,
+                      lowSimilarityResults: result.results // Guardar para debug si querés
+                    })
+                  } else {
+                    setRagResult(result)
+                  }
                 } catch (err) {
                   console.error('[RAG] Query failed:', err)
                   alert(`RAG Service error: ${err}`)
@@ -507,36 +690,54 @@ export function TestSuiteLibrary() {
           {ragResult && (
             <div className="rag-result-card">
               <div className="rag-result-header">
-                <span className="rag-result-label">Answer:</span>
-                <span className="rag-result-timing">{ragResult.elapsed_ms}ms</span>
-              </div>
-              <div className="rag-result-content">
-                {ragResult.answer}
+                <span className="rag-result-label">Query: {ragResult.query}</span>
+                <span className="rag-result-timing">Device: {ragResult.device}</span>
               </div>
 
-              {ragResult.rag_metadata && (
+              {/* Error/Warning Messages */}
+              {ragResult.error && (
+                <div className="rag-error-banner">
+                  ❌ <strong>No Results:</strong> {ragResult.error}
+                </div>
+              )}
+
+              {ragResult.warning && (
+                <div className="rag-warning-banner">
+                  ⚠️ <strong>Low Relevance:</strong> {ragResult.warning}
+                </div>
+              )}
+
+              {ragResult.results && ragResult.results.length > 0 ? (
+                <div className="rag-results-list">
+                  {ragResult.results.map((result: any, idx: number) => (
+                    <div key={idx} className="rag-chunk-result">
+                      <div className="rag-chunk-header">
+                        <span className="rag-chunk-index">#{idx + 1}</span>
+                        <span className="rag-chunk-filename">{result.filename}</span>
+                        <span className="rag-chunk-similarity">
+                          Similarity: {(result.similarity * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="rag-chunk-content">
+                        {result.chunk}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rag-result-content">
+                  No results found
+                </div>
+              )}
+
+              {ragResult.results && ragResult.results.length > 0 && (
                 <div className="rag-metadata">
                   <p className="rag-metadata-title">📊 Metadata:</p>
                   <ul>
-                    <li>Total chunks: {ragResult.rag_metadata.total_chunks}</li>
-                    <li>Embedding latency: {ragResult.rag_metadata.embedding_latency_ms}ms</li>
-                    <li>Chunks retrieved: {ragResult.rag_metadata.chunks.length}</li>
+                    <li>Results returned: {ragResult.results.length}</li>
+                    <li>Device: {ragResult.device}</li>
+                    <li>Average similarity: {(ragResult.results.reduce((sum: number, r: any) => sum + r.similarity, 0) / ragResult.results.length * 100).toFixed(1)}%</li>
                   </ul>
-
-                  <div className="rag-chunks">
-                    <p className="rag-chunks-title">📚 Source Chunks:</p>
-                    {ragResult.rag_metadata.chunks.map((chunk: any, i: number) => (
-                      <div key={i} className="rag-chunk">
-                        <div className="rag-chunk-header">
-                          <span className="rag-chunk-num">#{i + 1}</span>
-                          <span className="rag-chunk-relevance">
-                            Relevance: {(chunk.relevance * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                        <div className="rag-chunk-text">{chunk.text}</div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               )}
             </div>
