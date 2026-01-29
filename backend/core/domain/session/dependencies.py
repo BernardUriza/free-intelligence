@@ -1,62 +1,78 @@
 """FastAPI Dependency Injection providers for Session domain.
 
 Provides dependency injection for session routers using FastAPI Depends().
+Direct repository/service instantiation - no service locator (Phase 4A).
 
 Author: Claude Code
 Created: 2026-01-28
-Card: Backend Refactor Phase 2 - core/domain cleanup
+Updated: 2026-01-28 (Phase 4A - eliminate get_container, remove deprecated SessionService)
+Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
+from pathlib import Path
+
+from backend.api.audit.repositories.audit_repository import AuditRepository
 from backend.api.audit.services.audit_service import AuditService
-from backend.container import get_container
-from backend.core.domain.session.services.session_service import SessionService
+from backend.repositories.corpus_repository import CorpusRepository
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
+from backend.repositories.task_repository import HDF5TaskRepository
+
+# Corpus path (centralized configuration)
+_CORPUS_PATH = Path(__file__).parent.parent.parent.parent.parent / "storage" / "corpus.h5"
 
 
 def get_task_repository() -> ITaskRepository:
-    """Get task repository from container.
-
-    Note: This is a temporary bridge during migration.
-    Eventually, this will be replaced with direct repository instantiation.
+    """Get task repository - direct instantiation (Phase 4A).
 
     Returns:
-        ITaskRepository instance
+        ITaskRepository instance (HDF5TaskRepository)
+
+    Note:
+        No longer uses service locator (get_container).
+        Direct instantiation enables better testability and explicit dependencies.
     """
-    return get_container().get_task_repository()
+    return HDF5TaskRepository(_CORPUS_PATH)
 
 
 def get_corpus_repository() -> ICorpusRepository:
-    """Get corpus repository from container.
-
-    Note: This is a temporary bridge during migration.
-    Eventually, this will be replaced with direct repository instantiation.
+    """Get corpus repository - direct instantiation (Phase 4A).
 
     Returns:
-        ICorpusRepository instance
+        ICorpusRepository instance (CorpusRepository)
+
+    Note:
+        No longer uses service locator (get_container).
+        Direct instantiation with same corpus.h5 path.
     """
-    return get_container().get_corpus_repository()
+    return CorpusRepository(_CORPUS_PATH)
 
 
-def get_session_service() -> SessionService:
-    """Get session service from container.
-
-    Note: This is a temporary bridge during migration.
-    Eventually, SessionService will use constructor injection.
+def get_audit_repository() -> AuditRepository:
+    """Get audit repository - direct instantiation (Phase 4A).
 
     Returns:
-        SessionService instance
+        AuditRepository instance
+
+    Note:
+        Created as a dependency for AuditService.
+        Uses same corpus.h5 path for consistency.
     """
-    return get_container().get_session_service()
+    return AuditRepository(_CORPUS_PATH)
 
 
 def get_audit_service() -> AuditService:
-    """Get audit service from container.
-
-    Note: This is a temporary bridge during migration.
-    Eventually, AuditService will be injected directly.
+    """Get audit service - direct instantiation (Phase 4A).
 
     Returns:
-        AuditService instance
+        AuditService instance with injected AuditRepository
+
+    Note:
+        No longer uses service locator (get_container).
+        Directly injects AuditRepository dependency.
     """
-    return get_container().get_audit_service()
+    return AuditService(repository=get_audit_repository())
+
+
+# DEPRECATED: SessionService removed in Phase 1 cleanup
+# Use DISessionService or session repository directly instead
