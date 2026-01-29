@@ -122,8 +122,6 @@ export default function App({ setupState }: AppProps) {
     try {
       setError(null)
       const result = await invoke<ServiceStatus>('get_status')
-      console.log('[FI Monitor] Status received:', result)
-      console.log('[FI Monitor] Ollama models:', result.ollama_models)
       setStatus(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -357,10 +355,7 @@ export default function App({ setupState }: AppProps) {
               {ollamaOn && (
                 <button
                   className="models-btn"
-                  onClick={() => {
-                    console.log('[FI Monitor] Toggling ModelManager:', !showModelManager, 'ollamaOn:', ollamaOn)
-                    setShowModelManager(!showModelManager)
-                  }}
+                  onClick={() => setShowModelManager(!showModelManager)}
                   style={{
                     marginBottom: '8px',
                     padding: '4px 8px',
@@ -376,10 +371,10 @@ export default function App({ setupState }: AppProps) {
                 </button>
               )}
 
-              {/* Logs Viewer */}
-              {ollamaOn && (
+              {/* Logs Viewer - Disabled (get_service_logs not implemented) */}
+              {/* {ollamaOn && (
                 <LogsViewer serviceName="ollama" serviceDisplayName="Ollama" />
-              )}
+              )} */}
             </div>
           </div>
 
@@ -405,22 +400,17 @@ export default function App({ setupState }: AppProps) {
             </div>
 
             {/* Body */}
-            <div>
-              {/* Logs Viewer */}
+            {/* Logs Viewer - Disabled (get_service_logs not implemented) */}
+            {/* <div>
               {ragOn && (
                 <LogsViewer serviceName="rag" serviceDisplayName="RAG Service" />
               )}
-            </div>
+            </div> */}
           </div>
         </div>
 
         {/* Model Manager (conditional) */}
-        {showModelManager && ollamaOn && (
-          <>
-            {console.log('[FI Monitor] Rendering ModelManager')}
-            <ModelManager />
-          </>
-        )}
+        {showModelManager && ollamaOn && <ModelManager />}
       </div>
     )
   }

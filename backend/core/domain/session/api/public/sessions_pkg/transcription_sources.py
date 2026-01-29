@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 
-from backend.container import get_container
+from backend.core.domain.session.dependencies import get_corpus_repository, get_task_repository
 from backend.models.task_type import TaskType
+from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.api.public.models import TranscriptionSourcesModel
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -17,7 +19,11 @@ logger = get_logger(__name__)
     "/sessions/{session_id}/transcription-sources",
     status_code=status.HTTP_200_OK,
 )
-async def get_transcription_sources_workflow(session_id: str) -> TranscriptionSourcesModel:
+async def get_transcription_sources_workflow(
+    session_id: str,
+    corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
+    task_repo: ITaskRepository = Depends(get_task_repository),
+) -> TranscriptionSourcesModel:
     """Get all 3 transcription sources for a saved session (PUBLIC endpoint)."""
 
     validate_session_id(session_id)
@@ -29,8 +35,7 @@ async def get_transcription_sources_workflow(session_id: str) -> TranscriptionSo
         transcription_per_chunks: list[dict] = []
         full_transcription: str = ""
 
-        # Load webspeech_final via corpus repository
-        corpus_repo = get_container().get_corpus_repository()
+        # Load webspeech_final via corpus repository (injected)
         dataset_path = f"tasks/{TaskType.TRANSCRIPTION.name.lower()}/webspeech_final"
         webspeech_bytes = corpus_repo.get_session_dataset(session_id, dataset_path)
 
@@ -45,9 +50,9 @@ async def get_transcription_sources_workflow(session_id: str) -> TranscriptionSo
                 hint="Session may not have webspeech data (normal for old sessions)",
             )
 
-        # Build transcription_per_chunks and full_transcription
+        # Build transcription_per_chunks and full_transcription (from task repo)
         try:
-            chunks = get_container().get_task_repository().get_task_chunks(session_id=session_id, task_type=TaskType.TRANSCRIPTION)
+            chunks = task_repo.get_task_chunks(session_id=session_id, task_type=TaskType.TRANSCRIPTION)
 
             transcripts_list = []
             for chunk in chunks:

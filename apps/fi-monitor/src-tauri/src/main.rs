@@ -652,11 +652,37 @@ async fn start_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<boo
         "python3"
     };
 
-    // Get the app directory (where gateway/ and rag_service/ are located)
-    let app_dir =
+    // Find rag_service directory (try multiple locations)
+    let current_dir =
         std::env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
 
-    println!("[FI Monitor] App directory: {:?}", app_dir);
+    // Try multiple locations for rag_service
+    let possible_locations = vec![
+        current_dir.join("rag_service"),                    // 1. Alongside fi-monitor
+        current_dir.join("../../backend/src/rag_service"),  // 2. Root monorepo (dev mode)
+        current_dir.join("../../../backend/src/rag_service"), // 3. Alternative dev structure
+    ];
+
+    let rag_service_dir = possible_locations
+        .iter()
+        .find(|path| path.join("main.py").exists())
+        .ok_or_else(|| {
+            format!(
+                "RAG Service not found. Searched:\n{}",
+                possible_locations
+                    .iter()
+                    .map(|p| format!("  - {:?}", p))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+        })?;
+
+    let app_dir = rag_service_dir
+        .parent()
+        .ok_or("Failed to get parent directory")?;
+
+    println!("[FI Monitor] RAG Service found at: {:?}", rag_service_dir);
+    println!("[FI Monitor] Working directory: {:?}", app_dir);
 
     #[cfg(target_os = "windows")]
     let mut cmd = {
@@ -1332,9 +1358,7 @@ fn find_cloudflared() -> Result<String, String> {
 async fn get_status(state: tauri::State<'_, Arc<AppState>>) -> Result<ServiceStatus, String> {
     let ollama_running = check_ollama().await;
     let models = if ollama_running {
-        let m = get_ollama_models().await;
-        println!("[FI Monitor] DEBUG - Models from API: {:?}", m);
-        m
+        get_ollama_models().await
     } else {
         vec![]
     };

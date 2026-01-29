@@ -3,10 +3,11 @@ from __future__ import annotations
 import os
 import tempfile
 
-from backend.container import get_container
+from backend.core.domain.session.dependencies import get_corpus_repository
+from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
@@ -18,7 +19,10 @@ logger = get_logger(__name__)
     "/sessions/{session_id}/audio",
     status_code=status.HTTP_200_OK,
 )
-async def get_session_audio_workflow(session_id: str) -> FileResponse:
+async def get_session_audio_workflow(
+    session_id: str,
+    corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
+) -> FileResponse:
     """Serve full audio file from completed session (PUBLIC endpoint)."""
     validate_session_id(session_id)
 
@@ -27,8 +31,7 @@ async def get_session_audio_workflow(session_id: str) -> FileResponse:
     try:
         logger.info("SESSION_AUDIO_GET_STARTED", session_id=session_id)
 
-        # Use DI container to access corpus repository
-        corpus_repo = get_container().get_corpus_repository()
+        # Get audio from corpus repository (injected via DI)
         audio_bytes = corpus_repo.get_session_audio(session_id, "tasks/TRANSCRIPTION/full_audio.webm")
 
         if audio_bytes is None:

@@ -3,11 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from backend.container import get_container
+from backend.core.domain.session.dependencies import get_task_repository
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.api.public.models import ImportDiarizationRequest, UpdateSegmentRequest
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -56,7 +57,10 @@ async def get_diarization_status_workflow(job_id: str) -> dict[str, Any]:
     "/sessions/{session_id}/diarization/segments",
     status_code=status.HTTP_200_OK,
 )
-async def get_diarization_segments_workflow(session_id: str) -> dict[str, Any]:
+async def get_diarization_segments_workflow(
+    session_id: str,
+    task_repo: ITaskRepository = Depends(get_task_repository),
+) -> dict[str, Any]:
     """Get diarization segments (PUBLIC orchestrator)."""
     validate_session_id(session_id)
 
@@ -65,7 +69,7 @@ async def get_diarization_segments_workflow(session_id: str) -> dict[str, Any]:
     try:
         logger.info("DIARIZATION_SEGMENTS_GET_STARTED", session_id=session_id)
 
-        metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.DIARIZATION)
+        metadata = task_repo.get_task_metadata(session_id, TaskType.DIARIZATION)
         if not metadata:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -79,7 +83,7 @@ async def get_diarization_segments_workflow(session_id: str) -> dict[str, Any]:
                 detail=f"Diarization not completed yet (status: {task_status})",
             )
 
-        segments = get_container().get_task_repository().get_diarization_segments(session_id)
+        segments = task_repo.get_diarization_segments(session_id)
 
         logger.info(
             "DIARIZATION_SEGMENTS_GET_SUCCESS",
@@ -124,6 +128,7 @@ async def update_diarization_segment_workflow(
     session_id: str,
     segment_index: int,
     request: UpdateSegmentRequest,
+    task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict[str, Any]:
     """Update text of a diarization segment (PUBLIC orchestrator)."""
 
@@ -140,11 +145,23 @@ async def update_diarization_segment_workflow(
                 detail="segment_index must be >= 0",
             )
 
-        updated_segment = update_diarization_segment_text(
-            session_id=session_id,
-            segment_index=segment_index,
-            new_text=request.text,
-        )
+        # Get current segments
+        segments = task_repo.get_diarization_segments(session_id)
+        if not segments:
+            raise ValueError(f"No diarization segments found for session {session_id}")
+
+        if segment_index >= len(segments):
+            raise ValueError(
+                f"Segment index {segment_index} out of range (total segments: {len(segments)})"
+            )
+
+        # Update segment text
+        segments[segment_index]["text"] = request.text
+
+        # Save updated segments
+        task_repo.save_diarization_segments(session_id, segments)
+
+        updated_segment = segments[segment_index]
 
         logger.info(
             "DIARIZATION_SEGMENT_UPDATE_SUCCESS",
@@ -192,6 +209,7 @@ async def update_diarization_segment_workflow(
 async def import_external_diarization(
     session_id: str,
     request: ImportDiarizationRequest,
+    task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict[str, Any]:
     """Import pre-diarized transcript from external service (e.g., Cue, AssemblyAI).
 
@@ -256,7 +274,6 @@ async def import_external_diarization(
         total_duration = max(seg.end_time for seg in request.segments) if request.segments else 0.0
 
         # Save segments via repository
-        task_repo = get_container().get_task_repository()
         task_repo.save_diarization_segments(session_id, segments_dict)
 
         # Save task metadata

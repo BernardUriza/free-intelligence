@@ -8,6 +8,7 @@ Card: Backend Refactor Phase 2 - core/domain cleanup
 """
 
 from backend.container import get_container
+from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 
 
@@ -21,3 +22,15 @@ def get_task_repository() -> ITaskRepository:
         ITaskRepository instance
     """
     return get_container().get_task_repository()
+
+
+def get_corpus_repository() -> ICorpusRepository:
+    """Get corpus repository from container.
+
+    Note: This is a temporary bridge during migration.
+    Eventually, this will be replaced with direct repository instantiation.
+
+    Returns:
+        ICorpusRepository instance
+    """
+    return get_container().get_corpus_repository()

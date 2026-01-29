@@ -50,52 +50,27 @@ from backend.utils.common.logging.logger import get_logger
 from backend.infrastructure.workers.executor_pool import spawn_worker
 from backend.infrastructure.workers.tasks.encryption_worker import encrypt_session_worker
 
-from backend.container import get_container
 from backend.core.domain.session.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from fastapi import Depends
 
 
-def add_full_audio(session_id: str, audio_bytes: bytes, filename: str, task_type) -> None:
-    """Add full audio via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.add_full_audio(session_id, audio_bytes, filename, task_type_str)
+# Helper function removed - use task_repo.add_full_audio() directly
 
 
-def add_full_transcription(session_id: str, full_text: str, task_type) -> None:
-    """Add full transcription via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.add_full_transcription(session_id, full_text, task_type_str)
+# Helper function removed - use task_repo.add_full_transcription() directly
 
 
-def add_webspeech_transcripts(session_id: str, transcripts: list[str], task_type) -> None:
-    """Add webspeech transcripts via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.add_webspeech_transcripts(session_id, transcripts, task_type_str)
+# Helper function removed - use task_repo.add_webspeech_transcripts() directly
 
 
-def get_task_chunks(session_id, task_type):
-    """Get task chunks via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_task_chunks(session_id, task_type_str)
+# Helper function removed - use task_repo.get_task_chunks() directly
 
 
-def get_task_metadata(session_id, task_type):
-    """Get task metadata via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_task_metadata(session_id, task_type_str)
+# Helper function removed - use task_repo.get_task_metadata() directly
 
 
-def update_task_metadata(session_id, task_type, metadata):
-    """Update task metadata via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.save_task_metadata(session_id, task_type_str, metadata)
+# Helper function removed - use task_repo.save_task_metadata() directly
 from fastapi import APIRouter, HTTPException, status
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -302,9 +277,9 @@ async def finalize_session(
         # This creates the task entry in HDF5 for tracking
         task_repo.ensure_task_exists(session_id, TaskType.ENCRYPTION.value, metadata=None)
 
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
-            TaskType.ENCRYPTION,
+            TaskType.ENCRYPTION.value,
             {
                 "status": TaskStatus.PENDING,
                 "progress_percent": 0,

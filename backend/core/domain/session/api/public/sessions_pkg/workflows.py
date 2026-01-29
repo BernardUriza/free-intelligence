@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from backend.container import get_container
-from backend.core.domain.session.dependencies import get_task_repository
+from backend.core.domain.session.dependencies import get_corpus_repository, get_task_repository
+from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
@@ -82,6 +82,7 @@ async def analyze_session_intelligent_workflow(
     audio_duration_seconds: float | None = None,
     language: str | None = None,
     task_repo: ITaskRepository = Depends(get_task_repository),
+    corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
 ) -> dict:
     from backend.models.task_type import TaskStatus, TaskType
     from backend.infrastructure.workers.executor_pool import spawn_worker
@@ -97,7 +98,6 @@ async def analyze_session_intelligent_workflow(
 
         if audio_duration_seconds is None:
             try:
-                corpus_repo = get_container().get_corpus_repository()
                 audio_bytes_data = corpus_repo.get_session_audio(session_id, "tasks/TRANSCRIPTION/full_audio.webm")
                 if audio_bytes_data:
                     audio_duration_seconds = len(audio_bytes_data) / (12 * 1024)
@@ -119,7 +119,6 @@ async def analyze_session_intelligent_workflow(
 
         existing_tasks: list[str] = []
         try:
-            corpus_repo = get_container().get_corpus_repository()
             task_types = corpus_repo.list_session_tasks(session_id)
             for task_type in task_types:
                 constructed_task = TaskType(task_type)

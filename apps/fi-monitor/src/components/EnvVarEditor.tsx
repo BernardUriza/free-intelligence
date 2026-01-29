@@ -102,11 +102,13 @@ export function EnvVarEditor() {
     setLoading(true)
     setError(null)
     try {
-      // Try to load from backend (if implemented)
-      // For now, use defaults from system env
+      // Load from Tauri backend
+      const backendVars = await invoke<{ key: string; value: string }[]>('get_env_vars')
+      const backendMap = Object.fromEntries(backendVars.map(v => [v.key, v.value]))
+
       const loaded = COMMON_ENV_VARS.map(envVar => ({
         ...envVar,
-        value: process.env[envVar.key] || envVar.default_value
+        value: backendMap[envVar.key] || envVar.default_value
       }))
       setEnvVars(loaded)
     } catch (err) {
