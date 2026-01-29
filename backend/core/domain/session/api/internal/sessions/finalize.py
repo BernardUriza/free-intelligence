@@ -51,6 +51,9 @@ from backend.infrastructure.workers.executor_pool import spawn_worker
 from backend.infrastructure.workers.tasks.encryption_worker import encrypt_session_worker
 
 from backend.container import get_container
+from backend.core.domain.session.dependencies import get_task_repository
+from backend.repositories.interfaces.itask_repository import ITaskRepository
+from fastapi import Depends
 
 
 def add_full_audio(session_id: str, audio_bytes: bytes, filename: str, task_type) -> None:
@@ -166,6 +169,7 @@ class FinalizeSessionResponse(BaseModel):
 async def finalize_session(
     session_id: str,
     request: FinalizeSessionRequest | None = None,
+    task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> FinalizeSessionResponse:
     """Finalize session with async encryption queueing (202 Accepted).
 
@@ -216,7 +220,7 @@ async def finalize_session(
         logger.info("FINALIZE_SESSION_STARTED", session_id=session_id)
 
         # 1. Verify TRANSCRIPTION task exists and get chunks
-        task_metadata = get_container().get_task_repository().get_task_metadata(session_id, TaskType.TRANSCRIPTION)
+        task_metadata = task_repo.get_task_metadata(session_id, TaskType.TRANSCRIPTION)
         if not task_metadata:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -224,7 +228,7 @@ async def finalize_session(
             )
 
         # Get all chunks to verify completion
-        chunks = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+        chunks = task_repo.get_task_chunks(session_id, TaskType.TRANSCRIPTION)
         if not chunks:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -261,7 +265,7 @@ async def finalize_session(
 
         for task_type, description in required_tasks.items():
             try:
-                task_meta = get_container().get_task_repository().get_task_metadata(session_id, task_type)
+                task_meta = task_repo.get_task_metadata(session_id, task_type)
                 if not task_meta:
                     missing_tasks.append(f"{task_type}: {description}")
                     continue
@@ -296,9 +300,7 @@ async def finalize_session(
 
         # 2. Initialize ENCRYPTION task (metadata only - actual encryption happens after SOAP)
         # This creates the task entry in HDF5 for tracking
-        from backend.container import get_container
-        task_repo = get_container().get_task_repository()
-        task_repo.ensure_get_container().get_task_repository().task_exists(session_id, TaskType.ENCRYPTION.value, metadata=None)
+        task_repo.ensure_task_exists(session_id, TaskType.ENCRYPTION.value, metadata=None)
 
         update_task_metadata(
             session_id,
@@ -365,7 +367,7 @@ async def finalize_session(
         try:
             # 1. WebSpeech instant previews
             if request.transcription_sources.webspeech_final:
-                get_container().get_task_repository().add_webspeech_transcripts(
+                task_repo.add_webspeech_transcripts(
                     session_id=session_id,
                     transcripts=request.transcription_sources.webspeech_final,
                     task_type=TaskType.TRANSCRIPTION,
@@ -378,7 +380,7 @@ async def finalize_session(
 
             # 2. Full concatenated transcription
             if request.transcription_sources.full_transcription:
-                get_container().get_task_repository().add_full_transcription(
+                task_repo.add_full_transcription(
                     session_id=session_id,
                     full_text=request.transcription_sources.full_transcription,
                     task_type=TaskType.TRANSCRIPTION,
@@ -394,7 +396,6 @@ async def finalize_session(
             # 4. Concatenate audio chunks into full_audio.webm (backend concatenation)
             try:
                 # Read all chunks with audio from HDF5
-                task_repo = get_container().get_task_repository()
                 chunks_with_audio = task_repo.get_task_chunks(session_id, TaskType.TRANSCRIPTION)
 
                 if chunks_with_audio:
@@ -448,7 +449,7 @@ async def finalize_session(
                         full_audio_bytes = output_file.read_bytes()
 
                         # Save to HDF5
-                        get_container().get_task_repository().add_full_audio(
+                        task_repo.add_full_audio(
                             session_id=session_id,
                             audio_bytes=full_audio_bytes,
                             filename="full_audio.webm",

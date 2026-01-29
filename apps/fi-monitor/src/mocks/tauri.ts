@@ -6,7 +6,7 @@ export const mockInvoke = async (cmd: string, args?: any): Promise<any> => {
     case 'get_status':
       return {
         ollama_running: true,
-        ollama_models: ['llama3.2', 'gemma2'],
+        ollama_models: ['qwen2.5-coder:3b', 'qwen3:1.7b'],
         tunnel_running: false,
         tunnel_url: null,
         rag_service_running: true,
