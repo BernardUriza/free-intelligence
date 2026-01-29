@@ -136,3 +136,84 @@ async def get_embedding(text: str) -> np.ndarray:
         ConnectionError: If FI Monitor unavailable
     """
     return await get_embedding_from_monitor(text)
+
+
+# ============================================================================
+# Ollama Chat Functions
+# ============================================================================
+
+
+async def get_ollama_chat(
+    messages: list[dict[str, str]],
+    model: str = "llama3.1:8b",
+    temperature: float = 0.7,
+    timeout: float = 30.0,
+) -> str:
+    """Get chat completion from Ollama via Monitor.
+
+    Args:
+        messages: List of {"role": "system|user|assistant", "content": "..."}
+        model: Ollama model name (default: llama3.1:8b)
+        temperature: Sampling temperature 0-2 (default: 0.7)
+        timeout: Request timeout in seconds (default: 30s)
+
+    Returns:
+        Assistant's response text
+
+    Raises:
+        ConnectionError: If Monitor/Ollama unavailable
+        TimeoutError: If request exceeds timeout
+    """
+    # Discover Monitor URL
+    monitor_url = await discover_monitor_url()
+    if not monitor_url:
+        raise ConnectionError("FI Monitor not available - tunnel URL not found")
+
+    start_time = time.time()
+
+    try:
+        # Get API key from environment (default for dev)
+        api_key = os.getenv("FI_MONITOR_API_KEY", "dev-key-local-only")
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                f"{monitor_url}/ollama/chat",
+                json={
+                    "messages": messages,
+                    "model": model,
+                    "temperature": temperature,
+                },
+                headers={"X-API-Key": api_key},
+            )
+            response.raise_for_status()
+            data = response.json()
+            assistant_message = data["message"]["content"]
+
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        logger.info(
+            "MONITOR_OLLAMA_CHAT_SUCCESS",
+            latency_ms=elapsed_ms,
+            model=model,
+            response_length=len(assistant_message),
+        )
+
+        return assistant_message
+
+    except httpx.TimeoutException as e:
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        logger.error(
+            "MONITOR_OLLAMA_CHAT_TIMEOUT",
+            error=str(e),
+            latency_ms=elapsed_ms,
+            timeout_s=timeout,
+        )
+        raise TimeoutError(f"Ollama chat timeout after {timeout}s: {e}") from e
+
+    except Exception as e:
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        logger.error(
+            "MONITOR_OLLAMA_CHAT_FAILED",
+            error=str(e),
+            latency_ms=elapsed_ms,
+        )
+        raise ConnectionError(f"FI Monitor Ollama unavailable: {e}") from e
