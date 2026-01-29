@@ -111,6 +111,20 @@ export function TestSuiteLibrary() {
 
     setPdfProcessing(true)
     try {
+      // Phase 3: Clear old documents before processing new one
+      try {
+        await fetch('http://localhost:11435/rag/documents', {
+          method: 'DELETE',
+          headers: {
+            'X-API-Key': 'change-me-in-production'
+          }
+        })
+        console.log('[RAG] Cleared old documents from store')
+      } catch (err) {
+        // Ignore errors - document store might be empty
+        console.log('[RAG] No old documents to clear:', err)
+      }
+
       // Read PDF file as base64
       const reader = new FileReader()
 
@@ -630,6 +644,17 @@ export function TestSuiteLibrary() {
             <button
               onClick={async () => {
                 if (!ragQuestion.trim()) return
+
+                // Phase 2: Validate PDF is loaded
+                if (!selectedPDF) {
+                  setRagResult({
+                    error: 'No PDF loaded. Upload a PDF first.',
+                    query: ragQuestion,
+                    results: []
+                  })
+                  return
+                }
+
                 setRagRunning(true)
                 try {
                   const response = await fetch('http://localhost:11435/rag/query', {
@@ -640,7 +665,8 @@ export function TestSuiteLibrary() {
                     },
                     body: JSON.stringify({
                       query: ragQuestion,
-                      top_k: 3
+                      top_k: 3,
+                      filename: selectedPDF.name  // Phase 1: Send filename to backend
                     })
                   })
 
@@ -679,7 +705,7 @@ export function TestSuiteLibrary() {
                   setRagRunning(false)
                 }
               }}
-              disabled={ragRunning || !ragQuestion.trim()}
+              disabled={ragRunning || !ragQuestion.trim() || !selectedPDF || !pdfProcessed}
               className="rag-query-btn"
             >
               {ragRunning ? '🔍 Searching...' : '🔍 Search'}
