@@ -14,6 +14,7 @@ from backend.services.transcription.services.di_transcription_service import (
     ChunkProcessingResult,
 )
 from backend.repositories.interfaces import ITaskRepository
+from backend.repositories.session_repository import SessionRepository
 from backend.utils.common.interfaces.ilogger import ILogger
 
 
@@ -39,10 +40,20 @@ def mock_logger():
 
 
 @pytest.fixture
-def service(mock_task_repo, mock_logger):
+def mock_session_repo():
+    """Mock SessionRepository (Fix #2)."""
+    repo = Mock(spec=SessionRepository)
+    repo.get = Mock(return_value={"session_id": "test-session-123", "status": "active"})
+    repo.exists = Mock(return_value=True)
+    return repo
+
+
+@pytest.fixture
+def service(mock_task_repo, mock_session_repo, mock_logger):
     """DITranscriptionService instance with mocked dependencies."""
     return DITranscriptionService(
         task_repository=mock_task_repo,
+        session_repository=mock_session_repo,
         logger=mock_logger,
     )
 

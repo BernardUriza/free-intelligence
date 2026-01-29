@@ -18,6 +18,7 @@ from typing import Any, Dict
 
 from backend.models.task_type import CHUNK_DURATION_SECONDS, TaskType
 from backend.repositories.interfaces import ITaskRepository
+from backend.repositories.session_repository import SessionRepository
 from backend.utils.common.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
@@ -78,15 +79,18 @@ class DITranscriptionService:
     def __init__(
         self,
         task_repository: ITaskRepository,
+        session_repository: SessionRepository,
         logger: ILogger | None = None,
     ):
         """Initialize transcription service with dependencies.
 
         Args:
             task_repository: Task repository for chunk/metadata operations
+            session_repository: Session repository for session validation (Fix #2)
             logger: Logger instance (defaults to module logger)
         """
         self.task_repo = task_repository
+        self.session_repo = session_repository
         self.logger = logger or get_logger(__name__)
 
     async def process_chunk(
