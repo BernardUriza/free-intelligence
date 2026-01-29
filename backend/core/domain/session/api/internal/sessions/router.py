@@ -28,9 +28,11 @@ Endpoints:
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from backend.container import get_container
+from backend.api.audit.services.audit_service import AuditService
+from backend.core.domain.session.dependencies import get_audit_service, get_session_service
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain import User
+from backend.repositories.session_service import SessionService
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -108,6 +110,8 @@ async def list_sessions(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_user),
+    session_service: SessionService = Depends(get_session_service),
+    audit_service: AuditService = Depends(get_audit_service),
 ):
     """
     List sessions with pagination (TENANT ISOLATED).
@@ -119,7 +123,7 @@ async def list_sessions(
 
     **Clean Code Architecture:**
     - SessionService handles session retrieval and filtering
-    - Uses DI container for dependency injection
+    - Uses FastAPI Depends() for dependency injection
 
     Query params:
     - limit: Max sessions to return (1-100, default 50)
@@ -132,9 +136,6 @@ async def list_sessions(
     - offset: Offset used
     """
     try:
-        # Get session service from DI container
-        session_service = get_container().get_session_service()
-        audit_service = get_container().get_audit_service()
 
         # CRITICAL: ALWAYS use current_user.id for tenant isolation
         # Never trust client-provided owner_hash
@@ -165,6 +166,8 @@ async def list_sessions(
 async def get_session(
     session_id: str,
     current_user: User = Depends(get_current_user),
+    session_service: SessionService = Depends(get_session_service),
+    audit_service: AuditService = Depends(get_audit_service),
 ):
     """
     Get single session by ID (OWNERSHIP VALIDATED).
@@ -176,7 +179,7 @@ async def get_session(
 
     **Clean Code Architecture:**
     - SessionService handles session retrieval
-    - Uses DI container for dependency injection
+    - Uses FastAPI Depends() for dependency injection
 
     Path params:
     - session_id: Session ID (ULID)
@@ -189,9 +192,6 @@ async def get_session(
     - 404: Session not found
     """
     try:
-        # Get session service from DI container
-        session_service = get_container().get_session_service()
-        audit_service = get_container().get_audit_service()
 
         # Delegate to service for retrieval
         # SessionService exposes `get_session_info`; use it here.
@@ -247,6 +247,8 @@ async def get_session(
 async def create_session(
     request: CreateSessionRequest,
     current_user: User = Depends(get_current_user),
+    session_service: SessionService = Depends(get_session_service),
+    audit_service: AuditService = Depends(get_audit_service),
 ):
     """
     Create new session (OWNER AUTO-SET).
@@ -258,7 +260,7 @@ async def create_session(
 
     **Clean Code Architecture:**
     - SessionService handles session creation with validation
-    - Uses DI container for dependency injection
+    - Uses FastAPI Depends() for dependency injection
     - AuditService logs all session creations
 
     Body:
@@ -268,10 +270,6 @@ async def create_session(
     Returns:
     - Created session object
     """
-    # Get services from DI container (must be outside try block to ensure availability in except handlers)
-    session_service = get_container().get_session_service()
-    audit_service = get_container().get_audit_service()
-
     try:
         # Generate unique session ID and delegate to service for creation
         # CRITICAL: Use current_user.id as owner (NEVER trust client input)
@@ -330,6 +328,8 @@ async def update_session(
     session_id: str,
     request: UpdateSessionRequest,
     current_user: User = Depends(get_current_user),
+    session_service: SessionService = Depends(get_session_service),
+    audit_service: AuditService = Depends(get_audit_service),
 ):
     """
     Update existing session (partial update, OWNERSHIP VALIDATED).
@@ -341,7 +341,7 @@ async def update_session(
 
     **Clean Code Architecture:**
     - SessionService handles session updates with validation
-    - Uses DI container for dependency injection
+    - Uses FastAPI Depends() for dependency injection
     - AuditService logs all session updates
 
     Path params:
@@ -360,9 +360,6 @@ async def update_session(
     - 404: Session not found
     """
     try:
-        # Get services from DI container
-        session_service = get_container().get_session_service()
-        audit_service = get_container().get_audit_service()
 
         # CRITICAL: Validate ownership BEFORE allowing update
         try:
