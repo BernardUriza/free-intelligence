@@ -7,12 +7,12 @@ Created: 2026-01-28
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, Any
 
 import h5py
 
-from backend.domain.order import Order, IOrderRepository, OrderMapper
+from backend.domain.order import Order, IOrderRepository, OrderMapper, OrderHDF5Metadata
 
 
 class HDF5OrderRepository(IOrderRepository):
@@ -63,9 +63,9 @@ class HDF5OrderRepository(IOrderRepository):
             # Create order group
             order_group = f.create_group(order_group_path)
 
-            # Store metadata
+            # Store metadata (Fix #3 - Type Safety)
             metadata = OrderMapper.to_hdf5_metadata(order)
-            order_group.attrs["metadata"] = json.dumps(metadata)
+            order_group.attrs["metadata"] = json.dumps(asdict(metadata))
 
         return order.order_id
 
@@ -94,7 +94,9 @@ class HDF5OrderRepository(IOrderRepository):
                     metadata_json = order_group.attrs.get("metadata")
 
                     if metadata_json:
-                        metadata = json.loads(metadata_json)
+                        # Fix #3: Convert dict to typed OrderHDF5Metadata
+                        metadata_dict = json.loads(metadata_json)
+                        metadata = OrderHDF5Metadata(**metadata_dict)
                         return OrderMapper.from_hdf5(order_id, metadata)
 
             return None
@@ -123,7 +125,9 @@ class HDF5OrderRepository(IOrderRepository):
                 metadata_json = order_group.attrs.get("metadata")
 
                 if metadata_json:
-                    metadata = json.loads(metadata_json)
+                    # Fix #3: Convert dict to typed OrderHDF5Metadata
+                    metadata_dict = json.loads(metadata_json)
+                    metadata = OrderHDF5Metadata(**metadata_dict)
                     order = OrderMapper.from_hdf5(order_id, metadata)
                     orders.append(order)
 
@@ -157,8 +161,10 @@ class HDF5OrderRepository(IOrderRepository):
                     metadata_json = order_group.attrs.get("metadata")
 
                     if metadata_json:
-                        metadata = json.loads(metadata_json)
-                        if metadata.get("status") == status:
+                        # Fix #3: Convert dict to typed OrderHDF5Metadata
+                        metadata_dict = json.loads(metadata_json)
+                        if metadata_dict.get("status") == status:
+                            metadata = OrderHDF5Metadata(**metadata_dict)
                             order = OrderMapper.from_hdf5(order_id, metadata)
                             matching_orders.append(order)
 

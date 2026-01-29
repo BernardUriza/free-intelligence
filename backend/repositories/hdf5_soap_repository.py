@@ -7,11 +7,12 @@ Created: 2026-01-28
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 import h5py
 
-from backend.domain.soap import SOAPNote, ISOAPRepository, SOAPMapper
+from backend.domain.soap import SOAPNote, ISOAPRepository, SOAPMapper, SOAPHDF5Metadata, SOAPHDF5Content
 
 
 class HDF5SOAPRepository(ISOAPRepository):
@@ -63,14 +64,14 @@ class HDF5SOAPRepository(ISOAPRepository):
             # Create SOAP note group
             soap_note_group = f.create_group(soap_note_group_path)
 
-            # Convert entity to HDF5 format
+            # Convert entity to HDF5 format (Fix #3 - Type Safety)
             metadata, content = SOAPMapper.to_hdf5(soap)
 
             # Store metadata as JSON attribute
-            soap_note_group.attrs["metadata"] = json.dumps(metadata)
+            soap_note_group.attrs["metadata"] = json.dumps(asdict(metadata))
 
             # Store content as JSON (SOAP sections are text, not binary)
-            soap_note_group.attrs["content"] = json.dumps(content)
+            soap_note_group.attrs["content"] = json.dumps(asdict(content))
 
         return soap.soap_id
 
@@ -100,8 +101,11 @@ class HDF5SOAPRepository(ISOAPRepository):
                     content_json = soap_note_group.attrs.get("content")
 
                     if metadata_json and content_json:
-                        metadata = json.loads(metadata_json)
-                        content = json.loads(content_json)
+                        # Fix #3: Convert dicts to typed dataclasses
+                        metadata_dict = json.loads(metadata_json)
+                        content_dict = json.loads(content_json)
+                        metadata = SOAPHDF5Metadata(**metadata_dict)
+                        content = SOAPHDF5Content(**content_dict)
                         return SOAPMapper.from_hdf5(soap_id, metadata, content)
 
             return None
@@ -131,8 +135,11 @@ class HDF5SOAPRepository(ISOAPRepository):
                 content_json = soap_note_group.attrs.get("content")
 
                 if metadata_json and content_json:
-                    metadata = json.loads(metadata_json)
-                    content = json.loads(content_json)
+                    # Fix #3: Convert dicts to typed dataclasses
+                    metadata_dict = json.loads(metadata_json)
+                    content_dict = json.loads(content_json)
+                    metadata = SOAPHDF5Metadata(**metadata_dict)
+                    content = SOAPHDF5Content(**content_dict)
                     soap_note = SOAPMapper.from_hdf5(soap_id, metadata, content)
                     soap_notes.append(soap_note)
 
@@ -167,9 +174,12 @@ class HDF5SOAPRepository(ISOAPRepository):
                     content_json = soap_note_group.attrs.get("content")
 
                     if metadata_json and content_json:
-                        metadata = json.loads(metadata_json)
-                        if metadata.get("status") == status:
-                            content = json.loads(content_json)
+                        # Fix #3: Convert dicts to typed dataclasses
+                        metadata_dict = json.loads(metadata_json)
+                        if metadata_dict.get("status") == status:
+                            content_dict = json.loads(content_json)
+                            metadata = SOAPHDF5Metadata(**metadata_dict)
+                            content = SOAPHDF5Content(**content_dict)
                             soap_note = SOAPMapper.from_hdf5(soap_id, metadata, content)
                             matching_soap_notes.append(soap_note)
 

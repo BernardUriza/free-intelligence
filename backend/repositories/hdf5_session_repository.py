@@ -7,12 +7,12 @@ Created: 2026-01-28
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, Any
 
 import h5py
 
-from backend.domain.session import Session, ISessionRepository, SessionMapper
+from backend.domain.session import Session, ISessionRepository, SessionMapper, SessionHDF5Metadata
 
 
 class HDF5SessionRepository(ISessionRepository):
@@ -58,9 +58,9 @@ class HDF5SessionRepository(ISessionRepository):
             # Create session group
             session_group = f.create_group(session_group_path)
 
-            # Store metadata as JSON attribute
+            # Store metadata as JSON attribute (Fix #3 - Type Safety)
             metadata = SessionMapper.to_hdf5_metadata(session)
-            session_group.attrs["metadata"] = json.dumps(metadata)
+            session_group.attrs["metadata"] = json.dumps(asdict(metadata))
 
             # Create subgroups for task-based schema
             session_group.create_group("transcription")
@@ -91,7 +91,9 @@ class HDF5SessionRepository(ISessionRepository):
             if not metadata_json:
                 return None
 
-            metadata = json.loads(metadata_json)
+            # Fix #3: Convert dict to typed SessionHDF5Metadata
+            metadata_dict = json.loads(metadata_json)
+            metadata = SessionHDF5Metadata(**metadata_dict)
             return SessionMapper.from_hdf5(session_id, metadata)
 
     def find_all(
@@ -126,7 +128,9 @@ class HDF5SessionRepository(ISessionRepository):
                 metadata_json = session_group.attrs.get("metadata")
 
                 if metadata_json:
-                    metadata = json.loads(metadata_json)
+                    # Fix #3: Convert dict to typed SessionHDF5Metadata
+                    metadata_dict = json.loads(metadata_json)
+                    metadata = SessionHDF5Metadata(**metadata_dict)
                     session = SessionMapper.from_hdf5(session_id, metadata)
                     sessions.append(session)
 
@@ -223,8 +227,10 @@ class HDF5SessionRepository(ISessionRepository):
                 metadata_json = session_group.attrs.get("metadata")
 
                 if metadata_json:
-                    metadata = json.loads(metadata_json)
-                    if metadata.get("status") == status:
+                    # Fix #3: Convert dict to typed SessionHDF5Metadata
+                    metadata_dict = json.loads(metadata_json)
+                    if metadata_dict.get("status") == status:
+                        metadata = SessionHDF5Metadata(**metadata_dict)
                         session = SessionMapper.from_hdf5(session_id, metadata)
                         matching_sessions.append(session)
 
