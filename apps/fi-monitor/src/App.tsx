@@ -146,6 +146,14 @@ export default function App({ setupState }: AppProps) {
     }
   }, [fetchStatus])
 
+  // Redirect to services if Tunnel tab disappears (Local mode)
+  useEffect(() => {
+    const isCloudflared = status?.tunnel_url?.startsWith('https://') ?? false
+    if (activeTab === 'tunnel' && !isCloudflared) {
+      setActiveTab('services')
+    }
+  }, [activeTab, status?.tunnel_url])
+
   const handleAction = async (action: string, command: string) => {
     setActionLoading(action)
     try {
@@ -248,10 +256,11 @@ export default function App({ setupState }: AppProps) {
   const ollamaOn = status?.ollama_running ?? false
   const tunnelOn = status?.tunnel_running ?? false
 
-  // Tab configuration
+  // Tab configuration (conditional - Tunnel tab solo visible en modo Cloudflared)
+  const isCloudflaredMode = status?.tunnel_url?.startsWith('https://') ?? false
   const tabs: Tab[] = [
     { id: 'services', label: 'Services', icon: '🔌' },
-    { id: 'tunnel', label: 'Tunnel', icon: '☁️' },
+    ...(isCloudflaredMode ? [{ id: 'tunnel' as TabId, label: 'Tunnel', icon: '🔗' }] : []),
     { id: 'config', label: 'Config', icon: '⚙️' },
     { id: 'testing', label: 'Testing', icon: '🧪' },
     { id: 'benchmarks', label: 'Benchmarks', icon: '⚡' },
