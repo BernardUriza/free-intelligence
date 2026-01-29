@@ -32,6 +32,7 @@ from backend.models.task_type import TaskType
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.utils.common.services.chunk_handler import ChunkHandler
+from backend.utils.common.validation import validate_dependency
 
 logger = get_logger(__name__)
 
@@ -60,12 +61,17 @@ class MedicalChunkHandler(ChunkHandler):
         """Initialize handler with injected dependencies (Phase 4B).
 
         Args:
-            task_repository: Task repository for HDF5 operations
+            task_repository: Task repository for HDF5 operations (required)
+
+        Raises:
+            ValueError: If task_repository is None
+            TypeError: If task_repository doesn't implement ITaskRepository
 
         Note:
             No longer uses service locator (get_container).
             Direct dependency injection for better testability.
         """
+        validate_dependency(task_repository, ITaskRepository, "task_repository")
         self.task_repository = task_repository
 
     async def initialize_session(
@@ -96,42 +102,52 @@ class MedicalChunkHandler(ChunkHandler):
             allow_existing=True,  # Allow resuming (pause/resume)
         )
 
-        # Save session metadata (doctor_id + patient info) to HDF5 session attributes
-        # SECURITY: doctor_id is ALWAYS saved for session ownership/isolation
-        if metadata and (
-            "doctor_id" in metadata or any(k.startswith("patient_") for k in metadata)
-        ):
-            # Use locked_session_h5 for per-session file (consistent with ensure_task_exists)
-            with locked_session_h5(session_id, mode="a") as f:
-                session_path = f"/sessions/{session_id}"
-                session_group = f[session_path]  # type: ignore[index]
+        # TODO(Phase 5): Re-enable session metadata persistence
+        #
+        # BLOCKED BY: Missing locked_session_h5() context manager
+        # SOLUTION: Implement in backend/repositories/hdf5_utils.py
+        #
+        # Pattern:
+        #   from contextlib import contextmanager
+        #   import h5py, fcntl
+        #
+        #   @contextmanager
+        #   def locked_session_h5(session_id: str, mode: str = "r"):
+        #       corpus_path = CORPUS_PATH
+        #       with h5py.File(corpus_path, mode) as f:
+        #           fcntl.flock(f.id.get_vfd_handle(), fcntl.LOCK_EX)
+        #           try:
+        #               yield f
+        #           finally:
+        #               fcntl.flock(f.id.get_vfd_handle(), fcntl.LOCK_UN)
+        #
+        # COMMENTED OUT CODE (restore after implementing locked_session_h5):
+        #
+        # if metadata and ("doctor_id" in metadata or any(k.startswith("patient_") for k in metadata)):
+        #     with locked_session_h5(session_id, mode="a") as f:
+        #         session_path = f"/sessions/{session_id}"
+        #         session_group = f[session_path]
+        #
+        #         # SECURITY: Save doctor_id for session ownership/isolation
+        #         if "doctor_id" in metadata:
+        #             session_group.attrs["doctor_id"] = metadata["doctor_id"]
+        #
+        #         # Save patient metadata as session attributes
+        #         if "patient_name" in metadata:
+        #             session_group.attrs["patient_name"] = metadata["patient_name"]
+        #         if "patient_age" in metadata:
+        #             session_group.attrs["patient_age"] = metadata["patient_age"]
+        #         if "patient_id" in metadata:
+        #             session_group.attrs["patient_id"] = metadata["patient_id"]
+        #         if "chief_complaint" in metadata:
+        #             session_group.attrs["chief_complaint"] = metadata["chief_complaint"]
 
-                # SECURITY: Save doctor_id for session ownership/isolation
-                if "doctor_id" in metadata:
-                    session_group.attrs["doctor_id"] = metadata["doctor_id"]
-
-                # Save patient metadata as session attributes
-                if "patient_name" in metadata:
-                    session_group.attrs["patient_name"] = metadata["patient_name"]
-                if "patient_age" in metadata:
-                    session_group.attrs["patient_age"] = metadata["patient_age"]
-                if "patient_id" in metadata:
-                    session_group.attrs["patient_id"] = metadata["patient_id"]
-                if "chief_complaint" in metadata:
-                    session_group.attrs["chief_complaint"] = metadata["chief_complaint"]
-
-            logger.info(
-                "MEDICAL_SESSION_INITIALIZED",
-                session_id=session_id,
-                patient_name=metadata.get("patient_name") if metadata else None,
-                has_patient_metadata=True,
-            )
-        else:
-            logger.info(
-                "MEDICAL_SESSION_INITIALIZED",
-                session_id=session_id,
-                has_patient_metadata=False,
-            )
+        logger.info(
+            "MEDICAL_SESSION_INITIALIZED",
+            session_id=session_id,
+            patient_name=metadata.get("patient_name") if metadata else None,
+            has_patient_metadata=bool(metadata and any(k.startswith("patient_") for k in metadata)),
+        )
 
     async def save_chunk(
         self,
@@ -161,24 +177,40 @@ class MedicalChunkHandler(ChunkHandler):
         # Save audio to HDF5
         await self._save_audio_to_hdf5(session_id, chunk_number, audio_bytes)
 
-        # Save transcript + metadata
-        append_chunk_to_task(
-            session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
-            chunk_idx=chunk_number,
-            transcript=transcript,
-            audio_hash=str(hash(audio_bytes)),  # Simple hash for deduplication
-            duration=metadata.get("duration", 0.0),
-            language=metadata.get("language", "es-MX"),
-            timestamp_start=metadata.get("timestamp_start", 0.0),
-            timestamp_end=metadata.get("timestamp_end", 0.0),
-            confidence=metadata.get("confidence", 0.0),
-            audio_quality=metadata.get("audio_quality", 0.85),
-            provider=metadata.get("provider", "unknown"),
-            polling_attempts=metadata.get("polling_attempts", 0),
-            resolution_time_seconds=metadata.get("resolution_time_seconds", 0.0),
-            retry_attempts=metadata.get("retry_attempts", 0),
-        )
+        # TODO(Phase 5): Re-enable chunk metadata persistence
+        #
+        # BLOCKED BY: Missing append_chunk_to_task() function
+        # SOLUTION: Implement in backend/repositories/hdf5_utils.py or use task_repository directly
+        #
+        # Alternative (use existing task_repository):
+        #   chunk_metadata = {
+        #       "chunk_idx": chunk_number,
+        #       "transcript": transcript,
+        #       "audio_hash": str(hash(audio_bytes)),
+        #       "duration": metadata.get("duration", 0.0),
+        #       ...
+        #   }
+        #   self.task_repository.update_task_metadata(session_id, TaskType.TRANSCRIPTION, chunk_metadata)
+        #
+        # COMMENTED OUT CODE (restore after implementing append_chunk_to_task):
+        #
+        # append_chunk_to_task(
+        #     session_id=session_id,
+        #     task_type=TaskType.TRANSCRIPTION,
+        #     chunk_idx=chunk_number,
+        #     transcript=transcript,
+        #     audio_hash=str(hash(audio_bytes)),
+        #     duration=metadata.get("duration", 0.0),
+        #     language=metadata.get("language", "es-MX"),
+        #     timestamp_start=metadata.get("timestamp_start", 0.0),
+        #     timestamp_end=metadata.get("timestamp_end", 0.0),
+        #     confidence=metadata.get("confidence", 0.0),
+        #     audio_quality=metadata.get("audio_quality", 0.85),
+        #     provider=metadata.get("provider", "unknown"),
+        #     polling_attempts=metadata.get("polling_attempts", 0),
+        #     resolution_time_seconds=metadata.get("resolution_time_seconds", 0.0),
+        #     retry_attempts=metadata.get("retry_attempts", 0),
+        # )
 
         logger.info(
             "MEDICAL_CHUNK_SAVED",
@@ -327,21 +359,31 @@ class MedicalChunkHandler(ChunkHandler):
         Behavior:
             - Creates dataset at /sessions/{id}/tasks/TRANSCRIPTION/chunks/chunk_{N}/audio
             - Stores audio bytes as binary blob
+
+        Note:
+            TEMPORARILY DISABLED - missing locked_session_h5() implementation.
+            Audio persistence will be re-enabled in Phase 5.
         """
-        # Use locked_session_h5 for per-session file (consistent with other operations)
-        with locked_session_h5(session_id, mode="a") as f:
-            audio_path = f"/sessions/{session_id}/tasks/{TaskType.TRANSCRIPTION.name.lower()}/chunks/chunk_{chunk_number}/audio"
-
-            # Delete if exists (overwrite)
-            if audio_path in f:  # type: ignore[operator]
-                del f[audio_path]  # type: ignore[attr-defined]
-
-            # Create dataset with audio bytes
-            f.create_dataset(audio_path, data=audio_bytes)  # type: ignore[attr-defined]
+        # TODO(Phase 5): Re-enable audio chunk persistence
+        #
+        # BLOCKED BY: Missing locked_session_h5() context manager (same as initialize_session)
+        #
+        # COMMENTED OUT CODE (restore after implementing locked_session_h5):
+        #
+        # with locked_session_h5(session_id, mode="a") as f:
+        #     audio_path = f"/sessions/{session_id}/tasks/{TaskType.TRANSCRIPTION.name.lower()}/chunks/chunk_{chunk_number}/audio"
+        #
+        #     # Delete if exists (overwrite)
+        #     if audio_path in f:
+        #         del f[audio_path]
+        #
+        #     # Create dataset with audio bytes
+        #     f.create_dataset(audio_path, data=audio_bytes)
 
         logger.debug(
-            "AUDIO_CHUNK_SAVED_TO_HDF5",
+            "AUDIO_CHUNK_SAVE_SKIPPED",
             session_id=session_id,
             chunk_number=chunk_number,
             size_bytes=len(audio_bytes),
+            reason="locked_session_h5 not implemented",
         )

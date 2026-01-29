@@ -32,6 +32,7 @@ from typing import Any
 
 from backend.models.task_type import TaskStatus, TaskType
 from backend.utils.common.logging.logger import get_logger
+from backend.utils.common.validation import validate_dependency
 
 logger = get_logger(__name__)
 

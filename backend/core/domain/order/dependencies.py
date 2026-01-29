@@ -5,17 +5,13 @@ Direct repository instantiation - no service locator (Phase 4A).
 
 Author: Claude Code
 Created: 2026-01-28
-Updated: 2026-01-28 (Phase 4A - eliminate get_container)
+Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from pathlib import Path
-
+from backend.config import CORPUS_PATH
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.repositories.task_repository import HDF5TaskRepository
-
-# Corpus path (centralized configuration)
-_CORPUS_PATH = Path(__file__).parent.parent.parent.parent.parent / "storage" / "corpus.h5"
 
 
 def get_task_repository() -> ITaskRepository:
@@ -27,5 +23,6 @@ def get_task_repository() -> ITaskRepository:
     Note:
         No longer uses service locator (get_container).
         Direct instantiation enables better testability and explicit dependencies.
+        Uses centralized corpus path from backend.config.
     """
-    return HDF5TaskRepository(_CORPUS_PATH)
+    return HDF5TaskRepository(CORPUS_PATH)

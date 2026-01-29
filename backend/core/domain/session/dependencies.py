@@ -5,21 +5,17 @@ Direct repository/service instantiation - no service locator (Phase 4A).
 
 Author: Claude Code
 Created: 2026-01-28
-Updated: 2026-01-28 (Phase 4A - eliminate get_container, remove deprecated SessionService)
+Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from pathlib import Path
-
 from backend.api.audit.repositories.audit_repository import AuditRepository
 from backend.api.audit.services.audit_service import AuditService
+from backend.config import CORPUS_PATH
 from backend.repositories.corpus_repository import CorpusRepository
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.repositories.task_repository import HDF5TaskRepository
-
-# Corpus path (centralized configuration)
-_CORPUS_PATH = Path(__file__).parent.parent.parent.parent.parent / "storage" / "corpus.h5"
 
 
 def get_task_repository() -> ITaskRepository:
@@ -32,7 +28,7 @@ def get_task_repository() -> ITaskRepository:
         No longer uses service locator (get_container).
         Direct instantiation enables better testability and explicit dependencies.
     """
-    return HDF5TaskRepository(_CORPUS_PATH)
+    return HDF5TaskRepository(CORPUS_PATH)
 
 
 def get_corpus_repository() -> ICorpusRepository:
@@ -45,7 +41,7 @@ def get_corpus_repository() -> ICorpusRepository:
         No longer uses service locator (get_container).
         Direct instantiation with same corpus.h5 path.
     """
-    return CorpusRepository(_CORPUS_PATH)
+    return CorpusRepository(CORPUS_PATH)
 
 
 def get_audit_repository() -> AuditRepository:
@@ -58,7 +54,7 @@ def get_audit_repository() -> AuditRepository:
         Created as a dependency for AuditService.
         Uses same corpus.h5 path for consistency.
     """
-    return AuditRepository(_CORPUS_PATH)
+    return AuditRepository(CORPUS_PATH)
 
 
 def get_audit_service() -> AuditService:

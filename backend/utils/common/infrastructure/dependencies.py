@@ -8,7 +8,7 @@ Direct service instantiation - no service locator (Phase 4B).
 
 File: backend/dependencies.py
 Created: 2025-10-30
-Updated: 2026-01-29 (Phase 4B - eliminate get_container)
+Updated: 2026-01-29 (Fix #1 - centralized config)
 Purpose: Replace global singletons with DI pattern
 """
 
@@ -17,9 +17,8 @@ from pathlib import Path
 from backend.policy.policy_enforcer import PolicyEnforcer
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.repositories.task_repository import HDF5TaskRepository
+from backend.config import CORPUS_PATH
 
-# Corpus path (centralized configuration)
-_CORPUS_PATH = Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5"
 
 
 def get_task_repository() -> ITaskRepository:
@@ -32,7 +31,7 @@ def get_task_repository() -> ITaskRepository:
         No longer uses service locator (get_container).
         Direct instantiation enables better testability and explicit dependencies.
     """
-    return HDF5TaskRepository(_CORPUS_PATH)
+    return HDF5TaskRepository(CORPUS_PATH)
 
 
 def get_transcription_service():

@@ -5,7 +5,7 @@ Direct repository instantiation - no service locator (Phase 4A).
 
 Author: Claude Code
 Created: 2026-01-28
-Updated: 2026-01-28 (Phase 4A - eliminate get_container, migrate to HDF5SessionRepository)
+Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
@@ -18,9 +18,8 @@ from backend.repositories.task_repository import HDF5TaskRepository
 from backend.services.transcription.services.di_transcription_service import DITranscriptionService
 from backend.utils.common.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
+from backend.config import CORPUS_PATH
 
-# Corpus path (centralized configuration)
-_CORPUS_PATH = Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5"
 
 
 def get_task_repository() -> ITaskRepository:
@@ -35,7 +34,7 @@ def get_task_repository() -> ITaskRepository:
         Referential integrity (Fix #5) is OPTIONAL - only enabled when session_repository
         is explicitly injected (not needed for most operations).
     """
-    return HDF5TaskRepository(_CORPUS_PATH)
+    return HDF5TaskRepository(CORPUS_PATH)
 
 
 def get_session_repository() -> ISessionRepository:
@@ -50,7 +49,7 @@ def get_session_repository() -> ISessionRepository:
         Cascade delete (Fix #5) is OPTIONAL - only enabled when task_repository
         is explicitly injected (not needed for most operations).
     """
-    return HDF5SessionRepository(_CORPUS_PATH)
+    return HDF5SessionRepository(CORPUS_PATH)
 
 
 def get_transcription_logger() -> ILogger:

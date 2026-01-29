@@ -5,17 +5,13 @@ Direct service instantiation - no service locator (Phase 4A).
 
 Author: Claude Code
 Created: 2026-01-28
-Updated: 2026-01-28 (Phase 4A - eliminate get_container)
+Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from pathlib import Path
-
 from backend.api.audit.repositories.audit_repository import AuditRepository
 from backend.api.audit.services.audit_service import AuditService
-
-# Corpus path (centralized configuration)
-_CORPUS_PATH = Path(__file__).parent.parent.parent / "storage" / "corpus.h5"
+from backend.config import CORPUS_PATH
 
 
 def get_audit_repository() -> AuditRepository:
@@ -25,9 +21,9 @@ def get_audit_repository() -> AuditRepository:
         AuditRepository instance
 
     Note:
-        Uses centralized corpus.h5 path.
+        Uses centralized corpus.h5 path from backend.config.
     """
-    return AuditRepository(_CORPUS_PATH)
+    return AuditRepository(CORPUS_PATH)
 
 
 def get_audit_service() -> AuditService:

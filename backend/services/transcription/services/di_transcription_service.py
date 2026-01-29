@@ -22,6 +22,7 @@ from backend.repositories.session_repository import SessionRepository
 from backend.utils.coder.utils.exceptions import SessionNotFoundError
 from backend.utils.common.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
+from backend.utils.common.validation import validate_dependency
 
 # Event bus stub (Phase 3 will implement real event bus)
 def get_event_bus():

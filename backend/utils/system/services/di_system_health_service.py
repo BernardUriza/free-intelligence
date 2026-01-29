@@ -9,6 +9,7 @@ import subprocess
 from typing import Any
 
 from backend.utils.common.interfaces.ilogger import ILogger
+from backend.utils.common.validation import validate_dependency
 
 
 class DISystemHealthService:
@@ -26,8 +27,13 @@ class DISystemHealthService:
         """Initialize service with injected logger.
 
         Args:
-            logger: Logger instance
+            logger: Logger instance (required)
+
+        Raises:
+            ValueError: If logger is None
+            TypeError: If logger doesn't implement ILogger
         """
+        validate_dependency(logger, ILogger, "logger")
         self.logger = logger
 
     def check_backend_health(self) -> bool:

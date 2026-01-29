@@ -5,7 +5,7 @@ Direct service/repository instantiation - no service locator (Phase 4A).
 
 Author: Claude Code
 Created: 2026-01-28
-Updated: 2026-01-28 (Phase 4A - eliminate get_container)
+Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
@@ -21,9 +21,8 @@ from backend.services.workflow.api.public.services.workflow_orchestrator import 
 from backend.services.workflow.services.triage_service import TriageService
 from backend.utils.common.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
+from backend.config import CORPUS_PATH
 
-# Corpus path (centralized configuration)
-_CORPUS_PATH = Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5"
 
 
 def get_task_repository() -> ITaskRepository:
@@ -36,7 +35,7 @@ def get_task_repository() -> ITaskRepository:
         No longer uses service locator (get_container).
         Direct instantiation enables better testability and explicit dependencies.
     """
-    return HDF5TaskRepository(_CORPUS_PATH)
+    return HDF5TaskRepository(CORPUS_PATH)
 
 
 def get_audit_repository() -> AuditRepository:
@@ -49,7 +48,7 @@ def get_audit_repository() -> AuditRepository:
         Created as a dependency for AuditService.
         Uses same corpus.h5 path for consistency.
     """
-    return AuditRepository(_CORPUS_PATH)
+    return AuditRepository(CORPUS_PATH)
 
 
 def get_triage_service_dep() -> TriageService:
