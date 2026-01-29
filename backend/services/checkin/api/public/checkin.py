@@ -21,6 +21,8 @@ from typing import List
 
 import qrcode
 from backend.database import get_db_dependency
+from backend.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
+from backend.infrastructure.auth.domain.entities.user import UserRole
 from backend.models.checkin_models import (
     Appointment,
     AppointmentStatus,
@@ -54,7 +56,7 @@ from backend.schemas.api.checkin import (
     WaitingRoomState,
 )
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
@@ -801,8 +803,34 @@ async def complete_checkin(
 
 
 @router.get("/waiting-room/{clinic_id}", response_model=GetWaitingRoomResponse)
-def get_waiting_room(clinic_id: str, db: Session = Depends(get_db_dependency)):
-    """Get current waiting room state for a clinic."""
+def get_waiting_room(
+    clinic_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_dependency),
+):
+    """Get current waiting room state for a clinic.
+
+    SECURITY (Multi-Tenancy): Requires authentication.
+    Users can only access waiting room for their own clinic.
+    SUPERADMIN can view any clinic (admin override).
+    """
+    # SECURITY: Validate user can access this clinic
+    if UserRole.SUPERADMIN not in current_user.roles:
+        if clinic_id != current_user.clinic_id:
+            logger.error(
+                "WAITING_ROOM_ACCESS_DENIED",
+                requested_clinic=clinic_id,
+                user_clinic=current_user.clinic_id,
+                user_id=current_user.id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"Access denied: Cannot access waiting room for clinic '{clinic_id}'. "
+                    f"You are authorized for clinic '{current_user.clinic_id}' only."
+                ),
+            )
+
     # Verify clinic exists
     clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
     if not clinic:

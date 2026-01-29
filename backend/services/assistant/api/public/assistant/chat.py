@@ -196,12 +196,30 @@ async def chat_with_assistant(
 
         receptionist_state = None
         if request.receptionist_config:
+            # SECURITY (Multi-Tenancy): Validate clinic_id matches user's clinic
+            # Prevent horizontal privilege escalation (user accessing other clinics)
+            requested_clinic_id = request.receptionist_config.get("clinic_id")
+            if requested_clinic_id and requested_clinic_id != current_user.clinic_id:
+                logger.error(
+                    "RECEPTIONIST_CLINIC_IMPERSONATION_BLOCKED",
+                    requested_clinic_id=requested_clinic_id,
+                    actual_clinic_id=current_user.clinic_id,
+                    user_id=current_user.id,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=(
+                        f"Access denied: Cannot access clinic '{requested_clinic_id}'. "
+                        f"You are authorized for clinic '{current_user.clinic_id}' only."
+                    ),
+                )
+
             receptionist_state = {
                 "state": "active",
                 "quick_replies": ["Yes", "No", "I need help"],
                 "actions": [],
                 "metadata": {
-                    "clinic_id": request.receptionist_config.get("clinic_id"),
+                    "clinic_id": current_user.clinic_id,  # Use validated clinic_id from Auth0
                     "clinic_name": request.receptionist_config.get("clinic_name"),
                     "session_id": request.session_id,
                 },
