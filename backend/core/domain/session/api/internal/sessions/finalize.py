@@ -503,6 +503,7 @@ async def finalize_session(
                 encrypt_session_worker,
                 session_id=session_id,
                 h5_path=h5_path,
+                task_repo=task_repo,
                 targets=None,  # Use default targets from worker
             )
 

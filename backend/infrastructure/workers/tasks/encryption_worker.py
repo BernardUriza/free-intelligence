@@ -61,15 +61,8 @@ try:
         TaskStatus,  # type: ignore[assignment]
         TaskType,  # type: ignore[assignment]
     )
+    from backend.repositories.interfaces.itask_repository import ITaskRepository  # type: ignore[assignment]
     from backend.utils.common.logging.logger import get_logger  # type: ignore[assignment]
-    from backend.container import get_container  # type: ignore[assignment]
-
-    # Use DI container for task repository
-    def update_task_metadata(session_id: str, task_type: Any, metadata: dict) -> None:
-        """Update task metadata via DI container."""
-        task_repo = get_container().get_task_repository()
-        task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-        task_repo.save_task_metadata(session_id, task_type_str, metadata)
 
     HAS_BACKEND_IMPORTS = True
 except ImportError:
@@ -973,6 +966,7 @@ def measure_time(fn):
 def encrypt_session_worker(
     session_id: str,
     h5_path: str,
+    task_repo: "ITaskRepository | None" = None,
     targets: list[str] | None = None,
 ) -> WorkerResult:
     """Encrypt session data in HDF5 file using AES-GCM-256.
@@ -980,6 +974,7 @@ def encrypt_session_worker(
     Args:
         session_id: Unique session identifier
         h5_path: Path to HDF5 file (must exist and be writable)
+        task_repo: Task repository (injected for thread-safety, None for CLI mode)
         targets: List of dataset paths to encrypt (optional)
 
     Returns:
@@ -994,6 +989,7 @@ def encrypt_session_worker(
     Note:
         **Idempotency:** Safe to call multiple times (checks idempotency_key).
         **Atomic:** Uses *.part temporary file pattern (rename after success).
+        **CLI Mode:** task_repo=None skips metadata updates (fallback for standalone usage).
     """
     start_time = time.time()
     error_msg: str | None = None
@@ -1013,11 +1009,11 @@ def encrypt_session_worker(
         )
 
         # Update task metadata: IN_PROGRESS
-        if HAS_BACKEND_IMPORTS:
+        if HAS_BACKEND_IMPORTS and task_repo is not None:
             with contextlib.suppress(Exception):
-                update_task_metadata(
+                task_repo.save_task_metadata(
                     session_id,
-                    TaskType.ENCRYPTION,
+                    TaskType.ENCRYPTION.value,
                     {
                         "status": TaskStatus.IN_PROGRESS,
                         "progress_percent": 10,
@@ -1122,11 +1118,11 @@ def encrypt_session_worker(
         )
 
         # Update task metadata: COMPLETED
-        if HAS_BACKEND_IMPORTS:
+        if HAS_BACKEND_IMPORTS and task_repo is not None:
             try:
-                update_task_metadata(
+                task_repo.save_task_metadata(
                     session_id,
-                    TaskType.ENCRYPTION,
+                    TaskType.ENCRYPTION.value,
                     {
                         "status": TaskStatus.COMPLETED,
                         "progress_percent": 100,
@@ -1167,11 +1163,11 @@ def encrypt_session_worker(
         )
 
         # Update task metadata: FAILED
-        if HAS_BACKEND_IMPORTS:
+        if HAS_BACKEND_IMPORTS and task_repo is not None:
             try:
-                update_task_metadata(
+                task_repo.save_task_metadata(
                     session_id,
-                    TaskType.ENCRYPTION,
+                    TaskType.ENCRYPTION.value,
                     {
                         "status": TaskStatus.FAILED,
                         "progress_percent": 0,

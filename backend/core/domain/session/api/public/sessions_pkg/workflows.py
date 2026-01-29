@@ -177,7 +177,7 @@ async def analyze_session_intelligent_workflow(
             elif task_type == TaskType.EMOTION_ANALYSIS:
                 from backend.infrastructure.workers.tasks.emotion_worker import analyze_emotion_worker
 
-                spawn_worker(analyze_emotion_worker, session_id=session_id)
+                spawn_worker(analyze_emotion_worker, session_id=session_id, task_repo=task_repo)
                 job_ids["EMOTION_ANALYSIS"] = session_id
 
             logger.info("WORKFLOW_DISPATCHED", session_id=session_id, task_type=workflow)

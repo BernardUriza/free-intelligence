@@ -168,7 +168,7 @@ class WorkflowOrchestrator:
         )
 
         # 2. Dispatch worker
-        spawn_worker(analyze_emotion_worker, session_id=session_id)
+        spawn_worker(analyze_emotion_worker, session_id=session_id, task_repo=self.task_repo)
         job_id = session_id
 
         self.logger.info(
@@ -209,7 +209,9 @@ class WorkflowOrchestrator:
         )
 
         # 2. Dispatch worker
-        spawn_worker(encrypt_session_worker, session_id=session_id)
+        from pathlib import Path
+        h5_path = str(Path("storage/corpus.h5"))
+        spawn_worker(encrypt_session_worker, session_id=session_id, h5_path=h5_path, task_repo=self.task_repo)
         encryption_task_id = f"{session_id}_encryption"
 
         self.logger.info(

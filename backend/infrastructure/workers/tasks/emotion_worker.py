@@ -9,25 +9,11 @@ from typing import Any
 
 import h5py
 from backend.models.task_type import TaskStatus, TaskType
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.schemas.llm.preset_loader import get_preset_loader
 from backend.utils.common.logging.logger import get_logger
-from backend.container import get_container
 from backend.infrastructure.workers.tasks.base_worker import measure_time
 from pathlib import Path
-
-# Use DI container for task repository functions
-def task_exists(session_id: str, task_type):
-    """Check if task exists via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.task_exists(session_id, task_type_str)
-
-
-def update_task_metadata(session_id: str, task_type, **metadata):
-    """Update task metadata via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.save_task_metadata(session_id, task_type_str, metadata)
 
 
 # Default corpus path
@@ -39,11 +25,13 @@ logger = get_logger(__name__)
 @measure_time
 def analyze_emotion_worker(
     session_id: str,
+    task_repo: ITaskRepository,
 ) -> dict[str, Any]:
     """Analyze patient emotional state from diarization segments.
 
     Args:
         session_id: Session identifier
+        task_repo: Task repository (injected for thread-safety)
 
     Returns:
         WorkerResult with emotion analysis
@@ -56,7 +44,7 @@ def analyze_emotion_worker(
         )
 
         # Check EMOTION_ANALYSIS task exists
-        if not task_exists(session_id, TaskType.EMOTION_ANALYSIS):
+        if not task_repo.task_exists(session_id, TaskType.EMOTION_ANALYSIS.value):
             raise ValueError(
                 f"EMOTION_ANALYSIS task not found for {session_id}. Must create first."
             )
@@ -133,9 +121,9 @@ def analyze_emotion_worker(
             }
             # Save to HDF5
             _save_emotion_result(session_id, result)
-            update_task_metadata(
+            task_repo.save_task_metadata(
                 session_id,
-                TaskType.EMOTION_ANALYSIS,
+                TaskType.EMOTION_ANALYSIS.value,
                 {
                     "status": TaskStatus.COMPLETED,
                     "completed_at": datetime.now(UTC).isoformat(),
@@ -156,7 +144,7 @@ def analyze_emotion_worker(
         )
 
         # Update metadata: IN_PROGRESS
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
             TaskType.EMOTION_ANALYSIS,
             {
@@ -307,7 +295,7 @@ def analyze_emotion_worker(
         _save_emotion_result(session_id, result)
 
         # Update metadata: COMPLETED
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
             TaskType.EMOTION_ANALYSIS,
             {
@@ -338,10 +326,10 @@ def analyze_emotion_worker(
             exc_info=True,
         )
         # Update metadata: FAILED
-        if task_exists(session_id, TaskType.EMOTION_ANALYSIS):
-            update_task_metadata(
+        if task_repo.task_exists(session_id, TaskType.EMOTION_ANALYSIS.value):
+            task_repo.save_task_metadata(
                 session_id,
-                TaskType.EMOTION_ANALYSIS,
+                TaskType.EMOTION_ANALYSIS.value,
                 {
                     "status": TaskStatus.FAILED,
                     "error": str(e),
