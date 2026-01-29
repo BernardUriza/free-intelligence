@@ -19,6 +19,7 @@ from typing import Any, Dict
 from backend.models.task_type import CHUNK_DURATION_SECONDS, TaskType
 from backend.repositories.interfaces import ITaskRepository
 from backend.repositories.session_repository import SessionRepository
+from backend.utils.coder.utils.exceptions import SessionNotFoundError
 from backend.utils.common.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
@@ -152,7 +153,28 @@ class DITranscriptionService:
             audio_size=audio_size,
         )
 
-        # 2. Ensure TRANSCRIPTION task exists (INJECTED - was get_container())
+        # 2. VALIDATE SESSION EXISTS (Fix #4 - prevent orphaned tasks)
+        self.logger.debug(
+            "VALIDATING_SESSION_EXISTS",
+            session_id=session_id,
+        )
+        session = self.session_repo.get(session_id)
+        if not session:
+            self.logger.error(
+                "SESSION_NOT_FOUND",
+                session_id=session_id,
+                chunk_number=chunk_number,
+            )
+            raise SessionNotFoundError(
+                f"Session {session_id} not found. Cannot process chunk {chunk_number}."
+            )
+        self.logger.debug(
+            "SESSION_EXISTS_VALIDATED",
+            session_id=session_id,
+            session_status=session.get("status", "unknown"),
+        )
+
+        # 3. Ensure TRANSCRIPTION task exists (INJECTED - was get_container())
         self.logger.debug(
             "ENSURING_TRANSCRIPTION_TASK",
             session_id=session_id,

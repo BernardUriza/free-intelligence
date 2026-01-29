@@ -15,6 +15,7 @@ from backend.services.transcription.services.di_transcription_service import (
 )
 from backend.repositories.interfaces import ITaskRepository
 from backend.repositories.session_repository import SessionRepository
+from backend.utils.coder.utils.exceptions import SessionNotFoundError
 from backend.utils.common.interfaces.ilogger import ILogger
 
 
@@ -33,6 +34,7 @@ def mock_task_repo():
 def mock_logger():
     """Mock ILogger."""
     logger = Mock(spec=ILogger)
+    logger.debug = Mock()  # Fix #4: process_chunk uses debug logging
     logger.info = Mock()
     logger.warning = Mock()
     logger.error = Mock()
@@ -41,8 +43,9 @@ def mock_logger():
 
 @pytest.fixture
 def mock_session_repo():
-    """Mock SessionRepository (Fix #2)."""
+    """Mock SessionRepository (Fix #2 + Fix #4)."""
     repo = Mock(spec=SessionRepository)
+    # Fix #4: Returns valid session dict (prevents SessionNotFoundError)
     repo.get = Mock(return_value={"session_id": "test-session-123", "status": "active"})
     repo.exists = Mock(return_value=True)
     return repo
@@ -69,14 +72,12 @@ class TestProcessChunk:
         session_id = "test-session-123"
         chunk_number = 1
         audio_bytes = b"fake-audio-data"
-        metadata = {"duration": 5.0}
 
         # Act
         await service.process_chunk(
             session_id=session_id,
             chunk_number=chunk_number,
             audio_bytes=audio_bytes,
-            metadata=metadata,
         )
 
         # Assert
@@ -92,14 +93,12 @@ class TestProcessChunk:
         session_id = "test-session-123"
         chunk_number = 1
         audio_bytes = b"fake-audio-data"
-        metadata = {"duration": 5.0, "sample_rate": 16000}
 
         # Act
         await service.process_chunk(
             session_id=session_id,
             chunk_number=chunk_number,
             audio_bytes=audio_bytes,
-            metadata=metadata,
         )
 
         # Assert
@@ -123,7 +122,6 @@ class TestProcessChunk:
             session_id=session_id,
             chunk_number=chunk_number,
             audio_bytes=audio_bytes,
-            metadata={},
         )
 
         # Assert
@@ -143,7 +141,6 @@ class TestProcessChunk:
             session_id=session_id,
             chunk_number=chunk_number,
             audio_bytes=audio_bytes,
-            metadata={},
         )
 
         # Assert
@@ -169,10 +166,31 @@ class TestProcessChunk:
                 session_id=session_id,
                 chunk_number=chunk_number,
                 audio_bytes=audio_bytes,
-                metadata={},
             )
 
         assert "HDF5 connection failed" in str(exc_info.value)
+        # Logger should have logged error
+        mock_logger.error.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_raises_error_when_session_not_found(self, service, mock_session_repo, mock_logger):
+        """Test that process_chunk raises SessionNotFoundError when session doesn't exist (Fix #4)."""
+        # Arrange
+        mock_session_repo.get.return_value = None  # Session NOT found
+        session_id = "nonexistent-session-123"
+        chunk_number = 1
+        audio_bytes = b"fake-audio-data"
+
+        # Act & Assert
+        with pytest.raises(SessionNotFoundError) as exc_info:
+            await service.process_chunk(
+                session_id=session_id,
+                chunk_number=chunk_number,
+                audio_bytes=audio_bytes,
+            )
+
+        assert session_id in str(exc_info.value)
+        assert "not found" in str(exc_info.value).lower()
         # Logger should have logged error
         mock_logger.error.assert_called()
 
