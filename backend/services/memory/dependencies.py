@@ -2,10 +2,10 @@
 
 Author: Claude Code
 Created: 2026-01-28
-Card: Backend Refactor Phase 2.3 - Service Refactoring
+Updated: 2026-01-28 (Phase 4A - remove unused get_container import)
+Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from backend.container import get_container
 from backend.services.memory.services.di_memory_service import DIMemoryService
 from backend.utils.common.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
