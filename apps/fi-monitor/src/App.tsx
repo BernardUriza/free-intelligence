@@ -404,11 +404,6 @@ export default function App({ setupState }: AppProps) {
                 {gatewayOn ? '● Activo' : '○ Inactivo'}
               </div>
               <div className="text-xs text-app-text-dim">HTTP Router</div>
-
-              {/* Logs Viewer */}
-              {gatewayOn && (
-                <LogsViewer serviceName="gateway" serviceDisplayName="Gateway" />
-              )}
             </div>
             <button
               className={`action-btn ${gatewayOn ? 'stop' : 'start'}`}
@@ -916,8 +911,14 @@ export default function App({ setupState }: AppProps) {
       </div>
 
       <footer className="statusbar">
-        <span className={`dot ${ollamaOn && tunnelOn ? 'green' : ollamaOn || tunnelOn ? 'yellow' : 'gray'}`} />
-        <span className="status-text">{ollamaOn && tunnelOn ? 'Listo' : ollamaOn ? 'Tunnel pendiente' : 'Detenido'}</span>
+        <span className={`dot ${ollamaOn ? 'green' : 'gray'}`} />
+        <span className="status-text">
+          {ollamaOn
+            ? isCloudflaredMode
+              ? 'Listo (Cloudflared)'
+              : 'Listo'
+            : 'Detenido'}
+        </span>
         <span className="version">v{appVersion}</span>
       </footer>
     </div>
