@@ -19,6 +19,20 @@ warnings.warn(
     stacklevel=2,
 )
 
-# Note: This file is intentionally left empty to show deprecation warning.
-# All functionality has been moved to backend.infrastructure.
-# Update your imports directly instead of relying on this redirect.
+# Backward compatibility redirects (temporary during migration)
+# TODO: Remove these after updating all imports to backend.infrastructure
+
+try:
+    from backend.infrastructure.auth import *  # noqa: F401, F403
+except ImportError:
+    pass  # Module doesn't exist yet
+
+try:
+    from backend.infrastructure.workers import *  # noqa: F401, F403
+except ImportError:
+    pass  # Module doesn't exist yet
+
+try:
+    from backend.infrastructure.model_catalog import *  # noqa: F401, F403
+except ImportError:
+    pass  # Module doesn't exist yet
