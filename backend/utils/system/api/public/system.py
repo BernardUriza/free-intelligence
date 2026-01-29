@@ -16,7 +16,7 @@ from typing import Any
 
 import httpx
 from backend.utils.common.logging.logger import get_logger
-from backend.core.infrastructure.model_catalog.services.tunnel_url_provider import (
+from backend.infrastructure.model_catalog.services.tunnel_url_provider import (
     get_tunnel_url_provider,
 )
 from fastapi import APIRouter, HTTPException, Query

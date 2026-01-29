@@ -36,7 +36,7 @@ Refactored: 2025-11-15 (SOLIS modular architecture)
 from __future__ import annotations
 
 from backend.services.assistant.api.public import assistant, assistant_history, assistant_websocket
-from backend.core.domain.clinic.api.public import clinic_media
+from backend.api.routers.clinic.public import clinic_media
 from backend.utils.common.logging.logger import get_logger
 from backend.services.content.api.public import tv_content_seeds
 from backend.services.document.api.public import documents
@@ -45,10 +45,10 @@ from backend.services.document.api.public import documents
 from backend.services.evidence.api.public import evidence
 from backend.services.kpi.api.public import kpis
 from backend.services.memory.api.public import longitudinal_memory
-from backend.core.domain.order.api.public import orders
-from backend.core.domain.prescription.api.public import prescriptions
-from backend.core.domain.session.api.public import sessions_list
-from backend.core.domain.session.api.public import sessions_pkg as sessions
+from backend.api.routers.order.public import orders
+from backend.api.routers.prescription.public import prescriptions
+from backend.api.routers.session.public import sessions_list
+from backend.api.routers.session.public import sessions_pkg as sessions
 from backend.services.soap.api.public import soap
 from backend.utils.system.api.public import system
 from backend.services.timeline.api.public import timeline

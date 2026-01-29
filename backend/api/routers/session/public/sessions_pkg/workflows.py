@@ -216,7 +216,7 @@ async def analyze_session_intelligent_workflow(
 async def finalize_session_workflow(
     session_id: str, request: FinalizeSessionRequest
 ) -> FinalizeSessionResponse:
-    from backend.core.domain.session.api.internal.sessions.finalize import (
+    from backend.api.routers.session.internal.sessions.finalize import (
         finalize_session as internal_finalize,
     )
 
@@ -251,7 +251,7 @@ async def finalize_session_workflow(
 async def checkpoint_session_workflow(
     session_id: str, request: CheckpointRequest
 ) -> CheckpointResponse:
-    from backend.core.domain.session.api.internal.sessions.checkpoint import (
+    from backend.api.routers.session.internal.sessions.checkpoint import (
         checkpoint_session as internal_checkpoint,
     )
 

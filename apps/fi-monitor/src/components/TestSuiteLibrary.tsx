@@ -22,6 +22,13 @@ interface TestResult {
 }
 
 export function TestSuiteLibrary() {
+  const [testMode, setTestMode] = useState<'llm' | 'rag'>('llm')
+  const [ragQuestion, setRagQuestion] = useState('')
+  const [ragResult, setRagResult] = useState<any>(null)
+  const [ragRunning, setRagRunning] = useState(false)
+  const [ragServiceStatus, setRagServiceStatus] = useState<'checking' | 'running' | 'stopped'>('checking')
+  const [ragServiceStarting, setRagServiceStarting] = useState(false)
+
   const [tests, setTests] = useState<Test[]>([])
   const [results, setResults] = useState<Map<string, TestResult>>(new Map())
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -41,6 +48,37 @@ export function TestSuiteLibrary() {
   useEffect(() => {
     loadTests()
   }, [])
+
+  // Check RAG Service status when switching to RAG mode
+  useEffect(() => {
+    if (testMode === 'rag') {
+      checkRagServiceStatus()
+    }
+  }, [testMode])
+
+  const checkRagServiceStatus = async () => {
+    setRagServiceStatus('checking')
+    try {
+      await invoke('get_rag_stats')
+      setRagServiceStatus('running')
+    } catch (err) {
+      console.error('[RAG] Service not running:', err)
+      setRagServiceStatus('stopped')
+    }
+  }
+
+  const startRagServiceManually = async () => {
+    setRagServiceStarting(true)
+    try {
+      await invoke('start_rag_service')
+      setRagServiceStatus('running')
+    } catch (err) {
+      console.error('[RAG] Failed to start service:', err)
+      alert(`Failed to start RAG Service: ${err}`)
+    } finally {
+      setRagServiceStarting(false)
+    }
+  }
 
   const loadTests = async () => {
     try {
@@ -190,6 +228,24 @@ export function TestSuiteLibrary() {
 
   return (
     <div className="test-suite-library">
+      {/* Mode Switch */}
+      <div className="test-mode-switch">
+        <button
+          className={testMode === 'llm' ? 'active' : ''}
+          onClick={() => setTestMode('llm')}
+        >
+          🤖 Test LLM
+        </button>
+        <button
+          className={testMode === 'rag' ? 'active' : ''}
+          onClick={() => setTestMode('rag')}
+        >
+          📚 Test RAG
+        </button>
+      </div>
+
+      {testMode === 'llm' ? (
+        <>
       {/* Header */}
       <div className="test-suite-header">
         <h3>Test Suite Library</h3>
@@ -382,6 +438,132 @@ export function TestSuiteLibrary() {
           })
         )}
       </div>
+        </>
+      ) : (
+        /* RAG Testing UI */
+        <div className="rag-testing-container">
+          <div className="rag-header">
+            <h3>📚 RAG Testing</h3>
+            <p className="rag-subtitle">Ask questions about pre-loaded medical documents</p>
+          </div>
+
+          {/* Service Status Banner */}
+          <div className={`rag-service-status ${ragServiceStatus}`}>
+            {ragServiceStatus === 'checking' && (
+              <span>🔍 Checking RAG Service...</span>
+            )}
+            {ragServiceStatus === 'running' && (
+              <span>✅ RAG Service running on port 11435</span>
+            )}
+            {ragServiceStatus === 'stopped' && (
+              <>
+                <span>⚠️ RAG Service not running</span>
+                <button
+                  onClick={startRagServiceManually}
+                  disabled={ragServiceStarting}
+                  className="rag-start-btn"
+                >
+                  {ragServiceStarting ? '⏳ Starting...' : '▶ Start Service'}
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Question Input */}
+          <div className="rag-query-section">
+            <label>Ask a question:</label>
+            <textarea
+              value={ragQuestion}
+              onChange={(e) => setRagQuestion(e.target.value)}
+              placeholder="¿Cuál fue el diagnóstico del paciente?"
+              className="rag-question-input"
+              rows={3}
+            />
+            <button
+              onClick={async () => {
+                if (!ragQuestion.trim()) return
+                setRagRunning(true)
+                try {
+                  const result = await invoke('test_ollama', {
+                    mode: 'rag',
+                    question: ragQuestion
+                  })
+                  setRagResult(result)
+                } catch (err) {
+                  console.error('[RAG] Query failed:', err)
+                  alert(`RAG Service error: ${err}`)
+                } finally {
+                  setRagRunning(false)
+                }
+              }}
+              disabled={ragRunning || !ragQuestion.trim()}
+              className="rag-query-btn"
+            >
+              {ragRunning ? '🔍 Searching...' : '🔍 Search'}
+            </button>
+          </div>
+
+          {/* Results */}
+          {ragResult && (
+            <div className="rag-result-card">
+              <div className="rag-result-header">
+                <span className="rag-result-label">Answer:</span>
+                <span className="rag-result-timing">{ragResult.elapsed_ms}ms</span>
+              </div>
+              <div className="rag-result-content">
+                {ragResult.answer}
+              </div>
+
+              {ragResult.rag_metadata && (
+                <div className="rag-metadata">
+                  <p className="rag-metadata-title">📊 Metadata:</p>
+                  <ul>
+                    <li>Total chunks: {ragResult.rag_metadata.total_chunks}</li>
+                    <li>Embedding latency: {ragResult.rag_metadata.embedding_latency_ms}ms</li>
+                    <li>Chunks retrieved: {ragResult.rag_metadata.chunks.length}</li>
+                  </ul>
+
+                  <div className="rag-chunks">
+                    <p className="rag-chunks-title">📚 Source Chunks:</p>
+                    {ragResult.rag_metadata.chunks.map((chunk: any, i: number) => (
+                      <div key={i} className="rag-chunk">
+                        <div className="rag-chunk-header">
+                          <span className="rag-chunk-num">#{i + 1}</span>
+                          <span className="rag-chunk-relevance">
+                            Relevance: {(chunk.relevance * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="rag-chunk-text">{chunk.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sample Questions */}
+          <div className="rag-samples">
+            <p className="rag-samples-title">💡 Sample questions:</p>
+            <div className="rag-samples-grid">
+              {[
+                '¿Cuál fue el diagnóstico?',
+                '¿Qué medicamentos se prescribieron?',
+                '¿Cuál fue el motivo de consulta?',
+                '¿Qué estudios se ordenaron?',
+              ].map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => setRagQuestion(q)}
+                  className="rag-sample-btn"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

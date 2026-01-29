@@ -179,7 +179,14 @@
       "Bash(# Kill existing backend pkill -f \"\"python.*backend.app.main\"\" || true sleep 2 # Start backend PYTHONPATH=src python3.14 -m backend.app.main 2>&1 & BACKEND_PID=$! echo \"\"Backend PID: $BACKEND_PID\"\" sleep 12 echo \"\"=== Health Check ===\"\" curl -s http://localhost:7001/health echo \"\"\"\" echo \"\"\"\" echo \"\"=== Router Registration Status ===\"\" tail -100 /tmp/backend-final-test.log)",
       "Bash(__NEW_LINE_5d93c0a9f12493c1__ echo \"\")",
       "Bash(PYTHONPATH=backend timeout 15 python3.14:*)",
-      "Bash(PYTHONPATH=backend timeout 20 python3.14:*)"
+      "Bash(PYTHONPATH=backend timeout 20 python3.14:*)",
+      "Bash(./verify_setup.sh:*)",
+      "Bash(./quick_test.sh)",
+      "Bash(pnpm run typecheck:*)",
+      "Bash(if [ -d \"backend/core/domain/$domain/api/internal\" ])",
+      "Bash(then)",
+      "Bash(__NEW_LINE_f7190dfa5b2f9bbd__ done)",
+      "Bash(__NEW_LINE_1857e25b3f809e0b__ done)"
     ]
   },
   "enableAllProjectMcpServers": true,

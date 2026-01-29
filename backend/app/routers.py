@@ -41,7 +41,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
 
     # Check-in & Payments
     from backend.services.checkin.api.public import checkin
-    from backend.core.domain.clinic.api.public import clinics
+    from backend.api.routers.clinic.public import clinics
 
     # Coder
     from backend.utils.coder.api.internal.fi_coder import router as fi_coder_router
@@ -68,16 +68,16 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.infrastructure.observability.api import router as observability_router
 
     # Patients & Providers
-    from backend.core.domain.patient.api.public import patients
+    from backend.api.routers.patient.public import patients
     from backend.api.payment.api.public import payments
 
     # Policy
     from backend.api.policy.api.public import policy
-    from backend.core.domain.provider.api.public import providers
+    from backend.api.routers.provider.public import providers
 
     # Sessions
-    from backend.core.domain.session.api.internal.sessions import router as sessions_router
-    from backend.core.domain.session.api.internal.sessions.finalize import (
+    from backend.api.routers.session.internal.sessions import router as sessions_router
+    from backend.api.routers.session.internal.sessions.finalize import (
         router as sessions_finalize_router,
     )
 
@@ -94,7 +94,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
 
     # TTS
     from backend.services.tts.api.public import tts
-    from backend.core.domain.user.api.public import user_clinic
+    from backend.api.routers.user.public import user_clinic
 
     # Triage
     from backend.services.workflow.api.internal.triage import router as triage_router

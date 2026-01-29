@@ -239,7 +239,6 @@ async fn check_ollama() -> bool {
         .map(|r| r.status().is_success())
         .unwrap_or(false)
 }
-
 async fn get_ollama_models() -> Vec<String> {
     #[derive(Deserialize)]
     struct ModelsResponse {
@@ -1431,11 +1430,108 @@ async fn get_status(state: tauri::State<'_, Arc<AppState>>) -> Result<ServiceSta
 }
 
 #[tauri::command]
-async fn test_ollama() -> Result<TestResult, String> {
+async fn test_ollama(mode: Option<String>, question: Option<String>) -> Result<TestResult, String> {
     use std::time::Instant;
+    let test_mode = mode.unwrap_or_else(|| "llm".to_string());
+
+    // RAG Mode: Query RAG Service
+    if test_mode == "rag" {
+        let query_text = question.ok_or_else(|| "RAG mode requires a question".to_string())?;
+
+        // Check if RAG Service is running
+        if !check_rag_service().await {
+            return Err("RAG Service not running. Start it from the UI button.".to_string());
+        }
+
+        println!("[FI Monitor] RAG Testing: {}", query_text);
+        let start = Instant::now();
+
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .build()
+            .unwrap();
+
+        #[derive(Serialize)]
+        struct RagQuery {
+            question: String,
+            top_k: usize,
+        }
+
+        #[derive(Deserialize)]
+        struct RagResponse {
+            answer: String,
+            chunks: Vec<RagChunk>,
+            metadata: RagMetadata,
+        }
+
+        #[derive(Deserialize)]
+        struct RagChunk {
+            text: String,
+            relevance: f32,
+        }
+
+        #[derive(Deserialize)]
+        struct RagMetadata {
+            total_chunks: usize,
+            embedding_latency_ms: u64,
+        }
+
+        let request = RagQuery {
+            question: query_text.clone(),
+            top_k: 3,
+        };
+
+        let response = client
+            .post("http://localhost:11435/rag/query")
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| format!("RAG Service error: {}", e))?;
+
+        let rag_res: RagResponse = response
+            .json()
+            .await
+            .map_err(|e| format!("RAG parse error: {}", e))?;
+
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+        println!("[FI Monitor] RAG Response in {}ms", elapsed_ms);
+
+        // Format answer with chunks info
+        let mut full_answer = rag_res.answer.clone();
+        full_answer.push_str(&format!("\n\n📚 Sources ({} chunks):", rag_res.chunks.len()));
+        for (i, chunk) in rag_res.chunks.iter().take(3).enumerate() {
+            full_answer.push_str(&format!(
+                "\n{}. {} (relevance: {:.2})",
+                i + 1,
+                chunk.text.chars().take(100).collect::<String>(),
+                chunk.relevance
+            ));
+        }
+
+        return Ok(TestResult {
+            category: "rag".to_string(),
+            question: query_text,
+            answer: full_answer,
+            elapsed_ms,
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            rag_metadata: Some(serde_json::json!({
+                "total_chunks": rag_res.metadata.total_chunks,
+                "embedding_latency_ms": rag_res.metadata.embedding_latency_ms,
+                "chunks": rag_res.chunks.iter().map(|c| {
+                    serde_json::json!({
+                        "text": c.text,
+                        "relevance": c.relevance
+                    })
+                }).collect::<Vec<_>>()
+            })),
+        });
+    }
+
+    // LLM Mode: Original Ollama logic
     if !check_ollama().await {
         return Err("Ollama no está ejecutándose".to_string());
     }
+
     let questions = vec![
         (
             "math",
@@ -1462,13 +1558,21 @@ async fn test_ollama() -> Result<TestResult, String> {
             "Explica brevemente qué son los pulmones y su función.",
         ),
     ];
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    let idx = (now % questions.len() as u64) as usize;
-    let (category, prompt) = questions[idx];
-    println!("[FI Monitor] Testing: {}", prompt);
+
+    let prompt = if let Some(q) = question {
+        q
+    } else {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let idx = (now % questions.len() as u64) as usize;
+        questions[idx].1.to_string()
+    };
+
+    let category = if prompt.contains("raíz cuadrada") { "math" } else { "anatomy" };
+
+    println!("[FI Monitor] LLM Testing: {}", prompt);
     let start = Instant::now();
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
@@ -1500,13 +1604,14 @@ async fn test_ollama() -> Result<TestResult, String> {
         .await
         .map_err(|e| format!("Parse error: {}", e))?;
     let elapsed_ms = start.elapsed().as_millis() as u64;
-    println!("[FI Monitor] Response in {}ms", elapsed_ms);
+    println!("[FI Monitor] LLM Response in {}ms", elapsed_ms);
     Ok(TestResult {
         category: category.to_string(),
-        question: prompt.to_string(),
+        question: prompt,
         answer: res.response.trim().to_string(),
         elapsed_ms,
         timestamp: chrono::Utc::now().to_rfc3339(),
+        rag_metadata: None,
     })
 }
 
@@ -1517,6 +1622,8 @@ struct TestResult {
     answer: String,
     elapsed_ms: u64,
     timestamp: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rag_metadata: Option<serde_json::Value>,
 }
 
 // ============================================================================

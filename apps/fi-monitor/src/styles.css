@@ -2023,3 +2023,315 @@ body {
   background: #f44336;
   border-color: #f44336;
 }
+
+/* ========================================
+   Test Mode Switch
+   ======================================== */
+
+.test-mode-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  background: var(--surface);
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.test-mode-switch button {
+  flex: 1;
+  padding: 12px 20px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.test-mode-switch button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0a0e14;
+}
+
+.test-mode-switch button:hover:not(.active) {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* ========================================
+   RAG Testing UI
+   ======================================== */
+
+.rag-testing-container {
+  padding: 20px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.rag-header {
+  margin-bottom: 24px;
+}
+
+.rag-header h3 {
+  margin: 0 0 8px 0;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.rag-subtitle {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+/* Query Section */
+.rag-query-section {
+  margin-bottom: 24px;
+}
+
+.rag-query-section label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.rag-question-input {
+  width: 100%;
+  padding: 12px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  resize: vertical;
+  margin-bottom: 12px;
+}
+
+.rag-question-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.rag-query-btn {
+  padding: 10px 24px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #0a0e14;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rag-query-btn:hover:not(:disabled) {
+  background: var(--accent-bright);
+  transform: translateY(-1px);
+}
+
+.rag-query-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Result Card */
+.rag-result-card {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.rag-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.rag-result-label {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.rag-result-timing {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.rag-result-content {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Metadata */
+.rag-metadata {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.rag-metadata-title {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13px;
+  margin: 0 0 8px 0;
+}
+
+.rag-metadata ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rag-metadata li {
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+/* Chunks */
+.rag-chunks {
+  margin-top: 16px;
+}
+
+.rag-chunks-title {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13px;
+  margin: 0 0 12px 0;
+}
+
+.rag-chunk {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.rag-chunk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.rag-chunk-num {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.rag-chunk-relevance {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.rag-chunk-text {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Sample Questions */
+.rag-samples {
+  margin-top: 24px;
+}
+
+.rag-samples-title {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13px;
+  margin: 0 0 12px 0;
+}
+
+.rag-samples-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.rag-sample-btn {
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.rag-sample-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+/* RAG Service Status Banner */
+.rag-service-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.rag-service-status.checking {
+  background: rgba(88, 166, 255, 0.1);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  color: var(--accent);
+}
+
+.rag-service-status.running {
+  background: rgba(63, 185, 80, 0.1);
+  border: 1px solid rgba(63, 185, 80, 0.3);
+  color: var(--success);
+}
+
+.rag-service-status.stopped {
+  background: rgba(210, 153, 34, 0.1);
+  border: 1px solid rgba(210, 153, 34, 0.3);
+  color: var(--warning);
+}
+
+.rag-start-btn {
+  padding: 6px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  color: #0a0e14;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rag-start-btn:hover:not(:disabled) {
+  background: var(--accent-bright);
+}
+
+.rag-start-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

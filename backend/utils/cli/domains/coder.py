@@ -241,7 +241,7 @@ def lint_fix_worker_cmd(
 ) -> None:
     """Run a single batch of lint fixing using the worker."""
     try:
-        from backend.core.infrastructure.workers.tasks.lint_fix_worker import lint_fix_worker
+        from backend.infrastructure.workers.tasks.lint_fix_worker import lint_fix_worker
     except ImportError as e:
         typer.echo(f"❌ Failed to import lint_fix_worker: {e}", err=True)
         sys.exit(1)
@@ -257,7 +257,7 @@ def lint_fix_aurity_worker_cmd(
 ) -> None:
     """Run a single batch of ESLint fixing for AURITY using the worker."""
     try:
-        from backend.core.infrastructure.workers.tasks.lint_fix_worker import lint_fix_aurity_worker
+        from backend.infrastructure.workers.tasks.lint_fix_worker import lint_fix_aurity_worker
     except ImportError as e:
         typer.echo(f"❌ Failed to import lint_fix_aurity_worker: {e}", err=True)
         sys.exit(1)
