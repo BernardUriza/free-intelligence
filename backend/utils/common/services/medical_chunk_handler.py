@@ -20,16 +20,16 @@ Workflow:
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-20
+Updated: 2026-01-29 (Phase 4B - eliminate get_container)
 Card: Voice chat integration (medical handler)
 """
 
 from __future__ import annotations
-from backend.container import get_container
-
 
 from typing import Any
 
 from backend.models.task_type import TaskType
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.utils.common.services.chunk_handler import ChunkHandler
 
@@ -43,13 +43,30 @@ class MedicalChunkHandler(ChunkHandler):
     Lifecycle: Persistent (until manual cleanup)
     Post-processing: Diarization → SOAP → Encryption
 
+    Dependencies (Phase 4B):
+        - task_repository: ITaskRepository for HDF5 operations
+
     Example:
-        handler = MedicalChunkHandler()
+        from backend.repositories.task_repository import HDF5TaskRepository
+        task_repo = HDF5TaskRepository("storage/corpus.h5")
+        handler = MedicalChunkHandler(task_repository=task_repo)
         await handler.initialize_session("session_uuid", {"patient_name": "Juan"})
         await handler.save_chunk("session_uuid", 0, b"audio", "hola", {...})
         status = await handler.get_session_status("session_uuid")
         await handler.finalize_session("session_uuid")  # Triggers diarization
     """
+
+    def __init__(self, task_repository: ITaskRepository):
+        """Initialize handler with injected dependencies (Phase 4B).
+
+        Args:
+            task_repository: Task repository for HDF5 operations
+
+        Note:
+            No longer uses service locator (get_container).
+            Direct dependency injection for better testability.
+        """
+        self.task_repository = task_repository
 
     async def initialize_session(
         self,
@@ -72,11 +89,12 @@ class MedicalChunkHandler(ChunkHandler):
             - Creates /sessions/{id}/tasks/TRANSCRIPTION/ in HDF5
             - Saves patient metadata as session attributes
         """
-        # Create TRANSCRIPTION task (first time only)
-        get_container().get_task_repository().ensure_task_exists(
+        # Create TRANSCRIPTION task (first time only) - INJECTED (Phase 4B)
+        self.task_repository.ensure_task_exists(
             session_id=session_id,
             task_type=TaskType.TRANSCRIPTION,
             allow_existing=True,  # Allow resuming (pause/resume)
+        )
 
         # Save session metadata (doctor_id + patient info) to HDF5 session attributes
         # SECURITY: doctor_id is ALWAYS saved for session ownership/isolation
@@ -105,13 +123,15 @@ class MedicalChunkHandler(ChunkHandler):
             logger.info(
                 "MEDICAL_SESSION_INITIALIZED",
                 session_id=session_id,
-                patient_name=metadata.get("patient_name"),
+                patient_name=metadata.get("patient_name") if metadata else None,
                 has_patient_metadata=True,
+            )
         else:
             logger.info(
                 "MEDICAL_SESSION_INITIALIZED",
                 session_id=session_id,
                 has_patient_metadata=False,
+            )
 
     async def save_chunk(
         self,
@@ -158,6 +178,7 @@ class MedicalChunkHandler(ChunkHandler):
             polling_attempts=metadata.get("polling_attempts", 0),
             resolution_time_seconds=metadata.get("resolution_time_seconds", 0.0),
             retry_attempts=metadata.get("retry_attempts", 0),
+        )
 
         logger.info(
             "MEDICAL_CHUNK_SAVED",
@@ -166,6 +187,7 @@ class MedicalChunkHandler(ChunkHandler):
             provider=metadata.get("provider"),
             audio_size_bytes=len(audio_bytes),
             audio_persisted=True,  # Audio IS persisted (unlike chat)
+        )
 
     async def get_session_status(self, session_id: str) -> dict[str, Any]:
         """Read session status from HDF5.
@@ -188,7 +210,8 @@ class MedicalChunkHandler(ChunkHandler):
             - Returns 404-like dict if session not found
         """
         try:
-            chunks = get_container().get_task_repository().get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
+            # INJECTED (Phase 4B) - was get_container()
+            chunks = self.task_repository.get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
 
             if not chunks:
                 return {
@@ -205,6 +228,7 @@ class MedicalChunkHandler(ChunkHandler):
             completed_chunks = sum(1 for c in chunks if c.get("status") == "completed")
             progress_percent = (
                 int((completed_chunks / total_chunks) * 100) if total_chunks > 0 else 0
+            )
 
             # Determine overall status
             if all(c.get("status") == "completed" for c in chunks):
@@ -269,6 +293,7 @@ class MedicalChunkHandler(ChunkHandler):
                 session_id=session_id,
                 diarization_job_id=diarization_result.get("job_id"),
                 post_processing=True,
+            )
 
             return {
                 "session_id": session_id,
@@ -319,3 +344,4 @@ class MedicalChunkHandler(ChunkHandler):
             session_id=session_id,
             chunk_number=chunk_number,
             size_bytes=len(audio_bytes),
+        )

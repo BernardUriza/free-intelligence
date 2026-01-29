@@ -4,26 +4,52 @@ from __future__ import annotations
 Free Intelligence - FastAPI Dependencies
 
 Dependency injection providers for FastAPI routes and services.
+Direct service instantiation - no service locator (Phase 4B).
 
 File: backend/dependencies.py
 Created: 2025-10-30
+Updated: 2026-01-29 (Phase 4B - eliminate get_container)
 Purpose: Replace global singletons with DI pattern
 """
 
+from pathlib import Path
+
 from backend.policy.policy_enforcer import PolicyEnforcer
+from backend.repositories.interfaces.itask_repository import ITaskRepository
+from backend.repositories.task_repository import HDF5TaskRepository
+
+# Corpus path (centralized configuration)
+_CORPUS_PATH = Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5"
+
+
+def get_task_repository() -> ITaskRepository:
+    """Get task repository - direct instantiation (Phase 4B).
+
+    Returns:
+        ITaskRepository instance (HDF5TaskRepository)
+
+    Note:
+        No longer uses service locator (get_container).
+        Direct instantiation enables better testability and explicit dependencies.
+    """
+    return HDF5TaskRepository(_CORPUS_PATH)
 
 
 def get_transcription_service():
-    """Get TranscriptionService instance.
+    """Get TranscriptionService instance - direct instantiation (Phase 4B).
 
-    Direct import to avoid stub-fallback in container when backend.services is missing.
+    Returns:
+        TranscriptionService with injected task_repository
+
+    Note:
+        No longer uses service locator (get_container).
+        Direct import to avoid circular dependencies.
     """
-    from backend.container import get_container
     from backend.services.transcription.services.transcription_service import (
         TranscriptionService,
     )
 
-    return TranscriptionService(task_repository=get_container().get_task_repository())
+    return TranscriptionService(task_repository=get_task_repository())
 
 
 def get_policy_enforcer(

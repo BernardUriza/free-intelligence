@@ -501,20 +501,25 @@ _tracker_lock = threading.Lock()
 
 
 def get_workflow_tracker() -> WorkflowTracker:
-    """Get or create global workflow tracker (singleton).
+    """Get or create global workflow tracker (singleton) - Phase 4B.
 
-    Note: Singleton initialization still uses get_container() for task_repository.
-    This is acceptable for global state initialization (one-time cost).
+    Note:
+        No longer uses service locator (get_container).
+        Direct instantiation with HDF5TaskRepository for singleton initialization.
     """
-    from backend.container import get_container
+    from pathlib import Path
+
+    from backend.repositories.task_repository import HDF5TaskRepository
 
     global _tracker
 
     if _tracker is None:
         with _tracker_lock:
             if _tracker is None:
+                # Direct instantiation (Phase 4B) - one-time cost for singleton
+                _corpus_path = Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5"
                 _tracker = WorkflowTracker(
-                    task_repository=get_container().get_task_repository()
+                    task_repository=HDF5TaskRepository(_corpus_path)
                 )
                 logger.info("WORKFLOW_TRACKER_INITIALIZED")
 
