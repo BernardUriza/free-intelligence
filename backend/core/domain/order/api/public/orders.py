@@ -15,9 +15,10 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
-from backend.container import get_container
+from backend.core.domain.order.dependencies import get_task_repository
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -58,11 +59,15 @@ class OrderUpdateRequest(BaseModel):
     "/sessions/{session_id}/orders",
     status_code=status.HTTP_200_OK,
 )
-async def get_orders_workflow(session_id: str) -> dict:
+async def get_orders_workflow(
+    session_id: str,
+    task_repo: ITaskRepository = Depends(get_task_repository),
+) -> dict:
     """Get all medical orders for a session (PUBLIC endpoint).
 
     Args:
         session_id: Session UUID
+        task_repo: Injected task repository
 
     Returns:
         List of orders with metadata
@@ -73,7 +78,6 @@ async def get_orders_workflow(session_id: str) -> dict:
     try:
         logger.info("ORDERS_GET_STARTED", session_id=session_id)
 
-        task_repo = get_container().get_task_repository()
         orders = task_repo.get_orders(session_id)
 
         logger.info("ORDERS_GET_SUCCESS", session_id=session_id, order_count=len(orders))
@@ -104,12 +108,14 @@ async def get_orders_workflow(session_id: str) -> dict:
 async def create_order_workflow(
     session_id: str,
     request: OrderCreateRequest,
+    task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict:
     """Create a new medical order (PUBLIC endpoint).
 
     Args:
         session_id: Session UUID
         request: Order data
+        task_repo: Injected task repository
 
     Returns:
         Created order with ID
@@ -125,7 +131,6 @@ async def create_order_workflow(
             order_type=request.type,
         )
 
-        task_repo = get_container().get_task_repository()
         task_repo.create_order(
             session_id,
             {
@@ -174,6 +179,7 @@ async def update_order_workflow(
     session_id: str,
     order_id: str,
     request: OrderUpdateRequest,
+    task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict:
     """Update an existing order (PUBLIC endpoint).
 
@@ -181,6 +187,7 @@ async def update_order_workflow(
         session_id: Session UUID
         order_id: Order ID
         request: Updated order data
+        task_repo: Injected task repository
 
     Returns:
         Success message
@@ -196,7 +203,6 @@ async def update_order_workflow(
             order_id=order_id,
         )
 
-        task_repo = get_container().get_task_repository()
         task_repo.update_order(
             session_id,
             order_id,
@@ -246,12 +252,14 @@ async def update_order_workflow(
 async def delete_order_workflow(
     session_id: str,
     order_id: str,
+    task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict:
     """Delete an order (PUBLIC endpoint).
 
     Args:
         session_id: Session UUID
         order_id: Order ID
+        task_repo: Injected task repository
 
     Returns:
         Success message
@@ -267,7 +275,6 @@ async def delete_order_workflow(
             order_id=order_id,
         )
 
-        task_repo = get_container().get_task_repository()
         task_repo.delete_order(session_id, order_id)
 
         logger.info(
