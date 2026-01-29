@@ -42,6 +42,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     # Check-in & Payments
     from backend.services.checkin.api.public import checkin
     from backend.api.routers.clinic.public import clinics
+    from backend.api.routers.clinic.public import clinic_media_stub
 
     # Coder
     from backend.utils.coder.api.internal.fi_coder import router as fi_coder_router
@@ -122,6 +123,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
     public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
     public_app.include_router(clinics.router)  # Clinic/Doctor CRUD (FI-CHECKIN-002)
+    public_app.include_router(clinic_media_stub.router)  # Clinic Media (STUB - Phase 3)
     public_app.include_router(user_clinic.router)  # User-Clinic membership
     public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
     public_app.include_router(llm_models_admin)  # LLM Models Admin (superadmin CRUD)
