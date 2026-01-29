@@ -63,26 +63,16 @@ def get_workflow_logger() -> ILogger:
     return get_logger("workflow")
 
 
-def get_workflow_orchestrator(
-    task_repo: ITaskRepository | None = None,
-    logger: ILogger | None = None,
-) -> WorkflowOrchestrator:
+def get_workflow_orchestrator() -> WorkflowOrchestrator:
     """Get workflow orchestrator with injected dependencies.
 
     FastAPI provider for WorkflowOrchestrator.
 
-    Args:
-        task_repo: Task repository (optional, uses default)
-        logger: Logger instance (optional, uses default)
-
     Returns:
-        WorkflowOrchestrator instance
+        WorkflowOrchestrator instance with task_repository and logger
     """
-    task_repo = task_repo or get_task_repository()
-    logger = logger or get_workflow_logger()
-
     return WorkflowOrchestrator(
-        task_repository=task_repo,
-        logger=logger,
+        task_repository=get_task_repository(),
+        logger=get_workflow_logger(),
     )
 

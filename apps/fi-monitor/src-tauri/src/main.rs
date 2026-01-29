@@ -1332,7 +1332,9 @@ fn find_cloudflared() -> Result<String, String> {
 async fn get_status(state: tauri::State<'_, Arc<AppState>>) -> Result<ServiceStatus, String> {
     let ollama_running = check_ollama().await;
     let models = if ollama_running {
-        get_ollama_models().await
+        let m = get_ollama_models().await;
+        println!("[FI Monitor] DEBUG - Models from API: {:?}", m);
+        m
     } else {
         vec![]
     };

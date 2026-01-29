@@ -57,21 +57,21 @@ def add_full_audio(session_id: str, audio_bytes: bytes, filename: str, task_type
     """Add full audio via DI container."""
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.get_container().get_task_repository().add_full_audio(session_id, audio_bytes, filename, task_type_str)
+    task_repo.add_full_audio(session_id, audio_bytes, filename, task_type_str)
 
 
 def add_full_transcription(session_id: str, full_text: str, task_type) -> None:
     """Add full transcription via DI container."""
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.get_container().get_task_repository().add_full_transcription(session_id, full_text, task_type_str)
+    task_repo.add_full_transcription(session_id, full_text, task_type_str)
 
 
 def add_webspeech_transcripts(session_id: str, transcripts: list[str], task_type) -> None:
     """Add webspeech transcripts via DI container."""
     task_repo = get_container().get_task_repository()
     task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.get_container().get_task_repository().add_webspeech_transcripts(session_id, transcripts, task_type_str)
+    task_repo.add_webspeech_transcripts(session_id, transcripts, task_type_str)
 
 
 def get_task_chunks(session_id, task_type):
