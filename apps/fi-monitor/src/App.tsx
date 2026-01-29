@@ -44,6 +44,16 @@ interface RagBenchmark {
   model: string
 }
 
+interface RagStats {
+  gpu_memory_used_mb: number
+  gpu_memory_total_mb: number
+  gpu_device: string
+  model_name: string
+  embeddings_count: number
+  avg_query_ms: number
+  throughput_qps: number
+}
+
 interface OllamaBenchmark {
   single_query_ms: number
   batch_5_avg_ms: number

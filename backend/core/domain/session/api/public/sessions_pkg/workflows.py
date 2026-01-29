@@ -172,7 +172,7 @@ async def analyze_session_intelligent_workflow(
             elif task_type == TaskType.SOAP_GENERATION:
                 from backend.infrastructure.workers.tasks.soap_worker import generate_soap_worker
 
-                spawn_worker(generate_soap_worker, session_id=session_id)
+                spawn_worker(generate_soap_worker, session_id=session_id, task_repo=task_repo)
                 job_ids["SOAP_GENERATION"] = session_id
             elif task_type == TaskType.EMOTION_ANALYSIS:
                 from backend.infrastructure.workers.tasks.emotion_worker import analyze_emotion_worker

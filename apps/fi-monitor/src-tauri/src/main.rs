@@ -276,6 +276,17 @@ struct OllamaModelInfo {
     digest: String,
 }
 
+#[derive(Serialize, Clone, Default)]
+struct RagStats {
+    gpu_memory_used_mb: u64,
+    gpu_memory_total_mb: u64,
+    gpu_device: String,
+    model_name: String,
+    embeddings_count: u64,
+    avg_query_ms: f64,
+    throughput_qps: f64,
+}
+
 fn format_size(bytes: u64) -> String {
     const GB: u64 = 1_073_741_824;
     const MB: u64 = 1_048_576;
@@ -764,6 +775,37 @@ async fn stop_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<bool
 
     *state.rag_service_running.lock().unwrap() = false;
     Ok(true)
+}
+
+#[tauri::command]
+async fn get_rag_stats() -> Result<RagStats, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("http://localhost:11435/health")
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch RAG stats: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("RAG Service returned error: {}", response.status()));
+    }
+
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse RAG stats: {}", e))?;
+
+    // Parse stats from health endpoint
+    Ok(RagStats {
+        gpu_memory_used_mb: json["gpu_memory_mb"].as_u64().unwrap_or(0),
+        gpu_memory_total_mb: 65536, // M1 Max default, adjust as needed
+        gpu_device: json["device"].as_str().unwrap_or("unknown").to_string(),
+        model_name: json["model"].as_str().unwrap_or("unknown").to_string(),
+        embeddings_count: json["embeddings_count"].as_u64().unwrap_or(0),
+        avg_query_ms: json["avg_query_ms"].as_f64().unwrap_or(0.0),
+        throughput_qps: json["throughput_qps"].as_f64().unwrap_or(0.0),
+    })
 }
 
 #[tauri::command]
@@ -2043,43 +2085,9 @@ fn main() {
 
                         // Phase 3: Auto-start RAG Service (GPU embeddings)
                         println!("[FI Monitor] Auto-starting RAG Service...");
-                        if !check_rag_service().await {
-                            let python = if cfg!(target_os = "windows") { "python" } else { "python3" };
-                            let app_dir = std::env::current_dir().unwrap_or_default();
-
-                            #[cfg(target_os = "windows")]
-                            const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-                            #[cfg(target_os = "windows")]
-                            let result = Command::new(python)
-                                .args(["-m", "uvicorn", "rag_service.main:app", "--host", "0.0.0.0", "--port", "11435"])
-                                .current_dir(&app_dir)
-                                .stdout(Stdio::null())
-                                .stderr(Stdio::null())
-                                .creation_flags(CREATE_NO_WINDOW)
-                                .spawn();
-
-                            #[cfg(not(target_os = "windows"))]
-                            let result = Command::new(python)
-                                .args(["-m", "uvicorn", "rag_service.main:app", "--host", "0.0.0.0", "--port", "11435"])
-                                .current_dir(&app_dir)
-                                .stdout(Stdio::null())
-                                .stderr(Stdio::null())
-                                .spawn();
-
-                            if let Ok(child) = result {
-                                let pid = child.id();
-                                *state_clone.rag_service_process.lock().unwrap() = Some(pid);
-                                // Wait for RAG service to be ready
-                                for _ in 0..20 {
-                                    sleep(Duration::from_millis(500)).await;
-                                    if check_rag_service().await {
-                                        *state_clone.rag_service_running.lock().unwrap() = true;
-                                        println!("[FI Monitor] ✅ RAG Service auto-started (PID: {})", pid);
-                                        break;
-                                    }
-                                }
-                            }
+                        match start_rag_service(state_clone.clone()).await {
+                            Ok(_) => println!("[FI Monitor] ✅ RAG Service auto-started"),
+                            Err(e) => println!("[FI Monitor] ⚠️ RAG Service failed to auto-start: {}", e),
                         }
 
                         // Phase 3: Auto-start Gateway (HTTP router)
@@ -2152,6 +2160,7 @@ fn main() {
             stop_ollama,
             start_rag_service,
             stop_rag_service,
+            get_rag_stats,
             start_gateway,
             stop_gateway,
             start_tunnel,

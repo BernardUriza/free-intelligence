@@ -8,54 +8,8 @@ from typing import Any
 
 from backend.models.task_type import TaskStatus, TaskType
 from backend.policy.policy_loader import get_policy_loader
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
-from backend.container import get_container
-
-# Use DI container for task repository functions
-def get_task_chunks(session_id: str, task_type):
-    """Get task chunks via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_task_chunks(session_id, task_type_str)
-
-
-def task_exists(session_id: str, task_type):
-    """Check if task exists via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.task_exists(session_id, task_type_str)
-
-
-def update_task_metadata(session_id: str, task_type, **metadata):
-    """Update task metadata via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.save_task_metadata(session_id, task_type_str, metadata)
-
-
-def get_diarization_segments(session_id: str) -> list[dict]:
-    """Get diarization segments via DI container."""
-    task_repo = get_container().get_task_repository()
-    return task_repo.get_diarization_segments(session_id)
-
-
-def save_soap_data(session_id: str, soap_data: dict, task_type) -> None:
-    """Save SOAP data via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.save_soap_data(session_id, soap_data, task_type_str)
-
-
-def create_order(session_id: str, order_data: dict) -> None:
-    """Create order via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_repo.create_order(session_id, order_data)
-
-
-def get_orders(session_id: str) -> list[dict]:
-    """Get orders via DI container."""
-    task_repo = get_container().get_task_repository()
-    return task_repo.get_orders(session_id)
 from backend.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
 from backend.services.workflow.services.workflow_tracker import get_workflow_tracker
 
@@ -65,6 +19,7 @@ logger = get_logger(__name__)
 @measure_time
 def generate_soap_worker(
     session_id: str,
+    task_repo: ITaskRepository,
     soap_provider: str | None = None,
 ) -> dict[str, Any]:
     """Synchronous SOAP note generation from diarization.
@@ -73,6 +28,7 @@ def generate_soap_worker(
 
     Args:
         session_id: Session identifier
+        task_repo: Task repository (injected for thread-safety)
         soap_provider: LLM provider (claude, ollama, openai, etc)
 
     Returns:
@@ -91,7 +47,7 @@ def generate_soap_worker(
         )
 
         # Check DIARIZATION task exists (SOAP depends on diarization)
-        if not task_exists(session_id, TaskType.DIARIZATION):
+        if not task_repo.task_exists(session_id, TaskType.DIARIZATION.value):
             raise ValueError(
                 f"DIARIZATION task not found for {session_id}. Must run diarization first."
             )
@@ -103,14 +59,14 @@ def generate_soap_worker(
             soap_provider = llm_config.get("primary_provider", "claude")
 
         # Get diarization segments
-        segments = get_diarization_segments(session_id)
+        segments = task_repo.get_diarization_segments(session_id)
         if not segments:
             # Fallback: use transcription chunks if no diarization
             logger.warning(
                 "NO_DIARIZATION_SEGMENTS_USING_TRANSCRIPTION",
                 session_id=session_id,
             )
-            chunks_data = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+            chunks_data = task_repo.get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
             if not chunks_data:
                 raise ValueError(f"No TRANSCRIPTION or DIARIZATION data for {session_id}")
             full_text = " ".join(chunk.get("transcript", "") for chunk in chunks_data)
@@ -125,7 +81,7 @@ def generate_soap_worker(
         estimated_duration = max(8, int(word_count / 100 * 1.5))  # Min 8 seconds
 
         # Update metadata: IN_PROGRESS with progress 10% (started)
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
             TaskType.SOAP_GENERATION,
             {
@@ -146,7 +102,7 @@ def generate_soap_worker(
         )
 
         # Update progress: 30% (text loaded, calling LLM)
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
             TaskType.SOAP_GENERATION,
             {
@@ -163,7 +119,7 @@ def generate_soap_worker(
         middleware = get_decisional_middleware()
 
         # Update progress: 50% (analyzing complexity & orchestrating)
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
             TaskType.SOAP_GENERATION,
             {
@@ -184,7 +140,7 @@ def generate_soap_worker(
         soap_data = orchestration_result.soap_note
 
         # Update progress: 80% (processing results)
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
             TaskType.SOAP_GENERATION,
             {
@@ -207,15 +163,15 @@ def generate_soap_worker(
 
         elapsed_time = time.time() - start_time
 
-        # Save SOAP note to HDF5 using save_soap_data()
-        save_soap_data(session_id, soap_data, TaskType.SOAP_GENERATION)
+        # Save SOAP note to HDF5
+        task_repo.save_soap_data(session_id, soap_data, TaskType.SOAP_GENERATION.value)
 
         # AUTO-CREATE ORDERS from SOAP.plan (medications + studies)
         orders_created = 0
         plan = soap_data.get("plan", {})
 
         # Get existing orders to avoid duplicates
-        existing_orders = get_orders(session_id)
+        existing_orders = task_repo.get_orders(session_id)
         existing_descriptions = {order.get("description") for order in existing_orders}
 
         # Create medication orders
@@ -225,7 +181,7 @@ def generate_soap_worker(
                 if isinstance(med, dict):
                     desc = f"{med.get('name', '')} {med.get('dose', '')}".strip()
                     if desc and desc not in existing_descriptions:
-                        create_order(
+                        task_repo.create_order(
                             session_id,
                             {
                                 "type": "medication",
@@ -262,7 +218,7 @@ def generate_soap_worker(
                     else:
                         order_type = "lab"
 
-                    create_order(
+                    task_repo.create_order(
                         session_id,
                         {
                             "type": order_type,
@@ -286,7 +242,7 @@ def generate_soap_worker(
         )
 
         # Update metadata with completion status (including orchestration details)
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
             TaskType.SOAP_GENERATION,
             {
@@ -326,7 +282,7 @@ def generate_soap_worker(
 
         # Update metadata with FAILED status
         try:
-            update_task_metadata(
+            task_repo.save_task_metadata(
                 session_id,
                 TaskType.SOAP_GENERATION,
                 {
