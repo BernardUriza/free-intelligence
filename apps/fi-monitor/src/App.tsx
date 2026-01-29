@@ -97,6 +97,7 @@ export default function App({ setupState }: AppProps) {
   const [benchmarkResults, setBenchmarkResults] = useState<BenchmarkSuite | null>(null)
   const [isBenchmarking, setIsBenchmarking] = useState(false)
   const [showModelManager, setShowModelManager] = useState(false)
+  const [ragStats, setRagStats] = useState<RagStats | null>(null)
 
   // Tab state
   type TabId = 'services' | 'tunnel' | 'config' | 'testing' | 'benchmarks'
@@ -163,6 +164,28 @@ export default function App({ setupState }: AppProps) {
       setActiveTab('services')
     }
   }, [activeTab, status?.tunnel_url])
+
+  // Fetch RAG stats every 5 seconds (when active)
+  useEffect(() => {
+    if (!status?.rag_service_running) {
+      setRagStats(null)
+      return
+    }
+
+    const fetchRagStats = async () => {
+      try {
+        const stats = await invoke<RagStats>('get_rag_stats')
+        setRagStats(stats)
+      } catch (err) {
+        console.error('[FI Monitor] Failed to fetch RAG stats:', err)
+        setRagStats(null)
+      }
+    }
+
+    fetchRagStats()
+    const interval = setInterval(fetchRagStats, 5000)
+    return () => clearInterval(interval)
+  }, [status?.rag_service_running])
 
   const handleAction = async (action: string, command: string) => {
     setActionLoading(action)
@@ -398,24 +421,46 @@ export default function App({ setupState }: AppProps) {
                 <div className={`service-status ${ragOn ? 'on' : 'off'}`}>
                   {ragOn ? '● Activo' : '○ Inactivo'}
                 </div>
-                <div className="text-xs text-app-text-dim">GPU Embeddings</div>
               </div>
-              <button
-                className={`action-btn ${ragOn ? 'stop' : 'start'}`}
-                onClick={() => handleAction(ragOn ? 'rag-stop' : 'rag-start', ragOn ? 'stop_rag_service' : 'start_rag_service')}
-                disabled={!!actionLoading || !ollamaOn}
-              >
-                {actionLoading?.includes('rag') ? '...' : ragOn ? '■' : '▶'}
-              </button>
             </div>
 
-            {/* Body */}
-            {/* Logs Viewer - Disabled (get_service_logs not implemented) */}
-            {/* <div>
-              {ragOn && (
-                <LogsViewer serviceName="rag" serviceDisplayName="RAG Service" />
-              )}
-            </div> */}
+            {/* Stats (cuando está activo) */}
+            {ragOn && ragStats && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px', color: 'var(--text-dim)' }}>
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '2px' }}>GPU Memory</div>
+                  <div>{ragStats.gpu_memory_used_mb} MB / {(ragStats.gpu_memory_total_mb / 1024).toFixed(0)} GB</div>
+                  <div style={{ marginTop: '2px', fontSize: '10px' }}>{ragStats.gpu_device.toUpperCase()}</div>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '2px' }}>Model</div>
+                  <div>{ragStats.model_name}</div>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '2px' }}>Embeddings</div>
+                  <div>{ragStats.embeddings_count.toLocaleString()} chunks</div>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '2px' }}>Performance</div>
+                  <div>{ragStats.avg_query_ms.toFixed(1)}ms avg</div>
+                  <div>{ragStats.throughput_qps.toFixed(0)} QPS</div>
+                </div>
+              </div>
+            )}
+
+            {/* Loading state */}
+            {ragOn && !ragStats && (
+              <div style={{ fontSize: '11px', color: 'var(--text-dim)', textAlign: 'center', padding: '12px' }}>
+                Loading stats...
+              </div>
+            )}
+
+            {/* Inactive state */}
+            {!ragOn && (
+              <div style={{ fontSize: '11px', color: 'var(--text-dim)', textAlign: 'center', padding: '12px' }}>
+                Auto-starts with Ollama
+              </div>
+            )}
           </div>
         </div>
 

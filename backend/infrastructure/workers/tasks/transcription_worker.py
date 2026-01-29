@@ -8,63 +8,19 @@ from typing import Any
 import os
 from backend.models.task_type import TaskStatus, TaskType
 from backend.providers.stt import get_stt_provider
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
-from backend.container import get_container
 from backend.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
 from backend.utils.stt_load_balancer import get_stt_load_balancer
 
 logger = get_logger(__name__)
 
 
-# Use DI container for task repository functions
-def get_task_metadata(session_id: str, task_type):
-    """Get task metadata via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_task_metadata(session_id, task_type_str)
-
-
-def get_task_chunks(session_id: str, task_type):
-    """Get task chunks via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_task_chunks(session_id, task_type_str)
-
-
-def update_task_metadata(session_id: str, task_type, metadata: dict):
-    """Update task metadata via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    task_repo.save_task_metadata(session_id, task_type_str, metadata)
-
-
-def batch_update_chunk_datasets(
-    session_id: str,
-    task_type,
-    chunk_idx: int,
-    updates: dict,
-    max_retries: int = 5,
-    initial_backoff: float = 0.1,
-) -> bool:
-    """Atomically update chunk datasets via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.batch_update_chunk_datasets(
-        session_id, task_type_str, chunk_idx, updates, max_retries, initial_backoff
-    )
-
-
-def get_chunk_audio_bytes(session_id: str, task_type, chunk_idx: int) -> bytes | None:
-    """Get chunk audio bytes via DI container."""
-    task_repo = get_container().get_task_repository()
-    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-    return task_repo.get_chunk_audio_bytes(session_id, task_type_str, chunk_idx)
-
-
 @measure_time
 def transcribe_chunk_worker(
     session_id: str,
     chunk_number: int,
+    task_repo: ITaskRepository,
     stt_provider: str | None = None,
 ) -> dict[str, Any]:
     """Synchronous transcription of audio chunk.
@@ -85,13 +41,13 @@ def transcribe_chunk_worker(
 
     try:
         # Get metadata first (read-only operation)
-        task_metadata = get_task_metadata(session_id, TaskType.TRANSCRIPTION) or {
+        task_metadata = task_repo.get_task_metadata(session_id, TaskType.TRANSCRIPTION.value) or {
             "total_chunks": 1,
             "processed_chunks": 0,
         }
 
         # Read audio BEFORE selecting provider (needed for size-based routing)
-        audio_bytes = get_chunk_audio_bytes(session_id, TaskType.TRANSCRIPTION, chunk_number)
+        audio_bytes = task_repo.get_chunk_audio_bytes(session_id, TaskType.TRANSCRIPTION.value, chunk_number)
         if not audio_bytes:
             raise ValueError(f"No audio for chunk {chunk_number}")
 
@@ -128,9 +84,9 @@ def transcribe_chunk_worker(
 
         # ATOMIC BATCH UPDATE: Write all chunk fields in one transaction with retry
         # This fixes the HDF5 SWMR race condition where concurrent readers blocked writes
-        success = batch_update_chunk_datasets(
+        success = task_repo.batch_update_chunk_datasets(
             session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
+            task_type=TaskType.TRANSCRIPTION.value,
             chunk_idx=chunk_number,
             updates={
                 "transcript": result.get("transcript", ""),
@@ -158,7 +114,7 @@ def transcribe_chunk_worker(
             )
 
         # Update metadata
-        actual_chunks = get_task_chunks(session_id, TaskType.TRANSCRIPTION)
+        actual_chunks = task_repo.get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
         total = max(len(actual_chunks), 1)
         processed = task_metadata.get("processed_chunks", 0) + 1
         progress = int((processed / total) * 100)
@@ -168,9 +124,9 @@ def transcribe_chunk_worker(
         avg_time_per_chunk = 2.0 if stt_provider == "deepgram" else 15.0  # Deepgram: 2s, Azure: 15s
         estimated_seconds_remaining = int(remaining_chunks * avg_time_per_chunk)
 
-        update_task_metadata(
+        task_repo.save_task_metadata(
             session_id,
-            TaskType.TRANSCRIPTION,
+            TaskType.TRANSCRIPTION.value,
             {
                 "processed_chunks": processed,
                 "progress_percent": progress,

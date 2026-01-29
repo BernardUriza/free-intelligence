@@ -647,8 +647,8 @@ async fn check_gateway() -> bool {
         .unwrap_or(false)
 }
 
-#[tauri::command]
-async fn start_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
+// Internal function (for auto-start and command)
+async fn start_rag_service_internal(state: Arc<AppState>) -> Result<bool, String> {
     if check_rag_service().await {
         *state.rag_service_running.lock().unwrap() = true;
         return Ok(true);
@@ -754,6 +754,11 @@ async fn start_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<boo
         }
         Err(e) => Err(format!("Failed to start RAG Service: {}", e)),
     }
+}
+
+#[tauri::command]
+async fn start_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
+    start_rag_service_internal(state.inner().clone()).await
 }
 
 #[tauri::command]
@@ -2085,7 +2090,7 @@ fn main() {
 
                         // Phase 3: Auto-start RAG Service (GPU embeddings)
                         println!("[FI Monitor] Auto-starting RAG Service...");
-                        match start_rag_service(state_clone.clone()).await {
+                        match start_rag_service_internal(state_clone.clone()).await {
                             Ok(_) => println!("[FI Monitor] ✅ RAG Service auto-started"),
                             Err(e) => println!("[FI Monitor] ⚠️ RAG Service failed to auto-start: {}", e),
                         }

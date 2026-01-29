@@ -259,6 +259,7 @@ class DITranscriptionService:
             transcribe_chunk_worker,
             session_id=session_id,
             chunk_number=chunk_number,
+            task_repo=self.task_repository,
             stt_provider=stt_provider,
         )
 
