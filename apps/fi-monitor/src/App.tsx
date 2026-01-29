@@ -4,7 +4,7 @@ import { BenchmarkCharts } from './components/BenchmarkCharts'
 import { EnvVarEditor } from './components/EnvVarEditor'
 import { LogsViewer } from './components/LogsViewer'
 import { TestSuiteLibrary } from './components/TestSuiteLibrary'
-import { invoke, listen, getVersion } from './lib/tauri-adapter'
+import { invoke, listen, getVersion, isTauriContext } from './lib/tauri-adapter'
 
 interface ServiceStatus {
   ollama_running: boolean
@@ -22,6 +22,7 @@ interface TestResult {
   answer: string
   elapsed_ms: number
   timestamp: string
+  rag_metadata?: any | null
 }
 
 interface SetupState {
@@ -116,11 +117,19 @@ export default function App({ setupState }: AppProps) {
 
   // Get app version from Tauri
   useEffect(() => {
+    if (!isTauriContext()) {
+      setAppVersion('1.0.6-browser')
+      return
+    }
     getVersion().then(v => setAppVersion(v)).catch(() => {})
   }, [])
 
   // Load tunnel port on mount
   useEffect(() => {
+    if (!isTauriContext()) {
+      console.warn('[App] Skipping tunnel port load (not in Tauri context)')
+      return
+    }
     invoke<number>('get_tunnel_port')
       .then(port => {
         setTunnelPort(String(port))
@@ -142,6 +151,58 @@ export default function App({ setupState }: AppProps) {
   }, [])
 
   useEffect(() => {
+    if (!isTauriContext()) {
+      console.warn('[App] Browser mode: detecting services via HTTP')
+      setLoading(false)
+
+      // Detect services directly via HTTP in browser mode
+      const detectServices = async () => {
+        let ollamaRunning = false
+        let ollamaModels: string[] = []
+        let ragRunning = false
+
+        // Check Ollama (http://localhost:11434/api/tags)
+        try {
+          const ollamaRes = await fetch('http://localhost:11434/api/tags', {
+            signal: AbortSignal.timeout(2000)
+          })
+          if (ollamaRes.ok) {
+            const data = await ollamaRes.json()
+            ollamaRunning = true
+            ollamaModels = data.models?.map((m: any) => m.name) || []
+            console.log('[App] Ollama detected:', ollamaModels.length, 'models')
+          }
+        } catch (err) {
+          console.warn('[App] Ollama not detected:', err)
+        }
+
+        // Check RAG Service (http://localhost:11435/rag/health)
+        try {
+          const ragRes = await fetch('http://localhost:11435/rag/health', {
+            signal: AbortSignal.timeout(2000)
+          })
+          ragRunning = ragRes.ok
+          console.log('[App] RAG Service detected:', ragRunning)
+        } catch (err) {
+          console.warn('[App] RAG Service not detected:', err)
+        }
+
+        setStatus({
+          ollama_running: ollamaRunning,
+          ollama_models: ollamaModels,
+          tunnel_running: false,
+          tunnel_url: null,
+          rag_service_running: ragRunning,
+          gateway_running: false,
+          system_info: { platform: 'browser', hostname: 'localhost' }
+        })
+      }
+
+      detectServices()
+      const interval = setInterval(detectServices, 5000) // Poll every 5s
+      return () => clearInterval(interval)
+    }
+
     fetchStatus()
     const interval = setInterval(fetchStatus, 5000)
     const unlistenServices = listen('services-checked', () => fetchStatus())
@@ -167,6 +228,11 @@ export default function App({ setupState }: AppProps) {
 
   // Fetch RAG stats every 5 seconds (when active)
   useEffect(() => {
+    if (!isTauriContext()) {
+      console.warn('[App] Skipping RAG stats polling (not in Tauri context)')
+      return
+    }
+
     if (!status?.rag_service_running) {
       setRagStats(null)
       return
@@ -188,6 +254,11 @@ export default function App({ setupState }: AppProps) {
   }, [status?.rag_service_running])
 
   const handleAction = async (action: string, command: string) => {
+    if (!isTauriContext()) {
+      setError('Action not available in browser mode')
+      return
+    }
+
     setActionLoading(action)
     try {
       await invoke(command)
@@ -203,8 +274,62 @@ export default function App({ setupState }: AppProps) {
     if (!status?.ollama_running) return
     setActionLoading('test')
     setError(null)
+
     try {
-      const result = await invoke<TestResult>('test_ollama')
+      let result: TestResult
+
+      if (isTauriContext()) {
+        // Native mode: use Tauri command
+        result = await invoke<TestResult>('test_ollama')
+      } else {
+        // Browser mode: HTTP fallback
+        const questions = [
+          { category: 'math', prompt: '¿Cuál es la raíz cuadrada de 144? Responde solo el número.' },
+          { category: 'anatomy', prompt: 'Explica brevemente qué es el hígado y su función principal.' },
+          { category: 'math', prompt: '¿Cuál es la raíz cuadrada de 256? Responde solo el número.' },
+          { category: 'anatomy', prompt: 'Explica brevemente qué es el corazón y su función principal.' },
+          { category: 'math', prompt: '¿Cuál es la raíz cuadrada de 625? Responde solo el número.' },
+          { category: 'anatomy', prompt: 'Explica brevemente qué son los pulmones y su función.' }
+        ]
+
+        const now = Math.floor(Date.now() / 1000)
+        const idx = now % questions.length
+        const { category, prompt } = questions[idx]
+
+        const start = Date.now()
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 60000) // 60s timeout
+
+        const response = await fetch('http://localhost:11434/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'qwen3:1.7b',
+            prompt: prompt,
+            stream: false
+          }),
+          signal: controller.signal
+        })
+
+        clearTimeout(timeoutId)
+        const elapsed_ms = Date.now() - start
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+
+        result = {
+          category,
+          question: prompt,
+          answer: data.response?.trim() || '',
+          elapsed_ms,
+          timestamp: new Date().toISOString(),
+          rag_metadata: null
+        }
+      }
+
       setTestResult(result)
     } catch (err) {
       setError(String(err))
@@ -213,7 +338,99 @@ export default function App({ setupState }: AppProps) {
     }
   }, [status?.ollama_running])
 
+  // Smoke test handler (simple health check)
+  const handleTestLLMHealth = useCallback(async () => {
+    setActionLoading('smoke-test')
+    setError(null)
+
+    try {
+      interface SmokeTestResult {
+        success: boolean
+        latency_ms: number
+        response: string
+        error?: string
+      }
+
+      let result: SmokeTestResult
+
+      if (isTauriContext()) {
+        // Native mode: use Tauri command (faster, with Rust error handling)
+        result = await invoke<SmokeTestResult>('test_llm_health')
+      } else {
+        // Browser mode: direct HTTP fallback (works without Tauri)
+        const start = Date.now()
+
+        try {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout (allows Ollama cold start)
+
+          const response = await fetch('http://localhost:11434/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'qwen2.5-coder:3b',
+              prompt: 'What is 2+2? Answer with just the number, nothing else.',
+              stream: false
+            }),
+            signal: controller.signal
+          })
+
+          clearTimeout(timeoutId)
+          const latency_ms = Date.now() - start
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+          }
+
+          const data = await response.json()
+          const answer = data.response?.trim() || ''
+          const success = answer.includes('4')
+
+          result = {
+            success,
+            latency_ms,
+            response: answer,
+            error: success ? undefined : `Expected '4' in response, got: ${answer}`
+          }
+        } catch (err: any) {
+          const latency_ms = Date.now() - start
+          result = {
+            success: false,
+            latency_ms,
+            response: '',
+            error: err.name === 'AbortError'
+              ? 'Request timeout (15s) - Ollama may be loading the model'
+              : `HTTP request failed: ${err.message}`
+          }
+        }
+      }
+
+      // Convert to TestResult format for display
+      if (result.success) {
+        setTestResult({
+          category: 'smoke',
+          question: 'What is 2+2?',
+          answer: `✅ LLM Health OK\n\nResponse: ${result.response}\nLatency: ${result.latency_ms}ms${isTauriContext() ? '' : ' (browser mode)'}`,
+          elapsed_ms: result.latency_ms,
+          timestamp: new Date().toISOString(),
+          rag_metadata: null
+        })
+      } else {
+        setError(result.error || 'Smoke test failed')
+      }
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setActionLoading(null)
+    }
+  }, [])
+
   const runBenchmark = useCallback(async () => {
+    if (!isTauriContext()) {
+      setError('Benchmark not available in browser mode')
+      return
+    }
+
     setIsBenchmarking(true)
     setError(null)
     try {
@@ -231,6 +448,11 @@ export default function App({ setupState }: AppProps) {
 
   // Benchmark event listener
   useEffect(() => {
+    if (!isTauriContext()) {
+      console.warn('[App] Skipping benchmark listener (not in Tauri context)')
+      return
+    }
+
     const unlistenBenchmark = listen<BenchmarkSuite>('benchmark-complete', (event) => {
       setBenchmarkResults(event.payload)
     })
@@ -266,6 +488,11 @@ export default function App({ setupState }: AppProps) {
   }
 
   const loadTunnelFile = async () => {
+    if (!isTauriContext()) {
+      setTunnelFileContent('Not available in browser mode')
+      return
+    }
+
     try {
       const content = await invoke<string>('read_tunnel_file')
       // Format JSON for better readability
@@ -472,6 +699,11 @@ export default function App({ setupState }: AppProps) {
 
   // Tunnel section
   const handleSaveTunnelPort = async () => {
+    if (!isTauriContext()) {
+      setTunnelPortError('Not available in browser mode')
+      return
+    }
+
     setTunnelPortError(null)
 
     // Validación client-side
@@ -779,6 +1011,27 @@ export default function App({ setupState }: AppProps) {
         ) : (
           <div className="test-placeholder">{ollamaOn ? 'Presiona ▶ para probar' : 'Inicia Ollama primero'}</div>
         )}
+      </div>
+
+      {/* Smoke Test (Quick Health Check) */}
+      <div className="test-section mt-4">
+        <div className="test-header">
+          <div className="test-title">
+            <span className="icon">🔬</span>
+            <span>Smoke Test (Health Check)</span>
+          </div>
+          <button
+            className="test-btn"
+            onClick={handleTestLLMHealth}
+            disabled={actionLoading === 'smoke-test' || !ollamaOn}
+            title="Quick 2+2 test to verify LLM is responding (works in browser mode)"
+          >
+            {actionLoading === 'smoke-test' ? '⏳' : '▶'}
+          </button>
+        </div>
+        <div className="test-placeholder text-sm text-gray-400">
+          {ollamaOn ? 'Quick sanity check: asks LLM "What is 2+2?" (HTTP direct, works everywhere)' : 'Start Ollama first'}
+        </div>
       </div>
 
       {/* Test Suite Library */}
