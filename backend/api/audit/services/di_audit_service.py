@@ -39,25 +39,28 @@ class DIAuditService:
         user_id: str,
         resource: str,
         result: str,
+        clinic_id: str | None = None,
         details: dict[str, Any] | None = None,
     ) -> str:
-        """Log an action to the audit trail.
+        """Log an action to the audit trail with multi-tenancy support.
 
         Args:
             action: Action performed (create, read, update, delete, export, etc.)
             user_id: User performing the action
             resource: Resource affected (session_id, file_path, etc.)
             result: Result of action (success, failure, etc.)
+            clinic_id: Clinic ID (multi-tenancy isolation)
             details: Additional context/details
 
         Returns:
             Audit log ID
         """
-        # Create audit record
+        # Create audit record with clinic_id
         audit_record: AuditLogDict = {
             "timestamp": datetime.now(UTC),
             "action": action,
             "user_id": user_id,
+            "clinic_id": clinic_id,
             "resource": resource,
             "result": result,
             "details": details or {},
@@ -66,12 +69,13 @@ class DIAuditService:
         # Store in repository
         audit_id = self.repository.create_audit_log(audit_record)
 
-        # Log the audit action itself
+        # Log the audit action itself (include clinic_id for forensics)
         self.logger.info(
             "AUDIT_LOG_CREATED",
             audit_id=audit_id,
             action=action,
             user_id=user_id,
+            clinic_id=clinic_id,
             resource=resource,
             result=result,
         )

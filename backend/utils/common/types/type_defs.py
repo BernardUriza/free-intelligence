@@ -51,11 +51,12 @@ class DiarizationChunkDict(TypedDict, total=False):
 
 
 class AuditLogDict(TypedDict, total=False):
-    """Audit log entry."""
+    """Audit log entry with multi-tenancy support."""
 
     timestamp: datetime
     action: str
     user_id: str
+    clinic_id: str | None  # Multi-tenancy: track which clinic performed action
     resource: str
     result: str
     details: dict[str, Any]
