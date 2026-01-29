@@ -11,7 +11,7 @@ Card: Backend Refactor Phase 4B - Complete Service Locator Elimination
 
 from pathlib import Path
 
-from backend.api.audit.repositories.audit_repository import AuditRepository
+from backend.repositories.audit_repository import AuditRepository
 from backend.api.audit.services.audit_service import AuditService
 from backend.utils.common.services.export_service import ExportService
 from backend.config import CORPUS_PATH

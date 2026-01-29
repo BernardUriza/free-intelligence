@@ -418,6 +418,15 @@ Requires environment variables:
 # Create app instance for uvicorn
 app = create_app()
 
+# Export public_app for dependency injection testing
+# This allows tests to override dependencies on the correct sub-app
+public_app = None
+for route in app.routes:
+    if hasattr(route, 'path') and route.path == '/api':
+        # Found the mounted public API sub-app
+        public_app = route.app
+        break
+
 
 if __name__ == "__main__":
     import argparse

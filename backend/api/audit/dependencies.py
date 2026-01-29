@@ -9,7 +9,7 @@ Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from backend.api.audit.repositories.audit_repository import AuditRepository
+from backend.repositories.audit_repository import AuditRepository
 from backend.api.audit.services.audit_service import AuditService
 from backend.config import CORPUS_PATH
 

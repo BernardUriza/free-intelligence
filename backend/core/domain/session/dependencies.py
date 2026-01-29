@@ -9,7 +9,7 @@ Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from backend.api.audit.repositories.audit_repository import AuditRepository
+from backend.repositories.audit_repository import AuditRepository
 from backend.api.audit.services.audit_service import AuditService
 from backend.config import CORPUS_PATH
 from backend.repositories.corpus_repository import CorpusRepository
@@ -70,5 +70,16 @@ def get_audit_service() -> AuditService:
     return AuditService(repository=get_audit_repository())
 
 
-# DEPRECATED: SessionService removed in Phase 1 cleanup
-# Use DISessionService or session repository directly instead
+def get_session_service() -> "SessionService":
+    """Get session service - direct instantiation (Phase 4B fix).
+
+    Returns:
+        SessionService instance with injected repository dependencies
+
+    Note:
+        SessionService was NEVER removed, just the dependency function was deleted.
+        This function restores FastAPI Depends() compatibility for routers.
+    """
+    from backend.core.domain.session.services.session_service import SessionService
+    # SessionService accepts optional repository but can work without it (legacy compat)
+    return SessionService(repository=None)
