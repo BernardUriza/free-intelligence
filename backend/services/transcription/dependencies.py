@@ -1,43 +1,56 @@
 """FastAPI Dependency Injection providers for Transcription service.
 
 Provides dependency injection for routers using FastAPI Depends().
+Direct repository instantiation - no service locator (Phase 4A).
 
 Author: Claude Code
 Created: 2026-01-28
-Card: Backend Refactor Phase 2.3 - Service Refactoring
+Updated: 2026-01-28 (Phase 4A - eliminate get_container, migrate to HDF5SessionRepository)
+Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from backend.container import get_container
+from pathlib import Path
+
+from backend.domain.session import ISessionRepository
+from backend.repositories.hdf5_session_repository import HDF5SessionRepository
 from backend.repositories.interfaces import ITaskRepository
-from backend.repositories.session_repository import SessionRepository
+from backend.repositories.task_repository import HDF5TaskRepository
 from backend.services.transcription.services.di_transcription_service import DITranscriptionService
 from backend.utils.common.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
+# Corpus path (centralized configuration)
+_CORPUS_PATH = Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5"
+
 
 def get_task_repository() -> ITaskRepository:
-    """Get task repository from container.
-
-    Note: This is a temporary bridge during migration.
-    Eventually, this will be replaced with direct repository instantiation.
+    """Get task repository - direct instantiation (Phase 4A).
 
     Returns:
-        ITaskRepository instance
+        ITaskRepository instance (HDF5TaskRepository)
+
+    Note:
+        No longer uses service locator (get_container).
+        Direct instantiation enables better testability and explicit dependencies.
+        Referential integrity (Fix #5) is OPTIONAL - only enabled when session_repository
+        is explicitly injected (not needed for most operations).
     """
-    return get_container().get_task_repository()
+    return HDF5TaskRepository(_CORPUS_PATH)
 
 
-def get_session_repository() -> SessionRepository:
-    """Get session repository from container.
-
-    Note: This is a temporary bridge during migration.
-    Returns the legacy SessionRepository (pre-Phase 3). Will be replaced
-    with HDF5SessionRepository in Phase 4B.
+def get_session_repository() -> ISessionRepository:
+    """Get session repository - direct instantiation (Phase 4A).
 
     Returns:
-        SessionRepository instance
+        ISessionRepository instance (HDF5SessionRepository with typed dataclasses from Fix #3)
+
+    Note:
+        Migrated from legacy SessionRepository to HDF5SessionRepository (Phase 3/4A).
+        Now uses typed dataclasses (SessionHDF5Metadata) instead of Dict[str, Any].
+        Cascade delete (Fix #5) is OPTIONAL - only enabled when task_repository
+        is explicitly injected (not needed for most operations).
     """
-    return get_container().get_session_repository()
+    return HDF5SessionRepository(_CORPUS_PATH)
 
 
 def get_transcription_logger() -> ILogger:
