@@ -28,11 +28,17 @@ class Auth0Provider(IAuthProvider):
         payload = await self.token_service.validate(token)
 
         roles = payload.roles or [UserRole.CLINICIAN]
+
+        # Extract clinic_id from Auth0 app_metadata (multi-tenancy)
+        app_metadata = payload.claims.get("app_metadata", {}) if payload.claims else {}
+        clinic_id = app_metadata.get("clinic_id")
+
         user = User(
             id=payload.subject,
             email=payload.email or "",
             roles=roles,
             tenant_id=payload.tenant_id,
+            clinic_id=clinic_id,
             metadata={"claims": payload.claims},
             name=payload.claims.get("name") if payload.claims else None,
             username=payload.claims.get("nickname") if payload.claims else payload.email,
@@ -41,6 +47,7 @@ class Auth0Provider(IAuthProvider):
         logger.debug(
             "auth0_token_validated",
             user_id=user.id,
+            clinic_id=clinic_id,
             roles=[role.value for role in user.roles],
             issuer=payload.issuer,
         )

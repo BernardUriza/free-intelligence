@@ -49,6 +49,7 @@ class User:
     email: str
     roles: list[UserRole] = field(default_factory=list)
     tenant_id: str | None = None
+    clinic_id: str | None = None  # Multi-tenancy: extracted from Auth0 app_metadata
     metadata: dict[str, Any] = field(default_factory=dict)
     name: str | None = None
     username: str | None = None

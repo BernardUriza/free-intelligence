@@ -272,9 +272,9 @@ async def upload_document(
         doc_origin = DocumentOrigin.ADMIN_UPLOAD
 
     # Create document with user isolation
-    # Single-tenant mode: clinic_id empty until multi-tenancy implemented
-    # Future: Extract from Auth0 user metadata (app_metadata.clinic_id)
-    clinic_id = ""  # Default for single-tenant deployment
+    # Multi-tenancy: Extract clinic_id from Auth0 app_metadata
+    # Falls back to empty string if clinic_id not set (backward compatibility)
+    clinic_id = current_user.clinic_id or ""
 
     try:
         metadata = create_document(
