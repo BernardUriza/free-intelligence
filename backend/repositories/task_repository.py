@@ -25,12 +25,11 @@ logger = get_logger(__name__)
 
 
 class HDF5TaskRepository(ITaskRepository):
-    """HDF5-based implementation of ITaskRepository.
+    """HDF5-based implementation of ITaskRepository (Fix #1).
 
-    Storage structure:
-        /tasks/{session_id}/{task_type}/
-            metadata (attrs): Task metadata as HDF5 attributes
-            chunks/ (group): Optional chunks storage
+    Storage-agnostic interface - internal HDF5 structure is an implementation detail.
+    Tasks are stored with metadata and optional chunks, organized by session and type.
+    Structure may change without affecting domain layer.
     """
 
     TASKS_GROUP = "tasks"

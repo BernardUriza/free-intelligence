@@ -16,14 +16,11 @@ from backend.domain.session import Session, ISessionRepository, SessionMapper, S
 
 
 class HDF5SessionRepository(ISessionRepository):
-    """Implements ISessionRepository using HDF5 task-based storage.
+    """Implements ISessionRepository using HDF5 task-based storage (Fix #1).
 
-    Storage structure:
-        /sessions/{session_id}/metadata.json
-        /sessions/{session_id}/transcription/...
-        /sessions/{session_id}/diarization/...
-        /sessions/{session_id}/soap/...
-        /sessions/{session_id}/orders/...
+    Storage-agnostic interface - internal HDF5 structure is an implementation detail.
+    Sessions are stored with metadata and associated tasks (transcription, diarization, etc.).
+    Structure may change without affecting domain layer.
     """
 
     def __init__(self, hdf5_path: str | Path):

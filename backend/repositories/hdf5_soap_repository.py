@@ -16,11 +16,11 @@ from backend.domain.soap import SOAPNote, ISOAPRepository, SOAPMapper, SOAPHDF5M
 
 
 class HDF5SOAPRepository(ISOAPRepository):
-    """Implements ISOAPRepository using HDF5 task-based storage.
+    """Implements ISOAPRepository using HDF5 task-based storage (Fix #1).
 
-    Storage structure:
-        /sessions/{session_id}/soap/{soap_id}/metadata.json
-        /sessions/{session_id}/soap/{soap_id}/content (HDF5 dataset)
+    Storage-agnostic interface - internal HDF5 structure is an implementation detail.
+    SOAP notes are stored with metadata and content (sections), associated with sessions.
+    Structure may change without affecting domain layer.
     """
 
     def __init__(self, hdf5_path: str | Path):

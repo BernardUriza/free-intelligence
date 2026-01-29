@@ -16,10 +16,11 @@ from backend.domain.order import Order, IOrderRepository, OrderMapper, OrderHDF5
 
 
 class HDF5OrderRepository(IOrderRepository):
-    """Implements IOrderRepository using HDF5 task-based storage.
+    """Implements IOrderRepository using HDF5 task-based storage (Fix #1).
 
-    Storage structure:
-        /sessions/{session_id}/orders/{order_id}/metadata.json
+    Storage-agnostic interface - internal HDF5 structure is an implementation detail.
+    Orders are stored with metadata and associated with sessions.
+    Structure may change without affecting domain layer.
     """
 
     def __init__(self, hdf5_path: str | Path):
