@@ -14,6 +14,7 @@ Card: Phase 3 - Monitor GPU Cache
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Optional
 
@@ -88,11 +89,14 @@ async def get_embedding_from_monitor(text: str, timeout: float = 5.0) -> np.ndar
     start_time = time.time()
 
     try:
+        # Get API key from environment (default for dev)
+        api_key = os.getenv("FI_MONITOR_API_KEY", "dev-key-local-only")
+
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
                 f"{monitor_url}/rag/embed",
                 json={"texts": [text]},
-                headers={"X-API-Key": "change-me-in-production"},  # TODO: From env
+                headers={"X-API-Key": api_key},
             )
             response.raise_for_status()
             data = response.json()

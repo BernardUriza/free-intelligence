@@ -4,12 +4,14 @@ Provides dependency injection for routers using FastAPI Depends().
 
 Author: Claude Code
 Created: 2026-01-28
+Updated: 2026-01-29 (TODO cleanup - use centralized config)
 Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
 
 from pathlib import Path
 
 from backend.api.audit.services.audit_service import AuditService
+from backend.config import CORPUS_PATH
 from backend.policy.policy_loader import PolicyLoader, get_policy_loader
 from backend.repositories.audit_repository import AuditRepository
 from backend.services.llm.services.di_chat_service import DIChatService
@@ -19,13 +21,12 @@ from backend.utils.common.logging.logger import get_logger
 
 
 def get_corpus_path() -> str:
-    """Get HDF5 corpus path.
+    """Get HDF5 corpus path from centralized config.
 
     Returns:
-        Path to corpus.h5 file
+        Path to corpus.h5 file as string
     """
-    # TODO: Get from config instead of hardcoded
-    return "storage/corpus.h5"
+    return str(CORPUS_PATH)
 
 
 def get_audit_repository() -> AuditRepository:

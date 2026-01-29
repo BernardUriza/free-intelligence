@@ -120,11 +120,9 @@ class SessionService:
         else:
             # Fallback: Direct HDF5 access (for backwards compatibility)
             from backend import SessionRepository
-            from pathlib import Path
+            from backend.config import CORPUS_PATH
 
-            # TODO: Get storage path from config
-            storage_path = Path("storage/corpus.h5")
-            repo = SessionRepository(storage_path)
+            repo = SessionRepository(CORPUS_PATH)
             sessions = repo.list_by_user_id(user_id=user_id, limit=100)
 
         logger.info(

@@ -5,6 +5,7 @@ Handles evidence pack operations with injected logger for better testability.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 from backend.evidence_pack import EvidencePackBuilder
@@ -75,7 +76,7 @@ class DIEvidenceService:
                 "pack_id": pack_id,
                 "metadata": pack_metadata,
                 "session_id": session_id,
-                "created_at": "2025-12-19T00:00:00Z",  # TODO: Use proper timestamp
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
 
             self.logger.info(
