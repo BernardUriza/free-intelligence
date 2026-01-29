@@ -31,11 +31,54 @@ if TYPE_CHECKING:
 
 from backend.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
 from backend.utils.common.logging.logger import get_logger
-# FIXME: Broken imports - Document, DocumentOrigin, DocumentStatus, create_document,
-# delete_document, get_document, list_documents, update_document_metadata, update_document_status
-# Use document repository from DI container
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
+
+# ============================================================================
+# CRITICAL: Document Repository NOT IMPLEMENTED
+# ============================================================================
+# TODO(document-repository): Implement complete document repository layer
+#
+# Required Components (Estimated: 8-10 hours):
+# 1. Domain Models:
+#    - Document (dataclass): doc_id, title, content, metadata
+#    - DocumentOrigin (enum): ADMIN_UPLOAD, API_UPLOAD, EMAIL_IMPORT
+#    - DocumentStatus (enum): PENDING, INDEXED, ERROR
+#    - DocumentChunk (dataclass): chunk_id, text, embedding
+#
+# 2. Repository Interface (IDocumentRepository):
+#    - create_document(content, metadata) -> Document
+#    - get_document(doc_id, include_content=False) -> Document | None
+#    - list_documents(status_filter=None, persona_filter=None) -> list[Document]
+#    - update_document_metadata(doc_id, **updates) -> Document | None
+#    - update_document_status(doc_id, status) -> bool
+#    - delete_document(doc_id) -> bool
+#    - save_document_text(doc_id, extracted_text) -> bool
+#    - save_document_chunks(doc_id, chunks: list[DocumentChunk]) -> bool
+#    - search_documents_by_embedding(query_embedding, top_k, persona_filter) -> list[tuple]
+#
+# 3. HDF5 Implementation (HDF5DocumentRepository):
+#    - Schema: /documents/{doc_id}/
+#      - content (bytes dataset)
+#      - metadata (JSON attrs)
+#      - text (string dataset)
+#      - chunks/{chunk_id} (embedding + text datasets)
+#    - Multi-tenancy: Filter by clinic_id in queries
+#    - Semantic search: Cosine similarity on embeddings
+#
+# 4. FastAPI Dependencies:
+#    - get_document_repository() -> IDocumentRepository
+#    - Inject into all endpoints below
+#
+# 5. Integration:
+#    - Replace direct function calls with repository.method() calls
+#    - Add clinic_id filtering (multi-tenancy)
+#    - Update tests to use repository mocks
+#
+# Status: ALL ENDPOINTS BELOW ARE BROKEN (functions don't exist)
+# Priority: Medium (Knowledge Base feature not critical for pilot)
+# Alternative: Use external document storage (S3 + Pinecone/Qdrant) instead of HDF5
+# ============================================================================
 
 logger = get_logger(__name__)
 router = APIRouter()
