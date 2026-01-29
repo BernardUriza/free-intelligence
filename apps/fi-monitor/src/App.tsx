@@ -394,25 +394,6 @@ export default function App({ setupState }: AppProps) {
               {actionLoading?.includes('rag') ? '...' : ragOn ? '■' : '▶'}
             </button>
           </div>
-
-          {/* Gateway */}
-          <div className={`service-card ${gatewayOn ? 'active' : ''} ${!ollamaOn ? 'disabled' : ''}`}>
-            <div className="service-icon">🚪</div>
-            <div className="service-body">
-              <div className="service-name">Gateway</div>
-              <div className={`service-status ${gatewayOn ? 'on' : 'off'}`}>
-                {gatewayOn ? '● Activo' : '○ Inactivo'}
-              </div>
-              <div className="text-xs text-app-text-dim">HTTP Router</div>
-            </div>
-            <button
-              className={`action-btn ${gatewayOn ? 'stop' : 'start'}`}
-              onClick={() => handleAction(gatewayOn ? 'gateway-stop' : 'gateway-start', gatewayOn ? 'stop_gateway' : 'start_gateway')}
-              disabled={!!actionLoading || !ollamaOn}
-            >
-              {actionLoading?.includes('gateway') ? '...' : gatewayOn ? '■' : '▶'}
-            </button>
-          </div>
         </div>
 
         {/* Model Manager (conditional) */}
