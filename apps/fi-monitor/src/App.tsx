@@ -328,22 +328,36 @@ export default function App({ setupState }: AppProps) {
         {/* Service Control Cards */}
         <div className="services-grid">
           {/* Ollama */}
-          <div className={`service-card ${ollamaOn ? 'active' : ''}`}>
-            <div className="service-icon">🦙</div>
-            <div className="service-body">
-              <div className="service-name">Ollama</div>
-              <div className={`service-status ${ollamaOn ? 'on' : 'off'}`}>
-                {ollamaOn ? '● Activo' : '○ Inactivo'}
+          <div className={`service-card ${ollamaOn ? 'active' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <div className="service-icon">🦙</div>
+              <div style={{ flex: 1 }}>
+                <div className="service-name">Ollama</div>
+                <div className={`service-status ${ollamaOn ? 'on' : 'off'}`}>
+                  {ollamaOn ? '● Activo' : '○ Inactivo'}
+                </div>
               </div>
+              <button
+                className={`action-btn ${ollamaOn ? 'stop' : 'start'}`}
+                onClick={() => handleAction(ollamaOn ? 'ollama-stop' : 'ollama-start', ollamaOn ? 'stop_ollama' : 'start_ollama')}
+                disabled={!!actionLoading}
+              >
+                {actionLoading?.includes('ollama') ? '...' : ollamaOn ? '■' : '▶'}
+              </button>
+            </div>
+
+            {/* Body */}
+            <div>
               {ollamaOn && status?.ollama_models && status.ollama_models.length > 0 && (
-                <div className="models">{status.ollama_models.slice(0, 2).join(', ')}</div>
+                <div className="models" style={{ marginBottom: '8px' }}>{status.ollama_models.slice(0, 2).join(', ')}</div>
               )}
               {ollamaOn && (
                 <button
                   className="models-btn"
                   onClick={() => setShowModelManager(!showModelManager)}
                   style={{
-                    marginTop: '8px',
+                    marginBottom: '8px',
                     padding: '4px 8px',
                     fontSize: '11px',
                     background: 'var(--surface)',
@@ -362,37 +376,36 @@ export default function App({ setupState }: AppProps) {
                 <LogsViewer serviceName="ollama" serviceDisplayName="Ollama" />
               )}
             </div>
-            <button
-              className={`action-btn ${ollamaOn ? 'stop' : 'start'}`}
-              onClick={() => handleAction(ollamaOn ? 'ollama-stop' : 'ollama-start', ollamaOn ? 'stop_ollama' : 'start_ollama')}
-              disabled={!!actionLoading}
-            >
-              {actionLoading?.includes('ollama') ? '...' : ollamaOn ? '■' : '▶'}
-            </button>
           </div>
 
           {/* RAG Service */}
-          <div className={`service-card ${ragOn ? 'active' : ''} ${!ollamaOn ? 'disabled' : ''}`}>
-            <div className="service-icon">🔍</div>
-            <div className="service-body">
-              <div className="service-name">RAG Service</div>
-              <div className={`service-status ${ragOn ? 'on' : 'off'}`}>
-                {ragOn ? '● Activo' : '○ Inactivo'}
+          <div className={`service-card ${ragOn ? 'active' : ''} ${!ollamaOn ? 'disabled' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <div className="service-icon">🔍</div>
+              <div style={{ flex: 1 }}>
+                <div className="service-name">RAG Service</div>
+                <div className={`service-status ${ragOn ? 'on' : 'off'}`}>
+                  {ragOn ? '● Activo' : '○ Inactivo'}
+                </div>
+                <div className="text-xs text-app-text-dim">GPU Embeddings</div>
               </div>
-              <div className="text-xs text-app-text-dim">GPU Embeddings</div>
+              <button
+                className={`action-btn ${ragOn ? 'stop' : 'start'}`}
+                onClick={() => handleAction(ragOn ? 'rag-stop' : 'rag-start', ragOn ? 'stop_rag_service' : 'start_rag_service')}
+                disabled={!!actionLoading || !ollamaOn}
+              >
+                {actionLoading?.includes('rag') ? '...' : ragOn ? '■' : '▶'}
+              </button>
+            </div>
 
+            {/* Body */}
+            <div>
               {/* Logs Viewer */}
               {ragOn && (
                 <LogsViewer serviceName="rag" serviceDisplayName="RAG Service" />
               )}
             </div>
-            <button
-              className={`action-btn ${ragOn ? 'stop' : 'start'}`}
-              onClick={() => handleAction(ragOn ? 'rag-stop' : 'rag-start', ragOn ? 'stop_rag_service' : 'start_rag_service')}
-              disabled={!!actionLoading || !ollamaOn}
-            >
-              {actionLoading?.includes('rag') ? '...' : ragOn ? '■' : '▶'}
-            </button>
           </div>
         </div>
 
