@@ -19,10 +19,10 @@ export function AccordionItem({
   className = '',
 }: AccordionItemProps) {
   return (
-    <div className={`accordion-item border rounded-lg mb-2 ${className}`}>
+    <div className={`accordion-item border dark:border-gray-700 rounded-lg mb-2 ${className}`}>
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       >
         <div className="flex items-center gap-2">
           {isExpanded ? (
@@ -35,7 +35,7 @@ export function AccordionItem({
         </div>
       </button>
       {isExpanded && (
-        <div className="p-3 border-t bg-gray-50">{children}</div>
+        <div className="p-3 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900">{children}</div>
       )}
     </div>
   );

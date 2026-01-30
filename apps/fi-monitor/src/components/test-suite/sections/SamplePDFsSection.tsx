@@ -32,20 +32,20 @@ interface SamplePDFsSectionProps {
 export function SamplePDFsSection({ onLoadSample, isProcessing }: SamplePDFsSectionProps) {
   return (
     <div className="sample-pdfs-section space-y-3">
-      <h4 className="text-sm font-medium text-gray-700">Or try a sample PDF:</h4>
+      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Or try a sample PDF:</h4>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {SAMPLE_PDFS.map((pdf) => (
           <button
             key={pdf.filename}
             onClick={() => onLoadSample(pdf.filename)}
             disabled={isProcessing}
-            className="flex flex-col items-start p-3 border rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors text-left"
+            className="flex flex-col items-start p-3 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors text-left"
           >
             <div className="flex items-center gap-2 mb-1">
               <FileText className="w-4 h-4 text-blue-600" />
               <span className="font-medium text-sm">{pdf.title}</span>
             </div>
-            <p className="text-xs text-gray-600">{pdf.description}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400">{pdf.description}</p>
           </button>
         ))}
       </div>

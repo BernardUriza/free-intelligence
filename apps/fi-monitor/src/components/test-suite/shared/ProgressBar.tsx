@@ -25,7 +25,7 @@ export function ProgressBar({
   return (
     <div className={`progress-bar-container ${className}`}>
       <div
-        className="w-full bg-gray-200 rounded-full overflow-hidden"
+        className="w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden"
         style={{ height }}
       >
         <div
@@ -34,7 +34,7 @@ export function ProgressBar({
         />
       </div>
       {showLabel && (
-        <span className="text-xs text-gray-600 mt-1">
+        <span className="text-xs text-gray-600 dark:text-gray-400 mt-1">
           {percentage}%
         </span>
       )}

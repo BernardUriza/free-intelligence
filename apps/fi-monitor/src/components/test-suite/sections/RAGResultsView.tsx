@@ -19,7 +19,7 @@ export function RAGResultsView({ results, isSearching }: RAGResultsViewProps) {
     return (
       <div className="rag-results-loading text-center py-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
-        <p className="mt-4 text-gray-600">Searching RAG...</p>
+        <p className="mt-4 text-gray-600 dark:text-gray-400">Searching RAG...</p>
       </div>
     );
   }
@@ -49,7 +49,7 @@ export function RAGResultsView({ results, isSearching }: RAGResultsViewProps) {
           return (
             <div
               key={idx}
-              className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow"
+              className="border dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-medium text-gray-500">
@@ -69,7 +69,7 @@ export function RAGResultsView({ results, isSearching }: RAGResultsViewProps) {
                   />
                 </div>
               </div>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                 {chunk.text}
               </p>
               {chunk.metadata?.source && (

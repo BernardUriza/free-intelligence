@@ -71,7 +71,7 @@ export function RAGTestingPanel() {
   };
 
   return (
-    <div className="rag-testing-panel space-y-6 p-6 bg-white rounded-lg shadow">
+    <div className="rag-testing-panel space-y-6 p-6 bg-white dark:bg-gray-800 rounded-lg shadow">
       {/* Service Status Header */}
       <div className="flex items-center justify-between border-b pb-4">
         <div>
@@ -99,7 +99,7 @@ export function RAGTestingPanel() {
             <button
               onClick={startService}
               disabled={isStarting}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <Power className="w-4 h-4" />
               {isStarting ? 'Starting...' : 'Start Service'}
@@ -116,7 +116,7 @@ export function RAGTestingPanel() {
           )}
           <button
             onClick={checkStatus}
-            className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+            className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
           >
             Refresh
           </button>
@@ -136,7 +136,7 @@ export function RAGTestingPanel() {
             <h3 className="text-lg font-semibold">1. Upload or Select a PDF</h3>
             <div className="flex items-center gap-4">
               <label className="flex-1">
-                <div className="flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
+                <div className="flex items-center gap-2 px-4 py-2 border-2 border-dashed dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
                   <Upload className="w-5 h-5 text-gray-600" />
                   <span className="text-sm text-gray-700">
                     {isPdfProcessing ? 'Processing...' : 'Upload Custom PDF'}
