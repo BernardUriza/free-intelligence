@@ -106,6 +106,32 @@ export function TestSuiteLibrary() {
     }
   }
 
+  const loadSamplePDF = async (filename: string, displayName: string) => {
+    try {
+      // Fetch the sample PDF from public folder
+      const response = await fetch(`/test-pdfs/${filename}`)
+      if (!response.ok) {
+        throw new Error(`Failed to load ${displayName}: ${response.statusText}`)
+      }
+
+      // Convert to Blob
+      const blob = await response.blob()
+
+      // Create File object (browsers need File, not just Blob)
+      const file = new File([blob], displayName, { type: 'application/pdf' })
+
+      // Set as selected PDF (ready to process)
+      setSelectedPDF(file)
+      setPdfProcessed(false)
+
+      console.log(`[RAG] ✅ Loaded sample PDF: ${displayName} (${(blob.size / 1024).toFixed(1)} KB)`)
+
+    } catch (err) {
+      console.error('[RAG] Failed to load sample PDF:', err)
+      alert(`Failed to load sample PDF: ${err}`)
+    }
+  }
+
   const processPDF = async () => {
     if (!selectedPDF) return
 
@@ -577,10 +603,56 @@ export function TestSuiteLibrary() {
             )}
           </div>
 
+          {/* Sample PDFs Section */}
+          {ragServiceStatus === 'running' && !selectedPDF && (
+            <div className="rag-sample-pdfs-section">
+              <h3>📚 Sample Medical Documents</h3>
+              <p className="sample-hint">Click to load a pre-loaded medical guideline for testing</p>
+              <div className="sample-pdfs-grid">
+                <button
+                  onClick={() => loadSamplePDF('01-hypertension-guide.pdf', 'Hypertension Quick Guide')}
+                  className="sample-pdf-btn"
+                  disabled={pdfProcessing}
+                >
+                  <span className="sample-icon">💊</span>
+                  <span className="sample-name">Hypertension Guide</span>
+                  <span className="sample-size">223 KB</span>
+                </button>
+                <button
+                  onClick={() => loadSamplePDF('02-diabetes-guidelines.pdf', 'Diabetes Guidelines')}
+                  className="sample-pdf-btn"
+                  disabled={pdfProcessing}
+                >
+                  <span className="sample-icon">🩸</span>
+                  <span className="sample-name">Diabetes Guidelines</span>
+                  <span className="sample-size">20 KB</span>
+                </button>
+                <button
+                  onClick={() => loadSamplePDF('03-covid-treatment-cdc.pdf', 'COVID-19 Treatment (CDC)')}
+                  className="sample-pdf-btn"
+                  disabled={pdfProcessing}
+                >
+                  <span className="sample-icon">🦠</span>
+                  <span className="sample-name">COVID Treatment</span>
+                  <span className="sample-size">670 KB</span>
+                </button>
+                <button
+                  onClick={() => loadSamplePDF('04-asthma-guidelines-nih.pdf', 'Asthma Guidelines (NIH)')}
+                  className="sample-pdf-btn"
+                  disabled={pdfProcessing}
+                >
+                  <span className="sample-icon">🫁</span>
+                  <span className="sample-name">Asthma Guidelines</span>
+                  <span className="sample-size">2.2 MB</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* PDF Upload Section */}
           {ragServiceStatus === 'running' && (
             <div className="rag-pdf-section">
-              <h3>📄 PDF Document</h3>
+              <h3>📄 {selectedPDF ? 'Current Document' : 'Upload Custom PDF'}</h3>
 
               {!selectedPDF ? (
                 <div className="pdf-upload-area">
@@ -594,7 +666,7 @@ export function TestSuiteLibrary() {
                   <label htmlFor="pdf-upload" className="pdf-upload-btn">
                     📁 Select PDF
                   </label>
-                  <p className="pdf-hint">Upload a medical document to query</p>
+                  <p className="pdf-hint">Or upload your own medical document</p>
                 </div>
               ) : (
                 <div className="pdf-selected">
