@@ -13,7 +13,7 @@ from typing import Any, Dict
 
 from backend.services.system.system_health_service import DISystemHealthService
 from backend.utils.common.logging.logger import get_logger
-from backend.utils.system.api.public.system.dependencies import get_system_health_service
+from backend.infrastructure.system.api.public.system.dependencies import get_system_health_service
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 

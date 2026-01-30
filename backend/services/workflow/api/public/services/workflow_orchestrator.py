@@ -22,7 +22,7 @@ from typing import Any
 from backend.infrastructure.workers.executor_pool import spawn_worker
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces.itask_repository import ITaskRepository
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)

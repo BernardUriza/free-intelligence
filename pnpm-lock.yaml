@@ -302,6 +302,9 @@ importers:
       '@tauri-apps/plugin-shell':
         specifier: ^2.3.4
         version: 2.3.4
+      lucide-react:
+        specifier: ^0.548.0
+        version: 0.548.0(react@18.3.1)
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -7513,6 +7516,10 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  lucide-react@0.548.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
 
   lucide-react@0.548.0(react@19.2.0):
     dependencies:

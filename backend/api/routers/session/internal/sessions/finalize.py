@@ -43,6 +43,7 @@ import tempfile
 from datetime import UTC, datetime
 from typing import Any
 
+from backend.api.audit.services.di_audit_service import get_audit_service
 from backend.models import EncryptionMetadata, Session
 from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.session_repository import SessionRepository
@@ -145,6 +146,7 @@ async def finalize_session(
     session_id: str,
     request: FinalizeSessionRequest | None = None,
     task_repo: ITaskRepository = Depends(get_task_repository),
+    audit_service=Depends(get_audit_service),
 ) -> FinalizeSessionResponse:
     """Finalize session with async encryption queueing (202 Accepted).
 
@@ -327,7 +329,13 @@ async def finalize_session(
                     "metadata": session_data,
                 },
             )
-            logger.info("SESSION_UPDATED", session_id=session_id)
+            audit_service.log_action(
+                action="session_updated",
+                user_id="system",  # TODO: Add current_user dependency for user tracking
+                clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
+                resource=session_id,
+                result="success"
+            )
         else:
             # Session doesn't exist, create it
             session_repo.create(
@@ -336,7 +344,13 @@ async def finalize_session(
                     "metadata": session_data,
                 }
             )
-            logger.info("SESSION_CREATED", session_id=session_id)
+            audit_service.log_action(
+                action="session_created",
+                user_id="system",  # TODO: Add current_user dependency for user tracking
+                clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
+                resource=session_id,
+                result="success"
+            )
 
         # Save 3 transcription sources to TRANSCRIPTION task (NEW schema)
         try:

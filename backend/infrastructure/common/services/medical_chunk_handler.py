@@ -31,7 +31,7 @@ from typing import Any
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
-from backend.utils.common.services.chunk_handler import ChunkHandler
+from backend.infrastructure.common.services.chunk_handler import ChunkHandler
 from backend.utils.common.validation import validate_dependency
 
 logger = get_logger(__name__)

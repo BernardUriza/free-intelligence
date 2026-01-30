@@ -15,6 +15,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List
 
+from backend.api.audit.services.di_audit_service import get_audit_service
 from backend.database import get_db_dependency
 from backend.models.db_models import Patient
 from backend.utils.common.logging.logger import get_logger
@@ -160,7 +161,11 @@ def validate_curp(request: CurpValidationRequest, db: Session = Depends(get_db_d
 
 
 @router.post("/", response_model=PatientResponse, status_code=201)
-def create_patient(patient: PatientCreate, db: Session = Depends(get_db_dependency)):
+def create_patient(
+    patient: PatientCreate,
+    db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
+):
     """Create a new patient record.
 
     Args:
@@ -193,7 +198,13 @@ def create_patient(patient: PatientCreate, db: Session = Depends(get_db_dependen
         db.commit()
         db.refresh(db_patient)
 
-        logger.info("PATIENT_CREATED", patient_id=db_patient.patient_id)
+        audit_service.log_action(
+            action="patient_created",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
+            resource=str(db_patient.patient_id),
+            result="success"
+        )
         return db_patient.to_dict()
 
     except HTTPException:
@@ -277,7 +288,10 @@ def get_patient(patient_id: str, db: Session = Depends(get_db_dependency)):
 
 @router.put("/{patient_id}", response_model=PatientResponse)
 def update_patient(
-    patient_id: str, updates: PatientUpdate, db: Session = Depends(get_db_dependency)
+    patient_id: str,
+    updates: PatientUpdate,
+    db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
 ):
     """Update patient record.
 
@@ -315,7 +329,14 @@ def update_patient(
         db.commit()
         db.refresh(patient)
 
-        logger.info("PATIENT_UPDATED", patient_id=patient_id, fields=list(update_data.keys()))
+        audit_service.log_action(
+            action="patient_updated",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
+            resource=patient_id,
+            result="success",
+            metadata={"fields_updated": list(update_data.keys())}
+        )
         return patient.to_dict()
 
     except HTTPException:
@@ -326,7 +347,11 @@ def update_patient(
 
 
 @router.delete("/{patient_id}", status_code=204)
-def delete_patient(patient_id: str, db: Session = Depends(get_db_dependency)):
+def delete_patient(
+    patient_id: str,
+    db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
+):
     """Delete patient record.
 
     Args:
@@ -344,7 +369,13 @@ def delete_patient(patient_id: str, db: Session = Depends(get_db_dependency)):
         db.delete(patient)
         db.commit()
 
-        logger.info("PATIENT_DELETED", patient_id=patient_id)
+        audit_service.log_action(
+            action="patient_deleted",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
+            resource=patient_id,
+            result="success"
+        )
         return None
 
     except HTTPException:

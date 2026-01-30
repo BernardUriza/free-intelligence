@@ -411,7 +411,7 @@ async def update_session(
         # Retrieve updated session
         session = await session_service.get_session_info(session_id)
 
-        # Log audit trail
+        # Log audit trail (already using AuditService - logger.info redundant removed)
         audit_service.log_action(
             action="session_updated",
             user_id=current_user.id,
@@ -422,8 +422,6 @@ async def update_session(
                 "interaction_count": request.interaction_count,
             },
         )
-
-        logger.info("SESSION_UPDATED", session_id=session_id, user_id=current_user.id)
 
         return SessionResponse(**session)  # type: ignore[arg-type]
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 import subprocess
 from typing import Any
 
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.validation import validate_dependency
 
 

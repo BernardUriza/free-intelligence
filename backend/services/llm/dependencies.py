@@ -16,7 +16,7 @@ from backend.policy.policy_loader import PolicyLoader, get_policy_loader
 from backend.repositories.audit_repository import AuditRepository
 from backend.services.llm.services.di_chat_service import DIChatService
 from backend.services.llm.services.persona_manager import PersonaManager
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
-import { invoke } from './lib/tauri-adapter'
+import { invoke, isTauriContext } from './lib/tauri-adapter'
 import App from './App'
 import { SetupWizard } from './SetupWizard'
 import './styles.css'
@@ -48,17 +48,46 @@ function Root() {
     );
   }
 
-  // Show wizard if setup not completed
-  if (!setupState?.completed) {
+  // 🔧 DEV MODE: Skip wizard en web browser para debugging con Chrome DevTools
+  const isWebBrowser = !isTauriContext();
+
+  // Show wizard if setup not completed (solo en Tauri)
+  if (!isWebBrowser && !setupState?.completed) {
     return <SetupWizard />;
   }
 
-  // Show main app if setup completed
-  return <App setupState={setupState} />;
+  // Show main app (en Tauri si setup OK, en Chrome siempre)
+  return <App setupState={setupState || {
+    completed: true,
+    ollamaInstalled: false,
+    pythonInstalled: false,
+    lastCheck: null,
+    skipped: true
+  }} />;
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <Root />
-  </React.StrictMode>,
-)
+// 🛡️ Singleton pattern: Evita crear múltiples roots durante HMR
+let root: ReturnType<typeof ReactDOM.createRoot> | null = null
+
+function renderApp() {
+  const container = document.getElementById('root')!
+
+  if (!root) {
+    root = ReactDOM.createRoot(container)
+  }
+
+  root.render(
+    <React.StrictMode>
+      <Root />
+    </React.StrictMode>
+  )
+}
+
+renderApp()
+
+// HMR: Reutilizar root existente
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    renderApp()  // Re-render, NO re-create root
+  })
+}

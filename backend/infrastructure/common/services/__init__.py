@@ -24,7 +24,7 @@ from backend.api.audit.services.audit_service import AuditService
 from backend.core.domain.session.services.session_service import SessionService
 from backend.services.transcription.services.transcription_service import TranscriptionService
 from backend.services.workflow.services.triage_service import TriageService
-from backend.utils.common.services.export_service import ExportService
+from backend.infrastructure.common.services.export_service import ExportService
 
 __all__ = [
     "AuditService",

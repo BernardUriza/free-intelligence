@@ -32,15 +32,15 @@ def __getattr__(name: str):
 
         return init_logger_from_config
     elif name == "LLMCache":
-        from backend.utils.common.cache.cache import LLMCache
+        from backend.infrastructure.cache.cache import LLMCache
 
         return LLMCache
     elif name == "MetricsCollector":
-        from backend.utils.common.metrics.metrics import MetricsCollector
+        from backend.infrastructure.observability.metrics.metrics import MetricsCollector
 
         return MetricsCollector
     elif name == "get_container":
-        from backend.utils.common.infrastructure.container import get_container
+        from backend.infrastructure.common.container import get_container
 
         return get_container
     elif name == "load_config":

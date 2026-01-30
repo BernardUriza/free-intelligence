@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LLMProvider(str, Enum):
@@ -49,8 +49,7 @@ class LLMModel(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class LLMModelCreate(BaseModel):
@@ -67,8 +66,7 @@ class LLMModelCreate(BaseModel):
     size_bytes: int | None = Field(None, ge=0, description="Model size in bytes")
     ram_required_gb: float | None = Field(None, ge=0, description="Estimated RAM required in GB")
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class LLMModelUpdate(BaseModel):
@@ -84,8 +82,7 @@ class LLMModelUpdate(BaseModel):
     size_bytes: int | None = Field(None, ge=0, description="Model size in bytes")
     ram_required_gb: float | None = Field(None, ge=0, description="Estimated RAM required in GB")
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class LLMModelResponse(BaseModel):

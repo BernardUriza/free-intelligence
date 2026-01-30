@@ -16,7 +16,7 @@ from backend.repositories.hdf5_session_repository import HDF5SessionRepository
 from backend.repositories.interfaces import ITaskRepository
 from backend.repositories.task_repository import HDF5TaskRepository
 from backend.services.transcription.services.di_transcription_service import DITranscriptionService
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 from backend.config import CORPUS_PATH
 

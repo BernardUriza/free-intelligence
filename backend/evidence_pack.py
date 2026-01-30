@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backend.utils.common.infrastructure.evidence_pack import (
+from backend.infrastructure.common.evidence_pack import (
     EvidencePackBuilder,
     create_evidence_pack_from_sources,
 )

@@ -11,7 +11,7 @@ from typing import Any
 
 from backend.repositories import AuditRepository
 from backend.utils.coder.utils.type_defs import AuditLogDict
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 
 
 class DIAuditService:

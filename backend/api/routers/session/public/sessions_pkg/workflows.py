@@ -10,7 +10,7 @@ from backend.validators import validate_session_id
 from fastapi import APIRouter, Depends, HTTPException, status
 
 if TYPE_CHECKING:
-    from backend.utils.common.api.public.models import (
+    from backend.infrastructure.common.api.public.models import (
         CheckpointRequest,
         CheckpointResponse,
         FinalizeSessionRequest,
@@ -232,7 +232,7 @@ async def finalize_session_workflow(
             result_dict: dict[str, Any] = result  # type: ignore[name-defined]
         else:
             result_dict = result.model_dump()
-        from backend.utils.common.api.public.models import FinalizeSessionResponse
+        from backend.infrastructure.common.api.public.models import FinalizeSessionResponse
 
         return FinalizeSessionResponse(**result_dict)
     except HTTPException:
@@ -275,7 +275,7 @@ async def checkpoint_session_workflow(
             result_dict: dict[str, Any] = result  # type: ignore[name-defined]
         else:
             result_dict = result.model_dump()
-        from backend.utils.common.api.public.models import CheckpointResponse
+        from backend.infrastructure.common.api.public.models import CheckpointResponse
 
         return CheckpointResponse(**result_dict)
     except HTTPException:

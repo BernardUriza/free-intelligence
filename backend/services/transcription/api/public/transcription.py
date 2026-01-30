@@ -20,7 +20,7 @@ from backend.container import get_container
 import json
 
 import h5py
-from backend.utils.common.infrastructure.dependencies import get_transcription_service
+from backend.infrastructure.common.dependencies import get_transcription_service
 from backend.utils.common.logging.logger import get_logger
 from backend.services.transcription.services.transcription_service import TranscriptionService
 from backend.services.transcription.services.validators import (
@@ -179,7 +179,7 @@ async def stream_chunk(
 
     try:
         # 1. Get handler based on mode (Strategy Pattern)
-        from backend.utils.common.services.chunk_handler_factory import get_chunk_handler
+        from backend.infrastructure.common.services.chunk_handler_factory import get_chunk_handler
 
         handler = get_chunk_handler(mode)
 
@@ -339,7 +339,7 @@ async def get_job_status(
         mode = "chat" if session_id.startswith("chat_") else "medical"
 
         # Get handler and delegate
-        from backend.utils.common.services.chunk_handler_factory import get_chunk_handler
+        from backend.infrastructure.common.services.chunk_handler_factory import get_chunk_handler
 
         handler = get_chunk_handler(mode)
         status_dict = await handler.get_session_status(session_id)

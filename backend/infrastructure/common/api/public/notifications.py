@@ -14,7 +14,7 @@ from typing import Annotated
 
 from backend.database import get_db
 from backend.utils.common.logging.logger import get_logger
-from backend.utils.common.services.notifications import (
+from backend.infrastructure.common.services.notifications import (
     NotificationContext,
     NotificationService,
     NotificationType,
@@ -284,7 +284,7 @@ async def schedule_reminders(
     Note: This is a placeholder endpoint. In production, integrate with
     a job scheduler (APScheduler, Celery Beat, AWS EventBridge).
     """
-    from backend.utils.common.services.notifications import schedule_appointment_reminders
+    from backend.infrastructure.common.services.notifications import schedule_appointment_reminders
 
     context = NotificationContext(
         patient_name=request.patient_name,

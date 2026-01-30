@@ -17,30 +17,30 @@ from typing import TYPE_CHECKING, Any
 # backend.logger -> utils.common.logger -> container
 # Logger is accessed via get_logger() function call below
 from backend.repositories import AuditRepository, CorpusRepository, SessionRepository
-from backend.utils.common.interfaces.ievent_bus import IEventBus
+from backend.infrastructure.interfaces.ievent_bus import IEventBus
 
 # Import interfaces and implementations for DI
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.repositories.interfaces import ITaskRepository
 
 # NOTE: HDF5TaskRepository was removed during fi_coder refactor
 # Using adapter that wraps functional task_repository module
-from backend.utils.common.utils.event_bus import InMemoryEventBus
-from backend.utils.common.utils.structured_logger import StructuredLogger
-from backend.utils.common.utils.task_repository_adapter import TaskRepositoryAdapter
+from backend.utils.common.event_bus import InMemoryEventBus
+from backend.utils.common.structured_logger import StructuredLogger
+from backend.utils.common.task_repository_adapter import TaskRepositoryAdapter
 from pathlib import Path
 
 # Type checking imports - Pylance uses these for type information
 if TYPE_CHECKING:
     from backend.api.audit.services.audit_service import AuditService
     # from backend.utils.coder.services.session_service import SessionService as DISessionService  # REMOVED - Phase 1 cleanup
-    from backend.utils.common.services.diagnostics_service import DiagnosticsService
-    from backend.utils.common.services.evidence_service import EvidenceService
-    from backend.utils.common.services.export_service import ExportService
-    from backend.utils.common.services.triage_service import TriageService
+    from backend.infrastructure.common.services.diagnostics_service import DiagnosticsService
+    from backend.infrastructure.common.services.evidence_service import EvidenceService
+    from backend.infrastructure.common.services.export_service import ExportService
+    from backend.infrastructure.common.services.triage_service import TriageService
     # from backend.core.domain.session.services.session_service import SessionService  # REMOVED - Phase 1 cleanup
     from backend.infrastructure.storage.services.corpus_service import CorpusService
-    from backend.utils.system.services.system_health_service import SystemHealthService
+    from backend.infrastructure.system.services.system_health_service import SystemHealthService
     from backend.services.transcription.services.diarization_service import (
         DiarizationJobService,
         DiarizationService,
@@ -85,7 +85,7 @@ else:
     # from backend.core.domain.session.services.di_session_service import (  # REMOVED - Phase 1 cleanup
     #     SessionService as DISessionService,
     # )
-    from backend.utils.system.services.di_system_health_service import DISystemHealthService
+    from backend.infrastructure.system.services.di_system_health_service import DISystemHealthService
 
     DITranscriptionService = type("DITranscriptionService", (), {})  # type: ignore[assignment,misc]
 
@@ -292,7 +292,7 @@ class DIContainer:
         if self._diarization_job_service is None:
             try:
                 import os
-                from backend.utils.common.services.diarization.job_service import (
+                from backend.infrastructure.common.services.diarization.job_service import (
                     DiarizationJobService,
                 )
 

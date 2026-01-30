@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from ..database import cleanup_old_records, get_db_stats
 from ..logger import get_llm_logger
@@ -32,8 +32,7 @@ class CallResponse(BaseModel):
     session_id: str | None = None
     persona: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StatsResponse(BaseModel):

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from backend.repositories.task_repository import HDF5TaskRepository
-from backend.utils.common.interfaces.itask_repository import ITaskRepository
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 
 
 class TaskRepositoryAdapter(ITaskRepository):

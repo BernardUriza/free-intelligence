@@ -42,7 +42,7 @@ CreateSessionRequest = sessions_router.CreateSessionRequest
 UpdateSessionRequest = sessions_router.UpdateSessionRequest
 
 # Import auth domain (safe, no circular deps)
-from backend.core.infrastructure.auth.domain import User, UserRole
+from backend.infrastructure.auth.domain import User, UserRole
 
 
 # ============================================================================

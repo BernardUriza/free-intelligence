@@ -1,10 +1,10 @@
 """Dependency injection container.
 
-Re-exports from backend.utils.common.infrastructure.container for backward compatibility.
+Re-exports from backend.infrastructure.common.container for backward compatibility.
 """
 
 from __future__ import annotations
 
-from backend.utils.common.infrastructure.container import get_container
+from backend.infrastructure.common.container import get_container
 
 __all__ = ["get_container"]

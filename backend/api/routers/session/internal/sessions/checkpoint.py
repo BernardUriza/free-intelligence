@@ -28,7 +28,7 @@ from backend.core.domain.session.dependencies import get_task_repository
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
-from backend.utils.common.services.checkpoint import (
+from backend.infrastructure.common.services.checkpoint import (
     CheckpointError,
     CheckpointRequest,
     NoChunksToProcessError,

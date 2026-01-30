@@ -16,7 +16,7 @@ from backend.services.transcription.services.di_transcription_service import (
 from backend.repositories.interfaces import ITaskRepository
 from backend.repositories.session_repository import SessionRepository
 from backend.utils.coder.utils.exceptions import SessionNotFoundError
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 
 
 @pytest.fixture

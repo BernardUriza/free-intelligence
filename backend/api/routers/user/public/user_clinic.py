@@ -10,6 +10,9 @@ Created: 2025-12-11
 from __future__ import annotations
 
 from backend.database import get_db_dependency
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
+from backend.infrastructure.auth.utils import require_superadmin, validate_clinic_access
 from backend.models.checkin_models import Clinic, ClinicRole, Doctor
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -71,20 +74,20 @@ class LinkToClinicResponse(BaseModel):
 
 @router.get("/clinic-membership", response_model=None)
 async def get_clinic_membership(
-    auth0_user_id: str,
-    email: str | None = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> ClinicMembershipResponse | dict:
     """Get current user's clinic membership.
 
     Args:
-        auth0_user_id: Auth0 user ID (from frontend)
-        email: User's email (optional, for display)
+        current_user: Authenticated user from JWT token
         db: Database session
 
     Returns:
         Clinic membership info or empty dict if not linked
     """
+    # SECURITY: Use authenticated user ID from JWT token (not user-provided)
+    auth0_user_id = current_user.id
 
     logger.info(
         "GET_CLINIC_MEMBERSHIP",
@@ -125,8 +128,7 @@ async def get_clinic_membership(
 @router.post("/link-to-clinic")
 async def link_to_clinic(
     request: LinkToClinicRequest,
-    auth0_user_id: str,
-    email: str | None = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> LinkToClinicResponse:
     """Link authenticated user to a clinic.
@@ -136,13 +138,18 @@ async def link_to_clinic(
 
     Args:
         request: Clinic and profile info
-        auth0_user_id: Auth0 user ID (from frontend)
-        email: User's email (from frontend)
+        current_user: Authenticated user from JWT token
         db: Database session
 
     Returns:
         Success status and membership info
     """
+    # SECURITY: Use authenticated user ID from JWT token (not user-provided)
+    auth0_user_id = current_user.id
+    email = current_user.email
+
+    # SECURITY: Validate user can join requested clinic
+    validate_clinic_access(request.clinic_id, current_user)
 
     logger.info(
         "LINK_TO_CLINIC_START",
@@ -216,7 +223,7 @@ async def link_to_clinic(
 
 @router.delete("/unlink-from-clinic", response_model=None)
 async def unlink_from_clinic(
-    auth0_user_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> dict:
     """Unlink user from their clinic.
@@ -225,12 +232,14 @@ async def unlink_from_clinic(
     Does NOT delete appointments or other related data.
 
     Args:
-        auth0_user_id: Auth0 user ID
+        current_user: Authenticated user from JWT token
         db: Database session
 
     Returns:
         Success message
     """
+    # SECURITY: Use authenticated user ID from JWT token (not user-provided)
+    auth0_user_id = current_user.id
 
     logger.info(
         "UNLINK_FROM_CLINIC_START",
@@ -303,6 +312,7 @@ class AdminUserClinicInfo(BaseModel):
 @router.post("/admin/assign-to-clinic")
 async def admin_assign_user_to_clinic(
     request: AdminLinkUserRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> LinkToClinicResponse:
     """Admin endpoint to assign any user to a clinic.
@@ -312,16 +322,18 @@ async def admin_assign_user_to_clinic(
 
     Args:
         request: User and clinic info
+        current_user: Authenticated user (must be SUPERADMIN)
         db: Database session
 
     Returns:
         Success status and membership info
-
-    Note: Authorization check should be done at API gateway/middleware level
     """
+    # SECURITY: Require SUPERADMIN role
+    require_superadmin(current_user)
 
     logger.info(
         "ADMIN_ASSIGN_USER_START",
+        admin_user_id=current_user.id,
         target_auth0_user_id=request.auth0_user_id,
         clinic_id=request.clinic_id,
         role=request.role,
@@ -361,6 +373,7 @@ async def admin_assign_user_to_clinic(
 
         logger.info(
             "ADMIN_ASSIGN_USER_UPDATED",
+            admin_user_id=current_user.id,
             target_auth0_user_id=request.auth0_user_id,
             doctor_id=str(doctor.doctor_id),
             clinic_id=request.clinic_id,
@@ -388,6 +401,7 @@ async def admin_assign_user_to_clinic(
 
         logger.info(
             "ADMIN_ASSIGN_USER_CREATED",
+            admin_user_id=current_user.id,
             target_auth0_user_id=request.auth0_user_id,
             doctor_id=str(doctor.doctor_id),
             clinic_id=request.clinic_id,
@@ -415,20 +429,25 @@ async def admin_assign_user_to_clinic(
 @router.delete("/admin/unassign-user/{auth0_user_id}", response_model=None)
 async def admin_unassign_user_from_clinic(
     auth0_user_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> dict:
     """Admin endpoint to remove user from their clinic.
 
     Args:
         auth0_user_id: Auth0 user ID to unassign
+        current_user: Authenticated user (must be SUPERADMIN)
         db: Database session
 
     Returns:
         Success message
     """
+    # SECURITY: Require SUPERADMIN role
+    require_superadmin(current_user)
 
     logger.info(
         "ADMIN_UNASSIGN_USER_START",
+        admin_user_id=current_user.id,
         target_auth0_user_id=auth0_user_id,
     )
 
@@ -449,6 +468,7 @@ async def admin_unassign_user_from_clinic(
 
     logger.info(
         "ADMIN_UNASSIGN_USER_SUCCESS",
+        admin_user_id=current_user.id,
         target_auth0_user_id=auth0_user_id,
         clinic_id=clinic_id,
     )
@@ -463,17 +483,27 @@ async def admin_unassign_user_from_clinic(
 @router.get("/admin/user-clinic-info/{auth0_user_id}")
 async def admin_get_user_clinic_info(
     auth0_user_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> AdminUserClinicInfo:
     """Get clinic assignment info for a specific user.
 
     Args:
-        auth0_user_id: Auth0 user ID
+        auth0_user_id: Auth0 user ID to query
+        current_user: Authenticated user (must be SUPERADMIN)
         db: Database session
 
     Returns:
         User's clinic assignment info
     """
+    # SECURITY: Require SUPERADMIN role
+    require_superadmin(current_user)
+
+    logger.info(
+        "ADMIN_GET_USER_CLINIC_INFO",
+        admin_user_id=current_user.id,
+        target_auth0_user_id=auth0_user_id,
+    )
 
     doctor = db.query(Doctor).filter(Doctor.auth0_user_id == auth0_user_id).first()
 

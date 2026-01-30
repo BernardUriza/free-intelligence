@@ -16,7 +16,7 @@ from backend.services.llm.services.di_chat_service import (
 from backend.services.llm.services.persona_manager import PersonaManager
 from backend.api.audit.services.audit_service import AuditService
 from backend.policy.policy_loader import PolicyLoader
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 
 
 @pytest.fixture

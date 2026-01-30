@@ -25,6 +25,10 @@ from backend.core.domain.clinic.services.doctor_limits import (
     get_doctor_limit_info,
     validate_can_add_doctor,
 )
+from backend.api.audit.services.di_audit_service import get_audit_service
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User, UserRole
+from backend.infrastructure.auth.utils import require_superadmin, validate_clinic_access
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -229,28 +233,51 @@ def list_clinics(
     skip: int = 0,
     limit: int = 50,
     active_only: bool = True,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> ClinicListResponse:
-    """List all clinics with pagination."""
-    query = db.query(Clinic)
-    if active_only:
-        query = query.filter(Clinic.is_active.is_(True))
+    """List clinics (SUPERADMIN sees all, regular users see only their clinic)."""
+    # SUPERADMIN: See all clinics
+    if UserRole.SUPERADMIN in current_user.roles:
+        query = db.query(Clinic)
+        if active_only:
+            query = query.filter(Clinic.is_active.is_(True))
 
-    total = query.count()
-    clinics = query.offset(skip).limit(limit).all()
+        total = query.count()
+        clinics = query.offset(skip).limit(limit).all()
 
+        return ClinicListResponse(
+            clinics=[model_to_response(c, ClinicResponse) for c in clinics],
+            total=total,
+        )
+
+    # Regular user: Only their clinic
+    if not current_user.clinic_id:
+        raise HTTPException(
+            status_code=403,
+            detail="User has no clinic assigned. Create a clinic first."
+        )
+
+    clinic = db.query(Clinic).filter(Clinic.clinic_id == current_user.clinic_id).first()
+    if not clinic:
+        raise HTTPException(status_code=404, detail="Clinic not found")
+
+    # Return as list (consistent API)
     return ClinicListResponse(
-        clinics=[model_to_response(c, ClinicResponse) for c in clinics],
-        total=total,
+        clinics=[model_to_response(clinic, ClinicResponse)],
+        total=1,
     )
 
 
 @router.get("/{clinic_id}", response_model=ClinicResponse)
 def get_clinic(
     clinic_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> ClinicResponse:
     """Get a clinic by ID."""
+    validate_clinic_access(clinic_id, current_user)
+
     clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
     if not clinic:
         raise HTTPException(status_code=404, detail="Clinic not found")
@@ -258,17 +285,39 @@ def get_clinic(
 
 
 @router.post("", response_model=ClinicResponse, status_code=201)
-def create_clinic(
+async def create_clinic(
     request: ClinicCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> ClinicResponse:
-    """Create a new clinic."""
+    """Create a new clinic (self-service - any authenticated user can create)."""
+    # Optional: Validate user doesn't already have a clinic (remove if multi-clinic allowed)
+    if current_user.clinic_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"User already assigned to clinic '{current_user.clinic_id}'. Cannot create multiple clinics."
+        )
+
+    # Create clinic
     clinic = Clinic(**request.model_dump())
     db.add(clinic)
     db.commit()
     db.refresh(clinic)
 
-    logger.info("CLINIC_CREATED", clinic_id=str(clinic.clinic_id), name=clinic.name)
+    # Auto-update creator's Auth0 app_metadata.clinic_id
+    from backend.infrastructure.auth.infrastructure.auth0.management_api import get_auth0_management_api
+    auth0_api = get_auth0_management_api()
+    await auth0_api.update_user_app_metadata(
+        user_id=current_user.id,
+        app_metadata={"clinic_id": str(clinic.clinic_id)}
+    )
+
+    logger.info(
+        "CLINIC_CREATED",
+        clinic_id=str(clinic.clinic_id),
+        name=clinic.name,
+        creator_user_id=current_user.id
+    )
     return model_to_response(clinic, ClinicResponse)
 
 
@@ -276,9 +325,13 @@ def create_clinic(
 def update_clinic(
     clinic_id: str,
     request: ClinicUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
 ) -> ClinicResponse:
     """Update a clinic."""
+    validate_clinic_access(clinic_id, current_user, action="update clinic")
+
     clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
     if not clinic:
         raise HTTPException(status_code=404, detail="Clinic not found")
@@ -291,16 +344,26 @@ def update_clinic(
     db.commit()
     db.refresh(clinic)
 
-    logger.info("CLINIC_UPDATED", clinic_id=clinic_id)
+    audit_service.log_action(
+        action="clinic_updated",
+        user_id=current_user.id,
+        clinic_id=current_user.clinic_id or clinic_id,
+        resource=clinic_id,
+        result="success"
+    )
     return model_to_response(clinic, ClinicResponse)
 
 
 @router.delete("/{clinic_id}", status_code=204)
 def delete_clinic(
     clinic_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
 ) -> None:
     """Soft delete a clinic (set is_active=False)."""
+    validate_clinic_access(clinic_id, current_user, action="delete clinic")
+
     clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
     if not clinic:
         raise HTTPException(status_code=404, detail="Clinic not found")
@@ -309,7 +372,13 @@ def delete_clinic(
     clinic.updated_at = datetime.now(UTC)
     db.commit()
 
-    logger.info("CLINIC_DELETED", clinic_id=clinic_id)
+    audit_service.log_action(
+        action="clinic_deleted",
+        user_id=current_user.id,
+        clinic_id=current_user.clinic_id or clinic_id,
+        resource=clinic_id,
+        result="success"
+    )
 
 
 # =============================================================================
@@ -323,9 +392,12 @@ def list_doctors(
     skip: int = 0,
     limit: int = 50,
     active_only: bool = True,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> DoctorListResponse:
     """List doctors for a clinic."""
+    validate_clinic_access(clinic_id, current_user)
+
     # Verify clinic exists
     clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
     if not clinic:
@@ -348,9 +420,12 @@ def list_doctors(
 def get_doctor(
     clinic_id: str,
     doctor_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> DoctorResponse:
     """Get a doctor by ID."""
+    validate_clinic_access(clinic_id, current_user)
+
     doctor = (
         db.query(Doctor)
         .filter(Doctor.clinic_id == clinic_id, Doctor.doctor_id == doctor_id)
@@ -365,9 +440,12 @@ def get_doctor(
 def create_doctor(
     clinic_id: str,
     request: DoctorCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> DoctorResponse:
     """Create a new doctor for a clinic."""
+    validate_clinic_access(clinic_id, current_user, action="create doctor")
+
     # Verify clinic exists (with subscription for limit validation)
     clinic = (
         db.query(Clinic)
@@ -396,6 +474,7 @@ def create_doctor(
         doctor_id=str(doctor.doctor_id),
         clinic_id=clinic_id,
         name=doctor.display_name,
+        user_id=current_user.id,
     )
     return model_to_response(doctor, DoctorResponse)
 
@@ -405,9 +484,13 @@ def update_doctor(
     clinic_id: str,
     doctor_id: str,
     request: DoctorUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
 ) -> DoctorResponse:
     """Update a doctor."""
+    validate_clinic_access(clinic_id, current_user, action="update doctor")
+
     doctor = (
         db.query(Doctor)
         .filter(Doctor.clinic_id == clinic_id, Doctor.doctor_id == doctor_id)
@@ -424,7 +507,14 @@ def update_doctor(
     db.commit()
     db.refresh(doctor)
 
-    logger.info("DOCTOR_UPDATED", doctor_id=doctor_id, clinic_id=clinic_id)
+    audit_service.log_action(
+        action="doctor_updated",
+        user_id=current_user.id,
+        clinic_id=current_user.clinic_id or clinic_id,
+        resource=doctor_id,
+        result="success",
+        metadata={"clinic_id": clinic_id}
+    )
     return model_to_response(doctor, DoctorResponse)
 
 
@@ -432,9 +522,13 @@ def update_doctor(
 def delete_doctor(
     clinic_id: str,
     doctor_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
 ) -> None:
     """Soft delete a doctor."""
+    validate_clinic_access(clinic_id, current_user, action="delete doctor")
+
     doctor = (
         db.query(Doctor)
         .filter(Doctor.clinic_id == clinic_id, Doctor.doctor_id == doctor_id)
@@ -447,7 +541,14 @@ def delete_doctor(
     doctor.updated_at = datetime.now(UTC)
     db.commit()
 
-    logger.info("DOCTOR_DELETED", doctor_id=doctor_id, clinic_id=clinic_id)
+    audit_service.log_action(
+        action="doctor_deleted",
+        user_id=current_user.id,
+        clinic_id=current_user.clinic_id or clinic_id,
+        resource=doctor_id,
+        result="success",
+        metadata={"clinic_id": clinic_id}
+    )
 
 
 # =============================================================================
@@ -459,6 +560,7 @@ def delete_doctor(
 def create_appointment(
     clinic_id: str,
     request: AppointmentCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> AppointmentResponse:
     """
@@ -467,6 +569,8 @@ def create_appointment(
     The check-in code is valid from midnight of the appointment day
     until 2 hours after the scheduled time.
     """
+    validate_clinic_access(clinic_id, current_user, action="create appointment")
+
     # Verify clinic exists
     clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
     if not clinic:
@@ -561,9 +665,12 @@ def list_appointments(
     status: str | None = None,
     skip: int = 0,
     limit: int = 50,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> dict:
     """List appointments for a clinic with filters."""
+    validate_clinic_access(clinic_id, current_user)
+
     # Verify clinic exists
     clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
     if not clinic:
@@ -636,9 +743,12 @@ def update_appointment(
     clinic_id: str,
     appointment_id: str,
     request: AppointmentUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> AppointmentResponse:
     """Update an appointment (drag/drop, resize, edit)."""
+    validate_clinic_access(clinic_id, current_user, action="update appointment")
+
     # Fetch appointment
     appointment = (
         db.query(Appointment)
@@ -730,9 +840,12 @@ def update_appointment(
 def delete_appointment(
     clinic_id: str,
     appointment_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> None:
     """Soft delete an appointment."""
+    validate_clinic_access(clinic_id, current_user, action="delete appointment")
+
     # Fetch appointment
     appointment = (
         db.query(Appointment)
@@ -793,12 +906,15 @@ class DoctorOverrideUpdate(BaseModel):
 @router.get("/{clinic_id}/doctor-limits", response_model=DoctorLimitInfoResponse)
 def get_doctor_limits(
     clinic_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> DoctorLimitInfoResponse:
     """Get doctor limit information for a clinic.
 
     Returns current count, maximum allowed, and whether more doctors can be added.
     """
+    validate_clinic_access(clinic_id, current_user)
+
     clinic = (
         db.query(Clinic)
         .options(joinedload(Clinic.subscription))
@@ -816,14 +932,16 @@ def get_doctor_limits(
 def update_doctor_override(
     clinic_id: str,
     request: DoctorOverrideUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
-    # TODO: Add Auth0 JWT dependency with FI-superadmin role check
 ) -> ClinicResponse:
     """Update max_doctors_override for a clinic.
 
     Requires FI-superadmin role.
     Set to NULL to remove override and use plan limit.
     """
+    require_superadmin(current_user)
+
     clinic = db.query(Clinic).filter(Clinic.clinic_id == clinic_id).first()
     if not clinic:
         raise HTTPException(status_code=404, detail="Clinic not found")
@@ -839,6 +957,7 @@ def update_doctor_override(
         clinic_id=clinic_id,
         old_override=old_override,
         new_override=request.max_doctors_override,
+        user_id=current_user.id,
     )
 
     return model_to_response(clinic, ClinicResponse)

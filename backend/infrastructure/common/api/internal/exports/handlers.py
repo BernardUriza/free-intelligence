@@ -9,7 +9,7 @@ import json
 from datetime import UTC, datetime
 
 from backend.api.audit.services.audit_service import AuditService
-from backend.utils.common.services.export_service import ExportService
+from backend.infrastructure.common.services.export_service import ExportService
 from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse
 

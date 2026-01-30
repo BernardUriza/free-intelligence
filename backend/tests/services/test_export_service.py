@@ -15,7 +15,7 @@ pytestmark = pytest.mark.skip(
 )
 
 if TYPE_CHECKING:
-    from backend.utils.common.services.export_service import ExportService
+    from backend.infrastructure.common.services.export_service import ExportService
 
 
 class TestExportService:

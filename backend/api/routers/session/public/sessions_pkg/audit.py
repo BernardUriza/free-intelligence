@@ -6,7 +6,7 @@ from backend.container import get_container
 from backend.core.domain.session.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.infrastructure.auth import User, get_current_user
-from backend.utils.common.api.public.models import (
+from backend.infrastructure.common.api.public.models import (
     DoctorFeedbackRequest,
     DoctorFeedbackResponse,
 )
@@ -172,7 +172,7 @@ async def submit_doctor_feedback(
 ) -> DoctorFeedbackResponse:
     """Submit doctor's audit feedback for a session."""
     from backend.models.task_type import TaskType
-    from backend.utils.common.api.public.models import DoctorFeedbackResponse
+    from backend.infrastructure.common.api.public.models import DoctorFeedbackResponse
 
     try:
         logger.info(

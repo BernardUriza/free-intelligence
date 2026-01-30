@@ -1673,6 +1673,103 @@ struct BenchmarkHistory {
     results: Vec<BenchmarkSuite>,
 }
 
+// ============================================================================
+// Smoke Tests (Simple Health Checks)
+// ============================================================================
+
+/// Simple smoke test response - no complex metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SmokeTestResult {
+    success: bool,
+    latency_ms: u64,
+    response: String,
+    error: Option<String>,
+}
+
+/// Smoke test for LLM health (simple 2+2 question)
+#[tauri::command]
+async fn test_llm_health() -> Result<SmokeTestResult, String> {
+    use std::time::Instant;
+
+    // 1. Check if Ollama is running (fail fast)
+    if !check_ollama().await {
+        return Ok(SmokeTestResult {
+            success: false,
+            latency_ms: 0,
+            response: String::new(),
+            error: Some("Ollama is not running".to_string()),
+        });
+    }
+
+    // 2. Send simple test query
+    let start = Instant::now();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))  // Allow Ollama cold start (model loading)
+        .build()
+        .unwrap();
+
+    #[derive(Serialize)]
+    struct OllamaRequest {
+        model: String,
+        prompt: String,
+        stream: bool,
+    }
+
+    #[derive(Deserialize)]
+    struct OllamaResponse {
+        response: String,
+    }
+
+    let request = OllamaRequest {
+        model: "qwen2.5-coder:3b".to_string(),
+        prompt: "What is 2+2? Answer with just the number, nothing else.".to_string(),
+        stream: false,
+    };
+
+    match client
+        .post("http://localhost:11434/api/generate")
+        .json(&request)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let latency_ms = start.elapsed().as_millis() as u64;
+
+            match response.json::<OllamaResponse>().await {
+                Ok(ollama_res) => {
+                    let answer = ollama_res.response.trim();
+
+                    // 3. Validate response contains "4"
+                    let success = answer.contains("4");
+
+                    Ok(SmokeTestResult {
+                        success,
+                        latency_ms,
+                        response: answer.to_string(),
+                        error: if success {
+                            None
+                        } else {
+                            Some(format!("Expected '4' in response, got: {}", answer))
+                        },
+                    })
+                }
+                Err(e) => Ok(SmokeTestResult {
+                    success: false,
+                    latency_ms: start.elapsed().as_millis() as u64,
+                    response: String::new(),
+                    error: Some(format!("Failed to parse Ollama response: {}", e)),
+                }),
+            }
+        }
+        Err(e) => Ok(SmokeTestResult {
+            success: false,
+            latency_ms: start.elapsed().as_millis() as u64,
+            response: String::new(),
+            error: Some(format!("HTTP request failed: {}", e)),
+        }),
+    }
+}
+
 #[tauri::command]
 async fn is_autostart_enabled(app: tauri::AppHandle) -> Result<bool, String> {
     app.autolaunch()
@@ -2279,6 +2376,7 @@ fn main() {
             stop_tunnel,
             get_status,
             test_ollama,
+            test_llm_health,
             is_autostart_enabled,
             enable_autostart,
             disable_autostart,

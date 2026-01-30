@@ -8,7 +8,7 @@ Card: Backend Refactor Phase 4A - Eliminate Service Locator
 
 from backend.config import CORPUS_PATH
 from backend.services.memory.services.di_memory_service import DIMemoryService
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
 

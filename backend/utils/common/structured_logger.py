@@ -1,6 +1,6 @@
 """Concrete logger implementation."""
 
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
 

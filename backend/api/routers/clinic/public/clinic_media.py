@@ -24,8 +24,11 @@ import time
 import uuid
 from typing import Literal
 
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
+from backend.infrastructure.auth.utils import validate_clinic_access
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -180,8 +183,8 @@ async def upload_clinic_media(
     description: str | None = Form(None),
     duration: int = Form(15000),
     message_content: str | None = Form(None),
-    clinic_id: str | None = Form(None),
-    doctor_id: str | None = Form(None),
+    clinic_id_form: str | None = Form(None, alias="clinic_id"),
+    current_user: User = Depends(get_current_user),
 ) -> UploadMediaResponse:
     """
     Upload clinic media for TV display.
@@ -189,6 +192,19 @@ async def upload_clinic_media(
     For images/videos: Provide file
     For messages: Provide message_content (no file)
     """
+    # SECURITY: Validate user-provided clinic_id (prevent impersonation)
+    if clinic_id_form:
+        validate_clinic_access(clinic_id_form, current_user)
+        clinic_id = clinic_id_form
+    else:
+        # No clinic_id provided - use current_user's clinic
+        if not current_user.clinic_id:
+            raise HTTPException(
+                status_code=403,
+                detail="User has no clinic assigned. Cannot upload media.",
+            )
+        clinic_id = current_user.clinic_id
+
     try:
         media_id = str(uuid.uuid4())
 
@@ -206,7 +222,7 @@ async def upload_clinic_media(
                 title=title or "Mensaje Personalizado",
                 description=message_content,
                 duration=duration,
-                uploaded_by=doctor_id,
+                uploaded_by=current_user.id,
                 clinic_id=clinic_id,
             )
 
@@ -215,7 +231,7 @@ async def upload_clinic_media(
             logger.info(
                 "Uploaded clinic message",
                 media_id=media_id,
-                doctor_id=doctor_id,
+                user_id=current_user.id,
                 clinic_id=clinic_id,
             )
 
@@ -274,7 +290,7 @@ async def upload_clinic_media(
             file_path=safe_filename,
             file_size=len(contents),
             mime_type=file.content_type,
-            uploaded_by=doctor_id,
+            uploaded_by=current_user.id,
             clinic_id=clinic_id,
         )
 
@@ -285,7 +301,7 @@ async def upload_clinic_media(
             media_id=media_id,
             media_type=media_type,
             file_size=len(contents),
-            doctor_id=doctor_id,
+            user_id=current_user.id,
             clinic_id=clinic_id,
         )
 
@@ -315,6 +331,7 @@ async def upload_clinic_media(
 async def list_clinic_media(
     clinic_id: str | None = None,
     active_only: bool = True,
+    current_user: User = Depends(get_current_user),
 ) -> MediaListResponse:
     """
     List all clinic media content.
@@ -322,12 +339,23 @@ async def list_clinic_media(
     Filter by clinic_id if provided.
     Filter by is_active if active_only=True.
     """
+    # SECURITY: Validate clinic_id access
+    if clinic_id:
+        validate_clinic_access(clinic_id, current_user)
+    else:
+        # No clinic_id provided - use current_user's clinic
+        if not current_user.clinic_id:
+            raise HTTPException(
+                status_code=403,
+                detail="User has no clinic assigned.",
+            )
+        clinic_id = current_user.clinic_id
+
     try:
         media_list = list_all_media()
 
-        # Filter by clinic_id
-        if clinic_id:
-            media_list = [m for m in media_list if m.clinic_id == clinic_id]
+        # Filter by clinic_id (already validated above)
+        media_list = [m for m in media_list if m.clinic_id == clinic_id]
 
         # Filter by active status
         if active_only:
@@ -349,7 +377,11 @@ async def list_clinic_media(
     tags=["Clinic Media"],
     summary="Update media metadata",
 )
-async def update_clinic_media(media_id: str, request: UpdateMediaRequest) -> ClinicMediaMetadata:
+async def update_clinic_media(
+    media_id: str,
+    request: UpdateMediaRequest,
+    current_user: User = Depends(get_current_user),
+) -> ClinicMediaMetadata:
     """
     Update media metadata (title, description, duration, active status).
     """
@@ -360,6 +392,10 @@ async def update_clinic_media(media_id: str, request: UpdateMediaRequest) -> Cli
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Media {media_id} not found",
             )
+
+        # SECURITY: Validate user can access this media's clinic
+        if metadata.clinic_id:
+            validate_clinic_access(metadata.clinic_id, current_user)
 
         # Update fields
         if request.title is not None:
@@ -373,7 +409,13 @@ async def update_clinic_media(media_id: str, request: UpdateMediaRequest) -> Cli
 
         save_metadata(metadata)
 
-        logger.info("Updated clinic media", media_id=media_id, updates=request.model_dump())
+        logger.info(
+            "Updated clinic media",
+            media_id=media_id,
+            user_id=current_user.id,
+            clinic_id=metadata.clinic_id,
+            updates=request.model_dump(),
+        )
 
         return metadata
 
@@ -392,7 +434,10 @@ async def update_clinic_media(media_id: str, request: UpdateMediaRequest) -> Cli
     tags=["Clinic Media"],
     summary="Delete clinic media",
 )
-async def delete_clinic_media(media_id: str) -> dict:
+async def delete_clinic_media(
+    media_id: str,
+    current_user: User = Depends(get_current_user),
+) -> dict:
     """
     Delete clinic media and associated files.
     """
@@ -404,9 +449,18 @@ async def delete_clinic_media(media_id: str) -> dict:
                 detail=f"Media {media_id} not found",
             )
 
+        # SECURITY: Validate user can access this media's clinic
+        if metadata.clinic_id:
+            validate_clinic_access(metadata.clinic_id, current_user)
+
         delete_media_files(media_id)
 
-        logger.info("Deleted clinic media", media_id=media_id)
+        logger.info(
+            "Deleted clinic media",
+            media_id=media_id,
+            user_id=current_user.id,
+            clinic_id=metadata.clinic_id,
+        )
 
         return {"success": True, "message": f"Media {media_id} deleted successfully"}
 
@@ -430,7 +484,10 @@ async def delete_clinic_media(media_id: str) -> dict:
     **Data sovereignty**: Files served from local `storage/clinic_media/`
     """,
 )
-async def serve_clinic_media_file(filename: str) -> FileResponse:
+async def serve_clinic_media_file(
+    filename: str,
+    current_user: User = Depends(get_current_user),
+) -> FileResponse:
     """
     Serve media file by filename.
 
@@ -455,7 +512,20 @@ async def serve_clinic_media_file(filename: str) -> FileResponse:
                 detail=f"Media file not found: {filename}",
             )
 
-        logger.info("Serving media file", filename=filename, size=file_path.stat().st_size)
+        # SECURITY: Extract media_id from filename (format: {media_id}_{hash}.ext)
+        # and validate clinic access
+        media_id = filename.split("_")[0]  # Extract media_id prefix
+        metadata = load_metadata(media_id)
+        if metadata and metadata.clinic_id:
+            validate_clinic_access(metadata.clinic_id, current_user)
+
+        logger.info(
+            "Serving media file",
+            filename=filename,
+            user_id=current_user.id,
+            clinic_id=metadata.clinic_id if metadata else None,
+            size=file_path.stat().st_size,
+        )
 
         # FileResponse automatically detects content-type from extension
         return FileResponse(

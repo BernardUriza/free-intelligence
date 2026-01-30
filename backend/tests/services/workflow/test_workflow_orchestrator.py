@@ -13,7 +13,7 @@ from backend.services.workflow.api.public.services.workflow_orchestrator import 
     WorkflowOrchestrator,
 )
 from backend.repositories.interfaces import ITaskRepository
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 
 
 @pytest.fixture

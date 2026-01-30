@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from typing import Any, List
 
 import os
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 from pathlib import Path
 
 

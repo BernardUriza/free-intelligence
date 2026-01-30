@@ -9,9 +9,9 @@ Updated: 2026-01-28 (Phase 4B - eliminate get_container)
 Card: Backend Refactor Phase 4B - Complete Service Locator Elimination
 """
 
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
-from backend.utils.system.services.di_system_health_service import DISystemHealthService
+from backend.infrastructure.system.services.di_system_health_service import DISystemHealthService
 
 
 def get_system_logger() -> ILogger:

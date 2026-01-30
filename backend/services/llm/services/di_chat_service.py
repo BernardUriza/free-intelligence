@@ -33,7 +33,7 @@ from backend.providers.llm import llm_generate, sanitize_error_message
 from backend.services.assistant.api.public.assistant_websocket import broadcast_new_message
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.services.llm.services.persona_manager import PersonaManager
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
 # Stub trace store (Phase 3 will implement real trace storage)

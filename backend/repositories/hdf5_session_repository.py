@@ -13,7 +13,7 @@ from pathlib import Path
 import h5py
 
 from backend.domain.session import Session, ISessionRepository, SessionMapper, SessionHDF5Metadata
-from backend.utils.common.interfaces.itask_repository import ITaskRepository
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 
 
 class HDF5SessionRepository(ISessionRepository):

@@ -50,7 +50,7 @@ from backend.api.routers.prescription.public import prescriptions
 from backend.api.routers.session.public import sessions_list
 from backend.api.routers.session.public import sessions_pkg as sessions
 from backend.services.soap.api.public import soap
-from backend.utils.system.api.public import system
+from backend.infrastructure.system.api.public import system
 from backend.services.timeline.api.public import timeline
 
 # Import sub-routers (modular architecture following SOLIS pattern)

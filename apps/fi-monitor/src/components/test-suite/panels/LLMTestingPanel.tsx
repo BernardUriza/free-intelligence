@@ -223,7 +223,7 @@ export function LLMTestingPanel() {
       : tests.filter((t) => t.category === selectedCategory);
 
   return (
-    <div className="llm-testing-panel space-y-6 p-6 bg-white rounded-lg shadow">
+    <div className="llm-testing-panel space-y-6 p-6 bg-white dark:bg-gray-800 rounded-lg shadow">
       {/* Header */}
       <div className="flex items-center justify-between border-b pb-4">
         <div>
@@ -245,7 +245,7 @@ export function LLMTestingPanel() {
             <button
               onClick={runAllInCategory}
               disabled={bulkRunning}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <Play className="w-4 h-4" />
               {bulkRunning ? 'Running...' : `Run All (${filteredTests.length})`}
@@ -263,7 +263,7 @@ export function LLMTestingPanel() {
             className={`px-4 py-2 rounded-md whitespace-nowrap transition-colors ${
               selectedCategory === cat
                 ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >
             {cat === 'all'
@@ -278,7 +278,7 @@ export function LLMTestingPanel() {
 
       {/* Add Test Form */}
       {showAddForm && (
-        <div className="border rounded-lg p-4 bg-gray-50 space-y-4">
+        <div className="border dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-900 space-y-4">
           <h3 className="text-lg font-semibold">New Test</h3>
 
           <div>
@@ -368,7 +368,7 @@ export function LLMTestingPanel() {
             </button>
             <button
               onClick={() => setShowAddForm(false)}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+              className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
             >
               Cancel
             </button>
@@ -396,7 +396,7 @@ export function LLMTestingPanel() {
             return (
               <div
                 key={test.id}
-                className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow"
+                className="border dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow"
                 style={{ borderLeftWidth: '4px', borderLeftColor: CATEGORY_COLORS[test.category] }}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -418,7 +418,7 @@ export function LLMTestingPanel() {
                     {test.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded"
+                        className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs rounded"
                       >
                         {tag}
                       </span>
@@ -449,14 +449,14 @@ export function LLMTestingPanel() {
                   <button
                     onClick={() => runTest(test)}
                     disabled={isRunning || bulkRunning}
-                    className="flex-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-1 text-sm"
+                    className="flex-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center gap-1 text-sm"
                   >
                     {isRunning ? '⏳' : <Play className="w-3 h-3" />}
                     {isRunning ? 'Running...' : 'Run'}
                   </button>
                   <button
                     onClick={() => duplicateTest(test)}
-                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                    className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
                     title="Duplicate"
                   >
                     <Copy className="w-4 h-4" />

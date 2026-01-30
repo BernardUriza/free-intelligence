@@ -10,7 +10,7 @@ Card: Backend Refactor Phase 2.6 - Testing Strategy
 import pytest
 from unittest.mock import Mock, patch
 from backend.services.memory.services.di_memory_service import DIMemoryService
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 
 
 @pytest.fixture

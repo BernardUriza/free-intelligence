@@ -18,7 +18,7 @@ from typing import Literal
 
 import h5py
 from backend.services.llm.services.conversation_memory import get_memory_manager
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 from backend.utils.common.validation import validate_dependency
 

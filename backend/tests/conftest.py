@@ -14,7 +14,7 @@ import pytest
 from pathlib import Path
 
 if TYPE_CHECKING:
-    from backend.utils.common.infrastructure.container import DIContainer
+    from backend.infrastructure.common.container import DIContainer
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def di_container(temp_h5_file: Path) -> Generator[DIContainer]:
     """
     # Initialize HDF5 with minimal schema
     import h5py
-    from backend.utils.common.infrastructure.container import DIContainer
+    from backend.infrastructure.common.container import DIContainer
 
     with h5py.File(temp_h5_file, "w") as f:
         # Create minimal groups for testing

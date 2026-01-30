@@ -48,8 +48,8 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.utils.coder.api.internal.fi_coder import router as fi_coder_router
 
     # Common
-    from backend.utils.common.api.internal.exports import router as exports_router
-    from backend.utils.common.api.public import notifications
+    from backend.infrastructure.common.api.internal.exports import router as exports_router
+    from backend.infrastructure.common.api.public import notifications
 
     # KPIs
     from backend.services.kpi.api.internal.kpis import router as kpis_router
@@ -83,7 +83,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     )
 
     # System Resources
-    from backend.utils.system.api.public import system_resources
+    from backend.infrastructure.system.api.public import system_resources
 
     # Timeline
     from backend.services.timeline.api.internal.timeline import router as timeline_internal_router

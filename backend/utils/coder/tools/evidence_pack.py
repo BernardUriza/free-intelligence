@@ -3,4 +3,4 @@
 The actual evidence pack functionality is in backend.utils.common.infrastructure.evidence_pack.
 """
 
-from backend.utils.common.infrastructure.evidence_pack import *
+from backend.infrastructure.common.evidence_pack import *

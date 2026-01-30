@@ -135,8 +135,9 @@ class WorkflowRouter:
             user_intent=user_intent,
         )
 
-        # TODO: Call Haiku API for routing decision
-        # For now, use rule-based routing
+        # DECISION: Manual routing (doctor decides workflow)
+        # Rule-based routing provides recommendations, final decision is manual
+        # Skipping LLM routing to keep workflow simple and predictable
         decision = self._rule_based_routing(
             audio_duration_seconds=audio_duration_seconds,
             existing_tasks=existing_tasks or [],

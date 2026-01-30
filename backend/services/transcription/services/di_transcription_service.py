@@ -20,7 +20,7 @@ from backend.models.task_type import CHUNK_DURATION_SECONDS, TaskType
 from backend.repositories.interfaces import ITaskRepository
 from backend.repositories.session_repository import SessionRepository
 from backend.utils.coder.utils.exceptions import SessionNotFoundError
-from backend.utils.common.interfaces.ilogger import ILogger
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 from backend.utils.common.validation import validate_dependency
 

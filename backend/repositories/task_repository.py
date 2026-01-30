@@ -20,7 +20,7 @@ from typing import Any
 import h5py
 from backend.domain.session.repository import ISessionRepository
 from backend.utils.coder.utils.exceptions import SessionNotFoundError
-from backend.utils.common.interfaces.itask_repository import ITaskRepository
+from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)

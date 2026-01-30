@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { invoke, isTauriContext } from '../lib/tauri-adapter'
 
 interface EnvVar {
   key: string
@@ -95,6 +96,12 @@ export function EnvVarEditor() {
   const [hasChanges, setHasChanges] = useState(false)
 
   useEffect(() => {
+    // 🛡️ GUARD: Solo ejecutar en contexto Tauri
+    if (!isTauriContext()) {
+      console.warn('[EnvVarEditor] Not in Tauri context, disabling component')
+      setLoading(false)
+      return
+    }
     loadEnvVars()
   }, [])
 
@@ -169,6 +176,30 @@ export function EnvVarEditor() {
     } finally {
       setSaving(false)
     }
+  }
+
+  // 🛡️ UI degradada si no está en Tauri
+  if (!isTauriContext()) {
+    return (
+      <div className="env-var-editor-disabled">
+        <div style={{
+          padding: '32px',
+          textAlign: 'center',
+          color: 'var(--text-dim)',
+          background: 'rgba(244, 67, 54, 0.1)',
+          border: '1px solid rgba(244, 67, 54, 0.3)',
+          borderRadius: '8px'
+        }}>
+          <p style={{ fontSize: '48px', margin: '0 0 16px 0' }}>⚠️</p>
+          <p style={{ fontSize: '14px', fontWeight: '500', margin: '0 0 8px 0' }}>
+            Env var editor only available in Tauri app
+          </p>
+          <p style={{ fontSize: '12px', margin: '0', opacity: 0.7 }}>
+            This feature requires the native Tauri runtime
+          </p>
+        </div>
+      </div>
+    )
   }
 
   if (loading) {

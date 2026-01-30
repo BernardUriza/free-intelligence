@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import List
 
+from backend.api.audit.services.di_audit_service import get_audit_service
 from backend.database import get_db_dependency
 from backend.models.db_models import Provider
 from backend.utils.common.logging.logger import get_logger
@@ -66,7 +67,11 @@ class ProviderResponse(BaseModel):
 
 
 @router.post("/", response_model=ProviderResponse, status_code=201)
-def create_provider(provider: ProviderCreate, db: Session = Depends(get_db_dependency)):
+def create_provider(
+    provider: ProviderCreate,
+    db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
+):
     """Create a new provider record.
 
     Args:
@@ -104,7 +109,13 @@ def create_provider(provider: ProviderCreate, db: Session = Depends(get_db_depen
         db.commit()
         db.refresh(db_provider)
 
-        logger.info("PROVIDER_CREATED", provider_id=db_provider.provider_id)
+        audit_service.log_action(
+            action="provider_created",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
+            resource=str(db_provider.provider_id),
+            result="success"
+        )
         return db_provider.to_dict()
 
     except HTTPException:
@@ -185,7 +196,10 @@ def get_provider(provider_id: str, db: Session = Depends(get_db_dependency)):
 
 @router.put("/{provider_id}", response_model=ProviderResponse)
 def update_provider(
-    provider_id: str, updates: ProviderUpdate, db: Session = Depends(get_db_dependency)
+    provider_id: str,
+    updates: ProviderUpdate,
+    db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
 ):
     """Update provider record.
 
@@ -227,7 +241,14 @@ def update_provider(
         db.commit()
         db.refresh(provider)
 
-        logger.info("PROVIDER_UPDATED", provider_id=provider_id, fields=list(update_data.keys()))
+        audit_service.log_action(
+            action="provider_updated",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
+            resource=provider_id,
+            result="success",
+            metadata={"fields_updated": list(update_data.keys())}
+        )
         return provider.to_dict()
 
     except HTTPException:
@@ -238,7 +259,11 @@ def update_provider(
 
 
 @router.delete("/{provider_id}", status_code=204)
-def delete_provider(provider_id: str, db: Session = Depends(get_db_dependency)):
+def delete_provider(
+    provider_id: str,
+    db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
+):
     """Delete provider record.
 
     Args:
@@ -256,7 +281,13 @@ def delete_provider(provider_id: str, db: Session = Depends(get_db_dependency)):
         db.delete(provider)
         db.commit()
 
-        logger.info("PROVIDER_DELETED", provider_id=provider_id)
+        audit_service.log_action(
+            action="provider_deleted",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
+            resource=provider_id,
+            result="success"
+        )
         return None
 
     except HTTPException:
